@@ -2,7 +2,7 @@
 
 A C SDK for the AT Protocol.
 
-**Very early scaffold.** The XRPC transport is real; identity, crypto, and repo handling are stubbed with `TODO`s. Not usable for anything yet.
+**Early development.** XRPC transport and identity resolution are implemented; crypto and repo handling are stubbed with `TODO`s. Not usable for production yet.
 
 ## Overview
 
@@ -13,9 +13,9 @@ A C SDK for the AT Protocol.
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
-| `wolfram/identity.h`      | Stubbed     | DID method sniffing works; resolution is a TODO |
-| `wolfram/crypto.h`        | Stubbed     | Awaiting a secp256k1/P-256 backend               |
-| `wolfram/repo.h`          | Stubbed     | CBOR decode is the sensible starting point       |
+| `wolfram/identity.h`      | Implemented | did:plc, did:web resolution; handle → DID       |
+| `wolfram/crypto.h`        | Stubbed     | Awaiting a secp256k1/P-256 backend              |
+| `wolfram/repo.h`          | Stubbed     | CBOR decode is the sensible starting point      |
 
 ## Requirements
 
@@ -59,12 +59,13 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 
 Roughly in the order it makes sense to tackle them:
 
-1. Wire in a JSON library (likely [cJSON](https://github.com/DaveGamble/cJSON)) so `identity.c` can actually parse DID documents.
-2. DAG-CBOR decode, read-only, tested against known-good fixtures from the [official atproto repo](https://github.com/bluesky-social/atproto).
-3. SHA-256 + CID computation.
-4. CAR parsing.
-5. MST traversal, then mutation.
-6. secp256k1 signing via `libsecp256k1`, once repo writes need to be signed.
+1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)) so `identity.c` can parse DID documents.
+2. ✅ DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`) using the JSON parser.
+3. DAG-CBOR decode, read-only, tested against known-good fixtures from the [official atproto repo](https://github.com/bluesky-social/atproto).
+4. SHA-256 + CID computation.
+5. CAR parsing.
+6. MST traversal, then mutation.
+7. secp256k1 signing via `libsecp256k1`, once repo writes need to be signed.
 
 ## Contributing
 

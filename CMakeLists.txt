@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
+cmake_policy(SET CMP0077 NEW)
 project(wolfram
     VERSION 0.1.0
     DESCRIPTION "A C SDK for the AT Protocol"
@@ -17,6 +18,15 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(CURL REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(
+    cjson
+    GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
+    GIT_TAG v1.7.18
+)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+FetchContent_MakeAvailable(cjson)
+
 add_library(wolfram
     src/xrpc.c
     src/identity.c
@@ -28,9 +38,12 @@ target_include_directories(wolfram
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${cjson_SOURCE_DIR}
+        ${cjson_BINARY_DIR}
 )
 
-target_link_libraries(wolfram PUBLIC CURL::libcurl)
+target_link_libraries(wolfram PUBLIC CURL::libcurl cjson)
 
 option(WOLFRAM_BUILD_EXAMPLES "Build example programs" ON)
 option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)

@@ -203,3 +203,55 @@ void wf_response_free(wf_response *res) {
     res->body_len = 0;
     res->status = 0;
 }
+
+wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out) {
+    if (!client || !url || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    CURL *curl = curl_easy_init();
+    if (!curl) {
+        return WF_ERR_ALLOC;
+    }
+
+    struct wf_buffer buf = {0};
+    struct curl_slist *headers = NULL;
+
+    if (client->auth_header) {
+        headers = curl_slist_append(headers, client->auth_header);
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
+    if (headers) {
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    }
+
+    CURLcode res = curl_easy_perform(curl);
+
+    wf_status status = WF_OK;
+    if (res != CURLE_OK) {
+        status = WF_ERR_NETWORK;
+    } else {
+        long http_status = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);
+        out->status = http_status;
+        out->body = buf.data;
+        out->body_len = buf.len;
+
+        if (http_status < 200 || http_status >= 300) {
+            status = WF_ERR_HTTP;
+        }
+    }
+
+    if (status != WF_OK && buf.data) {
+        free(buf.data);
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    return status;
+}

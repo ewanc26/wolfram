@@ -88,6 +88,15 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client,
 /** Release a response's owned buffer. Safe to call on a zeroed struct. */
 void wf_response_free(wf_response *res);
 
+/**
+ * Perform a generic HTTP GET to an arbitrary URL (not an XRPC endpoint).
+ *
+ * Uses the client's transport and auth settings. `url` must be a complete
+ * absolute URL. On WF_OK, `out` is populated and must be released with
+ * wf_response_free.
+ */
+wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out);
+
 #ifdef __cplusplus
 }
 #endif
