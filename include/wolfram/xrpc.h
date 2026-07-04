@@ -1,0 +1,95 @@
+/**
+ * xrpc.h — low-level XRPC client.
+ *
+ * Handles the wire-level mechanics of com.atproto's XRPC transport:
+ * building `xrpc/{query,procedure}` requests over HTTP, attaching
+ * bearer auth, and returning raw response bodies for the caller (or a
+ * higher-level layer) to decode.
+ *
+ * This module does not know about lexicons, JSON schemas, or specific
+ * NSIDs beyond the string you hand it. That belongs to a generated
+ * layer built on top of this.
+ */
+
+#ifndef WOLFRAM_XRPC_H
+#define WOLFRAM_XRPC_H
+
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/** Result/error codes returned by wolfram functions. */
+typedef enum wf_status {
+    WF_OK = 0,
+    WF_ERR_INVALID_ARG,
+    WF_ERR_ALLOC,
+    WF_ERR_NETWORK,
+    WF_ERR_HTTP,      /* transport succeeded, server returned non-2xx */
+    WF_ERR_PARSE,
+} wf_status;
+
+/** Opaque XRPC client. Holds the service base URL, auth state, and
+ *  the underlying transport handle (libcurl, currently). */
+typedef struct wf_xrpc_client wf_xrpc_client;
+
+/** A raw HTTP response. `body` is heap-owned; free with wf_response_free. */
+typedef struct wf_response {
+    long   status;
+    char  *body;
+    size_t body_len;
+} wf_response;
+
+/**
+ * Create a client bound to a PDS/service base URL, e.g.
+ * "https://bsky.social" or a self-hosted PDS such as
+ * "https://eurosky.social".
+ *
+ * Returns NULL on allocation failure.
+ */
+wf_xrpc_client *wf_xrpc_client_new(const char *service_base_url);
+
+/** Free a client created with wf_xrpc_client_new. Safe to call with NULL. */
+void wf_xrpc_client_free(wf_xrpc_client *client);
+
+/**
+ * Attach a bearer token (access JWT or service auth token) to all
+ * subsequent requests on this client. Pass NULL to clear it.
+ */
+void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
+
+/**
+ * Issue an `xrpc/{nsid}` GET (query).
+ *
+ * `query_string` is the already-encoded query component (without the
+ * leading '?'), or NULL for no parameters. Caller owns encoding for
+ * now — a params builder can come later.
+ *
+ * On WF_OK, `out` is populated and must be released with
+ * wf_response_free.
+ */
+wf_status wf_xrpc_query(wf_xrpc_client *client,
+                         const char *nsid,
+                         const char *query_string,
+                         wf_response *out);
+
+/**
+ * Issue an `xrpc/{nsid}` POST (procedure).
+ *
+ * `json_body` is a raw, already-serialised JSON payload, or NULL for
+ * an empty body. Sets Content-Type: application/json when non-NULL.
+ */
+wf_status wf_xrpc_procedure(wf_xrpc_client *client,
+                             const char *nsid,
+                             const char *json_body,
+                             wf_response *out);
+
+/** Release a response's owned buffer. Safe to call on a zeroed struct. */
+void wf_response_free(wf_response *res);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* WOLFRAM_XRPC_H */

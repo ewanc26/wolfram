@@ -1,0 +1,56 @@
+# Build output
+build/
+out/
+bin/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# IDE configurations
+.idea/
+.vscode/
+*.iml
+
+# Sensitive/Local files
+.env
+.env.*
+.credentials
+*.pem
+*.key
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+*.icloud
+
+# Compiled objects/binaries
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Logs / core dumps
+*.log
+core
+core.*
