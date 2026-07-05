@@ -8,6 +8,22 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 compile_commands.json
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local agent/worktree state
+.letta/
+.agents/
+.codex/
+
+# Generated scratch output
+generated/
+tmp/
+*.tmp
 
 # IDE configurations
 .idea/
