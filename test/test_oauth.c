@@ -157,6 +157,46 @@ static void test_endpoint_responses(void) {
         85, &token) == WF_ERR_PARSE);
 }
 
+static void test_callback(void) {
+    wf_oauth_callback_result result = {0};
+    wf_oauth_callback_params success = {
+        .state = "one-time-state",
+        .code = "authorization-code",
+        .issuer = "https://auth.example",
+    };
+    wf_oauth_callback_params denied = {
+        .state = "one-time-state",
+        .issuer = "https://auth.example",
+        .error = "access_denied",
+        .error_description = "User cancelled",
+    };
+    WF_CHECK(wf_oauth_callback_validate(&success, "one-time-state",
+        "https://auth.example", 1, &result) == WF_OK);
+    WF_CHECK(strcmp(result.code, "authorization-code") == 0);
+    wf_oauth_callback_result_free(&result);
+    WF_CHECK(wf_oauth_callback_validate(&denied, "one-time-state",
+        "https://auth.example", 1, &result) == WF_OK);
+    WF_CHECK(strcmp(result.error, "access_denied") == 0);
+    wf_oauth_callback_result_free(&result);
+
+    success.state = "replayed-or-unknown";
+    WF_CHECK(wf_oauth_callback_validate(&success, "one-time-state",
+        "https://auth.example", 1, &result) == WF_ERR_PARSE);
+    success.state = "one-time-state";
+    success.issuer = "https://attacker.example";
+    WF_CHECK(wf_oauth_callback_validate(&success, "one-time-state",
+        "https://auth.example", 1, &result) == WF_ERR_PARSE);
+    success.issuer = NULL;
+    WF_CHECK(wf_oauth_callback_validate(&success, "one-time-state",
+        "https://auth.example", 1, &result) == WF_ERR_PARSE);
+    WF_CHECK(wf_oauth_callback_validate(&success, "one-time-state",
+        "https://auth.example", 0, &result) == WF_OK);
+    wf_oauth_callback_result_free(&result);
+    success.response = "unsupported-jarm";
+    WF_CHECK(wf_oauth_callback_validate(&success, "one-time-state",
+        "https://auth.example", 0, &result) == WF_ERR_PARSE);
+}
+
 static void test_dpop(void) {
     unsigned char private_key[32] = {0};
     unsigned char exported[32] = {0};
@@ -264,6 +304,7 @@ int main(void) {
     test_pkce();
     test_metadata();
     test_endpoint_responses();
+    test_callback();
     test_dpop();
     WF_TEST_SUMMARY();
 }
