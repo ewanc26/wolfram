@@ -209,6 +209,10 @@ static void test_endpoint_responses(void) {
     WF_CHECK(wf_oauth_token_response_parse(
         "{\"access_token\":\"x\",\"token_type\":\"Bearer\",\"sub\":\"did:plc:x\",\"scope\":\"atproto\"}",
         85, &token) == WF_ERR_PARSE);
+    WF_CHECK(wf_oauth_token_response_parse(
+        "{\"access_token\":\"x\",\"token_type\":\"DPoP\",\"sub\":\"did:plc:x\",\"scope\":\"transition:generic\"}",
+        strlen("{\"access_token\":\"x\",\"token_type\":\"DPoP\",\"sub\":\"did:plc:x\",\"scope\":\"transition:generic\"}"),
+        &token) == WF_ERR_PARSE);
 }
 
 static void test_callback(void) {
@@ -356,6 +360,97 @@ static void test_session_state(void) {
     wf_oauth_string_free(json);
     wf_oauth_session_state_free(&session);
     wf_oauth_dpop_key_free(key);
+}
+
+static void test_authorization_complete_denial(void) {
+    static const char server_json[] =
+        "{\"issuer\":\"https://auth.example\","
+        "\"authorization_endpoint\":\"https://auth.example/authorize\","
+        "\"token_endpoint\":\"https://auth.example/token\","
+        "\"pushed_authorization_request_endpoint\":\"https://auth.example/par\","
+        "\"response_types_supported\":[\"code\"],"
+        "\"grant_types_supported\":[\"authorization_code\",\"refresh_token\"],"
+        "\"code_challenge_methods_supported\":[\"S256\"],"
+        "\"token_endpoint_auth_methods_supported\":[\"none\",\"private_key_jwt\"],"
+        "\"token_endpoint_auth_signing_alg_values_supported\":[\"ES256\"],"
+        "\"scopes_supported\":[\"atproto\"],"
+        "\"dpop_signing_alg_values_supported\":[\"ES256\"],"
+        "\"authorization_response_iss_parameter_supported\":true,"
+        "\"require_pushed_authorization_requests\":true,"
+        "\"require_request_uri_registration\":true,"
+        "\"client_id_metadata_document_supported\":true}";
+    static const char client_json[] =
+        "{\"client_id\":\"https://app.example/client.json\","
+        "\"redirect_uris\":[\"https://app.example/callback\"],"
+        "\"scope\":\"atproto transition:generic\","
+        "\"token_endpoint_auth_method\":\"none\","
+        "\"dpop_bound_access_tokens\":true}";
+    unsigned char private_key[32] = {0};
+    wf_oauth_dpop_key *key = NULL;
+    wf_oauth_pkce pkce = {0};
+    wf_oauth_authorization_state pending = {0};
+    wf_oauth_server_metadata server = {0};
+    wf_oauth_client_metadata client = {0};
+    wf_oauth_client_auth auth = {
+        .client_id = "https://app.example/client.json",
+    };
+    wf_oauth_callback_params denied = {
+        .state = "flow-state",
+        .issuer = "https://auth.example",
+        .error = "access_denied",
+        .error_description = "User declined",
+    };
+    wf_oauth_authorization_complete_result result = {0};
+    wf_xrpc_client *transport = wf_xrpc_client_new("https://transport.example");
+    char *state_json = NULL;
+    private_key[31] = 1;
+    WF_CHECK(transport != NULL);
+    WF_CHECK(wf_oauth_dpop_key_import(private_key, &key) == WF_OK);
+    WF_CHECK(wf_oauth_pkce_from_verifier(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~abc",
+        &pkce) == WF_OK);
+    WF_CHECK(wf_oauth_authorization_state_create(
+        "https://auth.example", &pkce, key, "return-to-feed", NULL,
+        1700000000, 600, &pending) == WF_OK);
+    WF_CHECK(wf_oauth_authorization_state_serialize(&pending, &state_json) == WF_OK);
+    WF_CHECK(wf_oauth_server_metadata_parse(
+        server_json, strlen(server_json), "https://auth.example", &server) == WF_OK);
+    WF_CHECK(wf_oauth_client_metadata_parse(
+        client_json, strlen(client_json), "https://app.example/client.json",
+        &client) == WF_OK);
+    if (transport && state_json) {
+        WF_CHECK(wf_oauth_authorization_complete(
+            transport, &server, &client, &auth, &denied, "flow-state",
+            state_json, strlen(state_json), "https://app.example/callback",
+            1700000300, &result) == WF_ERR_HTTP);
+        WF_CHECK(result.session_json == NULL);
+        WF_CHECK(result.app_state && strcmp(result.app_state, "return-to-feed") == 0);
+        WF_CHECK(result.error && strcmp(result.error, "access_denied") == 0);
+        WF_CHECK(result.error_description &&
+                 strcmp(result.error_description, "User declined") == 0);
+        wf_oauth_authorization_complete_result_free(&result);
+
+        denied.state = "other-state";
+        WF_CHECK(wf_oauth_authorization_complete(
+            transport, &server, &client, &auth, &denied, "flow-state",
+            state_json, strlen(state_json), "https://app.example/callback",
+            1700000300, &result) == WF_ERR_PARSE);
+        WF_CHECK(result.app_state && strcmp(result.app_state, "return-to-feed") == 0);
+        wf_oauth_authorization_complete_result_free(&result);
+
+        denied.state = "flow-state";
+        WF_CHECK(wf_oauth_authorization_complete(
+            transport, &server, &client, &auth, &denied, "flow-state",
+            state_json, strlen(state_json), "https://app.example/callback",
+            1700000600, &result) == WF_ERR_PARSE);
+        wf_oauth_authorization_complete_result_free(&result);
+    }
+    wf_oauth_client_metadata_free(&client);
+    wf_oauth_server_metadata_free(&server);
+    wf_oauth_string_free(state_json);
+    wf_oauth_authorization_state_free(&pending);
+    wf_oauth_dpop_key_free(key);
+    wf_xrpc_client_free(transport);
 }
 
 static void test_dpop(void) {
@@ -546,6 +641,7 @@ int main(void) {
     test_authorization_url();
     test_authorization_state();
     test_session_state();
+    test_authorization_complete_denial();
     test_dpop();
     test_client_assertion();
     WF_TEST_SUMMARY();

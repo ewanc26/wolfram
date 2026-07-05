@@ -3,8 +3,8 @@
  *
  * This module implements metadata validation, PKCE S256, and ES256 DPoP
  * proofs, PAR, authorization callback validation, token exchange, authenticated
- * clients, and serializable authorization/session state. Store coordination
- * and higher-level flow orchestration remain application concerns.
+ * clients, serializable authorization/session state, and authorization flow
+ * orchestration. Atomic store coordination remains an application concern.
  * Network requests made by the discovery helpers are delegated to xrpc.c.
  */
 
@@ -396,6 +396,45 @@ wf_status wf_oauth_authorization_begin(
     wf_oauth_authorization_begin_result *out);
 void wf_oauth_authorization_begin_result_free(
     wf_oauth_authorization_begin_result *result);
+
+/** Owned output of a callback-to-session transition. */
+typedef struct wf_oauth_authorization_complete_result {
+    wf_oauth_session_state session;
+    char *session_json; /* persist atomically under session.subject */
+    char *app_state;    /* optional application state restored from the flow */
+    char *error;        /* populated for a validated authorization denial */
+    char *error_description;
+} wf_oauth_authorization_complete_result;
+
+/**
+ * Finish an authorization callback and create a verified durable session.
+ *
+ * `state_json` must have been atomically removed from storage under
+ * `expected_state` before this function is called, preventing callback replay.
+ * A successful code exchange is trusted only after resolving the returned DID
+ * and verifying that its PDS names `server->issuer` as its authorization
+ * server. If that verification or session serialization fails, the newly
+ * issued token is revoked when the server exposes a revocation endpoint.
+ *
+ * A validated OAuth denial returns WF_ERR_HTTP with app_state, error, and
+ * error_description populated in `out`; all other failures leave only
+ * app_state populated when the pending state was valid. Always release `out`
+ * with wf_oauth_authorization_complete_result_free.
+ */
+wf_status wf_oauth_authorization_complete(
+    wf_xrpc_client *transport,
+    const wf_oauth_server_metadata *server,
+    const wf_oauth_client_metadata *client,
+    const wf_oauth_client_auth *client_auth,
+    const wf_oauth_callback_params *params,
+    const char *expected_state,
+    const char *state_json,
+    size_t state_json_len,
+    const char *redirect_uri,
+    int64_t now,
+    wf_oauth_authorization_complete_result *out);
+void wf_oauth_authorization_complete_result_free(
+    wf_oauth_authorization_complete_result *result);
 
 /** Construct the browser URL for an already-created PAR request URI. */
 wf_status wf_oauth_authorization_url_create(
