@@ -858,5 +858,96 @@ int main(void) {
         wf_car_free(&car);
     }
 
+    /* Add key at higher layer (key_layer > node.layer): "blue" (layer 1) to "asdf" (layer 0) */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid val_asdf = {{0}, 0};
+        val_asdf.bytes[0] = 0x01; val_asdf.bytes[4] = 0xAA;
+        val_asdf.len = 36;
+
+        wf_cid val_blue = {{0}, 0};
+        val_blue.bytes[0] = 0x01; val_blue.bytes[4] = 0xBB;
+        val_blue.len = 36;
+
+        WF_CHECK(wf_mst_key_layer((unsigned char*)"asdf", 4) == 0);
+        WF_CHECK(wf_mst_key_layer((unsigned char*)"blue", 4) == 1);
+
+        wf_cid root = {{0}, 0};
+        wf_cid after_asdf;
+        memset(&after_asdf, 0, sizeof(after_asdf));
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"asdf", 4,
+                             &val_asdf, &after_asdf) == WF_OK);
+
+        /* Now add "blue" (layer 1) — triggers add_at_higher_layer */
+        wf_cid after_blue;
+        memset(&after_blue, 0, sizeof(after_blue));
+        WF_CHECK(wf_mst_add(&car, &after_asdf,
+                             (unsigned char*)"blue", 4,
+                             &val_blue, &after_blue) == WF_OK);
+
+        /* Both keys findable */
+        wf_cid found;
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &after_blue,
+                              (unsigned char*)"asdf", 4,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_asdf, sizeof(wf_cid)) == 0);
+
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &after_blue,
+                              (unsigned char*)"blue", 4,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_blue, sizeof(wf_cid)) == 0);
+
+        wf_car_free(&car);
+    }
+
+    /* Add key at lower layer (key_layer < node.layer): "asdf" (layer 0) to "blue" (layer 1) root */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid val_blue = {{0}, 0};
+        val_blue.bytes[0] = 0x01; val_blue.bytes[4] = 0xAA;
+        val_blue.len = 36;
+
+        wf_cid val_asdf = {{0}, 0};
+        val_asdf.bytes[0] = 0x01; val_asdf.bytes[4] = 0xBB;
+        val_asdf.len = 36;
+
+        wf_cid root = {{0}, 0};
+        wf_cid after_blue;
+        memset(&after_blue, 0, sizeof(after_blue));
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"blue", 4,
+                             &val_blue, &after_blue) == WF_OK);
+
+        /* Now add "asdf" (layer 0) — triggers add_at_lower_layer */
+        wf_cid after_asdf;
+        memset(&after_asdf, 0, sizeof(after_asdf));
+        WF_CHECK(wf_mst_add(&car, &after_blue,
+                             (unsigned char*)"asdf", 4,
+                             &val_asdf, &after_asdf) == WF_OK);
+
+        /* Both keys findable */
+        wf_cid found;
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &after_asdf,
+                              (unsigned char*)"blue", 4,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_blue, sizeof(wf_cid)) == 0);
+
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &after_asdf,
+                              (unsigned char*)"asdf", 4,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_asdf, sizeof(wf_cid)) == 0);
+
+        wf_car_free(&car);
+    }
+
     WF_TEST_SUMMARY();
 }
