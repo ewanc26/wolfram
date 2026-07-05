@@ -259,6 +259,7 @@ void wf_oauth_server_metadata_free(wf_oauth_server_metadata *metadata) {
     free(metadata->issuer);
     free(metadata->authorization_endpoint);
     free(metadata->token_endpoint);
+    free(metadata->revocation_endpoint);
     free(metadata->pushed_authorization_request_endpoint);
     wf_oauth_string_list_free(&metadata->response_types_supported);
     wf_oauth_string_list_free(&metadata->grant_types_supported);
@@ -341,6 +342,7 @@ wf_status wf_oauth_server_metadata_parse(const char *json, size_t json_len,
     WF_OAUTH_GET_STRING(issuer, "issuer", 1);
     WF_OAUTH_GET_STRING(authorization_endpoint, "authorization_endpoint", 1);
     WF_OAUTH_GET_STRING(token_endpoint, "token_endpoint", 1);
+    WF_OAUTH_GET_STRING(revocation_endpoint, "revocation_endpoint", 0);
     WF_OAUTH_GET_STRING(pushed_authorization_request_endpoint,
                         "pushed_authorization_request_endpoint", 1);
     WF_OAUTH_GET_ARRAY(response_types_supported, "response_types_supported");
@@ -373,6 +375,8 @@ wf_status wf_oauth_server_metadata_parse(const char *json, size_t json_len,
     if (status == WF_OK && (!wf_oauth_url_valid(out->issuer, 1, 1, 0) ||
                             !wf_oauth_url_valid(out->authorization_endpoint, 1, 0, 0) ||
                             !wf_oauth_url_valid(out->token_endpoint, 1, 0, 0) ||
+                            (out->revocation_endpoint &&
+                             !wf_oauth_url_valid(out->revocation_endpoint, 1, 0, 0)) ||
                             !wf_oauth_url_valid(out->pushed_authorization_request_endpoint,
                                                 1, 0, 0))) {
         status = WF_ERR_PARSE;
@@ -1480,6 +1484,29 @@ wf_status wf_oauth_refresh_with_auth(
     wf_response_free(&res);
     free(assertion); free(form);
     return s;
+}
+
+wf_status wf_oauth_revoke(wf_xrpc_client *transport,
+                          const char *endpoint,
+                          const wf_oauth_dpop_key *dpop_key,
+                          const wf_oauth_client_auth *auth,
+                          const char *token) {
+    wf_xrpc_param params[4];
+    size_t count = 0;
+    char *assertion = NULL, *form = NULL;
+    wf_response response = {0};
+    wf_status status;
+    if (!transport || !endpoint || !dpop_key || !auth || !token || !*token)
+        return WF_ERR_INVALID_ARG;
+    params[count++] = (wf_xrpc_param){"token", token};
+    status = wf_oauth_add_client_auth(params, &count, auth, &assertion);
+    if (status == WF_OK) status = wf_oauth_form_encode(params, count, &form);
+    if (status == WF_OK) status = wf_oauth_post(transport, endpoint, dpop_key,
+                                                form, &response);
+    wf_response_free(&response);
+    free(assertion);
+    free(form);
+    return status;
 }
 
 void wf_oauth_callback_result_free(wf_oauth_callback_result *result) {

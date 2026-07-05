@@ -65,6 +65,7 @@ static const char server_json[] =
     "\"issuer\":\"https://auth.example\","
     "\"authorization_endpoint\":\"https://auth.example/authorize\","
     "\"token_endpoint\":\"https://auth.example/token\","
+    "\"revocation_endpoint\":\"https://auth.example/revoke\","
     "\"pushed_authorization_request_endpoint\":\"https://auth.example/par\","
     "\"response_types_supported\":[\"code\"],"
     "\"grant_types_supported\":[\"authorization_code\",\"refresh_token\"],"
@@ -133,6 +134,8 @@ static void test_metadata(void) {
                  &server) == WF_OK);
     WF_CHECK(strcmp(server.pushed_authorization_request_endpoint,
                     "https://auth.example/par") == 0);
+    WF_CHECK(strcmp(server.revocation_endpoint,
+                    "https://auth.example/revoke") == 0);
     WF_CHECK(server.protected_resources.count == 1);
     wf_oauth_server_metadata_free(&server);
     WF_CHECK(wf_oauth_server_metadata_parse(

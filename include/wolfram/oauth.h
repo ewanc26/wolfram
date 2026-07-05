@@ -37,6 +37,7 @@ typedef struct wf_oauth_server_metadata {
     char *issuer;
     char *authorization_endpoint;
     char *token_endpoint;
+    char *revocation_endpoint;
     char *pushed_authorization_request_endpoint;
     wf_oauth_string_list response_types_supported;
     wf_oauth_string_list grant_types_supported;
@@ -271,6 +272,13 @@ wf_status wf_oauth_refresh_with_auth(
     const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
     const char *refresh_token, const char *expected_sub,
     wf_oauth_token_response *out);
+
+/** Best-effort callers may ignore WF_ERR_HTTP, matching RFC 7009 semantics. */
+wf_status wf_oauth_revoke(wf_xrpc_client *transport,
+                          const char *revocation_endpoint,
+                          const wf_oauth_dpop_key *dpop_key,
+                          const wf_oauth_client_auth *auth,
+                          const char *token);
 
 /** Decoded parameters received at the client's redirect URI. */
 typedef struct wf_oauth_callback_params {
