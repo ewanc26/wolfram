@@ -8,6 +8,7 @@
  *     https://<handle>/.well-known/atproto-did fallback
  *
  * Depends on cJSON for parsing DID documents (JSON).
+ * DNS TXT lookups use the POSIX res_query API (via -lresolv).
  */
 
 #include "wolfram/identity.h"
@@ -15,38 +16,13 @@
 #include "wolfram/version.h"
 
 #include <cJSON.h>
-#include <curl/curl.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct wf_buffer {
-    char  *data;
-    size_t len;
-    size_t cap;
-};
-
-static size_t wf_identity_write_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
-    struct wf_buffer *buf = (struct wf_buffer *)userdata;
-    size_t chunk = size * nmemb;
-
-    if (buf->len + chunk + 1 > buf->cap) {
-        size_t new_cap = buf->cap == 0 ? 4096 : buf->cap * 2;
-        while (new_cap < buf->len + chunk + 1) {
-            new_cap *= 2;
-        }
-        char *grown = realloc(buf->data, new_cap);
-        if (!grown) {
-            return 0;
-        }
-        buf->data = grown;
-        buf->cap = new_cap;
-    }
-
-    memcpy(buf->data + buf->len, ptr, chunk);
-    buf->len += chunk;
-    buf->data[buf->len] = '\0';
-    return chunk;
-}
+#ifdef HAVE_RESOLV
+#include <resolv.h>
+#include <arpa/nameser.h>
+#endif
 
 static char *wf_strdup(const char *s) {
     if (!s) return NULL;
@@ -201,12 +177,59 @@ void wf_did_document_free(wf_did_document *doc) {
 
 static wf_status wf_handle_resolve_dns_txt(wf_xrpc_client *client, const char *handle, char **out_did) {
     (void)client;
+
+#ifdef HAVE_RESOLV
+    if (!handle || !out_did || handle[0] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    size_t qname_len = strlen("_atproto.") + strlen(handle) + 1;
+    char *qname = malloc(qname_len);
+    if (!qname) return WF_ERR_ALLOC;
+    snprintf(qname, qname_len, "_atproto.%s", handle);
+
+    unsigned char buf[1024];
+    int len = res_query(qname, ns_c_in, ns_t_txt, buf, sizeof(buf));
+    free(qname);
+
+    if (len < 0) return WF_ERR_NETWORK;
+
+    ns_msg msg;
+    if (ns_initparse(buf, len, &msg) < 0) return WF_ERR_PARSE;
+
+    int ancount = ns_msg_count(msg, ns_s_an);
+    if (ancount < 1) return WF_ERR_NOT_FOUND;
+
+    ns_rr rr;
+    if (ns_parserr(&msg, ns_s_an, 0, &rr) < 0) return WF_ERR_PARSE;
+
+    if (ns_rr_type(rr) != ns_t_txt) return WF_ERR_PARSE;
+
+    const unsigned char *rdata = ns_rr_rdata(rr);
+    int rdlen = ns_rr_rdlen(rr);
+
+    if (rdlen < 1) return WF_ERR_PARSE;
+
+    /* First byte is the length of the first TXT chunk */
+    int txt_len = rdata[0];
+    if (txt_len + 1 > rdlen) return WF_ERR_PARSE;
+
+    /* Validate it looks like a DID */
+    const unsigned char *txt = rdata + 1;
+    if (txt_len < 4 || memcmp(txt, "did:", 4) != 0) return WF_ERR_PARSE;
+
+    *out_did = malloc((size_t)txt_len + 1);
+    if (!*out_did) return WF_ERR_ALLOC;
+    memcpy(*out_did, txt, (size_t)txt_len);
+    (*out_did)[txt_len] = '\0';
+
+    return WF_OK;
+#else
     (void)handle;
     (void)out_did;
-    /* TODO: Implement DNS TXT lookup for _atproto.<handle>
-     * Requires a DNS library or DoH endpoint. For now, skip to
-     * well-known fallback which is also spec-compliant. */
+    /* DNS library not available — skip to well-known fallback */
     return WF_ERR_NETWORK;
+#endif
 }
 
 static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client, const char *handle, char **out_did) {

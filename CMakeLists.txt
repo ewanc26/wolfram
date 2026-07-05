@@ -51,6 +51,15 @@ target_include_directories(wolfram
 
 target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
 
+find_library(RESOLV_LIB NAMES resolv)
+if(RESOLV_LIB)
+    target_link_libraries(wolfram PUBLIC ${RESOLV_LIB})
+    target_compile_definitions(wolfram PRIVATE HAVE_RESOLV)
+    message(STATUS "resolv found: ${RESOLV_LIB}")
+else()
+    message(STATUS "resolv not found — DNS TXT lookup will fall back to HTTPS well-known")
+endif()
+
 if(SECP256K1_FOUND)
     find_library(SECP256K1_LIB
         NAMES secp256k1
