@@ -29,6 +29,7 @@ typedef enum wf_status {
     WF_ERR_HTTP,      /* transport succeeded, server returned non-2xx */
     WF_ERR_PARSE,
     WF_ERR_NOT_FOUND,
+    WF_ERR_WOULD_BLOCK, /* non-blocking transport has no data ready yet */
 } wf_status;
 
 /** Opaque XRPC client. Holds the service base URL, auth state, and
@@ -41,6 +42,12 @@ typedef struct wf_response {
     char  *body;
     size_t body_len;
 } wf_response;
+
+/** A single UTF-8 XRPC query parameter. Names and values are URL-encoded. */
+typedef struct wf_xrpc_param {
+    const char *name;
+    const char *value;
+} wf_xrpc_param;
 
 /**
  * Create a client bound to a PDS/service base URL, e.g.
@@ -74,6 +81,18 @@ wf_status wf_xrpc_query(wf_xrpc_client *client,
                          const char *nsid,
                          const char *query_string,
                          wf_response *out);
+
+/**
+ * Issue an XRPC query from unencoded name/value parameters.
+ *
+ * Encoding remains in the transport layer so higher-level protocol APIs do
+ * not need to construct URLs. NULL parameter values are rejected.
+ */
+wf_status wf_xrpc_query_params(wf_xrpc_client *client,
+                                const char *nsid,
+                                const wf_xrpc_param *params,
+                                size_t param_count,
+                                wf_response *out);
 
 /**
  * Issue an `xrpc/{nsid}` POST (procedure).

@@ -106,6 +106,7 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
                                   const char *nsid,
                                   const char *query_string,
                                   const char *json_body,
+                                  int is_procedure,
                                   wf_response *out) {
     if (!client || !nsid || !out) {
         return WF_ERR_INVALID_ARG;
@@ -151,6 +152,10 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
     if (json_body) {
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(json_body));
+    } else if (is_procedure) {
+        /* Procedures with no input still use POST with an empty body. */
+        curl_easy_setopt(curl, CURLOPT_POST, 1L);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, 0L);
     }
     /* Otherwise GET, which is curl's default — nothing to set. */
 
@@ -186,14 +191,91 @@ wf_status wf_xrpc_query(wf_xrpc_client *client,
                          const char *nsid,
                          const char *query_string,
                          wf_response *out) {
-    return wf_xrpc_request(client, nsid, query_string, NULL, out);
+    return wf_xrpc_request(client, nsid, query_string, NULL, 0, out);
+}
+
+wf_status wf_xrpc_query_params(wf_xrpc_client *client,
+                                const char *nsid,
+                                const wf_xrpc_param *params,
+                                size_t param_count,
+                                wf_response *out) {
+    if (!client || !nsid || !out || (param_count > 0 && !params)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (param_count == 0) {
+        return wf_xrpc_query(client, nsid, NULL, out);
+    }
+
+    CURL *curl = curl_easy_init();
+    if (!curl) return WF_ERR_ALLOC;
+
+    char **names = calloc(param_count, sizeof(*names));
+    char **values = calloc(param_count, sizeof(*values));
+    if (!names || !values) {
+        free(names);
+        free(values);
+        curl_easy_cleanup(curl);
+        return WF_ERR_ALLOC;
+    }
+
+    size_t query_len = 1;
+    wf_status status = WF_OK;
+    for (size_t i = 0; i < param_count; i++) {
+        if (!params[i].name || !params[i].value) {
+            status = WF_ERR_INVALID_ARG;
+            break;
+        }
+        names[i] = curl_easy_escape(curl, params[i].name, 0);
+        values[i] = curl_easy_escape(curl, params[i].value, 0);
+        if (!names[i] || !values[i]) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
+        query_len += strlen(names[i]) + 1 + strlen(values[i]);
+        if (i > 0) query_len++;
+    }
+
+    char *query = NULL;
+    if (status == WF_OK) {
+        query = malloc(query_len);
+        if (!query) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+    if (status == WF_OK) {
+        size_t offset = 0;
+        for (size_t i = 0; i < param_count; i++) {
+            int written = snprintf(query + offset, query_len - offset,
+                                   "%s%s=%s", i ? "&" : "",
+                                   names[i], values[i]);
+            if (written < 0 || (size_t)written >= query_len - offset) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
+            offset += (size_t)written;
+        }
+    }
+
+    for (size_t i = 0; i < param_count; i++) {
+        curl_free(names[i]);
+        curl_free(values[i]);
+    }
+    free(names);
+    free(values);
+    curl_easy_cleanup(curl);
+
+    if (status == WF_OK) {
+        status = wf_xrpc_query(client, nsid, query, out);
+    }
+    free(query);
+    return status;
 }
 
 wf_status wf_xrpc_procedure(wf_xrpc_client *client,
                              const char *nsid,
                              const char *json_body,
                              wf_response *out) {
-    return wf_xrpc_request(client, nsid, NULL, json_body, out);
+    return wf_xrpc_request(client, nsid, NULL, json_body, 1, out);
 }
 
 void wf_response_free(wf_response *res) {

@@ -27,11 +27,17 @@ int main(void) {
     /* A trailing-slash base URL should still produce a client. */
     wf_xrpc_client *trailing = wf_xrpc_client_new("https://eurosky.social/");
     WF_CHECK(trailing != NULL);
-    wf_xrpc_client_free(trailing);
 
     /* Bad arguments to query/procedure are rejected without a client. */
     wf_response res = {0};
     WF_CHECK(wf_xrpc_query(NULL, "com.atproto.repo.describeRepo", NULL, &res) == WF_ERR_INVALID_ARG);
+
+    wf_xrpc_param param = {"did", "did:plc:test"};
+    WF_CHECK(wf_xrpc_query_params(NULL, "com.atproto.sync.getRepo",
+                                  &param, 1, &res) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_xrpc_query_params(trailing, "com.atproto.sync.getRepo",
+                                  NULL, 1, &res) == WF_ERR_INVALID_ARG);
+    wf_xrpc_client_free(trailing);
 
     WF_TEST_SUMMARY();
 }
