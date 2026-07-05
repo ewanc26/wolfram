@@ -18,5 +18,6 @@
 #include "wolfram/websocket.h"
 #include "wolfram/jetstream.h"
 #include "wolfram/sync.h"
+#include "wolfram/oauth.h"
 
 #endif /* WOLFRAM_H */

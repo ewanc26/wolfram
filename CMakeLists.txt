@@ -54,6 +54,7 @@ add_library(wolfram
     src/websocket.c
     src/jetstream.c
     src/sync.c
+    src/oauth.c
 )
 
 target_include_directories(wolfram
@@ -175,4 +176,9 @@ if(WOLFRAM_BUILD_TESTS)
         target_compile_definitions(test_jetstream PRIVATE HAVE_LIBZSTD)
     endif()
     add_test(NAME jetstream COMMAND test_jetstream)
+
+    add_executable(test_oauth test/test_oauth.c)
+    target_link_libraries(test_oauth PRIVATE wolfram)
+    target_include_directories(test_oauth PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME oauth COMMAND test_oauth)
 endif()

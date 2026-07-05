@@ -30,11 +30,11 @@ Agentic principles and technical context for the `wolfram` repository.
 - `record`: schema-driven JSON-to-DAG-CBOR structured record encoding.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding.
-- `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, input encoders, endpoint wrappers, and owning output decoders. Full-corpus headers compile; arbitrary referenced input encoding is the remaining generator limitation.
+- `oauth`: strict atproto resource/server/client metadata parsing and discovery through `xrpc`, PKCE S256, and OpenSSL-backed ES256 DPoP keys/thumbprints/proofs. The authorization flow and session state machine are not yet implemented.
+- `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile.
 
 ## Next planned work
 
-- Add referenced-input encoding to `wf_lexgen.py`, then generate and compile C sources (not only headers) across the complete local atproto Lexicon corpus.
 - Add higher-level typed endpoint coverage and examples using generated clients.
 - Continue repository sync toward verified incremental diff application and operation inversion.
-- Add OAuth/client metadata support without weakening the pure-C runtime or transport ownership boundaries.
+- Complete OAuth PAR/token exchange, mandatory nonce retry, callback validation, and persistent session state without moving HTTP I/O out of `xrpc.c`.
