@@ -32,9 +32,6 @@ typedef struct wf_signing_key {
 
 /**
  * Generate a new signing key of the given type.
- *
- * TODO: not yet implemented — needs a CSPRNG-backed keygen from the
- * chosen crypto backend.
  */
 wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out);
 
@@ -42,8 +39,6 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out);
  * Sign a message (typically the SHA-256 digest of a DAG-CBOR block)
  * and write the raw signature bytes into `sig_out`, which must be at
  * least 64 bytes.
- *
- * TODO: not yet implemented.
  */
 wf_status wf_sign(const wf_signing_key *key,
                    const unsigned char *msg, size_t msg_len,
@@ -53,7 +48,8 @@ wf_status wf_sign(const wf_signing_key *key,
  * Verify a signature against a did:key- or multibase-encoded public
  * key.
  *
- * TODO: not yet implemented.
+ * Supports secp256k1 (multicodec 0xe701, raw compressed/uncompressed)
+ * and P-256 (multicodec 0x1200/0x1201).
  */
 wf_status wf_verify(const char *public_key_multibase,
                      const unsigned char *msg, size_t msg_len,

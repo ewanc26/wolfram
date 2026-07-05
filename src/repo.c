@@ -596,6 +596,20 @@ wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid) {
     return NULL;
 }
 
+wf_status wf_car_write(const wf_car *car,
+                        unsigned char **out, size_t *out_len) {
+    /*
+     * TODO: not yet implemented — serialize CAR back to bytes.
+     * Builds the DAG-CBOR header {"roots": [tag42(cid), ...], "version": 1},
+     * writes varint hdr_len, header, then for each block varint(36+data_len),
+     * cid(36), data.
+     */
+    (void)car;
+    (void)out;
+    (void)out_len;
+    return WF_ERR_INVALID_ARG;
+}
+
 /* ── Commit parse ─────────────────────────────────────────── */
 
 /*
@@ -1779,4 +1793,62 @@ wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
     s = mst_delete_recursive(car, &node, key, key_len, key_layer, new_root);
     wf_mst_node_free(&node);
     return s;
+}
+
+/* ── Record operations ────────────────────────────────────── */
+
+wf_status wf_repo_create_record(wf_car *car,
+                                 const wf_cid *prev_commit,
+                                 const char *did,
+                                 const char *collection,
+                                 const char *rkey,
+                                 const unsigned char *record_cbor,
+                                 size_t record_cbor_len,
+                                 const wf_signing_key *key,
+                                 wf_cid *out_commit,
+                                 wf_cid *out_record) {
+    /*
+     * TODO: not yet implemented.
+     * 1. Compute record CID from record_cbor
+     * 2. Build MST key as "collection/rkey"
+     * 3. wf_mst_add to insert into tree
+     * 4. wf_commit_create to produce signed commit
+     * 5. Return commit CID and record CID
+     */
+    (void)car;
+    (void)prev_commit;
+    (void)did;
+    (void)collection;
+    (void)rkey;
+    (void)record_cbor;
+    (void)record_cbor_len;
+    (void)key;
+    (void)out_commit;
+    (void)out_record;
+    return WF_ERR_INVALID_ARG;
+}
+
+wf_status wf_repo_get_record(wf_car *car,
+                              const wf_cid *commit_cid,
+                              const char *collection,
+                              const char *rkey,
+                              unsigned char **out_data,
+                              size_t *out_len,
+                              wf_cid *out_record_cid) {
+    /*
+     * TODO: not yet implemented.
+     * 1. Parse commit via wf_commit_parse
+     * 2. Follow MST root CID
+     * 3. Build key as "collection/rkey"
+     * 4. wf_mst_find to locate record CID
+     * 5. wf_car_find_block to get the record bytes
+     */
+    (void)car;
+    (void)commit_cid;
+    (void)collection;
+    (void)rkey;
+    (void)out_data;
+    (void)out_len;
+    (void)out_record_cid;
+    return WF_ERR_INVALID_ARG;
 }

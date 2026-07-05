@@ -111,6 +111,15 @@ void      wf_car_free(wf_car *car);
 /** Find a block by CID in a parsed CAR. Returns NULL if not found. */
 wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid);
 
+/**
+ * Serialize a CAR to bytes.
+ *
+ * TODO: not yet implemented — builds the DAG-CBOR header with roots
+ * and writes varint-delimited blocks. Returns a heap-allocated buffer.
+ */
+wf_status wf_car_write(const wf_car *car,
+                        unsigned char **out, size_t *out_len);
+
 /* ── Commit ────────────────────────────────────────────────── */
 
 typedef struct wf_commit {
@@ -211,6 +220,40 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
 wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
                          const unsigned char *key, size_t key_len,
                          wf_cid *new_root);
+
+/* ── Record operations ─────────────────────────────────────── */
+
+/**
+ * Create a record in a repo: encode record CBOR, add to MST, create
+ * commit, and return the new commit CID.
+ *
+ * TODO: not yet implemented — needs wf_car_write for output and a
+ * public CBOR builder API.
+ */
+wf_status wf_repo_create_record(wf_car *car,
+                                 const wf_cid *prev_commit,
+                                 const char *did,
+                                 const char *collection,
+                                 const char *rkey,
+                                 const unsigned char *record_cbor,
+                                 size_t record_cbor_len,
+                                 const wf_signing_key *key,
+                                 wf_cid *out_commit,
+                                 wf_cid *out_record);
+
+/**
+ * Read a record from a parsed repo CAR by walking the MST.
+ *
+ * TODO: not yet implemented — parses commit, follows MST root,
+ * finds key in tree, returns the record block.
+ */
+wf_status wf_repo_get_record(wf_car *car,
+                              const wf_cid *commit_cid,
+                              const char *collection,
+                              const char *rkey,
+                              unsigned char **out_data,
+                              size_t *out_len,
+                              wf_cid *out_record_cid);
 
 #ifdef __cplusplus
 }
