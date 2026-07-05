@@ -28,6 +28,7 @@ typedef enum wf_status {
     WF_ERR_NETWORK,
     WF_ERR_HTTP,      /* transport succeeded, server returned non-2xx */
     WF_ERR_PARSE,
+    WF_ERR_NOT_FOUND,
 } wf_status;
 
 /** Opaque XRPC client. Holds the service base URL, auth state, and

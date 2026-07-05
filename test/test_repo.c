@@ -430,5 +430,279 @@ int main(void) {
         wf_car_free(&zeroed);
     }
 
+    /* ── MST key layer ── */
+
+    /* Known test vectors from atproto repo/mst */
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"2653ae71", 8) == 0);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"asdf", 4) == 0);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"blue", 4) == 1);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"88bfafc7", 8) == 2);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"2a92d355", 8) == 4);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"884976f5", 8) == 6);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"app.bsky.feed.post/454397e440ec", 31) == 4);
+    WF_CHECK(wf_mst_key_layer((unsigned char*)"app.bsky.feed.post/9adeb165882c", 31) == 8);
+
+    /* ── MST node parse ── */
+
+    /* Empty node: {"l": null, "e": []} — DAG-CBOR (sorted keys: "e" < "l") */
+    {
+        unsigned char empty[] = {0xA2, 0x61, 0x65, 0x80, 0x61, 0x6C, 0xF6};
+        wf_mst_node node;
+        WF_CHECK(wf_mst_node_parse(empty, sizeof(empty), NULL, &node) == WF_OK);
+        WF_CHECK(node.count == 0);
+        WF_CHECK(node.left.len == 0);
+        wf_mst_node_free(&node);
+    }
+
+    /* Node with 1 entry: full-key "test", value CID is all-zeros, no subtrees */
+    {
+        unsigned char cid_bytes[36] = {0};
+        cid_bytes[0] = 0x01; cid_bytes[1] = 0x71;
+        cid_bytes[2] = 0x12; cid_bytes[3] = 0x20;
+
+        /* CBOR: {"e": [{"k": h'74657374', "p": 0, "v": tag42(cid), "t": null}], "l": null}
+         * Sorted entry keys: "k" < "p" < "t" < "v" */
+        unsigned char entry[200];
+        size_t ep = 0;
+        entry[ep++] = 0xA4;                              /* map(4) */
+        entry[ep++] = 0x61; entry[ep++] = 0x6B;          /* text(1) "k" */
+        entry[ep++] = 0x44;                               /* bytes(4) "test" */
+        memcpy(entry + ep, "test", 4); ep += 4;
+        entry[ep++] = 0x61; entry[ep++] = 0x70;          /* text(1) "p" */
+        entry[ep++] = 0x00;                               /* unsigned(0) */
+        entry[ep++] = 0x61; entry[ep++] = 0x74;          /* text(1) "t" */
+        entry[ep++] = 0xF6;                               /* null */
+        entry[ep++] = 0x61; entry[ep++] = 0x76;          /* text(1) "v" */
+        entry[ep++] = 0xD8; entry[ep++] = 0x2A;          /* tag(42) */
+        entry[ep++] = 0x58; entry[ep++] = 0x24;          /* bytes(36) */
+        memcpy(entry + ep, cid_bytes, 36); ep += 36;
+
+        unsigned char node_cbor[300];
+        size_t np = 0;
+        node_cbor[np++] = 0xA2;                          /* map(2) */
+        node_cbor[np++] = 0x61; node_cbor[np++] = 0x65;  /* text(1) "e" */
+        node_cbor[np++] = 0x81;                           /* array(1) */
+        memcpy(node_cbor + np, entry, ep); np += ep;
+        node_cbor[np++] = 0x61; node_cbor[np++] = 0x6C;  /* text(1) "l" */
+        node_cbor[np++] = 0xF6;                           /* null */
+
+        wf_mst_node node;
+        WF_CHECK(wf_mst_node_parse(node_cbor, np, NULL, &node) == WF_OK);
+        WF_CHECK(node.count == 1);
+        WF_CHECK(node.left.len == 0);
+        WF_CHECK(node.entries[0].key_len == 4);
+        WF_CHECK(memcmp(node.entries[0].key, "test", 4) == 0);
+        WF_CHECK(node.entries[0].value.len == 36);
+        WF_CHECK(memcmp(node.entries[0].value.bytes, cid_bytes, 36) == 0);
+        WF_CHECK(node.entries[0].subtree.len == 0);
+        wf_mst_node_free(&node);
+    }
+
+    /* ── Commit parse ── */
+
+    {
+        unsigned char cid_bytes[36];
+        memset(cid_bytes, 0, 36);
+        cid_bytes[0] = 0x01; cid_bytes[1] = 0x71;
+        cid_bytes[2] = 0x12; cid_bytes[3] = 0x20;
+        cid_bytes[4] = 0xAA;  /* distinguish data vs prev */
+
+        /* Commit CBOR: {"data": tag42(cid), "did": "did:plc:test", "prev": tag42(other), "rev": "3jui7kd54zh2y", "version": 3}
+         * Sorted by CBOR-encoded bytes: "did"(0x63) < "rev"(0x63) < "data"(0x64) < "prev"(0x64) < "version"(0x67) */
+        unsigned char prev_cid[36];
+        memcpy(prev_cid, cid_bytes, 36);
+        prev_cid[4] = 0xBB;
+
+        unsigned char commit_cbor[500];
+        size_t cp2 = 0;
+        commit_cbor[cp2++] = 0xA5;                       /* map(5) */
+
+        commit_cbor[cp2++] = 0x63;                        /* text(3) "did" */
+        memcpy(commit_cbor + cp2, "did", 3); cp2 += 3;
+        commit_cbor[cp2++] = 0x6D;                        /* text(13) "did:plc:test" */
+        memcpy(commit_cbor + cp2, "did:plc:test", 13); cp2 += 13;
+
+        commit_cbor[cp2++] = 0x63;                        /* text(3) "rev" */
+        memcpy(commit_cbor + cp2, "rev", 3); cp2 += 3;
+        commit_cbor[cp2++] = 0x6D;                        /* text(13) "3jui7kd54zh2y" */
+        memcpy(commit_cbor + cp2, "3jui7kd54zh2y", 13); cp2 += 13;
+
+        commit_cbor[cp2++] = 0x64;                        /* text(4) "data" */
+        memcpy(commit_cbor + cp2, "data", 4); cp2 += 4;
+        commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A; /* tag(42) */
+        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x24; /* bytes(36) */
+        memcpy(commit_cbor + cp2, cid_bytes, 36); cp2 += 36;
+
+        commit_cbor[cp2++] = 0x64;                        /* text(4) "prev" */
+        memcpy(commit_cbor + cp2, "prev", 4); cp2 += 4;
+        commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A;
+        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x24;
+        memcpy(commit_cbor + cp2, prev_cid, 36); cp2 += 36;
+
+        commit_cbor[cp2++] = 0x67;                        /* text(7) "version" */
+        memcpy(commit_cbor + cp2, "version", 7); cp2 += 7;
+        commit_cbor[cp2++] = 0x03;                        /* unsigned(3) */
+
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        WF_CHECK(wf_commit_parse(commit_cbor, cp2, &commit) == WF_OK);
+        WF_CHECK(strcmp(commit.did, "did:plc:test") == 0);
+        WF_CHECK(commit.version == 3);
+        WF_CHECK(strcmp(commit.rev, "3jui7kd54zh2y") == 0);
+        WF_CHECK(memcmp(commit.data.bytes, cid_bytes, 36) == 0);
+        WF_CHECK(commit.has_prev == 1);
+        WF_CHECK(memcmp(commit.prev.bytes, prev_cid, 36) == 0);
+    }
+
+    /* ── CAR block find ── */
+
+    {
+        wf_cid test_cid = {{0}, 0};
+        test_cid.bytes[0] = 0x01; test_cid.bytes[1] = 0x71;
+        test_cid.bytes[2] = 0x12; test_cid.bytes[3] = 0x20;
+        test_cid.len = 36;
+
+        wf_car car;
+        car.root_count = 0;
+        car.roots = NULL;
+        car.block_count = 1;
+        car.blocks = malloc(sizeof(wf_car_block));
+        car.blocks[0].cid = test_cid;
+        car.blocks[0].data = NULL;
+        car.blocks[0].data_len = 0;
+
+        wf_car_block *found = wf_car_find_block(&car, &test_cid);
+        WF_CHECK(found != NULL);
+        WF_CHECK(found->cid.len == 36);
+        WF_CHECK(memcmp(found->cid.bytes, test_cid.bytes, 36) == 0);
+
+        wf_cid missing = {{0}, 0};
+        missing.bytes[0] = 0x01; missing.len = 1;
+        WF_CHECK(wf_car_find_block(&car, &missing) == NULL);
+
+        free(car.blocks);
+        car.blocks = NULL;
+    }
+
+    /* ── MST find in minimal CAR ── */
+
+    /* Build a CAR with a single MST node containing {"test": "root"} as the record.
+     * The MST node: {"e": [{"k": h"test", "p": 0, "v": <record_cid>, "t": null}], "l": null}
+     * The record: CBOR {"test": "root"}
+     * Commit points to the MST root. */
+    {
+        unsigned char record_data[] = {0xa1, 0x64, 't', 'e', 's', 't',
+                                        0x64, 'r', 'o', 'o', 't'};
+        wf_cid record_cid = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(record_data, sizeof(record_data), &record_cid) == WF_OK);
+
+        /* MST node CBOR (same as previous test) */
+        unsigned char entry[200], ep = 0;
+        entry[ep++] = 0xA4;
+        entry[ep++] = 0x61; entry[ep++] = 0x6B;
+        entry[ep++] = 0x44;
+        memcpy(entry + ep, "test", 4); ep += 4;
+        entry[ep++] = 0x61; entry[ep++] = 0x70;
+        entry[ep++] = 0x00;
+        entry[ep++] = 0x61; entry[ep++] = 0x74;
+        entry[ep++] = 0xF6;
+        entry[ep++] = 0x61; entry[ep++] = 0x76;
+        entry[ep++] = 0xD8; entry[ep++] = 0x2A;
+        entry[ep++] = 0x58; entry[ep++] = 0x24;
+        memcpy(entry + ep, record_cid.bytes, 36); ep += 36;
+
+        unsigned char node_cbor[300], np = 0;
+        node_cbor[np++] = 0xA2;
+        node_cbor[np++] = 0x61; node_cbor[np++] = 0x65;
+        node_cbor[np++] = 0x81;
+        memcpy(node_cbor + np, entry, ep); np += ep;
+        node_cbor[np++] = 0x61; node_cbor[np++] = 0x6C;
+        node_cbor[np++] = 0xF6;
+
+        wf_cid mst_cid = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(node_cbor, np, &mst_cid) == WF_OK);
+
+        /* Build commit (sorted by CBOR-encoded bytes: "did", "rev", "data", "version") */
+        unsigned char commit_cbor[500], cp2 = 0;
+        commit_cbor[cp2++] = 0xA4;                           /* map(4) */
+
+        commit_cbor[cp2++] = 0x63;                           /* text(3) "did" */
+        memcpy(commit_cbor + cp2, "did", 3); cp2 += 3;
+        commit_cbor[cp2++] = 0x6D;
+        memcpy(commit_cbor + cp2, "did:plc:test", 13); cp2 += 13;
+
+        commit_cbor[cp2++] = 0x63;                           /* text(3) "rev" */
+        memcpy(commit_cbor + cp2, "rev", 3); cp2 += 3;
+        commit_cbor[cp2++] = 0x6D;
+        memcpy(commit_cbor + cp2, "3jui7kd54zh2y", 13); cp2 += 13;
+
+        commit_cbor[cp2++] = 0x64;                           /* text(4) "data" */
+        memcpy(commit_cbor + cp2, "data", 4); cp2 += 4;
+        commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A;
+        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x24;
+        memcpy(commit_cbor + cp2, mst_cid.bytes, 36); cp2 += 36;
+
+        commit_cbor[cp2++] = 0x67;                           /* text(7) "version" */
+        memcpy(commit_cbor + cp2, "version", 7); cp2 += 7;
+        commit_cbor[cp2++] = 0x03;
+
+        wf_cid commit_cid = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(commit_cbor, cp2, &commit_cid) == WF_OK);
+
+        /* Build CAR: header + 3 blocks (MST node, record, commit) */
+        unsigned char hdr_cbor[256], hp = 0;
+        hdr_cbor[hp++] = 0xA2;
+        hdr_cbor[hp++] = 0x65; memcpy(hdr_cbor + hp, "roots", 5); hp += 5;
+        hdr_cbor[hp++] = 0x81;
+        hdr_cbor[hp++] = 0xD8; hdr_cbor[hp++] = 0x2A;
+        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x24;
+        memcpy(hdr_cbor + hp, commit_cid.bytes, 36); hp += 36;
+        hdr_cbor[hp++] = 0x67; memcpy(hdr_cbor + hp, "version", 7); hp += 7;
+        hdr_cbor[hp++] = 0x01;
+
+        unsigned char car[1024];
+        size_t cpos = 0;
+        car[cpos++] = (unsigned char)hp;
+        memcpy(car + cpos, hdr_cbor, hp); cpos += hp;
+
+        /* Block 1: MST node */
+        car[cpos++] = (unsigned char)(36 + np);
+        memcpy(car + cpos, mst_cid.bytes, 36); cpos += 36;
+        memcpy(car + cpos, node_cbor, np); cpos += np;
+
+        /* Block 2: record */
+        car[cpos++] = (unsigned char)(36 + sizeof(record_data));
+        memcpy(car + cpos, record_cid.bytes, 36); cpos += 36;
+        memcpy(car + cpos, record_data, sizeof(record_data)); cpos += sizeof(record_data);
+
+        /* Block 3: commit */
+        car[cpos++] = (unsigned char)(36 + cp2);
+        memcpy(car + cpos, commit_cid.bytes, 36); cpos += 36;
+        memcpy(car + cpos, commit_cbor, cp2); cpos += cp2;
+
+        wf_car parsed;
+        memset(&parsed, 0, sizeof(parsed));
+        WF_CHECK(wf_car_parse(car, cpos, &parsed) == WF_OK);
+
+        /* Parse commit to find MST root */
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        wf_car_block *commit_block = wf_car_find_block(&parsed, &commit_cid);
+        WF_CHECK(commit_block != NULL);
+        WF_CHECK(wf_commit_parse(commit_block->data, commit_block->data_len, &commit) == WF_OK);
+        WF_CHECK(memcmp(&commit.data, &mst_cid, sizeof(wf_cid)) == 0);
+
+        /* Find "test" in MST */
+        wf_cid found;
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char*)"test", 4, &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &record_cid, sizeof(wf_cid)) == 0);
+
+        /* Find missing key */
+        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char*)"nope", 4, &found) == WF_ERR_NOT_FOUND);
+
+        wf_car_free(&parsed);
+    }
+
     WF_TEST_SUMMARY();
 }

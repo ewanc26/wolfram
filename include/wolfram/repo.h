@@ -99,6 +99,64 @@ typedef struct wf_car {
 wf_status wf_car_parse(const unsigned char *car, size_t car_len, wf_car *out);
 void      wf_car_free(wf_car *car);
 
+/** Find a block by CID in a parsed CAR. Returns NULL if not found. */
+wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid);
+
+/* ── Commit ────────────────────────────────────────────────── */
+
+typedef struct wf_commit {
+    char   did[256];
+    int    version;
+    wf_cid data;       /* MST root CID */
+    char   rev[64];
+    wf_cid prev;       /* zeroed if no prev */
+    int    has_prev;
+} wf_commit;
+
+/**
+ * Parse a commit object from DAG-CBOR bytes.
+ * The `sig` field (if present) is not decoded; it is skipped.
+ */
+wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
+                           wf_commit *out);
+
+/* ── MST ───────────────────────────────────────────────────── */
+
+/** Compute the MST layer of a key: SHA-256 leading-zero bits / 2. */
+unsigned wf_mst_key_layer(const unsigned char *key, size_t key_len);
+
+/** A decompressed entry (leaf) in an MST node. */
+typedef struct wf_mst_entry {
+    unsigned char *key;       /* full reconstructed key (heap) */
+    size_t         key_len;
+    wf_cid         value;     /* CID of the record */
+    wf_cid         subtree;   /* right subtree CID (zeroed if none) */
+} wf_mst_entry;
+
+/** An MST node parsed from a DAG-CBOR block. */
+typedef struct wf_mst_node {
+    wf_cid         cid;
+    wf_cid         left;      /* left subtree CID (zeroed if none) */
+    wf_mst_entry  *entries;
+    size_t         count;
+} wf_mst_node;
+
+/** Parse an MST node from DAG-CBOR bytes. Entries have decompressed keys. */
+wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
+                             const wf_cid *cid, wf_mst_node *out);
+
+/** Free an MST node and its entries. Safe to call with NULL. */
+void wf_mst_node_free(wf_mst_node *node);
+
+/**
+ * Find a record by key in an MST loaded from a CAR file.
+ * Traverses the tree recursively, loading nodes on demand.
+ * Returns WF_OK and sets `out` if found, WF_ERR_NOT_FOUND otherwise.
+ */
+wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
+                       const unsigned char *key, size_t key_len,
+                       wf_cid *out);
+
 #ifdef __cplusplus
 }
 #endif

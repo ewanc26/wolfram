@@ -439,3 +439,291 @@ void wf_car_free(wf_car *car) {
     car->block_count = 0;
     car->root_count = 0;
 }
+
+wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid) {
+    if (!car || !cid) return NULL;
+    for (size_t i = 0; i < car->block_count; i++) {
+        if (car->blocks[i].cid.len == cid->len &&
+            memcmp(car->blocks[i].cid.bytes, cid->bytes, cid->len) == 0) {
+            return &car->blocks[i];
+        }
+    }
+    return NULL;
+}
+
+/* ── Commit parse ─────────────────────────────────────────── */
+
+/*
+ * CBOR helper: find a text key in a map and return its value item.
+ * The map must have sorted keys. Returns NULL if not found.
+ */
+static wf_cbor_item *wf_cbor_map_find(wf_cbor_item *item,
+                                       const char *key, size_t key_len) {
+    if (!item || item->type != WF_CBOR_MAP) return NULL;
+    for (size_t i = 0; i < item->map.count; i++) {
+        wf_cbor_item *k = item->map.pairs[i].key;
+        if (k->type == WF_CBOR_STRING && k->string.len == key_len &&
+            memcmp(k->string.str, key, key_len) == 0) {
+            return item->map.pairs[i].value;
+        }
+    }
+    return NULL;
+}
+
+wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
+                           wf_commit *out) {
+    if (!cbor || len == 0 || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    wf_cbor_item *obj = wf_cbor_parse(cbor, len);
+    if (!obj) return WF_ERR_PARSE;
+    if (obj->type != WF_CBOR_MAP) { wf_cbor_free(obj); return WF_ERR_PARSE; }
+
+    /* did */
+    wf_cbor_item *did_item = wf_cbor_map_find(obj, "did", 3);
+    if (!did_item || did_item->type != WF_CBOR_STRING) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+    if (did_item->string.len >= sizeof(out->did)) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+    memcpy(out->did, did_item->string.str, did_item->string.len);
+    out->did[did_item->string.len] = '\0';
+
+    /* version */
+    wf_cbor_item *ver_item = wf_cbor_map_find(obj, "version", 7);
+    if (!ver_item || ver_item->type != WF_CBOR_UNSIGNED) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+    out->version = (int)ver_item->uinteger;
+
+    /* data (CID link — byte string from tag 42) */
+    wf_cbor_item *data_item = wf_cbor_map_find(obj, "data", 4);
+    if (!data_item || data_item->type != WF_CBOR_BYTES ||
+        data_item->bytes.len != 36) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+    memcpy(out->data.bytes, data_item->bytes.data, 36);
+    out->data.len = 36;
+
+    /* rev */
+    wf_cbor_item *rev_item = wf_cbor_map_find(obj, "rev", 3);
+    if (!rev_item || rev_item->type != WF_CBOR_STRING) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+    if (rev_item->string.len >= sizeof(out->rev)) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+    memcpy(out->rev, rev_item->string.str, rev_item->string.len);
+    out->rev[rev_item->string.len] = '\0';
+
+    /* prev (nullable CID link — may be null or absent) */
+    wf_cbor_item *prev_item = wf_cbor_map_find(obj, "prev", 4);
+    if (prev_item && prev_item->type == WF_CBOR_BYTES &&
+        prev_item->bytes.len == 36) {
+        memcpy(out->prev.bytes, prev_item->bytes.data, 36);
+        out->prev.len = 36;
+        out->has_prev = 1;
+    }
+
+    wf_cbor_free(obj);
+    return WF_OK;
+}
+
+/* ── MST ───────────────────────────────────────────────────── */
+
+unsigned wf_mst_key_layer(const unsigned char *key, size_t key_len) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(key, key_len, hash);
+
+    unsigned count = 0;
+    for (int i = 0; i < (int)sizeof(hash); i++) {
+        unsigned char b = hash[i];
+        if (b <  64) count++;
+        if (b <  16) count++;
+        if (b <   4) count++;
+        if (b ==  0) count++;
+        else break;
+    }
+    return count;
+}
+
+static int wf_mst_key_cmp(const unsigned char *a, size_t a_len,
+                           const unsigned char *b, size_t b_len) {
+    size_t min = a_len < b_len ? a_len : b_len;
+    int cmp = memcmp(a, b, min);
+    if (cmp != 0) return cmp;
+    return (int)(a_len - b_len);
+}
+
+wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
+                             const wf_cid *cid, wf_mst_node *out) {
+    if (!cbor || len == 0 || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    if (cid) out->cid = *cid;
+
+    wf_cbor_item *obj = wf_cbor_parse(cbor, len);
+    if (!obj) return WF_ERR_PARSE;
+    if (obj->type != WF_CBOR_MAP) { wf_cbor_free(obj); return WF_ERR_PARSE; }
+
+    /* "l" — left subtree CID (nullable) */
+    wf_cbor_item *l_item = wf_cbor_map_find(obj, "l", 1);
+    if (l_item && l_item->type == WF_CBOR_BYTES && l_item->bytes.len == 36) {
+        memcpy(out->left.bytes, l_item->bytes.data, 36);
+        out->left.len = 36;
+    }
+
+    /* "e" — entries array */
+    wf_cbor_item *e_item = wf_cbor_map_find(obj, "e", 1);
+    if (!e_item || e_item->type != WF_CBOR_ARRAY) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+
+    out->count = e_item->children.count;
+    if (out->count == 0) {
+        wf_cbor_free(obj);
+        return WF_OK;
+    }
+
+    out->entries = calloc(out->count, sizeof(wf_mst_entry));
+    if (!out->entries) { wf_cbor_free(obj); return WF_ERR_ALLOC; }
+
+    unsigned char *prev_key = NULL;
+    size_t prev_key_len = 0;
+
+    for (size_t i = 0; i < out->count; i++) {
+        wf_cbor_item *entry = e_item->children.items[i];
+        if (entry->type != WF_CBOR_MAP) { wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE; }
+
+        wf_mst_entry *ent = &out->entries[i];
+
+        /* "p" — prefix length */
+        wf_cbor_item *p_item = wf_cbor_map_find(entry, "p", 1);
+        if (!p_item || p_item->type != WF_CBOR_UNSIGNED) {
+            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+        }
+        uint64_t prefix_len = p_item->uinteger;
+        if (prefix_len > prev_key_len) {
+            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+        }
+
+        /* "k" — key suffix */
+        wf_cbor_item *k_item = wf_cbor_map_find(entry, "k", 1);
+        if (!k_item || k_item->type != WF_CBOR_BYTES) {
+            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+        }
+
+        /* Reconstruct full key */
+        size_t full_len = (size_t)prefix_len + k_item->bytes.len;
+        ent->key = malloc(full_len);
+        if (!ent->key) { wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_ALLOC; }
+        if (prefix_len > 0 && prev_key)
+            memcpy(ent->key, prev_key, (size_t)prefix_len);
+        if (k_item->bytes.len > 0)
+            memcpy(ent->key + prefix_len, k_item->bytes.data, k_item->bytes.len);
+        ent->key_len = full_len;
+
+        /* "v" — value CID */
+        wf_cbor_item *v_item = wf_cbor_map_find(entry, "v", 1);
+        if (!v_item || v_item->type != WF_CBOR_BYTES || v_item->bytes.len != 36) {
+            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+        }
+        memcpy(ent->value.bytes, v_item->bytes.data, 36);
+        ent->value.len = 36;
+
+        /* "t" — right subtree CID (nullable) */
+        wf_cbor_item *t_item = wf_cbor_map_find(entry, "t", 1);
+        if (t_item && t_item->type == WF_CBOR_BYTES && t_item->bytes.len == 36) {
+            memcpy(ent->subtree.bytes, t_item->bytes.data, 36);
+            ent->subtree.len = 36;
+        }
+
+        /* Update previous key for next entry */
+        free(prev_key);
+        prev_key = malloc(full_len);
+        if (prev_key) {
+            memcpy(prev_key, ent->key, full_len);
+            prev_key_len = full_len;
+        } else {
+            prev_key_len = 0;
+        }
+    }
+
+    free(prev_key);
+
+    /* Validate sorted keys */
+    for (size_t i = 1; i < out->count; i++) {
+        if (wf_mst_key_cmp(out->entries[i-1].key, out->entries[i-1].key_len,
+                           out->entries[i].key, out->entries[i].key_len) >= 0) {
+            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+        }
+    }
+
+    wf_cbor_free(obj);
+    return WF_OK;
+}
+
+void wf_mst_node_free(wf_mst_node *node) {
+    if (!node) return;
+    for (size_t i = 0; i < node->count; i++)
+        free(node->entries[i].key);
+    free(node->entries);
+    node->entries = NULL;
+    node->count = 0;
+}
+
+wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
+                       const unsigned char *key, size_t key_len,
+                       wf_cid *out) {
+    if (!car || !root_cid || !key || key_len == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+
+    wf_cid current = *root_cid;
+
+    while (1) {
+        wf_car_block *block = wf_car_find_block(car, &current);
+        if (!block) return WF_ERR_PARSE;
+
+        wf_mst_node node;
+        wf_status s = wf_mst_node_parse(block->data, block->data_len,
+                                         &current, &node);
+        if (s != WF_OK) return s;
+
+        size_t idx = 0;
+        for (; idx < node.count; idx++) {
+            int cmp = wf_mst_key_cmp(key, key_len,
+                                      node.entries[idx].key,
+                                      node.entries[idx].key_len);
+            if (cmp == 0) {
+                *out = node.entries[idx].value;
+                wf_mst_node_free(&node);
+                return WF_OK;
+            }
+            if (cmp < 0) {
+                break;
+            }
+        }
+
+        wf_cid *subtree = NULL;
+        if (idx == 0) {
+            if (node.left.len > 0) subtree = &node.left;
+        } else {
+            if (node.entries[idx - 1].subtree.len > 0)
+                subtree = &node.entries[idx - 1].subtree;
+        }
+
+        if (!subtree && idx >= node.count && node.count > 0) {
+            if (node.entries[node.count - 1].subtree.len > 0)
+                subtree = &node.entries[node.count - 1].subtree;
+        }
+
+        if (subtree && subtree->len > 0) {
+            current = *subtree;
+            wf_mst_node_free(&node);
+            continue;
+        }
+
+        wf_mst_node_free(&node);
+        return WF_ERR_NOT_FOUND;
+    }
+}
