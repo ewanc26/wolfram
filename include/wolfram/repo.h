@@ -1,29 +1,74 @@
 /**
- * repo.h — repository state: MST, CBOR, CAR, CID.
+ * repo.h — DAG-CBOR decode, CID, CAR.
  *
- * The AT Protocol repo is a Merkle Search Tree of DAG-CBOR-encoded
- * records, content-addressed by CID and shipped over the wire as CAR
- * files. This header scaffolds the pieces wolfram will eventually
- * need to read and write repos locally.
+ * AT Protocol repos use DAG-CBOR (a canonical subset of CBOR) for
+ * block encoding, content-addressed by CID and shipped as CAR files.
+ * This module provides read-only DAG-CBOR decode, with CID and CAR
+ * parsing building on top.
  *
- * Nothing here is implemented yet — see src/repo.c for stubs. Start
- * with CBOR decode (read-only) before touching MST balancing; it's
- * the highest-leverage piece and easiest to test in isolation.
+ * Current state: DAG-CBOR decoder is implemented and tested. CID
+ * computation, CAR parsing, and MST are still stubbed.
  */
 
 #ifndef WOLFRAM_REPO_H
 #define WOLFRAM_REPO_H
 
 #include <stddef.h>
+#include <stdint.h>
 #include "wolfram/xrpc.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* ── DAG-CBOR ──────────────────────────────────────────────── */
+
+typedef enum wf_cbor_type {
+    WF_CBOR_UNSIGNED = 0,
+    WF_CBOR_NEGATIVE = 1,
+    WF_CBOR_BYTES    = 2,
+    WF_CBOR_STRING   = 3,
+    WF_CBOR_ARRAY    = 4,
+    WF_CBOR_MAP      = 5,
+    WF_CBOR_SIMPLE   = 7,
+} wf_cbor_type;
+
+typedef struct wf_cbor_pair {
+    struct wf_cbor_item *key;
+    struct wf_cbor_item *value;
+} wf_cbor_pair;
+
+typedef struct wf_cbor_item {
+    wf_cbor_type type;
+    union {
+        uint64_t                uinteger;
+        uint64_t                neginteger;
+        struct { unsigned char *data; size_t len; } bytes;
+        struct { char          *str;  size_t len; } string;
+        struct { struct wf_cbor_item **items; size_t count; } children;
+        struct { struct wf_cbor_pair *pairs; size_t count; } map;
+        int                     simple_value;
+    };
+} wf_cbor_item;
+
+/**
+ * Parse DAG-CBOR-encoded bytes into an item tree.
+ *
+ * Returns NULL on parse error or DAG-CBOR constraint violation
+ * (floats, tags, indefinite-length, non-canonical integers,
+ * unsorted map keys). The returned tree must be freed with
+ * wf_cbor_free.
+ */
+wf_cbor_item *wf_cbor_parse(const unsigned char *data, size_t len);
+
+/** Free a tree returned by wf_cbor_parse. Safe to call with NULL. */
+void wf_cbor_free(wf_cbor_item *item);
+
+/* ── CID ───────────────────────────────────────────────────── */
+
 /** A content identifier (CIDv1, dag-cbor, sha2-256), stored raw. */
 typedef struct wf_cid {
-    unsigned char bytes[36]; /* multihash-prefixed digest, upper bound */
+    unsigned char bytes[36];
     size_t        len;
 } wf_cid;
 
@@ -33,16 +78,13 @@ char *wf_cid_to_string(const wf_cid *cid);
 /**
  * Compute the CID of a DAG-CBOR-encoded block.
  *
- * TODO: not yet implemented — needs a DAG-CBOR encoder and a
- * SHA-256 implementation before this can do anything real.
+ * TODO: needs SHA-256 and multihash encoding before it can work.
  */
 wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
                            wf_cid *out);
 
-/**
- * Parse a CAR (Content Addressable aRchive) byte stream into its
- * header and block list. Scaffolding only — see src/repo.c.
- */
+/* ── CAR ───────────────────────────────────────────────────── */
+
 typedef struct wf_car_block {
     wf_cid         cid;
     unsigned char *data;

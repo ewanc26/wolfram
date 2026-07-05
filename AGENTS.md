@@ -22,4 +22,4 @@ Agentic principles and technical context for the `wolfram` repository.
 - `xrpc`: fully working query/procedure calls over libcurl. Generic `wf_http_get` for arbitrary URLs.
 - `identity`: DID method detection + resolution for did:plc (via plc.directory) and did:web (via .well-known/did.json). Handle resolution via HTTPS well-known fallback. cJSON for JSON parsing.
 - `crypto`: pure stubs, no backend chosen yet.
-- `repo`: pure stubs; CBOR decode is the correct next step, not MST.
+- `repo`: DAG-CBOR decoder implemented and tested (full canonical validation: no floats/tags/indefinite, canonical integers, sorted map keys). CID computation (`wf_cid_of_block`, `wf_cid_to_string`) and CAR parsing (`wf_car_parse`) still stubbed — SHA-256 + base32 are the next dependency to resolve before those can work.

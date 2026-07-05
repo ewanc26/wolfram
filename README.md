@@ -14,8 +14,8 @@ A C SDK for the AT Protocol.
 | ------------------------ | ----------- | ----------------------------------------------- |
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web resolution; handle → DID       |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR decode; CID/CAR still stubbed          |
 | `wolfram/crypto.h`        | Stubbed     | Awaiting a secp256k1/P-256 backend              |
-| `wolfram/repo.h`          | Stubbed     | CBOR decode is the sensible starting point      |
 
 ## Requirements
 
@@ -59,13 +59,13 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 
 Roughly in the order it makes sense to tackle them:
 
-1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)) so `identity.c` can parse DID documents.
-2. ✅ DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`) using the JSON parser.
-3. DAG-CBOR decode, read-only, tested against known-good fixtures from the [official atproto repo](https://github.com/bluesky-social/atproto).
-4. SHA-256 + CID computation.
-5. CAR parsing.
+1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
+2. ✅ DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`).
+3. ✅ DAG-CBOR decode (read-only), with full constraint validation and unit tests.
+4. SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
+5. CAR parsing (`wf_car_parse`).
 6. MST traversal, then mutation.
-7. secp256k1 signing via `libsecp256k1`, once repo writes need to be signed.
+7. secp256k1 signing via `libsecp256k1`.
 
 ## Contributing
 
