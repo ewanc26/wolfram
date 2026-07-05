@@ -2,6 +2,10 @@
 
 A C SDK for the AT Protocol.
 
+The runtime library and all generated client code are pure C11. The optional
+Lexicon generator is a development-time Python tool and is never linked into,
+embedded in, or required by applications using `libwolfram`.
+
 **Early development.** XRPC transport, identity resolution, crypto (secp256k1 + P-256), and repo handling (DAG-CBOR, CAR, MST, signed commits) are implemented and tested. Not at feature parity with the official SDKs yet, but the core building blocks are in place.
 
 ## Overview
@@ -13,9 +17,12 @@ A C SDK for the AT Protocol.
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
-| `wolfram/identity.h`      | Implemented | did:plc, did:web, DNS TXT, well-known fallback  |
+| `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
+| `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
 | `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
+| `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
+| `tools/wf_lexgen.py`      | Initial     | Lexicon JSON to typed C data-model declarations |
 
 ## Requirements
 
@@ -24,14 +31,26 @@ A C SDK for the AT Protocol.
 - libcurl
 - OpenSSL (libcrypto) — for SHA-256 hashing
 - libsecp256k1 — for secp256k1 signing (optional; crypto stubs gracefully if absent)
+- c-ares 1.28+ — for portable DNS TXT resolution (optional; POSIX resolver fallback)
+- libzstd — for Jetstream compressed messages (optional)
 
 On macOS via Homebrew:
 
 ```sh
-brew install cmake curl openssl secp256k1
+brew install cmake curl openssl secp256k1 c-ares zstd
 ```
 
 (libcurl also ships with macOS itself, but the Homebrew one is newer and CMake finds it more reliably via `pkg-config`.)
+Jetstream connections require libcurl 7.86 or newer built with `ws`/`wss`
+protocol support. Builds without that optional feature remain usable; WebSocket
+connection attempts explicitly return `WF_ERR_INVALID_ARG`.
+Compressed Jetstream subscriptions additionally require libzstd and the
+[official Jetstream dictionary](https://github.com/bluesky-social/jetstream/blob/main/pkg/models/zstd_dictionary),
+supplied through `wf_jetstream_options`. The SDK copies the dictionary; it does
+not download protocol assets or silently attempt dictionary-free decoding.
+Connected streams can replace collection/DID filters with
+`wf_jetstream_update_options`; empty arrays disable the corresponding filter.
+Set `require_hello` to request Jetstream's paused-until-update handshake.
 
 ## Building
 
@@ -40,6 +59,24 @@ cmake -S . -B build
 cmake --build build
 ctest --test-dir build
 ```
+
+Generate typed, borrowed-view C declarations from one or more Lexicon files:
+
+```sh
+python3 tools/wf_lexgen.py path/to/lexicons/*.json -o generated/lexicons.h
+# Add generated JSON codecs and XRPC wrappers:
+python3 tools/wf_lexgen.py path/to/lexicons/*.json -o generated/lexicons.h \
+  --source-output generated/lexicons.c
+```
+
+The generated structs cover records, named object definitions, and XRPC
+parameters, inputs, and outputs. Optional fields have explicit `has_*` flags;
+input strings, arrays, references, bytes, and encoded JSON values are borrowed
+and must outlive the generated struct. Generated output decoders instead return
+owning objects with a matching `_output_free` function. They decode nested refs
+and arrays, tagged JSON bytes (`$bytes`) via OpenSSL base64, CID links (`$link`),
+typed blobs, unions, and unknown values. Generated endpoint calls still delegate
+all network I/O to `xrpc.c`.
 
 If Homebrew's libcurl isn't picked up automatically, point CMake at it:
 
@@ -67,12 +104,20 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 6. ✅ MST traversal + mutation (`wf_mst_find`, `wf_mst_add`, `wf_mst_delete`, `wf_mst_node_build`, `wf_mst_node_finalize`).
 7. ✅ secp256k1 and P-256 signing (`wf_sign`, `wf_verify`, `wf_signing_key_generate`).
 8. ✅ Signed commit creation (`wf_commit_create`).
-9. 🟡 DNS TXT lookup for AT Protocol handle resolution.
-10. ⬜ DAG-CBOR schema-driven encoding (structured record creation).
-11. ⬜ PDS client — session management, credential storage, auth token refresh.
-12. ⬜ Repository data operations — create/update/delete records, sync repo state.
-13. ⬜ Lexicon integration — code generation from Lexicon schemas for typed AT Protocol calls.
-14. ⬜ Union/jetstream — WebSocket-based firehose subscription for live AT Protocol events.
+9. ✅ DNS TXT lookup for AT Protocol handle resolution (c-ares when available,
+   POSIX resolver fallback; multi-record and chunked TXT handling).
+10. ✅ DAG-CBOR schema-driven encoding (structured record creation).
+11. ✅ PDS client — session management, credential storage, auth token refresh.
+12. ✅ Repository data operations — create/update/delete records, full/diff CAR
+    download (`wf_sync_get_repo`), and ownership/signature/content-addressed
+    verification/import (`wf_repo_verify`, `wf_repo_import`).
+13. 🟡 Lexicon integration — typed C schemas, inline objects, repeated-key
+    array query parameters, input JSON encoders, generated query/procedure
+    wrappers, and owning output decoders are implemented; encoding arbitrary
+    referenced input definitions across the full upstream corpus remains.
+14. ✅ Union/jetstream — libcurl WebSocket transport, filtered Jetstream URL
+    construction, runtime subscriber options, JSON event envelopes,
+    cursor-based reconnect/backoff, and dictionary-based zstd messages.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).

@@ -21,6 +21,18 @@ find_package(OpenSSL REQUIRED)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(SECP256K1 libsecp256k1)
+    pkg_check_modules(ZSTD libzstd)
+    pkg_check_modules(CARES libcares>=1.28)
+endif()
+if(NOT ZSTD_FOUND)
+    find_path(ZSTD_INCLUDE_DIR NAMES zstd.h)
+    find_library(ZSTD_LIBRARY NAMES zstd)
+    if(ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY)
+        set(ZSTD_FOUND TRUE)
+        set(ZSTD_INCLUDE_DIRS ${ZSTD_INCLUDE_DIR})
+        set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
+        set(ZSTD_VERSION "system")
+    endif()
 endif()
 
 include(FetchContent)
@@ -37,6 +49,11 @@ add_library(wolfram
     src/identity.c
     src/crypto.c
     src/repo.c
+    src/record.c
+    src/session.c
+    src/websocket.c
+    src/jetstream.c
+    src/sync.c
 )
 
 target_include_directories(wolfram
@@ -51,12 +68,30 @@ target_include_directories(wolfram
 
 target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
 
+if(CARES_FOUND)
+    target_include_directories(wolfram PRIVATE ${CARES_INCLUDE_DIRS})
+    target_link_directories(wolfram PRIVATE ${CARES_LIBRARY_DIRS})
+    target_link_libraries(wolfram PRIVATE ${CARES_LIBRARIES})
+    target_compile_definitions(wolfram PRIVATE HAVE_CARES)
+    message(STATUS "c-ares found: ${CARES_VERSION}")
+endif()
+
+if(ZSTD_FOUND)
+    target_include_directories(wolfram PRIVATE ${ZSTD_INCLUDE_DIRS})
+    target_link_directories(wolfram PRIVATE ${ZSTD_LIBRARY_DIRS})
+    target_link_libraries(wolfram PRIVATE ${ZSTD_LIBRARIES})
+    target_compile_definitions(wolfram PRIVATE HAVE_LIBZSTD)
+    message(STATUS "libzstd found: ${ZSTD_VERSION}")
+else()
+    message(STATUS "libzstd not found — Jetstream compression remains unavailable")
+endif()
+
 find_library(RESOLV_LIB NAMES resolv)
-if(RESOLV_LIB)
+if(NOT CARES_FOUND AND RESOLV_LIB)
     target_link_libraries(wolfram PUBLIC ${RESOLV_LIB})
     target_compile_definitions(wolfram PRIVATE HAVE_RESOLV)
     message(STATUS "resolv found: ${RESOLV_LIB}")
-else()
+elseif(NOT CARES_FOUND)
     message(STATUS "resolv not found — DNS TXT lookup will fall back to HTTPS well-known")
 endif()
 
@@ -85,6 +120,13 @@ endif()
 if(WOLFRAM_BUILD_TESTS)
     enable_testing()
 
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    add_test(NAME lexgen
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover
+            -s ${CMAKE_CURRENT_SOURCE_DIR}/test
+            -p test_lexgen.py
+    )
+
     add_executable(test_xrpc test/test_xrpc.c)
     target_link_libraries(test_xrpc PRIVATE wolfram)
     target_include_directories(test_xrpc PRIVATE test)
@@ -100,6 +142,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_repo PRIVATE test)
     add_test(NAME repo COMMAND test_repo)
 
+    add_executable(test_record test/test_record.c)
+    target_link_libraries(test_record PRIVATE wolfram)
+    target_include_directories(test_record PRIVATE test)
+    add_test(NAME record COMMAND test_record)
+
     add_executable(test_crypto test/test_crypto.c)
     target_link_libraries(test_crypto PRIVATE wolfram)
     target_include_directories(test_crypto PRIVATE test)
@@ -107,4 +154,25 @@ if(WOLFRAM_BUILD_TESTS)
         target_compile_definitions(test_crypto PRIVATE HAVE_LIBSECP256K1)
     endif()
     add_test(NAME crypto COMMAND test_crypto)
+
+    add_executable(test_session test/test_session.c)
+    target_link_libraries(test_session PRIVATE wolfram)
+    target_include_directories(test_session PRIVATE test)
+    add_test(NAME session COMMAND test_session)
+
+    add_executable(test_sync test/test_sync.c)
+    target_link_libraries(test_sync PRIVATE wolfram)
+    target_include_directories(test_sync PRIVATE test)
+    add_test(NAME sync COMMAND test_sync)
+
+    add_executable(test_jetstream test/test_jetstream.c)
+    target_link_libraries(test_jetstream PRIVATE wolfram)
+    target_include_directories(test_jetstream PRIVATE test)
+    if(ZSTD_FOUND)
+        target_include_directories(test_jetstream PRIVATE ${ZSTD_INCLUDE_DIRS})
+        target_link_directories(test_jetstream PRIVATE ${ZSTD_LIBRARY_DIRS})
+        target_link_libraries(test_jetstream PRIVATE ${ZSTD_LIBRARIES})
+        target_compile_definitions(test_jetstream PRIVATE HAVE_LIBZSTD)
+    endif()
+    add_test(NAME jetstream COMMAND test_jetstream)
 endif()

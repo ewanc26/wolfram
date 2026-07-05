@@ -14,5 +14,9 @@
 #include "wolfram/identity.h"
 #include "wolfram/crypto.h"
 #include "wolfram/repo.h"
+#include "wolfram/session.h"
+#include "wolfram/websocket.h"
+#include "wolfram/jetstream.h"
+#include "wolfram/sync.h"
 
 #endif /* WOLFRAM_H */
