@@ -213,19 +213,19 @@ int main(void) {
     {
         unsigned char false_[] = {0xF4};
         wf_cbor_item *item = wf_cbor_parse(false_, 1);
-        WF_CHECK(check_simple(item, 0));
+        WF_CHECK(check_simple(item, 20));
         wf_cbor_free(item);
     }
     {
         unsigned char true_[] = {0xF5};
         wf_cbor_item *item = wf_cbor_parse(true_, 1);
-        WF_CHECK(check_simple(item, 1));
+        WF_CHECK(check_simple(item, 21));
         wf_cbor_free(item);
     }
     {
         unsigned char null_[] = {0xF6};
         wf_cbor_item *item = wf_cbor_parse(null_, 1);
-        WF_CHECK(check_simple(item, 2));
+        WF_CHECK(check_simple(item, 22));
         wf_cbor_free(item);
     }
 
@@ -702,6 +702,160 @@ int main(void) {
         WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char*)"nope", 4, &found) == WF_ERR_NOT_FOUND);
 
         wf_car_free(&parsed);
+    }
+
+    /* ── MST mutation ── */
+
+    /* Build and finalize an empty node, then parse it back */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid empty_left = {{0}, 0};
+        wf_mst_node node;
+        memset(&node, 0, sizeof(node));
+        WF_CHECK(wf_mst_node_build(0, &empty_left, NULL, 0, &node) == WF_OK);
+        WF_CHECK(wf_mst_node_finalize(&node, &car) == WF_OK);
+        WF_CHECK(node.cid.len == 36);
+        WF_CHECK(car.block_count == 1);
+
+        wf_mst_node parsed;
+        memset(&parsed, 0, sizeof(parsed));
+        wf_car_block *block = wf_car_find_block(&car, &node.cid);
+        WF_CHECK(block != NULL);
+        WF_CHECK(wf_mst_node_parse(block->data, block->data_len,
+                                    &node.cid, &parsed) == WF_OK);
+        WF_CHECK(parsed.count == 0);
+        WF_CHECK(parsed.left.len == 0);
+        wf_mst_node_free(&parsed);
+        wf_mst_node_free(&node);
+        wf_car_free(&car);
+    }
+
+    /* Build and finalize a node with one entry, round-trip */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid value_cid = {{0}, 0};
+        value_cid.bytes[0] = 0x01; value_cid.bytes[1] = 0x71;
+        value_cid.bytes[2] = 0x12; value_cid.bytes[3] = 0x20;
+        value_cid.len = 36;
+
+        wf_mst_entry entry;
+        memset(&entry, 0, sizeof(entry));
+        unsigned char *k = malloc(4);
+        memcpy(k, "test", 4);
+        entry.key = k;
+        entry.key_len = 4;
+        entry.value = value_cid;
+
+        wf_cid empty_left = {{0}, 0};
+        wf_mst_node node;
+        WF_CHECK(wf_mst_node_build(0, &empty_left, &entry, 1, &node) == WF_OK);
+
+        /* entry.key is now NULL (transferred to node) */
+        WF_CHECK(entry.key == NULL);
+
+        WF_CHECK(wf_mst_node_finalize(&node, &car) == WF_OK);
+        WF_CHECK(car.block_count == 1);
+
+        wf_mst_node parsed;
+        memset(&parsed, 0, sizeof(parsed));
+        wf_car_block *block = wf_car_find_block(&car, &node.cid);
+        WF_CHECK(block != NULL);
+        WF_CHECK(wf_mst_node_parse(block->data, block->data_len,
+                                    &node.cid, &parsed) == WF_OK);
+        WF_CHECK(parsed.count == 1);
+        WF_CHECK(parsed.entries[0].key_len == 4);
+        WF_CHECK(memcmp(parsed.entries[0].key, "test", 4) == 0);
+        WF_CHECK(memcmp(&parsed.entries[0].value, &value_cid, sizeof(wf_cid)) == 0);
+        wf_mst_node_free(&parsed);
+        wf_mst_node_free(&node);
+        wf_car_free(&car);
+    }
+
+    /* Add a single key to an empty tree */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid value_cid = {{0}, 0};
+        value_cid.bytes[0] = 0x01; value_cid.bytes[1] = 0x71;
+        value_cid.bytes[2] = 0x12; value_cid.bytes[3] = 0x20;
+        value_cid.len = 36;
+
+        wf_cid root = {{0}, 0};
+        wf_cid new_root;
+        memset(&new_root, 0, sizeof(new_root));
+
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"asdf", 4,
+                             &value_cid, &new_root) == WF_OK);
+        WF_CHECK(new_root.len == 36);
+
+        /* Find it back */
+        wf_cid found;
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &new_root,
+                              (unsigned char*)"asdf", 4,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &value_cid, sizeof(wf_cid)) == 0);
+
+        /* Missing key */
+        WF_CHECK(wf_mst_find(&car, &new_root,
+                              (unsigned char*)"nope", 4,
+                              &found) == WF_ERR_NOT_FOUND);
+
+        wf_car_free(&car);
+    }
+
+    /* Add two keys at the same layer (layer 0) to an initially empty tree */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid val_a = {{0}, 0};
+        val_a.bytes[0] = 0x01; val_a.bytes[1] = 0x71;
+        val_a.bytes[2] = 0x12; val_a.bytes[3] = 0x20;
+        val_a.bytes[4] = 0xAA;
+        val_a.len = 36;
+
+        wf_cid val_b = {{0}, 0};
+        val_b.bytes[0] = 0x01; val_b.bytes[1] = 0x71;
+        val_b.bytes[2] = 0x12; val_b.bytes[3] = 0x20;
+        val_b.bytes[4] = 0xBB;
+        val_b.len = 36;
+
+        /* Known layer-0 keys from test vectors: "2653ae71" and "asdf" */
+        wf_cid root = {{0}, 0};
+        wf_cid root_a;
+        memset(&root_a, 0, sizeof(root_a));
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"asdf", 4,
+                             &val_a, &root_a) == WF_OK);
+
+        wf_cid root_b;
+        memset(&root_b, 0, sizeof(root_b));
+        WF_CHECK(wf_mst_add(&car, &root_a,
+                             (unsigned char*)"2653ae71", 8,
+                             &val_b, &root_b) == WF_OK);
+
+        /* Both keys should be findable */
+        wf_cid found;
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &root_b,
+                              (unsigned char*)"asdf", 4,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_a, sizeof(wf_cid)) == 0);
+
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &root_b,
+                              (unsigned char*)"2653ae71", 8,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_b, sizeof(wf_cid)) == 0);
+
+        wf_car_free(&car);
     }
 
     WF_TEST_SUMMARY();

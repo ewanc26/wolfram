@@ -64,6 +64,14 @@ wf_cbor_item *wf_cbor_parse(const unsigned char *data, size_t len);
 /** Free a tree returned by wf_cbor_parse. Safe to call with NULL. */
 void wf_cbor_free(wf_cbor_item *item);
 
+/**
+ * Serialize a CBOR item tree as DAG-CBOR bytes.
+ * The map keys must already be in DAG-CBOR sort order (by encoded bytes).
+ * Returns a heap-allocated buffer; caller frees via free().
+ * Sets *out_len to the byte count. Returns NULL on error.
+ */
+unsigned char *wf_cbor_serialize(const wf_cbor_item *item, size_t *out_len);
+
 /* ── CID ───────────────────────────────────────────────────── */
 
 /** A content identifier (CIDv1, dag-cbor, sha2-256), stored raw. */
@@ -136,6 +144,7 @@ typedef struct wf_mst_entry {
 /** An MST node parsed from a DAG-CBOR block. */
 typedef struct wf_mst_node {
     wf_cid         cid;
+    unsigned       layer;     /* computed from first leaf's key depth */
     wf_cid         left;      /* left subtree CID (zeroed if none) */
     wf_mst_entry  *entries;
     size_t         count;
@@ -144,6 +153,17 @@ typedef struct wf_mst_node {
 /** Parse an MST node from DAG-CBOR bytes. Entries have decompressed keys. */
 wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
                              const wf_cid *cid, wf_mst_node *out);
+
+/** Build an MST node from raw components (no serialization yet). */
+wf_status wf_mst_node_build(unsigned layer, const wf_cid *left,
+                             wf_mst_entry *entries, size_t count,
+                             wf_mst_node *out);
+
+/**
+ * Finalize an MST node: serialize to CBOR, compute CID, and add the
+ * resulting block to the CAR. After this, node->cid is set.
+ */
+wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car);
 
 /** Free an MST node and its entries. Safe to call with NULL. */
 void wf_mst_node_free(wf_mst_node *node);
@@ -156,6 +176,22 @@ void wf_mst_node_free(wf_mst_node *node);
 wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
                        const unsigned char *key, size_t key_len,
                        wf_cid *out);
+
+/**
+ * Add a key-value pair to the MST, producing a new root CID.
+ * New blocks are appended to `car`.
+ */
+wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
+                      const unsigned char *key, size_t key_len,
+                      const wf_cid *value, wf_cid *new_root);
+
+/**
+ * Delete a key from the MST, producing a new root CID (or a zeroed
+ * CID if the tree becomes empty). New blocks are appended to `car`.
+ */
+wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
+                         const unsigned char *key, size_t key_len,
+                         wf_cid *new_root);
 
 #ifdef __cplusplus
 }
