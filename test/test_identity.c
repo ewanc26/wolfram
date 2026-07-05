@@ -46,6 +46,40 @@ int main(void) {
     WF_CHECK(wf_handle_resolve(client, "example.com", NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_handle_resolve(client, "", &out_did) == WF_ERR_INVALID_ARG);
 
+    /* TXT chunks are joined per record; unrelated records are ignored. */
+    const wf_dns_txt_chunk chunked[] = {
+        {(const unsigned char *)"noise", 5, 1},
+        {(const unsigned char *)"did=did:plc:", 12, 1},
+        {(const unsigned char *)"abc123", 6, 0},
+    };
+    WF_CHECK(wf_handle_parse_dns_txt(chunked, 3, &out_did) == WF_OK);
+    WF_CHECK(out_did != NULL && strcmp(out_did, "did:plc:abc123") == 0);
+    free(out_did);
+    out_did = NULL;
+
+    const wf_dns_txt_chunk multiple[] = {
+        {(const unsigned char *)"did=did:plc:first", 17, 1},
+        {(const unsigned char *)"did=did:web:second", 18, 1},
+    };
+    WF_CHECK(wf_handle_parse_dns_txt(multiple, 2, &out_did) == WF_ERR_PARSE);
+    WF_CHECK(out_did == NULL);
+
+    const wf_dns_txt_chunk missing_prefix[] = {
+        {(const unsigned char *)"did:plc:abc", 11, 1},
+    };
+    WF_CHECK(wf_handle_parse_dns_txt(missing_prefix, 1, &out_did) == WF_ERR_PARSE);
+
+    const wf_dns_txt_chunk invalid_did[] = {
+        {(const unsigned char *)"did=not-a-did", 13, 1},
+    };
+    WF_CHECK(wf_handle_parse_dns_txt(invalid_did, 1, &out_did) == WF_ERR_PARSE);
+
+    const wf_dns_txt_chunk continuation_first[] = {
+        {(const unsigned char *)"did=did:plc:abc", 15, 0},
+    };
+    WF_CHECK(wf_handle_parse_dns_txt(continuation_first, 1, &out_did) == WF_ERR_PARSE);
+    WF_CHECK(wf_handle_parse_dns_txt(NULL, 0, &out_did) == WF_ERR_INVALID_ARG);
+
     /* --- DID document struct lifecycle --- */
     wf_did_document doc2 = {0};
     doc2.did = strdup("did:plc:test");

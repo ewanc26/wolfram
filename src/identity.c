@@ -8,7 +8,7 @@
  *     https://<handle>/.well-known/atproto-did fallback
  *
  * Depends on cJSON for parsing DID documents (JSON).
- * DNS TXT lookups use the POSIX res_query API (via -lresolv).
+ * DNS TXT lookups prefer c-ares, with the POSIX resolver as a fallback.
  */
 
 #include "wolfram/identity.h"
@@ -16,8 +16,15 @@
 #include "wolfram/version.h"
 
 #include <cJSON.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef HAVE_CARES
+#include <ares.h>
+#endif
 
 #ifdef HAVE_RESOLV
 #include <resolv.h>
@@ -175,19 +182,184 @@ void wf_did_document_free(wf_did_document *doc) {
     doc->method = WF_DID_METHOD_UNKNOWN;
 }
 
+wf_status wf_handle_parse_dns_txt(const wf_dns_txt_chunk *chunks,
+                                  size_t chunk_count,
+                                  char **out_did) {
+    if (!chunks || chunk_count == 0 || !out_did) return WF_ERR_INVALID_ARG;
+    *out_did = NULL;
+
+    size_t matches = 0;
+    char *match = NULL;
+    size_t i = 0;
+    while (i < chunk_count) {
+        if (!chunks[i].record_start) {
+            free(match);
+            return WF_ERR_PARSE;
+        }
+        size_t end = i + 1;
+        size_t length = chunks[i].length;
+        while (end < chunk_count && !chunks[end].record_start) {
+            if (SIZE_MAX - length < chunks[end].length) {
+                free(match);
+                return WF_ERR_ALLOC;
+            }
+            length += chunks[end].length;
+            end++;
+        }
+
+        if (length == SIZE_MAX) {
+            free(match);
+            return WF_ERR_ALLOC;
+        }
+        char *record = malloc(length + 1);
+        if (!record) {
+            free(match);
+            return WF_ERR_ALLOC;
+        }
+        size_t offset = 0;
+        for (size_t part = i; part < end; part++) {
+            if (chunks[part].length > 0 && !chunks[part].data) {
+                free(record);
+                free(match);
+                return WF_ERR_INVALID_ARG;
+            }
+            memcpy(record + offset, chunks[part].data, chunks[part].length);
+            offset += chunks[part].length;
+        }
+        record[length] = '\0';
+
+        if (!memchr(record, '\0', length) && length >= 4 &&
+            memcmp(record, "did=", 4) == 0) {
+            matches++;
+            free(match);
+            match = NULL;
+            if (length >= 8 && memcmp(record + 4, "did:", 4) == 0) {
+                match = wf_strdup(record + 4);
+                if (!match) {
+                    free(record);
+                    return WF_ERR_ALLOC;
+                }
+            }
+        }
+        free(record);
+        i = end;
+    }
+
+    if (matches != 1 || !match) {
+        free(match);
+        return WF_ERR_PARSE;
+    }
+    *out_did = match;
+    return WF_OK;
+}
+
+#ifdef HAVE_CARES
+typedef struct wf_cares_result {
+    wf_status status;
+    char *did;
+} wf_cares_result;
+
+static void wf_cares_txt_callback(void *arg, ares_status_t status, size_t timeouts,
+                                  const ares_dns_record_t *dnsrec) {
+    (void)timeouts;
+    wf_cares_result *result = arg;
+    if (status != ARES_SUCCESS) {
+        result->status = (status == ARES_ENODATA || status == ARES_ENOTFOUND)
+                             ? WF_ERR_NOT_FOUND
+                             : WF_ERR_NETWORK;
+        return;
+    }
+
+    size_t count = 0;
+    size_t answers = ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER);
+    for (size_t i = 0; i < answers; i++) {
+        const ares_dns_rr_t *rr = ares_dns_record_rr_get_const(
+            dnsrec, ARES_SECTION_ANSWER, i);
+        if (rr && ares_dns_rr_get_type(rr) == ARES_REC_TYPE_TXT)
+            count += ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
+    }
+    if (count == 0) {
+        result->status = WF_ERR_NOT_FOUND;
+        return;
+    }
+    wf_dns_txt_chunk *chunks = calloc(count, sizeof(*chunks));
+    if (!chunks) {
+        result->status = WF_ERR_ALLOC;
+        return;
+    }
+    size_t chunk_index = 0;
+    for (size_t answer = 0; answer < answers; answer++) {
+        const ares_dns_rr_t *rr = ares_dns_record_rr_get_const(
+            dnsrec, ARES_SECTION_ANSWER, answer);
+        if (!rr || ares_dns_rr_get_type(rr) != ARES_REC_TYPE_TXT) continue;
+        size_t parts = ares_dns_rr_get_abin_cnt(rr, ARES_RR_TXT_DATA);
+        for (size_t part = 0; part < parts; part++) {
+            chunks[chunk_index].data = ares_dns_rr_get_abin(
+                rr, ARES_RR_TXT_DATA, part, &chunks[chunk_index].length);
+            chunks[chunk_index].record_start = part == 0;
+            chunk_index++;
+        }
+    }
+    result->status = wf_handle_parse_dns_txt(chunks, count, &result->did);
+    free(chunks);
+}
+
+static wf_status wf_handle_resolve_cares(const char *qname, char **out_did) {
+    static atomic_flag init_lock = ATOMIC_FLAG_INIT;
+    static atomic_int initialized = 0;
+    int init_state = atomic_load_explicit(&initialized, memory_order_acquire);
+    if (init_state == 0) {
+        while (atomic_flag_test_and_set_explicit(&init_lock, memory_order_acquire)) {}
+        init_state = atomic_load_explicit(&initialized, memory_order_relaxed);
+        if (init_state == 0) {
+            init_state = ares_library_init(ARES_LIB_INIT_ALL) == ARES_SUCCESS ? 1 : -1;
+            if (init_state == 1) atexit(ares_library_cleanup);
+            atomic_store_explicit(&initialized, init_state, memory_order_release);
+        }
+        atomic_flag_clear_explicit(&init_lock, memory_order_release);
+    }
+    if (init_state < 0) return WF_ERR_NETWORK;
+
+    ares_channel_t *channel = NULL;
+    struct ares_options options = {0};
+    options.evsys = ARES_EVSYS_DEFAULT;
+    int status = ares_init_options(&channel, &options, ARES_OPT_EVENT_THREAD);
+    if (status != ARES_SUCCESS) return WF_ERR_NETWORK;
+
+    wf_cares_result result = {WF_ERR_NETWORK, NULL};
+    status = ares_query_dnsrec(channel, qname, ARES_CLASS_IN, ARES_REC_TYPE_TXT,
+                               wf_cares_txt_callback, &result, NULL);
+    if (status != ARES_SUCCESS) {
+        ares_destroy(channel);
+        return WF_ERR_NETWORK;
+    }
+    status = ares_queue_wait_empty(channel, -1);
+    ares_destroy(channel);
+    if (status != ARES_SUCCESS) {
+        free(result.did);
+        return WF_ERR_NETWORK;
+    }
+    *out_did = result.did;
+    return result.status;
+}
+#endif
+
 static wf_status wf_handle_resolve_dns_txt(wf_xrpc_client *client, const char *handle, char **out_did) {
     (void)client;
 
-#ifdef HAVE_RESOLV
-    if (!handle || !out_did || handle[0] == '\0') {
-        return WF_ERR_INVALID_ARG;
-    }
+    if (!handle || !out_did || handle[0] == '\0') return WF_ERR_INVALID_ARG;
 
     size_t qname_len = strlen("_atproto.") + strlen(handle) + 1;
     char *qname = malloc(qname_len);
     if (!qname) return WF_ERR_ALLOC;
     snprintf(qname, qname_len, "_atproto.%s", handle);
 
+#ifdef HAVE_CARES
+    wf_status status = wf_handle_resolve_cares(qname, out_did);
+    free(qname);
+    return status;
+
+#elif defined(HAVE_RESOLV)
     unsigned char buf[1024];
     int len = res_query(qname, ns_c_in, ns_t_txt, buf, sizeof(buf));
     free(qname);
@@ -200,33 +372,44 @@ static wf_status wf_handle_resolve_dns_txt(wf_xrpc_client *client, const char *h
     int ancount = ns_msg_count(msg, ns_s_an);
     if (ancount < 1) return WF_ERR_NOT_FOUND;
 
-    ns_rr rr;
-    if (ns_parserr(&msg, ns_s_an, 0, &rr) < 0) return WF_ERR_PARSE;
-
-    if (ns_rr_type(rr) != ns_t_txt) return WF_ERR_PARSE;
-
-    const unsigned char *rdata = ns_rr_rdata(rr);
-    int rdlen = ns_rr_rdlen(rr);
-
-    if (rdlen < 1) return WF_ERR_PARSE;
-
-    /* First byte is the length of the first TXT chunk */
-    int txt_len = rdata[0];
-    if (txt_len + 1 > rdlen) return WF_ERR_PARSE;
-
-    /* Validate it looks like a DID */
-    const unsigned char *txt = rdata + 1;
-    if (txt_len < 4 || memcmp(txt, "did:", 4) != 0) return WF_ERR_PARSE;
-
-    *out_did = malloc((size_t)txt_len + 1);
-    if (!*out_did) return WF_ERR_ALLOC;
-    memcpy(*out_did, txt, (size_t)txt_len);
-    (*out_did)[txt_len] = '\0';
-
-    return WF_OK;
+    wf_dns_txt_chunk *chunks = calloc((size_t)ancount, sizeof(*chunks));
+    if (!chunks) return WF_ERR_ALLOC;
+    size_t chunk_count = 0;
+    wf_status result = WF_OK;
+    for (int answer = 0; answer < ancount && result == WF_OK; answer++) {
+        ns_rr rr;
+        if (ns_parserr(&msg, ns_s_an, answer, &rr) < 0) {
+            result = WF_ERR_PARSE;
+            break;
+        }
+        if (ns_rr_type(rr) != ns_t_txt) continue;
+        const unsigned char *rdata = ns_rr_rdata(rr);
+        size_t rdlen = ns_rr_rdlen(rr);
+        size_t offset = 0;
+        int first = 1;
+        while (offset < rdlen) {
+            size_t length = rdata[offset++];
+            if (length > rdlen - offset) {
+                result = WF_ERR_PARSE;
+                break;
+            }
+            wf_dns_txt_chunk *grown = realloc(chunks, (chunk_count + 1) * sizeof(*chunks));
+            if (!grown) {
+                result = WF_ERR_ALLOC;
+                break;
+            }
+            chunks = grown;
+            chunks[chunk_count++] = (wf_dns_txt_chunk){rdata + offset, length, first};
+            first = 0;
+            offset += length;
+        }
+    }
+    if (result == WF_OK) result = chunk_count ? wf_handle_parse_dns_txt(chunks, chunk_count, out_did)
+                                               : WF_ERR_NOT_FOUND;
+    free(chunks);
+    return result;
 #else
-    (void)handle;
-    (void)out_did;
+    free(qname);
     /* DNS library not available — skip to well-known fallback */
     return WF_ERR_NETWORK;
 #endif
