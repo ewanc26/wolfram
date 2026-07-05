@@ -44,6 +44,18 @@ FetchContent_Declare(
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 FetchContent_MakeAvailable(cjson)
 
+FetchContent_Declare(
+    libcbor
+    GIT_REPOSITORY https://github.com/PJK/libcbor.git
+    GIT_TAG v0.13.0
+)
+set(WITH_TESTS OFF CACHE BOOL "" FORCE)
+set(WITH_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(CBOR_PRETTY_PRINTER OFF CACHE BOOL "" FORCE)
+set(SANITIZE OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(libcbor)
+set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 add_library(wolfram
     src/xrpc.c
     src/identity.c
@@ -68,6 +80,7 @@ target_include_directories(wolfram
 )
 
 target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
+target_link_libraries(wolfram PRIVATE libcbor::libcbor)
 
 if(CARES_FOUND)
     target_include_directories(wolfram PRIVATE ${CARES_INCLUDE_DIRS})

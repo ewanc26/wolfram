@@ -33,6 +33,7 @@ typedef enum wf_cbor_type {
     WF_CBOR_STRING   = 3,
     WF_CBOR_ARRAY    = 4,
     WF_CBOR_MAP      = 5,
+    WF_CBOR_LINK     = 6,
     WF_CBOR_SIMPLE   = 7,
 } wf_cbor_type;
 
@@ -58,8 +59,11 @@ typedef struct wf_cbor_item {
  * Parse DAG-CBOR-encoded bytes into an item tree.
  *
  * Returns NULL on parse error or DAG-CBOR constraint violation
- * (floats, tags, indefinite-length, non-canonical integers,
- * unsorted map keys). The returned tree must be freed with
+ * (floats, unsupported tags, indefinite-length, non-canonical integers,
+ * invalid UTF-8, non-string/duplicate/unsorted map keys). Tag 42 CID links
+ * are returned as WF_CBOR_LINK with their historical 0x00 prefix removed.
+ * Undefined is coerced to null for parity with @atproto/lex-cbor.
+ * The returned tree must be freed with
  * wf_cbor_free.
  */
 wf_cbor_item *wf_cbor_parse(const unsigned char *data, size_t len);

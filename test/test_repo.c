@@ -28,6 +28,13 @@ static int check_bytes(const wf_cbor_item *item,
            memcmp(item->bytes.data, expected, len) == 0;
 }
 
+static int check_link(const wf_cbor_item *item,
+                      const unsigned char *expected, size_t len) {
+    return item && item->type == WF_CBOR_LINK &&
+           item->bytes.len == len &&
+           memcmp(item->bytes.data, expected, len) == 0;
+}
+
 static int check_string(const wf_cbor_item *item, const char *expected) {
     size_t len = strlen(expected);
     return item && item->type == WF_CBOR_STRING &&
@@ -203,16 +210,10 @@ int main(void) {
         wf_cbor_free(item);
     }
     {
-        /* {1: "a", 2: "b"} — sorted by key (already sorted) */
+        /* DAG-CBOR map keys must be strings. */
         unsigned char sorted[] = {0xA2, 0x01, 0x61, 0x61,
                                   0x02, 0x61, 0x62};
-        wf_cbor_item *item = wf_cbor_parse(sorted, 7);
-        WF_CHECK(check_map_len(item, 2));
-        WF_CHECK(check_uint(item->map.pairs[0].key, 1));
-        WF_CHECK(check_string(item->map.pairs[0].value, "a"));
-        WF_CHECK(check_uint(item->map.pairs[1].key, 2));
-        WF_CHECK(check_string(item->map.pairs[1].value, "b"));
-        wf_cbor_free(item);
+        WF_CHECK(wf_cbor_parse(sorted, 7) == NULL);
     }
 
     /* ── simple values ── */
@@ -284,10 +285,12 @@ int main(void) {
         WF_CHECK(wf_cbor_parse(tag, 2) == NULL);
     }
 
-    /* Undefined (simple value 23) */
+    /* atproto's permissive decoder coerces undefined to null. */
     {
         unsigned char undef[] = {0xF7};
-        WF_CHECK(wf_cbor_parse(undef, 1) == NULL);
+        wf_cbor_item *item = wf_cbor_parse(undef, 1);
+        WF_CHECK(check_simple(item, 22));
+        wf_cbor_free(item);
     }
 
     /* Simple value 0 (not allowed in DAG-CBOR) */
@@ -307,6 +310,38 @@ int main(void) {
         unsigned char unsorted[] = {0xA2, 0x02, 0x61, 0x62,
                                     0x01, 0x61, 0x61};
         WF_CHECK(wf_cbor_parse(unsorted, 7) == NULL);
+    }
+
+    /* Duplicate keys are invalid even when adjacent. */
+    {
+        unsigned char duplicate[] = {0xA2, 0x61, 'a', 0x01,
+                                     0x61, 'a', 0x02};
+        WF_CHECK(wf_cbor_parse(duplicate, sizeof(duplicate)) == NULL);
+    }
+
+    /* Invalid UTF-8 is forbidden in DAG-CBOR strings. */
+    {
+        unsigned char invalid_utf8[] = {0x61, 0xFF};
+        WF_CHECK(wf_cbor_parse(invalid_utf8, sizeof(invalid_utf8)) == NULL);
+    }
+
+    /* CID links require tag 42 and the historical leading zero byte. */
+    {
+        unsigned char cid[36] = {0x01, 0x71, 0x12, 0x20};
+        unsigned char link[41] = {0xD8, 0x2A, 0x58, 0x25, 0x00};
+        memcpy(link + 5, cid, sizeof(cid));
+        wf_cbor_item *item = wf_cbor_parse(link, sizeof(link));
+        WF_CHECK(check_link(item, cid, sizeof(cid)));
+        wf_cbor_free(item);
+
+        link[4] = 0x01;
+        WF_CHECK(wf_cbor_parse(link, sizeof(link)) == NULL);
+    }
+
+    /* Indefinite containers are not canonical DAG-CBOR. */
+    {
+        unsigned char indefinite[] = {0x9F, 0x01, 0xFF};
+        WF_CHECK(wf_cbor_parse(indefinite, sizeof(indefinite)) == NULL);
     }
 
     /* Trailing data after root item */
@@ -382,7 +417,8 @@ int main(void) {
         memcpy(hdr_cbor + hp, "roots", 5); hp += 5;
         hdr_cbor[hp++] = 0x81;                               /* array(1) */
         hdr_cbor[hp++] = 0xD8; hdr_cbor[hp++] = 0x2A;       /* tag(42) */
-        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x24;       /* bytes(36) */
+        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x25;       /* bytes(37) */
+        hdr_cbor[hp++] = 0x00;
         memcpy(hdr_cbor + hp, block_cid.bytes, 36); hp += 36;
         hdr_cbor[hp++] = 0x67;                               /* text(7) "version" */
         memcpy(hdr_cbor + hp, "version", 7); hp += 7;
@@ -449,7 +485,8 @@ int main(void) {
         memcpy(hdr + hp, "roots", 5); hp += 5;
         hdr[hp++] = 0x81;
         hdr[hp++] = 0xD8; hdr[hp++] = 0x2A;
-        hdr[hp++] = 0x58; hdr[hp++] = 0x24;
+        hdr[hp++] = 0x58; hdr[hp++] = 0x25;
+        hdr[hp++] = 0x00;
         memcpy(hdr + hp, block_cid.bytes, 36); hp += 36;
         hdr[hp++] = 0x67;
         memcpy(hdr + hp, "version", 7); hp += 7;
@@ -531,7 +568,8 @@ int main(void) {
         entry[ep++] = 0xF6;                               /* null */
         entry[ep++] = 0x61; entry[ep++] = 0x76;          /* text(1) "v" */
         entry[ep++] = 0xD8; entry[ep++] = 0x2A;          /* tag(42) */
-        entry[ep++] = 0x58; entry[ep++] = 0x24;          /* bytes(36) */
+        entry[ep++] = 0x58; entry[ep++] = 0x25;          /* bytes(37) */
+        entry[ep++] = 0x00;
         memcpy(entry + ep, cid_bytes, 36); ep += 36;
 
         unsigned char node_cbor[300];
@@ -587,13 +625,15 @@ int main(void) {
         commit_cbor[cp2++] = 0x64;                        /* text(4) "data" */
         memcpy(commit_cbor + cp2, "data", 4); cp2 += 4;
         commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A; /* tag(42) */
-        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x24; /* bytes(36) */
+        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x25; /* bytes(37) */
+        commit_cbor[cp2++] = 0x00;
         memcpy(commit_cbor + cp2, cid_bytes, 36); cp2 += 36;
 
         commit_cbor[cp2++] = 0x64;                        /* text(4) "prev" */
         memcpy(commit_cbor + cp2, "prev", 4); cp2 += 4;
         commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A;
-        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x24;
+        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x25;
+        commit_cbor[cp2++] = 0x00;
         memcpy(commit_cbor + cp2, prev_cid, 36); cp2 += 36;
 
         commit_cbor[cp2++] = 0x67;                        /* text(7) "version" */
@@ -665,7 +705,8 @@ int main(void) {
         entry[ep++] = 0xF6;
         entry[ep++] = 0x61; entry[ep++] = 0x76;
         entry[ep++] = 0xD8; entry[ep++] = 0x2A;
-        entry[ep++] = 0x58; entry[ep++] = 0x24;
+        entry[ep++] = 0x58; entry[ep++] = 0x25;
+        entry[ep++] = 0x00;
         memcpy(entry + ep, record_cid.bytes, 36); ep += 36;
 
         unsigned char node_cbor[300], np = 0;
@@ -696,7 +737,8 @@ int main(void) {
         commit_cbor[cp2++] = 0x64;                           /* text(4) "data" */
         memcpy(commit_cbor + cp2, "data", 4); cp2 += 4;
         commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A;
-        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x24;
+        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x25;
+        commit_cbor[cp2++] = 0x00;
         memcpy(commit_cbor + cp2, mst_cid.bytes, 36); cp2 += 36;
 
         commit_cbor[cp2++] = 0x67;                           /* text(7) "version" */
@@ -712,7 +754,8 @@ int main(void) {
         hdr_cbor[hp++] = 0x65; memcpy(hdr_cbor + hp, "roots", 5); hp += 5;
         hdr_cbor[hp++] = 0x81;
         hdr_cbor[hp++] = 0xD8; hdr_cbor[hp++] = 0x2A;
-        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x24;
+        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x25;
+        hdr_cbor[hp++] = 0x00;
         memcpy(hdr_cbor + hp, commit_cid.bytes, 36); hp += 36;
         hdr_cbor[hp++] = 0x67; memcpy(hdr_cbor + hp, "version", 7); hp += 7;
         hdr_cbor[hp++] = 0x01;
@@ -733,19 +776,24 @@ int main(void) {
         memcpy(car + cpos, record_data, sizeof(record_data)); cpos += sizeof(record_data);
 
         /* Block 3: commit */
-        car[cpos++] = (unsigned char)(36 + cp2);
+        /* 36 + cp2 is 128 after the required CID link prefix. */
+        car[cpos++] = 0x80;
+        car[cpos++] = 0x01;
         memcpy(car + cpos, commit_cid.bytes, 36); cpos += 36;
         memcpy(car + cpos, commit_cbor, cp2); cpos += cp2;
 
         wf_car parsed;
         memset(&parsed, 0, sizeof(parsed));
-        WF_CHECK(wf_car_parse(car, cpos, &parsed) == WF_OK);
+        wf_status parsed_status = wf_car_parse(car, cpos, &parsed);
+        WF_CHECK(parsed_status == WF_OK);
+        if (parsed_status != WF_OK) return 1;
 
         /* Parse commit to find MST root */
         wf_commit commit;
         memset(&commit, 0, sizeof(commit));
         wf_car_block *commit_block = wf_car_find_block(&parsed, &commit_cid);
         WF_CHECK(commit_block != NULL);
+        if (!commit_block) { wf_car_free(&parsed); return 1; }
         WF_CHECK(wf_commit_parse(commit_block->data, commit_block->data_len, &commit) == WF_OK);
         WF_CHECK(memcmp(&commit.data, &mst_cid, sizeof(wf_cid)) == 0);
 
@@ -921,11 +969,13 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val_asdf = {{0}, 0};
-        val_asdf.bytes[0] = 0x01; val_asdf.bytes[4] = 0xAA;
+        val_asdf.bytes[0] = 0x01; val_asdf.bytes[1] = 0x71;
+        val_asdf.bytes[2] = 0x12; val_asdf.bytes[3] = 0x20; val_asdf.bytes[4] = 0xAA;
         val_asdf.len = 36;
 
         wf_cid val_blue = {{0}, 0};
-        val_blue.bytes[0] = 0x01; val_blue.bytes[4] = 0xBB;
+        val_blue.bytes[0] = 0x01; val_blue.bytes[1] = 0x71;
+        val_blue.bytes[2] = 0x12; val_blue.bytes[3] = 0x20; val_blue.bytes[4] = 0xBB;
         val_blue.len = 36;
 
         WF_CHECK(wf_mst_key_layer((unsigned char*)"asdf", 4) == 0);
@@ -968,11 +1018,13 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val_blue = {{0}, 0};
-        val_blue.bytes[0] = 0x01; val_blue.bytes[4] = 0xAA;
+        val_blue.bytes[0] = 0x01; val_blue.bytes[1] = 0x71;
+        val_blue.bytes[2] = 0x12; val_blue.bytes[3] = 0x20; val_blue.bytes[4] = 0xAA;
         val_blue.len = 36;
 
         wf_cid val_asdf = {{0}, 0};
-        val_asdf.bytes[0] = 0x01; val_asdf.bytes[4] = 0xBB;
+        val_asdf.bytes[0] = 0x01; val_asdf.bytes[1] = 0x71;
+        val_asdf.bytes[2] = 0x12; val_asdf.bytes[3] = 0x20; val_asdf.bytes[4] = 0xBB;
         val_asdf.len = 36;
 
         wf_cid root = {{0}, 0};
@@ -1014,7 +1066,8 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val = {{0}, 0};
-        val.bytes[0] = 0x01; val.bytes[4] = 0xAA;
+        val.bytes[0] = 0x01; val.bytes[1] = 0x71;
+        val.bytes[2] = 0x12; val.bytes[3] = 0x20; val.bytes[4] = 0xAA;
         val.len = 36;
 
         wf_cid root = {{0}, 0};
@@ -1040,11 +1093,13 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val_a = {{0}, 0};
-        val_a.bytes[0] = 0x01; val_a.bytes[4] = 0xAA;
+        val_a.bytes[0] = 0x01; val_a.bytes[1] = 0x71;
+        val_a.bytes[2] = 0x12; val_a.bytes[3] = 0x20; val_a.bytes[4] = 0xAA;
         val_a.len = 36;
 
         wf_cid val_b = {{0}, 0};
-        val_b.bytes[0] = 0x01; val_b.bytes[4] = 0xBB;
+        val_b.bytes[0] = 0x01; val_b.bytes[1] = 0x71;
+        val_b.bytes[2] = 0x12; val_b.bytes[3] = 0x20; val_b.bytes[4] = 0xBB;
         val_b.len = 36;
 
         wf_cid root = {{0}, 0};
@@ -1166,7 +1221,8 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val = {{0}, 0};
-        val.bytes[0] = 0x01; val.bytes[4] = 0xAA;
+        val.bytes[0] = 0x01; val.bytes[1] = 0x71;
+        val.bytes[2] = 0x12; val.bytes[3] = 0x20; val.bytes[4] = 0xAA;
         val.len = 36;
 
         wf_cid root = {{0}, 0};

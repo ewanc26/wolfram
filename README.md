@@ -132,6 +132,7 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     completion and managed session refresh orchestration remain.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
+- [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
 - [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing (install via `brew install secp256k1`). Without it, crypto functions gracefully stub to `WF_ERR_INVALID_ARG`.
 

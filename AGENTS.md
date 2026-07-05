@@ -26,7 +26,7 @@ Agentic principles and technical context for the `wolfram` repository.
 - `session`: PDS login, resume, refresh, get, and logout with explicit owned credential state.
 - `identity`: did:plc and did:web resolution. Handle DNS TXT resolution uses c-ares when available, POSIX `libresolv` otherwise, then HTTPS well-known fallback. Multi-record/chunk ambiguity rules follow the handle specification.
 - `crypto`: secp256k1 via libsecp256k1 and P-256 via OpenSSL. `did:key`/multikey verification handles the protocol multicodec encodings.
-- `repo`: canonical DAG-CBOR, CIDs, CAR parse/write, deterministic MST add/delete/merge, signed v3 commits, record create/get/update/delete, and full CAR ownership/signature/content verification/import.
+- `repo`: libcbor-backed canonical DAG-CBOR, CIDs, CAR parse/write, deterministic MST add/delete/merge, signed v3 commits, record create/get/update/delete, and full CAR ownership/signature/content verification/import.
 - `record`: schema-driven JSON-to-DAG-CBOR structured record encoding.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding.
