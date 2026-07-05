@@ -193,6 +193,9 @@ wf_status wf_oauth_par_response_parse(const char *json, size_t json_len,
                                       wf_oauth_par_response *out);
 wf_status wf_oauth_token_response_parse(const char *json, size_t json_len,
                                         wf_oauth_token_response *out);
+/** Validate that a parsed token response remains bound to an expected DID. */
+wf_status wf_oauth_token_response_validate_subject(
+    const wf_oauth_token_response *response, const char *expected_sub);
 void wf_oauth_par_response_free(wf_oauth_par_response *response);
 void wf_oauth_token_response_free(wf_oauth_token_response *response);
 
@@ -210,6 +213,18 @@ wf_status wf_oauth_exchange_code(wf_xrpc_client *transport,
                                  const char *redirect_uri,
                                  const char *code_verifier,
                                  wf_oauth_token_response *out);
+
+/**
+ * Exchange a public client's refresh token. The returned AT Protocol subject
+ * must match expected_sub; callers should verify that DID's issuer before use.
+ */
+wf_status wf_oauth_refresh(wf_xrpc_client *transport,
+                           const char *token_endpoint,
+                           const wf_oauth_dpop_key *key,
+                           const char *client_id,
+                           const char *refresh_token,
+                           const char *expected_sub,
+                           wf_oauth_token_response *out);
 
 /** Decoded parameters received at the client's redirect URI. */
 typedef struct wf_oauth_callback_params {

@@ -151,6 +151,10 @@ static void test_endpoint_responses(void) {
     WF_CHECK(wf_oauth_token_response_parse(token_json, strlen(token_json), &token) == WF_OK);
     WF_CHECK(strcmp(token.sub, "did:plc:alice") == 0);
     WF_CHECK(token.expires_in_present && token.expires_in == 3600);
+    WF_CHECK(wf_oauth_token_response_validate_subject(
+        &token, "did:plc:alice") == WF_OK);
+    WF_CHECK(wf_oauth_token_response_validate_subject(
+        &token, "did:plc:mallory") == WF_ERR_PARSE);
     wf_oauth_token_response_free(&token);
     WF_CHECK(wf_oauth_token_response_parse(
         "{\"access_token\":\"x\",\"token_type\":\"Bearer\",\"sub\":\"did:plc:x\",\"scope\":\"atproto\"}",

@@ -1158,6 +1158,13 @@ wf_status wf_oauth_token_response_parse(const char *json, size_t len,
     return s;
 }
 
+wf_status wf_oauth_token_response_validate_subject(
+    const wf_oauth_token_response *response, const char *expected_sub) {
+    if (!response || !response->sub || !expected_sub ||
+        strncmp(expected_sub, "did:", 4) != 0) return WF_ERR_INVALID_ARG;
+    return strcmp(response->sub, expected_sub) == 0 ? WF_OK : WF_ERR_PARSE;
+}
+
 static wf_status wf_oauth_form_encode(const wf_xrpc_param *params, size_t count,
                                       char **out) {
     CURL *curl = curl_easy_init(); size_t i, len = 1, off = 0; char **values;
@@ -1241,6 +1248,33 @@ wf_status wf_oauth_exchange_code(wf_xrpc_client *t, const char *endpoint,
     s=wf_oauth_form_encode(p,5,&form); if(s==WF_OK) s=wf_oauth_post(t,endpoint,key,form,&res);
     if(s==WF_OK) s=wf_oauth_token_response_parse(res.body,res.body_len,out);
     wf_response_free(&res); free(form); return s;
+}
+
+wf_status wf_oauth_refresh(wf_xrpc_client *t, const char *endpoint,
+ const wf_oauth_dpop_key *key, const char *client_id, const char *refresh_token,
+ const char *expected_sub, wf_oauth_token_response *out) {
+    wf_xrpc_param p[3];
+    char *form = NULL;
+    wf_response res = {0};
+    wf_status s;
+    if (!t || !endpoint || !key || !client_id || !refresh_token ||
+        !expected_sub || !out || strncmp(expected_sub, "did:", 4) != 0) {
+        return WF_ERR_INVALID_ARG;
+    }
+    p[0] = (wf_xrpc_param){"grant_type", "refresh_token"};
+    p[1] = (wf_xrpc_param){"client_id", client_id};
+    p[2] = (wf_xrpc_param){"refresh_token", refresh_token};
+    s = wf_oauth_form_encode(p, 3, &form);
+    if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
+    if (s == WF_OK) s = wf_oauth_token_response_parse(res.body, res.body_len, out);
+    if (s == WF_OK &&
+        wf_oauth_token_response_validate_subject(out, expected_sub) != WF_OK) {
+        wf_oauth_token_response_free(out);
+        s = WF_ERR_PARSE;
+    }
+    wf_response_free(&res);
+    free(form);
+    return s;
 }
 
 void wf_oauth_callback_result_free(wf_oauth_callback_result *result) {
