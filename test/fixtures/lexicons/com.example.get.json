@@ -1,0 +1,22 @@
+{
+  "lexicon": 1,
+  "id": "com.example.get",
+  "defs": {
+    "main": {
+      "type": "query",
+      "parameters": {
+        "type": "params",
+        "required": ["name", "dids"],
+        "properties": {
+          "name": { "type": "string" },
+          "limit": { "type": "integer" },
+          "active": { "type": "boolean" },
+          "dids": { "type": "array", "items": { "type": "string" } },
+          "ids": { "type": "array", "items": { "type": "integer" } },
+          "flags": { "type": "array", "items": { "type": "boolean" } }
+        }
+      },
+      "output": { "encoding": "application/json" }
+    }
+  }
+}

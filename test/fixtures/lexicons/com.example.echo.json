@@ -1,0 +1,48 @@
+{
+  "lexicon": 1,
+  "id": "com.example.echo",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "description": "Echo typed values.",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["message", "attempts"],
+          "properties": {
+            "message": { "type": "string" },
+            "attempts": { "type": "integer" },
+            "enabled": { "type": "boolean" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "metadata": { "type": "unknown" }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["value", "items", "raw", "link", "blob", "extra"],
+          "properties": {
+            "value": { "type": "string" },
+            "items": { "type": "array", "items": { "type": "ref", "ref": "#named" } },
+            "raw": { "type": "bytes" },
+            "link": { "type": "cid-link" },
+            "blob": { "type": "blob" },
+            "extra": { "type": "unknown" },
+            "flags": { "type": "array", "items": { "type": "boolean" } }
+          }
+        }
+      }
+    },
+    "named": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "payload": { "type": "bytes" }
+      }
+    }
+  }
+}

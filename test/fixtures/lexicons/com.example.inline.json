@@ -1,0 +1,61 @@
+{
+  "lexicon": 1,
+  "id": "com.example.inline",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["config", "entries"],
+          "properties": {
+            "config": {
+              "type": "object",
+              "required": ["name", "nested"],
+              "properties": {
+                "name": {"type": "string"},
+                "nested": {
+                  "type": "object",
+                  "required": ["enabled"],
+                  "properties": {"enabled": {"type": "boolean"}}
+                }
+              }
+            },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["count"],
+                "properties": {"count": {"type": "integer"}}
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["result"],
+          "properties": {
+            "result": {
+              "type": "object",
+              "required": ["values"],
+              "properties": {
+                "values": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["label"],
+                    "properties": {"label": {"type": "string"}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
