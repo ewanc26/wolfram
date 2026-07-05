@@ -14,8 +14,8 @@ A C SDK for the AT Protocol.
 | ------------------------ | ----------- | ----------------------------------------------- |
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web resolution; handle → DID       |
-| `wolfram/repo.h`          | Implemented | DAG-CBOR decode + CID computation + CAR parse   |
-| `wolfram/crypto.h`        | Stubbed     | Awaiting a secp256k1/P-256 backend              |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR decode + CID + CAR + MST traversal     |
+| `wolfram/crypto.h`        | Implemented | secp256k1 keygen, sign, verify (libsecp256k1)   |
 
 ## Requirements
 
@@ -23,11 +23,12 @@ A C SDK for the AT Protocol.
 - CMake ≥ 3.20
 - libcurl
 - OpenSSL (libcrypto) — for SHA-256 hashing
+- libsecp256k1 — for secp256k1 signing (optional; crypto stubs gracefully if absent)
 
 On macOS via Homebrew:
 
 ```sh
-brew install cmake curl openssl
+brew install cmake curl openssl secp256k1
 ```
 
 (libcurl also ships with macOS itself, but the Homebrew one is newer and CMake finds it more reliably via `pkg-config`.)
@@ -65,13 +66,14 @@ Roughly in the order it makes sense to tackle them:
 3. ✅ DAG-CBOR decode (read-only), with full constraint validation and unit tests.
 4. ✅ SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
 5. ✅ CAR parsing (`wf_car_parse`).
-6. MST traversal, then mutation.
-7. secp256k1 signing via `libsecp256k1`.
+6. ✅ MST traversal (`wf_mst_find`, `wf_mst_node_parse`).
+7. ✅ secp256k1 signing via `libsecp256k1` (`wf_sign`, `wf_verify`).
 
 ### New dependencies
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
+- [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing (install via `brew install secp256k1`). Without it, crypto functions gracefully stub to `WF_ERR_INVALID_ARG`.
 
 ## Contributing
 

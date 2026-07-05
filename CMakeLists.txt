@@ -18,6 +18,10 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(SECP256K1 libsecp256k1)
+endif()
 
 include(FetchContent)
 FetchContent_Declare(
@@ -42,9 +46,24 @@ target_include_directories(wolfram
     PRIVATE
         ${cjson_SOURCE_DIR}
         ${cjson_BINARY_DIR}
+        ${SECP256K1_INCLUDE_DIRS}
 )
 
 target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
+
+if(SECP256K1_FOUND)
+    find_library(SECP256K1_LIB
+        NAMES secp256k1
+        HINTS ${SECP256K1_LIBRARY_DIRS}
+        REQUIRED
+    )
+    target_include_directories(wolfram PRIVATE ${SECP256K1_INCLUDE_DIRS})
+    target_link_libraries(wolfram PUBLIC ${SECP256K1_LIB})
+    target_compile_definitions(wolfram PRIVATE HAVE_LIBSECP256K1)
+    message(STATUS "libsecp256k1 found: ${SECP256K1_LIB}")
+else()
+    message(STATUS "libsecp256k1 not found — crypto stubs will return WF_ERR_INVALID_ARG")
+endif()
 
 option(WOLFRAM_BUILD_EXAMPLES "Build example programs" ON)
 option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
@@ -71,4 +90,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_repo PRIVATE wolfram)
     target_include_directories(test_repo PRIVATE test)
     add_test(NAME repo COMMAND test_repo)
+
+    add_executable(test_crypto test/test_crypto.c)
+    target_link_libraries(test_crypto PRIVATE wolfram)
+    target_include_directories(test_crypto PRIVATE test)
+    if(SECP256K1_FOUND)
+        target_compile_definitions(test_crypto PRIVATE HAVE_LIBSECP256K1)
+    endif()
+    add_test(NAME crypto COMMAND test_crypto)
 endif()
