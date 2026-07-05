@@ -1,13 +1,15 @@
 /**
- * repo.h — DAG-CBOR decode, CID, CAR.
+ * repo.h — DAG-CBOR, CID, CAR, MST, commit, record operations.
  *
  * AT Protocol repos use DAG-CBOR (a canonical subset of CBOR) for
  * block encoding, content-addressed by CID and shipped as CAR files.
- * This module provides read-only DAG-CBOR decode, with CID and CAR
- * parsing building on top.
+ * This module provides read/write DAG-CBOR decode, CID computation,
+ * CAR parse/write, MST traversal/mutation, commit creation, and
+ * record CRUD.
  *
- * Current state: DAG-CBOR decoder and CID computation are implemented
- * and tested. CAR parsing and MST are still stubbed.
+ * Current state: DAG-CBOR decode/encode, CID, CAR parse/write, MST
+ * (find/add/delete), commit parse/create, and record create/get are
+ * implemented and tested.
  */
 
 #ifndef WOLFRAM_REPO_H
@@ -114,8 +116,8 @@ wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid);
 /**
  * Serialize a CAR to bytes.
  *
- * TODO: not yet implemented — builds the DAG-CBOR header with roots
- * and writes varint-delimited blocks. Returns a heap-allocated buffer.
+ * Builds the DAG-CBOR header with roots (tag 42) and writes
+ * varint-delimited blocks. Returns a heap-allocated buffer.
  */
 wf_status wf_car_write(const wf_car *car,
                         unsigned char **out, size_t *out_len);
@@ -225,10 +227,10 @@ wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
 
 /**
  * Create a record in a repo: encode record CBOR, add to MST, create
- * commit, and return the new commit CID.
+ * commit, and return the new commit and record CIDs.
  *
- * TODO: not yet implemented — needs wf_car_write for output and a
- * public CBOR builder API.
+ * The record block is appended to `car`. The commit chain starts from
+ * `prev_commit` (NULL for the first commit).
  */
 wf_status wf_repo_create_record(wf_car *car,
                                  const wf_cid *prev_commit,
@@ -244,8 +246,8 @@ wf_status wf_repo_create_record(wf_car *car,
 /**
  * Read a record from a parsed repo CAR by walking the MST.
  *
- * TODO: not yet implemented — parses commit, follows MST root,
- * finds key in tree, returns the record block.
+ * Parses the commit, follows the MST root, finds the record by its
+ * collection/rkey key, and returns the record block data.
  */
 wf_status wf_repo_get_record(wf_car *car,
                               const wf_cid *commit_cid,

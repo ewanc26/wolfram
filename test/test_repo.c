@@ -430,6 +430,57 @@ int main(void) {
         wf_car_free(&zeroed);
     }
 
+    /* CAR write round-trip: parse → write → parse */
+    {
+        unsigned char block_data[] = {0xa1, 0x64, 't', 'e', 's', 't',
+                                      0x64, 'r', 'o', 'o', 't'};
+        wf_cid block_cid = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(block_data, sizeof(block_data),
+                                  &block_cid) == WF_OK);
+
+        unsigned char hdr[256]; size_t hp = 0;
+        hdr[hp++] = 0xA2; hdr[hp++] = 0x65;
+        memcpy(hdr + hp, "roots", 5); hp += 5;
+        hdr[hp++] = 0x81;
+        hdr[hp++] = 0xD8; hdr[hp++] = 0x2A;
+        hdr[hp++] = 0x58; hdr[hp++] = 0x24;
+        memcpy(hdr + hp, block_cid.bytes, 36); hp += 36;
+        hdr[hp++] = 0x67;
+        memcpy(hdr + hp, "version", 7); hp += 7;
+        hdr[hp++] = 0x01;
+
+        unsigned char car[512]; size_t cp = 0;
+        car[cp++] = (unsigned char)hp;
+        memcpy(car + cp, hdr, hp); cp += hp;
+        car[cp++] = (unsigned char)(36 + sizeof(block_data));
+        memcpy(car + cp, block_cid.bytes, 36); cp += 36;
+        memcpy(car + cp, block_data, sizeof(block_data));
+        cp += sizeof(block_data);
+
+        wf_car parsed;
+        memset(&parsed, 0, sizeof(parsed));
+        WF_CHECK(wf_car_parse(car, cp, &parsed) == WF_OK);
+
+        unsigned char *rewritten = NULL;
+        size_t rewritten_len = 0;
+        WF_CHECK(wf_car_write(&parsed, &rewritten, &rewritten_len) == WF_OK);
+        WF_CHECK(rewritten_len == cp);
+        WF_CHECK(memcmp(rewritten, car, cp) == 0);
+
+        wf_car reparsed;
+        memset(&reparsed, 0, sizeof(reparsed));
+        WF_CHECK(wf_car_parse(rewritten, rewritten_len, &reparsed) == WF_OK);
+        WF_CHECK(reparsed.root_count == parsed.root_count);
+        WF_CHECK(reparsed.block_count == parsed.block_count);
+        wf_car_free(&reparsed);
+        free(rewritten);
+
+        wf_car_free(&parsed);
+    }
+
+    /* wf_car_write invalid args */
+    WF_CHECK(wf_car_write(NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+
     /* ── MST key layer ── */
 
     /* Known test vectors from atproto repo/mst */
@@ -1269,6 +1320,112 @@ int main(void) {
                                    NULL, &commit) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, &key,
                                    &car, NULL) == WF_ERR_INVALID_ARG);
+    }
+
+    /* ── Record creation and retrieval ── */
+
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        wf_status ks = wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key);
+        WF_CHECK(ks == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        /* Create a record: {test: 123} -> CBOR */
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
+                                  0x18, 0x7B};
+        wf_cid out_commit, out_record;
+        memset(&out_commit, 0, sizeof(out_commit));
+        memset(&out_record, 0, sizeof(out_record));
+
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                        "com.example.posts",
+                                        "3jui7kd54zh2y",
+                                        record, sizeof(record),
+                                        &key, &out_commit, &out_record) == WF_OK);
+        WF_CHECK(out_commit.len == 36);
+        WF_CHECK(out_record.len == 36);
+        WF_CHECK(car.block_count >= 2);
+
+        /* Get the record back */
+        unsigned char *got_data = NULL;
+        size_t got_len = 0;
+        wf_cid got_cid;
+        memset(&got_cid, 0, sizeof(got_cid));
+        WF_CHECK(wf_repo_get_record(&car, &out_commit,
+                                     "com.example.posts", "3jui7kd54zh2y",
+                                     &got_data, &got_len, &got_cid) == WF_OK);
+        WF_CHECK(got_len == sizeof(record));
+        WF_CHECK(memcmp(got_data, record, sizeof(record)) == 0);
+        WF_CHECK(memcmp(&got_cid, &out_record, sizeof(wf_cid)) == 0);
+        free(got_data);
+
+        wf_car_free(&car);
+    }
+
+    /* Record with previous commit */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
+                                  0x18, 0x7B};
+        wf_cid commit1, rec1;
+        memset(&commit1, 0, sizeof(commit1));
+        memset(&rec1, 0, sizeof(rec1));
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                        "com.example.posts", "rec1",
+                                        record, sizeof(record),
+                                        &key, &commit1, &rec1) == WF_OK);
+
+        unsigned char record2[] = {0xA1, 0x64, 'n', 'a', 'm', 'e',
+                                   0x63, 'b', 'o', 'b'};
+        wf_cid commit2, rec2;
+        memset(&commit2, 0, sizeof(commit2));
+        memset(&rec2, 0, sizeof(rec2));
+        WF_CHECK(wf_repo_create_record(&car, &commit1, "did:plc:test",
+                                        "com.example.posts", "rec2",
+                                        record2, sizeof(record2),
+                                        &key, &commit2, &rec2) == WF_OK);
+
+        /* Both records retrievable */
+        unsigned char *data = NULL; size_t dlen = 0; wf_cid c;
+        memset(&c, 0, sizeof(c));
+        WF_CHECK(wf_repo_get_record(&car, &commit2,
+                                     "com.example.posts", "rec1",
+                                     &data, &dlen, &c) == WF_OK);
+        WF_CHECK(dlen == sizeof(record));
+        WF_CHECK(memcmp(data, record, sizeof(record)) == 0);
+        free(data); data = NULL;
+
+        memset(&c, 0, sizeof(c));
+        WF_CHECK(wf_repo_get_record(&car, &commit2,
+                                     "com.example.posts", "rec2",
+                                     &data, &dlen, &c) == WF_OK);
+        WF_CHECK(dlen == sizeof(record2));
+        WF_CHECK(memcmp(data, record2, sizeof(record2)) == 0);
+        free(data);
+
+        wf_car_free(&car);
+    }
+
+    /* Record invalid args */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        WF_CHECK(wf_repo_create_record(NULL, NULL, NULL, NULL, NULL,
+                                        NULL, 0, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_get_record(NULL, NULL, NULL, NULL,
+                                     NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();

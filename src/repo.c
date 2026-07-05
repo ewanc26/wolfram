@@ -8,8 +8,10 @@
 #include "wolfram/repo.h"
 
 #include <openssl/sha.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /* ── DAG-CBOR decoder ─────────────────────────────────────── */
 
@@ -598,16 +600,102 @@ wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid) {
 
 wf_status wf_car_write(const wf_car *car,
                         unsigned char **out, size_t *out_len) {
-    /*
-     * TODO: not yet implemented — serialize CAR back to bytes.
-     * Builds the DAG-CBOR header {"roots": [tag42(cid), ...], "version": 1},
-     * writes varint hdr_len, header, then for each block varint(36+data_len),
-     * cid(36), data.
-     */
-    (void)car;
-    (void)out;
-    (void)out_len;
-    return WF_ERR_INVALID_ARG;
+    if (!car || !out || !out_len) return WF_ERR_INVALID_ARG;
+
+    *out = NULL;
+    *out_len = 0;
+
+    /* ── Calculate header CBOR size ── */
+    size_t hdr_cbor = 0;
+    /* map(2) */
+    hdr_cbor += 1;
+    /* "roots": text(5) */
+    hdr_cbor += 1 + 5;
+    /* array(root_count) */
+    if (car->root_count <= 23) {
+        hdr_cbor += 1;
+    } else {
+        hdr_cbor += 2;  /* 0x98 + count */
+    }
+    /* tag(42) + bytes(36) + payload for each root */
+    hdr_cbor += car->root_count * (4 + 36);
+    /* "version": text(7) + unsigned(1) */
+    hdr_cbor += 1 + 7 + 1;
+
+    /* ── Calculate header varint size ── */
+    uint64_t hv = (uint64_t)hdr_cbor;
+    size_t hdr_vint = 0;
+    do { hdr_vint++; hv >>= 7; } while (hv > 0);
+
+    /* ── Calculate total size ── */
+    size_t total = hdr_vint + hdr_cbor;
+    for (size_t i = 0; i < car->block_count; i++) {
+        size_t blk_total = 36 + car->blocks[i].data_len;
+        uint64_t bv = (uint64_t)blk_total;
+        size_t blk_vint = 0;
+        do { blk_vint++; bv >>= 7; } while (bv > 0);
+        total += blk_vint + blk_total;
+    }
+
+    *out = malloc(total);
+    if (!*out) return WF_ERR_ALLOC;
+
+    unsigned char *pos = *out;
+
+    /* ── Write header varint ── */
+    hv = (uint64_t)hdr_cbor;
+    do {
+        unsigned char byte = (unsigned char)(hv & 0x7f);
+        hv >>= 7;
+        if (hv > 0) byte |= 0x80;
+        *pos++ = byte;
+    } while (hv > 0);
+
+    /* ── Write header CBOR ── */
+    *pos++ = 0xA2;                               /* map(2) */
+    *pos++ = 0x65;                                /* text(5) */
+    memcpy(pos, "roots", 5); pos += 5;
+
+    if (car->root_count <= 23) {
+        *pos++ = (unsigned char)(0x80 | car->root_count);
+    } else {
+        *pos++ = 0x98;
+        *pos++ = (unsigned char)car->root_count;
+    }
+
+    for (size_t i = 0; i < car->root_count; i++) {
+        *pos++ = 0xD8; *pos++ = 0x2A;            /* tag(42) */
+        *pos++ = 0x58; *pos++ = 0x24;            /* bytes(36) */
+        memcpy(pos, car->roots[i].bytes, 36);
+        pos += 36;
+    }
+
+    *pos++ = 0x67;                                /* text(7) */
+    memcpy(pos, "version", 7); pos += 7;
+    *pos++ = 0x01;                                /* unsigned(1) */
+
+    /* ── Write blocks ── */
+    for (size_t i = 0; i < car->block_count; i++) {
+        size_t blk_total = 36 + car->blocks[i].data_len;
+        uint64_t bv = (uint64_t)blk_total;
+        do {
+            unsigned char byte = (unsigned char)(bv & 0x7f);
+            bv >>= 7;
+            if (bv > 0) byte |= 0x80;
+            *pos++ = byte;
+        } while (bv > 0);
+
+        memcpy(pos, car->blocks[i].cid.bytes, 36);
+        pos += 36;
+
+        if (car->blocks[i].data_len > 0) {
+            memcpy(pos, car->blocks[i].data, car->blocks[i].data_len);
+            pos += car->blocks[i].data_len;
+        }
+    }
+
+    *out_len = total;
+    return WF_OK;
 }
 
 /* ── Commit parse ─────────────────────────────────────────── */
@@ -1807,25 +1895,73 @@ wf_status wf_repo_create_record(wf_car *car,
                                  const wf_signing_key *key,
                                  wf_cid *out_commit,
                                  wf_cid *out_record) {
-    /*
-     * TODO: not yet implemented.
-     * 1. Compute record CID from record_cbor
-     * 2. Build MST key as "collection/rkey"
-     * 3. wf_mst_add to insert into tree
-     * 4. wf_commit_create to produce signed commit
-     * 5. Return commit CID and record CID
-     */
-    (void)car;
-    (void)prev_commit;
-    (void)did;
-    (void)collection;
-    (void)rkey;
-    (void)record_cbor;
-    (void)record_cbor_len;
-    (void)key;
-    (void)out_commit;
-    (void)out_record;
-    return WF_ERR_INVALID_ARG;
+    if (!car || !did || !collection || !rkey || !record_cbor ||
+        record_cbor_len == 0 || !key || !out_commit || !out_record) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    memset(out_commit, 0, sizeof(*out_commit));
+    memset(out_record, 0, sizeof(*out_record));
+
+    /* Compute record CID */
+    wf_status s = wf_cid_of_block(record_cbor, record_cbor_len, out_record);
+    if (s != WF_OK) return s;
+
+    /* Add record block to CAR */
+    {
+        wf_car_block *new_blocks = realloc(car->blocks,
+            (car->block_count + 1) * sizeof(wf_car_block));
+        if (!new_blocks) return WF_ERR_ALLOC;
+        car->blocks = new_blocks;
+        wf_car_block *blk = &car->blocks[car->block_count];
+        blk->cid = *out_record;
+        blk->data_len = record_cbor_len;
+        blk->data = malloc(record_cbor_len);
+        if (!blk->data) return WF_ERR_ALLOC;
+        memcpy(blk->data, record_cbor, record_cbor_len);
+        car->block_count++;
+    }
+
+    /* Build MST root CID from previous commit if available */
+    wf_cid mst_root = {{0}, 0};
+    if (prev_commit && prev_commit->len > 0) {
+        wf_car_block *block = wf_car_find_block(car, prev_commit);
+        if (!block) return WF_ERR_PARSE;
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        s = wf_commit_parse(block->data, block->data_len, &commit);
+        if (s != WF_OK) return s;
+        mst_root = commit.data;
+    }
+
+    /* Build MST key: "collection/rkey" */
+    size_t col_len = strlen(collection);
+    size_t rkey_len = strlen(rkey);
+    size_t key_len = col_len + 1 + rkey_len;
+    unsigned char *mst_key = malloc(key_len);
+    if (!mst_key) return WF_ERR_ALLOC;
+    memcpy(mst_key, collection, col_len);
+    mst_key[col_len] = '/';
+    memcpy(mst_key + col_len + 1, rkey, rkey_len);
+
+    /* Add record to MST */
+    wf_cid new_mst_root = {{0}, 0};
+    s = wf_mst_add(car, &mst_root, mst_key, key_len, out_record, &new_mst_root);
+    free(mst_key);
+    if (s != WF_OK) return s;
+
+    /* Create signed commit */
+    wf_commit commit;
+    memset(&commit, 0, sizeof(commit));
+    char rev[64];
+    snprintf(rev, sizeof(rev), "3z%08x", (unsigned)time(NULL));
+    s = wf_commit_create(did, rev, &new_mst_root,
+                          (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
+                          key, car, &commit);
+    if (s != WF_OK) return s;
+
+    *out_commit = commit.cid;
+    return WF_OK;
 }
 
 wf_status wf_repo_get_record(wf_car *car,
@@ -1835,20 +1971,51 @@ wf_status wf_repo_get_record(wf_car *car,
                               unsigned char **out_data,
                               size_t *out_len,
                               wf_cid *out_record_cid) {
-    /*
-     * TODO: not yet implemented.
-     * 1. Parse commit via wf_commit_parse
-     * 2. Follow MST root CID
-     * 3. Build key as "collection/rkey"
-     * 4. wf_mst_find to locate record CID
-     * 5. wf_car_find_block to get the record bytes
-     */
-    (void)car;
-    (void)commit_cid;
-    (void)collection;
-    (void)rkey;
-    (void)out_data;
-    (void)out_len;
-    (void)out_record_cid;
-    return WF_ERR_INVALID_ARG;
+    if (!car || !commit_cid || !collection || !rkey ||
+        !out_data || !out_len || !out_record_cid) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    *out_data = NULL;
+    *out_len = 0;
+    memset(out_record_cid, 0, sizeof(*out_record_cid));
+
+    /* Parse commit to get MST root */
+    wf_car_block *block = wf_car_find_block(car, commit_cid);
+    if (!block) return WF_ERR_PARSE;
+
+    wf_commit commit;
+    memset(&commit, 0, sizeof(commit));
+    wf_status s = wf_commit_parse(block->data, block->data_len, &commit);
+    if (s != WF_OK) return s;
+
+    /* Build MST key */
+    size_t col_len = strlen(collection);
+    size_t rkey_len = strlen(rkey);
+    size_t key_len = col_len + 1 + rkey_len;
+    unsigned char *mst_key = malloc(key_len);
+    if (!mst_key) return WF_ERR_ALLOC;
+    memcpy(mst_key, collection, col_len);
+    mst_key[col_len] = '/';
+    memcpy(mst_key + col_len + 1, rkey, rkey_len);
+
+    /* Find in MST */
+    wf_cid found;
+    memset(&found, 0, sizeof(found));
+    s = wf_mst_find(car, &commit.data, mst_key, key_len, &found);
+    free(mst_key);
+    if (s != WF_OK) return s;
+
+    /* Get block data */
+    wf_car_block *rec_block = wf_car_find_block(car, &found);
+    if (!rec_block) return WF_ERR_PARSE;
+
+    *out_data = malloc(rec_block->data_len);
+    if (!*out_data && rec_block->data_len > 0) return WF_ERR_ALLOC;
+    if (rec_block->data_len > 0)
+        memcpy(*out_data, rec_block->data, rec_block->data_len);
+    *out_len = rec_block->data_len;
+    *out_record_cid = found;
+
+    return WF_OK;
 }
