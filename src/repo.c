@@ -1402,13 +1402,280 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
     return s;
 }
 
+/* ── MST delete (internal helpers) ─────────────────────────── */
+
+/* Merge two adjacent subtrees at the same layer.
+ * When both are non-empty, the merge is too complex for now (TODO).
+ * Handles cases where at most one subtree is non-empty. */
+static wf_status mst_merge_subtrees(const wf_cid *a, const wf_cid *b,
+                                     wf_cid *out) {
+    if (a->len == 0) { *out = *b; return WF_OK; }
+    if (b->len == 0) { *out = *a; return WF_OK; }
+    memset(out, 0, sizeof(*out));
+    return WF_ERR_INVALID_ARG; /* TODO: subtree merge */
+}
+
+/* Delete key from a node at the same layer.
+ * Returns the new node CID via new_cid (zeroed if node becomes empty). */
+static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
+                                      const unsigned char *key, size_t key_len,
+                                      wf_cid *new_cid) {
+    size_t idx = mst_find_ge(node, key, key_len);
+    if (idx >= node->count) {
+        *new_cid = node->cid;
+        return WF_OK; /* key not in this node */
+    }
+    int cmp = wf_mst_key_cmp(key, key_len,
+                              node->entries[idx].key,
+                              node->entries[idx].key_len);
+    if (cmp != 0) {
+        *new_cid = node->cid;
+        return WF_OK; /* key not in this node */
+    }
+
+    size_t new_count = node->count - 1;
+
+    if (new_count == 0) {
+        if (node->left.len > 0) {
+            *new_cid = node->left;
+            return WF_OK;
+        }
+        memset(new_cid, 0, sizeof(*new_cid));
+        return WF_OK;
+    }
+
+    /* Determine which adjacent subtrees need merging */
+    wf_cid left_subtree, right_subtree;
+    if (idx == 0) {
+        left_subtree = node->left;
+        right_subtree = node->entries[0].subtree;
+    } else {
+        left_subtree = node->entries[idx - 1].subtree;
+        right_subtree = node->entries[idx].subtree;
+    }
+
+    wf_cid merged;
+    wf_status s = mst_merge_subtrees(&left_subtree, &right_subtree, &merged);
+    if (s != WF_OK) return s;
+
+    /* Build new entry list */
+    wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
+    if (!new_entries) return WF_ERR_ALLOC;
+
+    for (size_t i = 0, j = 0; i < node->count; i++) {
+        if (i == idx) continue;
+        new_entries[j].key_len = node->entries[i].key_len;
+        new_entries[j].key = malloc(new_entries[j].key_len);
+        if (!new_entries[j].key) {
+            free_entries(new_entries, j);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(new_entries[j].key, node->entries[i].key, new_entries[j].key_len);
+        new_entries[j].value = node->entries[i].value;
+        new_entries[j].subtree = node->entries[i].subtree;
+        j++;
+    }
+
+    /* Place the merged subtree */
+    wf_cid new_left = node->left;
+    if (idx == 0) {
+        new_left = merged;
+    } else {
+        new_entries[idx - 1].subtree = merged;
+    }
+
+    wf_mst_node new_node;
+    s = wf_mst_node_build(node->layer, &new_left,
+                           new_entries, new_count, &new_node);
+    free_entries(new_entries, new_count); free(new_entries);
+    if (s != WF_OK) return s;
+
+    s = wf_mst_node_finalize(&new_node, car);
+    if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+    *new_cid = new_node.cid;
+    wf_mst_node_free(&new_node);
+    return WF_OK;
+}
+
+/* Delete key recursively: handles both same-layer and lower-layer cases. */
+static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
+                                       const unsigned char *key, size_t key_len,
+                                       unsigned key_layer, wf_cid *new_cid) {
+    wf_status s;
+
+    if (key_layer == node->layer) {
+        /* Try to delete from this node */
+        size_t idx = mst_find_ge(node, key, key_len);
+        int found_here = 0;
+        if (idx < node->count) {
+            int cmp = wf_mst_key_cmp(key, key_len,
+                                      node->entries[idx].key,
+                                      node->entries[idx].key_len);
+            found_here = (cmp == 0);
+        }
+
+        if (found_here) {
+            return mst_delete_at_layer(car, node, key, key_len, new_cid);
+        }
+
+        /* Key not in this node — recurse into appropriate subtree */
+        wf_cid subtree;
+        int use_left = 0;
+        size_t sub_idx = 0;
+
+        if (idx == 0) {
+            if (node->left.len > 0) {
+                use_left = 1;
+            } else {
+                memset(new_cid, 0, sizeof(*new_cid));
+                return WF_ERR_NOT_FOUND;
+            }
+        } else {
+            sub_idx = (idx >= node->count) ? node->count - 1 : idx - 1;
+            if (node->entries[sub_idx].subtree.len == 0) {
+                memset(new_cid, 0, sizeof(*new_cid));
+                return WF_ERR_NOT_FOUND;
+            }
+        }
+
+        if (use_left) {
+            wf_mst_node child;
+            s = mst_load_node(car, &node->left, &child);
+            if (s != WF_OK) return s;
+            s = mst_delete_recursive(car, &child, key, key_len, key_layer, &subtree);
+            wf_mst_node_free(&child);
+        } else {
+            wf_mst_node sub_node;
+            s = mst_load_node(car, &node->entries[sub_idx].subtree, &sub_node);
+            if (s != WF_OK) return s;
+            s = mst_delete_recursive(car, &sub_node, key, key_len, key_layer, &subtree);
+            wf_mst_node_free(&sub_node);
+        }
+        if (s != WF_OK) return s;
+
+        /* Re-build node with updated subtree reference */
+        size_t new_count = node->count;
+        wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
+        if (!new_entries) return WF_ERR_ALLOC;
+
+        for (size_t i = 0; i < new_count; i++) {
+            new_entries[i].key_len = node->entries[i].key_len;
+            new_entries[i].key = malloc(new_entries[i].key_len);
+            if (!new_entries[i].key) {
+                free_entries(new_entries, i);
+                return WF_ERR_ALLOC;
+            }
+            memcpy(new_entries[i].key, node->entries[i].key, new_entries[i].key_len);
+            new_entries[i].value = node->entries[i].value;
+            new_entries[i].subtree = node->entries[i].subtree;
+        }
+
+        wf_mst_node new_node;
+        if (use_left) {
+            s = wf_mst_node_build(node->layer, &subtree,
+                                   new_entries, new_count, &new_node);
+        } else {
+            new_entries[sub_idx].subtree = subtree;
+            s = wf_mst_node_build(node->layer, &node->left,
+                                   new_entries, new_count, &new_node);
+        }
+        free_entries(new_entries, new_count); free(new_entries);
+        if (s != WF_OK) return s;
+
+        s = wf_mst_node_finalize(&new_node, car);
+        if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+        *new_cid = new_node.cid;
+        wf_mst_node_free(&new_node);
+        return WF_OK;
+    }
+
+    if (key_layer > node->layer) {
+        memset(new_cid, 0, sizeof(*new_cid));
+        return WF_ERR_NOT_FOUND;
+    }
+
+    /* key_layer < node.layer — recurse into subtrees */
+    size_t idx = mst_find_ge(node, key, key_len);
+    int use_left = (idx == 0);
+    size_t use_prev = (size_t)-1;
+    if (idx > 0) {
+        use_prev = (idx > node->count) ? node->count - 1 : idx - 1;
+        use_left = 0;
+    } else if (idx >= node->count && node->count > 0) {
+        use_prev = node->count - 1;
+        use_left = 0;
+    }
+
+    const wf_cid *target = use_left ? &node->left
+                                    : &node->entries[use_prev].subtree;
+    if (target->len == 0) {
+        memset(new_cid, 0, sizeof(*new_cid));
+        return WF_ERR_NOT_FOUND;
+    }
+
+    {
+        wf_mst_node sub_node;
+        s = mst_load_node(car, target, &sub_node);
+        if (s != WF_OK) return s;
+        s = mst_delete_recursive(car, &sub_node, key, key_len, key_layer, new_cid);
+        wf_mst_node_free(&sub_node);
+    }
+    if (s != WF_OK) return s;
+
+    /* Build updated node */
+    size_t new_count = node->count;
+    wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
+    if (!new_entries) return WF_ERR_ALLOC;
+
+    for (size_t i = 0; i < new_count; i++) {
+        new_entries[i].key_len = node->entries[i].key_len;
+        new_entries[i].key = malloc(new_entries[i].key_len);
+        if (!new_entries[i].key) {
+            free_entries(new_entries, i);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(new_entries[i].key, node->entries[i].key, new_entries[i].key_len);
+        new_entries[i].value = node->entries[i].value;
+        new_entries[i].subtree = node->entries[i].subtree;
+    }
+
+    wf_mst_node new_node;
+    if (use_left) {
+        s = wf_mst_node_build(node->layer, new_cid,
+                               new_entries, new_count, &new_node);
+    } else {
+        new_entries[use_prev].subtree = *new_cid;
+        s = wf_mst_node_build(node->layer, &node->left,
+                               new_entries, new_count, &new_node);
+    }
+    free_entries(new_entries, new_count); free(new_entries);
+    if (s != WF_OK) return s;
+
+    s = wf_mst_node_finalize(&new_node, car);
+    if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+    *new_cid = new_node.cid;
+    wf_mst_node_free(&new_node);
+    return WF_OK;
+}
+
 wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
                          const unsigned char *key, size_t key_len,
                          wf_cid *new_root) {
-    (void)car;
-    (void)root_cid;
-    (void)key;
-    (void)key_len;
-    (void)new_root;
-    return WF_ERR_INVALID_ARG; /* TODO */
+    if (!car || !root_cid || !key || key_len == 0 || !new_root)
+        return WF_ERR_INVALID_ARG;
+
+    memset(new_root, 0, sizeof(*new_root));
+
+    if (root_cid->len == 0)
+        return WF_ERR_NOT_FOUND;
+
+    unsigned key_layer = wf_mst_key_layer(key, key_len);
+
+    wf_mst_node node;
+    wf_status s = mst_load_node(car, root_cid, &node);
+    if (s != WF_OK) return s;
+
+    s = mst_delete_recursive(car, &node, key, key_len, key_layer, new_root);
+    wf_mst_node_free(&node);
+    return s;
 }

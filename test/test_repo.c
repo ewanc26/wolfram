@@ -949,5 +949,146 @@ int main(void) {
         wf_car_free(&car);
     }
 
+    /* ── MST delete ── */
+
+    /* Delete from single-entry tree → tree becomes empty */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid val = {{0}, 0};
+        val.bytes[0] = 0x01; val.bytes[4] = 0xAA;
+        val.len = 36;
+
+        wf_cid root = {{0}, 0};
+        wf_cid after_add;
+        memset(&after_add, 0, sizeof(after_add));
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"asdf", 4,
+                             &val, &after_add) == WF_OK);
+
+        wf_cid after_del;
+        memset(&after_del, 0, sizeof(after_del));
+        WF_CHECK(wf_mst_delete(&car, &after_add,
+                                (unsigned char*)"asdf", 4,
+                                &after_del) == WF_OK);
+        WF_CHECK(after_del.len == 0); /* tree is empty */
+
+        wf_car_free(&car);
+    }
+
+    /* Delete a key, then verify it's gone and other keys remain */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid val_a = {{0}, 0};
+        val_a.bytes[0] = 0x01; val_a.bytes[4] = 0xAA;
+        val_a.len = 36;
+
+        wf_cid val_b = {{0}, 0};
+        val_b.bytes[0] = 0x01; val_b.bytes[4] = 0xBB;
+        val_b.len = 36;
+
+        wf_cid root = {{0}, 0};
+        wf_cid after_a;
+        memset(&after_a, 0, sizeof(after_a));
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"asdf", 4,
+                             &val_a, &after_a) == WF_OK);
+
+        wf_cid after_both;
+        memset(&after_both, 0, sizeof(after_both));
+        WF_CHECK(wf_mst_add(&car, &after_a,
+                             (unsigned char*)"2653ae71", 8,
+                             &val_b, &after_both) == WF_OK);
+
+        /* Delete "asdf" */
+        wf_cid after_del;
+        memset(&after_del, 0, sizeof(after_del));
+        WF_CHECK(wf_mst_delete(&car, &after_both,
+                                (unsigned char*)"asdf", 4,
+                                &after_del) == WF_OK);
+        WF_CHECK(after_del.len > 0); /* tree not empty */
+
+        /* "asdf" should be gone */
+        wf_cid found;
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &after_del,
+                              (unsigned char*)"asdf", 4,
+                              &found) == WF_ERR_NOT_FOUND);
+
+        /* "2653ae71" should remain */
+        memset(&found, 0, sizeof(found));
+        WF_CHECK(wf_mst_find(&car, &after_del,
+                              (unsigned char*)"2653ae71", 8,
+                              &found) == WF_OK);
+        WF_CHECK(memcmp(&found, &val_b, sizeof(wf_cid)) == 0);
+
+        wf_car_free(&car);
+    }
+
+    /* Delete non-existent key */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid val = {{0}, 0};
+        val.bytes[0] = 0x01; val.bytes[4] = 0xAA;
+        val.len = 36;
+
+        wf_cid root = {{0}, 0};
+        wf_cid after_add;
+        memset(&after_add, 0, sizeof(after_add));
+        WF_CHECK(wf_mst_add(&car, &root,
+                             (unsigned char*)"asdf", 4,
+                             &val, &after_add) == WF_OK);
+
+        wf_cid after_del;
+        memset(&after_del, 0, sizeof(after_del));
+        WF_CHECK(wf_mst_delete(&car, &after_add,
+                                (unsigned char*)"nope", 4,
+                                &after_del) == WF_ERR_NOT_FOUND);
+
+        wf_car_free(&car);
+    }
+
+    /* Delete from empty tree */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+        wf_cid root = {{0}, 0};
+        wf_cid result;
+        memset(&result, 0, sizeof(result));
+        WF_CHECK(wf_mst_delete(&car, &root,
+                                (unsigned char*)"asdf", 4,
+                                &result) == WF_ERR_NOT_FOUND);
+        wf_car_free(&car);
+    }
+
+    /* Invalid args */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+        wf_cid root = {{0}, 0};
+        wf_cid result;
+        WF_CHECK(wf_mst_delete(NULL, &root,
+                                (unsigned char*)"asdf", 4,
+                                &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, NULL,
+                                (unsigned char*)"asdf", 4,
+                                &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, &root,
+                                NULL, 4,
+                                &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, &root,
+                                (unsigned char*)"asdf", 0,
+                                &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, &root,
+                                (unsigned char*)"asdf", 4,
+                                NULL) == WF_ERR_INVALID_ARG);
+        wf_car_free(&car);
+    }
+
     WF_TEST_SUMMARY();
 }
