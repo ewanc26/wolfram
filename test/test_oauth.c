@@ -248,6 +248,19 @@ static void test_callback(void) {
         "https://auth.example", 0, &result) == WF_ERR_PARSE);
 }
 
+static void test_authorization_url(void) {
+    char *url = NULL;
+    WF_CHECK(wf_oauth_authorization_url_create(
+        "https://auth.example/authorize", "https://app.example/client.json",
+        "urn:ietf:params:oauth:request_uri:a/b+c", &url) == WF_OK);
+    WF_CHECK(url != NULL);
+    if (url) {
+        WF_CHECK(strcmp(url,
+            "https://auth.example/authorize?client_id=https%3A%2F%2Fapp.example%2Fclient.json&request_uri=urn%3Aietf%3Aparams%3Aoauth%3Arequest_uri%3Aa%2Fb%2Bc") == 0);
+    }
+    wf_oauth_string_free(url);
+}
+
 static void test_authorization_state(void) {
     unsigned char private_key[32] = {0};
     wf_oauth_dpop_key *key = NULL;
@@ -527,6 +540,7 @@ int main(void) {
     test_metadata();
     test_endpoint_responses();
     test_callback();
+    test_authorization_url();
     test_authorization_state();
     test_session_state();
     test_dpop();

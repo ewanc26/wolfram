@@ -1864,6 +1864,102 @@ done:
     return status;
 }
 
+void wf_oauth_authorization_begin_result_free(
+    wf_oauth_authorization_begin_result *result) {
+    if (!result) return;
+    free(result->authorization_url);
+    free(result->state);
+    free(result->state_json);
+    memset(result, 0, sizeof(*result));
+}
+
+wf_status wf_oauth_authorization_url_create(
+    const char *endpoint, const char *client_id, const char *request_uri,
+    char **out) {
+    CURL *curl = NULL;
+    char *escaped_client = NULL, *escaped_request = NULL, *url = NULL;
+    size_t needed;
+    const char *separator;
+    if (!endpoint || !client_id || !request_uri || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    curl = curl_easy_init();
+    if (!curl) return WF_ERR_ALLOC;
+    escaped_client = curl_easy_escape(curl, client_id, 0);
+    escaped_request = curl_easy_escape(curl, request_uri, 0);
+    if (!escaped_client || !escaped_request) {
+        curl_free(escaped_client); curl_free(escaped_request); curl_easy_cleanup(curl);
+        return WF_ERR_ALLOC;
+    }
+    separator = strchr(endpoint, '?') ? "&" : "?";
+    needed = strlen(endpoint) + 1 + strlen("client_id=") + strlen(escaped_client) +
+             strlen("&request_uri=") + strlen(escaped_request) + 1;
+    url = malloc(needed);
+    if (url) snprintf(url, needed, "%s%sclient_id=%s&request_uri=%s",
+                      endpoint, separator, escaped_client, escaped_request);
+    curl_free(escaped_client); curl_free(escaped_request); curl_easy_cleanup(curl);
+    if (!url) return WF_ERR_ALLOC;
+    *out = url;
+    return WF_OK;
+}
+
+wf_status wf_oauth_authorization_begin(
+    wf_xrpc_client *transport, const wf_oauth_server_metadata *server,
+    const wf_oauth_client_metadata *client,
+    const wf_oauth_client_auth *client_auth,
+    const wf_oauth_authorization_begin_options *options,
+    wf_oauth_authorization_begin_result *out) {
+    wf_oauth_pkce pkce = {0};
+    wf_oauth_dpop_key *dpop_key = NULL;
+    wf_oauth_authorization_state stored = {0};
+    wf_oauth_par_response par = {0};
+    wf_oauth_par_request request;
+    char *state = NULL, *state_json = NULL, *authorization_url = NULL;
+    const char *scope;
+    int64_t ttl;
+    wf_status status;
+    if (!transport || !server || !client || !client_auth || !options || !out ||
+        !options->redirect_uri || options->now <= 0 || !server->authorization_endpoint ||
+        !server->pushed_authorization_request_endpoint || !server->issuer ||
+        !client->client_id || strcmp(client->client_id, client_auth->client_id) != 0 ||
+        !wf_oauth_string_list_has(&client->redirect_uris, options->redirect_uri)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+    status = wf_oauth_client_auth_validate(server, client, client_auth);
+    if (status != WF_OK) return status;
+    scope = options->scope ? options->scope : client->scope;
+    if (!scope || !wf_oauth_scope_has(scope, "atproto")) return WF_ERR_INVALID_ARG;
+    ttl = options->state_ttl > 0 ? options->state_ttl : 600;
+    status = wf_oauth_pkce_generate(&pkce);
+    if (status == WF_OK) status = wf_oauth_dpop_key_generate(&dpop_key);
+    if (status == WF_OK) status = wf_oauth_random_jti(&state);
+    if (status == WF_OK) status = wf_oauth_authorization_state_create(
+        server->issuer, &pkce, dpop_key, options->app_state,
+        client_auth->key_id, options->now, ttl, &stored);
+    if (status == WF_OK) status = wf_oauth_authorization_state_serialize(
+        &stored, &state_json);
+    request = (wf_oauth_par_request){
+        client->client_id, options->redirect_uri, scope, state,
+        pkce.challenge, options->login_hint
+    };
+    if (status == WF_OK) status = wf_oauth_par_with_auth(
+        transport, server->pushed_authorization_request_endpoint, dpop_key,
+        client_auth, &request, &par);
+    if (status == WF_OK) status = wf_oauth_authorization_url_create(
+        server->authorization_endpoint, client->client_id, par.request_uri,
+        &authorization_url);
+    if (status == WF_OK) {
+        out->authorization_url = authorization_url; authorization_url = NULL;
+        out->state = state; state = NULL;
+        out->state_json = state_json; state_json = NULL;
+    }
+    free(authorization_url); free(state); free(state_json);
+    wf_oauth_par_response_free(&par);
+    wf_oauth_authorization_state_free(&stored);
+    wf_oauth_dpop_key_free(dpop_key);
+    return status;
+}
+
 wf_status wf_oauth_callback_validate(const wf_oauth_callback_params *params,
                                      const char *expected_state,
                                      const char *expected_issuer,

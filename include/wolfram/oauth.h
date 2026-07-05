@@ -359,6 +359,41 @@ wf_status wf_oauth_session_state_parse(
     wf_oauth_session_state *out);
 void wf_oauth_session_state_free(wf_oauth_session_state *session);
 
+typedef struct wf_oauth_authorization_begin_options {
+    const char *redirect_uri;
+    const char *scope;      /* optional; defaults to client metadata scope */
+    const char *login_hint; /* optional handle or DID */
+    const char *app_state;  /* optional application-owned state */
+    int64_t now;            /* current Unix seconds */
+    int64_t state_ttl;      /* defaults to 600 when <= 0 */
+} wf_oauth_authorization_begin_options;
+
+/** Owned output of the authorization flow's initial PAR transition. */
+typedef struct wf_oauth_authorization_begin_result {
+    char *authorization_url;
+    char *state;
+    char *state_json; /* persist atomically under `state` before redirecting */
+} wf_oauth_authorization_begin_result;
+
+/**
+ * Generate PKCE/state/DPoP material, submit PAR, and construct the browser URL.
+ * The caller owns `state_json` persistence and must consume it on callback.
+ */
+wf_status wf_oauth_authorization_begin(
+    wf_xrpc_client *transport,
+    const wf_oauth_server_metadata *server,
+    const wf_oauth_client_metadata *client,
+    const wf_oauth_client_auth *client_auth,
+    const wf_oauth_authorization_begin_options *options,
+    wf_oauth_authorization_begin_result *out);
+void wf_oauth_authorization_begin_result_free(
+    wf_oauth_authorization_begin_result *result);
+
+/** Construct the browser URL for an already-created PAR request URI. */
+wf_status wf_oauth_authorization_url_create(
+    const char *authorization_endpoint, const char *client_id,
+    const char *request_uri, char **url_out);
+
 #ifdef __cplusplus
 }
 #endif

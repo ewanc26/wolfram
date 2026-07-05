@@ -127,8 +127,9 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     validation, subject-bound token refresh, and expiring persistent
     authorization state and durable token sessions with private DPoP JWK
     validation are implemented. ES256 `private_key_jwt` authentication is
-    supported across PAR and token calls. Higher-level flow/session
-    orchestration remains.
+    supported across PAR and token calls, and authorization-begin orchestration
+    produces persisted state plus the browser redirect URL. Callback-to-session
+    completion and managed session refresh orchestration remain.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
