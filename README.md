@@ -2,7 +2,7 @@
 
 A C SDK for the AT Protocol.
 
-**Early development.** XRPC transport and identity resolution are implemented; crypto and repo handling are stubbed with `TODO`s. Not usable for production yet.
+**Early development.** XRPC transport, identity resolution, crypto (secp256k1 + P-256), and repo handling (DAG-CBOR, CAR, MST, signed commits) are implemented and tested. Not at feature parity with the official SDKs yet, but the core building blocks are in place.
 
 ## Overview
 
@@ -13,9 +13,9 @@ A C SDK for the AT Protocol.
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
-| `wolfram/identity.h`      | Implemented | did:plc, did:web resolution; handle → DID       |
-| `wolfram/repo.h`          | Implemented | DAG-CBOR decode + CID + CAR + MST traversal     |
-| `wolfram/crypto.h`        | Implemented | secp256k1 keygen, sign, verify (libsecp256k1)   |
+| `wolfram/identity.h`      | Implemented | did:plc, did:web, DNS TXT, well-known fallback  |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit |
+| `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 
 ## Requirements
 
@@ -57,19 +57,22 @@ A `flake.nix` devShell is also included for machines that do use Nix, but it isn
 
 Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no parsing yet, just proof that the transport works.
 
-## Roadmap
-
-Roughly in the order it makes sense to tackle them:
+### Roadmap
 
 1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
 2. ✅ DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`).
-3. ✅ DAG-CBOR decode (read-only), with full constraint validation and unit tests.
+3. ✅ DAG-CBOR decode/encode, with full constraint validation and unit tests.
 4. ✅ SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
 5. ✅ CAR parsing (`wf_car_parse`).
-6. ✅ MST traversal (`wf_mst_find`, `wf_mst_node_parse`).
-7. ✅ secp256k1 signing via `libsecp256k1` (`wf_sign`, `wf_verify`).
-
-### New dependencies
+6. ✅ MST traversal + mutation (`wf_mst_find`, `wf_mst_add`, `wf_mst_delete`, `wf_mst_node_build`, `wf_mst_node_finalize`).
+7. ✅ secp256k1 and P-256 signing (`wf_sign`, `wf_verify`, `wf_signing_key_generate`).
+8. ✅ Signed commit creation (`wf_commit_create`).
+9. 🟡 DNS TXT lookup for AT Protocol handle resolution.
+10. ⬜ DAG-CBOR schema-driven encoding (structured record creation).
+11. ⬜ PDS client — session management, credential storage, auth token refresh.
+12. ⬜ Repository data operations — create/update/delete records, sync repo state.
+13. ⬜ Lexicon integration — code generation from Lexicon schemas for typed AT Protocol calls.
+14. ⬜ Union/jetstream — WebSocket-based firehose subscription for live AT Protocol events.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).

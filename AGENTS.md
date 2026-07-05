@@ -17,9 +17,9 @@ Agentic principles and technical context for the `wolfram` repository.
 - Commit scoping: `feat(xrpc)`, `feat(repo)`, `fix(identity)`, etc.
 - When picking this back up cold, read the `## Roadmap` section of README.md first — it's kept current and orders the remaining work by dependency, not by importance.
 
-## Current state (accurate as of scaffold)
+## Current state
 
 - `xrpc`: fully working query/procedure calls over libcurl. Generic `wf_http_get` for arbitrary URLs.
-- `identity`: DID method detection + resolution for did:plc (via plc.directory) and did:web (via .well-known/did.json). Handle resolution via HTTPS well-known fallback. cJSON for JSON parsing.
-- `crypto`: secp256k1 key generation, signing, and verification via libsecp256k1. P-256 stubbed (OpenSSL already linked for SHA-256).
-- `repo`: DAG-CBOR decoder implemented and tested (full canonical validation: no floats/tags/indefinite, canonical integers, sorted map keys). CID computation (`wf_cid_of_block`, `wf_cid_to_string`) working — SHA-256 via OpenSSL, base32 (RFC4648 lowercase, no padding). CAR parsing (`wf_car_parse`) implemented and tested — reads DAG-CBOR header (roots via CID tag 42) and varint-delimited blocks with raw CIDs. MST node parsing and traversal (`wf_mst_node_parse`, `wf_mst_find`) implemented and tested.
+- `identity`: DID method detection + resolution for did:plc (via plc.directory) and did:web (via .well-known/did.json). Handle resolution via DNS TXT `_atproto.<handle>` (POSIX `res_query`, fallback to HTTPS well-known). cJSON for JSON parsing.
+- `crypto`: secp256k1 key generation, signing, and verification via libsecp256k1. P-256 keygen, sign, and verify via OpenSSL EC API (`EC_KEY_new_by_curve_name`, `ECDSA_do_sign`, `ECDSA_do_verify`).
+- `repo`: DAG-CBOR decoder and encoder implemented and tested (canonical validation, tag 42 CID links, deterministic map key sorting on CBOR bytes). CID computation (`wf_cid_of_block`, `wf_cid_to_string`) — SHA-256 via OpenSSL, base32 (RFC4648 lowercase, no padding). CAR parsing (`wf_car_parse`) with block lookup (`wf_car_find_block`). MST: node parse/find, tree add/delete, node build/finalize. Commit: parse and signed creation (`wf_commit_create` with secp256k1 or P-256 signing).
