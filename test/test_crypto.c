@@ -46,11 +46,31 @@ int main(void) {
 #endif
     }
 
+    /* Generate a P-256 key */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        wf_status s = wf_signing_key_generate(WF_KEY_TYPE_P256, &key);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(key.type == WF_KEY_TYPE_P256);
+
+        int nonzero = 0;
+        for (int i = 0; i < 32; i++) {
+            if (key.bytes[i]) { nonzero = 1; break; }
+        }
+        WF_CHECK(nonzero);
+
+        unsigned char msg[] = "hello, world";
+        unsigned char sig[64];
+        WF_CHECK(wf_sign(&key, msg, sizeof(msg), sig, sizeof(sig)) == WF_OK);
+        WF_CHECK(sig[0] != 0 || sig[31] != 0);
+        WF_CHECK(sig[32] != 0 || sig[63] != 0);
+    }
+
     /* Invalid key type */
     {
         wf_signing_key key;
         WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_UNKNOWN, &key) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_ERR_INVALID_ARG);
     }
 
     /* Sign with NULL/empty args */

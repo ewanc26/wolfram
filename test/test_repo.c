@@ -1169,6 +1169,85 @@ int main(void) {
         }
     }
 
+    /* ── Signed commit creation (P-256) ── */
+
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+
+        wf_status s = wf_signing_key_generate(WF_KEY_TYPE_P256, &key);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(key.type == WF_KEY_TYPE_P256);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid mst_root = {{0}, 0};
+        mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
+        mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+        mst_root.len = 36;
+
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
+                                   &mst_root, NULL, &key,
+                                   &car, &commit) == WF_OK);
+        WF_CHECK(commit.cid.len == 36);
+        WF_CHECK(commit.sig_len == 64);
+        WF_CHECK(strcmp(commit.did, "did:plc:test") == 0);
+        WF_CHECK(strcmp(commit.rev, "3jui7kd54zh2y") == 0);
+        WF_CHECK(memcmp(&commit.data, &mst_root, sizeof(wf_cid)) == 0);
+        WF_CHECK(commit.has_prev == 0);
+        WF_CHECK(commit.version == 3);
+        WF_CHECK(car.block_count == 1);
+
+        /* Parse the block back */
+        wf_commit parsed;
+        memset(&parsed, 0, sizeof(parsed));
+        wf_car_block *block = wf_car_find_block(&car, &commit.cid);
+        WF_CHECK(block != NULL);
+        WF_CHECK(wf_commit_parse(block->data, block->data_len,
+                                  &parsed) == WF_OK);
+        WF_CHECK(strcmp(parsed.did, "did:plc:test") == 0);
+        WF_CHECK(strcmp(parsed.rev, "3jui7kd54zh2y") == 0);
+        WF_CHECK(parsed.version == 3);
+
+        wf_car_free(&car);
+    }
+
+    /* Commit with prev CID (P-256) */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+
+        wf_status s = wf_signing_key_generate(WF_KEY_TYPE_P256, &key);
+        WF_CHECK(s == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        wf_cid mst_root = {{0}, 0};
+        mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
+        mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+        mst_root.len = 36;
+
+        wf_cid prev_cid = {{0}, 0};
+        prev_cid.bytes[0] = 0x01; prev_cid.bytes[1] = 0x71;
+        prev_cid.bytes[2] = 0x12; prev_cid.bytes[3] = 0x20;
+        prev_cid.bytes[4] = 0xAA;
+        prev_cid.len = 36;
+
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
+                                   &mst_root, &prev_cid, &key,
+                                   &car, &commit) == WF_OK);
+        WF_CHECK(commit.has_prev == 1);
+        WF_CHECK(memcmp(&commit.prev, &prev_cid, sizeof(wf_cid)) == 0);
+
+        wf_car_free(&car);
+    }
+
     /* Invalid args */
     {
         wf_signing_key key;
