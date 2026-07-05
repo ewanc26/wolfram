@@ -318,5 +318,117 @@ int main(void) {
     /* wf_cbor_free(NULL) must be safe */
     wf_cbor_free(NULL);
 
+    /* ── CID computation ── */
+
+    /* Test vector from bluesky-social/atproto car-file-fixtures.json.
+     * Input: CBOR {"test": "root"} encoded as:
+     *   a1 64 74 65 73 74 64 72 6f 6f 74
+     * Expected CID string: bafyreiapldaco7m23c7qzc4w42r7kxmcswm64nkindtuh4vwztrpoe7m5m
+     */
+    {
+        unsigned char cbor[] = {0xa1, 0x64, 't', 'e', 's', 't',
+                                0x64, 'r', 'o', 'o', 't'};
+        wf_cid cid = {{0}, 0};
+        wf_status status = wf_cid_of_block(cbor, sizeof(cbor), &cid);
+        WF_CHECK(status == WF_OK);
+        WF_CHECK(cid.len == 36);
+        WF_CHECK(cid.bytes[0] == 0x01);  /* CIDv1 */
+        WF_CHECK(cid.bytes[1] == 0x71);  /* dag-cbor */
+
+        char *str = wf_cid_to_string(&cid);
+        WF_CHECK(str != NULL);
+        WF_CHECK(strcmp(str, "bafyreiapldaco7m23c7qzc4w42r7kxmcswm64nkindtuh4vwztrpoe7m5m") == 0);
+        free(str);
+    }
+
+    /* wf_cid_of_block rejects NULL/empty */
+    {
+        wf_cid cid = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(NULL, 5, &cid) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_cid_of_block((unsigned char*)"", 0, &cid) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_cid_of_block((unsigned char*)"\x01", 1, NULL) == WF_ERR_INVALID_ARG);
+    }
+
+    /* wf_cid_to_string rejects NULL / zeroed CID */
+    WF_CHECK(wf_cid_to_string(NULL) == NULL);
+    {
+        wf_cid empty = {{0}, 0};
+        WF_CHECK(wf_cid_to_string(&empty) == NULL);
+    }
+
+    /* ── CAR parse ── */
+
+    /* Build a CAR for {"test": "root"} and verify round-trip */
+    {
+        unsigned char block_data[] = {0xa1, 0x64, 't', 'e', 's', 't',
+                                      0x64, 'r', 'o', 'o', 't'};
+
+        wf_cid block_cid = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(block_data, sizeof(block_data),
+                                  &block_cid) == WF_OK);
+
+        /* Build header CBOR: {"version": 1, "roots": [tag42(cid_bytes)]}
+         * DAG-CBOR requires sorted map keys: "roots" < "version" */
+        unsigned char hdr_cbor[256];
+        size_t hp = 0;
+        hdr_cbor[hp++] = 0xA2;                              /* map(2) */
+        hdr_cbor[hp++] = 0x65;                               /* text(5) "roots" */
+        memcpy(hdr_cbor + hp, "roots", 5); hp += 5;
+        hdr_cbor[hp++] = 0x81;                               /* array(1) */
+        hdr_cbor[hp++] = 0xD8; hdr_cbor[hp++] = 0x2A;       /* tag(42) */
+        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x24;       /* bytes(36) */
+        memcpy(hdr_cbor + hp, block_cid.bytes, 36); hp += 36;
+        hdr_cbor[hp++] = 0x67;                               /* text(7) "version" */
+        memcpy(hdr_cbor + hp, "version", 7); hp += 7;
+        hdr_cbor[hp++] = 0x01;                               /* unsigned(1) */
+
+        /* Full CAR: [varint hdr_len] [header] [varint blk_total] [cid] [data] */
+        unsigned char car[512];
+        size_t cp = 0;
+        car[cp++] = (unsigned char)hp;                     /* varint */
+        memcpy(car + cp, hdr_cbor, hp); cp += hp;
+
+        size_t blk_total = 36 + sizeof(block_data);
+        car[cp++] = (unsigned char)blk_total;              /* varint */
+        memcpy(car + cp, block_cid.bytes, 36); cp += 36;
+        memcpy(car + cp, block_data, sizeof(block_data)); cp += sizeof(block_data);
+
+        wf_car parsed;
+        memset(&parsed, 0, sizeof(parsed));
+        WF_CHECK(wf_car_parse(car, cp, &parsed) == WF_OK);
+        WF_CHECK(parsed.root_count == 1);
+        WF_CHECK(memcmp(&parsed.roots[0], &block_cid, sizeof(wf_cid)) == 0);
+        WF_CHECK(parsed.block_count == 1);
+        WF_CHECK(memcmp(&parsed.blocks[0].cid, &block_cid, sizeof(wf_cid)) == 0);
+        WF_CHECK(parsed.blocks[0].data_len == sizeof(block_data));
+        WF_CHECK(memcmp(parsed.blocks[0].data, block_data,
+                        sizeof(block_data)) == 0);
+        wf_car_free(&parsed);
+    }
+
+    /* CAR error cases */
+    WF_CHECK(wf_car_parse(NULL, 0, NULL) == WF_ERR_INVALID_ARG);
+    {
+        wf_car c;
+        memset(&c, 0, sizeof(c));
+        WF_CHECK(wf_car_parse((unsigned char*) "", 0, &c) == WF_ERR_INVALID_ARG);
+    }
+
+    /* Truncated header */
+    {
+        unsigned char junk[] = {0x10, 0x01, 0x02};
+        wf_car c;
+        memset(&c, 0, sizeof(c));
+        WF_CHECK(wf_car_parse(junk, sizeof(junk), &c) == WF_ERR_INVALID_ARG);
+    }
+
+    /* wf_car_free(NULL) must be safe */
+    wf_car_free(NULL);
+    {
+        wf_car zeroed;
+        memset(&zeroed, 0, sizeof(zeroed));
+        wf_car_free(&zeroed);
+    }
+
     WF_TEST_SUMMARY();
 }

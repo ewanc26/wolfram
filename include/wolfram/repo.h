@@ -6,8 +6,8 @@
  * This module provides read-only DAG-CBOR decode, with CID and CAR
  * parsing building on top.
  *
- * Current state: DAG-CBOR decoder is implemented and tested. CID
- * computation, CAR parsing, and MST are still stubbed.
+ * Current state: DAG-CBOR decoder and CID computation are implemented
+ * and tested. CAR parsing and MST are still stubbed.
  */
 
 #ifndef WOLFRAM_REPO_H
@@ -76,9 +76,7 @@ typedef struct wf_cid {
 char *wf_cid_to_string(const wf_cid *cid);
 
 /**
- * Compute the CID of a DAG-CBOR-encoded block.
- *
- * TODO: needs SHA-256 and multihash encoding before it can work.
+ * Compute the CID of a DAG-CBOR-encoded block (CIDv1, dag-cbor, sha2-256).
  */
 wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
                            wf_cid *out);

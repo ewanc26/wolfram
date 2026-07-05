@@ -14,7 +14,7 @@ A C SDK for the AT Protocol.
 | ------------------------ | ----------- | ----------------------------------------------- |
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web resolution; handle → DID       |
-| `wolfram/repo.h`          | Implemented | DAG-CBOR decode; CID/CAR still stubbed          |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR decode + CID computation + CAR parse   |
 | `wolfram/crypto.h`        | Stubbed     | Awaiting a secp256k1/P-256 backend              |
 
 ## Requirements
@@ -22,11 +22,12 @@ A C SDK for the AT Protocol.
 - A C11 compiler (Clang ships with Xcode Command Line Tools on macOS)
 - CMake ≥ 3.20
 - libcurl
+- OpenSSL (libcrypto) — for SHA-256 hashing
 
 On macOS via Homebrew:
 
 ```sh
-brew install cmake curl
+brew install cmake curl openssl
 ```
 
 (libcurl also ships with macOS itself, but the Homebrew one is newer and CMake finds it more reliably via `pkg-config`.)
@@ -62,10 +63,15 @@ Roughly in the order it makes sense to tackle them:
 1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
 2. ✅ DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`).
 3. ✅ DAG-CBOR decode (read-only), with full constraint validation and unit tests.
-4. SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
-5. CAR parsing (`wf_car_parse`).
+4. ✅ SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
+5. ✅ CAR parsing (`wf_car_parse`).
 6. MST traversal, then mutation.
 7. secp256k1 signing via `libsecp256k1`.
+
+### New dependencies
+
+- [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
+- OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
 
 ## Contributing
 

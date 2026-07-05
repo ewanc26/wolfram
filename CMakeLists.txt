@@ -17,6 +17,7 @@ endif()
 add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(CURL REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -43,7 +44,7 @@ target_include_directories(wolfram
         ${cjson_BINARY_DIR}
 )
 
-target_link_libraries(wolfram PUBLIC CURL::libcurl cjson)
+target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
 
 option(WOLFRAM_BUILD_EXAMPLES "Build example programs" ON)
 option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
