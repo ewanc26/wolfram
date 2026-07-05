@@ -244,6 +244,55 @@ static void test_authorization_state(void) {
     wf_oauth_dpop_key_free(key);
 }
 
+static void test_session_state(void) {
+    unsigned char private_key[32] = {0};
+    wf_oauth_dpop_key *key = NULL;
+    wf_oauth_token_response token = {
+        .access_token = "access",
+        .token_type = "DPoP",
+        .sub = "did:plc:alice",
+        .scope = "atproto transition:generic",
+        .refresh_token = "refresh",
+        .expires_in = 3600,
+        .expires_in_present = 1,
+    };
+    wf_oauth_session_state session = {0}, restored = {0};
+    char *json = NULL, *tampered = NULL, *sub;
+    private_key[31] = 1;
+    WF_CHECK(wf_oauth_dpop_key_import(private_key, &key) == WF_OK);
+    WF_CHECK(wf_oauth_session_state_create(
+        "https://auth.example", "https://pds.example", key, &token,
+        1700000000, &session) == WF_OK);
+    WF_CHECK(session.expires_at == 1700003600);
+    WF_CHECK(session.dpop_key != key);
+    WF_CHECK(wf_oauth_session_state_serialize(&session, &json) == WF_OK);
+    WF_CHECK(json != NULL);
+    if (json) {
+        WF_CHECK(wf_oauth_session_state_parse(
+            json, strlen(json), "did:plc:alice", &restored) == WF_OK);
+        WF_CHECK(strcmp(restored.subject, "did:plc:alice") == 0);
+        WF_CHECK(strcmp(restored.refresh_token, "refresh") == 0);
+        WF_CHECK(restored.expires_at == 1700003600);
+        wf_oauth_session_state_free(&restored);
+
+        tampered = malloc(strlen(json) + 1);
+        WF_CHECK(tampered != NULL);
+        if (tampered) {
+            strcpy(tampered, json);
+            sub = strstr(tampered, "did:plc:alice");
+            WF_CHECK(sub != NULL);
+            if (sub) sub[8] = 'm';
+            WF_CHECK(wf_oauth_session_state_parse(
+                tampered, strlen(tampered), "did:plc:alice",
+                &restored) == WF_ERR_PARSE);
+        }
+    }
+    free(tampered);
+    wf_oauth_string_free(json);
+    wf_oauth_session_state_free(&session);
+    wf_oauth_dpop_key_free(key);
+}
+
 static void test_dpop(void) {
     unsigned char private_key[32] = {0};
     unsigned char exported[32] = {0};
@@ -353,6 +402,7 @@ int main(void) {
     test_endpoint_responses();
     test_callback();
     test_authorization_state();
+    test_session_state();
     test_dpop();
     WF_TEST_SUMMARY();
 }

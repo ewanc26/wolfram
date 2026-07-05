@@ -125,8 +125,8 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     keys, JWK thumbprints/proofs, public-client PAR and authorization-code token
     exchange with mandatory nonce retry, and state/issuer-bound callback
     validation, subject-bound public-client refresh, and expiring persistent
-    authorization state with private DPoP JWK validation are implemented.
-    Authenticated clients and persistent token sessions remain.
+    authorization state and durable token sessions with private DPoP JWK
+    validation are implemented. Authenticated clients remain.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).

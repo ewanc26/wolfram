@@ -285,6 +285,30 @@ wf_status wf_oauth_authorization_state_parse(
     wf_oauth_authorization_state *out);
 void wf_oauth_authorization_state_free(wf_oauth_authorization_state *state);
 
+/** Owned durable OAuth token session, corresponding to atproto TokenSet. */
+typedef struct wf_oauth_session_state {
+    char *issuer;
+    char *subject;
+    char *audience;
+    char *scope;
+    char *access_token;
+    char *refresh_token; /* optional */
+    int64_t expires_at;  /* Unix seconds; zero when unspecified */
+    wf_oauth_dpop_key *dpop_key;
+} wf_oauth_session_state;
+
+wf_status wf_oauth_session_state_create(
+    const char *issuer, const char *audience,
+    const wf_oauth_dpop_key *dpop_key,
+    const wf_oauth_token_response *token_response, int64_t now,
+    wf_oauth_session_state *out);
+wf_status wf_oauth_session_state_serialize(
+    const wf_oauth_session_state *session, char **json_out);
+wf_status wf_oauth_session_state_parse(
+    const char *json, size_t json_len, const char *expected_subject,
+    wf_oauth_session_state *out);
+void wf_oauth_session_state_free(wf_oauth_session_state *session);
+
 #ifdef __cplusplus
 }
 #endif
