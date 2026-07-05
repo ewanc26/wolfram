@@ -24,6 +24,14 @@ wf_status wf_sync_get_repo(wf_xrpc_client *client,
                             const char *since,
                             wf_car *out);
 
+/** Parse and verify an incremental repository CAR response. */
+wf_status wf_sync_verify_diff_car(const wf_car *base,
+                                  const wf_cid *base_commit,
+                                  const unsigned char *bytes,
+                                  size_t len,
+                                  const wf_repo_verify_options *options,
+                                  wf_repo_diff *out);
+
 #ifdef __cplusplus
 }
 #endif

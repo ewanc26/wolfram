@@ -217,6 +217,76 @@ wf_status wf_repo_import(const unsigned char *bytes, size_t len,
                          const wf_repo_verify_options *options,
                          wf_car *out_car, wf_commit *out_commit);
 
+/* Repository diffs. */
+
+typedef enum wf_repo_operation_action {
+    WF_REPO_CREATE = 0,
+    WF_REPO_UPDATE = 1,
+    WF_REPO_DELETE = 2,
+} wf_repo_operation_action;
+
+/**
+ * A content-addressed record operation derived from two repository roots.
+ * `collection` and `rkey` are heap-owned. For creates and deletes, `cid` is
+ * the created or deleted record CID and `prev` is zeroed. For updates, `cid`
+ * is the new record CID and `prev` is the replaced record CID.
+ */
+typedef struct wf_repo_operation {
+    wf_repo_operation_action action;
+    char *collection;
+    char *rkey;
+    wf_cid cid;
+    wf_cid prev;
+} wf_repo_operation;
+
+/** Free an operation array returned by this module. Safe with NULL. */
+void wf_repo_operations_free(wf_repo_operation *operations, size_t count);
+
+/**
+ * Invert and reverse an operation sequence. Create becomes delete, delete
+ * becomes create, and update swaps `cid` and `prev`. On success,
+ * `*out_operations` is released with wf_repo_operations_free().
+ */
+wf_status wf_repo_operations_invert(const wf_repo_operation *operations,
+                                    size_t count,
+                                    wf_repo_operation **out_operations);
+
+/** An owning, verified transition from `previous_commit` to `commit.cid`. */
+typedef struct wf_repo_diff {
+    wf_repo_operation *operations;
+    size_t operation_count;
+    wf_commit commit;
+    wf_cid previous_commit;
+    char since[64];
+    wf_car new_blocks;
+    wf_cid *removed_cids;
+    size_t removed_count;
+} wf_repo_diff;
+
+/** Free a diff returned by wf_repo_diff_verify. Safe with NULL. */
+void wf_repo_diff_free(wf_repo_diff *diff);
+
+/**
+ * Verify and derive an incremental repository transition.
+ *
+ * `base` must be complete and rooted at `base_commit`. `update` may omit
+ * unchanged blocks; lookups fall back to `base`, matching AT Protocol
+ * SyncStorage behavior. New record leaves must be present in `update`.
+ * `options->expected_prev` checks the encoded commit field independently of
+ * `base_commit`, because one sync response can span multiple commits.
+ */
+wf_status wf_repo_diff_verify(const wf_car *base,
+                              const wf_cid *base_commit,
+                              const wf_car *update,
+                              const wf_repo_verify_options *options,
+                              wf_repo_diff *out);
+
+/**
+ * Apply a verified diff to an owning CAR transactionally. The CAR must be
+ * rooted at `diff->previous_commit`; failures leave it unchanged.
+ */
+wf_status wf_repo_diff_apply(wf_car *repo, const wf_repo_diff *diff);
+
 /* ── MST ───────────────────────────────────────────────────── */
 
 /** Compute the MST layer of a key: SHA-256 leading-zero bits / 2. */

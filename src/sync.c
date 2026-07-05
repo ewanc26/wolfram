@@ -34,3 +34,20 @@ wf_status wf_sync_get_repo(wf_xrpc_client *client,
     wf_response_free(&response);
     return status;
 }
+
+wf_status wf_sync_verify_diff_car(const wf_car *base,
+                                  const wf_cid *base_commit,
+                                  const unsigned char *bytes,
+                                  size_t len,
+                                  const wf_repo_verify_options *options,
+                                  wf_repo_diff *out) {
+    if (!base || !base_commit || !bytes || len == 0 || !options || !out)
+        return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    wf_car update = {0};
+    wf_status status = wf_car_parse(bytes, len, &update);
+    if (status != WF_OK) return status;
+    status = wf_repo_diff_verify(base, base_commit, &update, options, out);
+    wf_car_free(&update);
+    return status;
+}

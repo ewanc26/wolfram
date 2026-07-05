@@ -50,6 +50,11 @@ static int check_map_len(const wf_cbor_item *item, size_t n) {
            item->map.count == n;
 }
 
+static int check_cid(const wf_cid *left, const wf_cid *right) {
+    return left && right && left->len == right->len && left->len > 0 &&
+           memcmp(left->bytes, right->bytes, left->len) == 0;
+}
+
 int main(void) {
     /* ── unsigned integers ── */
     {
@@ -1736,6 +1741,185 @@ int main(void) {
 
         free(bytes);
         wf_car_free(&car);
+    }
+
+    /* Verify, apply, and invert a sparse incremental repository diff. */
+    {
+        wf_signing_key key = {0};
+        key.type = WF_KEY_TYPE_P256;
+        key.bytes[31] = 1;
+        const char *did = "did:plc:repodifftest";
+        const char *did_key =
+            "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+        unsigned char record_one[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
+        unsigned char record_two[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x02};
+        unsigned char record_three[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x03};
+        unsigned char record_four[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x04};
+        wf_car working = {0};
+        wf_cid commit_one = {0}, commit_base = {0}, commit_update = {0};
+        wf_cid old_keep = {0}, old_delete = {0};
+        wf_cid new_keep = {0}, new_add = {0};
+        WF_CHECK(wf_repo_create_record(&working, NULL, did,
+                                        "com.example.posts", "keep",
+                                        record_one, sizeof(record_one), &key,
+                                        &commit_one, &old_keep) == WF_OK);
+        WF_CHECK(wf_repo_create_record(&working, &commit_one, did,
+                                        "com.example.posts", "remove",
+                                        record_two, sizeof(record_two), &key,
+                                        &commit_base, &old_delete) == WF_OK);
+        working.roots = malloc(sizeof(wf_cid));
+        WF_CHECK(working.roots != NULL);
+        working.roots[0] = commit_base;
+        working.root_count = 1;
+
+        unsigned char *base_bytes = NULL;
+        size_t base_len = 0;
+        WF_CHECK(wf_car_write(&working, &base_bytes, &base_len) == WF_OK);
+        wf_car base = {0};
+        WF_CHECK(wf_car_parse(base_bytes, base_len, &base) == WF_OK);
+        free(base_bytes);
+        size_t first_update_block = working.block_count;
+
+        wf_cid intermediate = {0};
+        WF_CHECK(wf_repo_update_record(&working, &commit_base, did,
+                                        "com.example.posts", "keep",
+                                        record_three, sizeof(record_three),
+                                        &key, &intermediate, &new_keep) == WF_OK);
+        wf_cid after_delete = {0};
+        WF_CHECK(wf_repo_delete_record(&working, &intermediate, did,
+                                        "com.example.posts", "remove", &key,
+                                        &after_delete) == WF_OK);
+        WF_CHECK(wf_repo_create_record(&working, &after_delete, did,
+                                        "com.example.posts", "added",
+                                        record_four, sizeof(record_four), &key,
+                                        &commit_update, &new_add) == WF_OK);
+
+        wf_car update = {0};
+        update.roots = &commit_update;
+        update.root_count = 1;
+        update.blocks = calloc(working.block_count - first_update_block,
+                               sizeof(*update.blocks));
+        WF_CHECK(update.blocks != NULL);
+        for (size_t i = first_update_block; i < working.block_count; i++) {
+            int duplicate = 0;
+            for (size_t j = 0; j < update.block_count; j++) {
+                if (check_cid(&working.blocks[i].cid, &update.blocks[j].cid)) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (!duplicate) update.blocks[update.block_count++] = working.blocks[i];
+        }
+        wf_repo_verify_options options = {did, did_key, NULL};
+        wf_repo_diff diff = {0};
+        wf_status diff_status = wf_repo_diff_verify(&base, &commit_base,
+                                                     &update, &options, &diff);
+        WF_CHECK(diff_status == WF_OK);
+        WF_CHECK(diff.operation_count == 3);
+        WF_CHECK(check_cid(&diff.previous_commit, &commit_base));
+        WF_CHECK(check_cid(&diff.commit.cid, &commit_update));
+        WF_CHECK(diff.new_blocks.root_count == 1);
+        WF_CHECK(diff.new_blocks.block_count > 0);
+        WF_CHECK(diff.removed_count > 0);
+
+        const wf_repo_operation *create = NULL, *change = NULL, *remove = NULL;
+        for (size_t i = 0; i < diff.operation_count; i++) {
+            const wf_repo_operation *operation = &diff.operations[i];
+            WF_CHECK(strcmp(operation->collection, "com.example.posts") == 0);
+            if (operation->action == WF_REPO_CREATE) create = operation;
+            if (operation->action == WF_REPO_UPDATE) change = operation;
+            if (operation->action == WF_REPO_DELETE) remove = operation;
+        }
+        WF_CHECK(create && strcmp(create->rkey, "added") == 0 &&
+                 check_cid(&create->cid, &new_add));
+        WF_CHECK(change && strcmp(change->rkey, "keep") == 0 &&
+                 check_cid(&change->prev, &old_keep) &&
+                 check_cid(&change->cid, &new_keep));
+        WF_CHECK(remove && strcmp(remove->rkey, "remove") == 0 &&
+                 check_cid(&remove->cid, &old_delete));
+
+        wf_repo_operation *inverse = NULL;
+        WF_CHECK(wf_repo_operations_invert(diff.operations,
+                                            diff.operation_count,
+                                            &inverse) == WF_OK);
+        WF_CHECK(inverse != NULL);
+        for (size_t i = 0; i < diff.operation_count; i++) {
+            const wf_repo_operation *original =
+                &diff.operations[diff.operation_count - i - 1];
+            if (original->action == WF_REPO_CREATE)
+                WF_CHECK(inverse[i].action == WF_REPO_DELETE);
+            else if (original->action == WF_REPO_DELETE)
+                WF_CHECK(inverse[i].action == WF_REPO_CREATE);
+            else {
+                WF_CHECK(inverse[i].action == WF_REPO_UPDATE);
+                WF_CHECK(check_cid(&inverse[i].cid, &original->prev));
+                WF_CHECK(check_cid(&inverse[i].prev, &original->cid));
+            }
+        }
+        wf_repo_operations_free(inverse, diff.operation_count);
+
+        /* The encoded prev field is optional transition metadata, not the
+         * consumer base: this response spans three commits. */
+        wf_repo_diff checked_prev = {0};
+        options.expected_prev = &after_delete;
+        WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &update, &options,
+                                      &checked_prev) == WF_OK);
+        wf_repo_diff_free(&checked_prev);
+        options.expected_prev = &commit_base;
+        WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &update, &options,
+                                      &checked_prev) == WF_ERR_PARSE);
+        options.expected_prev = NULL;
+
+        /* Like consumer.ts ensureLeaves, changed leaves must be in update. */
+        wf_car missing_leaf = update;
+        missing_leaf.blocks = calloc(update.block_count,
+                                     sizeof(*missing_leaf.blocks));
+        WF_CHECK(missing_leaf.blocks != NULL);
+        missing_leaf.block_count = 0;
+        for (size_t i = 0; i < update.block_count; i++) {
+            if (check_cid(&update.blocks[i].cid, &new_add)) continue;
+            missing_leaf.blocks[missing_leaf.block_count++] = update.blocks[i];
+        }
+        wf_repo_diff rejected = {0};
+        WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &missing_leaf,
+                                      &options, &rejected) == WF_ERR_NOT_FOUND);
+        WF_CHECK(rejected.operations == NULL);
+        free(missing_leaf.blocks);
+
+        WF_CHECK(wf_repo_diff_apply(&base, &diff) == WF_OK);
+        WF_CHECK(check_cid(&base.roots[0], &commit_update));
+        unsigned char *found_data = NULL;
+        size_t found_len = 0;
+        wf_cid found_cid = {0};
+        WF_CHECK(wf_repo_get_record(&base, &commit_update,
+                                    "com.example.posts", "keep", &found_data,
+                                    &found_len, &found_cid) == WF_OK);
+        WF_CHECK(found_len == sizeof(record_three));
+        WF_CHECK(memcmp(found_data, record_three, found_len) == 0);
+        free(found_data);
+        WF_CHECK(wf_repo_get_record(&base, &commit_update,
+                                    "com.example.posts", "remove", &found_data,
+                                    &found_len, &found_cid) == WF_ERR_NOT_FOUND);
+
+        /* Applying twice is rejected without mutating the current root. */
+        WF_CHECK(wf_repo_diff_apply(&base, &diff) == WF_ERR_INVALID_ARG);
+        WF_CHECK(check_cid(&base.roots[0], &commit_update));
+
+        wf_repo_diff_free(&diff);
+        free(update.blocks);
+        wf_car_free(&base);
+        wf_car_free(&working);
+    }
+
+    /* Operation inversion validates ownership-bearing input. */
+    {
+        wf_repo_operation *output = (wf_repo_operation *)1;
+        WF_CHECK(wf_repo_operations_invert(NULL, 0, &output) == WF_OK);
+        WF_CHECK(output == NULL);
+        WF_CHECK(wf_repo_operations_invert(NULL, 1, &output) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_operations_invert(NULL, 0, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();
