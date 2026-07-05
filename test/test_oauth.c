@@ -201,6 +201,49 @@ static void test_callback(void) {
         "https://auth.example", 0, &result) == WF_ERR_PARSE);
 }
 
+static void test_authorization_state(void) {
+    unsigned char private_key[32] = {0};
+    wf_oauth_dpop_key *key = NULL;
+    wf_oauth_pkce pkce;
+    wf_oauth_authorization_state state = {0}, restored = {0};
+    char *json = NULL, *tampered = NULL, *x;
+    private_key[31] = 1;
+    WF_CHECK(wf_oauth_dpop_key_import(private_key, &key) == WF_OK);
+    WF_CHECK(wf_oauth_pkce_from_verifier(
+        "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", &pkce) == WF_OK);
+    WF_CHECK(wf_oauth_authorization_state_create(
+        "https://auth.example", &pkce, key, "return-to-settings",
+        1700000000, 600, &state) == WF_OK);
+    WF_CHECK(state.dpop_key != key);
+    WF_CHECK(state.expires_at == 1700000600);
+    WF_CHECK(wf_oauth_authorization_state_serialize(&state, &json) == WF_OK);
+    WF_CHECK(json != NULL);
+    if (json) {
+        WF_CHECK(wf_oauth_authorization_state_parse(
+            json, strlen(json), 1700000300, &restored) == WF_OK);
+        WF_CHECK(strcmp(restored.issuer, "https://auth.example") == 0);
+        WF_CHECK(strcmp(restored.app_state, "return-to-settings") == 0);
+        wf_oauth_authorization_state_free(&restored);
+        WF_CHECK(wf_oauth_authorization_state_parse(
+            json, strlen(json), 1700000600, &restored) == WF_ERR_PARSE);
+
+        tampered = malloc(strlen(json) + 1);
+        WF_CHECK(tampered != NULL);
+        if (tampered) {
+            strcpy(tampered, json);
+            x = strstr(tampered, "\"x\":\"");
+            WF_CHECK(x != NULL);
+            if (x) x[5] = x[5] == 'A' ? 'B' : 'A';
+            WF_CHECK(wf_oauth_authorization_state_parse(
+                tampered, strlen(tampered), 1700000300, &restored) == WF_ERR_PARSE);
+        }
+    }
+    free(tampered);
+    wf_oauth_string_free(json);
+    wf_oauth_authorization_state_free(&state);
+    wf_oauth_dpop_key_free(key);
+}
+
 static void test_dpop(void) {
     unsigned char private_key[32] = {0};
     unsigned char exported[32] = {0};
@@ -309,6 +352,7 @@ int main(void) {
     test_metadata();
     test_endpoint_responses();
     test_callback();
+    test_authorization_state();
     test_dpop();
     WF_TEST_SUMMARY();
 }

@@ -257,6 +257,34 @@ wf_status wf_oauth_callback_validate(const wf_oauth_callback_params *params,
                                      wf_oauth_callback_result *out);
 void wf_oauth_callback_result_free(wf_oauth_callback_result *result);
 
+/** Owned state required to finish an authorization redirect flow. */
+typedef struct wf_oauth_authorization_state {
+    char *issuer;
+    char *code_verifier;
+    char *app_state; /* optional */
+    int64_t expires_at; /* Unix seconds */
+    wf_oauth_dpop_key *dpop_key;
+} wf_oauth_authorization_state;
+
+/**
+ * Create a deep-owned pending state. `ttl_seconds` must be positive; callers
+ * normally use 600 seconds, matching the maintained atproto browser client.
+ */
+wf_status wf_oauth_authorization_state_create(
+    const char *issuer, const wf_oauth_pkce *pkce,
+    const wf_oauth_dpop_key *dpop_key, const char *app_state,
+    int64_t now, int64_t ttl_seconds, wf_oauth_authorization_state *out);
+
+/** Serialize state, including its private DPoP JWK, to owned JSON. */
+wf_status wf_oauth_authorization_state_serialize(
+    const wf_oauth_authorization_state *state, char **json_out);
+
+/** Restore and validate unexpired state. `now` is Unix seconds. */
+wf_status wf_oauth_authorization_state_parse(
+    const char *json, size_t json_len, int64_t now,
+    wf_oauth_authorization_state *out);
+void wf_oauth_authorization_state_free(wf_oauth_authorization_state *state);
+
 #ifdef __cplusplus
 }
 #endif
