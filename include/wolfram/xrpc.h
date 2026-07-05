@@ -41,7 +41,13 @@ typedef struct wf_response {
     long   status;
     char  *body;
     size_t body_len;
+    char  *dpop_nonce; /* optional owned DPoP-Nonce response header */
 } wf_response;
+
+typedef struct wf_http_header {
+    const char *name;
+    const char *value;
+} wf_http_header;
 
 /** A single UTF-8 XRPC query parameter. Names and values are URL-encoded. */
 typedef struct wf_xrpc_param {
@@ -116,6 +122,16 @@ void wf_response_free(wf_response *res);
  * wf_response_free.
  */
 wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out);
+
+/**
+ * Perform a generic HTTP POST. This is the transport primitive used by
+ * non-XRPC protocols such as OAuth. On WF_OK or WF_ERR_HTTP, `out` is
+ * populated (including an optional DPoP-Nonce) and must be freed.
+ */
+wf_status wf_http_post(wf_xrpc_client *client, const char *url,
+                       const char *content_type, const char *body,
+                       const wf_http_header *headers, size_t header_count,
+                       wf_response *out);
 
 #ifdef __cplusplus
 }

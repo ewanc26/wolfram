@@ -2,8 +2,8 @@
  * oauth.h — AT Protocol OAuth discovery and proof foundations.
  *
  * This module implements metadata validation, PKCE S256, and ES256 DPoP
- * proofs.  It deliberately does not implement the PAR, authorization callback,
- * token exchange, nonce retry, or persistent session state machine yet.
+ * proofs, PAR, and authorization-code token exchange. Authorization callback
+ * validation and persistent session state remain higher-level concerns.
  * Network requests made by the discovery helpers are delegated to xrpc.c.
  */
 
@@ -164,6 +164,52 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
 
 /** Free a string returned by an OAuth API. Safe to call with NULL. */
 void wf_oauth_string_free(char *value);
+
+typedef struct wf_oauth_par_response {
+    char *request_uri;
+    int64_t expires_in;
+} wf_oauth_par_response;
+
+typedef struct wf_oauth_token_response {
+    char *access_token;
+    char *token_type;
+    char *sub;
+    char *scope;
+    char *refresh_token;
+    int64_t expires_in;
+    int expires_in_present;
+} wf_oauth_token_response;
+
+typedef struct wf_oauth_par_request {
+    const char *client_id;
+    const char *redirect_uri;
+    const char *scope;
+    const char *state;
+    const char *code_challenge;
+    const char *login_hint; /* optional */
+} wf_oauth_par_request;
+
+wf_status wf_oauth_par_response_parse(const char *json, size_t json_len,
+                                      wf_oauth_par_response *out);
+wf_status wf_oauth_token_response_parse(const char *json, size_t json_len,
+                                        wf_oauth_token_response *out);
+void wf_oauth_par_response_free(wf_oauth_par_response *response);
+void wf_oauth_token_response_free(wf_oauth_token_response *response);
+
+/** Public-client PAR with one mandatory use_dpop_nonce retry. */
+wf_status wf_oauth_par(wf_xrpc_client *transport, const char *endpoint,
+                       const wf_oauth_dpop_key *key,
+                       const wf_oauth_par_request *request,
+                       wf_oauth_par_response *out);
+
+/** Public-client authorization-code exchange with DPoP nonce retry. */
+wf_status wf_oauth_exchange_code(wf_xrpc_client *transport,
+                                 const char *token_endpoint,
+                                 const wf_oauth_dpop_key *key,
+                                 const char *client_id, const char *code,
+                                 const char *redirect_uri,
+                                 const char *code_verifier,
+                                 wf_oauth_token_response *out);
 
 #ifdef __cplusplus
 }

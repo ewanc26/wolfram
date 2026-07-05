@@ -10,6 +10,8 @@
 #include "wolfram/version.h"
 
 #include <curl/curl.h>
+#include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,6 +26,31 @@ struct wf_buffer {
     size_t len;
     size_t cap;
 };
+
+struct wf_header_capture { char *dpop_nonce; };
+
+static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    struct wf_header_capture *capture = userdata;
+    size_t len = size * nmemb;
+    static const char name[] = "DPoP-Nonce:";
+    size_t i, start, end;
+    if (len < sizeof(name) - 1) return len;
+    for (i = 0; i < sizeof(name) - 1; i++) {
+        if (tolower((unsigned char)ptr[i]) != tolower((unsigned char)name[i])) return len;
+    }
+    start = sizeof(name) - 1;
+    while (start < len && (ptr[start] == ' ' || ptr[start] == '\t')) start++;
+    end = len;
+    while (end > start && (ptr[end - 1] == '\r' || ptr[end - 1] == '\n' ||
+                           ptr[end - 1] == ' ' || ptr[end - 1] == '\t')) end--;
+    char *value = malloc(end - start + 1);
+    if (!value) return 0;
+    memcpy(value, ptr + start, end - start);
+    value[end - start] = '\0';
+    free(capture->dpop_nonce);
+    capture->dpop_nonce = value;
+    return len;
+}
 
 static size_t wf_curl_write_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
     struct wf_buffer *buf = (struct wf_buffer *)userdata;
@@ -281,9 +308,77 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client,
 void wf_response_free(wf_response *res) {
     if (!res) return;
     free(res->body);
+    free(res->dpop_nonce);
     res->body = NULL;
     res->body_len = 0;
+    res->dpop_nonce = NULL;
     res->status = 0;
+}
+
+wf_status wf_http_post(wf_xrpc_client *client, const char *url,
+                       const char *content_type, const char *body,
+                       const wf_http_header *extra, size_t extra_count,
+                       wf_response *out) {
+    CURL *curl;
+    struct wf_buffer buf = {0};
+    struct wf_header_capture capture = {0};
+    struct curl_slist *headers = NULL;
+    wf_status status = WF_OK;
+    size_t i;
+    if (!client || !url || !content_type || !body || !out ||
+        (extra_count && !extra)) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    curl = curl_easy_init();
+    if (!curl) return WF_ERR_ALLOC;
+    {
+        size_t n = strlen("Content-Type: ") + strlen(content_type) + 1;
+        char *line = malloc(n);
+        if (!line) { curl_easy_cleanup(curl); return WF_ERR_ALLOC; }
+        snprintf(line, n, "Content-Type: %s", content_type);
+        headers = curl_slist_append(headers, line);
+        free(line);
+        if (!headers) status = WF_ERR_ALLOC;
+    }
+    for (i = 0; status == WF_OK && i < extra_count; i++) {
+        size_t n;
+        char *line;
+        struct curl_slist *grown;
+        if (!extra[i].name || !extra[i].value) { status = WF_ERR_INVALID_ARG; break; }
+        n = strlen(extra[i].name) + strlen(extra[i].value) + 3;
+        line = malloc(n);
+        if (!line) { status = WF_ERR_ALLOC; break; }
+        snprintf(line, n, "%s: %s", extra[i].name, extra[i].value);
+        grown = curl_slist_append(headers, line);
+        free(line);
+        if (!grown) { status = WF_ERR_ALLOC; break; }
+        headers = grown;
+    }
+    if (status == WF_OK) {
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(body));
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
+        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
+        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
+        if (curl_easy_perform(curl) != CURLE_OK) status = WF_ERR_NETWORK;
+    }
+    if (status == WF_OK) {
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &out->status);
+        out->body = buf.data;
+        out->body_len = buf.len;
+        out->dpop_nonce = capture.dpop_nonce;
+        buf.data = NULL;
+        capture.dpop_nonce = NULL;
+        if (out->status < 200 || out->status >= 300) status = WF_ERR_HTTP;
+    }
+    free(buf.data);
+    free(capture.dpop_nonce);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    return status;
 }
 
 wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out) {

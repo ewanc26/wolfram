@@ -1096,3 +1096,149 @@ done:
 void wf_oauth_string_free(char *value) {
     free(value);
 }
+
+void wf_oauth_par_response_free(wf_oauth_par_response *r) {
+    if (!r) return;
+    free(r->request_uri);
+    memset(r, 0, sizeof(*r));
+}
+
+void wf_oauth_token_response_free(wf_oauth_token_response *r) {
+    if (!r) return;
+    free(r->access_token); free(r->token_type); free(r->sub); free(r->scope);
+    free(r->refresh_token);
+    memset(r, 0, sizeof(*r));
+}
+
+static wf_status wf_oauth_positive_integer(const cJSON *root, const char *name,
+                                            int required, int64_t *out, int *present) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, name);
+    if (present) *present = item != NULL;
+    if (!item) return required ? WF_ERR_PARSE : WF_OK;
+    if (!cJSON_IsNumber(item) || item->valuedouble <= 0 ||
+        item->valuedouble != (double)item->valueint) return WF_ERR_PARSE;
+    *out = (int64_t)item->valuedouble;
+    return WF_OK;
+}
+
+wf_status wf_oauth_par_response_parse(const char *json, size_t len,
+                                      wf_oauth_par_response *out) {
+    cJSON *root; wf_status s;
+    if (!json || !len || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    root = cJSON_ParseWithLength(json, len);
+    if (!root || !cJSON_IsObject(root)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    s = wf_oauth_json_string(root, "request_uri", 1, &out->request_uri);
+    if (s == WF_OK) s = wf_oauth_positive_integer(root, "expires_in", 1,
+                                                   &out->expires_in, NULL);
+    cJSON_Delete(root);
+    if (s != WF_OK) wf_oauth_par_response_free(out);
+    return s;
+}
+
+wf_status wf_oauth_token_response_parse(const char *json, size_t len,
+                                        wf_oauth_token_response *out) {
+    cJSON *root; wf_status s;
+    if (!json || !len || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    root = cJSON_ParseWithLength(json, len);
+    if (!root || !cJSON_IsObject(root)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    s = wf_oauth_json_string(root, "access_token", 1, &out->access_token);
+    if (s == WF_OK) s = wf_oauth_json_string(root, "token_type", 1, &out->token_type);
+    if (s == WF_OK) s = wf_oauth_json_string(root, "sub", 1, &out->sub);
+    if (s == WF_OK) s = wf_oauth_json_string(root, "scope", 1, &out->scope);
+    if (s == WF_OK) s = wf_oauth_json_string(root, "refresh_token", 0, &out->refresh_token);
+    if (s == WF_OK) s = wf_oauth_positive_integer(root, "expires_in", 0,
+                                                   &out->expires_in,
+                                                   &out->expires_in_present);
+    cJSON_Delete(root);
+    if (s == WF_OK && strcmp(out->token_type, "DPoP") != 0) s = WF_ERR_PARSE;
+    if (s == WF_OK && strncmp(out->sub, "did:", 4) != 0) s = WF_ERR_PARSE;
+    if (s != WF_OK) wf_oauth_token_response_free(out);
+    return s;
+}
+
+static wf_status wf_oauth_form_encode(const wf_xrpc_param *params, size_t count,
+                                      char **out) {
+    CURL *curl = curl_easy_init(); size_t i, len = 1, off = 0; char **values;
+    if (!curl) return WF_ERR_ALLOC;
+    values = calloc(count * 2, sizeof(*values));
+    if (!values) { curl_easy_cleanup(curl); return WF_ERR_ALLOC; }
+    for (i = 0; i < count; i++) {
+        values[i * 2] = curl_easy_escape(curl, params[i].name, 0);
+        values[i * 2 + 1] = curl_easy_escape(curl, params[i].value, 0);
+        if (!values[i * 2] || !values[i * 2 + 1]) break;
+        len += strlen(values[i * 2]) + strlen(values[i * 2 + 1]) + 2;
+    }
+    *out = i == count ? malloc(len) : NULL;
+    if (*out) for (i = 0; i < count; i++) off += (size_t)snprintf(*out + off, len - off,
+        "%s%s=%s", i ? "&" : "", values[i * 2], values[i * 2 + 1]);
+    for (i = 0; i < count * 2; i++) curl_free(values[i]);
+    free(values); curl_easy_cleanup(curl);
+    return *out ? WF_OK : WF_ERR_ALLOC;
+}
+
+static int wf_oauth_use_nonce(const wf_response *r) {
+    cJSON *root; const cJSON *error; int yes = 0;
+    if (!r->dpop_nonce || !r->body) return 0;
+    root = cJSON_ParseWithLength(r->body, r->body_len);
+    error = root ? cJSON_GetObjectItemCaseSensitive(root, "error") : NULL;
+    yes = cJSON_IsString(error) && strcmp(error->valuestring, "use_dpop_nonce") == 0;
+    cJSON_Delete(root); return yes;
+}
+
+static wf_status wf_oauth_post(wf_xrpc_client *transport, const char *endpoint,
+                               const wf_oauth_dpop_key *key, const char *form,
+                               wf_response *out) {
+    char *proof = NULL; wf_http_header header; wf_status s; int attempt;
+    char *nonce = NULL;
+    for (attempt = 0; attempt < 2; attempt++) {
+        wf_oauth_dpop_proof_options opts = {"POST", endpoint, nonce, NULL, NULL, 0};
+        s = wf_oauth_dpop_proof_create(key, &opts, &proof);
+        if (s != WF_OK) return s;
+        header.name = "DPoP"; header.value = proof;
+        s = wf_http_post(transport, endpoint, "application/x-www-form-urlencoded",
+                         form, &header, 1, out);
+        free(proof); proof = NULL;
+        if (s != WF_ERR_HTTP || attempt || !wf_oauth_use_nonce(out)) {
+            free(nonce);
+            return s;
+        }
+        nonce = wf_oauth_strdup(out->dpop_nonce);
+        wf_response_free(out);
+        if (!nonce) return WF_ERR_ALLOC;
+    }
+    free(nonce); return s;
+}
+
+wf_status wf_oauth_par(wf_xrpc_client *t, const char *endpoint,
+                       const wf_oauth_dpop_key *key, const wf_oauth_par_request *r,
+                       wf_oauth_par_response *out) {
+    wf_xrpc_param p[9]; size_t n = 0; char *form = NULL; wf_response res = {0}; wf_status s;
+    if (!t || !endpoint || !key || !r || !out || !r->client_id || !r->redirect_uri ||
+        !r->scope || !r->state || !r->code_challenge) return WF_ERR_INVALID_ARG;
+#define ADD(k,v) do { p[n++] = (wf_xrpc_param){k,v}; } while (0)
+    ADD("client_id", r->client_id); ADD("redirect_uri", r->redirect_uri);
+    ADD("scope", r->scope); ADD("state", r->state); ADD("code_challenge", r->code_challenge);
+    ADD("code_challenge_method", "S256"); ADD("response_type", "code");
+    if (r->login_hint) ADD("login_hint", r->login_hint);
+    s = wf_oauth_form_encode(p, n, &form);
+    if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
+    if (s == WF_OK) s = wf_oauth_par_response_parse(res.body, res.body_len, out);
+    wf_response_free(&res); free(form); return s;
+}
+#undef ADD
+
+wf_status wf_oauth_exchange_code(wf_xrpc_client *t, const char *endpoint,
+ const wf_oauth_dpop_key *key, const char *client_id, const char *code,
+ const char *redirect_uri, const char *verifier, wf_oauth_token_response *out) {
+    wf_xrpc_param p[5]; char *form = NULL; wf_response res = {0}; wf_status s;
+    if (!t || !endpoint || !key || !client_id || !code || !redirect_uri || !verifier || !out)
+        return WF_ERR_INVALID_ARG;
+    p[0]=(wf_xrpc_param){"grant_type","authorization_code"}; p[1]=(wf_xrpc_param){"client_id",client_id};
+    p[2]=(wf_xrpc_param){"code",code}; p[3]=(wf_xrpc_param){"redirect_uri",redirect_uri};
+    p[4]=(wf_xrpc_param){"code_verifier",verifier};
+    s=wf_oauth_form_encode(p,5,&form); if(s==WF_OK) s=wf_oauth_post(t,endpoint,key,form,&res);
+    if(s==WF_OK) s=wf_oauth_token_response_parse(res.body,res.body_len,out);
+    wf_response_free(&res); free(form); return s;
+}

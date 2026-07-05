@@ -135,6 +135,28 @@ static void test_metadata(void) {
                  &client) == WF_ERR_PARSE);
 }
 
+static void test_endpoint_responses(void) {
+    wf_oauth_par_response par = {0};
+    wf_oauth_token_response token = {0};
+    static const char par_json[] =
+        "{\"request_uri\":\"urn:ietf:params:oauth:request_uri:abc\",\"expires_in\":300}";
+    static const char token_json[] =
+        "{\"access_token\":\"access\",\"token_type\":\"DPoP\","
+        "\"sub\":\"did:plc:alice\",\"scope\":\"atproto\","
+        "\"refresh_token\":\"refresh\",\"expires_in\":3600}";
+    WF_CHECK(wf_oauth_par_response_parse(par_json, strlen(par_json), &par) == WF_OK);
+    WF_CHECK(par.expires_in == 300);
+    wf_oauth_par_response_free(&par);
+    WF_CHECK(wf_oauth_par_response_parse("{\"expires_in\":0}", 16, &par) == WF_ERR_PARSE);
+    WF_CHECK(wf_oauth_token_response_parse(token_json, strlen(token_json), &token) == WF_OK);
+    WF_CHECK(strcmp(token.sub, "did:plc:alice") == 0);
+    WF_CHECK(token.expires_in_present && token.expires_in == 3600);
+    wf_oauth_token_response_free(&token);
+    WF_CHECK(wf_oauth_token_response_parse(
+        "{\"access_token\":\"x\",\"token_type\":\"Bearer\",\"sub\":\"did:plc:x\",\"scope\":\"atproto\"}",
+        85, &token) == WF_ERR_PARSE);
+}
+
 static void test_dpop(void) {
     unsigned char private_key[32] = {0};
     unsigned char exported[32] = {0};
@@ -241,6 +263,7 @@ done:
 int main(void) {
     test_pkce();
     test_metadata();
+    test_endpoint_responses();
     test_dpop();
     WF_TEST_SUMMARY();
 }

@@ -122,8 +122,9 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     cursor-based reconnect/backoff, and dictionary-based zstd messages.
 15. 🟡 OAuth — protected-resource, authorization-server, and discoverable
     client metadata validation/discovery, PKCE S256, persistent ES256 DPoP
-    keys, JWK thumbprints, and proof JWTs are implemented. PAR/token exchange,
-    nonce retry, callback validation, and OAuth session persistence remain.
+    keys, JWK thumbprints/proofs, public-client PAR and authorization-code token
+    exchange with mandatory nonce retry are implemented. Callback validation,
+    authenticated clients, refresh, and OAuth session persistence remain.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
