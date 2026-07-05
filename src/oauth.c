@@ -1093,6 +1093,79 @@ done:
     return status;
 }
 
+wf_status wf_oauth_client_assertion_create(
+    const wf_oauth_dpop_key *key,
+    const wf_oauth_client_assertion_options *options,
+    char **jwt_out) {
+    cJSON *header = NULL, *payload = NULL;
+    char *jti = NULL, *header_json = NULL, *payload_json = NULL;
+    char *header_b64 = NULL, *payload_b64 = NULL, *signature_b64 = NULL;
+    char *signing_input = NULL, *jwt = NULL;
+    unsigned char signature[64];
+    size_t input_len, jwt_len;
+    int64_t issued_at;
+    wf_status status;
+    if (!key || !options || !jwt_out || !options->client_id ||
+        !*options->client_id || !options->authorization_server_issuer ||
+        !wf_oauth_url_valid(options->authorization_server_issuer, 1, 1, 0) ||
+        !options->key_id || !*options->key_id) return WF_ERR_INVALID_ARG;
+    *jwt_out = NULL;
+    issued_at = options->issued_at > 0 ? options->issued_at : (int64_t)time(NULL);
+    if (issued_at <= 0 || issued_at > INT64_MAX - 60) return WF_ERR_INVALID_ARG;
+    if (options->jti) {
+        if (!*options->jti) return WF_ERR_INVALID_ARG;
+        jti = wf_oauth_strdup(options->jti);
+        status = jti ? WF_OK : WF_ERR_ALLOC;
+    } else {
+        status = wf_oauth_random_jti(&jti);
+    }
+    if (status != WF_OK) goto done;
+    header = cJSON_CreateObject();
+    payload = cJSON_CreateObject();
+    if (!header || !payload ||
+        !cJSON_AddStringToObject(header, "alg", "ES256") ||
+        !cJSON_AddStringToObject(header, "kid", options->key_id) ||
+        !cJSON_AddStringToObject(payload, "iss", options->client_id) ||
+        !cJSON_AddStringToObject(payload, "sub", options->client_id) ||
+        !cJSON_AddStringToObject(payload, "aud",
+                                options->authorization_server_issuer) ||
+        !cJSON_AddStringToObject(payload, "jti", jti) ||
+        !cJSON_AddNumberToObject(payload, "iat", (double)issued_at) ||
+        !cJSON_AddNumberToObject(payload, "exp", (double)(issued_at + 60))) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    header_json = cJSON_PrintUnformatted(header);
+    payload_json = cJSON_PrintUnformatted(payload);
+    if (!header_json || !payload_json) { status = WF_ERR_ALLOC; goto done; }
+    status = wf_oauth_base64url((const unsigned char *)header_json,
+                                strlen(header_json), &header_b64);
+    if (status == WF_OK) status = wf_oauth_base64url(
+        (const unsigned char *)payload_json, strlen(payload_json), &payload_b64);
+    if (status != WF_OK) goto done;
+    input_len = strlen(header_b64) + 1 + strlen(payload_b64);
+    signing_input = malloc(input_len + 1);
+    if (!signing_input) { status = WF_ERR_ALLOC; goto done; }
+    snprintf(signing_input, input_len + 1, "%s.%s", header_b64, payload_b64);
+    status = wf_oauth_es256_sign(key, (const unsigned char *)signing_input,
+                                 input_len, signature);
+    if (status == WF_OK) status = wf_oauth_base64url(signature, sizeof(signature),
+                                                      &signature_b64);
+    if (status != WF_OK) goto done;
+    jwt_len = input_len + 1 + strlen(signature_b64);
+    jwt = malloc(jwt_len + 1);
+    if (!jwt) { status = WF_ERR_ALLOC; goto done; }
+    snprintf(jwt, jwt_len + 1, "%s.%s", signing_input, signature_b64);
+    *jwt_out = jwt;
+    jwt = NULL;
+done:
+    cJSON_Delete(header); cJSON_Delete(payload);
+    free(jti); free(header_json); free(payload_json);
+    free(header_b64); free(payload_b64); free(signature_b64);
+    free(signing_input); free(jwt);
+    return status;
+}
+
 void wf_oauth_string_free(char *value) {
     free(value);
 }
@@ -1221,53 +1294,182 @@ static wf_status wf_oauth_post(wf_xrpc_client *transport, const char *endpoint,
     free(nonce); return s;
 }
 
+static int wf_oauth_jwks_has_signing_key(const char *jwks_json,
+                                          const char *key_id) {
+    cJSON *root = NULL;
+    const cJSON *keys, *key, *item, *op;
+    int found = 0;
+    if (!jwks_json || !key_id) return 0;
+    root = cJSON_Parse(jwks_json);
+    keys = root ? cJSON_GetObjectItemCaseSensitive(root, "keys") : NULL;
+    if (!cJSON_IsObject(root) || !cJSON_IsArray(keys)) goto done;
+    cJSON_ArrayForEach(key, keys) {
+        int can_sign = 1;
+        item = cJSON_GetObjectItemCaseSensitive(key, "kid");
+        if (!cJSON_IsString(item) || strcmp(item->valuestring, key_id) != 0) continue;
+        item = cJSON_GetObjectItemCaseSensitive(key, "kty");
+        if (!cJSON_IsString(item) || strcmp(item->valuestring, "EC") != 0) continue;
+        item = cJSON_GetObjectItemCaseSensitive(key, "crv");
+        if (!cJSON_IsString(item) || strcmp(item->valuestring, "P-256") != 0) continue;
+        item = cJSON_GetObjectItemCaseSensitive(key, "alg");
+        if (item && (!cJSON_IsString(item) || strcmp(item->valuestring, "ES256") != 0))
+            continue;
+        item = cJSON_GetObjectItemCaseSensitive(key, "use");
+        if (item && (!cJSON_IsString(item) || strcmp(item->valuestring, "sig") != 0))
+            continue;
+        item = cJSON_GetObjectItemCaseSensitive(key, "revoked");
+        if (item && (!cJSON_IsBool(item) || cJSON_IsTrue(item))) continue;
+        item = cJSON_GetObjectItemCaseSensitive(key, "key_ops");
+        if (item) {
+            can_sign = 0;
+            if (!cJSON_IsArray(item)) continue;
+            cJSON_ArrayForEach(op, item) {
+                if (cJSON_IsString(op) && strcmp(op->valuestring, "sign") == 0) {
+                    can_sign = 1;
+                    break;
+                }
+            }
+        }
+        if (can_sign) { found = 1; break; }
+    }
+done:
+    cJSON_Delete(root);
+    return found;
+}
+
+wf_status wf_oauth_client_auth_validate(
+    const wf_oauth_server_metadata *server,
+    const wf_oauth_client_metadata *client,
+    const wf_oauth_client_auth *auth) {
+    const char *method;
+    if (!server || !server->issuer || !client || !auth || !auth->client_id ||
+        !client->client_id || strcmp(auth->client_id, client->client_id) != 0 ||
+        !client->token_endpoint_auth_method) return WF_ERR_INVALID_ARG;
+    method = auth->signing_key ? "private_key_jwt" : "none";
+    if (strcmp(client->token_endpoint_auth_method, method) != 0 ||
+        !wf_oauth_string_list_has(&server->token_endpoint_auth_methods_supported,
+                                  method)) return WF_ERR_PARSE;
+    if (!auth->signing_key) {
+        return (!auth->key_id && !auth->authorization_server_issuer &&
+                !client->token_endpoint_auth_signing_alg) ? WF_OK : WF_ERR_PARSE;
+    }
+    if (!auth->key_id || !*auth->key_id || !auth->authorization_server_issuer ||
+        strcmp(auth->authorization_server_issuer, server->issuer) != 0 ||
+        !client->token_endpoint_auth_signing_alg ||
+        strcmp(client->token_endpoint_auth_signing_alg, "ES256") != 0 ||
+        !wf_oauth_string_list_has(
+            &server->token_endpoint_auth_signing_alg_values_supported, "ES256") ||
+        (!client->jwks_json && !client->jwks_uri) ||
+        (client->jwks_json &&
+         !wf_oauth_jwks_has_signing_key(client->jwks_json, auth->key_id)))
+        return WF_ERR_PARSE;
+    return WF_OK;
+}
+
+static wf_status wf_oauth_add_client_auth(wf_xrpc_param *params, size_t *count,
+                                           const wf_oauth_client_auth *auth,
+                                           char **assertion_out) {
+    wf_oauth_client_assertion_options options;
+    wf_status status;
+    if (!params || !count || !auth || !auth->client_id || !*auth->client_id ||
+        !assertion_out) return WF_ERR_INVALID_ARG;
+    *assertion_out = NULL;
+    params[(*count)++] = (wf_xrpc_param){"client_id", auth->client_id};
+    if (!auth->signing_key) {
+        return (!auth->authorization_server_issuer && !auth->key_id) ?
+            WF_OK : WF_ERR_INVALID_ARG;
+    }
+    options = (wf_oauth_client_assertion_options){
+        auth->client_id, auth->authorization_server_issuer, auth->key_id, NULL, 0
+    };
+    status = wf_oauth_client_assertion_create(auth->signing_key, &options,
+                                               assertion_out);
+    if (status != WF_OK) return status;
+    params[(*count)++] = (wf_xrpc_param){"client_assertion_type",
+                                         WF_OAUTH_CLIENT_ASSERTION_TYPE};
+    params[(*count)++] = (wf_xrpc_param){"client_assertion", *assertion_out};
+    return WF_OK;
+}
+
 wf_status wf_oauth_par(wf_xrpc_client *t, const char *endpoint,
                        const wf_oauth_dpop_key *key, const wf_oauth_par_request *r,
                        wf_oauth_par_response *out) {
-    wf_xrpc_param p[9]; size_t n = 0; char *form = NULL; wf_response res = {0}; wf_status s;
-    if (!t || !endpoint || !key || !r || !out || !r->client_id || !r->redirect_uri ||
+    wf_oauth_client_auth auth;
+    if (!r) return WF_ERR_INVALID_ARG;
+    auth = (wf_oauth_client_auth){r->client_id, NULL, NULL, NULL};
+    return wf_oauth_par_with_auth(t, endpoint, key, &auth, r, out);
+}
+
+wf_status wf_oauth_par_with_auth(
+    wf_xrpc_client *t, const char *endpoint, const wf_oauth_dpop_key *key,
+    const wf_oauth_client_auth *auth, const wf_oauth_par_request *r,
+    wf_oauth_par_response *out) {
+    wf_xrpc_param p[11]; size_t n = 0; char *form = NULL, *assertion = NULL;
+    wf_response res = {0}; wf_status s;
+    if (!t || !endpoint || !key || !auth || !auth->client_id || !r || !out || !r->client_id ||
+        strcmp(r->client_id, auth->client_id) != 0 || !r->redirect_uri ||
         !r->scope || !r->state || !r->code_challenge) return WF_ERR_INVALID_ARG;
 #define ADD(k,v) do { p[n++] = (wf_xrpc_param){k,v}; } while (0)
-    ADD("client_id", r->client_id); ADD("redirect_uri", r->redirect_uri);
+    s = wf_oauth_add_client_auth(p, &n, auth, &assertion);
+    ADD("redirect_uri", r->redirect_uri);
     ADD("scope", r->scope); ADD("state", r->state); ADD("code_challenge", r->code_challenge);
     ADD("code_challenge_method", "S256"); ADD("response_type", "code");
     if (r->login_hint) ADD("login_hint", r->login_hint);
-    s = wf_oauth_form_encode(p, n, &form);
+    if (s == WF_OK) s = wf_oauth_form_encode(p, n, &form);
     if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
     if (s == WF_OK) s = wf_oauth_par_response_parse(res.body, res.body_len, out);
-    wf_response_free(&res); free(form); return s;
+    wf_response_free(&res); free(assertion); free(form); return s;
 }
 #undef ADD
 
 wf_status wf_oauth_exchange_code(wf_xrpc_client *t, const char *endpoint,
  const wf_oauth_dpop_key *key, const char *client_id, const char *code,
  const char *redirect_uri, const char *verifier, wf_oauth_token_response *out) {
-    wf_xrpc_param p[5]; char *form = NULL; wf_response res = {0}; wf_status s;
-    if (!t || !endpoint || !key || !client_id || !code || !redirect_uri || !verifier || !out)
-        return WF_ERR_INVALID_ARG;
-    p[0]=(wf_xrpc_param){"grant_type","authorization_code"}; p[1]=(wf_xrpc_param){"client_id",client_id};
-    p[2]=(wf_xrpc_param){"code",code}; p[3]=(wf_xrpc_param){"redirect_uri",redirect_uri};
-    p[4]=(wf_xrpc_param){"code_verifier",verifier};
-    s=wf_oauth_form_encode(p,5,&form); if(s==WF_OK) s=wf_oauth_post(t,endpoint,key,form,&res);
-    if(s==WF_OK) s=wf_oauth_token_response_parse(res.body,res.body_len,out);
-    wf_response_free(&res); free(form); return s;
+    wf_oauth_client_auth auth = {client_id, NULL, NULL, NULL};
+    return wf_oauth_exchange_code_with_auth(t, endpoint, key, &auth, code,
+                                             redirect_uri, verifier, out);
+}
+
+wf_status wf_oauth_exchange_code_with_auth(
+    wf_xrpc_client *t, const char *endpoint, const wf_oauth_dpop_key *key,
+    const wf_oauth_client_auth *auth, const char *code,
+    const char *redirect_uri, const char *verifier,
+    wf_oauth_token_response *out) {
+    wf_xrpc_param p[7]; size_t n = 0; char *form = NULL, *assertion = NULL;
+    wf_response res = {0}; wf_status s;
+    if (!t || !endpoint || !key || !auth || !code || !redirect_uri ||
+        !verifier || !out) return WF_ERR_INVALID_ARG;
+    p[n++] = (wf_xrpc_param){"grant_type", "authorization_code"};
+    s = wf_oauth_add_client_auth(p, &n, auth, &assertion);
+    p[n++] = (wf_xrpc_param){"code", code};
+    p[n++] = (wf_xrpc_param){"redirect_uri", redirect_uri};
+    p[n++] = (wf_xrpc_param){"code_verifier", verifier};
+    if (s == WF_OK) s = wf_oauth_form_encode(p, n, &form);
+    if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
+    if (s == WF_OK) s = wf_oauth_token_response_parse(res.body, res.body_len, out);
+    wf_response_free(&res); free(assertion); free(form); return s;
 }
 
 wf_status wf_oauth_refresh(wf_xrpc_client *t, const char *endpoint,
  const wf_oauth_dpop_key *key, const char *client_id, const char *refresh_token,
  const char *expected_sub, wf_oauth_token_response *out) {
-    wf_xrpc_param p[3];
-    char *form = NULL;
-    wf_response res = {0};
-    wf_status s;
-    if (!t || !endpoint || !key || !client_id || !refresh_token ||
-        !expected_sub || !out || strncmp(expected_sub, "did:", 4) != 0) {
-        return WF_ERR_INVALID_ARG;
-    }
-    p[0] = (wf_xrpc_param){"grant_type", "refresh_token"};
-    p[1] = (wf_xrpc_param){"client_id", client_id};
-    p[2] = (wf_xrpc_param){"refresh_token", refresh_token};
-    s = wf_oauth_form_encode(p, 3, &form);
+    wf_oauth_client_auth auth = {client_id, NULL, NULL, NULL};
+    return wf_oauth_refresh_with_auth(t, endpoint, key, &auth, refresh_token,
+                                      expected_sub, out);
+}
+
+wf_status wf_oauth_refresh_with_auth(
+    wf_xrpc_client *t, const char *endpoint, const wf_oauth_dpop_key *key,
+    const wf_oauth_client_auth *auth, const char *refresh_token,
+    const char *expected_sub, wf_oauth_token_response *out) {
+    wf_xrpc_param p[5]; size_t n = 0;
+    char *form = NULL, *assertion = NULL; wf_response res = {0}; wf_status s;
+    if (!t || !endpoint || !key || !auth || !refresh_token || !expected_sub ||
+        !out || strncmp(expected_sub, "did:", 4) != 0) return WF_ERR_INVALID_ARG;
+    p[n++] = (wf_xrpc_param){"grant_type", "refresh_token"};
+    s = wf_oauth_add_client_auth(p, &n, auth, &assertion);
+    p[n++] = (wf_xrpc_param){"refresh_token", refresh_token};
+    if (s == WF_OK) s = wf_oauth_form_encode(p, n, &form);
     if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
     if (s == WF_OK) s = wf_oauth_token_response_parse(res.body, res.body_len, out);
     if (s == WF_OK &&
@@ -1276,7 +1478,7 @@ wf_status wf_oauth_refresh(wf_xrpc_client *t, const char *endpoint,
         s = WF_ERR_PARSE;
     }
     wf_response_free(&res);
-    free(form);
+    free(assertion); free(form);
     return s;
 }
 
@@ -1295,6 +1497,7 @@ void wf_oauth_authorization_state_free(wf_oauth_authorization_state *state) {
     free(state->issuer);
     free(state->code_verifier);
     free(state->app_state);
+    free(state->client_auth_key_id);
     wf_oauth_dpop_key_free(state->dpop_key);
     memset(state, 0, sizeof(*state));
 }
@@ -1302,7 +1505,8 @@ void wf_oauth_authorization_state_free(wf_oauth_authorization_state *state) {
 wf_status wf_oauth_authorization_state_create(
     const char *issuer, const wf_oauth_pkce *pkce,
     const wf_oauth_dpop_key *dpop_key, const char *app_state,
-    int64_t now, int64_t ttl_seconds, wf_oauth_authorization_state *out) {
+    const char *client_auth_key_id, int64_t now, int64_t ttl_seconds,
+    wf_oauth_authorization_state *out) {
     unsigned char private_key[32];
     wf_status status;
     if (!issuer || !pkce || !dpop_key || !out || now <= 0 || ttl_seconds <= 0 ||
@@ -1315,10 +1519,12 @@ wf_status wf_oauth_authorization_state_create(
     out->issuer = wf_oauth_strdup(issuer);
     out->code_verifier = wf_oauth_strdup(pkce->verifier);
     if (app_state) out->app_state = wf_oauth_strdup(app_state);
+    if (client_auth_key_id) out->client_auth_key_id = wf_oauth_strdup(client_auth_key_id);
     status = wf_oauth_dpop_key_export(dpop_key, private_key);
     if (status == WF_OK) status = wf_oauth_dpop_key_import(private_key, &out->dpop_key);
     OPENSSL_cleanse(private_key, sizeof(private_key));
     if (!out->issuer || !out->code_verifier || (app_state && !out->app_state) ||
+        (client_auth_key_id && (!*client_auth_key_id || !out->client_auth_key_id)) ||
         status != WF_OK) {
         if (status == WF_OK) status = WF_ERR_ALLOC;
         wf_oauth_authorization_state_free(out);
@@ -1345,20 +1551,29 @@ static wf_status wf_oauth_private_jwk(const wf_oauth_dpop_key *key, cJSON **out)
 
 wf_status wf_oauth_authorization_state_serialize(
     const wf_oauth_authorization_state *state, char **json_out) {
-    cJSON *root = NULL, *jwk = NULL;
+    cJSON *root = NULL, *jwk = NULL, *auth = NULL;
     wf_status status;
     if (!state || !state->issuer || !state->code_verifier || !state->dpop_key ||
         state->expires_at <= 0 || !json_out) return WF_ERR_INVALID_ARG;
     *json_out = NULL;
-    root = cJSON_CreateObject();
-    status = root ? WF_OK : WF_ERR_ALLOC;
+    root = cJSON_CreateObject(); auth = cJSON_CreateObject();
+    status = root && auth ? WF_OK : WF_ERR_ALLOC;
     if (status == WF_OK) status = wf_oauth_private_jwk(state->dpop_key, &jwk);
     if (status == WF_OK &&
         (!cJSON_AddStringToObject(root, "iss", state->issuer) ||
-         !cJSON_AddStringToObject(root, "authMethod", "none") ||
          !cJSON_AddStringToObject(root, "verifier", state->code_verifier) ||
          !cJSON_AddNumberToObject(root, "expiresAt", (double)state->expires_at)))
         status = WF_ERR_ALLOC;
+    if (status == WF_OK &&
+        (!cJSON_AddStringToObject(auth, "method", state->client_auth_key_id ?
+                                  "private_key_jwt" : "none") ||
+         (state->client_auth_key_id &&
+          !cJSON_AddStringToObject(auth, "kid", state->client_auth_key_id))))
+        status = WF_ERR_ALLOC;
+    if (status == WF_OK) {
+        if (!cJSON_AddItemToObject(root, "authMethod", auth)) status = WF_ERR_ALLOC;
+        else auth = NULL;
+    }
     if (status == WF_OK) {
         if (!cJSON_AddItemToObject(root, "dpopJwk", jwk)) status = WF_ERR_ALLOC;
         else jwk = NULL;
@@ -1370,6 +1585,7 @@ wf_status wf_oauth_authorization_state_serialize(
         if (!*json_out) status = WF_ERR_ALLOC;
     }
     cJSON_Delete(jwk);
+    cJSON_Delete(auth);
     cJSON_Delete(root);
     return status;
 }
@@ -1439,7 +1655,7 @@ wf_status wf_oauth_authorization_state_parse(
     const char *json, size_t len, int64_t now, wf_oauth_authorization_state *out) {
     cJSON *root = NULL;
     const cJSON *jwk, *item;
-    char *issuer = NULL, *verifier = NULL, *app_state = NULL;
+    char *issuer = NULL, *verifier = NULL, *app_state = NULL, *auth_key_id = NULL;
     const char *x, *y, *d;
     unsigned char private_key[32];
     wf_oauth_dpop_key *key = NULL;
@@ -1456,9 +1672,17 @@ wf_status wf_oauth_authorization_state_parse(
     if (status == WF_OK) status = wf_oauth_json_string(root, "appState", 0, &app_state);
     if (status == WF_OK) status = wf_oauth_positive_integer(root, "expiresAt", 1,
                                                              &expires_at, NULL);
-    item = cJSON_GetObjectItemCaseSensitive(root, "authMethod");
-    if (status == WF_OK && (!cJSON_IsString(item) || strcmp(item->valuestring, "none") != 0))
-        status = WF_ERR_PARSE;
+    {
+        const cJSON *auth = cJSON_GetObjectItemCaseSensitive(root, "authMethod");
+        const cJSON *method = auth ? cJSON_GetObjectItemCaseSensitive(auth, "method") : NULL;
+        if (status == WF_OK && (!cJSON_IsObject(auth) || !cJSON_IsString(method) ||
+            (strcmp(method->valuestring, "none") != 0 &&
+             strcmp(method->valuestring, "private_key_jwt") != 0))) status = WF_ERR_PARSE;
+        if (status == WF_OK && strcmp(method->valuestring, "private_key_jwt") == 0)
+            status = wf_oauth_json_string(auth, "kid", 1, &auth_key_id);
+        if (status == WF_OK && strcmp(method->valuestring, "none") == 0 &&
+            cJSON_GetObjectItemCaseSensitive(auth, "kid")) status = WF_ERR_PARSE;
+    }
     jwk = cJSON_GetObjectItemCaseSensitive(root, "dpopJwk");
     item = jwk ? cJSON_GetObjectItemCaseSensitive(jwk, "kty") : NULL;
     if (status == WF_OK && (!cJSON_IsObject(jwk) || !cJSON_IsString(item) ||
@@ -1483,11 +1707,12 @@ wf_status wf_oauth_authorization_state_parse(
         out->issuer = issuer; issuer = NULL;
         out->code_verifier = verifier; verifier = NULL;
         out->app_state = app_state; app_state = NULL;
+        out->client_auth_key_id = auth_key_id; auth_key_id = NULL;
         out->expires_at = expires_at;
         out->dpop_key = key; key = NULL;
     }
 done:
-    free(issuer); free(verifier); free(app_state);
+    free(issuer); free(verifier); free(app_state); free(auth_key_id);
     free(expected_x); free(expected_y);
     cJSON_Delete(expected_jwk);
     wf_oauth_dpop_key_free(key);
@@ -1500,13 +1725,14 @@ void wf_oauth_session_state_free(wf_oauth_session_state *session) {
     if (!session) return;
     free(session->issuer); free(session->subject); free(session->audience);
     free(session->scope); free(session->access_token); free(session->refresh_token);
+    free(session->client_auth_key_id);
     wf_oauth_dpop_key_free(session->dpop_key);
     memset(session, 0, sizeof(*session));
 }
 
 wf_status wf_oauth_session_state_create(
     const char *issuer, const char *audience, const wf_oauth_dpop_key *dpop_key,
-    const wf_oauth_token_response *token, int64_t now,
+    const wf_oauth_token_response *token, const char *client_auth_key_id, int64_t now,
     wf_oauth_session_state *out) {
     unsigned char private_key[32];
     wf_status status;
@@ -1527,11 +1753,13 @@ wf_status wf_oauth_session_state_create(
     out->scope = wf_oauth_strdup(token->scope);
     out->access_token = wf_oauth_strdup(token->access_token);
     if (token->refresh_token) out->refresh_token = wf_oauth_strdup(token->refresh_token);
+    if (client_auth_key_id) out->client_auth_key_id = wf_oauth_strdup(client_auth_key_id);
     status = wf_oauth_dpop_key_export(dpop_key, private_key);
     if (status == WF_OK) status = wf_oauth_dpop_key_import(private_key, &out->dpop_key);
     OPENSSL_cleanse(private_key, sizeof(private_key));
     if (!out->issuer || !out->subject || !out->audience || !out->scope ||
         !out->access_token || (token->refresh_token && !out->refresh_token) ||
+        (client_auth_key_id && (!*client_auth_key_id || !out->client_auth_key_id)) ||
         status != WF_OK) {
         if (status == WF_OK) status = WF_ERR_ALLOC;
         wf_oauth_session_state_free(out);
@@ -1543,22 +1771,31 @@ wf_status wf_oauth_session_state_create(
 
 wf_status wf_oauth_session_state_serialize(const wf_oauth_session_state *session,
                                             char **json_out) {
-    cJSON *root = NULL, *tokens = NULL, *jwk = NULL;
+    cJSON *root = NULL, *tokens = NULL, *jwk = NULL, *auth = NULL;
     wf_status status;
     if (!session || !json_out || !session->issuer || !session->subject ||
         !session->audience || !session->scope || !session->access_token ||
         !session->dpop_key) return WF_ERR_INVALID_ARG;
     *json_out = NULL;
-    root = cJSON_CreateObject(); tokens = cJSON_CreateObject();
-    status = root && tokens ? wf_oauth_private_jwk(session->dpop_key, &jwk) : WF_ERR_ALLOC;
+    root = cJSON_CreateObject(); tokens = cJSON_CreateObject(); auth = cJSON_CreateObject();
+    status = root && tokens && auth ? wf_oauth_private_jwk(session->dpop_key, &jwk) : WF_ERR_ALLOC;
     if (status == WF_OK &&
-        (!cJSON_AddStringToObject(root, "authMethod", "none") ||
-         !cJSON_AddStringToObject(tokens, "iss", session->issuer) ||
+        (!cJSON_AddStringToObject(tokens, "iss", session->issuer) ||
          !cJSON_AddStringToObject(tokens, "sub", session->subject) ||
          !cJSON_AddStringToObject(tokens, "aud", session->audience) ||
          !cJSON_AddStringToObject(tokens, "scope", session->scope) ||
          !cJSON_AddStringToObject(tokens, "access_token", session->access_token) ||
          !cJSON_AddStringToObject(tokens, "token_type", "DPoP"))) status = WF_ERR_ALLOC;
+    if (status == WF_OK &&
+        (!cJSON_AddStringToObject(auth, "method", session->client_auth_key_id ?
+                                  "private_key_jwt" : "none") ||
+         (session->client_auth_key_id &&
+          !cJSON_AddStringToObject(auth, "kid", session->client_auth_key_id))))
+        status = WF_ERR_ALLOC;
+    if (status == WF_OK) {
+        if (!cJSON_AddItemToObject(root, "authMethod", auth)) status = WF_ERR_ALLOC;
+        else auth = NULL;
+    }
     if (status == WF_OK) {
         if (!cJSON_AddItemToObject(root, "dpopJwk", jwk)) status = WF_ERR_ALLOC;
         else jwk = NULL;
@@ -1577,7 +1814,7 @@ wf_status wf_oauth_session_state_serialize(const wf_oauth_session_state *session
         *json_out = cJSON_PrintUnformatted(root);
         if (!*json_out) status = WF_ERR_ALLOC;
     }
-    cJSON_Delete(jwk); cJSON_Delete(tokens); cJSON_Delete(root);
+    cJSON_Delete(jwk); cJSON_Delete(auth); cJSON_Delete(tokens); cJSON_Delete(root);
     return status;
 }
 
@@ -1585,17 +1822,20 @@ wf_status wf_oauth_session_state_parse(const char *json, size_t len,
                                         const char *expected_subject,
                                         wf_oauth_session_state *out) {
     cJSON *root = NULL;
-    const cJSON *tokens, *jwk, *method, *type;
+    const cJSON *tokens, *jwk, *auth, *method, *type;
     wf_status status;
     if (!json || !len || !expected_subject || !out ||
         strncmp(expected_subject, "did:", 4) != 0) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     root = cJSON_ParseWithLength(json, len);
     if (!root || !cJSON_IsObject(root)) { status = WF_ERR_PARSE; goto done; }
-    method = cJSON_GetObjectItemCaseSensitive(root, "authMethod");
+    auth = cJSON_GetObjectItemCaseSensitive(root, "authMethod");
+    method = auth ? cJSON_GetObjectItemCaseSensitive(auth, "method") : NULL;
     tokens = cJSON_GetObjectItemCaseSensitive(root, "tokenSet");
     jwk = cJSON_GetObjectItemCaseSensitive(root, "dpopJwk");
-    if (!cJSON_IsString(method) || strcmp(method->valuestring, "none") != 0 ||
+    if (!cJSON_IsObject(auth) || !cJSON_IsString(method) ||
+        (strcmp(method->valuestring, "none") != 0 &&
+         strcmp(method->valuestring, "private_key_jwt") != 0) ||
         !cJSON_IsObject(tokens)) { status = WF_ERR_PARSE; goto done; }
     status = wf_oauth_json_string(tokens, "iss", 1, &out->issuer);
     if (status == WF_OK) status = wf_oauth_json_string(tokens, "sub", 1, &out->subject);
@@ -1605,6 +1845,10 @@ wf_status wf_oauth_session_state_parse(const char *json, size_t len,
                                                         &out->access_token);
     if (status == WF_OK) status = wf_oauth_json_string(tokens, "refresh_token", 0,
                                                         &out->refresh_token);
+    if (status == WF_OK && strcmp(method->valuestring, "private_key_jwt") == 0)
+        status = wf_oauth_json_string(auth, "kid", 1, &out->client_auth_key_id);
+    if (status == WF_OK && strcmp(method->valuestring, "none") == 0 &&
+        cJSON_GetObjectItemCaseSensitive(auth, "kid")) status = WF_ERR_PARSE;
     if (status == WF_OK) status = wf_oauth_positive_integer(tokens, "expires_at", 0,
                                                              &out->expires_at, NULL);
     type = cJSON_GetObjectItemCaseSensitive(tokens, "token_type");

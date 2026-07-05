@@ -2,8 +2,9 @@
  * oauth.h — AT Protocol OAuth discovery and proof foundations.
  *
  * This module implements metadata validation, PKCE S256, and ES256 DPoP
- * proofs, PAR, authorization callback validation, and authorization-code
- * token exchange. Persistent session state remains a higher-level concern.
+ * proofs, PAR, authorization callback validation, token exchange, authenticated
+ * clients, and serializable authorization/session state. Store coordination
+ * and higher-level flow orchestration remain application concerns.
  * Network requests made by the discovery helpers are delegated to xrpc.c.
  */
 
@@ -162,6 +163,23 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
                                       const wf_oauth_dpop_proof_options *options,
                                       char **jwt_out);
 
+#define WF_OAUTH_CLIENT_ASSERTION_TYPE \
+    "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
+typedef struct wf_oauth_client_assertion_options {
+    const char *client_id;
+    const char *authorization_server_issuer;
+    const char *key_id;
+    const char *jti;   /* optional deterministic test hook */
+    int64_t issued_at; /* current time when <= 0; assertion expires in 60s */
+} wf_oauth_client_assertion_options;
+
+/** Create an RFC 7523 ES256 private_key_jwt client assertion. */
+wf_status wf_oauth_client_assertion_create(
+    const wf_oauth_dpop_key *signing_key,
+    const wf_oauth_client_assertion_options *options,
+    char **jwt_out);
+
 /** Free a string returned by an OAuth API. Safe to call with NULL. */
 void wf_oauth_string_free(char *value);
 
@@ -189,6 +207,20 @@ typedef struct wf_oauth_par_request {
     const char *login_hint; /* optional */
 } wf_oauth_par_request;
 
+/** Borrowed client authentication configuration for OAuth endpoint calls. */
+typedef struct wf_oauth_client_auth {
+    const char *client_id;
+    const char *authorization_server_issuer; /* required for private_key_jwt */
+    const wf_oauth_dpop_key *signing_key;     /* NULL selects `none` */
+    const char *key_id;                       /* required with signing_key */
+} wf_oauth_client_auth;
+
+/** Cross-check client authentication against discovered metadata. */
+wf_status wf_oauth_client_auth_validate(
+    const wf_oauth_server_metadata *server,
+    const wf_oauth_client_metadata *client,
+    const wf_oauth_client_auth *auth);
+
 wf_status wf_oauth_par_response_parse(const char *json, size_t json_len,
                                       wf_oauth_par_response *out);
 wf_status wf_oauth_token_response_parse(const char *json, size_t json_len,
@@ -204,6 +236,10 @@ wf_status wf_oauth_par(wf_xrpc_client *transport, const char *endpoint,
                        const wf_oauth_dpop_key *key,
                        const wf_oauth_par_request *request,
                        wf_oauth_par_response *out);
+wf_status wf_oauth_par_with_auth(
+    wf_xrpc_client *transport, const char *endpoint,
+    const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
+    const wf_oauth_par_request *request, wf_oauth_par_response *out);
 
 /** Public-client authorization-code exchange with DPoP nonce retry. */
 wf_status wf_oauth_exchange_code(wf_xrpc_client *transport,
@@ -213,6 +249,11 @@ wf_status wf_oauth_exchange_code(wf_xrpc_client *transport,
                                  const char *redirect_uri,
                                  const char *code_verifier,
                                  wf_oauth_token_response *out);
+wf_status wf_oauth_exchange_code_with_auth(
+    wf_xrpc_client *transport, const char *token_endpoint,
+    const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
+    const char *code, const char *redirect_uri, const char *code_verifier,
+    wf_oauth_token_response *out);
 
 /**
  * Exchange a public client's refresh token. The returned AT Protocol subject
@@ -225,6 +266,11 @@ wf_status wf_oauth_refresh(wf_xrpc_client *transport,
                            const char *refresh_token,
                            const char *expected_sub,
                            wf_oauth_token_response *out);
+wf_status wf_oauth_refresh_with_auth(
+    wf_xrpc_client *transport, const char *token_endpoint,
+    const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
+    const char *refresh_token, const char *expected_sub,
+    wf_oauth_token_response *out);
 
 /** Decoded parameters received at the client's redirect URI. */
 typedef struct wf_oauth_callback_params {
@@ -262,6 +308,7 @@ typedef struct wf_oauth_authorization_state {
     char *issuer;
     char *code_verifier;
     char *app_state; /* optional */
+    char *client_auth_key_id; /* optional; private_key_jwt when populated */
     int64_t expires_at; /* Unix seconds */
     wf_oauth_dpop_key *dpop_key;
 } wf_oauth_authorization_state;
@@ -273,7 +320,8 @@ typedef struct wf_oauth_authorization_state {
 wf_status wf_oauth_authorization_state_create(
     const char *issuer, const wf_oauth_pkce *pkce,
     const wf_oauth_dpop_key *dpop_key, const char *app_state,
-    int64_t now, int64_t ttl_seconds, wf_oauth_authorization_state *out);
+    const char *client_auth_key_id, int64_t now, int64_t ttl_seconds,
+    wf_oauth_authorization_state *out);
 
 /** Serialize state, including its private DPoP JWK, to owned JSON. */
 wf_status wf_oauth_authorization_state_serialize(
@@ -293,6 +341,7 @@ typedef struct wf_oauth_session_state {
     char *scope;
     char *access_token;
     char *refresh_token; /* optional */
+    char *client_auth_key_id; /* optional; private_key_jwt when populated */
     int64_t expires_at;  /* Unix seconds; zero when unspecified */
     wf_oauth_dpop_key *dpop_key;
 } wf_oauth_session_state;
@@ -300,7 +349,8 @@ typedef struct wf_oauth_session_state {
 wf_status wf_oauth_session_state_create(
     const char *issuer, const char *audience,
     const wf_oauth_dpop_key *dpop_key,
-    const wf_oauth_token_response *token_response, int64_t now,
+    const wf_oauth_token_response *token_response,
+    const char *client_auth_key_id, int64_t now,
     wf_oauth_session_state *out);
 wf_status wf_oauth_session_state_serialize(
     const wf_oauth_session_state *session, char **json_out);

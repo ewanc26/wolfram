@@ -21,7 +21,7 @@ embedded in, or required by applications using `libwolfram`.
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
 | `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
-| `wolfram/oauth.h`         | Partial     | OAuth metadata, PKCE S256, and ES256 DPoP proofs |
+| `wolfram/oauth.h`         | Partial     | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
 | `tools/wf_lexgen.py`      | Initial     | Lexicon JSON to typed C data-model declarations |
 
@@ -124,9 +124,11 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     client metadata validation/discovery, PKCE S256, persistent ES256 DPoP
     keys, JWK thumbprints/proofs, public-client PAR and authorization-code token
     exchange with mandatory nonce retry, and state/issuer-bound callback
-    validation, subject-bound public-client refresh, and expiring persistent
+    validation, subject-bound token refresh, and expiring persistent
     authorization state and durable token sessions with private DPoP JWK
-    validation are implemented. Authenticated clients remain.
+    validation are implemented. ES256 `private_key_jwt` authentication is
+    supported across PAR and token calls. Higher-level flow/session
+    orchestration remains.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).

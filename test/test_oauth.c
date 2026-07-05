@@ -83,6 +83,8 @@ static void test_metadata(void) {
     wf_oauth_resource_metadata resource = {0};
     wf_oauth_server_metadata server = {0};
     wf_oauth_client_metadata client = {0};
+    wf_oauth_client_metadata private_client = {0};
+    wf_oauth_dpop_key *auth_key = NULL;
     static const char client_json[] =
         "{"
         "\"client_id\":\"https://app.example/oauth-client-metadata.json\","
@@ -98,6 +100,21 @@ static void test_metadata(void) {
         "}";
     static const char bad_server_json[] =
         "{\"issuer\":\"https://auth.example\"}";
+    static const char private_client_json[] =
+        "{"
+        "\"client_id\":\"https://app.example/oauth-client-metadata.json\","
+        "\"client_name\":\"Example\","
+        "\"client_uri\":\"https://app.example/\","
+        "\"redirect_uris\":[\"https://app.example/callback\"],"
+        "\"response_types\":[\"code\"],"
+        "\"grant_types\":[\"authorization_code\",\"refresh_token\"],"
+        "\"scope\":\"atproto\","
+        "\"token_endpoint_auth_method\":\"private_key_jwt\","
+        "\"token_endpoint_auth_signing_alg\":\"ES256\","
+        "\"jwks\":{\"keys\":[{\"kty\":\"EC\",\"crv\":\"P-256\","
+        "\"kid\":\"auth-key-1\",\"x\":\"x\",\"y\":\"y\"}]},"
+        "\"application_type\":\"web\",\"dpop_bound_access_tokens\":true}"
+        ;
 
     WF_CHECK(wf_oauth_resource_metadata_parse(
                  resource_json, strlen(resource_json), "https://pds.example",
@@ -133,6 +150,36 @@ static void test_metadata(void) {
                  client_json, strlen(client_json),
                  "https://different.example/oauth-client-metadata.json",
                  &client) == WF_ERR_PARSE);
+
+    WF_CHECK(wf_oauth_client_metadata_parse(private_client_json,
+        strlen(private_client_json),
+        "https://app.example/oauth-client-metadata.json",
+        &private_client) == WF_OK);
+    WF_CHECK(wf_oauth_dpop_key_generate(&auth_key) == WF_OK);
+    if (auth_key) {
+        wf_oauth_client_auth auth = {
+            .client_id = "https://app.example/oauth-client-metadata.json",
+            .authorization_server_issuer = "https://auth.example",
+            .signing_key = auth_key,
+            .key_id = "auth-key-1",
+        };
+        WF_CHECK(wf_oauth_client_auth_validate(
+            &server, &private_client, &auth) == WF_ERR_INVALID_ARG);
+        /* Reparse server after the earlier owned instance was freed. */
+        WF_CHECK(wf_oauth_server_metadata_parse(server_json, strlen(server_json),
+            "https://auth.example", &server) == WF_OK);
+        WF_CHECK(wf_oauth_client_auth_validate(
+            &server, &private_client, &auth) == WF_OK);
+        auth.key_id = NULL;
+        WF_CHECK(wf_oauth_client_auth_validate(
+            &server, &private_client, &auth) == WF_ERR_PARSE);
+        auth.key_id = "unadvertised-key";
+        WF_CHECK(wf_oauth_client_auth_validate(
+            &server, &private_client, &auth) == WF_ERR_PARSE);
+        wf_oauth_server_metadata_free(&server);
+    }
+    wf_oauth_dpop_key_free(auth_key);
+    wf_oauth_client_metadata_free(&private_client);
 }
 
 static void test_endpoint_responses(void) {
@@ -213,7 +260,7 @@ static void test_authorization_state(void) {
         "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk", &pkce) == WF_OK);
     WF_CHECK(wf_oauth_authorization_state_create(
         "https://auth.example", &pkce, key, "return-to-settings",
-        1700000000, 600, &state) == WF_OK);
+        "auth-key-1", 1700000000, 600, &state) == WF_OK);
     WF_CHECK(state.dpop_key != key);
     WF_CHECK(state.expires_at == 1700000600);
     WF_CHECK(wf_oauth_authorization_state_serialize(&state, &json) == WF_OK);
@@ -223,6 +270,7 @@ static void test_authorization_state(void) {
             json, strlen(json), 1700000300, &restored) == WF_OK);
         WF_CHECK(strcmp(restored.issuer, "https://auth.example") == 0);
         WF_CHECK(strcmp(restored.app_state, "return-to-settings") == 0);
+        WF_CHECK(strcmp(restored.client_auth_key_id, "auth-key-1") == 0);
         wf_oauth_authorization_state_free(&restored);
         WF_CHECK(wf_oauth_authorization_state_parse(
             json, strlen(json), 1700000600, &restored) == WF_ERR_PARSE);
@@ -262,7 +310,7 @@ static void test_session_state(void) {
     WF_CHECK(wf_oauth_dpop_key_import(private_key, &key) == WF_OK);
     WF_CHECK(wf_oauth_session_state_create(
         "https://auth.example", "https://pds.example", key, &token,
-        1700000000, &session) == WF_OK);
+        "auth-key-1", 1700000000, &session) == WF_OK);
     WF_CHECK(session.expires_at == 1700003600);
     WF_CHECK(session.dpop_key != key);
     WF_CHECK(wf_oauth_session_state_serialize(&session, &json) == WF_OK);
@@ -272,6 +320,7 @@ static void test_session_state(void) {
             json, strlen(json), "did:plc:alice", &restored) == WF_OK);
         WF_CHECK(strcmp(restored.subject, "did:plc:alice") == 0);
         WF_CHECK(strcmp(restored.refresh_token, "refresh") == 0);
+        WF_CHECK(strcmp(restored.client_auth_key_id, "auth-key-1") == 0);
         WF_CHECK(restored.expires_at == 1700003600);
         wf_oauth_session_state_free(&restored);
 
@@ -396,6 +445,83 @@ done:
     wf_oauth_dpop_key_free(key);
 }
 
+static void test_client_assertion(void) {
+    unsigned char private_key[32] = {0};
+    wf_oauth_dpop_key *key = NULL;
+    wf_oauth_client_assertion_options options = {
+        .client_id = "https://app.example/oauth-client-metadata.json",
+        .authorization_server_issuer = "https://auth.example",
+        .key_id = "auth-key-1",
+        .jti = "assertion-jti",
+        .issued_at = 1700000000,
+    };
+    char *jwt = NULL, *first_dot, *second_dot;
+    unsigned char *header_bytes = NULL, *payload_bytes = NULL, *sig_bytes = NULL;
+    size_t header_len = 0, payload_len = 0, sig_len = 0;
+    cJSON *header = NULL, *payload = NULL;
+    const cJSON *field;
+    EC_KEY *verify_key = NULL;
+    ECDSA_SIG *signature = NULL;
+    BIGNUM *r = NULL, *s = NULL;
+    unsigned char digest[SHA256_DIGEST_LENGTH];
+    private_key[31] = 1;
+    WF_CHECK(wf_oauth_dpop_key_import(private_key, &key) == WF_OK);
+    WF_CHECK(wf_oauth_client_assertion_create(key, &options, &jwt) == WF_OK);
+    WF_CHECK(jwt != NULL);
+    if (!jwt) goto done;
+    first_dot = strchr(jwt, '.');
+    second_dot = first_dot ? strchr(first_dot + 1, '.') : NULL;
+    WF_CHECK(first_dot && second_dot && !strchr(second_dot + 1, '.'));
+    if (!first_dot || !second_dot) goto done;
+    header_bytes = base64url_decode(jwt, (size_t)(first_dot - jwt), &header_len);
+    payload_bytes = base64url_decode(first_dot + 1,
+        (size_t)(second_dot - first_dot - 1), &payload_len);
+    sig_bytes = base64url_decode(second_dot + 1, strlen(second_dot + 1), &sig_len);
+    header = header_bytes ? cJSON_ParseWithLength((char *)header_bytes, header_len) : NULL;
+    payload = payload_bytes ? cJSON_ParseWithLength((char *)payload_bytes, payload_len) : NULL;
+    WF_CHECK(header && payload && sig_bytes && sig_len == 64);
+    field = header ? cJSON_GetObjectItemCaseSensitive(header, "alg") : NULL;
+    WF_CHECK(cJSON_IsString(field) && strcmp(field->valuestring, "ES256") == 0);
+    field = header ? cJSON_GetObjectItemCaseSensitive(header, "kid") : NULL;
+    WF_CHECK(cJSON_IsString(field) && strcmp(field->valuestring, "auth-key-1") == 0);
+    field = payload ? cJSON_GetObjectItemCaseSensitive(payload, "iss") : NULL;
+    WF_CHECK(cJSON_IsString(field) && strcmp(field->valuestring, options.client_id) == 0);
+    field = payload ? cJSON_GetObjectItemCaseSensitive(payload, "sub") : NULL;
+    WF_CHECK(cJSON_IsString(field) && strcmp(field->valuestring, options.client_id) == 0);
+    field = payload ? cJSON_GetObjectItemCaseSensitive(payload, "aud") : NULL;
+    WF_CHECK(cJSON_IsString(field) &&
+             strcmp(field->valuestring, options.authorization_server_issuer) == 0);
+    field = payload ? cJSON_GetObjectItemCaseSensitive(payload, "jti") : NULL;
+    WF_CHECK(cJSON_IsString(field) && strcmp(field->valuestring, "assertion-jti") == 0);
+    field = payload ? cJSON_GetObjectItemCaseSensitive(payload, "iat") : NULL;
+    WF_CHECK(cJSON_IsNumber(field) && field->valuedouble == 1700000000);
+    field = payload ? cJSON_GetObjectItemCaseSensitive(payload, "exp") : NULL;
+    WF_CHECK(cJSON_IsNumber(field) && field->valuedouble == 1700000060);
+
+    verify_key = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+    if (verify_key && sig_bytes && sig_len == 64) {
+        const EC_GROUP *group = EC_KEY_get0_group(verify_key);
+        EC_POINT *point = EC_POINT_new(group);
+        BIGNUM *one = BN_new();
+        if (point && one && BN_one(one) == 1 &&
+            EC_POINT_mul(group, point, one, NULL, NULL, NULL) == 1)
+            WF_CHECK(EC_KEY_set_public_key(verify_key, point) == 1);
+        EC_POINT_free(point); BN_free(one);
+        r = BN_bin2bn(sig_bytes, 32, NULL); s = BN_bin2bn(sig_bytes + 32, 32, NULL);
+        signature = ECDSA_SIG_new();
+        if (signature && r && s && ECDSA_SIG_set0(signature, r, s) == 1) {
+            r = NULL; s = NULL;
+            SHA256((unsigned char *)jwt, (size_t)(second_dot - jwt), digest);
+            WF_CHECK(ECDSA_do_verify(digest, sizeof(digest), signature, verify_key) == 1);
+        } else WF_CHECK(0);
+    } else WF_CHECK(0);
+done:
+    cJSON_Delete(header); cJSON_Delete(payload);
+    free(header_bytes); free(payload_bytes); free(sig_bytes);
+    ECDSA_SIG_free(signature); BN_free(r); BN_free(s); EC_KEY_free(verify_key);
+    wf_oauth_string_free(jwt); wf_oauth_dpop_key_free(key);
+}
+
 int main(void) {
     test_pkce();
     test_metadata();
@@ -404,5 +530,6 @@ int main(void) {
     test_authorization_state();
     test_session_state();
     test_dpop();
+    test_client_assertion();
     WF_TEST_SUMMARY();
 }
