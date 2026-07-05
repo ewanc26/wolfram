@@ -1,0 +1,72 @@
+{
+  "lexicon": 1,
+  "id": "com.example.refs",
+  "defs": {
+    "main": {
+      "type": "procedure",
+      "input": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "ref",
+          "ref": "#request"
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "required": [
+        "config",
+        "configs",
+        "names",
+        "mode",
+        "token",
+        "counts",
+        "switches",
+        "payload",
+        "link",
+        "blob"
+      ],
+      "properties": {
+        "config": { "type": "ref", "ref": "#config" },
+        "configs": { "type": "ref", "ref": "#configs" },
+        "names": { "type": "ref", "ref": "#names" },
+        "mode": { "type": "ref", "ref": "#mode" },
+        "token": { "type": "ref", "ref": "#token" },
+        "counts": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "switches": {
+          "type": "array",
+          "items": { "type": "boolean" }
+        },
+        "payload": { "type": "bytes" },
+        "link": { "type": "cid-link" },
+        "blob": { "type": "blob" }
+      }
+    },
+    "config": {
+      "type": "object",
+      "required": ["name", "metadata"],
+      "properties": {
+        "name": { "type": "string" },
+        "metadata": { "type": "unknown" }
+      }
+    },
+    "configs": {
+      "type": "array",
+      "items": { "type": "ref", "ref": "#config" }
+    },
+    "names": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "mode": {
+      "type": "string",
+      "knownValues": ["fast", "safe"]
+    },
+    "token": {
+      "type": "token"
+    }
+  }
+}

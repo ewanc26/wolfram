@@ -12,6 +12,7 @@ GENERATOR = ROOT / "tools" / "wf_lexgen.py"
 FIXTURE = ROOT / "test" / "fixtures" / "lexicons" / "com.example.echo.json"
 QUERY_FIXTURE = ROOT / "test" / "fixtures" / "lexicons" / "com.example.get.json"
 INLINE_FIXTURE = ROOT / "test" / "fixtures" / "lexicons" / "com.example.inline.json"
+REFS_FIXTURE = ROOT / "test" / "fixtures" / "lexicons" / "com.example.refs.json"
 
 
 class LexgenTests(unittest.TestCase):
@@ -104,6 +105,69 @@ int main(void) {
     assert(output->result.values.count == 2);
     assert(strcmp(output->result.values.items[1].label, "two") == 0);
     wf_lex_com_example_inline_main_output_free(output);
+    return 0;
+}
+''', encoding="utf-8")
+            openssl = shlex.split(subprocess.run(
+                ["pkg-config", "--cflags", "--libs", "openssl"], check=True,
+                capture_output=True, text=True).stdout)
+            subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
+                            "-I", str(directory), "-I", str(ROOT / "include"),
+                            "-I", str(cjson_include), str(generated), str(check),
+                            "-L", str(cjson_lib), "-lcjson", *openssl,
+                            "-o", str(executable)], check=True)
+            env = os.environ.copy()
+            env["DYLD_LIBRARY_PATH"] = str(cjson_lib)
+            subprocess.run([str(executable)], check=True, env=env)
+
+    def test_referenced_inputs_and_all_json_value_kinds_run(self):
+        cjson_include = ROOT / "build" / "_deps" / "cjson-src"
+        cjson_lib = ROOT / "build" / "_deps" / "cjson-build"
+        if not (cjson_include / "cJSON.h").exists():
+            self.skipTest("configured cJSON dependency is not available")
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            header = directory / "generated.h"
+            generated = directory / "generated.c"
+            check = directory / "check.c"
+            executable = directory / "check"
+            subprocess.run([sys.executable, str(GENERATOR), str(REFS_FIXTURE),
+                            "-o", str(header), "--source-output", str(generated)],
+                           check=True)
+            check.write_text(r'''#include "generated.h"
+#include <assert.h>
+#include <string.h>
+
+wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
+                            const char *json, wf_response *out) {
+    (void)client; (void)nsid; (void)json; (void)out; return WF_OK;
+}
+
+int main(void) {
+    const wf_lex_json metadata = {"{\"n\":1}", 7};
+    const wf_lex_com_example_refs_config first = {"one", metadata};
+    const wf_lex_com_example_refs_config second = {"two", metadata};
+    const wf_lex_com_example_refs_config *configs[] = {&first, &second};
+    const char *names[] = {"alice", "bob"};
+    const int64_t counts[] = {-1, 2};
+    const bool switches[] = {true, false};
+    const uint8_t payload[] = {1, 2, 3};
+    wf_lex_com_example_refs_main_input input = {0};
+    input.config = &first;
+    input.configs.items = configs; input.configs.count = 2;
+    input.names.items = names; input.names.count = 2;
+    input.mode = "fast"; input.token = "com.example.refs#token";
+    input.counts.items = counts; input.counts.count = 2;
+    input.switches.items = switches; input.switches.count = 2;
+    input.payload.data = payload; input.payload.length = sizeof(payload);
+    input.link.cid = "bafy-link";
+    input.blob = (wf_lex_blob){"bafy-blob", "image/png", 42};
+    char *json = NULL;
+    assert(wf_lex_com_example_refs_main_input_encode_json(&input, &json) == WF_OK);
+    assert(strcmp(json, "{\"config\":{\"name\":\"one\",\"metadata\":{\"n\":1}},\"configs\":[{\"name\":\"one\",\"metadata\":{\"n\":1}},{\"name\":\"two\",\"metadata\":{\"n\":1}}],\"names\":[\"alice\",\"bob\"],\"mode\":\"fast\",\"token\":\"com.example.refs#token\",\"counts\":[-1,2],\"switches\":[true,false],\"payload\":{\"$bytes\":\"AQID\"},\"link\":{\"$link\":\"bafy-link\"},\"blob\":{\"$type\":\"blob\",\"ref\":{\"$link\":\"bafy-blob\"},\"mimeType\":\"image/png\",\"size\":42}}") == 0);
+    wf_lex_com_example_refs_main_json_free(json);
+    input.config = NULL;
+    assert(wf_lex_com_example_refs_main_input_encode_json(&input, &json) == WF_ERR_INVALID_ARG);
     return 0;
 }
 ''', encoding="utf-8")

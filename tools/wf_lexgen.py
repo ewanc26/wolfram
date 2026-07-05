@@ -118,6 +118,24 @@ class Generator:
             return f"WF_LEX_ARRAY({item_type})", False
         return "wf_lex_json", False
 
+    def json_input_type(self, nsid: str, base: str,
+                        schema: dict[str, Any]) -> str | None:
+        """Return the named type accepted by a JSON endpoint input."""
+        if schema.get("type") in {
+                "array", "blob", "boolean", "bytes", "cid-link", "integer",
+                "object", "ref", "string", "union", "unknown"}:
+            return base + "_input"
+        return None
+
+    def json_input_alias_type(self, nsid: str, base: str,
+                              schema: dict[str, Any]) -> str:
+        """Return the C type aliased by a non-object endpoint input."""
+        if schema.get("type") == "ref":
+            resolved = self.resolve_ref(nsid, schema["ref"])
+            if resolved and resolved[1].get("type") == "object":
+                return ref_type(nsid, schema["ref"])
+        return self.c_type(nsid, base, "input", schema)[0]
+
     def emit_object(self, nsid: str, name: str,
                     schema: dict[str, Any]) -> list[str]:
         lines = comment(schema.get("description", ""))
@@ -198,27 +216,52 @@ class Generator:
         catalog = self.object_catalog()
         wanted: set[str] = set()
 
-        def visit(name: str, schema: dict[str, Any]) -> None:
+        def visit_object(nsid: str, name: str, schema: dict[str, Any]) -> None:
             if name in wanted:
                 return
             wanted.add(name)
             for wire_name, prop in schema.get("properties", {}).items():
                 field = self.field_name(schema, wire_name)
-                value = prop
-                suffix = field
-                while value.get("type") == "array":
-                    value = value.get("items", {"type": "unknown"})
-                    suffix += "_item"
-                if value.get("type") == "object":
-                    child = f"{name}_{snake(suffix)}"
-                    visit(child, catalog[child][1])
+                visit_schema(nsid, name, prop, field)
+
+        def visit_schema(nsid: str, owner: str, schema: dict[str, Any],
+                         path: str) -> None:
+            kind = schema.get("type")
+            if kind == "array":
+                visit_schema(nsid, owner,
+                             schema.get("items", {"type": "unknown"}),
+                             path + "_item")
+            elif kind == "object":
+                child = f"{owner}_{snake(path)}"
+                visit_object(nsid, child, catalog[child][1])
+            elif kind == "ref":
+                resolved = self.resolve_ref(nsid, schema["ref"])
+                if not resolved:
+                    raise ValueError(
+                        f"cannot encode unresolved ref {schema['ref']} in {owner}"
+                    )
+                target_nsid, target = resolved
+                if target.get("type") == "object":
+                    target_name = ref_type(nsid, schema["ref"])
+                    if target_name not in catalog:
+                        raise ValueError(
+                            f"cannot encode ref {schema['ref']} in {owner}"
+                        )
+                    visit_object(target_nsid, target_name, catalog[target_name][1])
+                elif target.get("type") != "token":
+                    visit_schema(target_nsid, owner, target, path)
 
         for doc in self.docs:
             for def_name, definition in doc.get("defs", {}).items():
                 schema = definition.get("input", {}).get("schema", {})
-                if definition.get("type") in ("query", "procedure") and schema.get("type") == "object":
+                if definition.get("type") not in ("query", "procedure"):
+                    continue
+                if schema.get("type") == "object":
                     root = type_name(doc["id"], def_name) + "_input"
-                    visit(root, schema)
+                    visit_object(doc["id"], root, schema)
+                elif schema:
+                    visit_schema(doc["id"], type_name(doc["id"], def_name),
+                                 schema, "input")
         return {name: value for name, value in catalog.items() if name in wanted}
 
     def referenced_types(self) -> set[str]:
@@ -282,11 +325,26 @@ class Generator:
             for def_name, definition in doc.get("defs", {}).items():
                 if definition.get("type") not in ("query", "procedure"):
                     continue
+                schema = definition.get("input", {}).get("schema")
+                if not schema or schema.get("type") == "object":
+                    continue
+                base = type_name(nsid, def_name)
+                if self.json_input_type(nsid, base, schema):
+                    alias = self.json_input_alias_type(nsid, base, schema)
+                    out.append(f"typedef {alias} {base}_input;")
+                    out.append("")
+        for doc in self.docs:
+            nsid = doc["id"]
+            for def_name, definition in doc.get("defs", {}).items():
+                if definition.get("type") not in ("query", "procedure"):
+                    continue
                 base = type_name(nsid, def_name)
                 input_schema = definition.get("input", {}).get("schema")
-                if input_schema and input_schema.get("type") == "object":
+                input_type = (self.json_input_type(nsid, base, input_schema)
+                              if input_schema else None)
+                if input_type:
                     out.append(f"wf_status {base}_input_encode_json(")
-                    out.append(f"    const {base}_input *value, char **out_json);")
+                    out.append(f"    const {input_type} *value, char **out_json);")
                     out.append("/** Free JSON returned by the matching encoder. */")
                     out.append(f"void {base}_json_free(char *json);")
                 output_schema = definition.get("output", {}).get("schema")
@@ -296,10 +354,9 @@ class Generator:
                     out.append(f"    const char *json, size_t length, {base}_output **out_value);")
                     out.append(f"void {base}_output_free({base}_output *value);")
                 if (definition.get("type") == "procedure" and
-                        not definition.get("parameters") and input_schema and
-                        input_schema.get("type") == "object"):
+                        not definition.get("parameters") and input_type):
                     out.append(f"wf_status {base}_call(wf_xrpc_client *client,")
-                    out.append(f"    const {base}_input *input, wf_response *out);")
+                    out.append(f"    const {input_type} *input, wf_response *out);")
                 if definition.get("type") == "query":
                     params = definition.get("parameters")
                     out.append(f"wf_status {base}_call(wf_xrpc_client *client,")
@@ -312,11 +369,10 @@ class Generator:
                     "#endif", "", f"#endif /* {self.guard} */", ""])
         return "\n".join(out)
 
-    def add_value(self, lines: list[str], nsid: str, owner: str,
-                  prop: dict[str, Any], field: str, wire_name: str,
-                  indent: str = "    ") -> None:
+    def add_encoded_value(self, lines: list[str], nsid: str, owner: str,
+                          prop: dict[str, Any], target: str, result: str,
+                          path: str, indent: str) -> None:
         kind = prop.get("type")
-        target = f"value->{field}"
         if kind == "string":
             lines.append(f"{indent}if (!{target}) goto invalid;")
             expr = f"cJSON_CreateString({target})"
@@ -326,39 +382,82 @@ class Generator:
             expr = f"cJSON_CreateBool({target})"
         elif kind in ("unknown", "union"):
             lines.append(f"{indent}if (!{target}.data) goto invalid;")
-            lines.append(f'{indent}item = cJSON_ParseWithLength({target}.data, {target}.length);')
+            lines.append(f'{indent}{result} = cJSON_ParseWithLength({target}.data, {target}.length);')
+            lines.append(f"{indent}if (!{result}) goto invalid;")
+            expr = None
+        elif kind == "bytes":
+            lines.append(f"{indent}status = wf_lex_bytes_encode(&{target}, &{result});")
+            lines.append(f"{indent}if (status != WF_OK) goto status_fail;")
+            expr = None
+        elif kind == "cid-link":
+            lines.append(f"{indent}status = wf_lex_cid_encode(&{target}, &{result});")
+            lines.append(f"{indent}if (status != WF_OK) goto status_fail;")
+            expr = None
+        elif kind == "blob":
+            lines.append(f"{indent}status = wf_lex_blob_encode(&{target}, &{result});")
+            lines.append(f"{indent}if (status != WF_OK) goto status_fail;")
             expr = None
         elif kind == "object":
-            inline = f"{owner}_{snake(field)}"
-            lines.append(f"{indent}if (wf_lex_encode_{inline}(&{target}, &item) != WF_OK) goto invalid;")
+            inline = f"{owner}_{snake(path)}"
+            lines.append(f"{indent}status = wf_lex_encode_{inline}(&{target}, &{result});")
+            lines.append(f"{indent}if (status != WF_OK) goto status_fail;")
             expr = None
-        elif kind == "array" and prop.get("items", {}).get("type") in ("string", "object"):
+        elif kind == "ref":
+            resolved = self.resolve_ref(nsid, prop["ref"])
+            if not resolved:
+                raise ValueError(f"cannot encode unresolved ref {prop['ref']} in {owner}")
+            target_nsid, target_schema = resolved
+            if target_schema.get("type") == "object":
+                referenced = ref_type(nsid, prop["ref"])
+                lines.append(f"{indent}if (!{target}) goto invalid;")
+                lines.append(f"{indent}status = wf_lex_encode_{referenced}({target}, &{result});")
+                lines.append(f"{indent}if (status != WF_OK) goto status_fail;")
+            else:
+                if target_schema.get("type") == "token":
+                    target_schema = {"type": "string"}
+                self.add_encoded_value(lines, target_nsid, owner, target_schema,
+                                       target, result, path, indent)
+            expr = None
+        elif kind == "array":
             item_schema = prop.get("items", {})
             lines.append(f"{indent}if ({target}.count && !{target}.items) goto invalid;")
-            lines.append(f"{indent}item = cJSON_CreateArray();")
-            lines.append(f"{indent}if (item) for (size_t i = 0; i < {target}.count; ++i) {{")
-            if item_schema.get("type") == "string":
-                lines.append(f"{indent}    if (!{target}.items[i]) {{ cJSON_Delete(item); item = NULL; break; }}")
-                lines.append(f"{indent}    cJSON *element = cJSON_CreateString({target}.items[i]);")
-            else:
-                inline = f"{owner}_{snake(field)}_item"
-                lines.append(f"{indent}    cJSON *element = NULL;")
-                lines.append(f"{indent}    if (wf_lex_encode_{inline}(&{target}.items[i], &element) != WF_OK) {{ cJSON_Delete(item); item = NULL; break; }}")
-            lines.append(f"{indent}    if (!element || !cJSON_AddItemToArray(item, element)) {{ cJSON_Delete(element); cJSON_Delete(item); item = NULL; break; }}")
+            lines.append(f"{indent}{result} = cJSON_CreateArray();")
+            lines.append(f"{indent}if (!{result}) goto fail;")
+            suffix = snake(path)
+            index = f"i_{suffix}"
+            element = f"element_{suffix}"
+            lines.append(f"{indent}for (size_t {index} = 0; {index} < {target}.count; ++{index}) {{")
+            lines.append(f"{indent}    cJSON *{element} = NULL;")
+            self.add_encoded_value(lines, nsid, owner, item_schema,
+                                   f"{target}.items[{index}]", element,
+                                   path + "_item", indent + "    ")
+            lines.append(f"{indent}    if (!cJSON_AddItemToArray({result}, {element})) {{")
+            lines.append(f"{indent}        cJSON_Delete({element}); goto fail;")
+            lines.append(f"{indent}    }}")
             lines.append(f"{indent}}}")
             expr = None
         else:
-            raise ValueError(f"JSON encoding is not supported for field {wire_name} ({kind})")
+            raise ValueError(f"JSON encoding is not supported for {path} ({kind})")
         if expr:
-            lines.append(f"{indent}item = {expr};")
-        lines.append(f'{indent}if (!item || !cJSON_AddItemToObject(root, "{wire_name}", item)) {{ cJSON_Delete(item); goto fail; }}')
+            lines.append(f"{indent}{result} = {expr};")
+            lines.append(f"{indent}if (!{result}) goto fail;")
+
+    def add_value(self, lines: list[str], nsid: str, owner: str,
+                  prop: dict[str, Any], field: str, wire_name: str,
+                  indent: str = "    ") -> None:
+        lines.append(f"{indent}item = NULL;")
+        self.add_encoded_value(lines, nsid, owner, prop, f"value->{field}",
+                               "item", field, indent)
+        lines.append(f'{indent}if (!item || !cJSON_AddItemToObject(root, "{wire_name}", item)) {{ cJSON_Delete(item); item = NULL; goto fail; }}')
+        lines.append(f"{indent}item = NULL;")
 
     def emit_object_encoder(self, nsid: str, name: str,
                             schema: dict[str, Any]) -> list[str]:
         lines = [f"static wf_status wf_lex_encode_{name}(const {name} *value, cJSON **out) {{",
                  "    if (!value || !out) return WF_ERR_INVALID_ARG;", "    *out = NULL;",
+                 "    wf_status status = WF_OK;", "    (void)status;",
                  "    cJSON *root = cJSON_CreateObject();", "    cJSON *item = NULL;",
-                 "    if (!root) return WF_ERR_ALLOC;"]
+                 "    (void)item;", "    if (!root) return WF_ERR_ALLOC;"]
         required = set(schema.get("required", []))
         for wire_name, prop in schema.get("properties", {}).items():
             field = self.field_name(schema, wire_name)
@@ -370,9 +469,11 @@ class Generator:
                 self.add_value(lines, nsid, name, prop, field, wire_name)
         lines.append("    *out = root; return WF_OK;")
         if any("goto invalid;" in line for line in lines):
-            lines += ["invalid:", "    cJSON_Delete(root); return WF_ERR_INVALID_ARG;"]
+            lines += ["invalid:", "    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;"]
         if any("goto fail;" in line for line in lines):
-            lines += ["fail:", "    cJSON_Delete(root); return WF_ERR_ALLOC;"]
+            lines += ["fail:", "    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;"]
+        if any("goto status_fail;" in line for line in lines):
+            lines += ["status_fail:", "    cJSON_Delete(item); cJSON_Delete(root); return status;"]
         lines += ["}", ""]
         return lines
 
@@ -500,6 +601,7 @@ class Generator:
         lines += ["    memset(value, 0, sizeof(*value));", "}", "",
                   f"static wf_status wf_lex_decode_{name}(cJSON *node, {name} *value) {{",
                   "    wf_status status = WF_OK;",
+                  "    (void)status;",
                   "    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;"]
         required = set(schema.get("required", []))
         for wire_name, prop in schema.get("properties", {}).items():
@@ -515,8 +617,11 @@ class Generator:
             if wire_name not in required:
                 lines.append("        }")
             lines.append("    }")
-        lines += ["    return WF_OK;", "cleanup:", f"    wf_lex_clear_{name}(value);",
-                  "    return status;", "}", ""]
+        lines.append("    return WF_OK;")
+        if any("goto cleanup;" in line for line in lines):
+            lines += ["cleanup:", f"    wf_lex_clear_{name}(value);",
+                      "    return status;"]
+        lines += ["}", ""]
         return lines
 
     def generate_source(self, header_name: str) -> str:
@@ -541,6 +646,58 @@ class Generator:
             "static WF_LEX_UNUSED wf_status wf_lex_json_copy(cJSON *item, wf_lex_json *out) {",
             "    char *json = cJSON_PrintUnformatted(item); if (!json) return WF_ERR_ALLOC;",
             "    out->data = json; out->length = strlen(json); return WF_OK;", "}", "",
+            "static WF_LEX_UNUSED wf_status wf_lex_bytes_encode(const wf_lex_bytes *value, cJSON **out) {",
+            "    if (!value || !out || (value->length && !value->data) || value->length > INT_MAX)",
+            "        return WF_ERR_INVALID_ARG;",
+            "    *out = NULL;",
+            "    if (value->length > (SIZE_MAX / 4) * 3 - 2) return WF_ERR_INVALID_ARG;",
+            "    size_t length = 4 * ((value->length + 2) / 3);",
+            "    char *encoded = malloc(length + 1); if (!encoded) return WF_ERR_ALLOC;",
+            "    const uint8_t *data = value->length ? value->data : (const uint8_t *)\"\";",
+            "    int written = EVP_EncodeBlock((unsigned char *)encoded, data, (int)value->length);",
+            "    if (written < 0 || (size_t)written != length) { free(encoded); return WF_ERR_INVALID_ARG; }",
+            "    encoded[length] = '\\0'; cJSON *root = cJSON_CreateObject();",
+            "    cJSON *tag = cJSON_CreateString(encoded); free(encoded);",
+            "    if (!root || !tag || !cJSON_AddItemToObject(root, \"$bytes\", tag)) {",
+            "        cJSON_Delete(tag); cJSON_Delete(root); return WF_ERR_ALLOC;",
+            "    }",
+            "    *out = root; return WF_OK;", "}", "",
+            "static WF_LEX_UNUSED wf_status wf_lex_cid_encode(const wf_lex_cid_link *value, cJSON **out) {",
+            "    if (!value || !out || !value->cid || !value->cid[0]) return WF_ERR_INVALID_ARG;",
+            "    *out = NULL;",
+            "    cJSON *root = cJSON_CreateObject(); cJSON *link = cJSON_CreateString(value->cid);",
+            "    if (!root || !link || !cJSON_AddItemToObject(root, \"$link\", link)) {",
+            "        cJSON_Delete(link); cJSON_Delete(root); return WF_ERR_ALLOC;",
+            "    }",
+            "    *out = root; return WF_OK;", "}", "",
+            "static WF_LEX_UNUSED wf_status wf_lex_blob_encode(const wf_lex_blob *value, cJSON **out) {",
+            "    if (!value || !out || !value->cid || !value->cid[0] || !value->mime_type || value->size < 0)",
+            "        return WF_ERR_INVALID_ARG;",
+            "    *out = NULL;",
+            "    cJSON *root = cJSON_CreateObject(); cJSON *ref = NULL;",
+            "    wf_lex_cid_link link = {value->cid};",
+            "    if (!root) return WF_ERR_ALLOC;",
+            "    wf_status status = wf_lex_cid_encode(&link, &ref);",
+            "    if (status != WF_OK) { cJSON_Delete(root); return status; }",
+            "    cJSON *type = cJSON_CreateString(\"blob\");",
+            "    cJSON *mime = cJSON_CreateString(value->mime_type);",
+            "    cJSON *size = cJSON_CreateNumber((double)value->size);",
+            "    if (!type || !mime || !size) {",
+            "        cJSON_Delete(type); cJSON_Delete(ref); cJSON_Delete(mime); cJSON_Delete(size);",
+            "        cJSON_Delete(root); return WF_ERR_ALLOC;",
+            "    }",
+            "    if (!cJSON_AddItemToObject(root, \"$type\", type)) goto blob_fail;",
+            "    type = NULL;",
+            "    if (!cJSON_AddItemToObject(root, \"ref\", ref)) goto blob_fail;",
+            "    ref = NULL;",
+            "    if (!cJSON_AddItemToObject(root, \"mimeType\", mime)) goto blob_fail;",
+            "    mime = NULL;",
+            "    if (!cJSON_AddItemToObject(root, \"size\", size)) goto blob_fail;",
+            "    size = NULL;",
+            "    *out = root; return WF_OK;",
+            "blob_fail:",
+            "    cJSON_Delete(type); cJSON_Delete(ref); cJSON_Delete(mime); cJSON_Delete(size);",
+            "    cJSON_Delete(root); return WF_ERR_ALLOC;", "}", "",
             "static WF_LEX_UNUSED wf_status wf_lex_cid_decode(cJSON *item, wf_lex_cid_link *out) {",
             "    cJSON *link = cJSON_IsObject(item) ? cJSON_GetObjectItemCaseSensitive(item, \"$link\") : NULL;",
             "    if (!cJSON_IsString(link) || !link->valuestring[0]) return WF_ERR_INVALID_ARG;",
@@ -606,32 +763,41 @@ class Generator:
                             f"void {base}_output_free({base}_output *value) {{",
                             f"    wf_lex_clear_{base}_output(value); free(value);", "}", ""]
                 schema = definition.get("input", {}).get("schema")
-                if not schema or schema.get("type") != "object":
+                input_type = (self.json_input_type(nsid, base, schema)
+                              if schema else None)
+                if not input_type:
                     continue
-                out += [f"wf_status {base}_input_encode_json(",
-                        f"    const {base}_input *value, char **out_json) {{",
-                        "    if (!value || !out_json) return WF_ERR_INVALID_ARG;",
-                        "    *out_json = NULL;", "    cJSON *root = cJSON_CreateObject();",
-                        "    cJSON *item = NULL;", "    if (!root) return WF_ERR_ALLOC;"]
-                required = set(schema.get("required", []))
-                for wire_name, prop in schema.get("properties", {}).items():
-                    field = self.field_name(schema, wire_name)
-                    if wire_name not in required:
-                        out.append(f"    if (value->has_{field}) {{")
-                        self.add_value(out, nsid, base + "_input", prop, field,
-                                       wire_name, "        ")
-                        out.append("    }")
-                    else:
-                        self.add_value(out, nsid, base + "_input", prop, field,
-                                       wire_name)
-                out += ["    *out_json = cJSON_PrintUnformatted(root);", "    cJSON_Delete(root);",
-                        "    return *out_json ? WF_OK : WF_ERR_ALLOC;", "invalid:",
-                        "    cJSON_Delete(root);", "    return WF_ERR_INVALID_ARG;", "fail:",
-                        "    cJSON_Delete(root);", "    return WF_ERR_ALLOC;", "}", "",
-                        f"void {base}_json_free(char *json) {{ cJSON_free(json); }}", ""]
+                if schema.get("type") == "object":
+                    encoder = base + "_input"
+                else:
+                    resolved = (self.resolve_ref(nsid, schema["ref"])
+                                if schema.get("type") == "ref" else None)
+                    encoder = (ref_type(nsid, schema["ref"])
+                               if resolved and resolved[1].get("type") == "object"
+                               else None)
+                function = [f"wf_status {base}_input_encode_json(",
+                            f"    const {input_type} *value, char **out_json) {{",
+                            "    if (!value || !out_json) return WF_ERR_INVALID_ARG;",
+                            "    *out_json = NULL; cJSON *root = NULL;",
+                            "    wf_status status = WF_OK;", "    (void)status;"]
+                if encoder:
+                    function += [f"    status = wf_lex_encode_{encoder}(value, &root);",
+                                 "    if (status != WF_OK) return status;"]
+                else:
+                    self.add_encoded_value(function, nsid, base, schema, "*value",
+                                           "root", "input", "    ")
+                function += ["    *out_json = cJSON_PrintUnformatted(root);", "    cJSON_Delete(root);",
+                             "    return *out_json ? WF_OK : WF_ERR_ALLOC;"]
+                if any("goto invalid;" in line for line in function):
+                    function += ["invalid:", "    cJSON_Delete(root); return WF_ERR_INVALID_ARG;"]
+                if any("goto fail;" in line for line in function):
+                    function += ["fail:", "    cJSON_Delete(root); return WF_ERR_ALLOC;"]
+                if any("goto status_fail;" in line for line in function):
+                    function += ["status_fail:", "    cJSON_Delete(root); return status;"]
+                out += function + ["}", "", f"void {base}_json_free(char *json) {{ cJSON_free(json); }}", ""]
                 if definition.get("type") == "procedure" and not definition.get("parameters"):
                     out += [f"wf_status {base}_call(wf_xrpc_client *client,",
-                            f"    const {base}_input *input, wf_response *response) {{",
+                            f"    const {input_type} *input, wf_response *response) {{",
                             "    if (!client || !input || !response) return WF_ERR_INVALID_ARG;",
                             "    char *json = NULL;",
                             f"    wf_status status = {base}_input_encode_json(input, &json);",

@@ -76,7 +76,9 @@ and must outlive the generated struct. Generated output decoders instead return
 owning objects with a matching `_output_free` function. They decode nested refs
 and arrays, tagged JSON bytes (`$bytes`) via OpenSSL base64, CID links (`$link`),
 typed blobs, unions, and unknown values. Generated endpoint calls still delegate
-all network I/O to `xrpc.c`.
+all network I/O to `xrpc.c`. Input encoders resolve referenced objects, arrays,
+strings, and tokens recursively, and encode every JSON-compatible Lexicon value
+kind, including integer/boolean arrays, tagged bytes and CID links, and blobs.
 
 If Homebrew's libcurl isn't picked up automatically, point CMake at it:
 
@@ -111,10 +113,9 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 12. ✅ Repository data operations — create/update/delete records, full/diff CAR
     download (`wf_sync_get_repo`), and ownership/signature/content-addressed
     verification/import (`wf_repo_verify`, `wf_repo_import`).
-13. 🟡 Lexicon integration — typed C schemas, inline objects, repeated-key
-    array query parameters, input JSON encoders, generated query/procedure
-    wrappers, and owning output decoders are implemented; encoding arbitrary
-    referenced input definitions across the full upstream corpus remains.
+13. ✅ Lexicon integration — typed C schemas, inline and referenced input
+    objects, repeated-key array query parameters, complete JSON input encoders,
+    generated query/procedure wrappers, and owning output decoders.
 14. ✅ Union/jetstream — libcurl WebSocket transport, filtered Jetstream URL
     construction, runtime subscriber options, JSON event envelopes,
     cursor-based reconnect/backoff, and dictionary-based zstd messages.
