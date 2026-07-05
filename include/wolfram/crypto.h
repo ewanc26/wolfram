@@ -48,8 +48,8 @@ wf_status wf_sign(const wf_signing_key *key,
  * Verify a signature against a did:key- or multibase-encoded public
  * key.
  *
- * Supports secp256k1 (multicodec 0xe701, raw compressed/uncompressed)
- * and P-256 (multicodec 0x1200/0x1201).
+ * Accepts a `did:key:z...` or bare `z...` base58btc multikey. Supports
+ * secp256k1-pub (multicodec 0xe7 0x01) and p256-pub (0x80 0x24).
  */
 wf_status wf_verify(const char *public_key_multibase,
                      const unsigned char *msg, size_t msg_len,

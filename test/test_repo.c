@@ -8,6 +8,7 @@
 #include "wolfram/repo.h"
 #include "test.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -1079,6 +1080,81 @@ int main(void) {
         wf_car_free(&car);
     }
 
+    /* Delete a layer-3 leaf whose layer-1 neighbors both have non-empty
+     * layer-0 boundary subtrees.  Layer-2 structural parents force recursive
+     * appendMerge across three layers; compare against a canonical rebuild. */
+    {
+        static const unsigned wanted_layers[] = {0, 1, 0, 3, 0, 1, 0};
+        char keys[7][32];
+        size_t matched = 0;
+        for (unsigned i = 0; i < 1000000 && matched < 7; i++) {
+            char candidate[32];
+            int n = snprintf(candidate, sizeof(candidate), "merge-%06u", i);
+            unsigned layer = wf_mst_key_layer((unsigned char *)candidate,
+                                               (size_t)n);
+            if (layer == wanted_layers[matched]) {
+                memcpy(keys[matched], candidate, (size_t)n + 1);
+                matched++;
+            } else if (layer == wanted_layers[0]) {
+                memcpy(keys[0], candidate, (size_t)n + 1);
+                matched = 1;
+            } else {
+                matched = 0;
+            }
+        }
+        WF_CHECK(matched == 7);
+
+        wf_cid values[7];
+        memset(values, 0, sizeof(values));
+        for (size_t i = 0; i < 7; i++) {
+            values[i].bytes[0] = 0x01;
+            values[i].bytes[1] = 0x71;
+            values[i].bytes[2] = 0x12;
+            values[i].bytes[3] = 0x20;
+            values[i].bytes[4] = (unsigned char)(0xA0 + i);
+            values[i].len = 36;
+        }
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+        wf_cid root = {{0}, 0};
+        for (size_t i = 0; i < 7; i++) {
+            wf_cid next = {{0}, 0};
+            WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)keys[i],
+                                strlen(keys[i]), &values[i], &next) == WF_OK);
+            root = next;
+        }
+
+        wf_cid after_delete = {{0}, 0};
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)keys[3],
+                               strlen(keys[3]), &after_delete) == WF_OK);
+
+        wf_cid rebuilt = {{0}, 0};
+        for (size_t i = 0; i < 7; i++) {
+            if (i == 3) continue;
+            wf_cid next = {{0}, 0};
+            WF_CHECK(wf_mst_add(&car, &rebuilt, (unsigned char *)keys[i],
+                                strlen(keys[i]), &values[i], &next) == WF_OK);
+            rebuilt = next;
+        }
+        WF_CHECK(after_delete.len == rebuilt.len);
+        WF_CHECK(memcmp(after_delete.bytes, rebuilt.bytes, rebuilt.len) == 0);
+
+        wf_cid found = {{0}, 0};
+        WF_CHECK(wf_mst_find(&car, &after_delete,
+                             (unsigned char *)keys[3], strlen(keys[3]),
+                             &found) == WF_ERR_NOT_FOUND);
+        for (size_t i = 0; i < 7; i++) {
+            if (i == 3) continue;
+            memset(&found, 0, sizeof(found));
+            WF_CHECK(wf_mst_find(&car, &after_delete,
+                                 (unsigned char *)keys[i], strlen(keys[i]),
+                                 &found) == WF_OK);
+            WF_CHECK(memcmp(&found, &values[i], sizeof(found)) == 0);
+        }
+        wf_car_free(&car);
+    }
+
     /* Delete non-existent key */
     {
         wf_car car;
@@ -1426,6 +1502,240 @@ int main(void) {
                                         NULL, 0, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_repo_get_record(NULL, NULL, NULL, NULL,
                                      NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+    }
+
+    /* ── Record update ── */
+
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+        unsigned char original[] = {0xA1, 0x61, 'v', 0x01};
+        unsigned char replacement[] = {0xA1, 0x61, 'v', 0x02};
+        wf_cid commit1, record1, commit2, record2;
+
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                        "com.example.posts", "rec1",
+                                        original, sizeof(original), &key,
+                                        &commit1, &record1) == WF_OK);
+        WF_CHECK(wf_repo_update_record(&car, &commit1, "did:plc:test",
+                                        "com.example.posts", "rec1",
+                                        replacement, sizeof(replacement), &key,
+                                        &commit2, &record2) == WF_OK);
+        WF_CHECK(memcmp(record1.bytes, record2.bytes, record1.len) != 0);
+
+        unsigned char *data = NULL;
+        size_t data_len = 0;
+        wf_cid found;
+        WF_CHECK(wf_repo_get_record(&car, &commit2, "com.example.posts",
+                                     "rec1", &data, &data_len, &found) == WF_OK);
+        WF_CHECK(data_len == sizeof(replacement));
+        WF_CHECK(memcmp(data, replacement, sizeof(replacement)) == 0);
+        WF_CHECK(found.len == record2.len &&
+                 memcmp(found.bytes, record2.bytes, found.len) == 0);
+        free(data);
+
+        WF_CHECK(wf_repo_update_record(&car, &commit2, "did:plc:test",
+                                        "com.example.posts", "missing",
+                                        replacement, sizeof(replacement), &key,
+                                        &commit1, &record1) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_repo_update_record(NULL, NULL, NULL, NULL, NULL,
+                                        NULL, 0, NULL, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        wf_car_free(&car);
+    }
+
+    /* ── Record deletion ── */
+
+    /* Create a record, then delete it */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
+                                  0x18, 0x7B};
+        wf_cid commit1, rec1;
+        memset(&commit1, 0, sizeof(commit1));
+        memset(&rec1, 0, sizeof(rec1));
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                        "com.example.posts", "rec1",
+                                        record, sizeof(record),
+                                        &key, &commit1, &rec1) == WF_OK);
+
+        /* Delete the record */
+        wf_cid commit2;
+        memset(&commit2, 0, sizeof(commit2));
+        WF_CHECK(wf_repo_delete_record(&car, &commit1, "did:plc:test",
+                                         "com.example.posts", "rec1",
+                                         &key, &commit2) == WF_OK);
+        WF_CHECK(commit2.len == 36);
+
+        /* Record should be gone */
+        unsigned char *data = NULL; size_t dlen = 0; wf_cid c;
+        memset(&c, 0, sizeof(c));
+        WF_CHECK(wf_repo_get_record(&car, &commit2,
+                                     "com.example.posts", "rec1",
+                                     &data, &dlen, &c) == WF_ERR_NOT_FOUND);
+
+        wf_car_free(&car);
+    }
+
+    /* Create two records, delete one, verify the other survives */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char record_a[] = {0xA1, 0x64, 't', 'e', 's', 't',
+                                    0x18, 0x7B};
+        unsigned char record_b[] = {0xA1, 0x64, 'n', 'a', 'm', 'e',
+                                    0x63, 'b', 'o', 'b'};
+
+        wf_cid commit1, rec1;
+        memset(&commit1, 0, sizeof(commit1));
+        memset(&rec1, 0, sizeof(rec1));
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                        "com.example.posts", "rec1",
+                                        record_a, sizeof(record_a),
+                                        &key, &commit1, &rec1) == WF_OK);
+
+        wf_cid commit2, rec2;
+        memset(&commit2, 0, sizeof(commit2));
+        memset(&rec2, 0, sizeof(rec2));
+        WF_CHECK(wf_repo_create_record(&car, &commit1, "did:plc:test",
+                                        "com.example.posts", "rec2",
+                                        record_b, sizeof(record_b),
+                                        &key, &commit2, &rec2) == WF_OK);
+
+        /* Delete rec1 */
+        wf_cid commit3;
+        memset(&commit3, 0, sizeof(commit3));
+        WF_CHECK(wf_repo_delete_record(&car, &commit2, "did:plc:test",
+                                         "com.example.posts", "rec1",
+                                         &key, &commit3) == WF_OK);
+
+        /* rec1 should be gone */
+        unsigned char *data = NULL; size_t dlen = 0; wf_cid c;
+        memset(&c, 0, sizeof(c));
+        WF_CHECK(wf_repo_get_record(&car, &commit3,
+                                     "com.example.posts", "rec1",
+                                     &data, &dlen, &c) == WF_ERR_NOT_FOUND);
+
+        /* rec2 should survive */
+        memset(&c, 0, sizeof(c));
+        data = NULL; dlen = 0;
+        WF_CHECK(wf_repo_get_record(&car, &commit3,
+                                     "com.example.posts", "rec2",
+                                     &data, &dlen, &c) == WF_OK);
+        WF_CHECK(dlen == sizeof(record_b));
+        WF_CHECK(memcmp(data, record_b, sizeof(record_b)) == 0);
+        free(data);
+
+        wf_car_free(&car);
+    }
+
+    /* Delete non-existent record */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
+                                  0x18, 0x7B};
+        wf_cid commit1, rec1;
+        memset(&commit1, 0, sizeof(commit1));
+        memset(&rec1, 0, sizeof(rec1));
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                        "com.example.posts", "rec1",
+                                        record, sizeof(record),
+                                        &key, &commit1, &rec1) == WF_OK);
+
+        /* Try to delete a non-existent rkey */
+        wf_cid commit2;
+        memset(&commit2, 0, sizeof(commit2));
+        WF_CHECK(wf_repo_delete_record(&car, &commit1, "did:plc:test",
+                                         "com.example.posts", "nope",
+                                         &key, &commit2) == WF_ERR_NOT_FOUND);
+
+        wf_car_free(&car);
+    }
+
+    /* Delete invalid args */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        WF_CHECK(wf_repo_delete_record(NULL, NULL, NULL, NULL, NULL,
+                                        NULL, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_delete_record(&car, NULL, "did", "col", "rkey",
+                                        &key, NULL) == WF_ERR_INVALID_ARG);
+    }
+
+    /* Verify and import a repository CAR with a resolved P-256 did:key. */
+    {
+        wf_signing_key key = {0};
+        key.type = WF_KEY_TYPE_P256;
+        key.bytes[31] = 1;
+        const char *did_key =
+            "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+        const char *did = "did:plc:repoverifytest";
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
+        wf_car car = {0};
+        wf_cid commit1 = {0}, record_cid = {0};
+        WF_CHECK(wf_repo_create_record(&car, NULL, did,
+                                        "com.example.posts", "one",
+                                        record, sizeof(record), &key,
+                                        &commit1, &record_cid) == WF_OK);
+        car.roots = malloc(sizeof(wf_cid));
+        WF_CHECK(car.roots != NULL);
+        car.roots[0] = commit1;
+        car.root_count = 1;
+
+        wf_repo_verify_options options = {did, did_key, NULL};
+        wf_commit verified = {0};
+        WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_OK);
+        WF_CHECK(strcmp(verified.did, did) == 0);
+        WF_CHECK(verified.sig_len == 64);
+
+        unsigned char *bytes = NULL;
+        size_t bytes_len = 0;
+        WF_CHECK(wf_car_write(&car, &bytes, &bytes_len) == WF_OK);
+        wf_car imported = {0};
+        wf_commit imported_commit = {0};
+        WF_CHECK(wf_repo_import(bytes, bytes_len, &options, &imported,
+                                &imported_commit) == WF_OK);
+        WF_CHECK(imported.block_count == car.block_count);
+        wf_car_free(&imported);
+
+        options.expected_did = "did:plc:not-the-owner";
+        WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_ERR_PARSE);
+        options.expected_did = did;
+        wf_cid wrong_prev = record_cid;
+        options.expected_prev = &wrong_prev;
+        WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_ERR_PARSE);
+        options.expected_prev = NULL;
+
+        /* A changed block whose old CID remains in the CAR must be rejected. */
+        car.blocks[0].data[car.blocks[0].data_len - 1] ^= 1;
+        WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_ERR_PARSE);
+        car.blocks[0].data[car.blocks[0].data_len - 1] ^= 1;
+
+        free(bytes);
+        wf_car_free(&car);
     }
 
     WF_TEST_SUMMARY();

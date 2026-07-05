@@ -75,6 +75,36 @@ void wf_cbor_free(wf_cbor_item *item);
  */
 unsigned char *wf_cbor_serialize(const wf_cbor_item *item, size_t *out_len);
 
+typedef enum wf_record_value_type {
+    WF_RECORD_STRING, WF_RECORD_INTEGER, WF_RECORD_BOOLEAN,
+    WF_RECORD_ARRAY, WF_RECORD_OBJECT,
+} wf_record_value_type;
+
+typedef struct wf_record_schema wf_record_schema;
+typedef struct wf_record_property {
+    const char *name;
+    const wf_record_schema *schema;
+    int required;
+} wf_record_property;
+
+/** Recursive schema: objects use properties; arrays use items. */
+struct wf_record_schema {
+    wf_record_value_type type;
+    const wf_record_property *properties;
+    size_t property_count;
+    const wf_record_schema *items;
+};
+
+/**
+ * Validate JSON and encode DAG-CBOR. `$type` is injected from collection.
+ * On success, caller owns `*out_cbor` and releases it with free().
+ */
+wf_status wf_record_encode_json(const char *collection,
+                                const wf_record_schema *schema,
+                                const char *json,
+                                unsigned char **out_cbor,
+                                size_t *out_len);
+
 /* ── CID ───────────────────────────────────────────────────── */
 
 /** A content identifier (CIDv1, dag-cbor, sha2-256), stored raw. */
@@ -138,7 +168,7 @@ typedef struct wf_commit {
 
 /**
  * Parse a commit object from DAG-CBOR bytes.
- * The `sig` field (if present) is not decoded; it is skipped.
+ * The raw 64-byte `sig` field is decoded when present.
  */
 wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
                            wf_commit *out);
@@ -146,9 +176,9 @@ wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
 /**
  * Create a signed commit and add it to a CAR.
  *
- * Builds the commit DAG-CBOR (without sig), computes its CID, signs the
- * CID bytes with the given key, then re-serializes with the sig field
- * included. The final block is appended to `car` and its CID returned
+ * Builds the commit DAG-CBOR without `sig`, signs those canonical bytes,
+ * then re-serializes with the sig field included. The final block is appended
+ * to `car` and its CID returned
  * via `out->cid`.
  */
 wf_status wf_commit_create(const char *did, const char *rev,
@@ -157,6 +187,35 @@ wf_status wf_commit_create(const char *did, const char *rev,
                             const wf_signing_key *key,
                             wf_car *car,
                             wf_commit *out);
+
+/** Repository verification constraints. All string pointers are borrowed. */
+typedef struct wf_repo_verify_options {
+    const char *expected_did;       /* required repository owner DID */
+    const char *signing_key;        /* resolved did:key or multikey */
+    const wf_cid *expected_prev;    /* NULL skips previous-commit matching */
+} wf_repo_verify_options;
+
+/**
+ * Verify a parsed repository CAR and return its root commit.
+ *
+ * Requires exactly one root; verifies every block CID, root/commit/MST links,
+ * repository ownership, the optional previous commit, and the commit
+ * signature. `out_commit` contains no heap allocations.
+ */
+wf_status wf_repo_verify(const wf_car *car,
+                         const wf_repo_verify_options *options,
+                         wf_commit *out_commit);
+
+/**
+ * Parse and verify an imported repository CAR.
+ *
+ * On success, `out_car` owns its allocations and must be released with
+ * wf_car_free(); `out_commit` contains no heap allocations. Outputs remain
+ * zeroed on failure.
+ */
+wf_status wf_repo_import(const unsigned char *bytes, size_t len,
+                         const wf_repo_verify_options *options,
+                         wf_car *out_car, wf_commit *out_commit);
 
 /* ── MST ───────────────────────────────────────────────────── */
 
@@ -256,6 +315,40 @@ wf_status wf_repo_get_record(wf_car *car,
                               unsigned char **out_data,
                               size_t *out_len,
                               wf_cid *out_record_cid);
+
+/**
+ * Update an existing record and create a new signed commit.
+ *
+ * The record must already exist at the collection/rkey path in
+ * `prev_commit`; otherwise WF_ERR_NOT_FOUND is returned. The encoded record
+ * block and all newly created MST/commit blocks are appended to `car`.
+ */
+wf_status wf_repo_update_record(wf_car *car,
+                                 const wf_cid *prev_commit,
+                                 const char *did,
+                                 const char *collection,
+                                 const char *rkey,
+                                 const unsigned char *record_cbor,
+                                 size_t record_cbor_len,
+                                 const wf_signing_key *key,
+                                 wf_cid *out_commit,
+                                 wf_cid *out_record);
+
+/**
+ * Delete a record from a repo: remove it from the MST and create
+ * a new signed commit.
+ *
+ * The record is removed from the MST by its collection/rkey key.
+ * A new commit is created and appended to `car`. Returns the new
+ * commit CID via `out_commit`.
+ */
+wf_status wf_repo_delete_record(wf_car *car,
+                                  const wf_cid *prev_commit,
+                                  const char *did,
+                                  const char *collection,
+                                  const char *rkey,
+                                  const wf_signing_key *key,
+                                  wf_cid *out_commit);
 
 #ifdef __cplusplus
 }

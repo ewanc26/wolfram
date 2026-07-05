@@ -73,6 +73,23 @@ int main(void) {
         WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_UNKNOWN, &key) == WF_ERR_INVALID_ARG);
     }
 
+    /* Verify a real base58btc P-256 did:key (private scalar 1). */
+    {
+        wf_signing_key key = {0};
+        key.type = WF_KEY_TYPE_P256;
+        key.bytes[31] = 1;
+        const char *did_key =
+            "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+        unsigned char msg[] = "atproto multikey";
+        unsigned char sig[64];
+        WF_CHECK(wf_sign(&key, msg, sizeof(msg) - 1, sig, sizeof(sig)) == WF_OK);
+        WF_CHECK(wf_verify(did_key, msg, sizeof(msg) - 1,
+                           sig, sizeof(sig)) == WF_OK);
+        sig[0] ^= 1;
+        WF_CHECK(wf_verify(did_key, msg, sizeof(msg) - 1,
+                           sig, sizeof(sig)) == WF_ERR_PARSE);
+    }
+
     /* Sign with NULL/empty args */
     {
         wf_signing_key key;

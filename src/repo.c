@@ -771,6 +771,18 @@ wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
         memcpy(out->prev.bytes, prev_item->bytes.data, 36);
         out->prev.len = 36;
         out->has_prev = 1;
+    } else if (prev_item && !(prev_item->type == WF_CBOR_SIMPLE &&
+                              prev_item->simple_value == 22)) {
+        wf_cbor_free(obj); return WF_ERR_PARSE;
+    }
+
+    wf_cbor_item *sig_item = wf_cbor_map_find(obj, "sig", 3);
+    if (sig_item) {
+        if (sig_item->type != WF_CBOR_BYTES || sig_item->bytes.len != 64) {
+            wf_cbor_free(obj); return WF_ERR_PARSE;
+        }
+        memcpy(out->sig, sig_item->bytes.data, 64);
+        out->sig_len = 64;
     }
 
     wf_cbor_free(obj);
@@ -835,14 +847,10 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
     unsigned char *cbor = wf_cbor_serialize(map, &cbor_len);
     if (!cbor) { wf_cbor_free(map); return WF_ERR_ALLOC; }
 
-    wf_cid presig_cid;
-    wf_status s = wf_cid_of_block(cbor, cbor_len, &presig_cid);
-    free(cbor);
-    if (s != WF_OK) { wf_cbor_free(map); return s; }
-
-    /* ── Sign the CID bytes ────────────────────────────────── */
-    s = wf_sign(key, presig_cid.bytes, presig_cid.len,
+    /* AT Protocol signs the canonical unsigned commit bytes. */
+    wf_status s = wf_sign(key, cbor, cbor_len,
                 out->sig, sizeof(out->sig));
+    free(cbor);
     if (s != WF_OK) { wf_cbor_free(map); return s; }
     out->sig_len = 64;
 
@@ -876,6 +884,138 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
 
     out->cid = final_cid;
     return WF_OK;
+}
+
+static int cid_equal(const wf_cid *a, const wf_cid *b) {
+    return a && b && a->len == b->len && a->len > 0 &&
+           memcmp(a->bytes, b->bytes, a->len) == 0;
+}
+
+static wf_status commit_unsigned_bytes(const wf_commit *commit,
+                                       unsigned char **out,
+                                       size_t *out_len) {
+    wf_cbor_item *map = calloc(1, sizeof(*map));
+    if (!map) return WF_ERR_ALLOC;
+    map->type = WF_CBOR_MAP;
+    map->map.count = 5;
+    map->map.pairs = calloc(5, sizeof(wf_cbor_pair));
+    if (!map->map.pairs) { free(map); return WF_ERR_ALLOC; }
+    map->map.pairs[0].key = cbor_str("did");
+    map->map.pairs[0].value = cbor_str(commit->did);
+    map->map.pairs[1].key = cbor_str("rev");
+    map->map.pairs[1].value = cbor_str(commit->rev);
+    map->map.pairs[2].key = cbor_str("data");
+    map->map.pairs[2].value = cbor_cid(&commit->data);
+    map->map.pairs[3].key = cbor_str("prev");
+    map->map.pairs[3].value = commit->has_prev
+        ? cbor_cid(&commit->prev) : cbor_null();
+    map->map.pairs[4].key = cbor_str("version");
+    map->map.pairs[4].value = cbor_uint((uint64_t)commit->version);
+    *out = wf_cbor_serialize(map, out_len);
+    wf_cbor_free(map);
+    return *out ? WF_OK : WF_ERR_ALLOC;
+}
+
+static wf_status verify_mst_links(const wf_car *car, const wf_cid *cid,
+                                  size_t depth) {
+    if (depth > car->block_count) return WF_ERR_PARSE;
+    wf_car_block *block = wf_car_find_block((wf_car *)car, cid);
+    if (!block) return WF_ERR_NOT_FOUND;
+    wf_mst_node node;
+    wf_status status = wf_mst_node_parse(block->data, block->data_len,
+                                         cid, &node);
+    if (status != WF_OK) return status;
+    if (node.left.len) {
+        status = verify_mst_links(car, &node.left, depth + 1);
+    }
+    for (size_t i = 0; status == WF_OK && i < node.count; i++) {
+        if (!wf_car_find_block((wf_car *)car, &node.entries[i].value)) {
+            status = WF_ERR_NOT_FOUND;
+            break;
+        }
+        if (node.entries[i].subtree.len) {
+            status = verify_mst_links(car, &node.entries[i].subtree, depth + 1);
+        }
+    }
+    wf_mst_node_free(&node);
+    return status;
+}
+
+wf_status wf_repo_verify(const wf_car *car,
+                         const wf_repo_verify_options *options,
+                         wf_commit *out_commit) {
+    if (!car || !options || !options->expected_did ||
+        options->expected_did[0] == '\0' || !options->signing_key ||
+        options->signing_key[0] == '\0' || !out_commit) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out_commit, 0, sizeof(*out_commit));
+    if (car->root_count != 1 || car->roots[0].len != 36) return WF_ERR_PARSE;
+
+    for (size_t i = 0; i < car->block_count; i++) {
+        wf_cid computed;
+        if (!car->blocks[i].data || car->blocks[i].data_len == 0 ||
+            wf_cid_of_block(car->blocks[i].data, car->blocks[i].data_len,
+                            &computed) != WF_OK ||
+            !cid_equal(&computed, &car->blocks[i].cid)) return WF_ERR_PARSE;
+        for (size_t j = 0; j < i; j++) {
+            if (cid_equal(&car->blocks[i].cid, &car->blocks[j].cid))
+                return WF_ERR_PARSE;
+        }
+    }
+
+    wf_car_block *root = wf_car_find_block((wf_car *)car, &car->roots[0]);
+    if (!root) return WF_ERR_NOT_FOUND;
+    wf_commit commit;
+    wf_status status = wf_commit_parse(root->data, root->data_len, &commit);
+    if (status != WF_OK || commit.version != 3 || commit.sig_len != 64)
+        return WF_ERR_PARSE;
+    /* Commit v3 is a closed six-field object. Reject unsigned/extended forms
+     * so signature reconstruction cannot ignore attacker-controlled fields. */
+    wf_cbor_item *root_object = wf_cbor_parse(root->data, root->data_len);
+    if (!root_object || root_object->type != WF_CBOR_MAP ||
+        root_object->map.count != 6 ||
+        !wf_cbor_map_find(root_object, "prev", 4)) {
+        wf_cbor_free(root_object);
+        return WF_ERR_PARSE;
+    }
+    wf_cbor_free(root_object);
+    commit.cid = car->roots[0];
+    if (strcmp(commit.did, options->expected_did) != 0) return WF_ERR_PARSE;
+    if (options->expected_prev &&
+        (!commit.has_prev || !cid_equal(&commit.prev, options->expected_prev)))
+        return WF_ERR_PARSE;
+
+    unsigned char *unsigned_commit = NULL;
+    size_t unsigned_len = 0;
+    status = commit_unsigned_bytes(&commit, &unsigned_commit, &unsigned_len);
+    if (status != WF_OK) return status;
+    status = wf_verify(options->signing_key, unsigned_commit, unsigned_len,
+                       commit.sig, commit.sig_len);
+    free(unsigned_commit);
+    if (status != WF_OK) return status;
+
+    status = verify_mst_links(car, &commit.data, 0);
+    if (status != WF_OK) return status;
+    *out_commit = commit;
+    return WF_OK;
+}
+
+wf_status wf_repo_import(const unsigned char *bytes, size_t len,
+                         const wf_repo_verify_options *options,
+                         wf_car *out_car, wf_commit *out_commit) {
+    if (!bytes || len == 0 || !options || !out_car || !out_commit)
+        return WF_ERR_INVALID_ARG;
+    memset(out_car, 0, sizeof(*out_car));
+    memset(out_commit, 0, sizeof(*out_commit));
+    wf_status status = wf_car_parse(bytes, len, out_car);
+    if (status != WF_OK) return status;
+    status = wf_repo_verify(out_car, options, out_commit);
+    if (status != WF_OK) {
+        wf_car_free(out_car);
+        memset(out_commit, 0, sizeof(*out_commit));
+    }
+    return status;
 }
 
 /* ── MST ───────────────────────────────────────────────────── */
@@ -1267,12 +1407,27 @@ static size_t mst_find_ge(const wf_mst_node *node,
     return node->count;
 }
 
-/* Load a node from a CAR by CID. Returns WF_OK and sets *out. */
-static wf_status mst_load_node(wf_car *car, const wf_cid *cid,
-                                wf_mst_node *out) {
+/* Load a node from a CAR by CID.  Structural nodes contain only a child
+ * pointer, so their layer must be inferred from that child's layer. */
+static wf_status mst_load_node_depth(wf_car *car, const wf_cid *cid,
+                                      wf_mst_node *out, size_t depth) {
+    if (depth > car->block_count) return WF_ERR_PARSE;
     wf_car_block *block = wf_car_find_block(car, cid);
     if (!block) return WF_ERR_PARSE;
-    return wf_mst_node_parse(block->data, block->data_len, cid, out);
+    wf_status s = wf_mst_node_parse(block->data, block->data_len, cid, out);
+    if (s != WF_OK || out->count > 0 || out->left.len == 0) return s;
+
+    wf_mst_node child = {0};
+    s = mst_load_node_depth(car, &out->left, &child, depth + 1);
+    if (s == WF_OK) out->layer = child.layer + 1;
+    wf_mst_node_free(&child);
+    if (s != WF_OK) wf_mst_node_free(out);
+    return s;
+}
+
+static wf_status mst_load_node(wf_car *car, const wf_cid *cid,
+                                wf_mst_node *out) {
+    return mst_load_node_depth(car, cid, out, 0);
 }
 
 /* Free entries array (keys only, not the array itself) */
@@ -1343,6 +1498,10 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     return WF_OK;
 }
 
+static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
+                                    unsigned child_layer,
+                                    unsigned parent_layer);
+
 /* Add key at a lower layer (keyZeros < node->layer).
  * Recurse into the appropriate subtree, creating one if needed. */
 static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
@@ -1387,13 +1546,12 @@ static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
             s = wf_mst_add(car, target_cid, key, key_len, value, &new_subtree);
         }
     } else {
-        /* No subtree at insertion point — create one starting at key_layer */
-        wf_mst_node sub_node;
+        /* Build the leaf tree, then retain every structural layer between it
+         * and this node. */
         wf_cid zero = {{0}, 0};
-        s = wf_mst_node_build(key_layer, &zero, NULL, 0, &sub_node);
-        if (s != WF_OK) return s;
-        s = wf_mst_add(car, &sub_node.cid, key, key_len, value, &new_subtree);
-        wf_mst_node_free(&sub_node);
+        s = wf_mst_add(car, &zero, key, key_len, value, &new_subtree);
+        if (s == WF_OK)
+            s = mst_raise_subtree(car, &new_subtree, key_layer, node->layer);
     }
     if (s != WF_OK) return s;
 
@@ -1432,6 +1590,22 @@ static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
 
 /* Add key at a higher layer (keyZeros > node->layer).
  * Create a new root at key_layer with structural parents. */
+static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
+                                    unsigned child_layer,
+                                    unsigned parent_layer) {
+    if (cid->len == 0) return WF_OK;
+    for (unsigned layer = child_layer + 1; layer < parent_layer; layer++) {
+        wf_mst_node structural;
+        wf_status s = wf_mst_node_build(layer, cid, NULL, 0, &structural);
+        if (s != WF_OK) return s;
+        s = wf_mst_node_finalize(&structural, car);
+        if (s == WF_OK) *cid = structural.cid;
+        wf_mst_node_free(&structural);
+        if (s != WF_OK) return s;
+    }
+    return WF_OK;
+}
+
 static wf_status mst_add_at_higher_layer(wf_car *car,
                                           const wf_mst_node *node,
                                           const unsigned char *key,
@@ -1509,6 +1683,14 @@ static wf_status mst_add_at_higher_layer(wf_car *car,
         }
         left_cid = left_node.cid;
         wf_mst_node_free(&left_node);
+        st = mst_raise_subtree(car, &left_cid, node->layer, key_layer);
+        if (st != WF_OK) {
+            if (right_entries) {
+                for (size_t i = 0; i < right_count; i++) free(right_entries[i].key);
+                free(right_entries);
+            }
+            return st;
+        }
     }
 
     /* Create right subtree node at old layer */
@@ -1524,6 +1706,8 @@ static wf_status mst_add_at_higher_layer(wf_car *car,
         if (st != WF_OK) { wf_mst_node_free(&right_node); return st; }
         right_cid = right_node.cid;
         wf_mst_node_free(&right_node);
+        st = mst_raise_subtree(car, &right_cid, node->layer, key_layer);
+        if (st != WF_OK) return st;
     }
 
     /* Create the new leaf entry for the inserted key */
@@ -1607,15 +1791,86 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
 
 /* ── MST delete (internal helpers) ─────────────────────────── */
 
-/* Merge two adjacent subtrees at the same layer.
- * When both are non-empty, the merge is too complex for now (TODO).
- * Handles cases where at most one subtree is non-empty. */
-static wf_status mst_merge_subtrees(const wf_cid *a, const wf_cid *b,
-                                     wf_cid *out) {
+/* Merge two adjacent subtrees at the same layer.  In the in-memory model this
+ * is appendMerge: concatenate the two nodes and recursively coalesce the
+ * neighboring right/left tree pointers at their boundary. */
+static wf_status mst_merge_subtrees(wf_car *car, const wf_cid *a,
+                                     const wf_cid *b, wf_cid *out) {
     if (a->len == 0) { *out = *b; return WF_OK; }
     if (b->len == 0) { *out = *a; return WF_OK; }
-    memset(out, 0, sizeof(*out));
-    return WF_ERR_INVALID_ARG; /* TODO: subtree merge */
+
+    wf_mst_node left_node, right_node;
+    wf_status s = mst_load_node(car, a, &left_node);
+    if (s != WF_OK) return s;
+    s = mst_load_node(car, b, &right_node);
+    if (s != WF_OK) {
+        wf_mst_node_free(&left_node);
+        return s;
+    }
+    if (left_node.layer != right_node.layer ||
+        (left_node.count > 0 && right_node.count > 0 &&
+         wf_mst_key_cmp(left_node.entries[left_node.count - 1].key,
+                        left_node.entries[left_node.count - 1].key_len,
+                        right_node.entries[0].key,
+                        right_node.entries[0].key_len) >= 0)) {
+        wf_mst_node_free(&left_node);
+        wf_mst_node_free(&right_node);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = left_node.count + right_node.count;
+    wf_mst_entry *entries = count ? calloc(count, sizeof(*entries)) : NULL;
+    if (count && !entries) {
+        wf_mst_node_free(&left_node);
+        wf_mst_node_free(&right_node);
+        return WF_ERR_ALLOC;
+    }
+    size_t copied = 0;
+    for (size_t side = 0; side < 2; side++) {
+        const wf_mst_node *node = side == 0 ? &left_node : &right_node;
+        for (size_t i = 0; i < node->count; i++, copied++) {
+            entries[copied].key = malloc(node->entries[i].key_len);
+            if (!entries[copied].key) {
+                free_entries(entries, copied);
+                free(entries);
+                wf_mst_node_free(&left_node);
+                wf_mst_node_free(&right_node);
+                return WF_ERR_ALLOC;
+            }
+            memcpy(entries[copied].key, node->entries[i].key,
+                   node->entries[i].key_len);
+            entries[copied].key_len = node->entries[i].key_len;
+            entries[copied].value = node->entries[i].value;
+            entries[copied].subtree = node->entries[i].subtree;
+        }
+    }
+
+    wf_cid new_left = left_node.left;
+    wf_cid boundary;
+    if (left_node.count > 0) {
+        s = mst_merge_subtrees(car,
+                               &left_node.entries[left_node.count - 1].subtree,
+                               &right_node.left, &boundary);
+        if (s == WF_OK) entries[left_node.count - 1].subtree = boundary;
+    } else {
+        s = mst_merge_subtrees(car, &left_node.left, &right_node.left,
+                               &new_left);
+    }
+
+    wf_mst_node merged_node;
+    if (s == WF_OK)
+        s = wf_mst_node_build(left_node.layer, &new_left, entries, count,
+                              &merged_node);
+    free_entries(entries, count);
+    free(entries);
+    wf_mst_node_free(&left_node);
+    wf_mst_node_free(&right_node);
+    if (s != WF_OK) return s;
+
+    s = wf_mst_node_finalize(&merged_node, car);
+    if (s == WF_OK) *out = merged_node.cid;
+    wf_mst_node_free(&merged_node);
+    return s;
 }
 
 /* Delete key from a node at the same layer.
@@ -1638,15 +1893,6 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
 
     size_t new_count = node->count - 1;
 
-    if (new_count == 0) {
-        if (node->left.len > 0) {
-            *new_cid = node->left;
-            return WF_OK;
-        }
-        memset(new_cid, 0, sizeof(*new_cid));
-        return WF_OK;
-    }
-
     /* Determine which adjacent subtrees need merging */
     wf_cid left_subtree, right_subtree;
     if (idx == 0) {
@@ -1658,8 +1904,14 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
     }
 
     wf_cid merged;
-    wf_status s = mst_merge_subtrees(&left_subtree, &right_subtree, &merged);
+    wf_status s = mst_merge_subtrees(car, &left_subtree, &right_subtree,
+                                     &merged);
     if (s != WF_OK) return s;
+
+    if (new_count == 0) {
+        *new_cid = merged;
+        return WF_OK;
+    }
 
     /* Build new entry list */
     wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
@@ -1880,6 +2132,21 @@ wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
 
     s = mst_delete_recursive(car, &node, key, key_len, key_layer, new_root);
     wf_mst_node_free(&node);
+    if (s != WF_OK) return s;
+
+    /* A deletion may leave one or more structural nodes above the highest
+     * surviving leaf.  They are top-only scaffolding and must be trimmed. */
+    while (new_root->len > 0) {
+        wf_mst_node top;
+        s = mst_load_node(car, new_root, &top);
+        if (s != WF_OK) return s;
+        if (top.count != 0) {
+            wf_mst_node_free(&top);
+            break;
+        }
+        *new_root = top.left;
+        wf_mst_node_free(&top);
+    }
     return s;
 }
 
@@ -2017,5 +2284,209 @@ wf_status wf_repo_get_record(wf_car *car,
     *out_len = rec_block->data_len;
     *out_record_cid = found;
 
+    return WF_OK;
+}
+
+/* Replace an existing leaf value while preserving the MST shape. */
+static wf_status mst_update_value(wf_car *car, const wf_cid *node_cid,
+                                   const unsigned char *key, size_t key_len,
+                                   const wf_cid *value, wf_cid *new_cid) {
+    wf_mst_node node;
+    wf_status s = mst_load_node(car, node_cid, &node);
+    if (s != WF_OK) return s;
+
+    size_t idx = mst_find_ge(&node, key, key_len);
+    int found = idx < node.count &&
+        wf_mst_key_cmp(key, key_len, node.entries[idx].key,
+                       node.entries[idx].key_len) == 0;
+    int use_left = idx == 0;
+    size_t parent_idx = idx > 0 ? idx - 1 : 0;
+    wf_cid updated_child = {{0}, 0};
+
+    if (!found) {
+        const wf_cid *child = use_left ? &node.left
+                                       : &node.entries[parent_idx].subtree;
+        if (child->len == 0) {
+            wf_mst_node_free(&node);
+            return WF_ERR_NOT_FOUND;
+        }
+        s = mst_update_value(car, child, key, key_len, value, &updated_child);
+        if (s != WF_OK) {
+            wf_mst_node_free(&node);
+            return s;
+        }
+    }
+
+    wf_mst_entry *entries = calloc(node.count, sizeof(*entries));
+    if (!entries) {
+        wf_mst_node_free(&node);
+        return WF_ERR_ALLOC;
+    }
+    for (size_t i = 0; i < node.count; i++) {
+        entries[i].key = malloc(node.entries[i].key_len);
+        if (!entries[i].key) {
+            free_entries(entries, i);
+            free(entries);
+            wf_mst_node_free(&node);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(entries[i].key, node.entries[i].key, node.entries[i].key_len);
+        entries[i].key_len = node.entries[i].key_len;
+        entries[i].value = node.entries[i].value;
+        entries[i].subtree = node.entries[i].subtree;
+    }
+
+    wf_cid left = node.left;
+    if (found)
+        entries[idx].value = *value;
+    else if (use_left)
+        left = updated_child;
+    else
+        entries[parent_idx].subtree = updated_child;
+
+    wf_mst_node replacement;
+    s = wf_mst_node_build(node.layer, &left, entries, node.count,
+                          &replacement);
+    free_entries(entries, node.count);
+    free(entries);
+    wf_mst_node_free(&node);
+    if (s != WF_OK) return s;
+
+    s = wf_mst_node_finalize(&replacement, car);
+    if (s == WF_OK) *new_cid = replacement.cid;
+    wf_mst_node_free(&replacement);
+    return s;
+}
+
+wf_status wf_repo_update_record(wf_car *car,
+                                 const wf_cid *prev_commit,
+                                 const char *did,
+                                 const char *collection,
+                                 const char *rkey,
+                                 const unsigned char *record_cbor,
+                                 size_t record_cbor_len,
+                                 const wf_signing_key *key,
+                                 wf_cid *out_commit,
+                                 wf_cid *out_record) {
+    if (!car || !prev_commit || prev_commit->len == 0 || !did ||
+        !collection || !rkey || !record_cbor || record_cbor_len == 0 ||
+        !key || !out_commit || !out_record) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out_commit, 0, sizeof(*out_commit));
+    memset(out_record, 0, sizeof(*out_record));
+
+    wf_car_block *commit_block = wf_car_find_block(car, prev_commit);
+    if (!commit_block) return WF_ERR_PARSE;
+    wf_commit previous;
+    memset(&previous, 0, sizeof(previous));
+    wf_status s = wf_commit_parse(commit_block->data, commit_block->data_len,
+                                  &previous);
+    if (s != WF_OK) return s;
+
+    size_t col_len = strlen(collection), rkey_len = strlen(rkey);
+    size_t mst_key_len = col_len + 1 + rkey_len;
+    unsigned char *mst_key = malloc(mst_key_len);
+    if (!mst_key) return WF_ERR_ALLOC;
+    memcpy(mst_key, collection, col_len);
+    mst_key[col_len] = '/';
+    memcpy(mst_key + col_len + 1, rkey, rkey_len);
+
+    s = wf_cid_of_block(record_cbor, record_cbor_len, out_record);
+    if (s != WF_OK) { free(mst_key); return s; }
+
+    wf_cid new_mst_root = {{0}, 0};
+    s = mst_update_value(car, &previous.data, mst_key, mst_key_len,
+                         out_record, &new_mst_root);
+    free(mst_key);
+    if (s != WF_OK) return s;
+
+    wf_car_block *blocks = realloc(car->blocks,
+        (car->block_count + 1) * sizeof(*blocks));
+    if (!blocks) return WF_ERR_ALLOC;
+    car->blocks = blocks;
+    wf_car_block *record_block = &car->blocks[car->block_count];
+    record_block->cid = *out_record;
+    record_block->data = malloc(record_cbor_len);
+    if (!record_block->data) return WF_ERR_ALLOC;
+    memcpy(record_block->data, record_cbor, record_cbor_len);
+    record_block->data_len = record_cbor_len;
+    car->block_count++;
+
+    wf_commit commit;
+    memset(&commit, 0, sizeof(commit));
+    char rev[64];
+    snprintf(rev, sizeof(rev), "3z%08x", (unsigned)time(NULL));
+    s = wf_commit_create(did, rev, &new_mst_root, prev_commit, key, car,
+                         &commit);
+    if (s != WF_OK) return s;
+    *out_commit = commit.cid;
+    return WF_OK;
+}
+
+wf_status wf_repo_delete_record(wf_car *car,
+                                  const wf_cid *prev_commit,
+                                  const char *did,
+                                  const char *collection,
+                                  const char *rkey,
+                                  const wf_signing_key *key,
+                                  wf_cid *out_commit) {
+    if (!car || !did || !collection || !rkey || !key || !out_commit) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    memset(out_commit, 0, sizeof(*out_commit));
+
+    /* Build MST root from previous commit if available */
+    wf_cid mst_root = {{0}, 0};
+    if (prev_commit && prev_commit->len > 0) {
+        wf_car_block *block = wf_car_find_block(car, prev_commit);
+        if (!block) return WF_ERR_PARSE;
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        wf_status s = wf_commit_parse(block->data, block->data_len, &commit);
+        if (s != WF_OK) return s;
+        mst_root = commit.data;
+    }
+
+    /* Build MST key: "collection/rkey" */
+    size_t col_len = strlen(collection);
+    size_t rkey_len = strlen(rkey);
+    size_t key_len = col_len + 1 + rkey_len;
+    unsigned char *mst_key = malloc(key_len);
+    if (!mst_key) return WF_ERR_ALLOC;
+    memcpy(mst_key, collection, col_len);
+    mst_key[col_len] = '/';
+    memcpy(mst_key + col_len + 1, rkey, rkey_len);
+
+    /* Delete from MST */
+    wf_cid new_mst_root = {{0}, 0};
+    wf_status s = wf_mst_delete(car, &mst_root, mst_key, key_len, &new_mst_root);
+    free(mst_key);
+    if (s != WF_OK) return s;
+
+    if (new_mst_root.len == 0) {
+        /* A commit links to the canonical empty MST block, not a zero CID. */
+        wf_cid empty = {{0}, 0};
+        wf_mst_node empty_node;
+        s = wf_mst_node_build(0, &empty, NULL, 0, &empty_node);
+        if (s != WF_OK) return s;
+        s = wf_mst_node_finalize(&empty_node, car);
+        if (s == WF_OK) new_mst_root = empty_node.cid;
+        wf_mst_node_free(&empty_node);
+        if (s != WF_OK) return s;
+    }
+
+    /* Create signed commit */
+    wf_commit commit;
+    memset(&commit, 0, sizeof(commit));
+    char rev[64];
+    snprintf(rev, sizeof(rev), "3z%08x", (unsigned)time(NULL));
+    s = wf_commit_create(did, rev, &new_mst_root,
+                          (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
+                          key, car, &commit);
+    if (s != WF_OK) return s;
+
+    *out_commit = commit.cid;
     return WF_OK;
 }

@@ -135,50 +135,52 @@ wf_status wf_verify(const char *public_key_multibase,
         return WF_ERR_INVALID_ARG;
     }
 
-    /* Parse multibase: "z<base58btc( multicodec || pubkey )>" */
-    if (strncmp(public_key_multibase, "z", 1) != 0) {
+    /* Parse did:key:z... or bare z<base58btc(multicodec || pubkey)>. */
+    const char *encoded = public_key_multibase;
+    if (strncmp(encoded, "did:key:", 8) == 0) encoded += 8;
+    if (*encoded++ != 'z' || *encoded == '\0') {
         return WF_ERR_INVALID_ARG;
     }
 
-    size_t pk_hex_len = strlen(public_key_multibase + 1) / 2;
-
-    unsigned char pk_buf[65]; /* max 65 bytes uncompressed */
-    for (size_t i = 0; i < pk_hex_len; i++) {
-        unsigned byte;
-        if (sscanf(public_key_multibase + 1 + 2 * i, "%2x", &byte) != 1) {
-            return WF_ERR_INVALID_ARG;
+    static const char alphabet[] =
+        "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    unsigned char pk_buf[67] = {0};
+    size_t pk_len = 0;
+    for (const char *p = encoded; *p; p++) {
+        const char *digit = strchr(alphabet, *p);
+        if (!digit) return WF_ERR_INVALID_ARG;
+        unsigned carry = (unsigned)(digit - alphabet);
+        for (size_t i = 0; i < pk_len; i++) {
+            size_t at = pk_len - 1 - i;
+            unsigned value = (unsigned)pk_buf[at] * 58u + carry;
+            pk_buf[at] = (unsigned char)(value & 0xffu);
+            carry = value >> 8;
         }
-        pk_buf[i] = (unsigned char)byte;
+        while (carry) {
+            if (pk_len == sizeof(pk_buf)) return WF_ERR_INVALID_ARG;
+            memmove(pk_buf + 1, pk_buf, pk_len++);
+            pk_buf[0] = (unsigned char)(carry & 0xffu);
+            carry >>= 8;
+        }
+    }
+    for (const char *p = encoded; *p == '1'; p++) {
+        if (pk_len == sizeof(pk_buf)) return WF_ERR_INVALID_ARG;
+        memmove(pk_buf + 1, pk_buf, pk_len++);
+        pk_buf[0] = 0;
     }
 
-    /* Detect key type from multicodec prefix.
-     * secp256k1:  0xe701 (2 bytes) + 33 compressed pubkey = 35 bytes
-     * P-256 raw:  0x1200 (2 bytes) + 32 raw pubkey = 34 bytes
-     * P-256 comp: 0x1201 (2 bytes) + 33 compressed pubkey = 35 bytes */
+    /* Multicodec varints: secp256k1-pub=e7 01, p256-pub=80 24. */
     int is_p256 = 0;
-    int offset = 0;
     unsigned char *raw_pk = NULL;
     size_t raw_pk_len = 0;
 
-    if (pk_hex_len >= 2 && pk_buf[0] == 0x12 && pk_buf[1] == 0x00 &&
-        pk_hex_len == 34) {
+    if (pk_len == 35 && pk_buf[0] == 0x80 && pk_buf[1] == 0x24) {
         is_p256 = 1;
-        offset = 2;
-        raw_pk = pk_buf + offset;
-        raw_pk_len = 32;
-    } else if (pk_hex_len >= 2 && pk_buf[0] == 0x12 && pk_buf[1] == 0x01 &&
-               pk_hex_len == 35) {
-        is_p256 = 1;
-        offset = 2;
-        raw_pk = pk_buf + offset;
+        raw_pk = pk_buf + 2;
         raw_pk_len = 33;
-    } else if ((pk_hex_len == 33 || pk_hex_len == 65) &&
-               (pk_buf[0] == 0x02 || pk_buf[0] == 0x03 ||
-                pk_buf[0] == 0x04)) {
-        /* No multicodec prefix — raw secp256k1 key (the simplified case) */
-        offset = 0;
-        raw_pk = pk_buf;
-        raw_pk_len = pk_hex_len;
+    } else if (pk_len == 35 && pk_buf[0] == 0xe7 && pk_buf[1] == 0x01) {
+        raw_pk = pk_buf + 2;
+        raw_pk_len = 33;
     } else {
         return WF_ERR_INVALID_ARG;
     }
@@ -186,17 +188,6 @@ wf_status wf_verify(const char *public_key_multibase,
     if (is_p256) {
         EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         if (!eckey) return WF_ERR_ALLOC;
-
-        EC_KEY *tmp = NULL;
-        if (raw_pk_len == 32) {
-            /* Raw 32-byte P-256 point (X coordinate); compute key from it.
-             * OpenSSL requires the full point, so we need to reconstruct.
-             * This is uncommon — typically compressed form is used.
-             * For now, return invalid arg for raw P-256. */
-            EC_KEY_free(eckey);
-            (void)tmp;
-            return WF_ERR_INVALID_ARG;
-        }
 
         /* Compressed 33-byte P-256 point (0x02/0x03 || X) */
         EC_POINT *point = EC_POINT_new(EC_KEY_get0_group(eckey));
