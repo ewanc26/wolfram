@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "wolfram/crypto.h"
 #include "wolfram/xrpc.h"
 
 #ifdef __cplusplus
@@ -119,6 +120,9 @@ typedef struct wf_commit {
     char   rev[64];
     wf_cid prev;       /* zeroed if no prev */
     int    has_prev;
+    wf_cid cid;        /* CID of this commit block (set by create) */
+    unsigned char sig[64];
+    size_t  sig_len;
 } wf_commit;
 
 /**
@@ -127,6 +131,21 @@ typedef struct wf_commit {
  */
 wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
                            wf_commit *out);
+
+/**
+ * Create a signed commit and add it to a CAR.
+ *
+ * Builds the commit DAG-CBOR (without sig), computes its CID, signs the
+ * CID bytes with the given key, then re-serializes with the sig field
+ * included. The final block is appended to `car` and its CID returned
+ * via `out->cid`.
+ */
+wf_status wf_commit_create(const char *did, const char *rev,
+                            const wf_cid *data,
+                            const wf_cid *prev,
+                            const wf_signing_key *key,
+                            wf_car *car,
+                            wf_commit *out);
 
 /* ── MST ───────────────────────────────────────────────────── */
 

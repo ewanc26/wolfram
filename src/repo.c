@@ -675,6 +675,107 @@ wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
     return WF_OK;
 }
 
+/* ── Commit creation ──────────────────────────────────────── */
+
+/* Forward declarations for CBOR item helpers (defined later) */
+static wf_cbor_item *cbor_str(const char *s);
+static wf_cbor_item *cbor_bytes(const unsigned char *data, size_t len);
+static wf_cbor_item *cbor_uint(uint64_t v);
+static wf_cbor_item *cbor_null(void);
+static wf_cbor_item *cbor_cid(const wf_cid *cid);
+
+wf_status wf_commit_create(const char *did_str, const char *rev_str,
+                            const wf_cid *data_cid,
+                            const wf_cid *prev_cid,
+                            const wf_signing_key *key,
+                            wf_car *car,
+                            wf_commit *out) {
+    if (!did_str || !rev_str || !data_cid || !key || !car || !out)
+        return WF_ERR_INVALID_ARG;
+
+    memset(out, 0, sizeof(*out));
+    size_t dlen = strlen(did_str);
+    if (dlen >= sizeof(out->did)) return WF_ERR_INVALID_ARG;
+    memcpy(out->did, did_str, dlen + 1);
+    size_t rlen = strlen(rev_str);
+    if (rlen >= sizeof(out->rev)) return WF_ERR_INVALID_ARG;
+    memcpy(out->rev, rev_str, rlen + 1);
+    out->data = *data_cid;
+    if (prev_cid && prev_cid->len > 0) {
+        out->prev = *prev_cid;
+        out->has_prev = 1;
+    }
+    out->version = 3;
+
+    /* ── Build CBOR without sig ────────────────────────────── */
+    /* Sorted keys: "did"(0x63) < "rev"(0x63) < "data"(0x64) < "prev"(0x64) < "version"(0x67) */
+
+    wf_cbor_item *map = calloc(1, sizeof(*map));
+    if (!map) return WF_ERR_ALLOC;
+    map->type = WF_CBOR_MAP;
+    map->map.count = 5;
+    map->map.pairs = calloc(5, sizeof(wf_cbor_pair));
+    if (!map->map.pairs) { free(map); return WF_ERR_ALLOC; }
+
+    map->map.pairs[0].key = cbor_str("did");
+    map->map.pairs[0].value = cbor_str(did_str);
+    map->map.pairs[1].key = cbor_str("rev");
+    map->map.pairs[1].value = cbor_str(rev_str);
+    map->map.pairs[2].key = cbor_str("data");
+    map->map.pairs[2].value = cbor_cid(data_cid);
+    map->map.pairs[3].key = cbor_str("prev");
+    map->map.pairs[3].value = (prev_cid && prev_cid->len > 0)
+                              ? cbor_cid(prev_cid) : cbor_null();
+    map->map.pairs[4].key = cbor_str("version");
+    map->map.pairs[4].value = cbor_uint(3);
+
+    size_t cbor_len;
+    unsigned char *cbor = wf_cbor_serialize(map, &cbor_len);
+    if (!cbor) { wf_cbor_free(map); return WF_ERR_ALLOC; }
+
+    wf_cid presig_cid;
+    wf_status s = wf_cid_of_block(cbor, cbor_len, &presig_cid);
+    free(cbor);
+    if (s != WF_OK) { wf_cbor_free(map); return s; }
+
+    /* ── Sign the CID bytes ────────────────────────────────── */
+    s = wf_sign(key, presig_cid.bytes, presig_cid.len,
+                out->sig, sizeof(out->sig));
+    if (s != WF_OK) { wf_cbor_free(map); return s; }
+    out->sig_len = 64;
+
+    /* ── Rebuild CBOR with sig ─────────────────────────────── */
+    /* Insert sig at index 2: "did"(0) < "rev"(1) < "sig"(2) < "data"(3) < "prev"(4) < "version"(5) */
+    map->map.count = 6;
+    wf_cbor_pair *np = realloc(map->map.pairs, 6 * sizeof(wf_cbor_pair));
+    if (!np) { wf_cbor_free(map); return WF_ERR_ALLOC; }
+    map->map.pairs = np;
+    memmove(&map->map.pairs[3], &map->map.pairs[2],
+            3 * sizeof(wf_cbor_pair));
+    map->map.pairs[2].key = cbor_str("sig");
+    map->map.pairs[2].value = cbor_bytes(out->sig, out->sig_len);
+
+    unsigned char *final_cbor = wf_cbor_serialize(map, &cbor_len);
+    wf_cbor_free(map);
+    if (!final_cbor) return WF_ERR_ALLOC;
+
+    wf_cid final_cid;
+    s = wf_cid_of_block(final_cbor, cbor_len, &final_cid);
+    if (s != WF_OK) { free(final_cbor); return s; }
+
+    wf_car_block *blk = realloc(car->blocks,
+        (car->block_count + 1) * sizeof(wf_car_block));
+    if (!blk) { free(final_cbor); return WF_ERR_ALLOC; }
+    car->blocks = blk;
+    car->blocks[car->block_count].cid = final_cid;
+    car->blocks[car->block_count].data = final_cbor;
+    car->blocks[car->block_count].data_len = cbor_len;
+    car->block_count++;
+
+    out->cid = final_cid;
+    return WF_OK;
+}
+
 /* ── MST ───────────────────────────────────────────────────── */
 
 unsigned wf_mst_key_layer(const unsigned char *key, size_t key_len) {
