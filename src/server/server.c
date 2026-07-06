@@ -122,7 +122,7 @@ static wf_status wf_server_json_bool(const cJSON *object, const char *name, int 
     return WF_OK;
 }
 
-void wf_server_describe_free(wf_server_describe *desc) {
+void wf_server_describe_free(wf_server_description *desc) {
     if (!desc) {
         return;
     }
@@ -139,7 +139,7 @@ void wf_server_describe_free(wf_server_describe *desc) {
     desc->phone_verification_required = -1;
 }
 
-wf_status wf_server_describe(wf_xrpc_client *client, wf_server_describe *out) {
+wf_status wf_server_describe(wf_xrpc_client *client, wf_server_description *out) {
     wf_response response = {0};
     cJSON *root = NULL;
     cJSON *links = NULL;

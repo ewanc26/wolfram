@@ -1712,7 +1712,7 @@ wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description 
 
     wf_agent_server_description_reset(out);
 
-    wf_server_describe sdesc = {0};
+    wf_server_description sdesc = {0};
     wf_status status = wf_server_describe(agent->client, &sdesc);
     if (status != WF_OK) {
         return status;

@@ -6,7 +6,7 @@ The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
 
-**Early development.** XRPC transport, identity resolution, crypto (secp256k1 + P-256), and repo handling (DAG-CBOR, CAR, MST, signed commits) are implemented and tested. Not at feature parity with the official SDKs yet, but the core building blocks are in place.
+**Early development.** XRPC transport, identity resolution, crypto (secp256k1 + P-256), repo handling (DAG-CBOR, CAR, MST, signed commits), runtime Lexicon validation, a high-level agent API, OAuth, and syncing (firehose + sync endpoints) are implemented and tested. Not yet at full feature parity with the official SDKs, but the core building blocks and a usable high-level API are in place.
 
 ## Overview
 
@@ -25,7 +25,9 @@ embedded in, or required by applications using `libwolfram`.
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
 | `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
 | `wolfram/label.h`         | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
-| `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download |
+| `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
+| `wolfram/validate.h`     | Implemented | Runtime Lexicon schema validation (records and named values), refs/unions/format keywords |
+| `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, notifications, blobs, server + app-password management |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
 | `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (13K header, 74K source) |
@@ -158,12 +160,12 @@ Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto
 
 ### Next planned work
 
-- Additional sync endpoints — getBlob, getBlocks, getRecord, listBlobs.
-- Server account operations (done). Next: agent-level convenience wrappers for describeServer and app passwords.
-- Lexicon validation — runtime JSON/CBOR validation against Lexicon schema.
-- Document all API functions with examples and usage patterns.
-- High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity.
-- More examples — replies, embeds, image posts using blob upload.
+- Lexicon validation tests + broader lexicon corpus coverage (the `validate` module needs a test suite).
+- Full-corpus generated lexicon clients exercised end-to-end against a live PDS in examples.
+- Repository sync toward verified incremental diff application and operation inversion in the agent/commit path.
+- More examples — threads, custom feeds, labeler records, image/embed posts via blob upload.
+- Documentation: per-function usage examples for the `agent`, `sync`, `validate`, and `oauth` modules.
+- Optional: JSON Structure / JSON Schema round-trip for non-Lexicon JSON if a use case appears.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.

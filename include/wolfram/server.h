@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 /** Output of com.atproto.server.describeServer. */
-typedef struct wf_server_describe {
+typedef struct wf_server_description {
     char  *did;                       /* server DID */
     int    invite_code_required;      /* -1 if not present in response */
     int    phone_verification_required; /* -1 if not present in response */
@@ -31,7 +31,7 @@ typedef struct wf_server_describe {
     char  *links_privacy_policy;      /* NULL if not present */
     char  *links_terms_of_service;    /* NULL if not present */
     char  *contact_email;             /* NULL if not present */
-} wf_server_describe;
+} wf_server_description;
 
 /**
  * Fetch server metadata.
@@ -40,10 +40,10 @@ typedef struct wf_server_describe {
  * On WF_OK, `out` is populated and must be released with
  * wf_server_describe_free.
  */
-wf_status wf_server_describe(wf_xrpc_client *client, wf_server_describe *out);
+wf_status wf_server_describe(wf_xrpc_client *client, wf_server_description *out);
 
-/** Free a wf_server_describe. Safe to call with NULL. */
-void wf_server_describe_free(wf_server_describe *desc);
+/** Free a wf_server_description. Safe to call with NULL. */
+void wf_server_describe_free(wf_server_description *desc);
 
 /** Input for com.atproto.server.createAccount. */
 typedef struct wf_server_create_account_input {

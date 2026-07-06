@@ -11,7 +11,7 @@ static wf_xrpc_client *new_client(void) {
 }
 
 static void test_describe_invalid(void) {
-    wf_server_describe out = {0};
+    wf_server_description out = {0};
 
     WF_CHECK(wf_server_describe(NULL, &out) == WF_ERR_INVALID_ARG);
 
@@ -22,7 +22,7 @@ static void test_describe_invalid(void) {
 }
 
 static void test_describe_free_safe(void) {
-    wf_server_describe out = {0};
+    wf_server_description out = {0};
 
     wf_server_describe_free(&out);
     wf_server_describe_free(NULL);
