@@ -34,14 +34,9 @@ Agentic principles and technical context for the `wolfram` repository.
 - `syntax`: AT Protocol syntax validation — DID, handle, at-identifier, NSID, record key, TID, AT URI, RFC 3339 datetime, and BCP 47 language tag validators. Tests cover all interop-test-file patterns from the atproto reference. Tested.
 - `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile. Tested.
 - `richtext`: UTF-8 grapheme length, facet detection (mentions, links, tags, cashtags), segment iteration, text insert/delete with facet index adjustment, domain/TLD validation. Tested.
-- `sync_subscribe`: WebSocket firehose subscription to `com.atproto.sync.subscribeRepos`, CBOR frame parsing (commit/sync/identity/account/info events), cursor tracking, exponential-backoff reconnection.
+- `sync_subscribe`: WebSocket firehose subscription to `com.atproto.sync.subscribeRepos`, CBOR frame parsing (commit/sync/identity/account/info events), cursor tracking, exponential-backoff reconnection. Tested with integration test that self-terminates via callback, including `*out = handle` fix so handle is valid during callbacks.
 - `sync_verify`: Firehose commit verification — parses the CAR from a commit event, resolves the repo DID to obtain the signing key, and verifies the commit signature, block integrity, and MST structure. Tested.
-
-## Next planned work
-
-- Higher-level endpoint examples using generated clients.
-- Repository sync toward verified incremental diff application and operation inversion.
-- Firehose `test_sync_subscribe` integration test.
+- `test_sync_subscribe`: Integration test connecting to `wss://bsky.network`, receiving up to 5 events, verifying WebSocket connection and CBOR event parsing. Graceful skip when network unavailable.
 
 ## Next planned work
 

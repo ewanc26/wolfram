@@ -587,6 +587,7 @@ wf_status wf_subscribe_start(const wf_subscribe_options *opts,
     }
     handle->cursor = opts->has_cursor ? opts->cursor : 0;
 
+    *out = handle;
     wf_status s = subscribe_loop(handle);
 
     wf_websocket_free(handle->socket);
