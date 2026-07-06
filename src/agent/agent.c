@@ -2,6 +2,7 @@
 
 #include "wolfram/identity.h"
 #include "wolfram/richtext.h"
+#include "wolfram/server.h"
 #include "wolfram/session.h"
 #include "wolfram/syntax.h"
 
@@ -84,6 +85,47 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     free(profile->description);
     free(profile->avatar_cid);
     memset(profile, 0, sizeof(*profile));
+}
+
+static void wf_agent_server_description_reset(wf_agent_server_description *desc) {
+    if (!desc) {
+        return;
+    }
+
+    free(desc->did);
+    for (size_t i = 0; i < desc->available_user_domain_count; ++i) {
+        free(desc->available_user_domains[i]);
+    }
+    free(desc->available_user_domains);
+    free(desc->privacy_policy);
+    free(desc->terms_of_service);
+    free(desc->contact_email);
+    memset(desc, 0, sizeof(*desc));
+    desc->invite_code_required = -1;
+    desc->phone_verification_required = -1;
+}
+
+static void wf_agent_app_password_reset(wf_agent_app_password *pwd) {
+    if (!pwd) {
+        return;
+    }
+
+    free(pwd->name);
+    free(pwd->created_at);
+    memset(pwd, 0, sizeof(*pwd));
+    pwd->privileged = -1;
+}
+
+static void wf_agent_app_password_list_reset(wf_agent_app_password_list *list) {
+    if (!list) {
+        return;
+    }
+
+    for (size_t i = 0; i < list->password_count; ++i) {
+        wf_agent_app_password_reset(&list->passwords[i]);
+    }
+    free(list->passwords);
+    memset(list, 0, sizeof(*list));
 }
 
 static void wf_agent_session_data_reset(wf_session_data *data) {
@@ -1649,4 +1691,198 @@ wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **ou
     cJSON_Delete(root);
     wf_response_free(&res);
     return status;
+}
+
+void wf_agent_server_description_free(wf_agent_server_description *desc) {
+    wf_agent_server_description_reset(desc);
+}
+
+void wf_agent_app_password_free(wf_agent_app_password *pwd) {
+    wf_agent_app_password_reset(pwd);
+}
+
+void wf_agent_app_password_list_free(wf_agent_app_password_list *list) {
+    wf_agent_app_password_list_reset(list);
+}
+
+wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description *out) {
+    if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_server_description_reset(out);
+
+    wf_server_describe sdesc = {0};
+    wf_status status = wf_server_describe(agent->client, &sdesc);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    status = wf_agent_set_string(&out->did, sdesc.did);
+    if (status == WF_OK) {
+        out->invite_code_required = sdesc.invite_code_required;
+        out->phone_verification_required = sdesc.phone_verification_required;
+    }
+    if (status == WF_OK && sdesc.available_user_domains_count > 0) {
+        out->available_user_domains = calloc(sdesc.available_user_domains_count,
+                                             sizeof(char *));
+        if (!out->available_user_domains) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+    if (status == WF_OK) {
+        for (size_t i = 0; i < sdesc.available_user_domains_count; ++i) {
+            out->available_user_domains[i] =
+                wf_agent_strdup(sdesc.available_user_domains[i]);
+            if (!out->available_user_domains[i]) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
+            out->available_user_domain_count++;
+        }
+    }
+    if (status == WF_OK) {
+        status = wf_agent_set_string(&out->privacy_policy, sdesc.links_privacy_policy);
+    }
+    if (status == WF_OK) {
+        status = wf_agent_set_string(&out->terms_of_service, sdesc.links_terms_of_service);
+    }
+    if (status == WF_OK) {
+        status = wf_agent_set_string(&out->contact_email, sdesc.contact_email);
+    }
+
+    if (status != WF_OK) {
+        wf_agent_server_description_reset(out);
+    }
+
+    wf_server_describe_free(&sdesc);
+    return status;
+}
+
+wf_status wf_agent_create_app_password(wf_agent *agent, const char *name, int privileged,
+                                       wf_agent_app_password *out) {
+    if (!agent || !agent->client || !out || !name || name[0] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_app_password_reset(out);
+
+    wf_server_create_app_password_input input = {
+        .name = name,
+        .privileged = privileged,
+    };
+
+    wf_server_app_password spwd = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_server_create_app_password(agent->client, &input, &spwd);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    status = wf_agent_set_string(&out->name, spwd.name);
+    if (status == WF_OK) {
+        status = wf_agent_set_string(&out->created_at, spwd.created_at);
+    }
+    if (status == WF_OK) {
+        out->privileged = spwd.privileged;
+    }
+
+    if (status != WF_OK) {
+        wf_agent_app_password_reset(out);
+    }
+
+    wf_server_app_password_free(&spwd);
+    return status;
+}
+
+wf_status wf_agent_list_app_passwords(wf_agent *agent, wf_agent_app_password_list *out) {
+    if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_app_password_list_reset(out);
+
+    wf_server_app_password_list slist = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_server_list_app_passwords(agent->client, &slist);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    if (slist.password_count > 0) {
+        out->passwords = calloc(slist.password_count, sizeof(wf_agent_app_password));
+        if (!out->passwords) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+    if (status == WF_OK) {
+        for (size_t i = 0; i < slist.password_count; ++i) {
+            wf_server_app_password *src = &slist.passwords[i];
+            wf_agent_app_password *dst = &out->passwords[i];
+
+            status = wf_agent_set_string(&dst->name, src->name);
+            if (status == WF_OK) {
+                status = wf_agent_set_string(&dst->created_at, src->created_at);
+            }
+            if (status == WF_OK) {
+                dst->privileged = src->privileged;
+            }
+            if (status != WF_OK) {
+                break;
+            }
+            out->password_count++;
+        }
+    }
+
+    if (status != WF_OK) {
+        wf_agent_app_password_list_reset(out);
+    }
+
+    wf_server_app_password_list_free(&slist);
+    return status;
+}
+
+wf_status wf_agent_revoke_app_password(wf_agent *agent, const char *name) {
+    if (!agent || !agent->client || !name || name[0] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_server_revoke_app_password_input input = {
+        .name = name,
+    };
+
+    wf_agent_sync_auth(agent);
+    return wf_server_revoke_app_password(agent->client, &input);
+}
+
+wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *password,
+                                  const char *token) {
+    if (!agent || !agent->client || !did || !password || !token) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_server_delete_account_input input = {
+        .did = did,
+        .password = password,
+        .token = token,
+    };
+
+    wf_agent_sync_auth(agent);
+    return wf_server_delete_account(agent->client, &input);
 }

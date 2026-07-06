@@ -107,6 +107,8 @@ add_library(wolfram
     src/sync/sync_verify.c
     # Generated lexicon endpoint wrappers
     src/atproto_lex.c
+    # Server account management
+    src/server/server.c
 )
 
 target_include_directories(wolfram
@@ -180,6 +182,8 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(upload_image examples/upload_image.c)
     target_link_libraries(upload_image PRIVATE wolfram)
     target_include_directories(upload_image PRIVATE ${cjson_SOURCE_DIR})
+    add_executable(describe_server examples/describe_server.c)
+    target_link_libraries(describe_server PRIVATE wolfram)
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -277,6 +281,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_blob PRIVATE wolfram)
     target_include_directories(test_blob PRIVATE test)
     add_test(NAME blob COMMAND test_blob)
+
+    add_executable(test_server test/test_server.c)
+    target_link_libraries(test_server PRIVATE wolfram)
+    target_include_directories(test_server PRIVATE test)
+    add_test(NAME server COMMAND test_server)
 
     add_executable(test_diff test/test_diff.c)
     target_link_libraries(test_diff PRIVATE wolfram)

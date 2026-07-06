@@ -22,6 +22,7 @@ embedded in, or required by applications using `libwolfram`.
 | `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit, diff verify/apply, operation inversion |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 | `wolfram/oauth.h`         | Partial     | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
+| `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
 | `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
 | `wolfram/label.h`         | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download |
@@ -158,8 +159,9 @@ Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto
 ### Next planned work
 
 - Additional sync endpoints — getBlob, getBlocks, getRecord, listBlobs.
-- Server account operations — createAccount, createAppPassword, etc.
+- Server account operations (done). Next: agent-level convenience wrappers for describeServer and app passwords.
 - Lexicon validation — runtime JSON/CBOR validation against Lexicon schema.
+- Document all API functions with examples and usage patterns.
 - High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity.
 - More examples — replies, embeds, image posts using blob upload.
 

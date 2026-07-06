@@ -111,6 +111,43 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
 /* Handle resolution — resolve a handle to a DID via com.atproto.identity.resolveHandle. */
 wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **out_did);
 
+/* Server account management — wraps com.atproto.server endpoints. */
+typedef struct wf_agent_server_description {
+    char *did;
+    char **available_user_domains;
+    size_t available_user_domain_count;
+    int invite_code_required;
+    int phone_verification_required;
+    char *privacy_policy;
+    char *terms_of_service;
+    char *contact_email;
+} wf_agent_server_description;
+
+wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description *out);
+void wf_agent_server_description_free(wf_agent_server_description *desc);
+
+typedef struct wf_agent_app_password {
+    char *name;
+    char *created_at;
+    int privileged;
+} wf_agent_app_password;
+
+wf_status wf_agent_create_app_password(wf_agent *agent, const char *name, int privileged,
+                                       wf_agent_app_password *out);
+void wf_agent_app_password_free(wf_agent_app_password *pwd);
+
+typedef struct wf_agent_app_password_list {
+    wf_agent_app_password *passwords;
+    size_t password_count;
+} wf_agent_app_password_list;
+
+wf_status wf_agent_list_app_passwords(wf_agent *agent, wf_agent_app_password_list *out);
+void wf_agent_app_password_list_free(wf_agent_app_password_list *list);
+
+wf_status wf_agent_revoke_app_password(wf_agent *agent, const char *name);
+wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *password,
+                                  const char *token);
+
 #ifdef __cplusplus
 }
 #endif

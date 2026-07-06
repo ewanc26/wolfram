@@ -31,6 +31,7 @@ Agentic principles and technical context for the `wolfram` repository.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing. Tested.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding. Tested.
 - `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, authorization-begin orchestration through PAR, callback-to-session completion, and authenticating XRPC wrapper (`wf_auth_client`) with DPoP binding, session-refresh, and DPoP nonce retry. Tested.
+- `server`: Server account management — `com.atproto.server` describe, createAccount, app passwords, and account lifecycle. Tested.
 - `syntax`: AT Protocol syntax validation — DID, handle, at-identifier, NSID, record key, TID, AT URI, RFC 3339 datetime, and BCP 47 language tag validators. Tests cover all interop-test-file patterns from the atproto reference. Tested.
 - `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile. Tested.
 - `richtext`: UTF-8 grapheme length, facet detection (mentions, links, tags, cashtags), segment iteration, text insert/delete with facet index adjustment, domain/TLD validation. Tested.
@@ -46,5 +47,6 @@ Agentic principles and technical context for the `wolfram` repository.
 - Label subscription (`com.atproto.label.subscribeLabels`) — WebSocket label stream.
 - Additional sync endpoints — getBlob, getBlocks, getRecord, listBlobs.
 - Server account operations — createAccount, createAppPassword, etc.
+- Agent-level convenience wrappers for server operations (describeServer, createAppPassword, listAppPasswords, revokeAppPassword, deleteAccount).
 - Lexicon validation — runtime JSON/CBOR validation against Lexicon schema.
 - High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity.
