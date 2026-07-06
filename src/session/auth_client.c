@@ -10,6 +10,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+#include <curl/curl.h>
 
 struct wf_auth_client {
     wf_xrpc_client *client;
@@ -58,6 +59,82 @@ wf_status wf_auth_client_query(wf_auth_client *auth_client,
     if (status != WF_OK) return status;
 
     return wf_auth_client_request_internal(auth_client, nsid, query_string, NULL, 0, out);
+}
+
+wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
+                                      const char *nsid,
+                                      const wf_xrpc_param *params,
+                                      size_t param_count,
+                                      wf_response *out) {
+    if (!auth_client || !nsid || !out || (param_count > 0 && !params)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (param_count == 0) {
+        return wf_auth_client_query(auth_client, nsid, NULL, out);
+    }
+    CURL *curl = curl_easy_init();
+    if (!curl) return WF_ERR_ALLOC;
+
+    char **names = calloc(param_count, sizeof(*names));
+    char **values = calloc(param_count, sizeof(*values));
+    if (!names || !values) {
+        free(names); free(values);
+        curl_easy_cleanup(curl);
+        return WF_ERR_ALLOC;
+    }
+    size_t query_len = 1;
+    wf_status status = WF_OK;
+    for (size_t i = 0; i < param_count; i++) {
+        if (!params[i].name || !params[i].value) {
+            status = WF_ERR_INVALID_ARG;
+            break;
+        }
+        names[i] = curl_easy_escape(curl, params[i].name, 0);
+        values[i] = curl_easy_escape(curl, params[i].value, 0);
+        if (!names[i] || !values[i]) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
+        query_len += strlen(names[i]) + 1 + strlen(values[i]);
+        if (i > 0) query_len++;
+    }
+    if (status != WF_OK) {
+        for (size_t i = 0; i < param_count; i++) {
+            curl_free(names[i]); curl_free(values[i]);
+        }
+        free(names); free(values);
+        curl_easy_cleanup(curl);
+        return status;
+    }
+    char *query = malloc(query_len);
+    if (!query) {
+        for (size_t i = 0; i < param_count; i++) {
+            curl_free(names[i]); curl_free(values[i]);
+        }
+        free(names); free(values);
+        curl_easy_cleanup(curl);
+        return WF_ERR_ALLOC;
+    }
+    query[0] = '?';
+    size_t pos = 1;
+    for (size_t i = 0; i < param_count; i++) {
+        if (i > 0) query[pos++] = '&';
+        memcpy(query + pos, names[i], strlen(names[i]));
+        pos += strlen(names[i]);
+        query[pos++] = '=';
+        memcpy(query + pos, values[i], strlen(values[i]));
+        pos += strlen(values[i]);
+    }
+    query[pos] = '\0';
+    for (size_t i = 0; i < param_count; i++) {
+        curl_free(names[i]); curl_free(values[i]);
+    }
+    free(names); free(values);
+    curl_easy_cleanup(curl);
+
+    status = wf_auth_client_query(auth_client, nsid, query, out);
+    free(query);
+    return status;
 }
 
 wf_status wf_auth_client_procedure(wf_auth_client *auth_client,

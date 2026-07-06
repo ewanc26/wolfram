@@ -90,6 +90,10 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
                             const char *json, wf_response *out) {
     (void)client; (void)nsid; (void)json; (void)out; return WF_OK;
 }
+wf_status wf_auth_client_procedure(wf_auth_client *client, const char *nsid,
+                                    const char *json, wf_response *out) {
+    (void)client; (void)nsid; (void)json; (void)out; return WF_OK;
+}
 int main(void) {
     wf_lex_com_example_inline_main_input_entries_item entries[] = {{2}, {3}};
     wf_lex_com_example_inline_main_input input = {0};
@@ -140,6 +144,10 @@ int main(void) {
 
 wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
                             const char *json, wf_response *out) {
+    (void)client; (void)nsid; (void)json; (void)out; return WF_OK;
+}
+wf_status wf_auth_client_procedure(wf_auth_client *client, const char *nsid,
+                                    const char *json, wf_response *out) {
     (void)client; (void)nsid; (void)json; (void)out; return WF_OK;
 }
 
@@ -251,6 +259,11 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
     }
     return WF_OK;
 }
+wf_status wf_auth_client_query_params(wf_auth_client *client, const char *nsid,
+                                       const wf_xrpc_param *params, size_t count,
+                                       wf_response *out) {
+    (void)client; (void)nsid; (void)params; (void)count; (void)out; return WF_OK;
+}
 
 int main(void) {
     const char *dids[] = {"did:plc:a", "did:plc:b"};
@@ -312,6 +325,10 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
     assert(strcmp(nsid, "com.example.echo") == 0);
     assert(strcmp(json, "{\"message\":\"hello\",\"attempts\":2,\"enabled\":true,\"tags\":[\"a\",\"b\"]}") == 0);
     called = 1; out->status = 200; out->body = NULL; out->body_len = 0; return WF_OK;
+}
+wf_status wf_auth_client_procedure(wf_auth_client *client, const char *nsid,
+                                    const char *json, wf_response *out) {
+    (void)client; (void)nsid; (void)json; (void)out; return WF_OK;
 }
 int main(void) {
     const char *tags[] = {"a", "b"};

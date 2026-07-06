@@ -40,7 +40,7 @@ wf_auth_client *wf_auth_client_new(wf_xrpc_client *client,
 void wf_auth_client_free(wf_auth_client *auth_client);
 
 /**
- * Issue an authenticated XRPC query (GET).
+ * Issue an authenticated XRPC query (GET) with a pre-encoded query string.
  *
  * Automatically handles DPoP proof generation, DPoP nonce rotation,
  * and session refresh if the token has expired.
@@ -51,6 +51,18 @@ wf_status wf_auth_client_query(wf_auth_client *auth_client,
                                const char *nsid,
                                const char *query_string,
                                wf_response *out);
+
+/**
+ * Issue an authenticated XRPC query (GET) with structured parameters.
+ *
+ * Wraps `wf_auth_client_query` with the same parameter encoding used by
+ * `wf_xrpc_query_params`. Designed for generated lexicon wrappers.
+ */
+wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
+                                      const char *nsid,
+                                      const wf_xrpc_param *params,
+                                      size_t param_count,
+                                      wf_response *out);
 
 /**
  * Issue an authenticated XRPC procedure (POST).

@@ -92,6 +92,8 @@ add_library(wolfram
     src/jetstream/jetstream.c
     # Syntax validation
     src/syntax/syntax.c
+    # Generated lexicon endpoint wrappers
+    src/atproto_lex.c
 )
 
 target_include_directories(wolfram
