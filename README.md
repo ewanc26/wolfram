@@ -111,6 +111,36 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 
 Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto.repo.createRecord` request, and creates a post via the AT Protocol.
 
+```sh
+./build/upload_image https://bsky.social you@example.com yourpassword ./cat.jpg "a cat"
+```
+
+Uploads an image blob via `com.atproto.repo.uploadBlob`, then creates a post embedding it.
+
+```sh
+./build/get_record https://bsky.social did:plc:example app.bsky.feed.post 3jui7kd54zh2y
+```
+
+Downloads a single record (and its supporting blocks) with `com.atproto.sync.getRecord` and prints the CAR roots and block CIDs.
+
+```sh
+./build/subscribe_labels https://mod.bsky.app
+```
+
+Subscribes to a labeler's `com.atproto.label.subscribeLabels` stream, printing each label as it arrives (pass a cursor as a second argument to resume).
+
+```sh
+./build/create_account https://bsky.social alice.bsky.social alice@example.com hunter2
+```
+
+Creates a new account via `com.atproto.server.createAccount`.
+
+```sh
+./build/create_app_password https://bsky.social alice@example.com hunter2 "my-app"
+```
+
+Logs in and issues a scoped app password via `com.atproto.server.createAppPassword`.
+
 ### Roadmap
 
 1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
