@@ -22,20 +22,26 @@ Agentic principles and technical context for the `wolfram` repository.
 
 ## Current state
 
-- `xrpc`: libcurl query/procedure calls, encoded scalar/repeated parameters, generic HTTP GET, bearer authentication, and binary response bodies.
-- `session`: PDS login, resume, refresh, get, and logout with explicit owned credential state.
-- `identity`: did:plc and did:web resolution. Handle DNS TXT resolution uses c-ares when available, POSIX `libresolv` otherwise, then HTTPS well-known fallback. Multi-record/chunk ambiguity rules follow the handle specification.
-- `crypto`: secp256k1 via libsecp256k1 and P-256 via OpenSSL. `did:key`/multikey verification handles the protocol multicodec encodings.
-- `repo`: libcbor-backed canonical DAG-CBOR, CIDs, CAR parse/write, deterministic MST add/delete/merge, signed v3 commits, record create/get/update/delete, and full CAR ownership/signature/content verification/import.
-- `record`: schema-driven JSON-to-DAG-CBOR structured record encoding.
-- `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing.
-- `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding.
-- `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, authorization-begin orchestration through PAR, callback-to-session completion, and authenticating XRPC wrapper (`wf_auth_client`) with DPoP binding, session-refresh, and DPoP nonce retry.
-- `syntax`: AT Protocol syntax validation — DID, handle, at-identifier, NSID, record key, TID, AT URI, RFC 3339 datetime, and BCP 47 language tag validators. Tests cover all interop-test-file patterns from the atproto reference.
-- `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile.
-- `richtext`: UTF-8 grapheme length, facet detection (mentions, links, tags, cashtags), segment iteration, text insert/delete with facet index adjustment, domain/TLD validation.
+- `xrpc`: libcurl query/procedure calls, encoded scalar/repeated parameters, generic HTTP GET, bearer authentication, and binary response bodies. Tested.
+- `session`: PDS login, resume, refresh, get, and logout with explicit owned credential state. Tested.
+- `identity`: did:plc and did:web resolution. Handle DNS TXT resolution uses c-ares when available, POSIX `libresolv` otherwise, then HTTPS well-known fallback. Multi-record/chunk ambiguity rules follow the handle specification. Tested.
+- `crypto`: secp256k1 via libsecp256k1 and P-256 via OpenSSL. `did:key`/multikey verification handles the protocol multicodec encodings. Tested.
+- `repo`: libcbor-backed canonical DAG-CBOR, CIDs, CAR parse/write, deterministic MST add/delete/merge, signed v3 commits, record create/get/update/delete, and full CAR ownership/signature/content verification/import. Tested.
+- `record`: schema-driven JSON-to-DAG-CBOR structured record encoding. Tested.
+- `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing. Tested.
+- `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding. Tested.
+- `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, authorization-begin orchestration through PAR, callback-to-session completion, and authenticating XRPC wrapper (`wf_auth_client`) with DPoP binding, session-refresh, and DPoP nonce retry. Tested.
+- `syntax`: AT Protocol syntax validation — DID, handle, at-identifier, NSID, record key, TID, AT URI, RFC 3339 datetime, and BCP 47 language tag validators. Tests cover all interop-test-file patterns from the atproto reference. Tested.
+- `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile. Tested.
+- `richtext`: UTF-8 grapheme length, facet detection (mentions, links, tags, cashtags), segment iteration, text insert/delete with facet index adjustment, domain/TLD validation. Tested.
 - `sync_subscribe`: WebSocket firehose subscription to `com.atproto.sync.subscribeRepos`, CBOR frame parsing (commit/sync/identity/account/info events), cursor tracking, exponential-backoff reconnection.
-- `sync_verify`: Firehose commit verification — parses the CAR from a commit event, resolves the repo DID to obtain the signing key, and verifies the commit signature, block integrity, and MST structure.
+- `sync_verify`: Firehose commit verification — parses the CAR from a commit event, resolves the repo DID to obtain the signing key, and verifies the commit signature, block integrity, and MST structure. Tested.
+
+## Next planned work
+
+- Higher-level endpoint examples using generated clients.
+- Repository sync toward verified incremental diff application and operation inversion.
+- Firehose `test_sync_subscribe` integration test.
 
 ## Next planned work
 
