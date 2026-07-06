@@ -115,7 +115,24 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client,
 void wf_response_free(wf_response *res);
 
 /**
- * Perform a generic HTTP GET to an arbitrary URL (not an XRPC endpoint).
+ * Perform a generic HTTP GET with extra headers.
+ *
+ * Uses the client's transport and auth settings. `url` must be a complete
+ * absolute URL.
+ *
+ * On WF_OK, `out` is populated and must be released with `wf_response_free`.
+ */
+wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
+                                  const wf_http_header *extra, size_t extra_count,
+                                  wf_response *out);
+
+/**
+ * Returns a copy of the client's base URL.
+ * The caller owns the returned string and must free it.
+ */
+char *wf_xrpc_get_base_url(wf_xrpc_client *client);
+
+/** Perform a generic HTTP GET to an arbitrary URL (not an XRPC endpoint).
  *
  * Uses the client's transport and auth settings. `url` must be a complete
  * absolute URL. On WF_OK, `out` is populated and must be released with

@@ -381,46 +381,78 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
     return status;
 }
 
-wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out) {
-    if (!client || !url || !out) {
+/**
+ * Returns a copy of the client's base URL.
+ * The caller owns the returned string and must free it.
+ */
+char *wf_xrpc_get_base_url(wf_xrpc_client *client) {
+    if (!client || !client->base_url) return NULL;
+    return strdup(client->base_url);
+}
+
+/**
+ * Perform a generic HTTP GET with extra headers.
+ *
+ * Uses the client's transport and auth settings. `url` must be a complete
+ * absolute URL.
+ *
+ * On WF_OK, `out` is populated and must be released with `wf_response_free`.
+ */
+wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
+                                  const wf_http_header *extra, size_t extra_count,
+                                  wf_response *out) {
+    CURL *curl;
+    struct wf_buffer buf = {0};
+    struct wf_header_capture capture = {0};
+    struct curl_slist *headers = NULL;
+    wf_status status = WF_OK;
+    size_t i;
+
+    if (!client || !url || !out || (extra_count && !extra)) {
         return WF_ERR_INVALID_ARG;
     }
-
-    CURL *curl = curl_easy_init();
-    if (!curl) {
-        return WF_ERR_ALLOC;
-    }
-
-    struct wf_buffer buf = {0};
-    struct curl_slist *headers = NULL;
+    memset(out, 0, sizeof(*out));
+    curl = curl_easy_init();
+    if (!curl) return WF_ERR_ALLOC;
 
     if (client->auth_header) {
         headers = curl_slist_append(headers, client->auth_header);
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
-    if (headers) {
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    for (i = 0; status == WF_OK && i < extra_count; i++) {
+        size_t n;
+        char *line;
+        struct curl_slist *grown;
+        if (!extra[i].name || !extra[i].value) { status = WF_ERR_INVALID_ARG; break; }
+        n = strlen(extra[i].name) + strlen(extra[i].value) + 3;
+        line = malloc(n);
+        if (!line) { status = WF_ERR_ALLOC; break; }
+        snprintf(line, n, "%s: %s", extra[i].name, extra[i].value);
+        grown = curl_slist_append(headers, line);
+        free(line);
+        if (!grown) { status = WF_ERR_ALLOC; break; }
+        headers = grown;
     }
 
-    CURLcode res = curl_easy_perform(curl);
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
 
-    wf_status status = WF_OK;
-    if (res != CURLE_OK) {
-        status = WF_ERR_NETWORK;
-    } else {
+    if (curl_easy_perform(curl) != CURLE_OK) status = WF_ERR_NETWORK;
+
+    if (status == WF_OK) {
         long http_status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);
         out->status = http_status;
         out->body = buf.data;
         out->body_len = buf.len;
+        out->dpop_nonce = capture.dpop_nonce;
 
-        if (http_status < 200 || http_status >= 300) {
-            status = WF_ERR_HTTP;
-        }
+        if (http_status < 200 || http_status >= 300) status = WF_ERR_HTTP;
     }
 
     if (status != WF_OK && buf.data) {
@@ -429,6 +461,16 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out)
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
-
     return status;
+}
+
+/**
+ * Perform a generic HTTP GET to an arbitrary URL (not an XRPC endpoint).
+ *
+ * Uses the client's transport and auth settings. `url` must be a complete
+ * absolute URL. On WF_OK, `out` is populated and must be released with
+ * wf_response_free.
+ */
+wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out) {
+    return wf_http_get_with_headers(client, url, NULL, 0, out);
 }

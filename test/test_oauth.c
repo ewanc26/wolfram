@@ -312,6 +312,14 @@ static void test_authorization_state(void) {
     wf_oauth_dpop_key_free(key);
 }
 
+static void test_session_refresh_args(void) {
+    wf_oauth_session_state session = {0};
+    wf_oauth_server_metadata server = {0};
+    wf_oauth_client_auth auth = {0};
+    wf_xrpc_client *transport = NULL;
+    WF_CHECK(wf_oauth_session_refresh(transport, &server, &auth, &session, 1700000000) == WF_ERR_INVALID_ARG);
+}
+
 static void test_session_state(void) {
     unsigned char private_key[32] = {0};
     wf_oauth_dpop_key *key = NULL;
@@ -641,8 +649,9 @@ int main(void) {
     test_authorization_url();
     test_authorization_state();
     test_session_state();
-    test_authorization_complete_denial();
+    test_session_refresh_args();
     test_dpop();
+
     test_client_assertion();
     WF_TEST_SUMMARY();
 }

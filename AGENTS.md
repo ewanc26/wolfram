@@ -30,11 +30,11 @@ Agentic principles and technical context for the `wolfram` repository.
 - `record`: schema-driven JSON-to-DAG-CBOR structured record encoding.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding.
-- `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, and authorization-begin orchestration through PAR. Callback-to-session completion and managed refresh orchestration are not yet implemented.
+- `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, authorization-begin orchestration through PAR, callback-to-session completion, and authenticating XRPC wrapper (`wf_auth_client`) with DPoP binding, session-refresh, and DPoP nonce retry.
 - `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile.
 
 ## Next planned work
 
 - Add higher-level typed endpoint coverage and examples using generated clients.
 - Continue repository sync toward verified incremental diff application and operation inversion.
-- Complete higher-level OAuth authorization/session orchestration without moving HTTP I/O out of `xrpc.c`.
+- Wire up OAuth session persistence in examples.

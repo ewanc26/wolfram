@@ -120,17 +120,14 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 14. ✅ Union/jetstream — libcurl WebSocket transport, filtered Jetstream URL
     construction, runtime subscriber options, JSON event envelopes,
     cursor-based reconnect/backoff, and dictionary-based zstd messages.
-15. 🟡 OAuth — protected-resource, authorization-server, and discoverable
+15. ✅ OAuth — protected-resource, authorization-server, and discoverable
     client metadata validation/discovery, PKCE S256, persistent ES256 DPoP
     keys, JWK thumbprints/proofs, public-client PAR and authorization-code token
-    exchange with mandatory nonce retry, and state/issuer-bound callback
-    validation, subject-bound token refresh, and expiring persistent
-    authorization state and durable token sessions with private DPoP JWK
-    validation are implemented. ES256 `private_key_jwt` authentication is
-    supported across PAR and token calls, and authorization-begin orchestration
-    produces persisted state plus the browser redirect URL. Callback-to-session
-    completion and managed session refresh orchestration remain.
-
+    exchange with mandatory nonce retry, state/issuer-bound callback
+    validation, subject-bound token refresh, expiring persistent authorization
+    state and durable token sessions with private DPoP JWK validation,
+    ES256 `private_key_jwt` authentication, authorization-begin orchestration,
+    callback-to-session completion, and managed session refresh orchestration.
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).

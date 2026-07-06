@@ -57,16 +57,39 @@ FetchContent_MakeAvailable(libcbor)
 set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(wolfram
-    src/xrpc.c
-    src/identity.c
-    src/crypto.c
-    src/repo.c
-    src/record.c
-    src/session.c
-    src/websocket.c
-    src/jetstream.c
-    src/sync.c
-    src/oauth.c
+    # Transport
+    src/transport/xrpc.c
+    src/transport/websocket.c
+    # Identity
+    src/identity/identity.c
+    # Crypto
+    src/crypto/crypto.c
+    # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
+    src/repo/cbor.c
+    src/repo/cid.c
+    src/repo/car.c
+    src/repo/commit.c
+    src/repo/mst.c
+    src/repo/diff.c
+    src/repo/record.c
+    src/repo/repo.c
+    src/repo/sync.c
+    src/repo/cbor_build.c
+    src/repo/cbor_map_find.c
+    # Session
+    src/session/session.c
+    src/session/auth_client.c
+    # OAuth (metadata, PKCE, DPoP, PAR, state, callback, flow)
+    src/session/oauth/util.c
+    src/session/oauth/meta.c
+    src/session/oauth/pkce.c
+    src/session/oauth/dpop.c
+    src/session/oauth/par.c
+    src/session/oauth/state.c
+    src/session/oauth/callback.c
+    src/session/oauth/flow.c
+    # Jetstream
+    src/jetstream/jetstream.c
 )
 
 target_include_directories(wolfram
@@ -74,6 +97,7 @@ target_include_directories(wolfram
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${cjson_SOURCE_DIR}
         ${cjson_BINARY_DIR}
         ${SECP256K1_INCLUDE_DIRS}
