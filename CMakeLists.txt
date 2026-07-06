@@ -97,6 +97,8 @@ add_library(wolfram
     src/richtext/detection.c
     # Firehose subscribeRepos subscription
     src/sync/sync_subscribe.c
+    # Firehose commit verification
+    src/sync/sync_verify.c
     # Generated lexicon endpoint wrappers
     src/atproto_lex.c
 )

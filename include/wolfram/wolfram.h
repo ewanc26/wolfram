@@ -22,5 +22,6 @@
 #include "wolfram/oauth.h"
 #include "wolfram/richtext.h"
 #include "wolfram/sync_subscribe.h"
+#include "wolfram/sync_verify.h"
 
 #endif /* WOLFRAM_H */

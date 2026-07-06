@@ -35,9 +35,9 @@ Agentic principles and technical context for the `wolfram` repository.
 - `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile.
 - `richtext`: UTF-8 grapheme length, facet detection (mentions, links, tags, cashtags), segment iteration, text insert/delete with facet index adjustment, domain/TLD validation.
 - `sync_subscribe`: WebSocket firehose subscription to `com.atproto.sync.subscribeRepos`, CBOR frame parsing (commit/sync/identity/account/info events), cursor tracking, exponential-backoff reconnection.
+- `sync_verify`: Firehose commit verification — parses the CAR from a commit event, resolves the repo DID to obtain the signing key, and verifies the commit signature, block integrity, and MST structure.
 
 ## Next planned work
 
 - Higher-level endpoint examples using generated clients.
 - Repository sync toward verified incremental diff application and operation inversion.
-- Firehose commit verification (verify CAR blocks, check commit signature against DID document) as a callback hook.
