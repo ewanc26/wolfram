@@ -16,13 +16,18 @@ embedded in, or required by applications using `libwolfram`.
 
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
-| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls            |
+| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload |
 | `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
-| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit, diff verify/apply, operation inversion |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 | `wolfram/oauth.h`         | Partial     | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
+| `wolfram/label.h`         | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
+| `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download |
+| `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
+| `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
+| `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (13K header, 74K source) |
 | `tools/wf_lexgen.py`      | Initial     | Lexicon JSON to typed C data-model declarations |
 
 ## Requirements
@@ -97,6 +102,12 @@ A `flake.nix` devShell is also included for machines that do use Nix, but it isn
 
 Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no parsing yet, just proof that the transport works.
 
+```sh
+./build/create_post https://bsky.social you@example.com yourpassword "Hello from wolfram!"
+```
+
+Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto.repo.createRecord` request, and creates a post via the AT Protocol.
+
 ### Roadmap
 
 1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
@@ -130,6 +141,27 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     callback-to-session completion, and managed session refresh orchestration.
 16. ✅ Syntax validation — DID, handle, at-identifier, NSID, record key, TID,
     AT URI, RFC 3339 datetime, and BCP 47 language tag validators.
+17. ✅ Rich text — grapheme-aware byte indexing, facet detection (mentions, links,
+    tags), and segment iteration.
+18. ✅ Firehose subscription — `com.atproto.sync.subscribeRepos` WebSocket stream
+    with CBOR frame parsing, cursor-based reconnect, and backoff.
+19. ✅ Firehose verification — commit signature verification, key resolution,
+    CAR parsing, and MST/root validation from the subscribeRepos stream.
+20. ✅ Blob upload — binary POST to `xrpc/{nsid}` with custom Content-Type,
+    authenticated via session or DPoP (`wf_xrpc_upload_blob`,
+    `wf_auth_client_upload_blob`).
+21. ✅ Label subscription — `com.atproto.label.subscribeLabels` WebSocket stream
+    with JSON frame parsing, cursor reconnect, and backoff.
+22. ✅ Repo diff tests — comprehensive tests for `wf_repo_diff_apply` and
+    `wf_repo_operations_invert` including round-trip verification.
+
+### Next planned work
+
+- Additional sync endpoints — getBlob, getBlocks, getRecord, listBlobs.
+- Server account operations — createAccount, createAppPassword, etc.
+- Lexicon validation — runtime JSON/CBOR validation against Lexicon schema.
+- High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity.
+- More examples — replies, embeds, image posts using blob upload.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.

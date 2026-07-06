@@ -90,8 +90,14 @@ add_library(wolfram
     src/session/oauth/flow.c
     # Jetstream
     src/jetstream/jetstream.c
+    # Label subscriptions
+    src/label/label.c
     # Syntax validation
     src/syntax/syntax.c
+    # Lexicon validation
+    src/validate/validate.c
+    # High-level agent API
+    src/agent/agent.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -166,6 +172,14 @@ if(WOLFRAM_BUILD_EXAMPLES)
     target_link_libraries(describe_repo PRIVATE wolfram)
     add_executable(oauth_session examples/oauth_session.c)
     target_link_libraries(oauth_session PRIVATE wolfram)
+    add_executable(create_post examples/create_post.c)
+    target_link_libraries(create_post PRIVATE wolfram)
+    target_include_directories(create_post PRIVATE ${cjson_SOURCE_DIR})
+    add_executable(sync_head examples/sync_head.c)
+    target_link_libraries(sync_head PRIVATE wolfram)
+    add_executable(upload_image examples/upload_image.c)
+    target_link_libraries(upload_image PRIVATE wolfram)
+    target_include_directories(upload_image PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -227,6 +241,12 @@ if(WOLFRAM_BUILD_TESTS)
     endif()
     add_test(NAME jetstream COMMAND test_jetstream)
 
+    add_executable(test_label_subscribe test/test_label_subscribe.c)
+    target_link_libraries(test_label_subscribe PRIVATE wolfram)
+    target_include_directories(test_label_subscribe PRIVATE test)
+    add_test(NAME label_subscribe COMMAND test_label_subscribe)
+    set_tests_properties(label_subscribe PROPERTIES TIMEOUT 30)
+
     add_executable(test_oauth test/test_oauth.c)
     target_link_libraries(test_oauth PRIVATE wolfram)
     target_include_directories(test_oauth PRIVATE test ${cjson_SOURCE_DIR})
@@ -252,4 +272,14 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_sync_subscribe PRIVATE test)
     add_test(NAME sync_subscribe COMMAND test_sync_subscribe)
     set_tests_properties(sync_subscribe PROPERTIES TIMEOUT 30)
+
+    add_executable(test_blob test/test_blob.c)
+    target_link_libraries(test_blob PRIVATE wolfram)
+    target_include_directories(test_blob PRIVATE test)
+    add_test(NAME blob COMMAND test_blob)
+
+    add_executable(test_diff test/test_diff.c)
+    target_link_libraries(test_diff PRIVATE wolfram)
+    target_include_directories(test_diff PRIVATE test)
+    add_test(NAME diff COMMAND test_diff)
 endif()

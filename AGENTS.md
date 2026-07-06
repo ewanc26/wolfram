@@ -42,3 +42,9 @@ Agentic principles and technical context for the `wolfram` repository.
 
 - Higher-level endpoint examples using generated clients.
 - Repository sync toward verified incremental diff application and operation inversion.
+- Blob upload support (`com.atproto.repo.uploadBlob`) — binary POST in XRPC transport.
+- Label subscription (`com.atproto.label.subscribeLabels`) — WebSocket label stream.
+- Additional sync endpoints — getBlob, getBlocks, getRecord, listBlobs.
+- Server account operations — createAccount, createAppPassword, etc.
+- Lexicon validation — runtime JSON/CBOR validation against Lexicon schema.
+- High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity.

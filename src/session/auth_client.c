@@ -149,6 +149,76 @@ wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
     return wf_auth_client_request_internal(auth_client, nsid, NULL, json_body, 1, out);
 }
 
+wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
+                                     const char *nsid,
+                                     const void *data,
+                                     size_t data_len,
+                                     const char *content_type,
+                                     wf_response *out) {
+    char *base_url = NULL;
+    char *full_url = NULL;
+    char *dpop_nonce = NULL;
+    wf_oauth_dpop_proof_options proof_opts = {0};
+    char *proof_jwt = NULL;
+    wf_status status;
+    wf_xrpc_client *client;
+    wf_oauth_dpop_key *dpop_key;
+
+    if (!auth_client || !nsid || !data || data_len == 0 || !content_type || !*content_type || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    status = wf_auth_client_ensure_session(auth_client, time(NULL));
+    if (status != WF_OK) return status;
+
+    client = auth_client->client;
+    dpop_key = auth_client->session->dpop_key;
+    if (!dpop_key) return WF_ERR_INVALID_ARG;
+
+    base_url = wf_xrpc_get_base_url(client);
+    if (!base_url) return WF_ERR_ALLOC;
+
+    size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
+    full_url = malloc(url_cap);
+    if (!full_url) {
+        free(base_url);
+        return WF_ERR_ALLOC;
+    }
+    snprintf(full_url, url_cap, "%s/xrpc/%s", base_url, nsid);
+
+    for (int attempt = 0; attempt < 2; attempt++) {
+        proof_opts.http_method = "POST";
+        proof_opts.http_uri = full_url;
+        if (dpop_nonce) {
+            proof_opts.nonce = dpop_nonce;
+        }
+
+        status = wf_oauth_dpop_proof_create(dpop_key, &proof_opts, &proof_jwt);
+        if (status != WF_OK) {
+            break;
+        }
+
+        status = wf_xrpc_upload_blob(client, nsid, data, data_len, content_type, out);
+        free(proof_jwt);
+        proof_jwt = NULL;
+
+        if (status == WF_OK) {
+            break;
+        } else if (status == WF_ERR_HTTP && out->status == 401 && out->dpop_nonce) {
+            dpop_nonce = out->dpop_nonce;
+            out->dpop_nonce = NULL;
+            wf_response_free(out);
+        } else {
+            break;
+        }
+    }
+
+    free(dpop_nonce);
+    free(full_url);
+    free(base_url);
+    return status;
+}
+
 static wf_status wf_auth_client_ensure_session(wf_auth_client *auth_client,
                                                 int64_t now) {
     if (auth_client->session->expires_at <= 0 || now < auth_client->session->expires_at) {
@@ -174,6 +244,7 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
     char *base_url = NULL;
     char *full_url = NULL;
     char *dpop_nonce = NULL;
+    char *authorization = NULL;
     wf_oauth_dpop_proof_options proof_opts = {0};
     char *proof_jwt = NULL;
     wf_oauth_dpop_key *dpop_key = auth_client->session->dpop_key;
@@ -197,6 +268,19 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
         snprintf(full_url, url_cap, "%s/xrpc/%s", base_url, nsid);
     }
 
+    if (auth_client->session->access_token) {
+        size_t auth_len = strlen("Authorization: Bearer ") +
+                          strlen(auth_client->session->access_token) + 1;
+        authorization = malloc(auth_len);
+        if (!authorization) {
+            free(full_url);
+            free(base_url);
+            return WF_ERR_ALLOC;
+        }
+        snprintf(authorization, auth_len, "Authorization: Bearer %s",
+                 auth_client->session->access_token);
+    }
+
     for (int attempt = 0; attempt < 2; attempt++) {
         proof_opts.http_method = is_procedure ? "POST" : "GET";
         proof_opts.http_uri = full_url;
@@ -210,14 +294,17 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
             break;
         }
 
-        wf_http_header headers[1];
-        headers[0].name = "DPoP";
-        headers[0].value = proof_jwt;
+        wf_http_header headers[2];
+        size_t header_count = 0;
+        if (authorization) {
+            headers[header_count++] = (wf_http_header){"Authorization", authorization};
+        }
+        headers[header_count++] = (wf_http_header){"DPoP", proof_jwt};
 
         if (is_procedure) {
-            status = wf_http_post(auth_client->client, full_url, "application/json", json_body, headers, 1, out);
+            status = wf_http_post(auth_client->client, full_url, "application/json", json_body, headers, header_count, out);
         } else {
-            status = wf_http_get_with_headers(auth_client->client, full_url, headers, 1, out);
+            status = wf_http_get_with_headers(auth_client->client, full_url, headers, header_count, out);
         }
 
         free(proof_jwt);
@@ -227,14 +314,15 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
             break;
         } else if (status == WF_ERR_HTTP && out->status == 401 && out->dpop_nonce) {
             dpop_nonce = out->dpop_nonce;
-            out->dpop_nonce = NULL; 
-            wf_response_free(out); 
+            out->dpop_nonce = NULL;
+            wf_response_free(out);
         } else {
             break;
         }
     }
 
     if (dpop_nonce) free(dpop_nonce);
+    free(authorization);
     free(full_url);
     free(base_url);
 

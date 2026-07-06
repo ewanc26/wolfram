@@ -104,12 +104,26 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client,
  * Issue an `xrpc/{nsid}` POST (procedure).
  *
  * `json_body` is a raw, already-serialised JSON payload, or NULL for
- * an empty body. Sets Content-Type: application/json when non-NULL.
+ * an empty body. Sets Content-Type: application/json.
  */
 wf_status wf_xrpc_procedure(wf_xrpc_client *client,
                              const char *nsid,
                              const char *json_body,
                              wf_response *out);
+
+/**
+ * Issue an `xrpc/{nsid}` POST with a binary body.
+ *
+ * `data` must point to `data_len` bytes and `content_type` is used as the
+ * request Content-Type (for example, "image/jpeg"). The response body is
+ * JSON and returned in `out->body`.
+ */
+wf_status wf_xrpc_upload_blob(wf_xrpc_client *client,
+                              const char *nsid,
+                              const void *data,
+                              size_t data_len,
+                              const char *content_type,
+                              wf_response *out);
 
 /** Release a response's owned buffer. Safe to call on a zeroed struct. */
 void wf_response_free(wf_response *res);

@@ -77,6 +77,19 @@ wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
                                    const char *json_body,
                                    wf_response *out);
 
+/**
+ * Upload an authenticated blob to `xrpc/{nsid}`.
+ *
+ * Automatically handles DPoP proof generation, DPoP nonce rotation,
+ * and session refresh if the token has expired.
+ */
+wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
+                                     const char *nsid,
+                                     const void *data,
+                                     size_t data_len,
+                                     const char *content_type,
+                                     wf_response *out);
+
 #ifdef __cplusplus
 }
 #endif
