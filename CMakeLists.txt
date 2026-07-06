@@ -90,6 +90,8 @@ add_library(wolfram
     src/session/oauth/flow.c
     # Jetstream
     src/jetstream/jetstream.c
+    # Syntax validation
+    src/syntax/syntax.c
 )
 
 target_include_directories(wolfram
@@ -218,4 +220,9 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_oauth PRIVATE wolfram)
     target_include_directories(test_oauth PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME oauth COMMAND test_oauth)
+
+    add_executable(test_syntax test/test_syntax.c)
+    target_link_libraries(test_syntax PRIVATE wolfram)
+    target_include_directories(test_syntax PRIVATE test)
+    add_test(NAME syntax COMMAND test_syntax)
 endif()

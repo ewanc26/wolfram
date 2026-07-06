@@ -31,6 +31,7 @@ Agentic principles and technical context for the `wolfram` repository.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding.
 - `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, authorization-begin orchestration through PAR, callback-to-session completion, and authenticating XRPC wrapper (`wf_auth_client`) with DPoP binding, session-refresh, and DPoP nonce retry.
+- `syntax`: AT Protocol syntax validation — DID, handle, at-identifier, NSID, record key, TID, AT URI, RFC 3339 datetime, and BCP 47 language tag validators. Tests cover all interop-test-file patterns from the atproto reference.
 - `lexicon`: `tools/wf_lexgen.py` generates pure-C declarations, recursive input encoders (including referenced definitions), endpoint wrappers, and owning output decoders. Full-corpus headers compile.
 
 ## Next planned work

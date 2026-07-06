@@ -128,6 +128,9 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
     state and durable token sessions with private DPoP JWK validation,
     ES256 `private_key_jwt` authentication, authorization-begin orchestration,
     callback-to-session completion, and managed session refresh orchestration.
+16. ✅ Syntax validation — DID, handle, at-identifier, NSID, record key, TID,
+    AT URI, RFC 3339 datetime, and BCP 47 language tag validators.
+
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
