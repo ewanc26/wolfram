@@ -92,6 +92,11 @@ add_library(wolfram
     src/jetstream/jetstream.c
     # Syntax validation
     src/syntax/syntax.c
+    # Rich text / facet detection
+    src/richtext/richtext.c
+    src/richtext/detection.c
+    # Firehose subscribeRepos subscription
+    src/sync/sync_subscribe.c
     # Generated lexicon endpoint wrappers
     src/atproto_lex.c
 )
@@ -157,6 +162,8 @@ option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
 if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(describe_repo examples/describe_repo.c)
     target_link_libraries(describe_repo PRIVATE wolfram)
+    add_executable(oauth_session examples/oauth_session.c)
+    target_link_libraries(oauth_session PRIVATE wolfram)
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
