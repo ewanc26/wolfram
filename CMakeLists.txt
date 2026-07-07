@@ -196,6 +196,9 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(agent_graph examples/agent_graph.c)
     target_link_libraries(agent_graph PRIVATE wolfram)
     target_include_directories(agent_graph PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(lex_client examples/lex_client.c)
+    target_link_libraries(lex_client PRIVATE wolfram)
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
