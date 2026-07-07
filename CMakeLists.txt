@@ -667,6 +667,11 @@ if(WOLFRAM_BUILD_TESTS)
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME chat_typed COMMAND test_chat_typed)
 
+    add_executable(examples_live test/test_examples_live.c)
+    target_link_libraries(examples_live PRIVATE wolfram)
+    target_include_directories(examples_live PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME examples_live COMMAND examples_live)
+
     add_executable(test_moderation_actions test/test_moderation_actions.c)
     target_link_libraries(test_moderation_actions PRIVATE wolfram)
     target_include_directories(test_moderation_actions PRIVATE test ${cjson_SOURCE_DIR})
