@@ -363,6 +363,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(create_app_password examples/create_app_password.c)
     target_link_libraries(create_app_password PRIVATE wolfram)
     target_include_directories(create_app_password PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(validate_record examples/validate_record.c)
+    target_link_libraries(validate_record PRIVATE wolfram)
+    target_include_directories(validate_record PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -505,6 +509,13 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_validate PRIVATE wolfram)
     target_include_directories(test_validate PRIVATE test)
     add_test(NAME validate COMMAND test_validate)
+
+    add_executable(test_validate_corpus test/test_validate_corpus.c)
+    target_link_libraries(test_validate_corpus PRIVATE wolfram)
+    target_include_directories(test_validate_corpus PRIVATE test)
+    target_compile_definitions(test_validate_corpus PRIVATE
+        WF_ATPROTO_LEXICONS="/Volumes/Storage/Developer/Local/atproto/lexicons")
+    add_test(NAME validate_corpus COMMAND test_validate_corpus)
 
     add_executable(test_embed test/test_embed.c)
     target_link_libraries(test_embed PRIVATE wolfram)

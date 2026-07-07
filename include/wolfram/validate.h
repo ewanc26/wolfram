@@ -32,7 +32,14 @@ void wf_lexicon_registry_free(wf_lexicon_registry *registry);
 
 /* Load a lexicon definition from JSON string */
 wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
-                                   const char *json, size_t json_len);
+                                    const char *json, size_t json_len);
+
+/* Recursively load every *.json lexicon document under a directory. Returns
+ * WF_OK if at least one lexicon loaded; malformed or non-lexicon JSON files
+ * are skipped (not fatal). The registry owns every loaded document; free it
+ * all with wf_lexicon_registry_free. */
+wf_status wf_lexicon_registry_load_dir(wf_lexicon_registry *registry,
+                                       const char *dir);
 
 /* Validate a JSON value against a lexicon record definition */
 wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,

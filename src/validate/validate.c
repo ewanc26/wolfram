@@ -5,12 +5,15 @@
 #include <curl/curl.h>
 
 #include <ctype.h>
+#include <dirent.h>
 #include <limits.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #define WF_VALIDATE_MAX_DEPTH 128
 
@@ -1332,4 +1335,105 @@ wf_validate_result wf_validate_value(const wf_lexicon_registry *registry,
     free(expected_owned);
     free(lookup_lexicon_id);
     return result;
+}
+
+/* Recursively read every lexicon document under a directory and load each into
+ * the registry. Returns WF_OK if at least one lexicon loaded; malformed or
+ * non-lexicon JSON files are skipped and counted rather than aborting the
+ * whole load. The registry owns every successfully loaded document; free it
+ * all with wf_lexicon_registry_free. */
+static char *wf_read_file_contents(const char *path, size_t *out_len) {
+    FILE *f;
+    long size;
+    char *buf;
+    size_t got;
+
+    f = fopen(path, "rb");
+    if (!f) return NULL;
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return NULL;
+    }
+    size = ftell(f);
+    if (size < 0) {
+        fclose(f);
+        return NULL;
+    }
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return NULL;
+    }
+    buf = (char *)malloc((size_t)size + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+    got = fread(buf, 1, (size_t)size, f);
+    fclose(f);
+    if (got != (size_t)size) {
+        free(buf);
+        return NULL;
+    }
+    buf[size] = '\0';
+    *out_len = (size_t)size;
+    return buf;
+}
+
+static int wf_path_is_json(const char *name) {
+    size_t len = strlen(name);
+    return len >= 5 && strcmp(name + len - 5, ".json") == 0;
+}
+
+static void wf_lexicon_registry_load_dir_recursive(wf_lexicon_registry *registry,
+                                                   const char *dir,
+                                                   size_t *loaded_out,
+                                                   size_t *skipped_out) {
+    DIR *d = opendir(dir);
+    struct dirent *e;
+
+    if (!d) return;
+    while ((e = readdir(d)) != NULL) {
+        const char *name = e->d_name;
+        char *path;
+        struct stat st;
+
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+        path = wf_path_join(dir, name);
+        if (!path) continue;
+
+        if (stat(path, &st) != 0) {
+            free(path);
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            wf_lexicon_registry_load_dir_recursive(registry, path, loaded_out, skipped_out);
+        } else if (S_ISREG(st.st_mode) && wf_path_is_json(name)) {
+            char *contents = NULL;
+            size_t len = 0;
+            contents = wf_read_file_contents(path, &len);
+            if (!contents) {
+                (*skipped_out)++;
+            } else {
+                wf_status status = wf_lexicon_registry_load(registry, contents, len);
+                free(contents);
+                if (status == WF_OK) (*loaded_out)++;
+                else (*skipped_out)++;
+            }
+        }
+        free(path);
+    }
+    closedir(d);
+}
+
+wf_status wf_lexicon_registry_load_dir(wf_lexicon_registry *registry, const char *dir) {
+    size_t loaded = 0;
+    size_t skipped = 0;
+    struct stat st;
+
+    if (!registry || !dir) return WF_ERR_INVALID_ARG;
+    if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) return WF_ERR_NOT_FOUND;
+
+    wf_lexicon_registry_load_dir_recursive(registry, dir, &loaded, &skipped);
+    return loaded > 0 ? WF_OK : WF_ERR_NOT_FOUND;
 }
