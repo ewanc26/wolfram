@@ -31,6 +31,8 @@
 #include "wolfram/identity.h"
 #include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/thread_typed.h"
+#include "wolfram/moderation.h"
 
 /* ----------------------------------------------------------------- */
 /* Usage                                                             */
@@ -41,14 +43,18 @@ static void usage_stream(FILE *out) {
         "wolfram — a command-line client for the AT Protocol (via wolfram SDK)\n\n"
         "usage: wolfram <command> [args...]\n\n"
         "commands:\n"
-        "  login     <service> <handle> <password>\n"
-        "  post      <service> <handle> <password> <text...>\n"
-        "  timeline  <service> <handle> <password> [pages]\n"
-        "  get-post  <service> <at-uri>\n"
-        "  profile   <service> <actor>\n"
-        "  follow    <service> <handle> <password> <actor>\n"
-        "  unfollow  <service> <handle> <password> <actor>\n"
-        "  resolve   <handle-or-did>\n");
+        "  login         <service> <handle> <password>\n"
+        "  post          <service> <handle> <password> <text...>\n"
+        "  timeline      <service> <handle> <password> [pages]\n"
+        "  get-post      <service> <at-uri>\n"
+        "  profile       <service> <actor>\n"
+        "  follow        <service> <handle> <password> <actor>\n"
+        "  unfollow      <service> <handle> <password> <actor>\n"
+        "  resolve       <handle-or-did>\n"
+        "  thread        <service> <handle> <password> <at-uri> [depth]\n"
+        "  notifications <service> <handle> <password> [limit]\n"
+        "  labels        <actor-or-did>\n"
+        "  moderation    <service> <actor> [labeler-did]\n");
 }
 
 /* Print usage and exit 0 (offline-safe: never touches the network). */
@@ -516,6 +522,266 @@ static int cmd_resolve(int argc, char **argv) {
     return 0;
 }
 
+/* Recursively print a thread node and its replies (indented by depth). */
+static void print_thread_node(const wf_agent_thread_node *node, int depth) {
+    if (!node) {
+        return;
+    }
+    for (int i = 0; i < depth; ++i) {
+        fputc(' ', stdout);
+        fputc(' ', stdout);
+    }
+
+    if (node->kind == WF_AGENT_THREAD_KIND_POST) {
+        const char *handle = node->post.author.handle
+                                 ? node->post.author.handle
+                                 : (node->post.author.did
+                                        ? node->post.author.did
+                                        : "?");
+        const char *did = node->post.author.did
+                              ? node->post.author.did
+                              : "?";
+        const char *text = "";
+        if (node->post.record) {
+            cJSON *t =
+                cJSON_GetObjectItemCaseSensitive(node->post.record, "text");
+            if (cJSON_IsString(t) && t->valuestring) {
+                text = t->valuestring;
+            }
+        }
+        printf("[%s] %s: %s\n", did, handle, text);
+    } else {
+        printf("(not found/blocked: %s)\n",
+               node->uri ? node->uri : "?");
+    }
+
+    for (size_t i = 0; i < node->replies_count; ++i) {
+        print_thread_node(&node->replies[i], depth + 1);
+    }
+}
+
+static int cmd_thread(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *at_uri = argv[4];
+    int depth = (argc >= 6) ? atoi(argv[5]) : 6;
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_status s = wf_agent_login(agent, handle, password);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_agent_thread thread = {0};
+    s = wf_agent_get_post_thread_typed(agent, at_uri, depth, &thread);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: getPostThread failed (status %d)\n", (int)s);
+        wf_agent_thread_free(&thread);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    print_thread_node(&thread.root, 0);
+    wf_agent_thread_free(&thread);
+    wf_agent_free(agent);
+    return 0;
+}
+
+static int cmd_notifications(int argc, char **argv) {
+    if (argc < 4) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    int limit = (argc >= 5) ? atoi(argv[4]) : 50;
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_status s = wf_agent_login(agent, handle, password);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_agent_notification_list list = {0};
+    s = wf_agent_list_notifications_typed(agent, limit, NULL, &list);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: listNotifications failed (status %d)\n",
+                (int)s);
+        wf_agent_notification_list_free(&list);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    for (size_t i = 0; i < list.notification_count; ++i) {
+        const wf_agent_notification *n = &list.notifications[i];
+        const char *author =
+            n->author.handle
+                ? n->author.handle
+                : (n->author.did ? n->author.did : "?");
+        const char *did = n->author.did ? n->author.did : "?";
+        const char *text = "";
+        if (n->record) {
+            cJSON *t = cJSON_GetObjectItemCaseSensitive(n->record, "text");
+            if (cJSON_IsString(t) && t->valuestring) {
+                text = t->valuestring;
+            }
+        }
+        printf("reason=%s author=%s (%s) read=%d\n  %s\n",
+               n->reason ? n->reason : "?", author, did, n->is_read, text);
+    }
+    if (list.notification_count == 0) {
+        printf("(no notifications)\n");
+    }
+
+    wf_agent_notification_list_free(&list);
+    wf_agent_free(agent);
+    return 0;
+}
+
+static int cmd_labels(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *actor = argv[1];
+
+    char *did = NULL;
+    if (wf_syntax_did_is_valid(actor)) {
+        did = strdup(actor);
+        if (!did) {
+            fprintf(stderr, "error: out of memory\n");
+            return 1;
+        }
+    } else {
+        wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social");
+        if (!client) {
+            fprintf(stderr, "error: failed to create XRPC client\n");
+            return 1;
+        }
+        wf_status s = wf_handle_resolve(client, actor, &did);
+        wf_xrpc_client_free(client);
+        if (s != WF_OK || !did) {
+            fprintf(stderr, "error: could not resolve '%s' (status %d)\n",
+                    actor, (int)s);
+            return 1;
+        }
+    }
+
+    /* No high-level queryLabels wrapper exists; query the labeler service
+     * directly via raw XRPC using the actor's DID as the URI prefix. */
+    wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social");
+    if (!client) {
+        fprintf(stderr, "error: failed to create XRPC client\n");
+        free(did);
+        return 1;
+    }
+
+    char *uri_pattern = malloc(strlen(did) + 8);
+    if (!uri_pattern) {
+        fprintf(stderr, "error: out of memory\n");
+        free(did);
+        wf_xrpc_client_free(client);
+        return 1;
+    }
+    sprintf(uri_pattern, "at://%s/*", did);
+
+    wf_xrpc_param params[] = {{"uriPatterns", uri_pattern}};
+    wf_response res = {0};
+    wf_status s = wf_xrpc_query_params(client, "com.atproto.label.queryLabels",
+                                       params, 1, &res);
+    free(uri_pattern);
+    free(did);
+
+    if (s != WF_OK && s != WF_ERR_HTTP) {
+        fprintf(stderr, "error: queryLabels failed (status %d)\n", (int)s);
+        wf_response_free(&res);
+        wf_xrpc_client_free(client);
+        return 1;
+    }
+
+    if (res.body && res.body_len > 0) {
+        printf("%s\n", res.body);
+    } else {
+        printf("(empty response, HTTP %ld)\n", res.status);
+    }
+
+    wf_response_free(&res);
+    wf_xrpc_client_free(client);
+    return 0;
+}
+
+static int cmd_moderation(int argc, char **argv) {
+    if (argc < 3) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *actor = argv[2];
+    /* argv[3] (labeler-did) is accepted but not required by the wrapper. */
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    char *did = NULL;
+    wf_status rs = resolve_actor_to_did(agent, actor, &did);
+    if (rs != WF_OK || !did) {
+        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
+                actor, (int)rs);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_mod_decision *decision = NULL;
+    wf_status s = wf_agent_moderate_profile(agent, did, &decision);
+    free(did);
+    if (s != WF_OK || !decision) {
+        fprintf(stderr, "error: moderation failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_mod_ui ui = {0};
+    s = wf_mod_decision_ui(decision, WF_MOD_CTX_PROFILE_VIEW, &ui);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: decision UI failed (status %d)\n", (int)s);
+        wf_mod_decision_free(decision);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    printf("moderation for %s: alerts=%zu blurs=%zu informs=%zu\n",
+           decision->did ? decision->did : actor, ui.alert_count,
+           ui.blur_count, ui.inform_count);
+
+    wf_mod_ui_free(&ui);
+    wf_mod_decision_free(decision);
+    wf_agent_free(agent);
+    return 0;
+}
+
 /* ----------------------------------------------------------------- */
 /* Dispatch                                                          */
 /* ----------------------------------------------------------------- */
@@ -526,6 +792,14 @@ int main(int argc, char **argv) {
     }
 
     const char *cmd = argv[1];
+
+    /* --help / -h / help print usage to stdout and exit 0 — without touching
+     * the network. Genuinely unknown commands still print to stderr below. */
+    if (strcmp(cmd, "--help") == 0 || strcmp(cmd, "-h") == 0 ||
+        strcmp(cmd, "help") == 0) {
+        return usage_exit();
+    }
+
     int rest = argc - 1; /* arguments after the program name */
 
     /* Re-base argv so handlers see <service> as argv[1] etc. */
@@ -554,6 +828,18 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "resolve") == 0) {
         return cmd_resolve(rest, cargv);
+    }
+    if (strcmp(cmd, "thread") == 0) {
+        return cmd_thread(rest, cargv);
+    }
+    if (strcmp(cmd, "notifications") == 0) {
+        return cmd_notifications(rest, cargv);
+    }
+    if (strcmp(cmd, "labels") == 0) {
+        return cmd_labels(rest, cargv);
+    }
+    if (strcmp(cmd, "moderation") == 0) {
+        return cmd_moderation(rest, cargv);
     }
 
     fprintf(stderr, "error: unknown command '%s'\n\n", cmd);
