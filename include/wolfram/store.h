@@ -16,6 +16,19 @@
  * empty translation unit, so including this header unconditionally is
  * always safe.
  *
+ * Optional at-rest encryption
+ * ----------------------------
+ * When wolfram is additionally built with `-DWOLFRAM_BUILD_STORE_CRYPTO=ON`
+ * (which requires `WOLFRAM_BUILD_STORE=ON` and a system libsodium), the
+ * persisted session credentials are encrypted at rest with libsodium's
+ * `crypto_secretbox_easy` (XSalsa20-Poly1305, an authenticated cipher).
+ * The 32-byte secret key is derived from a caller-supplied passphrase via
+ * libsodium's `crypto_pwhash` (Argon2id); a per-store random salt is stored
+ * in the database and a fresh random nonce is stored with every saved row.
+ * wolfram performs NO hand-rolled cryptography — every cryptographic
+ * operation is a direct libsodium call. When crypto is OFF the on-disk
+ * format and behavior are unchanged (backward compatible).
+ *
  * All functions return a `wf_status`. SQL failures are never swallowed:
  * they are mapped to a `WF_ERR_*` code (see wolfram/xrpc.h). Every
  * heap-allocated output has a matching free function, documented next
@@ -72,6 +85,33 @@ wf_status wf_store_save_session(wf_store *s, const wf_session *sess);
  * `has_session == 1`.
  */
 wf_status wf_store_load_session(wf_store *s, wf_session **out);
+
+#ifdef WOLFRAM_BUILD_STORE_CRYPTO
+
+/**
+ * Optional at-rest encryption — only declared when wolfram is built with
+ * `-DWOLFRAM_BUILD_STORE_CRYPTO=ON`.
+ *
+ * Derive the secret key for the store from `passphrase` and cache it for the
+ * lifetime of the store. The key is derived with libsodium `crypto_pwhash`
+ * (Argon2id) from `passphrase` and a per-store random salt that is persisted
+ * in the database on first call. The derived key is held in memory only and
+ * is zeroed on wf_store_close.
+ *
+ * Must be called exactly once after wf_store_open and before the first
+ * wf_store_save_session / wf_store_load_session when encryption is enabled;
+ * saving or loading without a passphrase set fails with WF_ERR_INVALID_ARG.
+ * Supplying the wrong passphrase at load time causes wf_store_load_session to
+ * fail authentication (WF_ERR_INVALID_ARG) rather than return decrypted
+ * garbage — the authenticated cipher detects tampering / wrong key.
+ *
+ * Ownership: `passphrase` remains caller-owned; the store keeps no reference
+ * to it after the call returns. Safe to call with NULL (returns
+ * WF_ERR_INVALID_ARG).
+ */
+wf_status wf_store_set_passphrase(wf_store *s, const char *passphrase);
+
+#endif /* WOLFRAM_BUILD_STORE_CRYPTO */
 
 /**
  * Persist the head CID of a repo mirror for `did`.

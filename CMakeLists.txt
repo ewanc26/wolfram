@@ -202,6 +202,17 @@ option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
 # library is required (no network FetchContent is used).
 option(WOLFRAM_BUILD_STORE "Build the optional SQLite3-backed persistence module" OFF)
 
+# Optional at-rest encryption of persisted sessions. Requires WOLFRAM_BUILD_STORE
+# and the system libsodium library. OFF by default. When ON, the session blob is
+# encrypted with libsodium (crypto_secretbox_easy) using a key derived from a
+# caller-supplied passphrase via libsodium's crypto_pwhash (Argon2id). No network
+# FetchContent is used — libsodium must be installed on the system.
+option(WOLFRAM_BUILD_STORE_CRYPTO "Encrypt persisted sessions at rest with libsodium" OFF)
+
+if(WOLFRAM_BUILD_STORE_CRYPTO)
+    set(WOLFRAM_BUILD_STORE ON CACHE BOOL "" FORCE)
+endif()
+
 if(WOLFRAM_BUILD_STORE)
     find_package(SQLite3 QUIET)
     if(NOT SQLite3_FOUND)
@@ -225,6 +236,30 @@ if(WOLFRAM_BUILD_STORE)
     target_link_libraries(wolfram PRIVATE ${SQLite3_LIBRARIES})
     target_compile_definitions(wolfram PRIVATE WOLFRAM_BUILD_STORE)
     message(STATUS "SQLite3 found (${SQLite3_LIBRARIES}) — building optional wf_store persistence module")
+
+    if(WOLFRAM_BUILD_STORE_CRYPTO)
+        find_package(sodium QUIET)
+        if(NOT sodium_FOUND)
+            find_path(SODIUM_INCLUDE_DIR NAMES sodium.h)
+            find_library(SODIUM_LIBRARY NAMES sodium)
+            if(SODIUM_INCLUDE_DIR AND SODIUM_LIBRARY)
+                set(sodium_FOUND TRUE)
+                set(sodium_INCLUDE_DIRS ${SODIUM_INCLUDE_DIR})
+                set(sodium_LIBRARIES ${SODIUM_LIBRARY})
+            endif()
+        endif()
+        if(NOT sodium_FOUND)
+            message(FATAL_ERROR
+                "WOLFRAM_BUILD_STORE_CRYPTO=ON but libsodium was not found on this "
+                "system. Install it (e.g. `brew install libsodium` / `apt install "
+                "libsodium-dev`) or build with WOLFRAM_BUILD_STORE_CRYPTO=OFF.")
+        endif()
+
+        target_include_directories(wolfram PRIVATE ${sodium_INCLUDE_DIRS})
+        target_link_libraries(wolfram PRIVATE ${sodium_LIBRARIES})
+        target_compile_definitions(wolfram PRIVATE WOLFRAM_BUILD_STORE_CRYPTO)
+        message(STATUS "libsodium found (${sodium_LIBRARIES}) — encrypting persisted sessions at rest")
+    endif()
 endif()
 
 if(WOLFRAM_BUILD_EXAMPLES)
@@ -550,10 +585,19 @@ if(WOLFRAM_BUILD_TESTS)
     add_test(NAME agent_pagination COMMAND test_agent_pagination)
 
     if(WOLFRAM_BUILD_STORE)
-        add_executable(test_store test/test_store.c)
-        target_link_libraries(test_store PRIVATE wolfram)
-        target_include_directories(test_store PRIVATE test)
-        target_compile_definitions(test_store PRIVATE WOLFRAM_BUILD_STORE)
-        add_test(NAME store COMMAND test_store)
+        if(WOLFRAM_BUILD_STORE_CRYPTO)
+            add_executable(test_store_crypto test/test_store_crypto.c)
+            target_link_libraries(test_store_crypto PRIVATE wolfram)
+            target_include_directories(test_store_crypto PRIVATE test)
+            target_compile_definitions(test_store_crypto PRIVATE
+                WOLFRAM_BUILD_STORE WOLFRAM_BUILD_STORE_CRYPTO)
+            add_test(NAME store_crypto COMMAND test_store_crypto)
+        else()
+            add_executable(test_store test/test_store.c)
+            target_link_libraries(test_store PRIVATE wolfram)
+            target_include_directories(test_store PRIVATE test)
+            target_compile_definitions(test_store PRIVATE WOLFRAM_BUILD_STORE)
+            add_test(NAME store COMMAND test_store)
+        endif()
     endif()
 endif()
