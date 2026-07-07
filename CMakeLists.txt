@@ -139,6 +139,8 @@ src/agent/push_endpoint.c
     src/util.c
     src/blob.c
     src/embed.c
+    # Ozone moderation / labeler helper
+    src/ozone/ozone.c
 )
 
 target_include_directories(wolfram
@@ -356,6 +358,12 @@ if(WOLFRAM_BUILD_EXAMPLES)
     target_include_directories(post_image_embed PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(timeline_moderation examples/timeline_moderation.c)
+    target_link_libraries(timeline_moderation PRIVATE wolfram)
+    target_include_directories(timeline_moderation PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(ozone_moderation examples/ozone_moderation.c)
+    target_link_libraries(ozone_moderation PRIVATE wolfram)
+    target_include_directories(ozone_moderation PRIVATE ${cjson_SOURCE_DIR})
     target_link_libraries(timeline_moderation PRIVATE wolfram)
     target_include_directories(timeline_moderation PRIVATE ${cjson_SOURCE_DIR})
 
