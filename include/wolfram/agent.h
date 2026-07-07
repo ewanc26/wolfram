@@ -390,6 +390,91 @@ wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
 #include "wolfram/moderation_actions.h"
 #include "wolfram/lexcall.h"
 
+/*
+ * Cursor-based pagination convenience layer.
+ *
+ * The helpers below loop an underlying read endpoint page by page. Each
+ * page's `cursor` is read from the response (the typed `cursor` field when a
+ * typed parser is available, otherwise the raw top-level "cursor" JSON
+ * field) and fed to the next page, until the cursor is exhausted, `max_pages`
+ * is reached, or a transport/callback error occurs.
+ *
+ * `max_pages <= 0` means "iterate until the cursor is exhausted".
+ *
+ * Ownership:
+ *   - The `out_last_cursor` output (when non-NULL) receives a heap-allocated
+ *     copy of the final cursor, or NULL when the sequence ended because the
+ *     cursor was exhausted. The caller frees it with free().
+ *   - Every `wf_response` / typed list handed to an `on_page` callback is a
+ *     *borrow* valid only for the duration of that callback invocation; the
+ *     iterator frees it afterwards. Callbacks must not retain the pointer.
+ */
+
+/* Extract the top-level "cursor" string from a raw response body.
+ * On WF_OK, *out_cursor is either a heap-allocated copy (caller frees with
+ * free()) or NULL when the field is absent or not a string. Returns
+ * WF_ERR_INVALID_ARG on NULL inputs and WF_ERR_PARSE if the body is not valid
+ * JSON. */
+wf_status wf_response_cursor(const wf_response *resp, char **out_cursor);
+
+/* Generic per-page iterator over a raw wf_response.
+ *
+ * `call` issues a single page (signature compatible with the raw read
+ * helpers, extended with a `void *ud` closure); `on_page` is invoked for each
+ * fetched page with a borrow of that page's response and the cursor that
+ * produced it. `max_pages <= 0` iterates until the cursor is exhausted.
+ * `out_last_cursor` receives a heap-allocated copy of the final cursor (or
+ * NULL if exhausted); the caller frees it with free().
+ *
+ * Either `call` or `on_page` may return a non-WF_OK status to abort the loop;
+ * that status is propagated to the caller. */
+typedef wf_status (*wf_agent_page_call_fn)(wf_agent *agent, int limit,
+                                            const char *cursor,
+                                            wf_response *out, void *ud);
+typedef wf_status (*wf_agent_page_cb)(wf_agent *agent, const char *cursor,
+                                       wf_response *resp, void *ud);
+
+wf_status wf_agent_page(wf_agent *agent,
+                        wf_agent_page_call_fn call,
+                        int limit, int max_pages,
+                        wf_agent_page_cb on_page, void *ud,
+                        char **out_last_cursor);
+
+/* Typed paged wrappers. `on_page` is invoked once per page with a borrow of
+ * the parsed list and the cursor that produced it. `out_last_cursor` receives
+ * a heap-allocated copy of the final cursor (caller frees with free()) or NULL
+ * when the sequence was exhausted. */
+typedef wf_status (*wf_agent_timeline_page_cb)(wf_agent *agent,
+                                                const wf_agent_feed_list *feed,
+                                                const char *cursor, void *ud);
+wf_status wf_agent_get_timeline_paged(wf_agent *agent, int limit, int max_pages,
+                                      wf_agent_timeline_page_cb on_page,
+                                      void *ud, char **out_last_cursor);
+
+typedef wf_status (*wf_agent_author_feed_page_cb)(wf_agent *agent,
+                                                   const wf_agent_feed_list *feed,
+                                                   const char *cursor, void *ud);
+wf_status wf_agent_get_author_feed_paged(wf_agent *agent, const char *actor,
+                                         int limit, int max_pages,
+                                         wf_agent_author_feed_page_cb on_page,
+                                         void *ud, char **out_last_cursor);
+
+typedef wf_status (*wf_agent_notifications_page_cb)(
+    wf_agent *agent, const wf_agent_notification_list *list,
+    const char *cursor, void *ud);
+wf_status wf_agent_list_notifications_paged(wf_agent *agent, int limit,
+                                            int max_pages,
+                                            wf_agent_notifications_page_cb on_page,
+                                            void *ud, char **out_last_cursor);
+
+typedef wf_status (*wf_agent_records_page_cb)(wf_agent *agent,
+                                               const wf_response *resp,
+                                               const char *cursor, void *ud);
+wf_status wf_agent_list_records_paged(wf_agent *agent, const char *collection,
+                                      int limit, int max_pages,
+                                      wf_agent_records_page_cb on_page,
+                                      void *ud, char **out_last_cursor);
+
 #ifdef __cplusplus
 }
 #endif

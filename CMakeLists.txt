@@ -113,6 +113,7 @@ add_library(wolfram
     src/agent/chat_typed.c
     src/agent/moderation_actions.c
     src/agent/lexcall.c
+    src/agent/pagination.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
     # Rich text / facet detection
@@ -249,6 +250,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(timeline_thread_typed examples/timeline_thread_typed.c)
     target_link_libraries(timeline_thread_typed PRIVATE wolfram)
     target_include_directories(timeline_thread_typed PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(timeline_paged examples/timeline_paged.c)
+    target_link_libraries(timeline_paged PRIVATE wolfram)
+    target_include_directories(timeline_paged PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -460,10 +465,8 @@ if(WOLFRAM_BUILD_TESTS)
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME moderation_actions COMMAND test_moderation_actions)
 
-    add_executable(test_lexcall test/test_lexcall.c)
-    target_link_libraries(test_lexcall PRIVATE wolfram)
-    target_include_directories(test_lexcall PRIVATE test ${cjson_SOURCE_DIR})
-    target_compile_definitions(test_lexcall PRIVATE
-        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
-    add_test(NAME lexcall COMMAND test_lexcall)
+    add_executable(test_agent_pagination test/test_agent_pagination.c)
+    target_link_libraries(test_agent_pagination PRIVATE wolfram)
+    target_include_directories(test_agent_pagination PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME agent_pagination COMMAND test_agent_pagination)
 endif()
