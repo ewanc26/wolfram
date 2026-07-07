@@ -332,3 +332,45 @@ wf_status wf_agent_parse_feed(const char *json, size_t json_len,
 void wf_agent_feed_list_free(wf_agent_feed_list *list) {
     wf_feed_list_reset(list);
 }
+
+/* Typed high-level wrappers — call the raw agent endpoint, then parse the body. */
+
+wf_status wf_agent_get_timeline_typed(wf_agent *agent, int limit,
+                                      const char *cursor,
+                                      wf_agent_feed_list *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_timeline(agent, limit, cursor, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_feed(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
+                                         int limit, const char *cursor,
+                                         const char *filter,
+                                         wf_agent_feed_list *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_author_feed(agent, actor, limit, cursor,
+                                                filter, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_feed(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}

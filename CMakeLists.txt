@@ -106,6 +106,7 @@ add_library(wolfram
     src/agent/agent_ext.c
     src/agent/feed_typed.c
     src/agent/thread_typed.c
+    src/agent/graph_typed.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
     # Rich text / facet detection
@@ -404,4 +405,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_thread_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME thread_typed COMMAND test_thread_typed)
+
+    add_executable(test_graph_typed test/test_graph_typed.c)
+    target_link_libraries(test_graph_typed PRIVATE wolfram)
+    target_include_directories(test_graph_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_graph_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME graph_typed COMMAND test_graph_typed)
 endif()

@@ -320,3 +320,22 @@ void wf_agent_thread_free(wf_agent_thread *thread) {
     free(thread->cursor);
     memset(thread, 0, sizeof(*thread));
 }
+
+/* Typed high-level wrapper — call the raw agent endpoint, then parse the body. */
+wf_status wf_agent_get_post_thread_typed(wf_agent *agent, const char *uri,
+                                         int depth, wf_agent_thread *out) {
+    if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status st = wf_agent_get_post_thread(agent, uri, depth, &res);
+    if (st != WF_OK) {
+        wf_response_free(&res);
+        return st;
+    }
+
+    st = wf_agent_parse_thread(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return st;
+}

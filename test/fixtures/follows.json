@@ -1,0 +1,16 @@
+{
+  "cursor": "follows-cursor-99",
+  "actors": [
+    {
+      "did": "did:plc:follower1",
+      "handle": "carol.example.com",
+      "displayName": "Carol",
+      "avatar": "https://cdn.example.com/carol.jpg"
+    },
+    {
+      "did": "did:plc:follower2",
+      "handle": "dave.example.com",
+      "displayName": "Dave"
+    }
+  ]
+}

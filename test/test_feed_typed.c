@@ -132,5 +132,14 @@ int main(void) {
         free(json);
     }
 
+    /* Wrapper arg validation (no network; NULL agent/args rejected). */
+    wf_agent *agent = wf_agent_new("https://example.com");
+    WF_CHECK(agent != NULL);
+    wf_agent_feed_list wlist = {0};
+    WF_CHECK(wf_agent_get_timeline_typed(NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_timeline_typed(agent, 10, NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_author_feed_typed(agent, NULL, 10, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+    wf_agent_free(agent);
+
     WF_TEST_SUMMARY();
 }

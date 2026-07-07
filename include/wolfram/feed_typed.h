@@ -89,6 +89,17 @@ wf_status wf_agent_parse_feed(const char *json, size_t json_len,
 /* Free a parsed feed list and every owned subtree it holds. */
 void wf_agent_feed_list_free(wf_agent_feed_list *list);
 
+/* Typed high-level wrappers — issue the corresponding agent call and parse the
+ * JSON body into `out`. On success `out` is owned by the caller and must be
+ * freed with `wf_agent_feed_list_free`; on error it is left reset. */
+wf_status wf_agent_get_timeline_typed(wf_agent *agent, int limit,
+                                      const char *cursor,
+                                      wf_agent_feed_list *out);
+wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
+                                         int limit, const char *cursor,
+                                         const char *filter,
+                                         wf_agent_feed_list *out);
+
 #ifdef __cplusplus
 }
 #endif

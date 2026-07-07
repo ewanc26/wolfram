@@ -139,6 +139,15 @@ int main(void) {
         free(json);
     }
 
+    /* Wrapper arg validation (no network; NULL agent/args rejected). */
+    wf_agent *agent = wf_agent_new("https://example.com");
+    WF_CHECK(agent != NULL);
+    wf_agent_thread t2 = {0};
+    WF_CHECK(wf_agent_get_post_thread_typed(NULL, "at://x", 1, &t2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_post_thread_typed(agent, NULL, 1, &t2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_post_thread_typed(agent, "at://x", 1, NULL) == WF_ERR_INVALID_ARG);
+    wf_agent_free(agent);
+
     WF_TEST_SUMMARY();
     return 0; /* unreachable */
 }

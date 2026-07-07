@@ -379,6 +379,7 @@ wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
  * below so the structs stay next to their parsers. */
 #include "wolfram/feed_typed.h"
 #include "wolfram/thread_typed.h"
+#include "wolfram/graph_typed.h"
 
 #ifdef __cplusplus
 }

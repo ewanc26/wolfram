@@ -73,6 +73,12 @@ wf_status wf_agent_parse_thread(const char *json, size_t json_len,
 /* Free every owned field of `thread` (including the recursive node tree). */
 void wf_agent_thread_free(wf_agent_thread *thread);
 
+/* Typed high-level wrapper — issues `wf_agent_get_post_thread` and parses the
+ * JSON body into `out`. On success `out` is owned by the caller (free with
+ * `wf_agent_thread_free`); on error it is left reset. */
+wf_status wf_agent_get_post_thread_typed(wf_agent *agent, const char *uri,
+                                         int depth, wf_agent_thread *out);
+
 #ifdef __cplusplus
 }
 #endif
