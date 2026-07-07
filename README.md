@@ -64,6 +64,7 @@ Per-module usage guides with runnable C snippets live in [`docs/`](docs/):
 - SQLite3 — **only** required when building the optional persistence module (`WOLFRAM_BUILD_STORE=ON`); the default build does not link it
 - libsodium — **only** required when `WOLFRAM_BUILD_STORE_CRYPTO=ON` (which also requires `WOLFRAM_BUILD_STORE=ON`); it provides the secret-key encryption (`crypto_secretbox_easy`, XSalsa20-Poly1305) and passphrase key derivation (`crypto_pwhash`, Argon2id) used to encrypt persisted sessions at rest. The default build does not link it.
 - libmicrohttpd (GNU MHD) — **only** required when `WOLFRAM_BUILD_TEST_HTTPD=ON` for the offline HTTP integration test (`mock_pds`). The default build does not link it. Install via `brew install libmicrohttpd`; note this also pulls in GnuTLS as a transitive dependency.
+- libidn2 (GNU, MIT) — **only** required when `WOLFRAM_BUILD_IDN=ON`. It provides IDNA2008 / punycode (ACE, `xn--…`) conversion so internationalized (Unicode) handles are encoded to ASCII before the DNS/HTTPS lookup and decoded back to Unicode for display. The default build does not link it and passes handles through unchanged. Install via `brew install libidn2` / `apt install libidn2-dev`.
 
 On macOS via Homebrew:
 
@@ -73,6 +74,8 @@ brew install cmake curl openssl secp256k1 c-ares zstd
 brew install sqlite3 libsodium
 # Optional offline HTTP integration test (WOLFRAM_BUILD_TEST_HTTPD=ON):
 brew install libmicrohttpd
+# Optional internationalized (IDN) handle resolution (WOLFRAM_BUILD_IDN=ON):
+brew install libidn2
 ```
 
 (libcurl also ships with macOS itself, but the Homebrew one is newer and CMake finds it more reliably via `pkg-config`.)

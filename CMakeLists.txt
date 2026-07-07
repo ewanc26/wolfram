@@ -182,6 +182,31 @@ elseif(NOT CARES_FOUND)
     message(STATUS "resolv not found — DNS TXT lookup will fall back to HTTPS well-known")
 endif()
 
+# Optional libidn2 IDNA2008 / punycode handle resolution. Located here (after
+# the wolfram target exists) so we can compile-define and privately link it.
+if(WOLFRAM_BUILD_IDN)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(IDN2 libidn2)
+    endif()
+    if(NOT IDN2_FOUND)
+        find_path(IDN2_INCLUDE_DIR NAMES idn2.h REQUIRED)
+        find_library(IDN2_LIBRARY NAMES idn2 REQUIRED)
+        find_library(UNISTRING_LIBRARY NAMES unistring)
+        set(IDN2_INCLUDE_DIRS ${IDN2_INCLUDE_DIR})
+        set(IDN2_LIBRARIES ${IDN2_LIBRARY})
+        get_filename_component(IDN2_LIBRARY_DIRS "${IDN2_LIBRARY}" DIRECTORY)
+        if(UNISTRING_LIBRARY)
+            list(APPEND IDN2_LIBRARIES ${UNISTRING_LIBRARY})
+        endif()
+    endif()
+    target_include_directories(wolfram PRIVATE ${IDN2_INCLUDE_DIRS})
+    target_link_directories(wolfram PRIVATE ${IDN2_LIBRARY_DIRS})
+    target_link_libraries(wolfram PRIVATE ${IDN2_LIBRARIES})
+    target_compile_definitions(wolfram PRIVATE WOLFRAM_BUILD_IDN)
+    message(STATUS "libidn2 found (${IDN2_LIBRARIES}) — building IDNA/punycode handle resolution")
+endif()
+
 if(SECP256K1_FOUND)
     find_library(SECP256K1_LIB
         NAMES secp256k1
@@ -217,6 +242,14 @@ option(WOLFRAM_BUILD_STORE_CRYPTO "Encrypt persisted sessions at rest with libso
 # XRPC client at a real local HTTP server. OFF by default so the default test
 # suite has no extra dependency.
 option(WOLFRAM_BUILD_TEST_HTTPD "Build the optional libmicrohttpd-backed mock PDS and offline HTTP integration test" OFF)
+
+# Optional libidn2-backed IDNA2008 / punycode handle resolution. When ON, the
+# system libidn2 library (GNU, MIT) is required (no network FetchContent). It
+# converts Unicode handles to ASCII punycode (xn--…) before the DNS/HTTPS
+# lookup and decodes punycode responses back to Unicode for display. OFF by
+# default so the default build stays dependency-free and passes handles through
+# unchanged. Install via `brew install libidn2` / `apt install libidn2-dev`.
+option(WOLFRAM_BUILD_IDN "Build with libidn2 IDNA/punycode handle resolution" OFF)
 
 if(WOLFRAM_BUILD_STORE_CRYPTO)
     set(WOLFRAM_BUILD_STORE ON CACHE BOOL "" FORCE)
@@ -532,6 +565,15 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_validate PRIVATE wolfram)
     target_include_directories(test_validate PRIVATE test)
     add_test(NAME validate COMMAND test_validate)
+
+    if(WOLFRAM_BUILD_IDN)
+        add_executable(test_idn test/test_idn.c)
+        target_link_libraries(test_idn PRIVATE wolfram ${IDN2_LIBRARIES})
+        target_link_directories(test_idn PRIVATE ${IDN2_LIBRARY_DIRS})
+        target_include_directories(test_idn PRIVATE test ${IDN2_INCLUDE_DIRS})
+        target_compile_definitions(test_idn PRIVATE WOLFRAM_BUILD_IDN)
+        add_test(NAME idn COMMAND test_idn)
+    endif()
 
     add_executable(test_validate_corpus test/test_validate_corpus.c)
     target_link_libraries(test_validate_corpus PRIVATE wolfram)
