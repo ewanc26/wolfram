@@ -417,6 +417,7 @@ static wf_status wf_agent_build_post_record(wf_agent *agent,
             cJSON_Delete(facets);
             cJSON_Delete(record);
             return WF_ERR_ALLOC;
+            }
         }
     }
 
@@ -817,6 +818,45 @@ wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result 
                 return WF_ERR_ALLOC;
             }
         }
+
+wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
+                                 const char *embed_json, wf_agent_post_result *out) {
+    if (!agent || !text || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *embed = NULL;
+    if (embed_json && embed_json[0] != '\0') {
+        embed = cJSON_Parse(embed_json);
+        if (!embed) {
+            return WF_ERR_PARSE;
+        }
+        if (!cJSON_IsObject(embed)) {
+            cJSON_Delete(embed);
+            return WF_ERR_INVALID_ARG;
+        }
+    } else {
+        // No embed provided, fallback to regular post
+        return wf_agent_post(agent, text, out);
+    }
+
+    cJSON *record = NULL;
+    wf_status status = wf_agent_build_post_record(agent, text, NULL, &record);
+    if (status != WF_OK) {
+        cJSON_Delete(embed);
+        return status;
+    }
+
+    if (!cJSON_AddItemToObject(record, "embed", embed)) {
+        cJSON_Delete(embed);
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
+
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+}
+
+
 
         status = wf_agent_add_segment_facet_json(facets, &segment, agent->client);
         if (status != WF_OK) {

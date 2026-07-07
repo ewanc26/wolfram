@@ -42,6 +42,8 @@ wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result 
 wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
                                     const char *facets_json, wf_agent_post_result *out);
 wf_status wf_agent_delete_post(wf_agent *agent, const char *uri);
+wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
+                                 const char *embed_json, wf_agent_post_result *out);
 void wf_agent_post_result_free(wf_agent_post_result *result);
 
 /* Record CRUD — wraps com.atproto.repo endpoints */
