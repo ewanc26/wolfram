@@ -1346,6 +1346,70 @@ done:
     return status;
 }
 
+/* ── mute / unmute ─────────────────────────────────────────────────── */
+
+wf_status wf_agent_mute(wf_agent *agent, const char *actor) {
+    if (!agent || !actor || !actor[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "actor", actor)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "app.bsky.graph.muteActor",
+                                          json, &res);
+    free(json);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_unmute(wf_agent *agent, const char *actor) {
+    if (!agent || !actor || !actor[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "actor", actor)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "app.bsky.graph.unmuteActor",
+                                          json, &res);
+    free(json);
+    wf_response_free(&res);
+    return status;
+}
+
 wf_status wf_agent_repost(wf_agent *agent, const char *post_uri, const char *post_cid,
                           wf_agent_post_result *out) {
     if (!agent || !post_uri || !post_cid || !out) {
@@ -1529,6 +1593,198 @@ wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t ur
     return status;
 }
 
+/* ── searchPosts ───────────────────────────────────────────────────── */
+
+wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
+                                int limit, const char *cursor, const char *sort,
+                                const char *since, const char *until,
+                                const char *author, const char *lang,
+                                wf_response *out) {
+    if (!agent || !query || !query[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[9];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "q";
+    params[param_count].value = query;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+    if (sort && sort[0]) {
+        params[param_count].name = "sort";
+        params[param_count].value = sort;
+        param_count++;
+    }
+    if (since && since[0]) {
+        params[param_count].name = "since";
+        params[param_count].value = since;
+        param_count++;
+    }
+    if (until && until[0]) {
+        params[param_count].name = "until";
+        params[param_count].value = until;
+        param_count++;
+    }
+    if (author && author[0]) {
+        if (!wf_syntax_at_identifier_is_valid(author)) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "author";
+        params[param_count].value = author;
+        param_count++;
+    }
+    if (lang && lang[0]) {
+        if (!wf_syntax_language_is_valid(lang)) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "lang";
+        params[param_count].value = lang;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.searchPosts",
+                                params, param_count, out);
+}
+
+/* ── getActorLikes ─────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_actor_likes(wf_agent *agent, const char *actor,
+                                   int limit, const char *cursor,
+                                   wf_response *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getActorLikes",
+                                params, param_count, out);
+}
+
+/* ── getLikes ──────────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_likes(wf_agent *agent, const char *uri,
+                             int limit, const char *cursor,
+                             wf_response *out) {
+    if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) {
+        return WF_ERR_PARSE;
+    }
+    wf_syntax_aturi_free(&parsed);
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "uri";
+    params[param_count].value = uri;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getLikes",
+                                params, param_count, out);
+}
+
+/* ── getRepostedBy ─────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri,
+                                   int limit, const char *cursor,
+                                   wf_response *out) {
+    if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) {
+        return WF_ERR_PARSE;
+    }
+    wf_syntax_aturi_free(&parsed);
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "uri";
+    params[param_count].value = uri;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getRepostedBy",
+                                params, param_count, out);
+}
+
 wf_status wf_agent_get_follows(wf_agent *agent, const char *actor,
                                int limit, const char *cursor, wf_response *out) {
     if (!agent || !actor || !out) {
@@ -1603,6 +1859,228 @@ wf_status wf_agent_get_followers(wf_agent *agent, const char *actor,
                                  params, param_count, out);
 }
 
+/* ── getBlocks ─────────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_blocks(wf_agent *agent, int limit, const char *cursor,
+                               wf_response *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.graph.getBlocks",
+                                params, param_count, out);
+}
+
+/* ── getMutes ──────────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_mutes(wf_agent *agent, int limit, const char *cursor,
+                              wf_response *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.graph.getMutes",
+                                params, param_count, out);
+}
+
+/* ── getKnownFollowers ─────────────────────────────────────────────── */
+
+wf_status wf_agent_get_known_followers(wf_agent *agent, const char *actor,
+                                       int limit, const char *cursor,
+                                       wf_response *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.graph.getKnownFollowers",
+                                params, param_count, out);
+}
+
+/* ── getRelationships ──────────────────────────────────────────────── */
+
+wf_status wf_agent_get_relationships(wf_agent *agent, const char *actor,
+                                     const char *const *others, size_t others_count,
+                                     wf_response *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_did_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param *params = NULL;
+    size_t param_count = 0;
+
+    params = calloc(1 + others_count, sizeof(*params));
+    if (!params) return WF_ERR_ALLOC;
+
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+
+    for (size_t i = 0; i < others_count; i++) {
+        if (!others[i] || !others[i][0] || !wf_syntax_did_is_valid(others[i])) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "others";
+        params[param_count].value = others[i];
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_query_params(agent->client,
+                                             "app.bsky.graph.getRelationships",
+                                             params, param_count, out);
+    free(params);
+    return status;
+}
+
+/* ── getList ───────────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_list(wf_agent *agent, const char *list_uri,
+                            int limit, const char *cursor,
+                            wf_response *out) {
+    if (!agent || !list_uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(list_uri, &parsed)) {
+        return WF_ERR_PARSE;
+    }
+    wf_syntax_aturi_free(&parsed);
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "list";
+    params[param_count].value = list_uri;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.graph.getList",
+                                params, param_count, out);
+}
+
+/* ── getLists ──────────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
+                             int limit, const char *cursor,
+                             wf_response *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.graph.getLists",
+                                params, param_count, out);
+}
+
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
                                        wf_response *out) {
     if (!agent || !out) {
@@ -1666,6 +2144,19 @@ wf_status wf_agent_update_seen_notifications(wf_agent *agent, const char *seen_a
     free(json);
     wf_response_free(&res);
     return status;
+}
+
+/* ── getUnreadCount ────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.notification.getUnreadCount",
+                                NULL, 0, out);
 }
 
 wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
