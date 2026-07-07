@@ -49,6 +49,8 @@ extern "C" {
 
 #ifdef WOLFRAM_BUILD_STORE
 
+#include "wolfram/repo/cid.h"
+
 /** An open SQLite-backed store. Opaque to callers. */
 typedef struct wf_store wf_store;
 
@@ -145,8 +147,21 @@ wf_status wf_store_save_mirror_block(wf_store *s, const char *did,
  * Returns WF_ERR_NOT_FOUND when no block matches.
  */
 wf_status wf_store_load_mirror_block(wf_store *s, const char *did,
-                                     const uint8_t *cid, size_t cid_len,
-                                     uint8_t **out_block, size_t *out_block_len);
+                                      const uint8_t *cid, size_t cid_len,
+                                      uint8_t **out_block, size_t *out_block_len);
+
+/**
+ * Enumerate the CIDs of all persisted mirror blocks for `did`.
+ *
+ * Ownership: `*out_cids` is caller-owned (an array of `wf_cid`, length
+ * `*out_count`); free it with wf_store_mirror_cids_free. Returns
+ * WF_ERR_NOT_FOUND when no blocks are stored for `did`.
+ */
+wf_status wf_store_list_mirror_cids(wf_store *s, const char *did,
+                                    wf_cid **out_cids, size_t *out_count);
+
+/** Free an array returned by wf_store_list_mirror_cids. Safe with NULL. */
+void wf_store_mirror_cids_free(wf_cid *cids);
 
 #endif /* WOLFRAM_BUILD_STORE */
 
