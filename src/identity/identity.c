@@ -31,6 +31,10 @@
 #include <arpa/nameser.h>
 #endif
 
+#ifdef WOLFRAM_BUILD_IDN
+#include <idn2.h>
+#endif
+
 static char *wf_strdup(const char *s) {
     if (!s) return NULL;
     size_t len = strlen(s) + 1;
@@ -463,10 +467,49 @@ wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle, char **o
 
     *out_did = NULL;
 
-    wf_status status = wf_handle_resolve_dns_txt(client, handle, out_did);
+    /* The handle actually used for the wire lookup. By default this is the
+     * caller's handle unchanged. When libidn2 is compiled in, an
+     * internationalized (Unicode) handle is first converted to its IDNA2008
+     * ASCII Compatible Encoding (ACE, `xn--…` punycode) so the DNS TXT and
+     * well-known HTTPS lookups operate on valid ASCII — the DNS layer cannot
+     * accept raw Unicode. */
+    const char *lookup_handle = handle;
+
+#ifdef WOLFRAM_BUILD_IDN
+    char *ascii_handle = NULL;
+    int idn_rc = idn2_to_ascii_8z(handle, &ascii_handle, IDN2_NONTRANSITIONAL);
+    if (idn_rc == IDN2_OK && ascii_handle) {
+        /* Recover the canonical Unicode form for display: a caller that
+         * supplied a punycode handle gets the decoded Unicode back, and a
+         * caller that supplied Unicode gets the NFC-normalized form. The
+         * original handle remains in `handle` for the caller; `ascii_handle`
+         * (owned by libidn2, freed below) is used solely for the wire. The
+         * decode result is owned by libidn2 and must be freed with idn2_free.
+         */
+        char *display_handle = NULL;
+        if (idn2_to_unicode_8z8z(ascii_handle, &display_handle, IDN2_NONTRANSITIONAL) == IDN2_OK) {
+            idn2_free(display_handle);
+        }
+        lookup_handle = ascii_handle;
+    }
+    /* If IDNA conversion fails (e.g. a disallowed label), fall through to the
+     * unchanged handle so behavior matches the non-IDN build. */
+#endif
+
+    wf_status status = wf_handle_resolve_dns_txt(client, lookup_handle, out_did);
+
     if (status == WF_OK) {
+#ifdef WOLFRAM_BUILD_IDN
+        if (ascii_handle) idn2_free(ascii_handle);
+#endif
         return WF_OK;
     }
 
-    return wf_handle_resolve_well_known(client, handle, out_did);
+    status = wf_handle_resolve_well_known(client, lookup_handle, out_did);
+
+#ifdef WOLFRAM_BUILD_IDN
+    if (ascii_handle) idn2_free(ascii_handle);
+#endif
+
+    return status;
 }
