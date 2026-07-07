@@ -1,0 +1,11 @@
+{
+  "list": {
+    "uri": "at://did:plc:ownerabc/app.bsky.graph.list/1listid",
+    "cid": "bafyreimutelistcidmutelistcidmutelistcidmutelistcidmutelistcidmute",
+    "name": "Noisy Accounts",
+    "purpose": "app.bsky.graph.defs#modlist",
+    "description": "Accounts that post too much noise.",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ownerabc/avatar"
+  },
+  "cursor": "next-cursor-token-001"
+}
