@@ -282,3 +282,98 @@ wf_oauth_session_state_free(&restored);
 | `wf_oauth_dpop_key *` | `wf_oauth_dpop_key_free` |
 | `wf_oauth_session_state` / `wf_oauth_authorization_state` | `wf_oauth_session_state_free` / `wf_oauth_authorization_state_free` |
 | Strings from `wf_oauth_dpop_proof_create`, `wf_oauth_client_assertion_create`, `wf_oauth_authorization_url_create` | `wf_oauth_string_free` |
+
+## Function reference
+
+Concise, self-contained examples for the four OAuth entry points most apps need.
+Every networking call is marked `// needs network`. A `wf_xrpc_client` provides
+the transport; the DPoP key for the public-client flow is generated for you and
+round-tripped through the serialized authorization state.
+
+### `wf_oauth_discover` (metadata discovery)
+
+```c
+#include "wolfram/oauth.h"
+#include "wolfram/xrpc.h"
+
+wf_xrpc_client *transport = wf_xrpc_client_new("https://bsky.social");
+
+wf_oauth_resource_metadata resource = {0};
+wf_oauth_server_metadata server = {0};
+wf_status st = wf_oauth_discover(transport, "https://bsky.social",
+                                 &resource, &server);                  // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "discovery failed: %d\n", (int)st);
+    wf_xrpc_client_free(transport);
+    return 1;
+}
+wf_oauth_resource_metadata_free(&resource);
+wf_oauth_server_metadata_free(&server);
+wf_xrpc_client_free(transport);
+```
+
+### `wf_oauth_authorization_begin` (PAR)
+
+```c
+wf_oauth_client_auth client_auth = {
+    .client_id                   = client.client_id,
+    .authorization_server_issuer = server.issuer,
+    .signing_key                 = NULL,   // public client; DPoP key generated internally
+    .key_id                      = NULL,
+};
+wf_oauth_authorization_begin_options opts = {
+    .redirect_uri = "https://my-app.example.com/callback",
+    .scope        = "atproto transition:generic",
+    .login_hint   = NULL,
+    .app_state    = NULL,
+    .now          = time(NULL),
+    .state_ttl    = 600,
+};
+
+wf_oauth_authorization_begin_result begin = {0};
+wf_status st = wf_oauth_authorization_begin(transport, &server, &client,
+                                            &client_auth, &opts, &begin); // needs network
+if (st == WF_OK) {
+    printf("redirect to: %s\n", begin.authorization_url);
+    /* Persist begin.state_json atomically under begin.state before redirecting. */
+}
+wf_oauth_authorization_begin_result_free(&begin);
+```
+
+### `wf_oauth_authorization_complete` (callback → session)
+
+```c
+wf_oauth_authorization_complete_result done = {0};
+wf_status st = wf_oauth_authorization_complete(
+    transport, &server, &client, &client_auth,
+    &params,            // populated by wf_oauth_callback_validate
+    expected_state,     // the state you persisted at begin
+    state_json, state_json_len,
+    "https://my-app.example.com/callback",
+    time(NULL), &done);                                            // needs network
+if (st == WF_OK && done.error == NULL) {
+    printf("logged in as %s\n", done.session.subject);
+    /* Persist done.session_json under done.session.subject. */
+}
+wf_oauth_authorization_complete_result_free(&done);
+```
+
+### `wf_auth_client` (authenticated XRPC)
+
+```c
+wf_auth_client *auth = wf_auth_client_new(transport, &session, &server, &client_auth);
+
+wf_response resp = {0};
+wf_status st = wf_auth_client_query(auth, "app.bsky.feed.getTimeline",
+                                     "limit=50", &resp);            // needs network
+if (st == WF_OK) {
+    /* resp.body holds the JSON. */
+}
+wf_response_free(&resp);
+
+st = wf_auth_client_procedure(auth, "com.atproto.repo.createRecord",
+                               "{\"repo\":\"did:plc:me\",...}", &resp); // needs network
+wf_response_free(&resp);
+
+wf_auth_client_free(auth);   // does NOT free transport or session
+```

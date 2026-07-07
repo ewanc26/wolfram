@@ -359,3 +359,144 @@ Other paged wrappers: `wf_agent_get_author_feed_paged`,
 which underlying endpoint is paged, use the generic `wf_agent_page` with a
 `wf_agent_page_call_fn` / `wf_agent_page_cb` pair, or extract a cursor from any
 raw response with `wf_response_cursor`.
+
+## Function reference
+
+Quick, self-contained examples for the most-used agent calls. Each snippet
+assumes an authenticated `wf_agent` (see
+[Lifecycle and session](#lifecycle-and-session)) and shows the call, an
+`if (st != WF_OK)` error check, and the matching `_free`. Every call that talks
+to a PDS is marked `// needs network`.
+
+### `wf_agent_new` / `wf_agent_login`
+
+```c
+#include "wolfram/agent.h"
+#include <stdio.h>
+
+wf_agent *agent = wf_agent_new("https://bsky.social");
+if (!agent) { /* out of memory */ }
+
+wf_status st = wf_agent_login(agent, "alice.example.com", "app-password"); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "login failed: %d\n", (int)st);
+    wf_agent_free(agent);
+    return 1;
+}
+
+/* ... use agent ... */
+
+wf_agent_free(agent);   // always free when done
+```
+
+### `wf_agent_post`
+
+```c
+wf_agent_post_result post = {0};
+wf_status st = wf_agent_post(agent, "Hello from wolfram! #atproto", &post); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "post failed: %d\n", (int)st);
+    return;
+}
+printf("uri=%s cid=%s\n", post.uri, post.cid);
+wf_agent_post_result_free(&post);   // frees post.uri and post.cid
+```
+
+### `wf_agent_get_post_thread_typed`
+
+```c
+#include "wolfram/thread_typed.h"
+
+wf_agent_thread thread = {0};
+wf_status st = wf_agent_get_post_thread_typed(
+    agent, "at://did:plc:abc/app.bsky.feed.post/xyz", 6, &thread); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "thread failed: %d\n", (int)st);
+    return;
+}
+if (thread.root.kind == WF_AGENT_THREAD_KIND_POST) {
+    printf("root: %s\n", thread.root.post.uri);
+}
+wf_agent_thread_free(&thread);   // recursively frees the reply tree
+```
+
+### `wf_agent_get_timeline_typed`
+
+```c
+#include "wolfram/feed_typed.h"
+
+wf_agent_feed_list feed = {0};
+wf_status st = wf_agent_get_timeline_typed(agent, 50, NULL, &feed); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "timeline failed: %d\n", (int)st);
+    return;
+}
+for (size_t i = 0; i < feed.item_count; i++) {
+    printf("%s\n", feed.items[i].post.uri ? feed.items[i].post.uri : "?");
+}
+wf_agent_feed_list_free(&feed);
+```
+
+The raw-JSON sibling `wf_agent_get_timeline` returns the same data in a
+`wf_response`; free it with `wf_response_free`.
+
+### `wf_agent_list_notifications_typed`
+
+```c
+wf_agent_notification_list list = {0};
+wf_status st = wf_agent_list_notifications_typed(agent, 50, NULL, &list); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "notifications failed: %d\n", (int)st);
+    return;
+}
+for (size_t i = 0; i < list.notification_count; i++) {
+    printf("%s from %s\n", list.notifications[i].reason,
+           list.notifications[i].author.handle);
+}
+wf_agent_notification_list_free(&list);
+```
+
+### `wf_agent_follow`
+
+```c
+wf_agent_post_result follow = {0};
+wf_status st = wf_agent_follow(agent, "did:plc:target", &follow); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "follow failed: %d\n", (int)st);
+    return;
+}
+printf("follow uri=%s\n", follow.uri);
+wf_agent_post_result_free(&follow);
+
+/* Later, to unfollow: wf_agent_unfollow(agent, follow_uri); */
+```
+
+### `wf_agent_like`
+
+```c
+wf_agent_post_result like = {0};
+wf_status st = wf_agent_like(agent,
+    "at://did:plc:abc/app.bsky.feed.post/xyz", "bafyre...cid", &like); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "like failed: %d\n", (int)st);
+    return;
+}
+printf("like uri=%s\n", like.uri);
+wf_agent_post_result_free(&like);
+
+/* Later, to unlike: wf_agent_unlike(agent, like_uri); */
+```
+
+### `wf_agent_upload_blob`
+
+```c
+unsigned char *png = /* ... */; size_t png_len = /* ... */; // image bytes
+wf_response blob = {0};
+wf_status st = wf_agent_upload_blob(agent, png, png_len, "image/png", &blob); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "upload failed: %d\n", (int)st);
+    return;
+}
+/* blob.body is {"blob":{"$type":"blob","ref":{...},"mimeType":...}} */
+wf_response_free(&blob);
+```
