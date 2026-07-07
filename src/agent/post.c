@@ -36,16 +36,7 @@
 #define WF_AGENT_FACET_LINK_TYPE      "app.bsky.richtext.facet#link"
 #define WF_AGENT_FACET_TAG_TYPE       "app.bsky.richtext.facet#tag"
 
-typedef struct wf_agent {
-    wf_xrpc_client *client;
-    wf_session *session;
-    char *service_url;
-    /* Offline identity (for local repo mirror without network login). */
-    char *mirror_did;
-    char *mirror_signing_key;
-    /* Local repo mirror — a wf_car whose root is the latest verified commit. */
-    wf_car mirror;
-} wf_agent;
+#include "_internal.h"
 
 static char *wf_agent_strdup(const char *s) {
     if (!s) {
@@ -196,14 +187,7 @@ static wf_status wf_agent_session_data_copy(wf_session_data *dst, const wf_sessi
 static wf_status wf_agent_set_string(char **dst, const char *src);
 static int wf_agent_is_logged_in(const wf_agent *agent);
 
-static void wf_agent_sync_auth(wf_agent *agent) {
-    if (!agent || !agent->client || !agent->session) {
-        return;
-    }
 
-    wf_xrpc_client_set_auth(agent->client,
-                            wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
-}
 
 static int wf_agent_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     time_t now = time(NULL);
@@ -217,10 +201,7 @@ static int wf_agent_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     return strftime(buf, buf_len, "%Y-%m-%dT%H:%M:%SZ", &tm_utc) != 0;
 }
 
-static int wf_agent_is_logged_in(const wf_agent *agent) {
-    return agent && agent->session && wf_session_has_session(agent->session) &&
-           agent->session->data.did && agent->session->data.access_jwt;
-}
+
 
 static int wf_agent_authority_matches_session(const wf_agent *agent, const char *authority) {
     if (!agent || !agent->session || !authority) {

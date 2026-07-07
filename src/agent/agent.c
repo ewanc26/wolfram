@@ -1147,6 +1147,7 @@ wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
                                 params, param_count, out);
 }
 
+#if 0 // post functions moved to post.c
 wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
                                     const char *facets_json, wf_agent_post_result *out) {
     if (!agent || !text || !out) {
@@ -1251,6 +1252,8 @@ done:
     return status;
 }
 
+#endif // post functions moved to post.c
+
 wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_profile *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
@@ -1277,6 +1280,8 @@ wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_prof
     wf_response_free(&res);
     return status;
 }
+
+#if 0 // social functions moved to post.c
 
 wf_status wf_agent_follow(wf_agent *agent, const char *subject_did, wf_agent_post_result *out) {
     if (!agent || !subject_did || !out) {
@@ -1459,6 +1464,11 @@ done:
     wf_syntax_aturi_free(&parsed);
     return status;
 }
+
+
+#endif // social functions moved to post.c
+
+#if 0 // feed functions moved to feed.c
 
 wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
                                 wf_response *out) {
@@ -2395,6 +2405,10 @@ wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
                                 params, param_count, out);
 }
 
+#endif // feed functions moved to feed.c
+
+#if 0 // graph functions moved to graph.c
+
 wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
                                                    const char *actor,
                                                    wf_response *out) {
@@ -2414,6 +2428,9 @@ wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
                                  params, param_count, out);
 }
 
+#endif // graph functions moved to graph.c
+
+#if 0 // notification functions moved to notification.c
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
                                        wf_response *out) {
     if (!agent || !out) {
@@ -2491,6 +2508,8 @@ wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out) {
                                 "app.bsky.notification.getUnreadCount",
                                 NULL, 0, out);
 }
+
+#endif // notification functions moved to notification.c
 
 wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
                                  int limit, const char *cursor, wf_response *out) {

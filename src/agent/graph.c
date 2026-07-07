@@ -16,31 +16,7 @@
 
 /* Duplicate helper definitions (static) */
 
-typedef struct wf_agent {
-    wf_xrpc_client *client;
-    wf_session *session;
-    char *service_url;
-    char *mirror_did;
-    char *mirror_signing_key;
-    wf_car mirror;
-} wf_agent;
-
-static int wf_agent_int_to_str(int value, char *buf, size_t buf_len) {
-    return snprintf(buf, buf_len, "%d", value) > 0;
-}
-
-static int wf_agent_is_logged_in(const wf_agent *agent) {
-    return agent && agent->session && wf_session_has_session(agent->session) &&
-           agent->session->data.did && agent->session->data.access_jwt;
-}
-
-static void wf_agent_sync_auth(wf_agent *agent) {
-    if (!agent || !agent->client || !agent->session) {
-        return;
-    }
-    wf_xrpc_client_set_auth(agent->client,
-                            wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
-}
+#include "_internal.h"
 
 /* Graph endpoint implementations */
 

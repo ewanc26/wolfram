@@ -16,32 +16,7 @@
 #include <string.h>
 #include <time.h>
 
-typedef struct wf_agent {
-    wf_xrpc_client *client;
-    wf_session *session;
-    char *service_url;
-    char *mirror_did;
-    char *mirror_signing_key;
-    wf_car mirror;
-} wf_agent;
-
-static int wf_agent_int_to_str(int value, char *buf, size_t buf_len) {
-    return snprintf(buf, buf_len, "%d", value) > 0;
-}
-
-static int wf_agent_is_logged_in(const wf_agent *agent) {
-    return agent && agent->session && wf_session_has_session(agent->session) &&
-           agent->session->data.did && agent->session->data.access_jwt;
-}
-
-static void wf_agent_sync_auth(wf_agent *agent) {
-    if (!agent || !agent->client || !agent->session) {
-        return;
-    }
-
-    wf_xrpc_client_set_auth(agent->client,
-                            wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
-}
+#include "_internal.h"
 
 wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
                                  wf_response *out) {
@@ -228,7 +203,7 @@ wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t ur
 /* ── searchPosts ───────────────────────────────────────────────────── */
 
 wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
-                                 int limit, const char *cursor, const char *sort,
+                                 int limit, const char *cursor,
                                  const char *since, const char *until,
                                  const char *author, const char *lang,
                                  wf_response *out) {
@@ -255,11 +230,6 @@ wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
     if (cursor && cursor[0]) {
         params[param_count].name = "cursor";
         params[param_count].value = cursor;
-        param_count++;
-    }
-    if (sort && sort[0]) {
-        params[param_count].name = "sort";
-        params[param_count].value = sort;
         param_count++;
     }
     if (since && since[0]) {
@@ -295,7 +265,7 @@ wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
 }
 
 wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
-                                  int limit, const char *cursor, const char *sort,
+                                  int limit, const char *cursor,
                                   const char *since, const char *until,
                                   const char *author, const char *lang,
                                   wf_response *out) {
@@ -309,10 +279,6 @@ wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
     if (cursor && cursor[0]) {
         params.has_cursor = true;
         params.cursor = cursor;
-    }
-    if (sort && sort[0]) {
-        params.has_sort = true;
-        params.sort = sort;
     }
     if (since && since[0]) {
         params.has_since = true;

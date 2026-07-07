@@ -165,22 +165,20 @@ int main(void) {
 
     /* ── searchPosts ───────────────────────────────────────────────── */
     {
-        WF_CHECK(wf_agent_search_posts(NULL, "test", 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+        WF_CHECK(wf_agent_search_posts(NULL, "test", 0, NULL, NULL, NULL, NULL, NULL, NULL)
                  == WF_ERR_INVALID_ARG);
 
         wf_agent *agent = wf_agent_new("https://example.com");
         WF_CHECK(agent != NULL);
 
         wf_response res = {0};
-        WF_CHECK(wf_agent_search_posts(agent, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, &res)
+        WF_CHECK(wf_agent_search_posts(agent, NULL, 0, NULL, NULL, NULL, NULL, NULL, &res)
                  == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_search_posts(agent, "", 0, NULL, NULL, NULL, NULL, NULL, NULL, &res)
+        WF_CHECK(wf_agent_search_posts(agent, "", 0, NULL, NULL, NULL, NULL, NULL, &res)
                  == WF_ERR_INVALID_ARG);
 
         /* invalid author format */
-        WF_CHECK(wf_agent_search_posts(agent, "hello", 0, NULL, NULL, NULL, NULL,
-                                        "not-valid", NULL, &res)
-                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_posts(agent, "hello", 0, NULL, NULL, NULL, "not-valid", NULL, &res) == WF_ERR_INVALID_ARG);
 
         wf_agent_free(agent);
     }
@@ -314,7 +312,7 @@ int main(void) {
             wf_agent *agent = wf_agent_new("https://example.com");
             WF_CHECK(agent != NULL);
             wf_response res = {0};
-            WF_CHECK(wf_agent_search_posts_lex(agent, "test", 0, NULL, NULL, NULL, NULL, NULL, NULL, &res) == WF_OK);
+            WF_CHECK(wf_agent_search_posts_lex(agent, "test", 0, NULL, NULL, NULL, NULL, NULL, &res) == WF_OK);
             wf_agent_free(agent);
         }
 

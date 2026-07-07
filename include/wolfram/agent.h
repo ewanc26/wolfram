@@ -96,12 +96,12 @@ wf_status wf_agent_get_post_thread(wf_agent *agent, const char *uri, int depth,
 wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t uri_count,
                              wf_response *out);
 wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
-                                 int limit, const char *cursor, const char *sort,
+                                 int limit, const char *cursor, 
                                  const char *since, const char *until,
                                  const char *author, const char *lang,
                                  wf_response *out);
 wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
-                                 int limit, const char *cursor, const char *sort,
+                                 int limit, const char *cursor, 
                                  const char *since, const char *until,
                                  const char *author, const char *lang,
                                  wf_response *out);

@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    status = wf_agent_search_posts(agent, query, limit, NULL, NULL, NULL, NULL, NULL, NULL, &res);
+    status = wf_agent_search_posts(agent, query, limit, NULL, NULL, NULL, NULL, NULL, &res);
     if (status != WF_OK && status != WF_ERR_HTTP) {
         fprintf(stderr, "searchPosts failed: %d\n", (int)status);
         wf_response_free(&res);
