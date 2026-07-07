@@ -12,6 +12,14 @@ embedded in, or required by applications using `libwolfram`.
 
 `wolfram` provides the low-level building blocks for speaking AT Protocol from C: XRPC over HTTP, DID/handle resolution, repo signing, and MST/CBOR/CAR handling. Layered like the other SDKs in this ecosystem — a small transport core, with identity and repo logic built on top rather than tangled into it.
 
+## Name
+
+`wolfram` was chosen for three reasons:
+
+1. **Tungsten.** Wolfram is an older name for tungsten (element symbol **W**).
+2. **Low RAM.** It's light on memory usage.
+3. **Wolves.** Wolves are cool.
+
 ## Layout
 
 | Module                  | Status      | Notes                                          |
