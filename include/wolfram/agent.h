@@ -60,6 +60,11 @@ wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_r
 wf_status wf_agent_register_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);
 wf_status wf_agent_unregister_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);
 
+/* Extended push APIs with platform and app_id */
+wf_status wf_agent_register_push_ext(wf_agent *agent, const char *service_did, const char *token, const char *platform, const char *app_id, wf_response *out);
+wf_status wf_agent_unregister_push_ext(wf_agent *agent, const char *service_did, const char *token, const char *platform, const char *app_id, wf_response *out);
+wf_status wf_get_notif_endpoint(wf_agent *agent, const char *service_did, char **out_endpoint);
+
 /* Reply API */
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
                          const char *parent_uri, const char *parent_cid,
