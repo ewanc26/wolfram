@@ -41,7 +41,8 @@ Per-module usage guides with runnable C snippets live in [`docs/`](docs/):
 | `wolfram/oauth.h`         | Partial     | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
 | `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
-| `wolfram/label.h`         | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
+| `wolfram/json.h`         | Implemented | Generic (non-Lexicon) JSON: canonical round-trip and a minimal JSON-Schema validator (type/required/properties/items) |
+| `wolfram/label.h`        | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
 | `wolfram/validate.h`     | Implemented | Runtime Lexicon schema validation (records and named values), refs/unions/format keywords |
 | `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, server + app-password management |
@@ -254,15 +255,15 @@ Logs in and issues a scoped app password via `com.atproto.server.createAppPasswo
 
 ### Next planned work
 
-- Live end-to-end example runs against a real PDS (the new `get_thread`,
-  `list_notifications`, `list_convos`, and `ozone_moderation` examples currently
-  compile and are wired but expect runtime credentials).
-- `wolfram` command-line client: broaden subcommands (threads, notifications,
-  labels, moderation) beyond the current `login`/`post`/`get` skeleton.
-- Optional: JSON Structure / JSON Schema round-trip for non-Lexicon JSON if a
-  use case appears.
-- Optional: reusable DID-document fetch in `identity.c` so chat/label service
-  resolution reuses it instead of the transport-level `wf_http_get` shim.
+- Exercise the gated live example test (`test_examples_live`) in CI with real
+  credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
+- Broaden the `wolfram` CLI further (e.g. `like`/`repost`/`reply`, label
+  subscription streaming, OAuth login path) and wire `help <command>`.
+- Generic JSON module (`wolfram/json.h`): extend the schema subset
+  (`enum`/`format`/`minimum`/`additionalProperties`/`anyOf`) or add a sorted
+  canonical form if a use case appears.
+- Continue cross-referencing `bluesky-social/atproto` and `rsky` for protocol
+  parity (e.g. full `chat.bsky.convo` write surface, labeler service records).
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
