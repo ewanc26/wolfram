@@ -1,23 +1,11 @@
 #include "wolfram/agent.h"
 #include "wolfram/atproto_lex.h"
 #include "wolfram/util.h"
+#include "wolfram/syntax.h"
 #include <cJSON.h>
-
-/* Update handle – com.atproto.identity.updateHandle */
-wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle) {
-    if (!agent || !new_handle || !new_handle[0]) {
-        return WF_ERR_INVALID_ARG;
-    }
-    if (!wf_syntax_handle_is_valid(new_handle)) {
-        return WF_ERR_INVALID_ARG;
-    }
-    wf_lex_com_atproto_identity_update_handle_main_input input = { .handle = new_handle };
-    wf_response res = {0};
-    wf_agent_sync_auth(agent);
-    wf_status status = wf_lex_com_atproto_identity_update_handle_main_call_auth(agent->client, &input, &res);
-    wf_response_free(&res);
-    return status;
-}
+#include "_internal.h"
+#include <stdlib.h>
+#include <string.h>
 
 /* Preferences – app.bsky.actor.putPreferences */
 wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_response *out) {
@@ -65,7 +53,7 @@ wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_r
     
     cJSON_Delete(root);
     wf_agent_sync_auth(agent);
-    wf_status status = wf_lex_app_bsky_actor_put_preferences_main_call_auth(agent->client, &input, out);
+    wf_status status = wf_lex_app_bsky_actor_put_preferences_main_call(agent->client, &input, out);
     
     /* Clean up allocated strings and array */
     if (input.preferences.items) {
@@ -87,7 +75,7 @@ wf_status wf_agent_register_push(wf_agent *agent, const char *service_did, const
         .app_id = "wolfram"
     };
     wf_agent_sync_auth(agent);
-    return wf_lex_app_bsky_notification_register_push_main_call_auth(agent->client, &input, out);
+    return wf_lex_app_bsky_notification_register_push_main_call(agent->client, &input, out);
 }
 
 /* Push notification unregistration – app.bsky.notification.unregisterPush */
@@ -100,5 +88,5 @@ wf_status wf_agent_unregister_push(wf_agent *agent, const char *service_did, con
         .app_id = "wolfram"
     };
     wf_agent_sync_auth(agent);
-    return wf_lex_app_bsky_notification_unregister_push_main_call_auth(agent->client, &input, out);
+    return wf_lex_app_bsky_notification_unregister_push_main_call(agent->client, &input, out);
 }

@@ -103,6 +103,7 @@ add_library(wolfram
     src/agent/feed.c
     src/agent/graph.c
     src/agent/notification.c
+    src/agent/agent_ext.c
     src/agent/create_record.c
     # Rich text / facet detection
     src/richtext/richtext.c
@@ -226,6 +227,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     target_link_libraries(thread PRIVATE wolfram)
     target_include_directories(thread PRIVATE ${cjson_SOURCE_DIR})
     target_include_directories(thread PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(preferences_and_push examples/preferences_and_push.c)
+    target_link_libraries(preferences_and_push PRIVATE wolfram)
+    target_include_directories(preferences_and_push PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -368,4 +373,9 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_embed PRIVATE wolfram)
     target_include_directories(test_embed PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME embed COMMAND test_embed)
+
+    add_executable(test_agent_preferences test/test_agent_preferences.c)
+    target_link_libraries(test_agent_preferences PRIVATE wolfram)
+    target_include_directories(test_agent_preferences PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME agent_preferences COMMAND test_agent_preferences)
 endif()
