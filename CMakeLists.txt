@@ -297,6 +297,18 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(timeline_paged examples/timeline_paged.c)
     target_link_libraries(timeline_paged PRIVATE wolfram)
     target_include_directories(timeline_paged PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(feed_generator examples/feed_generator.c)
+    target_link_libraries(feed_generator PRIVATE wolfram)
+    target_include_directories(feed_generator PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(post_image_embed examples/post_image_embed.c)
+    target_link_libraries(post_image_embed PRIVATE wolfram)
+    target_include_directories(post_image_embed PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(timeline_moderation examples/timeline_moderation.c)
+    target_link_libraries(timeline_moderation PRIVATE wolfram)
+    target_include_directories(timeline_moderation PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
