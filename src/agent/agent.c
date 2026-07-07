@@ -1654,6 +1654,7 @@ wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t ur
 }
 
 /* ── searchPosts ───────────────────────────────────────────────────── */
+#if 0 // searchPosts moved to feed.c
 
 wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
                                 int limit, const char *cursor, const char *sort,
@@ -1763,6 +1764,7 @@ wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
     wf_agent_sync_auth(agent);
     return wf_lex_app_bsky_feed_search_posts_main_call(agent->client, &params, out);
 }
+#endif // searchPosts moved to feed.c
 
 
 /* ── getActorLikes ─────────────────────────────────────────────────── */
