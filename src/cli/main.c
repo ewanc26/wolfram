@@ -18,7 +18,7 @@
  *   wolfram profile     <service> <actor>
  *   wolfram follow      <service> <handle> <password> <actor>
  *   wolfram unfollow    <service> <handle> <password> <actor>
- *   wolfram resolve     <handle-or-did>
+ *   wolfram   resolve   <service> <handle-or-did>
  */
 
 #include <stdio.h>
@@ -50,7 +50,7 @@ static void usage_stream(FILE *out) {
         "  profile       <service> <actor>\n"
         "  follow        <service> <handle> <password> <actor>\n"
         "  unfollow      <service> <handle> <password> <actor>\n"
-        "  resolve       <handle-or-did>\n"
+        "  resolve       <service> <handle-or-did>\n"
         "  thread        <service> <handle> <password> <at-uri> [depth]\n"
         "  notifications <service> <handle> <password> [limit]\n"
         "  labels        <actor-or-did>\n"
@@ -490,18 +490,19 @@ static int cmd_unfollow(int argc, char **argv) {
 }
 
 static int cmd_resolve(int argc, char **argv) {
-    if (argc < 2) {
+    if (argc < 3) {
         usage_stream(stderr);
         return 0;
     }
-    const char *handle_or_did = argv[1];
+    const char *service = argv[1];
+    const char *handle_or_did = argv[2];
 
     if (wf_syntax_did_is_valid(handle_or_did)) {
         printf("%s\n", handle_or_did);
         return 0;
     }
 
-    wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social");
+    wf_xrpc_client *client = wf_xrpc_client_new(service);
     if (!client) {
         fprintf(stderr, "error: failed to create XRPC client\n");
         return 1;
