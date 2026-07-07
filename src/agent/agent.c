@@ -1489,6 +1489,22 @@ wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
                                  params, param_count, out);
 }
 
+wf_status wf_agent_get_timeline_lex(wf_agent *agent, int limit, const char *cursor,
+                                    wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_feed_get_timeline_main_params params = {0};
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_timeline_main_call(agent->client, &params, out);
+}
+
 wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
                                    int limit, const char *cursor, const char *filter,
                                    wf_response *out) {
@@ -1529,8 +1545,32 @@ wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
 
     wf_agent_sync_auth(agent);
     return wf_xrpc_query_params(agent->client, "app.bsky.feed.getAuthorFeed",
-                                 params, param_count, out);
+                                  params, param_count, out);
 }
+
+wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
+                                        int limit, const char *cursor, const char *filter,
+                                        wf_response *out) {
+    if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_feed_get_author_feed_main_params params = {0};
+    params.actor = actor;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (filter && filter[0]) {
+        params.has_filter = true;
+        params.filter = filter;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_author_feed_main_call(agent->client, &params, out);
+}
+
 
 wf_status wf_agent_get_post_thread(wf_agent *agent, const char *uri, int depth,
                                    wf_response *out) {
@@ -1669,8 +1709,51 @@ wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
 
     wf_agent_sync_auth(agent);
     return wf_xrpc_query_params(agent->client, "app.bsky.feed.searchPosts",
-                                params, param_count, out);
+                                 params, param_count, out);
 }
+
+wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
+                                 int limit, const char *cursor, const char *sort,
+                                 const char *since, const char *until,
+                                 const char *author, const char *lang,
+                                 wf_response *out) {
+    if (!agent || !query || !query[0] || !out) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_feed_search_posts_main_params params = {0};
+    params.q = query;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    if (sort && sort[0]) {
+        params.has_sort = true;
+        params.sort = sort;
+    }
+    if (since && since[0]) {
+        params.has_since = true;
+        params.since = since;
+    }
+    if (until && until[0]) {
+        params.has_until = true;
+        params.until = until;
+    }
+    if (author && author[0]) {
+        if (!wf_syntax_at_identifier_is_valid(author)) return WF_ERR_INVALID_ARG;
+        params.has_author = true;
+        params.author = author;
+    }
+    if (lang && lang[0]) {
+        if (!wf_syntax_language_is_valid(lang)) return WF_ERR_INVALID_ARG;
+        params.has_lang = true;
+        params.lang = lang;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_search_posts_main_call(agent->client, &params, out);
+}
+
 
 /* ── getActorLikes ─────────────────────────────────────────────────── */
 
@@ -1774,8 +1857,90 @@ wf_status wf_agent_get_likes_lex(wf_agent *agent, const char *uri,
     }
     // Ensure auth
     wf_agent_sync_auth(agent);
-    return wf_lex_app_bsky_feed_get_likes_main_call_auth(agent->client, &params, out);
+    return wf_lex_app_bsky_feed_get_likes_main_call(agent->client, &params, out);
 }
+
+/* ── lexicon wrappers for feed endpoints ─────────────────────────────────────── */
+
+wf_status wf_agent_get_quotes_lex(wf_agent *agent, const char *uri,
+                                 int limit, const char *cursor,
+                                 wf_response *out) {
+    if (!agent || !uri || !out) return WF_ERR_INVALID_ARG;
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+    wf_lex_app_bsky_feed_get_quotes_main_params params = {0};
+    params.uri = uri;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_quotes_main_call(agent->client, &params, out);
+}
+
+wf_status wf_agent_get_list_feed_lex(wf_agent *agent, const char *list_uri,
+                                    int limit, const char *cursor,
+                                    wf_response *out) {
+    if (!agent || !list_uri || !out) return WF_ERR_INVALID_ARG;
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(list_uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+    wf_lex_app_bsky_feed_get_list_feed_main_params params = {0};
+    params.list = list_uri;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_list_feed_main_call(agent->client, &params, out);
+}
+
+wf_status wf_agent_get_feed_lex(wf_agent *agent, const char *feed_uri,
+                               int limit, const char *cursor,
+                               wf_response *out) {
+    if (!agent || !feed_uri || !out) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_feed_get_feed_main_params params = {0};
+    params.feed = feed_uri;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_feed_main_call(agent->client, &params, out);
+}
+
+wf_status wf_agent_get_actor_feeds_lex(wf_agent *agent, const char *actor,
+                                        int limit, const char *cursor,
+                                        wf_response *out) {
+    if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_feed_get_actor_feeds_main_params params = {0};
+    params.actor = actor;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_actor_feeds_main_call(agent->client, &params, out);
+}
+
 
 /* ── getRepostedBy ─────────────────────────────────────────────────── */
 
@@ -2497,10 +2662,7 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
 
 /* ── applyWrites ────────────────────────────────────────────────────── */
 
-static cJSON *wf_agent_build_write_value(const wf_agent_write *write) {
-    if (!write->value_json || write->type == WF_AGENT_WRITE_DELETE) return NULL;
-    return cJSON_Parse(write->value_json);
-}
+/* Unused: wf_agent_build_write_value removed */
 
 static const char *wf_agent_write_type_str(wf_agent_write_type type) {
     switch (type) {
@@ -2878,7 +3040,7 @@ wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car) {
         return WF_ERR_INVALID_ARG;
 
     wf_car existing = {0};
-    wf_status status = WF_OK;
+    /* wf_status status = WF_OK; */
 
     /* Deep-copy the CAR into agent->mirror. */
     existing.roots = malloc(car->root_count * sizeof(wf_cid));

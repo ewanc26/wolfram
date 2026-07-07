@@ -199,6 +199,9 @@ if(WOLFRAM_BUILD_EXAMPLES)
 
     add_executable(lex_client examples/lex_client.c)
     target_link_libraries(lex_client PRIVATE wolfram)
+    add_executable(thread examples/thread.c)
+    target_link_libraries(thread PRIVATE wolfram)
+    target_include_directories(thread PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)

@@ -230,13 +230,95 @@ int main(void) {
         wf_response res = {0};
         WF_CHECK(wf_agent_get_likes_lex(agent, NULL, 0, NULL, &res)
                  == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_likes_lex(agent, "not-a-uri", 0, NULL, &res)
-                 == WF_ERR_PARSE);
+            WF_CHECK(wf_agent_get_likes_lex(agent, "not-a-uri", 0, NULL, &res)
+                     == WF_ERR_PARSE);
 
-        wf_agent_free(agent);
-    }
+            wf_agent_free(agent);
 
-    /* ── getRepostedBy ─────────────────────────────────────────────── */
+        /* ── getQuotes (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_get_quotes_lex(NULL, "at://did:plc:test/app.bsky.feed.post/3jkl0pp", 0, NULL, NULL)
+                     == WF_ERR_INVALID_ARG);
+            wf_agent *agent = wf_agent_new("https://example.com");
+            WF_CHECK(agent != NULL);
+            wf_response res = {0};
+            WF_CHECK(wf_agent_get_quotes_lex(agent, NULL, 0, NULL, &res)
+                     == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_quotes_lex(agent, "not-a-uri", 0, NULL, &res)
+                     == WF_ERR_PARSE);
+            wf_agent_free(agent);
+        }
+
+        /* ── getListFeed (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_get_list_feed_lex(NULL, "at://did:plc:test/app.bsky.graph.list/3jkl0pp", 0, NULL, NULL)
+                     == WF_ERR_INVALID_ARG);
+            wf_agent *agent = wf_agent_new("https://example.com");
+            WF_CHECK(agent != NULL);
+            wf_response res = {0};
+            WF_CHECK(wf_agent_get_list_feed_lex(agent, NULL, 0, NULL, &res)
+                     == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_list_feed_lex(agent, "not-a-uri", 0, NULL, &res)
+                     == WF_ERR_PARSE);
+            wf_agent_free(agent);
+        }
+
+        /* ── getFeed (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_get_feed_lex(NULL, "at://did:plc:test/app.bsky.feed.generator/slug", 0, NULL, NULL)
+                     == WF_ERR_INVALID_ARG);
+            wf_agent *agent = wf_agent_new("https://example.com");
+            WF_CHECK(agent != NULL);
+            wf_response res = {0};
+            WF_CHECK(wf_agent_get_feed_lex(agent, NULL, 0, NULL, &res)
+                     == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_feed_lex(agent, "not-a-uri", 0, NULL, &res)
+                     == WF_ERR_PARSE);
+            wf_agent_free(agent);
+        }
+
+        /* ── getActorFeeds (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_get_actor_feeds_lex(NULL, "did:plc:test", 0, NULL, NULL)
+                     == WF_ERR_INVALID_ARG);
+            wf_agent *agent = wf_agent_new("https://example.com");
+            WF_CHECK(agent != NULL);
+            wf_response res = {0};
+            WF_CHECK(wf_agent_get_actor_feeds_lex(agent, NULL, 0, NULL, &res)
+                     == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_actor_feeds_lex(agent, "not-valid", 0, NULL, &res)
+                     == WF_ERR_INVALID_ARG);
+            wf_agent_free(agent);
+        }
+
+        }
+
+        /* ── getTimeline (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_get_timeline_lex(NULL, 10, NULL, NULL) == WF_ERR_INVALID_ARG);
+        }
+
+        /* ── getAuthorFeed (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_get_author_feed_lex(NULL, "did:plc:test", 0, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+            wf_agent *agent = wf_agent_new("https://example.com");
+            WF_CHECK(agent != NULL);
+            wf_response res = {0};
+            WF_CHECK(wf_agent_get_author_feed_lex(agent, "did:plc:test", 0, NULL, NULL, &res) == WF_OK);
+            wf_agent_free(agent);
+        }
+
+        /* ── searchPosts (lexicon) ─────────────────────────────────────── */
+        {
+            WF_CHECK(wf_agent_search_posts_lex(NULL, "test", 0, NULL, NULL, NULL, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+            wf_agent *agent = wf_agent_new("https://example.com");
+            WF_CHECK(agent != NULL);
+            wf_response res = {0};
+            WF_CHECK(wf_agent_search_posts_lex(agent, "test", 0, NULL, NULL, NULL, NULL, NULL, NULL, &res) == WF_OK);
+            wf_agent_free(agent);
+        }
+
+        /* ── getRepostedBy ─────────────────────────────────────────────── */
     {
         WF_CHECK(wf_agent_get_reposted_by(NULL, "at://did:plc:test/app.bsky.feed.post/3jkl0pp", 0, NULL, NULL)
                  == WF_ERR_INVALID_ARG);
