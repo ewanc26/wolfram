@@ -39,6 +39,7 @@ embedded in, or required by applications using `libwolfram`.
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
 | `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (13K header, 74K source) |
+| `wolfram/store.h`         | Partial/Optional | SQLite-backed session + repo-mirror persistence (OFF by default; build with `WOLFRAM_BUILD_STORE=ON`) |
 | `tools/wf_lexgen.py`      | Initial     | Lexicon JSON to typed C data-model declarations |
 
 ## Requirements
@@ -50,6 +51,7 @@ embedded in, or required by applications using `libwolfram`.
 - libsecp256k1 — for secp256k1 signing (optional; crypto stubs gracefully if absent)
 - c-ares 1.28+ — for portable DNS TXT resolution (optional; POSIX resolver fallback)
 - libzstd — for Jetstream compressed messages (optional)
+- SQLite3 — **only** required when building the optional persistence module (`WOLFRAM_BUILD_STORE=ON`); the default build does not link it
 
 On macOS via Homebrew:
 

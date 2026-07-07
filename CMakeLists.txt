@@ -190,6 +190,36 @@ endif()
 option(WOLFRAM_BUILD_EXAMPLES "Build example programs" ON)
 option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
 
+# Optional SQLite3-backed persistence module (wf_store). OFF by default so the
+# default build keeps its small dependency set. When ON, the system SQLite3
+# library is required (no network FetchContent is used).
+option(WOLFRAM_BUILD_STORE "Build the optional SQLite3-backed persistence module" OFF)
+
+if(WOLFRAM_BUILD_STORE)
+    find_package(SQLite3 QUIET)
+    if(NOT SQLite3_FOUND)
+        find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h)
+        find_library(SQLITE3_LIBRARY NAMES sqlite3)
+        if(SQLITE3_INCLUDE_DIR AND SQLITE3_LIBRARY)
+            set(SQLite3_FOUND TRUE)
+            set(SQLite3_INCLUDE_DIRS ${SQLITE3_INCLUDE_DIR})
+            set(SQLite3_LIBRARIES ${SQLITE3_LIBRARY})
+        endif()
+    endif()
+    if(NOT SQLite3_FOUND)
+        message(FATAL_ERROR
+            "WOLFRAM_BUILD_STORE=ON but SQLite3 was not found on this system. "
+            "Install it (e.g. `brew install sqlite3` / `apt install libsqlite3-dev`) "
+            "or build with WOLFRAM_BUILD_STORE=OFF.")
+    endif()
+
+    target_sources(wolfram PRIVATE src/store/sqlite_store.c)
+    target_include_directories(wolfram PRIVATE ${SQLite3_INCLUDE_DIRS})
+    target_link_libraries(wolfram PRIVATE ${SQLite3_LIBRARIES})
+    target_compile_definitions(wolfram PRIVATE WOLFRAM_BUILD_STORE)
+    message(STATUS "SQLite3 found (${SQLite3_LIBRARIES}) — building optional wf_store persistence module")
+endif()
+
 if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(describe_repo examples/describe_repo.c)
     target_link_libraries(describe_repo PRIVATE wolfram)
@@ -466,4 +496,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_lexcall PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME lexcall COMMAND test_lexcall)
+
+    if(WOLFRAM_BUILD_STORE)
+        add_executable(test_store test/test_store.c)
+        target_link_libraries(test_store PRIVATE wolfram)
+        target_include_directories(test_store PRIVATE test)
+        target_compile_definitions(test_store PRIVATE WOLFRAM_BUILD_STORE)
+        add_test(NAME store COMMAND test_store)
+    endif()
 endif()
