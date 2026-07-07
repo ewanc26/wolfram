@@ -1,0 +1,15 @@
+{
+  "id": "did:plc:chatdid",
+  "service": [
+    {
+      "id": "#bsky_chat",
+      "type": "BskyChatService",
+      "serviceEndpoint": "https://chat.example.com"
+    },
+    {
+      "id": "#atproto_chat_proxy",
+      "type": "AtprotoChatProxy",
+      "serviceEndpoint": "https://proxy.example.com"
+    }
+  ]
+}

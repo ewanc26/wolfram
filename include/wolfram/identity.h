@@ -56,6 +56,15 @@ wf_status wf_did_resolve(wf_xrpc_client *client,
                           const char *did,
                           wf_did_document *out);
 
+/**
+ * Resolve a DID's service endpoint of the given service `type`
+ * (e.g. "BskyChatService" or "AtprotoChatProxy"). On WF_OK, *out_endpoint is
+ * a heap-allocated serviceEndpoint string (caller frees). Returns
+ * WF_ERR_NOT_FOUND when the DID document has no matching service.
+ */
+wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
+                                 const char *service_type, char **out_endpoint);
+
 /** Release the owned strings inside a wf_did_document. */
 void wf_did_document_free(wf_did_document *doc);
 

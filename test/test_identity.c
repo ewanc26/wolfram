@@ -10,8 +10,81 @@
 #include "wolfram/xrpc.h"
 #include "test.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef WF_TEST_FIXTURE_DIR
+#define WF_TEST_FIXTURE_DIR "test/fixtures"
+#endif
+
+/* DID document served by the offline test handler below. */
+static const char *g_did_doc = NULL;
+
+/* Test seam handler (see wf_xrpc_set_handler): returns the canned DID
+ * document for any GET, so wf_did_resolve / wf_did_resolve_service can be
+ * exercised without network I/O. */
+static wf_status did_doc_handler(void *userdata, const char *method,
+                                 const char *url, const char *content_type,
+                                 const char *body, size_t body_len,
+                                 const wf_http_header *headers,
+                                 size_t header_count, wf_response *out) {
+    (void)userdata;
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+
+    size_t len = strlen(g_did_doc);
+    out->body = malloc(len + 1);
+    if (!out->body) {
+        return WF_ERR_ALLOC;
+    }
+    memcpy(out->body, g_did_doc, len + 1);
+    out->body_len = len;
+    out->status = 200;
+    return WF_OK;
+}
+
+static char *read_entire_file(const char *path, size_t *len_out) {
+    FILE *fp = fopen(path, "rb");
+    char *buf = NULL;
+    long size;
+
+    if (!fp) return NULL;
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return NULL;
+    }
+    size = ftell(fp);
+    if (size < 0) {
+        fclose(fp);
+        return NULL;
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return NULL;
+    }
+
+    size_t len = (size_t)size;
+    buf = malloc(len + 1);
+    if (!buf) {
+        fclose(fp);
+        return NULL;
+    }
+    if (len > 0 && fread(buf, 1, len, fp) != len) {
+        free(buf);
+        fclose(fp);
+        return NULL;
+    }
+    buf[len] = '\0';
+    fclose(fp);
+    if (len_out) *len_out = len;
+    return buf;
+}
 
 /* Helper to create a minimal client for testing argument validation. */
 static wf_xrpc_client *test_client(void) {
@@ -94,6 +167,58 @@ int main(void) {
     WF_CHECK(doc2.pds_endpoint == NULL);
     WF_CHECK(doc2.signing_key == NULL);
     WF_CHECK(doc2.method == WF_DID_METHOD_UNKNOWN);
+
+    /* --- wf_did_resolve_service (offline, via test handler) --- */
+    char *doc_json = NULL;
+    {
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/did_doc_chat.json",
+                 WF_TEST_FIXTURE_DIR);
+        doc_json = read_entire_file(path, NULL);
+    }
+    WF_CHECK(doc_json != NULL);
+
+    g_did_doc = doc_json;
+    wf_xrpc_set_handler(client, did_doc_handler, NULL);
+
+    /* Argument validation. */
+    char *ep = NULL;
+    WF_CHECK(wf_did_resolve_service(NULL, "did:plc:chatdid",
+                                    "BskyChatService", &ep) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_did_resolve_service(client, NULL,
+                                    "BskyChatService", &ep) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    NULL, &ep) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "BskyChatService", NULL) == WF_ERR_INVALID_ARG);
+
+    /* Resolves the BskyChatService endpoint. */
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "BskyChatService", &ep) == WF_OK);
+    WF_CHECK(ep != NULL && strcmp(ep, "https://chat.example.com") == 0);
+    free(ep);
+
+    /* Resolves the AtprotoChatProxy endpoint. */
+    ep = NULL;
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "AtprotoChatProxy", &ep) == WF_OK);
+    WF_CHECK(ep != NULL && strcmp(ep, "https://proxy.example.com") == 0);
+    free(ep);
+
+    /* Non-existent service type yields WF_ERR_NOT_FOUND with NULL out. */
+    ep = NULL;
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "DoesNotExist", &ep) == WF_ERR_NOT_FOUND);
+    WF_CHECK(ep == NULL);
+
+    /* Regression: the refactored wf_did_resolve still parses the document. */
+    wf_did_document doc3 = {0};
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.did != NULL && strcmp(doc3.did, "did:plc:chatdid") == 0);
+    wf_did_document_free(&doc3);
+
+    wf_xrpc_set_handler(client, NULL, NULL);
+    free(doc_json);
 
     wf_xrpc_client_free(client);
     WF_TEST_SUMMARY();
