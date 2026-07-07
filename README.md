@@ -156,7 +156,7 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 
 Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto.repo.createRecord` request, and creates a post via the AT Protocol.
 
-More end-to-end examples live in `examples/`: `feed_generator` (create/read an `app.bsky.feed.generator` record), `labeler_service` (create/read an `app.bsky.labeler.service` record with `policies.labelValueDefinitions`), `post_image_embed` (upload an image blob, build a facet + `app.bsky.embed.images` post), and `timeline_moderation` (run the moderation decision engine over the timeline, offline-sample or live).
+More end-to-end examples live in `examples/`: `feed_generator` (create/read an `app.bsky.feed.generator` record), `labeler_service` (create/read an `app.bsky.labeler.service` record with `policies.labelValueDefinitions`), `ozone_moderation` (offline `app.bsky.labeler.service` record builder plus live ozone moderation calls via the `wolfram/ozone.h` helper: `wf_ozone_report_subject`, `wf_ozone_query_statuses`, `wf_ozone_get_label_defs`), `post_image_embed` (upload an image blob, build a facet + `app.bsky.embed.images` post), and `timeline_moderation` (run the moderation decision engine over the timeline, offline-sample or live).
 
 ```sh
 ./build/upload_image https://bsky.social you@example.com yourpassword ./cat.jpg "a cat"
