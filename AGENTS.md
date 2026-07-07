@@ -29,7 +29,9 @@ Agentic principles and technical context for the `wolfram` repository.
 - `repo`: libcbor-backed canonical DAG-CBOR, CIDs, CAR parse/write, deterministic MST add/delete/merge, signed v3 commits, record create/get/update/delete, and full CAR ownership/signature/content verification/import. Tested.
 - `record`: schema-driven JSON-to-DAG-CBOR structured record encoding. Tested.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing. Tested.
-- `agent_sync`: Agent wrappers for `com.atproto.sync.getBlob`, `getBlocks`, `getRecord`, `listBlobs` and `com.atproto.repo.listRecords`. Tested.
+- `agent`: Core agent struct, session management, `com.atproto.repo` CRUD (createRecord, getRecord, putRecord, deleteRecord, applyWrites, listRecords), `com.atproto.sync` wrappers (getBlob, getBlocks, getRecord, listBlobs), social graph (mute, unmute), graph/feed wrappers (getBlocks, getMutes, getKnownFollowers, getRelationships, getList, getLists, searchPosts, getActorLikes, getLikes, getRepostedBy, getUnreadCount). Tested.
+- `agent_sync`: Input-validation tests for sync/graph/feed/notification wrappers. Tested.
+- `agent_repo`: Offline repo sync pipeline — seed CAR, verify and apply incremental diffs, query mirror head, invert operations. Tested.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding. Tested.
 - `oauth`: strict atproto metadata discovery, PKCE S256, ES256 DPoP, PAR/token/refresh calls with nonce retry, callback validation, public and `private_key_jwt` client authentication, serializable authorization/token state, authorization-begin orchestration through PAR, callback-to-session completion, and authenticating XRPC wrapper (`wf_auth_client`) with DPoP binding, session-refresh, and DPoP nonce retry. Tested.
 - `server`: Server account management — `com.atproto.server` describe, createAccount, app passwords, and account lifecycle. Tested.
@@ -45,4 +47,4 @@ Agentic principles and technical context for the `wolfram` repository.
 
 - Higher-level endpoint examples using generated clients.
 - Repository sync toward verified incremental diff application and operation inversion.
-- High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity. — a "BskyAgent" equivalent wrapping session + XRPC + identity.
+- High-level client API — a "BskyAgent" equivalent wrapping session + XRPC + identity.

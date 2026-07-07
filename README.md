@@ -160,13 +160,22 @@ Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto
 23. ✅ Lexicon validation — runtime object/record validation against lexicon
     schemas, supporting `object`, `record`, `query` (parameters extraction),
     `procedure` (input.schema extraction), `params`, `blob`, `ref`,
-    `array`, `string` (including format validation), `integer`, `boolean`,
-    `unknown`, and `union` types (`wf_validate_value`, `wf_validate_record`).
+     `array`, `string` (including format validation), `integer`, `boolean`,
+     `unknown`, and `union` types (`wf_validate_value`, `wf_validate_record`).
+24. ✅ Agent API wrappers — `com.atproto.sync.getBlob/getBlocks/getRecord/listBlobs`,
+     `com.atproto.repo.listRecords`, social graph (mute/unmute), graph wrappers
+     (getBlocks, getMutes, getKnownFollowers, getRelationships, getList, getLists),
+     feed wrappers (searchPosts, getActorLikes, getLikes, getRepostedBy),
+     and notification wrappers (getUnreadCount). Full input validation tests.
+25. ✅ Agent repo sync pipeline — offline mirror seed, verified incremental
+     diff apply with CAR parsing, mirror head query, operation inversion,
+     and local mirror record lookup (`wf_agent_set_did`, `wf_agent_set_signing_key`,
+     `wf_agent_seed_repo`, `wf_agent_apply_repo_diff`, `wf_agent_repo_head`,
+     `wf_agent_invert_repo_operations`, `wf_agent_mirror_get_record`). Tested.
 
 ### Next planned work
 
 - Full-corpus generated lexicon clients exercised end-to-end against a live PDS in examples.
-- Repository sync toward verified incremental diff application and operation inversion in the agent/commit path.
 - More examples — threads, custom feeds, labeler records, image/embed posts via blob upload.
 - Documentation: per-function usage examples for the `agent`, `sync`, `validate`, and `oauth` modules.
 - Optional: JSON Structure / JSON Schema round-trip for non-Lexicon JSON if a use case appears.
