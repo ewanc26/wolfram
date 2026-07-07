@@ -237,6 +237,46 @@ static void test_delete_null_checks(void) {
     wf_richtext_free(&rt);
 }
 
+/* ── sanitization ── */
+static void test_sanitize_newlines(void) {
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "a\n\n\nb") == WF_OK);
+    WF_CHECK(wf_richtext_sanitize(&rt, 1) == WF_OK);
+    WF_CHECK(strcmp(rt.text, "a\n\nb") == 0);
+    WF_CHECK(rt.text_len == 4);
+    wf_richtext_free(&rt);
+}
+
+static void test_sanitize_carriage_returns(void) {
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "a\r\n\r\n\r\nb") == WF_OK);
+    WF_CHECK(wf_richtext_sanitize(&rt, 1) == WF_OK);
+    WF_CHECK(strcmp(rt.text, "a\n\nb") == 0);
+    wf_richtext_free(&rt);
+}
+
+static void test_sanitize_newlines_with_zero_width(void) {
+    wf_richtext rt;
+    const char *text = "a\n"
+                       "\xe2\x80\x8b"
+                       " \n"
+                       "\xc2\xad"
+                       "\n"
+                       "b";
+    WF_CHECK(wf_richtext_init(&rt, text) == WF_OK);
+    WF_CHECK(wf_richtext_sanitize(&rt, 1) == WF_OK);
+    WF_CHECK(strcmp(rt.text, "a\n\nb") == 0);
+    wf_richtext_free(&rt);
+}
+
+static void test_sanitize_disabled(void) {
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "a\n\n\nb") == WF_OK);
+    WF_CHECK(wf_richtext_sanitize(&rt, 0) == WF_OK);
+    WF_CHECK(strcmp(rt.text, "a\n\n\nb") == 0);
+    wf_richtext_free(&rt);
+}
+
 int main(void) {
     test_grapheme_len_ascii();
     test_grapheme_len_multi_byte();
@@ -261,5 +301,9 @@ int main(void) {
     test_delete_middle();
     test_delete_removes_facet();
     test_delete_null_checks();
+    test_sanitize_newlines();
+    test_sanitize_carriage_returns();
+    test_sanitize_newlines_with_zero_width();
+    test_sanitize_disabled();
     WF_TEST_SUMMARY();
 }

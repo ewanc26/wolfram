@@ -51,6 +51,7 @@ wf_status wf_richtext_init(wf_richtext *rt, const char *text);
 void wf_richtext_free(wf_richtext *rt);
 
 wf_status wf_richtext_detect_facets(wf_richtext *rt);
+wf_status wf_richtext_sanitize(wf_richtext *rt, int clean_newlines);
 size_t wf_richtext_segment_count(const wf_richtext *rt);
 wf_richtext_segment wf_richtext_get_segment(const wf_richtext *rt, size_t index);
 

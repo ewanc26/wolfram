@@ -198,6 +198,87 @@ wf_status wf_richtext_delete(wf_richtext *rt, uint32_t start, uint32_t end) {
     return WF_OK;
 }
 
+/* ── sanitization ── */
+
+static int wf_richtext_is_sanitize_newline(char c) {
+    return c == '\r' || c == '\n';
+}
+
+static int wf_richtext_skip_sanitize_separator(const char *text, size_t len, size_t *index) {
+    if (!text || !index || *index >= len) return 0;
+
+    switch ((unsigned char)text[*index]) {
+        case ' ':
+        case '\t':
+        case '\v':
+        case '\f':
+            (*index)++;
+            return 1;
+        case 0xC2:
+            if (*index + 1 < len && (unsigned char)text[*index + 1] == 0xAD) {
+                *index += 2;
+                return 1;
+            }
+            break;
+        case 0xE2:
+            if (*index + 2 < len) {
+                unsigned char b1 = (unsigned char)text[*index + 1];
+                unsigned char b2 = (unsigned char)text[*index + 2];
+                if (b1 == 0x81 && b2 == 0xA0) {
+                    *index += 3;
+                    return 1;
+                }
+                if (b1 == 0x80 && (b2 == 0x8D || b2 == 0x8C || b2 == 0x8B)) {
+                    *index += 3;
+                    return 1;
+                }
+            }
+            break;
+    }
+
+    return 0;
+}
+
+static size_t wf_richtext_find_newline_run_end(const char *text, size_t len, size_t start) {
+    if (!text || start >= len || !wf_richtext_is_sanitize_newline(text[start])) return 0;
+
+    size_t pos = start + 1;
+    size_t newline_count = 1;
+
+    while (pos < len) {
+        while (wf_richtext_skip_sanitize_separator(text, len, &pos)) {
+            /* keep consuming separator code points */
+        }
+        if (pos >= len || !wf_richtext_is_sanitize_newline(text[pos])) break;
+        newline_count++;
+        pos++;
+    }
+
+    return newline_count >= 3 ? pos : 0;
+}
+
+wf_status wf_richtext_sanitize(wf_richtext *rt, int clean_newlines) {
+    if (!rt) return WF_ERR_INVALID_ARG;
+    if (!clean_newlines || rt->text_len == 0) return WF_OK;
+    if (!rt->text) return WF_ERR_INVALID_ARG;
+
+    size_t i = 0;
+    while (i < rt->text_len) {
+        size_t match_end = wf_richtext_find_newline_run_end(rt->text, rt->text_len, i);
+        if (match_end > i) {
+            wf_status status = wf_richtext_delete(rt, (uint32_t)i, (uint32_t)match_end);
+            if (status != WF_OK) return status;
+            status = wf_richtext_insert(rt, (uint32_t)i, "\n\n");
+            if (status != WF_OK) return status;
+            i += 2;
+            continue;
+        }
+        i++;
+    }
+
+    return WF_OK;
+}
+
 /* ── domain/TLD validation helpers ── */
 
 static const char *known_tlds[] = {
