@@ -143,5 +143,143 @@ int main(void) {
         wf_agent_free(agent);
     }
 
+    /* ── mute / unmute ─────────────────────────────────────────────── */
+    {
+        WF_CHECK(wf_agent_mute(NULL, "did:plc:test") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_unmute(NULL, "did:plc:test") == WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        /* not logged in */
+        WF_CHECK(wf_agent_mute(agent, "did:plc:test") == WF_ERR_INVALID_ARG);
+
+        /* invalid actor */
+        wf_session_data fake_data = {0};
+        wf_agent_resume(agent, &fake_data);
+        WF_CHECK(wf_agent_mute(agent, "not-an-identifier") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_unmute(agent, "not-an-identifier") == WF_ERR_INVALID_ARG);
+
+        wf_agent_free(agent);
+    }
+
+    /* ── searchPosts ───────────────────────────────────────────────── */
+    {
+        WF_CHECK(wf_agent_search_posts(NULL, "test", 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        wf_response res = {0};
+        WF_CHECK(wf_agent_search_posts(agent, NULL, 0, NULL, NULL, NULL, NULL, NULL, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_posts(agent, "", 0, NULL, NULL, NULL, NULL, NULL, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+
+        /* invalid author format */
+        WF_CHECK(wf_agent_search_posts(agent, "hello", 0, NULL, NULL, NULL, NULL,
+                                        "not-valid", NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent_free(agent);
+    }
+
+    /* ── getActorLikes ─────────────────────────────────────────────── */
+    {
+        WF_CHECK(wf_agent_get_actor_likes(NULL, "did:plc:test", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        wf_response res = {0};
+        WF_CHECK(wf_agent_get_actor_likes(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_actor_likes(agent, "not-valid", 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent_free(agent);
+    }
+
+    /* ── getLikes ──────────────────────────────────────────────────── */
+    {
+        WF_CHECK(wf_agent_get_likes(NULL, "at://did:plc:test/app.bsky.feed.post/3jkl0pp", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        wf_response res = {0};
+        WF_CHECK(wf_agent_get_likes(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_likes(agent, "not-a-uri", 0, NULL, &res)
+                 == WF_ERR_PARSE);
+
+        wf_agent_free(agent);
+    }
+
+    /* ── getRepostedBy ─────────────────────────────────────────────── */
+    {
+        WF_CHECK(wf_agent_get_reposted_by(NULL, "at://did:plc:test/app.bsky.feed.post/3jkl0pp", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        wf_response res = {0};
+        WF_CHECK(wf_agent_get_reposted_by(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_reposted_by(agent, "not-a-uri", 0, NULL, &res)
+                 == WF_ERR_PARSE);
+
+        wf_agent_free(agent);
+    }
+
+    /* ── graph queries ─────────────────────────────────────────────── */
+    {
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        wf_response res = {0};
+        WF_CHECK(wf_agent_get_blocks(NULL, 0, NULL, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_mutes(NULL, 0, NULL, NULL) == WF_ERR_INVALID_ARG);
+
+        /* getKnownFollowers */
+        WF_CHECK(wf_agent_get_known_followers(NULL, "did:plc:test", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_known_followers(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_known_followers(agent, "not-valid", 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+
+        /* getRelationships */
+        const char *others[] = {"did:plc:other"};
+        WF_CHECK(wf_agent_get_relationships(NULL, "did:plc:test", others, 1, NULL)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_relationships(agent, NULL, others, 1, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_relationships(agent, "not-a-did", others, 1, &res)
+                 == WF_ERR_INVALID_ARG);
+
+        /* getList */
+        WF_CHECK(wf_agent_get_list(NULL, "at://did:plc:test/app.bsky.graph.list/3jkl0pp", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_list(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_list(agent, "not-a-uri", 0, NULL, &res)
+                 == WF_ERR_PARSE);
+
+        /* getLists */
+        WF_CHECK(wf_agent_get_lists(NULL, "did:plc:test", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_lists(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_lists(agent, "not-valid", 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent_free(agent);
+    }
+
     WF_TEST_SUMMARY();
 }
