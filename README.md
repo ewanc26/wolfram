@@ -12,6 +12,15 @@ embedded in, or required by applications using `libwolfram`.
 
 `wolfram` provides the low-level building blocks for speaking AT Protocol from C: XRPC over HTTP, DID/handle resolution, repo signing, and MST/CBOR/CAR handling. Layered like the other SDKs in this ecosystem — a small transport core, with identity and repo logic built on top rather than tangled into it.
 
+## Documentation
+
+Per-module usage guides with runnable C snippets live in [`docs/`](docs/):
+
+- [`docs/agent.md`](docs/agent.md) — high-level `wf_agent_*` API (session, posts, feeds, profile, social graph, notifications, blobs, pagination).
+- [`docs/sync.md`](docs/sync.md) — repo CAR download, verify/import, firehose subscription, commit verification, and blob/blocks endpoints.
+- [`docs/validate.md`](docs/validate.md) — runtime validation with `wf_validate_value` / `wf_validate_record`.
+- [`docs/oauth.md`](docs/oauth.md) — OAuth/DPoP discovery, PKCE, PAR, callback completion, and the authenticated XRPC client.
+
 ## Name
 
 `wolfram` was chosen for three reasons:
