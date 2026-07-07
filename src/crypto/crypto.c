@@ -6,10 +6,64 @@
 #include "wolfram/crypto.h"
 
 #include <string.h>
+#include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/obj_mac.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+
+static wf_status wf_p256_is_low_s(const BIGNUM *s, const EC_KEY *eckey) {
+    const BIGNUM *order;
+    BIGNUM *half_order;
+    int low;
+
+    if (!s || !eckey) return WF_ERR_INVALID_ARG;
+    order = EC_GROUP_get0_order(EC_KEY_get0_group(eckey));
+    if (!order) return WF_ERR_ALLOC;
+
+    half_order = BN_dup(order);
+    if (!half_order) return WF_ERR_ALLOC;
+    if (!BN_rshift1(half_order, half_order)) {
+        BN_free(half_order);
+        return WF_ERR_ALLOC;
+    }
+
+    low = BN_cmp(s, half_order) <= 0;
+    BN_free(half_order);
+    return low ? WF_OK : WF_ERR_PARSE;
+}
+
+static wf_status wf_p256_normalize_s(const EC_KEY *eckey, BIGNUM **s_io) {
+    const BIGNUM *order;
+    BIGNUM *half_order;
+    BIGNUM *s;
+
+    if (!eckey || !s_io || !*s_io) return WF_ERR_INVALID_ARG;
+    s = *s_io;
+    order = EC_GROUP_get0_order(EC_KEY_get0_group(eckey));
+    if (!order) return WF_ERR_ALLOC;
+
+    half_order = BN_dup(order);
+    if (!half_order) return WF_ERR_ALLOC;
+    if (!BN_rshift1(half_order, half_order)) {
+        BN_free(half_order);
+        return WF_ERR_ALLOC;
+    }
+
+    if (BN_cmp(s, half_order) > 0) {
+        BIGNUM *normalized = BN_dup(order);
+        if (!normalized || !BN_sub(normalized, normalized, s)) {
+            BN_free(normalized);
+            BN_free(half_order);
+            return WF_ERR_ALLOC;
+        }
+        BN_free(s);
+        *s_io = normalized;
+    }
+
+    BN_free(half_order);
+    return WF_OK;
+}
 
 #ifdef HAVE_LIBSECP256K1
 #include <secp256k1.h>
@@ -89,17 +143,54 @@ wf_status wf_sign(const wf_signing_key *key,
         SHA256(msg, msg_len, hash);
 
         ECDSA_SIG *sig = ECDSA_do_sign(hash, 32, eckey);
-        EC_KEY_free(eckey);
-        if (!sig) return WF_ERR_ALLOC;
+        if (!sig) {
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
 
-        const BIGNUM *r, *s;
-        ECDSA_SIG_get0(sig, &r, &s);
-        if (BN_bn2binpad(r, sig_out, 32) != 32 ||
-            BN_bn2binpad(s, sig_out + 32, 32) != 32) {
+        const BIGNUM *r0, *s0;
+        BIGNUM *r = NULL;
+        BIGNUM *s = NULL;
+        wf_status status = WF_OK;
+
+        ECDSA_SIG_get0(sig, &r0, &s0);
+        if (!r0 || !s0) {
             ECDSA_SIG_free(sig);
             return WF_ERR_ALLOC;
         }
+
+        r = BN_dup(r0);
+        s = BN_dup(s0);
+        if (!r || !s) {
+            BN_free(r);
+            BN_free(s);
+            ECDSA_SIG_free(sig);
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
+
+        status = wf_p256_normalize_s(eckey, &s);
+        if (status != WF_OK) {
+            BN_free(r);
+            BN_free(s);
+            ECDSA_SIG_free(sig);
+            EC_KEY_free(eckey);
+            return status;
+        }
+
+        if (BN_bn2binpad(r, sig_out, 32) != 32 ||
+            BN_bn2binpad(s, sig_out + 32, 32) != 32) {
+            BN_free(r);
+            BN_free(s);
+            ECDSA_SIG_free(sig);
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
+
+        BN_free(r);
+        BN_free(s);
         ECDSA_SIG_free(sig);
+        EC_KEY_free(eckey);
         return WF_OK;
     }
 
@@ -225,6 +316,12 @@ wf_status wf_verify(const char *public_key_multibase,
         }
         ECDSA_SIG_set0(ecdsa_sig, r, s);
 
+        if (wf_p256_is_low_s(s, eckey) != WF_OK) {
+            ECDSA_SIG_free(ecdsa_sig);
+            EC_KEY_free(eckey);
+            return WF_ERR_PARSE;
+        }
+
         int ok = ECDSA_do_verify(hash, 32, ecdsa_sig, eckey);
         ECDSA_SIG_free(ecdsa_sig);
         EC_KEY_free(eckey);
@@ -250,12 +347,17 @@ wf_status wf_verify(const char *public_key_multibase,
             return WF_ERR_INVALID_ARG;
         }
         secp256k1_ecdsa_signature ecdsa_sig;
+        secp256k1_ecdsa_signature normalized_sig;
         if (secp256k1_ecdsa_signature_parse_compact(ctx, &ecdsa_sig, sig) != 1) {
             secp256k1_context_destroy(ctx);
             return WF_ERR_PARSE;
         }
+        if (secp256k1_ecdsa_signature_normalize(ctx, &normalized_sig, &ecdsa_sig)) {
+            secp256k1_context_destroy(ctx);
+            return WF_ERR_PARSE;
+        }
 
-        int valid = secp256k1_ecdsa_verify(ctx, &ecdsa_sig, hash, &pubkey);
+        int valid = secp256k1_ecdsa_verify(ctx, &normalized_sig, hash, &pubkey);
         secp256k1_context_destroy(ctx);
         return valid ? WF_OK : WF_ERR_PARSE;
     }
