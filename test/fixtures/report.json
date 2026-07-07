@@ -1,0 +1,11 @@
+{
+  "id": 12345,
+  "reasonType": "com.atproto.moderation.defs#reasonViolation",
+  "reason": "spam and scam content",
+  "subject": {
+    "uri": "at://did:plc:subjectabc/app.bsky.feed.post/1abcdef",
+    "cid": "bafyreigzzcglpwz5z2z5z2z5z2z5z2z5z2z5z2z5z2z5z2z5z2z5z2"
+  },
+  "reportedBy": "did:plc:reporterxyz",
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}

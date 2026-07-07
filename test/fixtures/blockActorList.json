@@ -1,0 +1,11 @@
+{
+  "list": {
+    "uri": "at://did:plc:ownerabc/app.bsky.graph.list/2listid",
+    "cid": "bafyreiblocklistcidblocklistcidblocklistcidblocklistcidblockl",
+    "name": "Blocked Trolls",
+    "purpose": "app.bsky.graph.defs#modlist",
+    "description": "Known troll accounts to block.",
+    "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ownerabc/block-avatar"
+  },
+  "cursor": "next-cursor-token-002"
+}
