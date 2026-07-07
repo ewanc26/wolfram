@@ -164,6 +164,39 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
                        const wf_http_header *headers, size_t header_count,
                        wf_response *out);
 
+/**
+ * Upload a binary blob to `xrpc/{nsid}` with explicit request headers.
+ *
+ * Identical to `wf_xrpc_upload_blob` but lets the caller supply extra
+ * headers (for example an `Authorization` and `DPoP` proof), since the
+ * transport does not otherwise know about session auth. On WF_OK or
+ * WF_ERR_HTTP, `out` is populated and must be freed.
+ */
+wf_status wf_xrpc_upload_blob_with_headers(
+    wf_xrpc_client *client, const char *nsid, const void *data,
+    size_t data_len, const char *content_type, const wf_http_header *headers,
+    size_t header_count, wf_response *out);
+
+/**
+ * Test/diagnostic seam: install a handler that replaces real network I/O for
+ * every request issued on this client. Intended for offline unit tests;
+ * production code must never install a handler. Pass NULL for `fn` to restore
+ * the real transport.
+ *
+ * When a handler is installed it receives the full request (method, URL,
+ * content type, body, and headers) and is responsible for populating `out`
+ * (owned `body`/`dpop_nonce`) and returning WF_OK for a 2xx response or
+ * WF_ERR_HTTP for a non-2xx response. The handler still runs inside the
+ * transport module, so network I/O remains isolated to xrpc.c.
+ */
+typedef wf_status (*wf_xrpc_handler_fn)(void *userdata, const char *method,
+                                        const char *url, const char *content_type,
+                                        const char *body, size_t body_len,
+                                        const wf_http_header *headers,
+                                        size_t header_count, wf_response *out);
+void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
+                         void *userdata);
+
 #ifdef __cplusplus
 }
 #endif
