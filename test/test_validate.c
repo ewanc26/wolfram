@@ -5,19 +5,19 @@
 #include <string.h>
 
 static const char *LEX_POST =
-    "{\"lexicon\":1,\"id\":\"app.bsky.feed.post\",\"defs\":{\"main\":{\"type\":\"record\",\"key\":\"tid\",\"record\":{\"type\":\"object\",\"required\":[\"text\",\"createdAt\"],\"properties\":{\"text\":{\"type\":\"string\",\"maxLength\":3000,\"maxGraphemes\":300},\"facets\":{\"type\":\"array\",\"items\":{\"type\":\"ref\",\"ref\":\"app.bsky.richtext.facet\"}},\"reply\":{\"type\":\"ref\",\"ref\":\"#replyRef\"},\"createdAt\":{\"type\":\"string\",\"format\":\"datetime\"}},\"replyRef\":{\"type\":\"object\",\"required\":[\"root\",\"parent\"],\"properties\":{\"root\":{\"type\":\"ref\",\"ref\":\"com.atproto.repo.strongRef\"},\"parent\":{\"type\":\"ref\",\"ref\":\"com.atproto.repo.strongRef\"}}},\"textSlice\":{\"type\":\"object\",\"required\":[\"start\",\"end\"],\"properties\":{\"start\":{\"type\":\"integer\",\"minimum\":0},\"end\":{\"type\":\"integer\",\"minimum\":0}}}}}";
+    "{\"lexicon\":1,\"id\":\"app.bsky.feed.post\",\"defs\":{\"main\":{\"type\":\"record\",\"key\":\"tid\",\"record\":{\"type\":\"object\",\"required\":[\"text\",\"createdAt\"],\"properties\":{\"text\":{\"type\":\"string\",\"maxLength\":3000,\"maxGraphemes\":300},\"facets\":{\"type\":\"array\",\"items\":{\"type\":\"ref\",\"ref\":\"app.bsky.richtext.facet\"}},\"reply\":{\"type\":\"ref\",\"ref\":\"#replyRef\"},\"createdAt\":{\"type\":\"string\",\"format\":\"datetime\"}}}},\"replyRef\":{\"type\":\"object\",\"required\":[\"root\",\"parent\"],\"properties\":{\"root\":{\"type\":\"ref\",\"ref\":\"com.atproto.repo.strongRef\"},\"parent\":{\"type\":\"ref\",\"ref\":\"com.atproto.repo.strongRef\"}}},\"textSlice\":{\"type\":\"object\",\"required\":[\"start\",\"end\"],\"properties\":{\"start\":{\"type\":\"integer\",\"minimum\":0},\"end\":{\"type\":\"integer\",\"minimum\":0}}}}}";
 
 static const char *LEX_FACET =
     "{\"lexicon\":1,\"id\":\"app.bsky.richtext.facet\",\"defs\":{\"main\":{\"type\":\"object\",\"required\":[\"index\",\"features\"],\"properties\":{\"index\":{\"type\":\"ref\",\"ref\":\"#byteSlice\"},\"features\":{\"type\":\"array\",\"items\":{\"type\":\"union\",\"refs\":[\"#mention\",\"#link\",\"#tag\"]}}}},\"mention\":{\"type\":\"object\",\"required\":[\"did\"],\"properties\":{\"did\":{\"type\":\"string\",\"format\":\"did\"}}},\"link\":{\"type\":\"object\",\"required\":[\"uri\"],\"properties\":{\"uri\":{\"type\":\"string\",\"format\":\"uri\"}}},\"tag\":{\"type\":\"object\",\"required\":[\"tag\"],\"properties\":{\"tag\":{\"type\":\"string\",\"maxLength\":64,\"maxGraphemes\":64}}},\"byteSlice\":{\"type\":\"object\",\"required\":[\"byteStart\",\"byteEnd\"],\"properties\":{\"byteStart\":{\"type\":\"integer\",\"minimum\":0},\"byteEnd\":{\"type\":\"integer\",\"minimum\":0}}}}}";
 
 static const char *LEX_STRONG_REF =
-    "{\"lexicon\":1,\"id\":\"com.atproto.repo.strongRef\",\"defs\":{\"main\":{\"type\":\"reference\",\"description\":\"A reference to a strong reference (a commit and a pointer to a leaf in a merkle search tree).\",\"properties\":{\"cid\":{\"type\":\"string\",\"format\":\"cid\"},\"rev\":{\"type\":\"string\",\"format\":\"tid\"}}}}";
+    "{\"lexicon\":1,\"id\":\"com.atproto.repo.strongRef\",\"defs\":{\"main\":{\"type\":\"object\",\"required\":[\"uri\",\"cid\"],\"properties\":{\"uri\":{\"type\":\"string\",\"format\":\"at-uri\"},\"cid\":{\"type\":\"string\"}}}}}";
 
 static const char *LEX_GET_RECORD =
-    "{\"lexicon\":1,\"id\":\"com.atproto.repo.getRecord\",\"defs\":{\"main\":{\"type\":\"query\",\"description\":\"Get a single record from a repository. Does not require auth.\",\"parameters\":{\"type\":\"params\",\"required\":[\"repo\",\"collection\",\"rkey\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\",\"description\":\"The handle or DID of the repo.\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\",\"description\":\"The NSID of the record collection.\"},\"rkey\":{\"type\":\"string\",\"description\":\"The Record Key.\",\"format\":\"record-key\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\",\"description\":\"The CID of the version of the record. If not specified, then return the most recent version.\"}}},\"output\":{\"encoding\":\"application/json\",\"schema\":{\"type\":\"object\",\"required\":[\"uri\",\"value\"],\"properties\":{\"uri\":{\"type\":\"string\",\"format\":\"at-uri\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"},\"value\":{\"type\":\"unknown\"}}}}}}";
+    "{\"lexicon\":1,\"id\":\"com.atproto.repo.getRecord\",\"defs\":{\"main\":{\"type\":\"query\",\"parameters\":{\"type\":\"params\",\"required\":[\"repo\",\"collection\",\"rkey\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"rkey\":{\"type\":\"string\",\"format\":\"record-key\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"}}}},\"inputParams\":{\"type\":\"object\",\"required\":[\"repo\",\"collection\",\"rkey\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"rkey\":{\"type\":\"string\",\"format\":\"record-key\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"}}}}}";
 
 static const char *LEX_CREATE_RECORD =
-    "{\"lexicon\":1,\"id\":\"com.atproto.repo.createRecord\",\"defs\":{\"input\":{\"type\":\"params\",\"required\":[\"repo\",\"collection\",\"record\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\",\"description\":\"The repository to write to.\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\",\"description\":\"The ID of the record type to create.\"},\"record\":{\"type\":\"unknown\"}}},\"output\":{\"encoding\":\"application/json\",\"schema\":{\"type\":\"object\",\"required\":[\"uri\",\"cid\"],\"properties\":{\"uri\":{\"type\":\"string\",\"format\":\"at-uri\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"}}}}}}";
+    "{\"lexicon\":1,\"id\":\"com.atproto.repo.createRecord\",\"defs\":{\"input\":{\"type\":\"object\",\"required\":[\"repo\",\"collection\",\"record\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"record\":{\"type\":\"unknown\"}}}}}";
 
 static void load(wf_lexicon_registry *r, const char *json) {
     WF_CHECK(wf_lexicon_registry_load(r, json, strlen(json)) == WF_OK);
@@ -77,30 +77,30 @@ static void test_com_atproto_repo_strongRef(void) {
 
     // Valid strongRef
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.strongRef",
-            "{\"cid\":\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\",\"rev\":\"3jkl0pp8sic\"}",
-            strlen("{\"cid\":\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\",\"rev\":\"3jkl0pp8sic\"}"));
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.strongRef", "main",
+            "{\"uri\":\"at://did:plc:test/app.bsky.feed.post/3jkl0pp8sic\",\"cid\":\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\"}",
+            strlen("{\"uri\":\"at://did:plc:test/app.bsky.feed.post/3jkl0pp8sic\",\"cid\":\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\"}"));
         WF_CHECK(res.success == 1 && res.errors == NULL);
         wf_validate_result_free(&res);
     }
 
-    // Missing required fields
+    // Missing required field (uri)
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.strongRef",
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.strongRef", "main",
             "{\"cid\":\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\"}",
             strlen("{\"cid\":\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\"}"));
         WF_CHECK(res.success == 0 && res.errors != NULL);
-        WF_CHECK(error_path_contains(res.errors, "rev"));
+        WF_CHECK(error_path_contains(res.errors, "uri"));
         wf_validate_result_free(&res);
     }
 
-    // Invalid CID format (basic check - we're not validating CID format deeply here)
+    // Missing required field (cid)
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.strongRef",
-            "{\"cid\":\"not-a-valid-cid\",\"rev\":\"3jkl0pp8sic\"}",
-            strlen("{\"cid\":\"not-a-valid-cid\",\"rev\":\"3jkl0pp8sic\"}"));
-        // This might actually pass since we're just doing basic JSON validation
-        // The format validation might be more lenient in the current implementation
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.strongRef", "main",
+            "{\"uri\":\"at://did:plc:test/app.bsky.feed.post/3jkl0pp8sic\"}",
+            strlen("{\"uri\":\"at://did:plc:test/app.bsky.feed.post/3jkl0pp8sic\"}"));
+        WF_CHECK(res.success == 0 && res.errors != NULL);
+        WF_CHECK(error_path_contains(res.errors, "cid"));
         wf_validate_result_free(&res);
     }
 
@@ -113,9 +113,9 @@ static void test_com_atproto_repo_getRecord(void) {
 
     load(r, LEX_GET_RECORD);
 
-    // Valid getRecord request
+    // Valid getRecord request — validate against the "main" def (query type)
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.getRecord",
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.getRecord", "inputParams",
             "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}",
             strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}"));
         WF_CHECK(res.success == 1 && res.errors == NULL);
@@ -124,7 +124,7 @@ static void test_com_atproto_repo_getRecord(void) {
 
     // Missing required fields
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.getRecord",
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.getRecord", "inputParams",
             "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}",
             strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}"));
         WF_CHECK(res.success == 0 && res.errors != NULL);
@@ -134,7 +134,7 @@ static void test_com_atproto_repo_getRecord(void) {
 
     // Invalid format (repo not an at-identifier) - basic check
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.getRecord",
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.getRecord", "inputParams",
             "{\"repo\":\"not-an-at-identifier\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}",
             strlen("{\"repo\":\"not-an-at-identifier\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}"));
         // Format validation might vary, so we just check it processes
@@ -150,9 +150,9 @@ static void test_com_atproto_repo_createRecord(void) {
 
     load(r, LEX_CREATE_RECORD);
 
-    // Valid createRecord request (minimal)
+    // Valid createRecord request (minimal) — validate against "input" def
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.createRecord",
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.createRecord", "input",
             "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"record\":{}}",
             strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"record\":{}}"));
         WF_CHECK(res.success == 1 && res.errors == NULL);
@@ -161,7 +161,7 @@ static void test_com_atproto_repo_createRecord(void) {
 
     // Missing required fields
     {
-        wf_validate_result res = wf_validate_record(r, "com.atproto.repo.createRecord",
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.createRecord", "input",
             "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}",
             strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}"));
         WF_CHECK(res.success == 0 && res.errors != NULL);
