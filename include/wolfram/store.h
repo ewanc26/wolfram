@@ -50,6 +50,7 @@ extern "C" {
 #ifdef WOLFRAM_BUILD_STORE
 
 #include "wolfram/repo/cid.h"
+#include "wolfram/moderation.h"
 
 /** An open SQLite-backed store. Opaque to callers. */
 typedef struct wf_store wf_store;
@@ -162,6 +163,29 @@ wf_status wf_store_list_mirror_cids(wf_store *s, const char *did,
 
 /** Free an array returned by wf_store_list_mirror_cids. Safe with NULL. */
 void wf_store_mirror_cids_free(wf_cid *cids);
+
+/**
+ * Persist a moderation label.
+ *
+ * The label is keyed by the tuple (uri, val, src); a label already stored for
+ * that tuple is overwritten (INSERT OR REPLACE), so re-saving an updated
+ * version of the same label is a no-op-merge. `cid` may be NULL (e.g. for
+ * account/profile labels that carry no content CID); `cts` may also be NULL.
+ *
+ * Returns WF_ERR_INVALID_ARG when any of `uri`, `val`, or `src` is missing.
+ */
+wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
+                              const char *val, const char *src,
+                              const char *cts);
+
+/**
+ * Load all persisted labels for `uri`.
+ *
+ * Ownership: `*out` is caller-owned and must be freed with wf_mod_labels_free.
+ * Returns WF_ERR_NOT_FOUND when no labels are stored for `uri`.
+ */
+wf_status wf_store_load_labels(wf_store *s, const char *uri,
+                               wf_mod_label **out, size_t *out_count);
 
 #endif /* WOLFRAM_BUILD_STORE */
 

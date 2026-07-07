@@ -62,6 +62,14 @@ static wf_status store_init_schema(sqlite3 *db) {
         "  cid BLOB NOT NULL,"
         "  block BLOB NOT NULL,"
         "  PRIMARY KEY (did, cid)"
+        ");"
+        "CREATE TABLE IF NOT EXISTS labels ("
+        "  uri TEXT NOT NULL,"
+        "  cid TEXT,"
+        "  val TEXT NOT NULL,"
+        "  src TEXT NOT NULL,"
+        "  cts TEXT,"
+        "  PRIMARY KEY (uri, val, src)"
         ");";
 #else
     ddl =
@@ -86,6 +94,14 @@ static wf_status store_init_schema(sqlite3 *db) {
         "  cid BLOB NOT NULL,"
         "  block BLOB NOT NULL,"
         "  PRIMARY KEY (did, cid)"
+        ");"
+        "CREATE TABLE IF NOT EXISTS labels ("
+        "  uri TEXT NOT NULL,"
+        "  cid TEXT,"
+        "  val TEXT NOT NULL,"
+        "  src TEXT NOT NULL,"
+        "  cts TEXT,"
+        "  PRIMARY KEY (uri, val, src)"
         ");";
 #endif
 
@@ -710,6 +726,87 @@ wf_status wf_store_load_mirror_block(wf_store *s, const char *did,
 
     sqlite3_finalize(stmt);
     return st;
+}
+
+wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
+                              const char *val, const char *src,
+                              const char *cts) {
+    if (!s || !uri || !val || !src) return WF_ERR_INVALID_ARG;
+
+    /* Keyed by (uri, val, src); re-saving the same tuple overwrites it. */
+    static const char *sql =
+        "INSERT OR REPLACE INTO labels (uri, cid, val, src, cts)"
+        " VALUES (?1, ?2, ?3, ?4, ?5)";
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    int rc = sqlite3_bind_text(stmt, 1, uri, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 2, cid);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 3, val, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 4, src, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 5, cts);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE) return WF_ERR_INVALID_ARG;
+    return WF_OK;
+}
+
+wf_status wf_store_load_labels(wf_store *s, const char *uri,
+                               wf_mod_label **out, size_t *out_count) {
+    if (!s || !uri || !out || !out_count) return WF_ERR_INVALID_ARG;
+
+    static const char *sql =
+        "SELECT src, uri, val, cts FROM labels WHERE uri = ?1";
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (sqlite3_bind_text(stmt, 1, uri, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_mod_label *labels = NULL;
+    size_t cap = 0, count = 0;
+    wf_status st = WF_OK;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (count == cap) {
+            size_t ncap = cap ? cap * 2 : 8;
+            wf_mod_label *nl = realloc(labels, ncap * sizeof(*nl));
+            if (!nl) { st = WF_ERR_ALLOC; break; }
+            labels = nl;
+            cap = ncap;
+        }
+        wf_mod_label *l = &labels[count];
+        memset(l, 0, sizeof(*l));
+        l->src = strdup((const char *)sqlite3_column_text(stmt, 0));
+        l->uri = strdup((const char *)sqlite3_column_text(stmt, 1));
+        l->val = strdup((const char *)sqlite3_column_text(stmt, 2));
+        const char *cts = (const char *)sqlite3_column_text(stmt, 3);
+        l->cts = cts ? strdup(cts) : NULL;
+        if (!l->src || !l->uri || !l->val) { st = WF_ERR_ALLOC; break; }
+        count++;
+    }
+    sqlite3_finalize(stmt);
+
+    if (st != WF_OK) {
+        wf_mod_labels_free(labels, count);
+        return st;
+    }
+    if (count == 0) {
+        wf_mod_labels_free(labels, count);
+        return WF_ERR_NOT_FOUND;
+    }
+    *out = labels;
+    *out_count = count;
+    return WF_OK;
 }
 
 #endif /* WOLFRAM_BUILD_STORE */

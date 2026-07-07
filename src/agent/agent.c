@@ -49,6 +49,12 @@ typedef struct wf_agent {
 #ifdef WOLFRAM_BUILD_STORE
     /* Optional persistence target. Caller-owned; never freed by the agent. */
     wf_store *store;
+    /* Labels loaded from the attached store (or NULL). Aggregated across the
+     * agent's own DID and any followed/known DIDs reached at load time.
+     * Caller of wf_agent_load_labels_from_store owns the lifecycle intent, but
+     * the agent owns the allocation and frees it on wf_agent_free. */
+    wf_mod_label *persisted_labels;
+    size_t persisted_label_count;
 #endif
 } wf_agent;
 
@@ -901,6 +907,11 @@ void wf_agent_free(wf_agent *agent) {
     free(agent->mirror_did);
     free(agent->mirror_signing_key);
     wf_car_free(&agent->mirror);
+#ifdef WOLFRAM_BUILD_STORE
+    if (agent->persisted_labels) {
+        wf_mod_labels_free(agent->persisted_labels, agent->persisted_label_count);
+    }
+#endif
     free(agent);
 }
 
@@ -3341,6 +3352,12 @@ wf_status wf_agent_mirror_load_from_store(wf_agent *agent) {
     wf_car_free(&agent->mirror);
     agent->mirror = mirror;
     return WF_OK;
+}
+
+/* Accessor used by the label-persistence helpers (label_persist.c). The
+ * store is caller-owned and never freed by the agent. */
+wf_store *wf_agent_get_store(wf_agent *agent) {
+    return agent ? agent->store : NULL;
 }
 
 #endif /* WOLFRAM_BUILD_STORE */

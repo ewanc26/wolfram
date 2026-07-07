@@ -74,6 +74,67 @@ static wf_status extract_labels(const cJSON *owner, const char *key,
     return st;
 }
 
+/* True when a persisted label's `label_uri` applies to a subject identified by
+ * `subject_uri`. Subjects are identified either by a bare DID (accounts /
+ * profiles) or an at:// URI; labels are likewise keyed either way, so we match
+ * exact equality and the at://-rooted-by-DID forms in both directions. */
+static int label_uri_applies(const char *subject_uri, const char *label_uri) {
+    if (!subject_uri || !label_uri) return 0;
+    if (strcmp(subject_uri, label_uri) == 0) return 1;
+
+    /* subject_uri is a DID and label_uri is at://DID/... (or vice versa). */
+    size_t n = strlen(subject_uri);
+    if (strncmp(label_uri, "at://", 5) == 0 &&
+        strncmp(label_uri + 5, subject_uri, n) == 0 &&
+        label_uri[5 + n] == '/') {
+        return 1;
+    }
+    size_t m = strlen(label_uri);
+    if (strncmp(subject_uri, "at://", 5) == 0 &&
+        strncmp(subject_uri + 5, label_uri, m) == 0 &&
+        subject_uri[5 + m] == '/') {
+        return 1;
+    }
+    return 0;
+}
+
+#ifdef WOLFRAM_BUILD_STORE
+/* Append copies of the agent's persisted labels that apply to `uri` into
+ * `*labels`/`*count`, taking ownership of the appended copies (freed later by
+ * the caller via wf_mod_labels_free). Best-effort: no store / no match is
+ * WF_OK with no change. */
+static wf_status mod_merge_persisted_labels(wf_agent *agent, const char *uri,
+                                            wf_mod_label **labels,
+                                            size_t *count) {
+    if (!agent || !uri || !labels || !count) return WF_OK;
+
+    size_t pcount = 0;
+    const wf_mod_label *plabels = wf_agent_get_persisted_labels(agent, &pcount);
+    if (!plabels || pcount == 0) return WF_OK;
+
+    for (size_t i = 0; i < pcount; i++) {
+        if (!label_uri_applies(uri, plabels[i].uri)) continue;
+
+        wf_mod_label *grown = realloc(*labels, (*count + 1) * sizeof(wf_mod_label));
+        if (!grown) return WF_ERR_ALLOC;
+        *labels = grown;
+
+        wf_mod_label *dst = &grown[*count];
+        memset(dst, 0, sizeof(*dst));
+        dst->src = plabels[i].src ? strdup(plabels[i].src) : NULL;
+        dst->uri = plabels[i].uri ? strdup(plabels[i].uri) : NULL;
+        dst->val = plabels[i].val ? strdup(plabels[i].val) : NULL;
+        dst->cts = plabels[i].cts ? strdup(plabels[i].cts) : NULL;
+        if (!dst->src || !dst->uri || !dst->val) {
+            free(dst->src); free(dst->uri); free(dst->val); free(dst->cts);
+            return WF_ERR_ALLOC;
+        }
+        (*count)++;
+    }
+    return WF_OK;
+}
+#endif
+
 wf_status wf_agent_mod_profile_subject_from_json(const cJSON *obj,
                                                  wf_mod_subject_profile *out,
                                                  wf_mod_label **out_labels,
@@ -307,6 +368,12 @@ wf_status wf_agent_moderate_profile(wf_agent *agent, const char *actor,
     if (status != WF_OK) {
         goto done;
     }
+#ifdef WOLFRAM_BUILD_STORE
+    status = mod_merge_persisted_labels(agent, subj.did, &labels, &label_count);
+    if (status != WF_OK) {
+        goto done;
+    }
+#endif
     subj.labels = labels;
     subj.label_count = label_count;
 
@@ -396,6 +463,17 @@ wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri,
     if (status != WF_OK) {
         goto done;
     }
+#ifdef WOLFRAM_BUILD_STORE
+    status = mod_merge_persisted_labels(agent, subj.uri, &labels, &label_count);
+    if (status != WF_OK) {
+        goto done;
+    }
+    status = mod_merge_persisted_labels(agent, subj.author.did,
+                                        &author_labels, &author_label_count);
+    if (status != WF_OK) {
+        goto done;
+    }
+#endif
     subj.labels = labels;
     subj.label_count = label_count;
     subj.author.labels = author_labels;
