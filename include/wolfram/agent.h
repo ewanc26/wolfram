@@ -43,6 +43,13 @@ wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
 wf_status wf_agent_delete_post(wf_agent *agent, const char *uri);
 void wf_agent_post_result_free(wf_agent_post_result *result);
 
+/* Record CRUD — wraps com.atproto.repo endpoints */
+wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
+                               const char *rkey, wf_response *out);
+wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
+                               const char *rkey, const char *record_json,
+                               wf_agent_post_result *out);
+
 /* Profile operations */
 typedef struct wf_agent_profile {
     char *did;

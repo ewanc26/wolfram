@@ -971,6 +971,125 @@ void wf_agent_profile_free(wf_agent_profile *profile) {
     wf_agent_profile_reset(profile);
 }
 
+/* ── getRecord ──────────────────────────────────────────────────────── */
+
+wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
+                               const char *rkey, wf_response *out) {
+    if (!agent || !collection || !rkey || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (wf_syntax_nsid_validate(collection) != WF_OK ||
+        !wf_syntax_record_key_is_valid(rkey)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+
+    if (!cJSON_AddStringToObject(root, "repo", agent->session->data.did) ||
+        !cJSON_AddStringToObject(root, "collection", collection) ||
+        !cJSON_AddStringToObject(root, "rkey", rkey)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "com.atproto.repo.getRecord",
+                                          json, out);
+    free(json);
+    return status;
+}
+
+/* ── putRecord ──────────────────────────────────────────────────────── */
+
+wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
+                               const char *rkey, const char *record_json,
+                               wf_agent_post_result *out) {
+    if (!agent || !collection || !rkey || !record_json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (wf_syntax_nsid_validate(collection) != WF_OK ||
+        !wf_syntax_record_key_is_valid(rkey)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *value = cJSON_Parse(record_json);
+    if (!value) return WF_ERR_PARSE;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        cJSON_Delete(value);
+        return WF_ERR_ALLOC;
+    }
+
+    if (!cJSON_AddStringToObject(root, "repo", agent->session->data.did) ||
+        !cJSON_AddStringToObject(root, "collection", collection) ||
+        !cJSON_AddStringToObject(root, "rkey", rkey) ||
+        !cJSON_AddItemToObject(root, "record", value)) {
+        cJSON_Delete(value);
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+
+    wf_response res = {0};
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "com.atproto.repo.putRecord",
+                                          json, &res);
+    free(json);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    wf_agent_post_result_reset(out);
+
+    cJSON *resp_root = cJSON_ParseWithLength(res.body, res.body_len);
+    if (!resp_root) {
+        wf_response_free(&res);
+        return WF_ERR_PARSE;
+    }
+
+    cJSON *uri = cJSON_GetObjectItemCaseSensitive(resp_root, "uri");
+    cJSON *cid = cJSON_GetObjectItemCaseSensitive(resp_root, "cid");
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
+        !uri->valuestring || !cid->valuestring) {
+        cJSON_Delete(resp_root);
+        wf_response_free(&res);
+        return WF_ERR_PARSE;
+    }
+
+    status = wf_agent_set_string(&out->uri, uri->valuestring);
+    if (status == WF_OK) {
+        status = wf_agent_set_string(&out->cid, cid->valuestring);
+    }
+    if (status != WF_OK) {
+        wf_agent_post_result_reset(out);
+    }
+
+    cJSON_Delete(resp_root);
+    wf_response_free(&res);
+    return status;
+}
+
 wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
                                     const char *facets_json, wf_agent_post_result *out) {
     if (!agent || !text || !out) {
