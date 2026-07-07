@@ -81,14 +81,28 @@ wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
  * Upload an authenticated blob to `xrpc/{nsid}`.
  *
  * Automatically handles DPoP proof generation, DPoP nonce rotation,
- * and session refresh if the token has expired.
+ * and transparent access-token refresh (refreshing once on a 401 and
+ * re-issuing with the new token).
  */
 wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
-                                     const char *nsid,
-                                     const void *data,
-                                     size_t data_len,
-                                     const char *content_type,
-                                     wf_response *out);
+                                      const char *nsid,
+                                      const void *data,
+                                      size_t data_len,
+                                      const char *content_type,
+                                      wf_response *out);
+
+/**
+ * Best-effort refresh of the bound session.
+ *
+ * Refreshes the access token in place only when it is missing or expired
+ * (`expires_at <= 0` or in the past); if a still-valid token is present no
+ * network call is made. Returns WF_OK when a usable access token is available.
+ *
+ * Ownership: `auth_client` is not freed; the refreshed `wf_oauth_session_state`
+ * is updated in place and remains owned by whoever supplied it to
+ * `wf_auth_client_new`.
+ */
+wf_status wf_auth_client_ensure_valid(wf_auth_client *auth_client);
 
 #ifdef __cplusplus
 }

@@ -448,6 +448,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_oauth PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME oauth COMMAND test_oauth)
 
+    add_executable(test_oauth_refresh test/test_oauth_refresh.c)
+    target_link_libraries(test_oauth_refresh PRIVATE wolfram)
+    target_include_directories(test_oauth_refresh PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME oauth_refresh COMMAND test_oauth_refresh)
+
     add_executable(test_syntax test/test_syntax.c)
     target_link_libraries(test_syntax PRIVATE wolfram)
     target_include_directories(test_syntax PRIVATE test)
