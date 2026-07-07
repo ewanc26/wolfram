@@ -1,0 +1,18 @@
+{
+  "convo": {
+    "id": "convo-1",
+    "rev": "rev-abc",
+    "members": [
+      { "did": "did:plc:alice", "handle": "alice.bsky.social", "displayName": "Alice" },
+      { "did": "did:plc:bob", "handle": "bob.bsky.social", "displayName": "Bob" }
+    ],
+    "lastMessage": { "id": "m1", "rev": "r1", "text": "hello there", "sender": { "did": "did:plc:alice" }, "sentAt": "2024-01-01T00:00:00Z" },
+    "muted": false,
+    "unreadCount": 2,
+    "kind": "direct"
+  },
+  "messages": [
+    { "id": "m1", "rev": "r1", "text": "first", "sender": { "did": "did:plc:alice" }, "sentAt": "2024-01-01T00:00:00Z" },
+    { "id": "m2", "rev": "r2", "text": "second", "sender": { "did": "did:plc:bob" }, "sentAt": "2024-01-01T00:01:00Z" }
+  ]
+}
