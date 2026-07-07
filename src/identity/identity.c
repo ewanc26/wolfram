@@ -94,46 +94,32 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
     return WF_OK;
 }
 
-static wf_status wf_did_resolve_plc(wf_xrpc_client *client, const char *did, wf_did_document *out) {
-    size_t url_len = strlen("https://plc.directory/") + strlen(did) + 1;
-    char *url = malloc(url_len);
-    if (!url) return WF_ERR_ALLOC;
-    snprintf(url, url_len, "https://plc.directory/%s", did);
-
-    wf_response res = {0};
-    wf_status status = wf_http_get(client, url, &res);
-    free(url);
-
-    if (status != WF_OK) {
-        return status;
-    }
-
-    cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-    wf_response_free(&res);
-    if (!root) {
-        return WF_ERR_PARSE;
-    }
-
-    status = wf_did_doc_parse_json(out, root);
-    cJSON_Delete(root);
-    return status;
-}
-
-static wf_status wf_did_resolve_web(wf_xrpc_client *client, const char *did, wf_did_document *out) {
-    const char *host = did + strlen("did:web:");
-    if (!host || host[0] == '\0') {
+static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
+                                     cJSON **out_root) {
+    wf_did_method method = wf_did_method_of(did);
+    char *url = NULL;
+    if (method == WF_DID_METHOD_PLC) {
+        size_t url_len = strlen("https://plc.directory/") + strlen(did) + 1;
+        url = malloc(url_len);
+        if (!url) return WF_ERR_ALLOC;
+        snprintf(url, url_len, "https://plc.directory/%s", did);
+    } else if (method == WF_DID_METHOD_WEB) {
+        const char *host = did + strlen("did:web:");
+        if (!host || host[0] == '\0') {
+            return WF_ERR_INVALID_ARG;
+        }
+        size_t url_len = strlen("https://") + strlen(host) +
+                         strlen("/.well-known/did.json") + 1;
+        url = malloc(url_len);
+        if (!url) return WF_ERR_ALLOC;
+        snprintf(url, url_len, "https://%s/.well-known/did.json", host);
+    } else {
         return WF_ERR_INVALID_ARG;
     }
 
-    size_t url_len = strlen("https://") + strlen(host) + strlen("/.well-known/did.json") + 1;
-    char *url = malloc(url_len);
-    if (!url) return WF_ERR_ALLOC;
-    snprintf(url, url_len, "https://%s/.well-known/did.json", host);
-
     wf_response res = {0};
     wf_status status = wf_http_get(client, url, &res);
     free(url);
-
     if (status != WF_OK) {
         return status;
     }
@@ -144,9 +130,8 @@ static wf_status wf_did_resolve_web(wf_xrpc_client *client, const char *did, wf_
         return WF_ERR_PARSE;
     }
 
-    status = wf_did_doc_parse_json(out, root);
-    cJSON_Delete(root);
-    return status;
+    *out_root = root;
+    return WF_OK;
 }
 
 wf_did_method wf_did_method_of(const char *did) {
@@ -169,14 +154,54 @@ wf_status wf_did_resolve(wf_xrpc_client *client, const char *did, wf_did_documen
     wf_did_doc_init(out);
     out->method = wf_did_method_of(did);
 
-    switch (out->method) {
-        case WF_DID_METHOD_PLC:
-            return wf_did_resolve_plc(client, did, out);
-        case WF_DID_METHOD_WEB:
-            return wf_did_resolve_web(client, did, out);
-        default:
-            return WF_ERR_INVALID_ARG;
+    cJSON *root = NULL;
+    wf_status status = did_fetch_document(client, did, &root);
+    if (status != WF_OK) {
+        return status;
     }
+
+    status = wf_did_doc_parse_json(out, root);
+    cJSON_Delete(root);
+    return status;
+}
+
+wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
+                                 const char *service_type, char **out_endpoint) {
+    if (!client || !did || !service_type || !out_endpoint) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_endpoint = NULL;
+
+    cJSON *root = NULL;
+    wf_status status = did_fetch_document(client, did, &root);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    wf_status result = WF_ERR_NOT_FOUND;
+    cJSON *service = cJSON_GetObjectItemCaseSensitive(root, "service");
+    if (cJSON_IsArray(service)) {
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, service) {
+            cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
+            cJSON *endpoint =
+                cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
+            if (cJSON_IsString(type) && cJSON_IsString(endpoint) &&
+                endpoint->valuestring &&
+                strcmp(type->valuestring, service_type) == 0) {
+                *out_endpoint = wf_strdup(endpoint->valuestring);
+                if (!*out_endpoint) {
+                    result = WF_ERR_ALLOC;
+                } else {
+                    result = WF_OK;
+                }
+                break;
+            }
+        }
+    }
+
+    cJSON_Delete(root);
+    return result;
 }
 
 void wf_did_document_free(wf_did_document *doc) {

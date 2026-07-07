@@ -429,9 +429,9 @@ static const char *wf_chat_default_endpoint(void) {
  * parsing its DID document. Honours both the rsky `BskyChatService` service
  * type and the atproto `AtprotoChatProxy` service type. Returns WF_OK and a
  * heap-allocated endpoint in *out_url on success (caller frees), or
- * WF_ERR_PARSE / WF_ERR_ALLOC on failure (and *out_url left NULL). The
- * existing wf_did_resolve helper does not surface chat-specific service
- * endpoints, so we resolve the document directly using the XRPC transport. */
+ * WF_ERR_NOT_FOUND / WF_ERR_ALLOC on failure (and *out_url left NULL). This
+ * reuses the shared identity resolver `wf_did_resolve_service` rather than
+ * re-implementing DID-document fetching. */
 static wf_status wf_chat_resolve_did_endpoint(wf_xrpc_client *client,
                                               const char *did,
                                               char **out_url) {
@@ -440,80 +440,17 @@ static wf_status wf_chat_resolve_did_endpoint(wf_xrpc_client *client,
         return WF_ERR_INVALID_ARG;
     }
 
-    wf_did_method method = wf_did_method_of(did);
-    char *url = NULL;
-    if (method == WF_DID_METHOD_PLC) {
-        size_t url_len = strlen("https://plc.directory/") + strlen(did) + 1;
-        url = (char *)malloc(url_len);
-        if (!url) {
-            return WF_ERR_ALLOC;
-        }
-        snprintf(url, url_len, "https://plc.directory/%s", did);
-    } else if (method == WF_DID_METHOD_WEB) {
-        const char *host = did + strlen("did:web:");
-        if (host[0] == '\0') {
-            return WF_ERR_INVALID_ARG;
-        }
-        /* did:web path segments are ':'-separated; reconstruct the host/path. */
-        size_t host_len = strlen(host);
-        size_t url_len = strlen("https://") + host_len +
-                         strlen("/.well-known/did.json") + 1;
-        url = (char *)malloc(url_len);
-        if (!url) {
-            return WF_ERR_ALLOC;
-        }
-        snprintf(url, url_len, "https://");
-        for (size_t i = 0; i < host_len; ++i) {
-            char c = host[i];
-            size_t off = strlen(url);
-            url[off] = (c == ':') ? '/' : c;
-            url[off + 1] = '\0';
-        }
-        strcat(url, "/.well-known/did.json");
+    char *ep = NULL;
+    wf_status status = wf_did_resolve_service(client, did, "BskyChatService", &ep);
+    if (status == WF_ERR_NOT_FOUND) {
+        status = wf_did_resolve_service(client, did, "AtprotoChatProxy", &ep);
+    }
+    if (status == WF_OK) {
+        *out_url = ep;
     } else {
-        return WF_ERR_INVALID_ARG;
+        free(ep);
     }
-
-    wf_response res = {0};
-    wf_status status = wf_http_get(client, url, &res);
-    free(url);
-    if (status != WF_OK) {
-        return status;
-    }
-
-    cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-    wf_response_free(&res);
-    if (!root) {
-        return WF_ERR_PARSE;
-    }
-
-    wf_status result = WF_ERR_PARSE;
-
-    cJSON *service = cJSON_GetObjectItemCaseSensitive(root, "service");
-    if (cJSON_IsArray(service)) {
-        cJSON *item = NULL;
-        cJSON_ArrayForEach(item, service) {
-            cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
-            cJSON *endpoint =
-                cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
-            if (cJSON_IsString(type) && cJSON_IsString(endpoint) &&
-                endpoint->valuestring) {
-                int is_chat = strcmp(type->valuestring, "BskyChatService") == 0 ||
-                              strcmp(type->valuestring, "AtprotoChatProxy") == 0;
-                if (is_chat && !*out_url) {
-                    *out_url = wf_chat_strdup(endpoint->valuestring);
-                    if (!*out_url) {
-                        result = WF_ERR_ALLOC;
-                    } else {
-                        result = WF_OK;
-                    }
-                }
-            }
-        }
-    }
-
-    cJSON_Delete(root);
-    return result;
+    return status;
 }
 
 wf_status wf_agent_chat_service_did_from_describe(const char *json,
