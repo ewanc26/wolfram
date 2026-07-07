@@ -141,6 +141,8 @@ src/agent/push_endpoint.c
     src/embed.c
     # Ozone moderation / labeler helper
     src/ozone/ozone.c
+    # Generic JSON round-trip / schema-subset validation
+    src/json/json.c
 )
 
 target_include_directories(wolfram
@@ -695,6 +697,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_agent_pagination PRIVATE wolfram)
     target_include_directories(test_agent_pagination PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME agent_pagination COMMAND test_agent_pagination)
+
+    add_executable(test_json_roundtrip test/test_json_roundtrip.c)
+    target_link_libraries(test_json_roundtrip PRIVATE wolfram)
+    target_include_directories(test_json_roundtrip PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME json_roundtrip COMMAND test_json_roundtrip)
 
     if(WOLFRAM_BUILD_STORE)
         if(WOLFRAM_BUILD_STORE_CRYPTO)
