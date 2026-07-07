@@ -123,6 +123,7 @@ src/agent/push_endpoint.c
     src/agent/create_record.c
     src/agent/moderation.c
     src/agent/moderation_apply.c
+    src/agent/label_persist.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -647,6 +648,12 @@ if(WOLFRAM_BUILD_TESTS)
         target_include_directories(test_mirror_persist PRIVATE test ${cjson_SOURCE_DIR})
         target_compile_definitions(test_mirror_persist PRIVATE WOLFRAM_BUILD_STORE)
         add_test(NAME mirror_persist COMMAND test_mirror_persist)
+
+        add_executable(test_label_persist test/test_label_persist.c)
+        target_link_libraries(test_label_persist PRIVATE wolfram)
+        target_include_directories(test_label_persist PRIVATE test ${cjson_SOURCE_DIR})
+        target_compile_definitions(test_label_persist PRIVATE WOLFRAM_BUILD_STORE)
+        add_test(NAME label_persist COMMAND test_label_persist)
     endif()
 
     if(WOLFRAM_BUILD_TEST_HTTPD)

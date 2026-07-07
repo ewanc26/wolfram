@@ -7,6 +7,8 @@
 #include "wolfram/xrpc.h"
 #include "wolfram/session.h"
 #include "wolfram/repo.h"
+#include "wolfram/moderation.h"
+#include "wolfram/store.h"
 
 /* Private agent struct for internal use */
 typedef struct wf_agent {
@@ -16,6 +18,14 @@ typedef struct wf_agent {
     char *mirror_did;
     char *mirror_signing_key;
     wf_car mirror;
+#ifdef WOLFRAM_BUILD_STORE
+    /* Optional persistence target. Caller-owned; never freed by the agent. */
+    wf_store *store;
+    /* Labels loaded from the store into the agent's moderation context.
+     * The agent owns the allocation and frees it on wf_agent_free. */
+    wf_mod_label *persisted_labels;
+    size_t persisted_label_count;
+#endif
 } wf_agent;
 
 /* Helper: convert int to string */

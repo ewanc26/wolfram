@@ -431,6 +431,37 @@ wf_status wf_agent_attach_store(wf_agent *agent, wf_store *store);
  * in-memory mirror. Returns WF_ERR_NOT_FOUND when no mirror is persisted,
  * WF_ERR_INVALID_ARG when no store/DID is set, WF_OK on success. */
 wf_status wf_agent_mirror_load_from_store(wf_agent *agent);
+
+/* Return the store currently attached to the agent, or NULL when no store
+ * is attached (or the store module is not compiled). Borrowed; valid for
+ * the lifetime of the agent. */
+wf_store *wf_agent_get_store(wf_agent *agent);
+
+/* Label persistence — bridge labels <-> the optional SQLite wf_store.
+ *
+ * Best-effort: when no store is attached these functions are no-ops and
+ * moderation continues to use only live API data. The agent never frees the
+ * attached store; the caller owns it. */
+
+/* Attach a store for label persistence. Equivalent to wf_agent_attach_store;
+ * the same attached store backs both the repo mirror and persisted labels. */
+wf_status wf_agent_attach_label_store(wf_agent *agent, wf_store *store);
+
+/* Load persisted labels (for the agent's DID and any reachable followed/known
+ * DIDs) into the agent's moderation context. Returns WF_OK when no store is
+ * attached (nothing to load). The agent owns the loaded labels. */
+wf_status wf_agent_load_labels_from_store(wf_agent *agent);
+
+/* Persist a single label via the attached store. Returns WF_OK (best-effort)
+ * when no store is attached. The label's `uri`/`cid`/`val`/`src`/`cts` are
+ * copied into the store. */
+wf_status wf_agent_persist_label(wf_agent *agent, const wf_mod_label *label);
+
+/* Return the agent's currently loaded persisted labels (set by
+ * wf_agent_load_labels_from_store). Borrowed; valid until the next load or
+ * wf_agent_free. */
+const wf_mod_label *wf_agent_get_persisted_labels(const wf_agent *agent,
+                                                 size_t *out_count);
 #endif
 
 /* Typed feed/thread parsers — convert raw JSON from app.bsky.feed timeline,
