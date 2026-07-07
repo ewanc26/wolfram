@@ -117,6 +117,7 @@ add_library(wolfram
     src/agent/chat_typed.c
     src/agent/moderation_actions.c
     src/agent/lexcall.c
+    src/agent/pagination.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
     src/agent/moderation.c
@@ -262,6 +263,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(moderation_demo examples/moderation_demo.c)
     target_link_libraries(moderation_demo PRIVATE wolfram)
     target_include_directories(moderation_demo PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(timeline_paged examples/timeline_paged.c)
+    target_link_libraries(timeline_paged PRIVATE wolfram)
+    target_include_directories(timeline_paged PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -486,4 +491,9 @@ if(WOLFRAM_BUILD_TESTS)
     add_test(NAME moderation COMMAND test_moderation)
 
     add_test(NAME moderation_demo COMMAND moderation_demo)
+
+    add_executable(test_agent_pagination test/test_agent_pagination.c)
+    target_link_libraries(test_agent_pagination PRIVATE wolfram)
+    target_include_directories(test_agent_pagination PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME agent_pagination COMMAND test_agent_pagination)
 endif()
