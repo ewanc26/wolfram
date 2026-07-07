@@ -210,6 +210,13 @@ option(WOLFRAM_BUILD_STORE "Build the optional SQLite3-backed persistence module
 # FetchContent is used — libsodium must be installed on the system.
 option(WOLFRAM_BUILD_STORE_CRYPTO "Encrypt persisted sessions at rest with libsodium" OFF)
 
+# Optional mock PDS for offline HTTP integration tests. When ON, the system
+# libmicrohttpd (GNU MHD) library is required (no network FetchContent). It
+# builds test/mock_pds.c and the offline integration test that points the SDK's
+# XRPC client at a real local HTTP server. OFF by default so the default test
+# suite has no extra dependency.
+option(WOLFRAM_BUILD_TEST_HTTPD "Build the optional libmicrohttpd-backed mock PDS and offline HTTP integration test" OFF)
+
 if(WOLFRAM_BUILD_STORE_CRYPTO)
     set(WOLFRAM_BUILD_STORE ON CACHE BOOL "" FORCE)
 endif()
@@ -618,5 +625,19 @@ if(WOLFRAM_BUILD_TESTS)
             target_compile_definitions(test_store PRIVATE WOLFRAM_BUILD_STORE)
             add_test(NAME store COMMAND test_store)
         endif()
+    endif()
+
+    if(WOLFRAM_BUILD_TEST_HTTPD)
+        find_path(MICROHTTPD_INCLUDE_DIR NAMES microhttpd.h REQUIRED)
+        find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
+
+        add_executable(test_mock_pds test/test_mock_pds.c test/mock_pds.c)
+        target_link_libraries(test_mock_pds PRIVATE wolfram ${MICROHTTPD_LIBRARY})
+        target_include_directories(test_mock_pds PRIVATE
+            test
+            ${MICROHTTPD_INCLUDE_DIR}
+            ${cjson_SOURCE_DIR}
+        )
+        add_test(NAME mock_pds COMMAND test_mock_pds)
     endif()
 endif()

@@ -219,7 +219,10 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
         }
     }
 
-    if (status != WF_OK && buf.data) {
+    /* On WF_ERR_HTTP the body was already transferred to `out` (the caller
+     * owns and must free it per the API contract), so only discard it for
+     * the error statuses where `out` was not populated. */
+    if (status != WF_OK && status != WF_ERR_HTTP && buf.data) {
         free(buf.data);
     }
     free(capture.dpop_nonce);
