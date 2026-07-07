@@ -1,5 +1,6 @@
 # Build output (covers build/, build-store/, build-*/)
 build*/
+Testing/
 out/
 bin/
 cmake-build-*/
