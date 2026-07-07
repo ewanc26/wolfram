@@ -410,8 +410,28 @@ wf_status wf_agent_invert_repo_operations(wf_agent *agent,
                                           size_t count,
                                           wf_repo_operation **out_inverse);
 wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
-                                     const char *rkey,
-                                     unsigned char **out_data, size_t *out_len);
+                                      const char *rkey,
+                                      unsigned char **out_data, size_t *out_len);
+
+/* Repository mirror persistence — bridge to the optional SQLite wf_store.
+ *
+ * Persistence is BEST-EFFORT: the functions only act when a store has been
+ * attached via wf_agent_attach_store. When no store is attached (or the
+ * store module is not built), seeding / applying diffs keeps working purely
+ * in-memory. The agent never frees the attached store; the caller owns it. */
+#ifdef WOLFRAM_BUILD_STORE
+#include "wolfram/store.h"
+
+/* Attach an open store to the agent (caller retains ownership). Once
+ * attached, wf_agent_seed_repo / wf_agent_apply_repo_diff persist the
+ * mirror HEAD and blocks automatically. */
+wf_status wf_agent_attach_store(wf_agent *agent, wf_store *store);
+
+/* Reload a previously persisted mirror for the agent's DID into the
+ * in-memory mirror. Returns WF_ERR_NOT_FOUND when no mirror is persisted,
+ * WF_ERR_INVALID_ARG when no store/DID is set, WF_OK on success. */
+wf_status wf_agent_mirror_load_from_store(wf_agent *agent);
+#endif
 
 /* Typed feed/thread parsers — convert raw JSON from app.bsky.feed timeline,
  * author-feed, and post-thread responses into owned C structs. Implemented in

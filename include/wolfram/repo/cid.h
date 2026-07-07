@@ -17,6 +17,11 @@ typedef struct wf_cid {
 /** Render a CID as its base32 (CIDv1) string form. Caller frees. */
 char *wf_cid_to_string(const wf_cid *cid);
 
+/** Parse a base32 (CIDv1) string form back into a wf_cid.
+ *  Returns WF_OK on success, WF_ERR_INVALID_ARG if `str` is not a valid
+ *  CIDv1 (dag-cbor / sha2-256) identifier. */
+wf_status wf_cid_from_string(const char *str, wf_cid *out);
+
 /** Compute the CID of a DAG-CBOR-encoded block (CIDv1, dag-cbor, sha2-256). */
 wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
                           wf_cid *out);

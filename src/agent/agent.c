@@ -6,6 +6,7 @@
 #include "wolfram/server.h"
 #include "wolfram/session.h"
 #include "wolfram/syntax.h"
+#include "wolfram/store.h"
 
 #include <cJSON.h>
 #include "wolfram/atproto_lex.h"
@@ -45,6 +46,10 @@ typedef struct wf_agent {
     char *mirror_signing_key;
     /* Local repo mirror — a wf_car whose root is the latest verified commit. */
     wf_car mirror;
+#ifdef WOLFRAM_BUILD_STORE
+    /* Optional persistence target. Caller-owned; never freed by the agent. */
+    wf_store *store;
+#endif
 } wf_agent;
 
 static char *wf_agent_strdup(const char *s) {
@@ -3105,6 +3110,10 @@ wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *
 
 /* ── repo sync: set_did / set_signing_key ──────────────────────────── */
 
+#ifdef WOLFRAM_BUILD_STORE
+static wf_status wf_agent_persist_mirror(wf_agent *agent);
+#endif
+
 wf_status wf_agent_set_did(wf_agent *agent, const char *did) {
     if (!agent || !did || !wf_syntax_did_is_valid(did))
         return WF_ERR_INVALID_ARG;
@@ -3166,6 +3175,9 @@ wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car) {
 
     wf_car_free(&agent->mirror);
     agent->mirror = existing;
+#ifdef WOLFRAM_BUILD_STORE
+    wf_agent_persist_mirror(agent);
+#endif
     return WF_OK;
 }
 
@@ -3197,6 +3209,9 @@ wf_status wf_agent_apply_repo_diff(wf_agent *agent,
 
     status = wf_repo_diff_apply(&agent->mirror, &diff);
     wf_repo_diff_free(&diff);
+#ifdef WOLFRAM_BUILD_STORE
+    wf_agent_persist_mirror(agent);
+#endif
     return status;
 }
 
@@ -3236,6 +3251,99 @@ wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
     return wf_repo_get_record(&agent->mirror, &agent->mirror.roots[0],
                               collection, rkey, out_data, out_len, &record_cid);
 }
+
+/* ── repo sync: persistence bridge ─────────────────────────────────── */
+
+#ifdef WOLFRAM_BUILD_STORE
+
+/* Best-effort: persist the current in-memory mirror HEAD + blocks to the
+ * attached store. Failures are intentionally swallowed so the agent keeps
+ * working in-memory. */
+static wf_status wf_agent_persist_mirror(wf_agent *agent) {
+    if (!agent || !agent->store || !agent->mirror_did) return WF_OK;
+    if (agent->mirror.root_count != 1 || !agent->mirror.roots) return WF_OK;
+
+    char *head = wf_cid_to_string(&agent->mirror.roots[0]);
+    if (!head) return WF_OK;
+
+    wf_status st = wf_store_save_mirror_head(agent->store, agent->mirror_did,
+                                             head);
+    free(head);
+    if (st != WF_OK) return WF_OK;
+
+    for (size_t i = 0; i < agent->mirror.block_count; i++) {
+        wf_car_block *b = &agent->mirror.blocks[i];
+        wf_store_save_mirror_block(agent->store, agent->mirror_did,
+                                   b->cid.bytes, b->cid.len,
+                                   b->data, b->data_len);
+    }
+    return WF_OK;
+}
+
+wf_status wf_agent_attach_store(wf_agent *agent, wf_store *store) {
+    if (!agent) return WF_ERR_INVALID_ARG;
+    /* Caller retains ownership of `store`; the agent only borrows it. */
+    agent->store = store;
+    return WF_OK;
+}
+
+wf_status wf_agent_mirror_load_from_store(wf_agent *agent) {
+    if (!agent || !agent->store || !agent->mirror_did)
+        return WF_ERR_INVALID_ARG;
+
+    char *head = NULL;
+    wf_status st = wf_store_load_mirror_head(agent->store, agent->mirror_did,
+                                             &head);
+    if (st != WF_OK) return st;  /* WF_ERR_NOT_FOUND when nothing persisted */
+
+    wf_cid head_cid = {0};
+    st = wf_cid_from_string(head, &head_cid);
+    free(head);
+    if (st != WF_OK) return st;
+
+    wf_cid *cids = NULL;
+    size_t count = 0;
+    st = wf_store_list_mirror_cids(agent->store, agent->mirror_did,
+                                   &cids, &count);
+    if (st != WF_OK) return st;
+
+    wf_car mirror = {0};
+    mirror.roots = malloc(sizeof(wf_cid));
+    if (!mirror.roots) {
+        wf_store_mirror_cids_free(cids);
+        return WF_ERR_ALLOC;
+    }
+    mirror.roots[0] = head_cid;
+    mirror.root_count = 1;
+
+    if (count > 0) {
+        mirror.blocks = calloc(count, sizeof(wf_car_block));
+        if (!mirror.blocks) {
+            free(mirror.roots);
+            wf_store_mirror_cids_free(cids);
+            return WF_ERR_ALLOC;
+        }
+        for (size_t i = 0; i < count; i++) {
+            uint8_t *block = NULL;
+            size_t block_len = 0;
+            if (wf_store_load_mirror_block(agent->store, agent->mirror_did,
+                                           cids[i].bytes, cids[i].len,
+                                           &block, &block_len) == WF_OK) {
+                mirror.blocks[mirror.block_count].cid = cids[i];
+                mirror.blocks[mirror.block_count].data = block;
+                mirror.blocks[mirror.block_count].data_len = block_len;
+                mirror.block_count++;
+            }
+        }
+    }
+
+    wf_store_mirror_cids_free(cids);
+    wf_car_free(&agent->mirror);
+    agent->mirror = mirror;
+    return WF_OK;
+}
+
+#endif /* WOLFRAM_BUILD_STORE */
 
 /* ── sync.getBlob ──────────────────────────────────────────────────── */
 

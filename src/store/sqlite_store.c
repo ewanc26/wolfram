@@ -582,6 +582,64 @@ wf_status wf_store_load_mirror_head(wf_store *s, const char *did,
     return st;
 }
 
+wf_status wf_store_list_mirror_cids(wf_store *s, const char *did,
+                                    wf_cid **out_cids, size_t *out_count) {
+    if (!s || !did || !out_cids || !out_count) return WF_ERR_INVALID_ARG;
+
+    static const char *sql = "SELECT cid FROM mirror_block WHERE did = ?1";
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (sqlite3_bind_text(stmt, 1, did, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_cid *cids = NULL;
+    size_t cap = 0, count = 0;
+    wf_status st = WF_OK;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const void *blob = sqlite3_column_blob(stmt, 0);
+        int len = sqlite3_column_bytes(stmt, 0);
+        if (len < 0) {
+            st = WF_ERR_INVALID_ARG;
+            break;
+        }
+        if ((size_t)len > sizeof(cids[0].bytes)) continue;
+        if (count == cap) {
+            size_t ncap = cap ? cap * 2 : 16;
+            wf_cid *nc = realloc(cids, ncap * sizeof(*cids));
+            if (!nc) {
+                st = WF_ERR_ALLOC;
+                break;
+            }
+            cids = nc;
+            cap = ncap;
+        }
+        memcpy(cids[count].bytes, blob, (size_t)len);
+        cids[count].len = (size_t)len;
+        count++;
+    }
+    sqlite3_finalize(stmt);
+
+    if (st != WF_OK) {
+        free(cids);
+        return st;
+    }
+    if (count == 0) {
+        free(cids);
+        return WF_ERR_NOT_FOUND;
+    }
+    *out_cids = cids;
+    *out_count = count;
+    return WF_OK;
+}
+
+void wf_store_mirror_cids_free(wf_cid *cids) {
+    free(cids);
+}
+
 wf_status wf_store_save_mirror_block(wf_store *s, const char *did,
                                      const uint8_t *cid, size_t cid_len,
                                      const uint8_t *block, size_t block_len) {
