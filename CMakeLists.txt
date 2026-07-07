@@ -121,6 +121,7 @@ add_library(wolfram
 src/agent/push_endpoint.c
     src/agent/create_record.c
     src/agent/moderation.c
+    src/agent/moderation_apply.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -293,6 +294,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(moderation_demo examples/moderation_demo.c)
     target_link_libraries(moderation_demo PRIVATE wolfram)
     target_include_directories(moderation_demo PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(agent_moderate examples/agent_moderate.c)
+    target_link_libraries(agent_moderate PRIVATE wolfram)
+    target_include_directories(agent_moderate PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(timeline_paged examples/timeline_paged.c)
     target_link_libraries(timeline_paged PRIVATE wolfram)
@@ -531,6 +536,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_moderation PRIVATE wolfram)
     target_include_directories(test_moderation PRIVATE test)
     add_test(NAME moderation COMMAND test_moderation)
+
+    add_executable(test_agent_moderation test/test_agent_moderation.c)
+    target_link_libraries(test_agent_moderation PRIVATE wolfram)
+    target_include_directories(test_agent_moderation PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME agent_moderation COMMAND test_agent_moderation)
 
     add_test(NAME moderation_demo COMMAND moderation_demo)
 
