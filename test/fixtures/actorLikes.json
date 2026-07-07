@@ -1,0 +1,22 @@
+{
+  "feed": [
+    {
+      "post": {
+        "uri": "at://did:plc:carol/app.bsky.feed.post/ccc333",
+        "cid": "bafyrei99999999999999999999999999999999999999999999999999999999",
+        "author": {
+          "did": "did:plc:carol",
+          "handle": "carol.bsky.social",
+          "displayName": "Carol"
+        },
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "text": "Hello from a liked post.",
+          "createdAt": "2024-07-01T10:00:00.000Z"
+        },
+        "indexedAt": "2024-07-01T10:00:01.000Z"
+      }
+    }
+  ],
+  "cursor": "cursor-for-actor-likes"
+}

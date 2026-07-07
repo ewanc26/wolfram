@@ -1,0 +1,37 @@
+{
+  "feeds": [
+    {
+      "uri": "at://did:plc:alice/app.bsky.feed.generator/aaa111",
+      "cid": "bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "did": "did:plc:alice",
+      "creator": {
+        "did": "did:plc:alice",
+        "handle": "alice.bsky.social",
+        "displayName": "Alice",
+        "avatar": "https://cdn.bsky.app/img/avatar/alice"
+      },
+      "displayName": "Alice's Cool Feed",
+      "description": "A feed of cool things.",
+      "avatar": "https://cdn.bsky.app/img/feed/alice",
+      "indexedAt": "2024-05-01T12:00:00.000Z",
+      "likeCount": 42
+    },
+    {
+      "uri": "at://did:plc:bob/app.bsky.feed.generator/bbb222",
+      "cid": "bafyreibbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "did": "did:plc:bob",
+      "creator": {
+        "did": "did:plc:bob",
+        "handle": "bob.bsky.social",
+        "displayName": "Bob",
+        "avatar": "https://cdn.bsky.app/img/avatar/bob"
+      },
+      "displayName": "Bob's News Feed",
+      "description": "The latest news.",
+      "avatar": "https://cdn.bsky.app/img/feed/bob",
+      "indexedAt": "2024-05-02T12:00:00.000Z",
+      "likeCount": 7
+    }
+  ],
+  "cursor": "cursor-for-feeds"
+}

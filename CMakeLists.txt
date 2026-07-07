@@ -107,6 +107,9 @@ add_library(wolfram
     src/agent/feed_typed.c
     src/agent/thread_typed.c
     src/agent/graph_typed.c
+    src/agent/list_typed.c
+    src/agent/moderation_typed.c
+    src/agent/feedgen_typed.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
     # Rich text / facet detection
@@ -239,6 +242,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(labeler_service examples/labeler_service.c)
     target_link_libraries(labeler_service PRIVATE wolfram)
     target_include_directories(labeler_service PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(timeline_thread_typed examples/timeline_thread_typed.c)
+    target_link_libraries(timeline_thread_typed PRIVATE wolfram)
+    target_include_directories(timeline_thread_typed PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -412,4 +419,25 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_graph_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME graph_typed COMMAND test_graph_typed)
+
+    add_executable(test_list_typed test/test_list_typed.c)
+    target_link_libraries(test_list_typed PRIVATE wolfram)
+    target_include_directories(test_list_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_list_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME list_typed COMMAND test_list_typed)
+
+    add_executable(test_moderation_typed test/test_moderation_typed.c)
+    target_link_libraries(test_moderation_typed PRIVATE wolfram)
+    target_include_directories(test_moderation_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_moderation_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME moderation_typed COMMAND test_moderation_typed)
+
+    add_executable(test_feedgen_typed test/test_feedgen_typed.c)
+    target_link_libraries(test_feedgen_typed PRIVATE wolfram)
+    target_include_directories(test_feedgen_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_feedgen_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME feedgen_typed COMMAND test_feedgen_typed)
 endif()

@@ -1,0 +1,15 @@
+{
+  "blocks": [
+    {
+      "did": "did:plc:blocksalice",
+      "handle": "alice.bsky.social",
+      "displayName": "Alice"
+    },
+    {
+      "did": "did:plc:blocksbob",
+      "handle": "bob.bsky.social",
+      "displayName": "Bob"
+    }
+  ],
+  "cursor": "blocks-cursor-123"
+}

@@ -1,0 +1,15 @@
+{
+  "mutes": [
+    {
+      "did": "did:plc:mutescarol",
+      "handle": "carol.bsky.social",
+      "displayName": "Carol"
+    },
+    {
+      "did": "did:plc:mutesdave",
+      "handle": "dave.bsky.social",
+      "displayName": "Dave"
+    }
+  ],
+  "cursor": "mutes-cursor-456"
+}

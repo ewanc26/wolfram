@@ -1,0 +1,23 @@
+{
+  "feed": [
+    {
+      "uri": "at://did:plc:gen/app.bsky.feed.generator/feed1",
+      "cid": "bafyreibbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "did": "did:plc:gen",
+      "displayName": "Tech Feed",
+      "description": "A feed about technology.",
+      "avatar": "https://cdn.bsky.app/img/feed/tech",
+      "indexedAt": "2024-06-01T08:00:00.000Z"
+    },
+    {
+      "uri": "at://did:plc:gen/app.bsky.feed.generator/feed2",
+      "cid": "bafyrei11111111111111111111111111111111111111111111111111111111",
+      "did": "did:plc:gen",
+      "displayName": "Sports Feed",
+      "description": "A feed about sports.",
+      "avatar": "https://cdn.bsky.app/img/feed/sports",
+      "indexedAt": "2024-06-02T08:00:00.000Z"
+    }
+  ],
+  "cursor": "cursor-for-feed-views"
+}
