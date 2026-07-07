@@ -13,6 +13,11 @@
 /* Private agent struct for internal use */
 typedef struct wf_agent {
     wf_xrpc_client *client;
+    /* Separate XRPC client for the Bluesky chat service
+     * (chat.bsky.convo.*). In production these endpoints are served by a
+     * distinct chat service, NOT the user's PDS, so they must be routed
+     * through this client. Lazily created via wf_agent_chat_service_resolve. */
+    wf_xrpc_client *chat_client;
     wf_session *session;
     char *service_url;
     char *mirror_did;
@@ -39,12 +44,22 @@ static inline int wf_agent_is_logged_in(const wf_agent *agent) {
            agent->session->data.did && agent->session->data.access_jwt;
 }
 
-/* Helper: set auth on XRPC client based on session */
+/* Helper: set auth on the primary (PDS) XRPC client based on session */
 static inline void wf_agent_sync_auth(wf_agent *agent) {
     if (!agent || !agent->client || !agent->session) {
         return;
     }
     wf_xrpc_client_set_auth(agent->client,
+        wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
+}
+
+/* Helper: set auth on the chat XRPC client based on session. Safe no-op when
+ * the chat client has not yet been resolved. */
+static inline void wf_agent_sync_chat_auth(wf_agent *agent) {
+    if (!agent || !agent->chat_client || !agent->session) {
+        return;
+    }
+    wf_xrpc_client_set_auth(agent->chat_client,
         wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
 }
 

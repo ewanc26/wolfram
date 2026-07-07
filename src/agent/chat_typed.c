@@ -11,6 +11,7 @@
 
 #include "wolfram/agent.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/identity.h"
 #include <cJSON.h>
 
 #include <stdlib.h>
@@ -52,7 +53,7 @@ static void wf_chat_profile_reset(wf_agent_profile_view *p) {
     memset(p, 0, sizeof(*p));
 }
 
-static void wf_chat_message_reset(wf_chat_message *m) {
+void wf_chat_message_reset(wf_chat_message *m) {
     if (!m) {
         return;
     }
@@ -419,6 +420,197 @@ void wf_chat_message_list_free(wf_chat_message_list *list) {
 
 /* Typed high-level wrappers. */
 
+/* Default chat service endpoint (mirrors rsky rsky-common/src/lib.rs:204). */
+static const char *wf_chat_default_endpoint(void) {
+    return WF_CHAT_DEFAULT_ENDPOINT;
+}
+
+/* Resolve a chat-service DID to its service endpoint URL by fetching and
+ * parsing its DID document. Honours both the rsky `BskyChatService` service
+ * type and the atproto `AtprotoChatProxy` service type. Returns WF_OK and a
+ * heap-allocated endpoint in *out_url on success (caller frees), or
+ * WF_ERR_PARSE / WF_ERR_ALLOC on failure (and *out_url left NULL). The
+ * existing wf_did_resolve helper does not surface chat-specific service
+ * endpoints, so we resolve the document directly using the XRPC transport. */
+static wf_status wf_chat_resolve_did_endpoint(wf_xrpc_client *client,
+                                              const char *did,
+                                              char **out_url) {
+    *out_url = NULL;
+    if (!client || !did || !out_url) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_did_method method = wf_did_method_of(did);
+    char *url = NULL;
+    if (method == WF_DID_METHOD_PLC) {
+        size_t url_len = strlen("https://plc.directory/") + strlen(did) + 1;
+        url = (char *)malloc(url_len);
+        if (!url) {
+            return WF_ERR_ALLOC;
+        }
+        snprintf(url, url_len, "https://plc.directory/%s", did);
+    } else if (method == WF_DID_METHOD_WEB) {
+        const char *host = did + strlen("did:web:");
+        if (host[0] == '\0') {
+            return WF_ERR_INVALID_ARG;
+        }
+        /* did:web path segments are ':'-separated; reconstruct the host/path. */
+        size_t host_len = strlen(host);
+        size_t url_len = strlen("https://") + host_len +
+                         strlen("/.well-known/did.json") + 1;
+        url = (char *)malloc(url_len);
+        if (!url) {
+            return WF_ERR_ALLOC;
+        }
+        snprintf(url, url_len, "https://");
+        for (size_t i = 0; i < host_len; ++i) {
+            char c = host[i];
+            size_t off = strlen(url);
+            url[off] = (c == ':') ? '/' : c;
+            url[off + 1] = '\0';
+        }
+        strcat(url, "/.well-known/did.json");
+    } else {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_http_get(client, url, &res);
+    free(url);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+    wf_response_free(&res);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status result = WF_ERR_PARSE;
+
+    cJSON *service = cJSON_GetObjectItemCaseSensitive(root, "service");
+    if (cJSON_IsArray(service)) {
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, service) {
+            cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
+            cJSON *endpoint =
+                cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
+            if (cJSON_IsString(type) && cJSON_IsString(endpoint) &&
+                endpoint->valuestring) {
+                int is_chat = strcmp(type->valuestring, "BskyChatService") == 0 ||
+                              strcmp(type->valuestring, "AtprotoChatProxy") == 0;
+                if (is_chat && !*out_url) {
+                    *out_url = wf_chat_strdup(endpoint->valuestring);
+                    if (!*out_url) {
+                        result = WF_ERR_ALLOC;
+                    } else {
+                        result = WF_OK;
+                    }
+                }
+            }
+        }
+    }
+
+    cJSON_Delete(root);
+    return result;
+}
+
+wf_status wf_agent_chat_service_did_from_describe(const char *json,
+                                                  size_t json_len,
+                                                  char **out_did) {
+    if (!json || !out_did) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_did = NULL;
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *chat = cJSON_GetObjectItemCaseSensitive(root, "chat");
+    if (cJSON_IsString(chat) && chat->valuestring && chat->valuestring[0]) {
+        *out_did = wf_chat_strdup(chat->valuestring);
+        if (!*out_did) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
+    if (!agent || !agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (agent->chat_client) {
+        return WF_OK;
+    }
+
+    const char *endpoint = wf_chat_default_endpoint();
+
+    wf_response res = {0};
+    wf_status status = wf_xrpc_query_params(agent->client,
+                                            "com.atproto.server.describeServer",
+                                            NULL, 0, &res);
+    if (status == WF_OK) {
+        char *chat_did = NULL;
+        if (wf_agent_chat_service_did_from_describe(res.body, res.body_len,
+                                                    &chat_did) == WF_OK &&
+            chat_did) {
+            char *resolved = NULL;
+            wf_status rstatus =
+                wf_chat_resolve_did_endpoint(agent->client, chat_did, &resolved);
+            if (rstatus == WF_OK && resolved) {
+                endpoint = resolved;
+            }
+            free(resolved);
+        }
+        free(chat_did);
+        wf_response_free(&res);
+    }
+
+    agent->chat_client = wf_xrpc_client_new(endpoint);
+    if (!agent->chat_client) {
+        return WF_ERR_ALLOC;
+    }
+    return WF_OK;
+}
+
+/* Lazily resolve the chat service and return the chat client (or NULL). */
+static wf_xrpc_client *wf_agent_chat_client(wf_agent *agent) {
+    if (!agent) {
+        return NULL;
+    }
+    if (wf_agent_chat_service_resolve(agent) != WF_OK) {
+        return NULL;
+    }
+    return agent->chat_client;
+}
+
+wf_status wf_agent_parse_message(const char *json, size_t json_len,
+                                 wf_chat_message *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = wf_chat_parse_message(out, root);
+    cJSON_Delete(root);
+    if (status != WF_OK) {
+        wf_chat_message_reset(out);
+    }
+    return status;
+}
+
 wf_status wf_agent_chat_list_convos(wf_agent *agent, int limit,
                                     const char *cursor,
                                     wf_chat_convo_list *out) {
@@ -444,9 +636,14 @@ wf_status wf_agent_chat_list_convos(wf_agent *agent, int limit,
         param_count++;
     }
 
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) {
+        return WF_ERR_INVALID_ARG;
+    }
+
     wf_response res = {0};
-    wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_query_params(agent->client,
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_query_params(cc,
                                             "chat.bsky.convo.listConvos",
                                             params, param_count, &res);
     if (status != WF_OK) {
@@ -470,9 +667,14 @@ wf_status wf_agent_chat_get_convo(wf_agent *agent, const char *convo_id,
     params[0].value = convo_id;
     size_t param_count = 1;
 
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) {
+        return WF_ERR_INVALID_ARG;
+    }
+
     wf_response res = {0};
-    wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_query_params(agent->client,
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_query_params(cc,
                                             "chat.bsky.convo.getConvo",
                                             params, param_count, &res);
     if (status != WF_OK) {
@@ -514,9 +716,14 @@ wf_status wf_agent_chat_get_messages(wf_agent *agent, const char *convo_id,
         param_count++;
     }
 
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) {
+        return WF_ERR_INVALID_ARG;
+    }
+
     wf_response res = {0};
-    wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_query_params(agent->client,
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_query_params(cc,
                                             "chat.bsky.convo.getMessages",
                                             params, param_count, &res);
     if (status != WF_OK) {
@@ -526,5 +733,74 @@ wf_status wf_agent_chat_get_messages(wf_agent *agent, const char *convo_id,
 
     status = wf_agent_parse_messages(res.body, res.body_len, out);
     wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_chat_send_message(wf_agent *agent, const char *convo_id,
+                                     const char *text, const char *facets_json,
+                                     wf_chat_message *out) {
+    if (!agent || !convo_id || !text || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        return WF_ERR_ALLOC;
+    }
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    cJSON *message = cJSON_CreateObject();
+    if (!message ||
+        !cJSON_AddItemToObject(root, "message", message) ||
+        !cJSON_AddStringToObject(message, "text", text) ||
+        !cJSON_AddStringToObject(message, "$type",
+                                 "chat.bsky.convo.defs#messageInput")) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    if (facets_json && facets_json[0]) {
+        cJSON *facets = cJSON_Parse(facets_json);
+        if (!facets) {
+            cJSON_Delete(root);
+            return WF_ERR_PARSE;
+        }
+        if (!cJSON_AddItemToObject(message, "facets", facets)) {
+            cJSON_Delete(facets);
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) {
+        return WF_ERR_ALLOC;
+    }
+
+    wf_response res = {0};
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_procedure(cc, "chat.bsky.convo.sendMessage",
+                                         json, &res);
+    free(json);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_message(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (status != WF_OK) {
+        wf_chat_message_reset(out);
+    }
     return status;
 }

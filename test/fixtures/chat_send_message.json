@@ -1,0 +1,9 @@
+{
+  "id": "msg-3xk9f2",
+  "rev": "rev-abc123def456",
+  "text": "hello from wolfram",
+  "sender": {
+    "did": "did:plc:alice"
+  },
+  "sentAt": "2024-05-01T12:34:56Z"
+}
