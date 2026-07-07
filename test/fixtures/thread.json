@@ -1,0 +1,67 @@
+{
+  "thread": {
+    "post": {
+      "uri": "at://did:plc:root/example.com/post/abc",
+      "cid": "bafyrootcid",
+      "author": {
+        "did": "did:plc:root",
+        "handle": "root.example.com",
+        "displayName": "Root Author"
+      },
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "text": "Hello thread",
+        "createdAt": "2026-07-01T10:00:00Z"
+      },
+      "replyCount": 2,
+      "repostCount": 1,
+      "likeCount": 5,
+      "quoteCount": 0,
+      "indexedAt": "2026-07-01T10:01:00Z"
+    },
+    "parent": {
+      "post": {
+        "uri": "at://did:plc:parent/example.com/post/p1",
+        "cid": "bafyparentcid",
+        "author": {
+          "did": "did:plc:parent",
+          "handle": "parent.example.com",
+          "displayName": "Parent Author"
+        },
+        "record": {
+          "text": "parent post"
+        },
+        "replyCount": 1,
+        "repostCount": 0,
+        "likeCount": 2,
+        "quoteCount": 0,
+        "indexedAt": "2026-07-01T09:00:00Z"
+      }
+    },
+    "replies": [
+      {
+        "post": {
+          "uri": "at://did:plc:reply1/example.com/post/r1",
+          "cid": "bafyreply1cid",
+          "author": {
+            "did": "did:plc:reply1",
+            "handle": "reply1.example.com"
+          },
+          "record": {
+            "text": "first reply"
+          },
+          "replyCount": 0,
+          "repostCount": 0,
+          "likeCount": 1,
+          "quoteCount": 0,
+          "indexedAt": "2026-07-01T10:30:00Z"
+        }
+      },
+      {
+        "uri": "at://did:plc:deleted/example.com/post/gone",
+        "notFound": true
+      }
+    ]
+  },
+  "cursor": "thread-cursor-xyz"
+}

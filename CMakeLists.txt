@@ -104,6 +104,8 @@ add_library(wolfram
     src/agent/graph.c
     src/agent/notification.c
     src/agent/agent_ext.c
+    src/agent/feed_typed.c
+    src/agent/thread_typed.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
     # Rich text / facet detection
@@ -232,6 +234,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(preferences_and_push examples/preferences_and_push.c)
     target_link_libraries(preferences_and_push PRIVATE wolfram)
     target_include_directories(preferences_and_push PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(labeler_service examples/labeler_service.c)
+    target_link_libraries(labeler_service PRIVATE wolfram)
+    target_include_directories(labeler_service PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -384,4 +390,18 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_agent_notifications PRIVATE wolfram)
     target_include_directories(test_agent_notifications PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME agent_notifications COMMAND test_agent_notifications)
+
+    add_executable(test_feed_typed test/test_feed_typed.c)
+    target_link_libraries(test_feed_typed PRIVATE wolfram)
+    target_include_directories(test_feed_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_feed_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME feed_typed COMMAND test_feed_typed)
+
+    add_executable(test_thread_typed test/test_thread_typed.c)
+    target_link_libraries(test_thread_typed PRIVATE wolfram)
+    target_include_directories(test_thread_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_thread_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME thread_typed COMMAND test_thread_typed)
 endif()

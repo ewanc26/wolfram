@@ -373,6 +373,13 @@ wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
                                      const char *rkey,
                                      unsigned char **out_data, size_t *out_len);
 
+/* Typed feed/thread parsers — convert raw JSON from app.bsky.feed timeline,
+ * author-feed, and post-thread responses into owned C structs. Implemented in
+ * feed_typed.c / thread_typed.c; their full declarations live in the headers
+ * below so the structs stay next to their parsers. */
+#include "wolfram/feed_typed.h"
+#include "wolfram/thread_typed.h"
+
 #ifdef __cplusplus
 }
 #endif

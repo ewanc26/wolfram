@@ -1,0 +1,123 @@
+{
+  "cursor": "cursor-abc-123",
+  "feed": [
+    {
+      "post": {
+        "uri": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+        "cid": "bafyreighpostaaaa1111111111111111111111111111111111111111aaa",
+        "author": {
+          "did": "did:plc:alice",
+          "handle": "alice.bsky.social",
+          "displayName": "Alice",
+          "avatar": "https://cdn.bsky.app/img/avatar/alice"
+        },
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "text": "Hello timeline!",
+          "createdAt": "2024-01-01T00:00:00.000Z",
+          "langs": ["en"]
+        },
+        "replyCount": 3,
+        "repostCount": 5,
+        "likeCount": 42,
+        "quoteCount": 1,
+        "indexedAt": "2024-01-01T00:00:01.000Z",
+        "viewer": {
+          "like": "at://did:plc:me/app.bsky.feed.like/like1",
+          "replyDisabled": false
+        }
+      }
+    },
+    {
+      "post": {
+        "uri": "at://did:plc:bob/app.bsky.feed.post/bbb222",
+        "cid": "bafyreighpostbbbb2222222222222222222222222222222222222222bbb",
+        "author": {
+          "did": "did:plc:bob",
+          "handle": "bob.bsky.social",
+          "displayName": "Bob",
+          "avatar": "https://cdn.bsky.app/img/avatar/bob"
+        },
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "text": "A post with an image embed.",
+          "createdAt": "2024-01-02T00:00:00.000Z"
+        },
+        "embed": {
+          "$type": "app.bsky.embed.images#view",
+          "images": [
+            {
+              "thumb": "https://cdn.bsky.app/img/thumb/bob1",
+              "fullsize": "https://cdn.bsky.app/img/full/bob1",
+              "alt": "a cat"
+            }
+          ]
+        },
+        "replyCount": 0,
+        "repostCount": 0,
+        "likeCount": 7,
+        "quoteCount": 0,
+        "bookmarkCount": 2,
+        "indexedAt": "2024-01-02T00:00:02.000Z"
+      },
+      "reply": {
+        "root": {
+          "uri": "at://did:plc:carol/app.bsky.feed.post/root999",
+          "cid": "bafyrootcarol",
+          "author": {
+            "did": "did:plc:carol",
+            "handle": "carol.bsky.social"
+          },
+          "record": { "text": "root post" },
+          "indexedAt": "2024-01-01T12:00:00.000Z"
+        },
+        "parent": {
+          "uri": "at://did:plc:carol/app.bsky.feed.post/parent888",
+          "cid": "bafyparentcarol",
+          "author": {
+            "did": "did:plc:carol",
+            "handle": "carol.bsky.social"
+          },
+          "record": { "text": "parent post" },
+          "indexedAt": "2024-01-01T12:05:00.000Z"
+        }
+      },
+      "feedContext": "ctx-bob-42"
+    },
+    {
+      "reason": {
+        "$type": "app.bsky.feed.defs#reasonRepost",
+        "by": {
+          "did": "did:plc:reposter",
+          "handle": "reposter.bsky.social",
+          "displayName": "Reposter"
+        },
+        "indexedAt": "2024-01-03T00:00:00.000Z"
+      },
+      "post": {
+        "uri": "at://did:plc:carol/app.bsky.feed.post/ccc333",
+        "cid": "bafyreighpostcccc3333333333333333333333333333333333333333ccc",
+        "author": {
+          "did": "did:plc:carol",
+          "handle": "carol.bsky.social",
+          "displayName": "Carol"
+        },
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "text": "Reposted into your timeline!",
+          "createdAt": "2024-01-03T00:00:00.000Z"
+        },
+        "replyCount": 1,
+        "repostCount": 9,
+        "likeCount": 100,
+        "quoteCount": 0,
+        "indexedAt": "2024-01-03T00:00:01.000Z",
+        "viewer": {
+          "repost": "at://did:plc:me/app.bsky.feed.repost/myrepost",
+          "bookmarked": true,
+          "pinned": false
+        }
+      }
+    }
+  ]
+}
