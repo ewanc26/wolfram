@@ -457,6 +457,8 @@ if(WOLFRAM_BUILD_TESTS)
     add_executable(test_identity test/test_identity.c)
     target_link_libraries(test_identity PRIVATE wolfram)
     target_include_directories(test_identity PRIVATE test)
+    target_compile_definitions(test_identity PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME identity COMMAND test_identity)
 
     add_executable(test_repo test/test_repo.c)
