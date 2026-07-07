@@ -2,6 +2,48 @@
 #include <stdlib.h>
 #include "wolfram/agent.h"
 #include <cJSON.h>
+#include <string.h>
+#include <ctype.h>
+
+static char *wf_dup_span(const char *s, size_t len) {
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, s, len);
+    out[len] = '\0';
+    return out;
+}
+
+static char *wf_join_args(int argc, char **argv, int first) {
+    size_t total = 1;
+    for (int i = first; i < argc; ++i) {
+        size_t part = strlen(argv[i]);
+        if (part > SIZE_MAX - total - 1) {
+            return NULL;
+        }
+        total += part;
+        if (i + 1 < argc) ++total;
+    }
+    char *out = malloc(total);
+    if (!out) return NULL;
+    char *dst = out;
+    for (int i = first; i < argc; ++i) {
+        size_t part = strlen(argv[i]);
+        memcpy(dst, argv[i], part);
+        dst += part;
+        if (i + 1 < argc) *dst++ = ' ';
+    }
+    *dst = '\0';
+    return out;
+}
+
+static int wf_ascii_iequals(const char *a, const char *b) {
+    while (*a && *b) {
+        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) return 0;
+        ++a;
+        ++b;
+    }
+    return *a == '\0' && *b == '\0';
+}
 
 static const char *wf_image_mime_type_from_path(const char *path) {
     const char *dot = strrchr(path, '.');
@@ -26,7 +68,7 @@ static wf_status wf_read_file(const char *path, unsigned char **out_data, size_t
     if (!data) { fclose(f); return WF_ERR_ALLOC; }
     size_t read = fread(data, 1, (size_t)len, f);
     fclose(f);
-    if (read != (size_t)len) { free(data); return WF_ERR_IO; }
+    if (read != (size_t)len) { free(data); return WF_ERR_ALLOC; }
     *out_data = data;
     *out_len = (size_t)len;
     return WF_OK;
@@ -96,7 +138,9 @@ int main(int argc, char **argv) {
     if (!agent) { fprintf(stderr, "failed to create agent\n"); free(image_data); free(alt_text); return 1; }
     status = wf_agent_login(agent, identifier, password);
     if (status != WF_OK) { fprintf(stderr, "login failed: %d\n", (int)status); wf_agent_free(agent); free(image_data); free(alt_text); return 1; }
-    printf("Logged in as %s (%s)\n", agent->session->data.handle ? agent->session->data.handle : identifier, agent->session->data.did);
+    const char *handle = wf_agent_get_handle(agent);
+    const char *did = wf_agent_get_did(agent);
+    printf("Logged in as %s (%s)\n", handle ? handle : identifier, did);
     printf("Uploading %s as %s (%zu bytes)\n", image_path, content_type, image_len);
     wf_response upload_res = {0};
     status = wf_agent_upload_blob(agent, image_data, image_len, content_type, &upload_res);

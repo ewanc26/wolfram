@@ -99,9 +99,11 @@ add_library(wolfram
     # High-level agent API
     src/agent/agent.c
     src/agent/post.c
+    src/agent/embed_typed.c
     src/agent/feed.c
     src/agent/graph.c
     src/agent/notification.c
+    src/agent/create_record.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -113,6 +115,10 @@ add_library(wolfram
     src/atproto_lex.c
     # Server account management
     src/server/server.c
+    # New utilities and embed support
+    src/util.c
+    src/blob.c
+    src/embed.c
 )
 
 target_include_directories(wolfram
@@ -176,35 +182,49 @@ option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
 if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(describe_repo examples/describe_repo.c)
     target_link_libraries(describe_repo PRIVATE wolfram)
+    target_include_directories(describe_repo PRIVATE ${cjson_SOURCE_DIR})
     add_executable(oauth_session examples/oauth_session.c)
+    target_include_directories(oauth_session PRIVATE ${cjson_SOURCE_DIR})
     target_link_libraries(oauth_session PRIVATE wolfram)
     add_executable(create_post examples/create_post.c)
     target_link_libraries(create_post PRIVATE wolfram)
     target_include_directories(create_post PRIVATE ${cjson_SOURCE_DIR})
+    add_executable(post_image examples/post_image.c)
+    target_link_libraries(post_image PRIVATE wolfram)
+    target_include_directories(post_image PRIVATE ${cjson_SOURCE_DIR})
+    target_link_libraries(create_post PRIVATE wolfram)
+    target_include_directories(create_post PRIVATE ${cjson_SOURCE_DIR})
     add_executable(sync_head examples/sync_head.c)
     target_link_libraries(sync_head PRIVATE wolfram)
+    target_include_directories(sync_head PRIVATE ${cjson_SOURCE_DIR})
     add_executable(upload_image examples/upload_image.c)
     target_link_libraries(upload_image PRIVATE wolfram)
     target_include_directories(upload_image PRIVATE ${cjson_SOURCE_DIR})
     add_executable(describe_server examples/describe_server.c)
     target_link_libraries(describe_server PRIVATE wolfram)
+    target_include_directories(describe_server PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(reply_post examples/reply_post.c)
     target_link_libraries(reply_post PRIVATE wolfram)
+    target_include_directories(reply_post PRIVATE ${cjson_SOURCE_DIR})
     target_include_directories(reply_post PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(agent_feed_search examples/agent_feed_search.c)
     target_link_libraries(agent_feed_search PRIVATE wolfram)
     target_include_directories(agent_feed_search PRIVATE ${cjson_SOURCE_DIR})
+    target_include_directories(agent_feed_search PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(agent_graph examples/agent_graph.c)
     target_link_libraries(agent_graph PRIVATE wolfram)
     target_include_directories(agent_graph PRIVATE ${cjson_SOURCE_DIR})
+    target_include_directories(agent_graph PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(lex_client examples/lex_client.c)
     target_link_libraries(lex_client PRIVATE wolfram)
+    target_include_directories(lex_client PRIVATE ${cjson_SOURCE_DIR})
     add_executable(thread examples/thread.c)
     target_link_libraries(thread PRIVATE wolfram)
+    target_include_directories(thread PRIVATE ${cjson_SOURCE_DIR})
     target_include_directories(thread PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
@@ -320,17 +340,18 @@ if(WOLFRAM_BUILD_TESTS)
 
     add_executable(test_agent_sync test/test_agent_sync.c)
     target_link_libraries(test_agent_sync PRIVATE wolfram)
+    target_include_directories(test_agent_sync PRIVATE ${cjson_SOURCE_DIR})
     target_include_directories(test_agent_sync PRIVATE test)
     add_test(NAME agent_sync COMMAND test_agent_sync)
 
     add_executable(test_agent_repo test/test_agent_repo.c)
     target_link_libraries(test_agent_repo PRIVATE wolfram)
-    target_include_directories(test_agent_repo PRIVATE test)
+    target_include_directories(test_agent_repo PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME agent_repo COMMAND test_agent_repo)
 
     add_executable(test_server test/test_server.c)
     target_link_libraries(test_server PRIVATE wolfram)
-    target_include_directories(test_server PRIVATE test)
+    target_include_directories(test_server PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME server COMMAND test_server)
 
     add_executable(test_diff test/test_diff.c)
@@ -342,4 +363,9 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_validate PRIVATE wolfram)
     target_include_directories(test_validate PRIVATE test)
     add_test(NAME validate COMMAND test_validate)
+
+    add_executable(test_embed test/test_embed.c)
+    target_link_libraries(test_embed PRIVATE wolfram)
+    target_include_directories(test_embed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME embed COMMAND test_embed)
 endif()

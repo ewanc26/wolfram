@@ -9,6 +9,8 @@
 
 #include <cJSON.h>
 #include "wolfram/atproto_lex.h"
+#include "wolfram/util.h"
+#include "wolfram/embed.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -417,7 +419,6 @@ static wf_status wf_agent_build_post_record(wf_agent *agent,
             cJSON_Delete(facets);
             cJSON_Delete(record);
             return WF_ERR_ALLOC;
-            }
         }
     }
 
@@ -819,43 +820,6 @@ wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result 
             }
         }
 
-wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
-                                 const char *embed_json, wf_agent_post_result *out) {
-    if (!agent || !text || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    cJSON *embed = NULL;
-    if (embed_json && embed_json[0] != '\0') {
-        embed = cJSON_Parse(embed_json);
-        if (!embed) {
-            return WF_ERR_PARSE;
-        }
-        if (!cJSON_IsObject(embed)) {
-            cJSON_Delete(embed);
-            return WF_ERR_INVALID_ARG;
-        }
-    } else {
-        // No embed provided, fallback to regular post
-        return wf_agent_post(agent, text, out);
-    }
-
-    cJSON *record = NULL;
-    wf_status status = wf_agent_build_post_record(agent, text, NULL, &record);
-    if (status != WF_OK) {
-        cJSON_Delete(embed);
-        return status;
-    }
-
-    if (!cJSON_AddItemToObject(record, "embed", embed)) {
-        cJSON_Delete(embed);
-        cJSON_Delete(record);
-        return WF_ERR_ALLOC;
-    }
-
-    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
-}
-
 
 
         status = wf_agent_add_segment_facet_json(facets, &segment, agent->client);
@@ -875,6 +839,173 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
     }
 
     return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+}
+
+/* Post with embed */
+wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
+                                 const char *embed_json, wf_agent_post_result *out) {
+    if (!agent || !text || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *embed = NULL;
+    if (embed_json && embed_json[0] != '\0') {
+        embed = cJSON_Parse(embed_json);
+        if (!embed) {
+            return WF_ERR_PARSE;
+        }
+        if (!cJSON_IsObject(embed)) {
+            cJSON_Delete(embed);
+            return WF_ERR_INVALID_ARG;
+        }
+    } else {
+        return wf_agent_post(agent, text, out);
+    }
+
+    wf_richtext rt = {0};
+    wf_status status = wf_richtext_init(&rt, text);
+    if (status != WF_OK) {
+        cJSON_Delete(embed);
+        return status;
+    }
+    status = wf_richtext_detect_facets(&rt);
+    if (status != WF_OK) {
+        wf_richtext_free(&rt);
+        cJSON_Delete(embed);
+        return status;
+    }
+    cJSON *facets = NULL;
+    size_t segment_count = wf_richtext_segment_count(&rt);
+    for (size_t i = 0; i < segment_count; ++i) {
+        wf_richtext_segment segment = wf_richtext_get_segment(&rt, i);
+        if (!segment.facet || !segment.facet->features || segment.facet->feature_count == 0) {
+            continue;
+        }
+        if (!facets) {
+            facets = cJSON_CreateArray();
+            if (!facets) {
+                wf_richtext_free(&rt);
+                cJSON_Delete(embed);
+                return WF_ERR_ALLOC;
+            }
+        }
+        status = wf_agent_add_segment_facet_json(facets, &segment, agent->client);
+        if (status != WF_OK) {
+            cJSON_Delete(facets);
+            wf_richtext_free(&rt);
+            cJSON_Delete(embed);
+            return status;
+        }
+    }
+    wf_richtext_free(&rt);
+    cJSON *record = NULL;
+    status = wf_agent_build_post_record(agent, text, facets, &record);
+    if (status != WF_OK) {
+        cJSON_Delete(embed);
+        return status;
+    }
+
+    if (!cJSON_AddItemToObject(record, "embed", embed)) {
+        cJSON_Delete(embed);
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
+
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+}
+
+/* Reply to a post */
+wf_status wf_agent_reply(wf_agent *agent, const char *text,
+                        const char *parent_uri, const char *parent_cid,
+                        wf_agent_post_result *out) {
+    if (!agent || !text || !parent_uri || !parent_cid || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    // Build post record with facets
+    wf_richtext rt = {0};
+    wf_status status = wf_richtext_init(&rt, text);
+    if (status != WF_OK) return status;
+    status = wf_richtext_detect_facets(&rt);
+    if (status != WF_OK) { wf_richtext_free(&rt); return status; }
+    cJSON *facets = NULL;
+    size_t seg_cnt = wf_richtext_segment_count(&rt);
+    for (size_t i = 0; i < seg_cnt; ++i) {
+        wf_richtext_segment seg = wf_richtext_get_segment(&rt, i);
+        if (!seg.facet || !seg.facet->features || seg.facet->feature_count == 0) continue;
+        if (!facets) {
+            facets = cJSON_CreateArray();
+            if (!facets) { wf_richtext_free(&rt); return WF_ERR_ALLOC; }
+        }
+        status = wf_agent_add_segment_facet_json(facets, &seg, agent->client);
+        if (status != WF_OK) { cJSON_Delete(facets); wf_richtext_free(&rt); return status; }
+    }
+    wf_richtext_free(&rt);
+
+    cJSON *record = NULL;
+    status = wf_agent_build_post_record(agent, text, facets, &record);
+    if (status != WF_OK) return status;
+
+    // Build reply object
+    cJSON *reply = cJSON_CreateObject();
+    if (!reply) { cJSON_Delete(record); return WF_ERR_ALLOC; }
+    cJSON *root = cJSON_CreateObject();
+    cJSON *parent = cJSON_CreateObject();
+    if (!root || !parent) { cJSON_Delete(reply); cJSON_Delete(record); return WF_ERR_ALLOC; }
+    cJSON_AddStringToObject(root, "uri", parent_uri);
+    cJSON_AddStringToObject(root, "cid", parent_cid);
+    cJSON_AddStringToObject(parent, "uri", parent_uri);
+    cJSON_AddStringToObject(parent, "cid", parent_cid);
+    cJSON_AddItemToObject(reply, "root", root);
+    cJSON_AddItemToObject(reply, "parent", parent);
+    if (!cJSON_AddItemToObject(record, "reply", reply)) {
+        cJSON_Delete(reply);
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+}
+
+/* Quote a post (record embed) */
+wf_status wf_agent_quote(wf_agent *agent, const char *text,
+                         const char *quote_uri, const char *quote_cid,
+                         wf_agent_post_result *out) {
+    if (!agent || !text || !quote_uri || !quote_cid || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    cJSON *embed = wf_embed_record_new(quote_uri, quote_cid);
+    if (!embed) return WF_ERR_ALLOC;
+    char *embed_str = cJSON_PrintUnformatted(embed);
+    cJSON_Delete(embed);
+    if (!embed_str) return WF_ERR_ALLOC;
+    wf_status status = wf_agent_post_with_embed(agent, text, embed_str, out);
+    free(embed_str);
+    return status;
+}
+
+/* Quote a post with media (recordWithMedia embed) */
+wf_status wf_agent_quote_with_media(wf_agent *agent, const char *text,
+                                    const char *quote_uri, const char *quote_cid,
+                                    cJSON *media_embed,
+                                    wf_agent_post_result *out) {
+    if (!agent || !text || !quote_uri || !quote_cid || !media_embed || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    cJSON *record_embed = wf_embed_record_new(quote_uri, quote_cid);
+    if (!record_embed) return WF_ERR_ALLOC;
+    cJSON *combined = wf_embed_record_with_media_new(record_embed, media_embed);
+    // wf_embed_record_with_media_new takes ownership of its arguments
+    if (!combined) {
+        // Record embed already transferred ownership if combined succeeded, otherwise free it
+        cJSON_Delete(record_embed);
+        return WF_ERR_ALLOC;
+    }
+    char *embed_str = cJSON_PrintUnformatted(combined);
+    cJSON_Delete(combined);
+    if (!embed_str) return WF_ERR_ALLOC;
+    wf_status status = wf_agent_post_with_embed(agent, text, embed_str, out);
+    free(embed_str);
+    return status;
 }
 
 wf_status wf_agent_delete_post(wf_agent *agent, const char *uri) {
