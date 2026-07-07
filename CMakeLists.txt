@@ -115,6 +115,7 @@ add_library(wolfram
     src/agent/lexcall.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
+    src/agent/moderation.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -466,4 +467,9 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_lexcall PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME lexcall COMMAND test_lexcall)
+
+    add_executable(test_moderation test/test_moderation.c)
+    target_link_libraries(test_moderation PRIVATE wolfram)
+    target_include_directories(test_moderation PRIVATE test)
+    add_test(NAME moderation COMMAND test_moderation)
 endif()
