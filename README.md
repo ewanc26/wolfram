@@ -53,11 +53,14 @@ embedded in, or required by applications using `libwolfram`.
 - c-ares 1.28+ — for portable DNS TXT resolution (optional; POSIX resolver fallback)
 - libzstd — for Jetstream compressed messages (optional)
 - SQLite3 — **only** required when building the optional persistence module (`WOLFRAM_BUILD_STORE=ON`); the default build does not link it
+- libsodium — **only** required when `WOLFRAM_BUILD_STORE_CRYPTO=ON` (which also requires `WOLFRAM_BUILD_STORE=ON`); it provides the secret-key encryption (`crypto_secretbox_easy`, XSalsa20-Poly1305) and passphrase key derivation (`crypto_pwhash`, Argon2id) used to encrypt persisted sessions at rest. The default build does not link it.
 
 On macOS via Homebrew:
 
 ```sh
 brew install cmake curl openssl secp256k1 c-ares zstd
+# Optional persistence + at-rest encryption:
+brew install sqlite3 libsodium
 ```
 
 (libcurl also ships with macOS itself, but the Homebrew one is newer and CMake finds it more reliably via `pkg-config`.)
@@ -107,6 +110,22 @@ cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix curl)"
 ```
 
 A `flake.nix` devShell is also included for machines that do use Nix, but it isn't the assumed path.
+
+### Optional persistence and at-rest encryption
+
+The optional SQLite store is off by default. Enable it, and optionally encrypt
+persisted sessions at rest with libsodium, like so:
+
+```sh
+# Persistence only (sessions + repo mirror stored in plaintext columns):
+cmake -S . -B build -DWOLFRAM_BUILD_STORE=ON
+# Persistence with libsodium at-rest encryption of the session blob:
+cmake -S . -B build -DWOLFRAM_BUILD_STORE=ON -DWOLFRAM_BUILD_STORE_CRYPTO=ON
+```
+
+With `WOLFRAM_BUILD_STORE_CRYPTO=ON`, call `wf_store_set_passphrase` after
+`wf_store_open` and before saving/loading a session; the key is derived from
+the passphrase via libsodium's `crypto_pwhash` (Argon2id).
 
 ## Example
 
