@@ -207,9 +207,65 @@ wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
 
 /* Notifications — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
-                                        wf_response *out);
+                                     wf_response *out);
 wf_status wf_agent_update_seen_notifications(wf_agent *agent, const char *seen_at);
 wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out);
+
+/* Notifications — typed output.
+ *
+ * `wf_agent_list_notifications_typed` issues the same request as
+ * `wf_agent_list_notifications` but parses the JSON body into owned C
+ * structs. `record` is an owned `cJSON` subtree detached from the response;
+ * free the whole list with `wf_agent_notification_list_free`.
+ *
+ * `wf_agent_parse_notifications` parses an already-fetched JSON body and is
+ * the shared backend used by the typed wrapper (exposed for offline testing).
+ */
+typedef struct wf_agent_profile_view {
+    char *did;
+    char *handle;
+    char *display_name;
+    char *avatar;
+} wf_agent_profile_view;
+
+typedef struct wf_agent_label {
+    char *src;
+    char *uri;
+    char *val;
+    char *cts;
+} wf_agent_label;
+
+typedef struct wf_agent_notification {
+    char *uri;
+    char *cid;
+    wf_agent_profile_view author;
+    char *reason;
+    char *reason_subject;
+    cJSON *record;          /* owned parsed record; NULL when absent */
+    int is_read;
+    char *indexed_at;
+    wf_agent_label *labels;
+    size_t label_count;
+} wf_agent_notification;
+
+typedef struct wf_agent_notification_list {
+    wf_agent_notification *notifications;
+    size_t notification_count;
+    char *cursor;
+    char *seen_at;
+    int priority;
+    int has_priority;
+} wf_agent_notification_list;
+
+wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
+                                       wf_agent_notification_list *out);
+wf_status wf_agent_list_notifications_typed(wf_agent *agent, int limit,
+                                            const char *cursor,
+                                            wf_agent_notification_list *out);
+void wf_agent_notification_list_free(wf_agent_notification_list *list);
+
+/* Typed unread count — writes the integer `count` from getUnreadCount. */
+wf_status wf_agent_get_unread_count_typed(wf_agent *agent, int *out_count);
 
 /* Actor search — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_search_actors(wf_agent *agent, const char *query,

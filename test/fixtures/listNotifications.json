@@ -1,0 +1,46 @@
+{
+  "cursor": "cursor-token-123",
+  "notifications": [
+    {
+      "uri": "at://did:plc:abc/ app.bsky.feed.like/xyz",
+      "cid": "bafyreighkeepme",
+      "author": {
+        "did": "did:plc:author1",
+        "handle": "alice.example.com",
+        "displayName": "Alice",
+        "avatar": "https://cdn.example.com/avatar1.jpg"
+      },
+      "reason": "like",
+      "reasonSubject": "at://did:plc:abc/app.bsky.feed.post/subject1",
+      "record": {
+        "$type": "app.bsky.feed.like",
+        "subject": { "uri": "at://did:plc:abc/app.bsky.feed.post/subject1", "cid": "bafycid1" },
+        "createdAt": "2026-07-01T10:00:00Z"
+      },
+      "isRead": false,
+      "indexedAt": "2026-07-01T10:01:00Z",
+      "labels": [
+        { "src": "did:plc:labeler", "uri": "at://did:plc:abc/app.bsky.feed.like/xyz", "val": "!no-unauthenticated", "cts": "2026-07-01T10:01:05Z" }
+      ]
+    },
+    {
+      "uri": "at://did:plc:abc/app.bsky.graph.follow/def",
+      "cid": "bafyfollowcid",
+      "author": {
+        "did": "did:plc:author2",
+        "handle": "bob.example.com",
+        "displayName": "Bob"
+      },
+      "reason": "follow",
+      "record": {
+        "$type": "app.bsky.graph.follow",
+        "subject": "did:plc:abc",
+        "createdAt": "2026-07-01T09:00:00Z"
+      },
+      "isRead": true,
+      "indexedAt": "2026-07-01T09:00:01Z"
+    }
+  ],
+  "priority": true,
+  "seenAt": "2026-07-01T08:00:00Z"
+}
