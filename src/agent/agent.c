@@ -8,6 +8,7 @@
 #include "wolfram/syntax.h"
 
 #include <cJSON.h>
+#include "wolfram/atproto_lex.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -1752,6 +1753,30 @@ wf_status wf_agent_get_likes(wf_agent *agent, const char *uri,
                                 params, param_count, out);
 }
 
+wf_status wf_agent_get_likes_lex(wf_agent *agent, const char *uri,
+                                 int limit, const char *cursor,
+                                 wf_response *out) {
+    if (!agent || !uri || !out) return WF_ERR_INVALID_ARG;
+    // Validate AT-URI syntax
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
+    wf_lex_app_bsky_feed_get_likes_main_params params = {0};
+    params.uri = uri;
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    if (cursor && cursor[0]) {
+        params.has_cursor = true;
+        params.cursor = cursor;
+    }
+    // Ensure auth
+    wf_agent_sync_auth(agent);
+    return wf_lex_app_bsky_feed_get_likes_main_call_auth(agent->client, &params, out);
+}
+
 /* ── getRepostedBy ─────────────────────────────────────────────────── */
 
 wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri,
@@ -1791,6 +1816,121 @@ wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri,
 
     wf_agent_sync_auth(agent);
     return wf_xrpc_query_params(agent->client, "app.bsky.feed.getRepostedBy",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_quotes(wf_agent *agent, const char *uri,
+                               int limit, const char *cursor,
+                               wf_response *out) {
+    if (!agent || !uri || !out) return WF_ERR_INVALID_ARG;
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+    params[param_count].name = "uri";
+    params[param_count].value = uri;
+    param_count++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getQuotes",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_list_feed(wf_agent *agent, const char *list_uri,
+                                  int limit, const char *cursor,
+                                  wf_response *out) {
+    if (!agent || !list_uri || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+    params[param_count].name = "list";
+    params[param_count].value = list_uri;
+    param_count++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getListFeed",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_feed(wf_agent *agent, const char *feed_uri,
+                             int limit, const char *cursor,
+                             wf_response *out) {
+    if (!agent || !feed_uri || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+    params[param_count].name = "feed";
+    params[param_count].value = feed_uri;
+    param_count++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getFeed",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
+                                    int limit, const char *cursor,
+                                    wf_response *out) {
+    if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor))
+        return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.feed.getActorFeeds",
                                 params, param_count, out);
 }
 

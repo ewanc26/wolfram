@@ -219,6 +219,23 @@ int main(void) {
         wf_agent_free(agent);
     }
 
+    /* ── getLikes (lexicon) ──────────────────────────────────────── */
+    {
+        WF_CHECK(wf_agent_get_likes_lex(NULL, "at://did:plc:test/app.bsky.feed.post/3jkl0pp", 0, NULL, NULL)
+                 == WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        wf_response res = {0};
+        WF_CHECK(wf_agent_get_likes_lex(agent, NULL, 0, NULL, &res)
+                 == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_likes_lex(agent, "not-a-uri", 0, NULL, &res)
+                 == WF_ERR_PARSE);
+
+        wf_agent_free(agent);
+    }
+
     /* ── getRepostedBy ─────────────────────────────────────────────── */
     {
         WF_CHECK(wf_agent_get_reposted_by(NULL, "at://did:plc:test/app.bsky.feed.post/3jkl0pp", 0, NULL, NULL)

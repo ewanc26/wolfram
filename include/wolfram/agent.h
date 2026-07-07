@@ -102,9 +102,24 @@ wf_status wf_agent_get_actor_likes(wf_agent *agent, const char *actor,
 wf_status wf_agent_get_likes(wf_agent *agent, const char *uri,
                              int limit, const char *cursor,
                              wf_response *out);
+wf_status wf_agent_get_likes_lex(wf_agent *agent, const char *uri,
+                                 int limit, const char *cursor,
+                                 wf_response *out);
 wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri,
-                                   int limit, const char *cursor,
-                                   wf_response *out);
+                                    int limit, const char *cursor,
+                                    wf_response *out);
+wf_status wf_agent_get_quotes(wf_agent *agent, const char *uri,
+                               int limit, const char *cursor,
+                               wf_response *out);
+wf_status wf_agent_get_list_feed(wf_agent *agent, const char *list_uri,
+                                  int limit, const char *cursor,
+                                  wf_response *out);
+wf_status wf_agent_get_feed(wf_agent *agent, const char *feed_uri,
+                             int limit, const char *cursor,
+                             wf_response *out);
+wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
+                                    int limit, const char *cursor,
+                                    wf_response *out);
 
 /* Graph queries — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_get_follows(wf_agent *agent, const char *actor,
@@ -125,8 +140,11 @@ wf_status wf_agent_get_list(wf_agent *agent, const char *list_uri,
                             int limit, const char *cursor,
                             wf_response *out);
 wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
-                             int limit, const char *cursor,
-                             wf_response *out);
+                              int limit, const char *cursor,
+                              wf_response *out);
+wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
+                                                   const char *actor,
+                                                   wf_response *out);
 
 /* Notifications — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
@@ -137,6 +155,8 @@ wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out);
 /* Actor search — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
                                 int limit, const char *cursor, wf_response *out);
+wf_status wf_agent_search_actors_typeahead(wf_agent *agent, const char *query,
+                                           int limit, wf_response *out);
 
 /* Profile update — upsert the caller's profile record via putRecord. */
 typedef struct wf_agent_profile_update {
