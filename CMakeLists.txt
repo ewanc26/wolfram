@@ -300,6 +300,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_blob PRIVATE test)
     add_test(NAME blob COMMAND test_blob)
 
+    add_executable(test_agent_sync test/test_agent_sync.c)
+    target_link_libraries(test_agent_sync PRIVATE wolfram)
+    target_include_directories(test_agent_sync PRIVATE test)
+    add_test(NAME agent_sync COMMAND test_agent_sync)
+
     add_executable(test_server test/test_server.c)
     target_link_libraries(test_server PRIVATE wolfram)
     target_include_directories(test_server PRIVATE test)

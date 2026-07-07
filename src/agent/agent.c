@@ -1090,6 +1090,53 @@ wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
     return status;
 }
 
+/* ── listRecords ───────────────────────────────────────────────────── */
+
+wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
+                                int limit, const char *cursor,
+                                wf_response *out) {
+    if (!agent || !collection || !collection[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (wf_syntax_nsid_validate(collection) != WF_OK) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[4];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (!agent->session->data.did) return WF_ERR_INVALID_ARG;
+    params[param_count].name = "repo";
+    params[param_count].value = agent->session->data.did;
+    param_count++;
+
+    params[param_count].name = "collection";
+    params[param_count].value = collection;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "com.atproto.repo.listRecords",
+                                params, param_count, out);
+}
+
 wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
                                     const char *facets_json, wf_agent_post_result *out) {
     if (!agent || !text || !out) {
@@ -2114,4 +2161,124 @@ wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *
 
     wf_agent_sync_auth(agent);
     return wf_server_delete_account(agent->client, &input);
+}
+
+/* ── sync.getBlob ──────────────────────────────────────────────────── */
+
+wf_status wf_agent_sync_get_blob(wf_agent *agent, const char *did, const char *cid,
+                                 wf_response *out) {
+    if (!agent || !did || !cid || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_did_is_valid(did)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[] = {
+        {"did", did},
+        {"cid", cid},
+    };
+    return wf_xrpc_query_params(agent->client, "com.atproto.sync.getBlob",
+                                params, 2, out);
+}
+
+/* ── sync.getBlocks ────────────────────────────────────────────────── */
+
+wf_status wf_agent_sync_get_blocks(wf_agent *agent, const char *did,
+                                   const char *const *cids, size_t cid_count,
+                                   wf_response *out) {
+    if (!agent || !did || !cids || cid_count == 0 || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_did_is_valid(did)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param *params = calloc(cid_count + 1, sizeof(*params));
+    if (!params) return WF_ERR_ALLOC;
+
+    params[0].name = "did";
+    params[0].value = did;
+    for (size_t i = 0; i < cid_count; i++) {
+        if (!cids[i] || !cids[i][0]) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
+        params[i + 1].name = "cids";
+        params[i + 1].value = cids[i];
+    }
+
+    wf_status status = wf_xrpc_query_params(agent->client, "com.atproto.sync.getBlocks",
+                                             params, cid_count + 1, out);
+    free(params);
+    return status;
+}
+
+/* ── sync.getRecord ────────────────────────────────────────────────── */
+
+wf_status wf_agent_sync_get_record(wf_agent *agent, const char *did,
+                                   const char *collection, const char *rkey,
+                                   wf_response *out) {
+    if (!agent || !did || !collection || !rkey || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_did_is_valid(did) ||
+        wf_syntax_nsid_validate(collection) != WF_OK ||
+        !wf_syntax_record_key_is_valid(rkey)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[] = {
+        {"did", did},
+        {"collection", collection},
+        {"rkey", rkey},
+    };
+    return wf_xrpc_query_params(agent->client, "com.atproto.sync.getRecord",
+                                params, 3, out);
+}
+
+/* ── sync.listBlobs ────────────────────────────────────────────────── */
+
+wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did,
+                                   int limit, const char *cursor,
+                                   const char *since, wf_response *out) {
+    if (!agent || !did || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_did_is_valid(did)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[5];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "did";
+    params[param_count].value = did;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+    if (since && since[0]) {
+        if (!wf_syntax_tid_is_valid(since)) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "since";
+        params[param_count].value = since;
+        param_count++;
+    }
+
+    return wf_xrpc_query_params(agent->client, "com.atproto.sync.listBlobs",
+                                params, param_count, out);
 }

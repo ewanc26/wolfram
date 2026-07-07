@@ -49,6 +49,9 @@ wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
 wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
                                const char *rkey, const char *record_json,
                                wf_agent_post_result *out);
+wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
+                                int limit, const char *cursor,
+                                wf_response *out);
 
 /* Profile operations */
 typedef struct wf_agent_profile {
@@ -117,6 +120,19 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
 
 /* Handle resolution — resolve a handle to a DID via com.atproto.identity.resolveHandle. */
 wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **out_did);
+
+/* Sync endpoints — wraps com.atproto.sync endpoints (no auth required). */
+wf_status wf_agent_sync_get_blob(wf_agent *agent, const char *did, const char *cid,
+                                 wf_response *out);
+wf_status wf_agent_sync_get_blocks(wf_agent *agent, const char *did,
+                                   const char *const *cids, size_t cid_count,
+                                   wf_response *out);
+wf_status wf_agent_sync_get_record(wf_agent *agent, const char *did,
+                                   const char *collection, const char *rkey,
+                                   wf_response *out);
+wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did,
+                                   int limit, const char *cursor,
+                                   const char *since, wf_response *out);
 
 /* Batch record operations — wraps com.atproto.repo.applyWrites */
 typedef enum {
