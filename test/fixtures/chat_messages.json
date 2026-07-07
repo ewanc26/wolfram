@@ -1,0 +1,8 @@
+{
+  "cursor": "msg-cursor-2",
+  "messages": [
+    { "id": "m1", "rev": "r1", "text": "first message", "sender": { "did": "did:plc:alice" }, "sentAt": "2024-01-01T00:00:00Z" },
+    { "id": "m2", "rev": "r2", "text": "second message", "sender": { "did": "did:plc:bob" }, "sentAt": "2024-01-01T00:01:00Z" },
+    { "id": "m3", "rev": "r3", "text": "third message", "sender": { "did": "did:plc:alice" }, "sentAt": "2024-01-01T00:02:00Z" }
+  ]
+}
