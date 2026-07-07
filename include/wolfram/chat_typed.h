@@ -9,10 +9,11 @@
  * `*_free` function.
  *
  * NOTE ON SERVICE ENDPOINT: chat.bsky.convo endpoints are served by a separate
- * Bluesky chat service, NOT the user's main PDS. The agent wrappers below issue
- * calls through `agent->client` (the agent's XRPC client); it is the caller's
- * responsibility to point that client at the correct chat service URL (e.g. by
- * setting the agent service URL) before invoking these wrappers in production.
+ * Bluesky chat service, NOT the user's main PDS. The agent wrappers below
+ * lazily resolve the chat service URL (via wf_agent_chat_service_resolve) and
+ * issue every call through a dedicated `agent->chat_client`, so callers do not
+ * need to configure anything manually. When the server does not advertise a
+ * chat service, the wrappers fall back to WF_CHAT_DEFAULT_ENDPOINT.
  *
  * Conventions mirror feed_typed.c / notification.c:
  *   - `wf_status` error codes (WF_ERR_INVALID_ARG, WF_ERR_PARSE, WF_ERR_ALLOC,
@@ -29,6 +30,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* Default Bluesky chat service endpoint, used as a fallback when the user's
+ * PDS does not advertise a chat service via com.atproto.server.describeServer.
+ * Mirrors the rsky reference hardcode (rsky-common/src/lib.rs:204). */
+#define WF_CHAT_DEFAULT_ENDPOINT "https://api.bsky.chat"
 
 /* A single conversation (chat.bsky.convo.defs#convoView, bounded). */
 typedef struct wf_chat_convo {
@@ -95,6 +101,18 @@ wf_status wf_agent_parse_messages(const char *json, size_t json_len,
 /* Free a parsed message list and every owned subtree it holds. */
 void wf_chat_message_list_free(wf_chat_message_list *list);
 
+/* Parse a raw chat.bsky.convo.defs#messageView JSON body into an owned
+ * wf_chat_message. Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on
+ * malformed JSON, WF_ERR_ALLOC on allocation failure, WF_OK on success. On any
+ * error `out` is left fully reset (no partial leaks). */
+wf_status wf_agent_parse_message(const char *json, size_t json_len,
+                                 wf_chat_message *out);
+
+/* Reset (free all owned strings and zero) a wf_chat_message. Safe to call with
+ * NULL or on an already-reset message. Used to release a single message as
+ * returned by wf_agent_parse_message / wf_agent_chat_send_message. */
+void wf_chat_message_reset(wf_chat_message *m);
+
 /* Typed high-level wrappers — issue the corresponding agent XRPC call and
  * parse the JSON body into `out`. On success `out` is owned by the caller and
  * must be freed with the matching `*_free`; on error it is left reset.
@@ -109,6 +127,48 @@ wf_status wf_agent_chat_get_convo(wf_agent *agent, const char *convo_id,
 wf_status wf_agent_chat_get_messages(wf_agent *agent, const char *convo_id,
                                      int limit, const char *cursor,
                                      wf_chat_message_list *out);
+
+/* Send a message to a conversation.
+ *
+ * Builds the `chat.bsky.convo.sendMessage` request body `{ "convoId",
+ * "message": { "text", "$type": "chat.bsky.convo.defs#messageInput" } }`. If
+ * `facets_json` is non-NULL and non-empty it is parsed as a JSON array and
+ * attached as `message.facets`. The call is routed through the resolved chat
+ * service client (see wf_agent_chat_service_resolve). On success `out` holds
+ * the resulting messageView and must be freed with wf_chat_message_reset-like
+ * cleanup (the message struct is a plain value; free its owned strings via
+ * wf_chat_message_list_free on a list, or reset it directly). On error `out`
+ * is left fully reset. Returns WF_ERR_INVALID_ARG on NULL required inputs. */
+wf_status wf_agent_chat_send_message(wf_agent *agent, const char *convo_id,
+                                     const char *text, const char *facets_json,
+                                     wf_chat_message *out);
+
+/* Resolve (lazily) the Bluesky chat service endpoint and assign it to
+ * `agent->chat_client`.
+ *
+ * Strategy:
+ *   1. If `agent->chat_client` is already set, return WF_OK immediately.
+ *   2. Query `com.atproto.server.describeServer` on the user's PDS.
+ *   3. If the response advertises a `chat` DID, resolve that DID to its chat
+ *      service endpoint (type `BskyChatService` / `AtprotoChatProxy`).
+ *   4. Otherwise (no `chat` field, or resolution fails) fall back to
+ *      WF_CHAT_DEFAULT_ENDPOINT.
+ *
+ * Returns WF_OK with `agent->chat_client` ready on success, or a `wf_status`
+ * error if the underlying XRPC call fails irrecoverably. */
+wf_status wf_agent_chat_service_resolve(wf_agent *agent);
+
+/* Extract the chat service DID from a `com.atproto.server.describeServer`
+ * response body. On WF_OK, `*out_did` is either:
+ *   - heap-allocated DID string (caller frees with free()) when the server
+ *     advertised a `chat` service, or
+ *   - NULL when no `chat` field was present (caller should fall back to the
+ *     default endpoint).
+ * Returns WF_ERR_INVALID_ARG on NULL inputs and WF_ERR_PARSE on malformed JSON.
+ * Pure/offline: performs no network I/O. */
+wf_status wf_agent_chat_service_did_from_describe(const char *json,
+                                                  size_t json_len,
+                                                  char **out_did);
 
 #ifdef __cplusplus
 }

@@ -161,6 +161,77 @@ static void test_malformed(void) {
     wf_chat_message_list_free(&m);
 }
 
+static void test_parse_send_message(void) {
+    size_t len = 0;
+    char *json = load_fixture("chat_send_message.json", &len);
+    WF_CHECK(json != NULL);
+
+    wf_chat_message m = {0};
+    wf_status s = wf_agent_parse_message(json, len, &m);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(m.id && strcmp(m.id, "msg-3xk9f2") == 0);
+    WF_CHECK(m.rev && strcmp(m.rev, "rev-abc123def456") == 0);
+    WF_CHECK(m.text && strcmp(m.text, "hello from wolfram") == 0);
+    WF_CHECK(m.sender && strcmp(m.sender, "did:plc:alice") == 0);
+    WF_CHECK(m.sent_at && strcmp(m.sent_at, "2024-05-01T12:34:56Z") == 0);
+
+    wf_chat_message_reset(&m);
+    WF_CHECK(m.id == NULL && m.rev == NULL && m.text == NULL &&
+             m.sender == NULL && m.sent_at == NULL);
+    free(json);
+}
+
+static void test_parse_send_message_invalid(void) {
+    wf_chat_message m = {0};
+    WF_CHECK(wf_agent_parse_message(NULL, 0, &m) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_message("not json", 8, &m) == WF_ERR_PARSE);
+    WF_CHECK(m.id == NULL);
+}
+
+static void test_chat_service_did_from_describe(void) {
+    /* No `chat` field present => fallback to default endpoint. */
+    const char *no_chat =
+        "{\"did\":\"did:plc:srv\",\"availableUserDomains\":[\"bsky.social\"]}";
+    char *did = NULL;
+    wf_status s = wf_agent_chat_service_did_from_describe(no_chat,
+                                                          strlen(no_chat), &did);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(did == NULL);
+
+    /* `chat` field present => extract the advertised DID. */
+    const char *with_chat =
+        "{\"did\":\"did:plc:srv\",\"availableUserDomains\":[\"bsky.social\"],"
+        "\"chat\":\"did:web:api.bsky.chat\"}";
+    s = wf_agent_chat_service_did_from_describe(with_chat, strlen(with_chat),
+                                                &did);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(did && strcmp(did, "did:web:api.bsky.chat") == 0);
+    free(did);
+
+    /* Empty `chat` field is treated as absent (fallback). */
+    const char *empty_chat =
+        "{\"did\":\"did:plc:srv\",\"chat\":\"\"}";
+    s = wf_agent_chat_service_did_from_describe(empty_chat, strlen(empty_chat),
+                                                &did);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(did == NULL);
+
+    WF_CHECK(wf_agent_chat_service_did_from_describe("not json", 8, &did) ==
+             WF_ERR_PARSE);
+    WF_CHECK(wf_agent_chat_service_did_from_describe(NULL, 0, &did) ==
+             WF_ERR_INVALID_ARG);
+}
+
+static void test_chat_default_endpoint(void) {
+    /* Documented fallback when describeServer omits the chat service. */
+    WF_CHECK(strcmp(WF_CHAT_DEFAULT_ENDPOINT, "https://api.bsky.chat") == 0);
+}
+
+static void test_chat_resolve_args(void) {
+    /* Offline arg validation for the resolver (no network needed). */
+    WF_CHECK(wf_agent_chat_service_resolve(NULL) == WF_ERR_INVALID_ARG);
+}
+
 static void test_wrappers_null_arg(void) {
     wf_chat_convo_list l = {0};
     WF_CHECK(wf_agent_chat_list_convos(NULL, 0, NULL, &l) == WF_ERR_INVALID_ARG);
@@ -181,8 +252,13 @@ int main(void) {
     test_parse_convos();
     test_parse_convo();
     test_parse_messages();
+    test_parse_send_message();
+    test_parse_send_message_invalid();
     test_invalid_args();
     test_malformed();
     test_wrappers_null_arg();
+    test_chat_service_did_from_describe();
+    test_chat_default_endpoint();
+    test_chat_resolve_args();
     WF_TEST_SUMMARY();
 }

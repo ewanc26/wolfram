@@ -1,0 +1,10 @@
+{
+  "id": "did:web:api.bsky.chat",
+  "service": [
+    {
+      "id": "#bsky_chat",
+      "type": "BskyChatService",
+      "serviceEndpoint": "https://api.bsky.chat"
+    }
+  ]
+}
