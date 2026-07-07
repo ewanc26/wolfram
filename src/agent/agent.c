@@ -2194,8 +2194,8 @@ wf_status wf_agent_get_list(wf_agent *agent, const char *list_uri,
 /* ── getLists ──────────────────────────────────────────────────────── */
 
 wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
-                             int limit, const char *cursor,
-                             wf_response *out) {
+                              int limit, const char *cursor,
+                              wf_response *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -2228,6 +2228,25 @@ wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
     wf_agent_sync_auth(agent);
     return wf_xrpc_query_params(agent->client, "app.bsky.graph.getLists",
                                 params, param_count, out);
+}
+
+wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
+                                                   const char *actor,
+                                                   wf_response *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_xrpc_param params[1];
+    size_t param_count = 0;
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.graph.getSuggestedFollowsByActor",
+                                 params, param_count, out);
 }
 
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
@@ -2309,7 +2328,7 @@ wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out) {
 }
 
 wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
-                                int limit, const char *cursor, wf_response *out) {
+                                 int limit, const char *cursor, wf_response *out) {
     if (!agent || !query || !query[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -2338,6 +2357,33 @@ wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
 
     wf_agent_sync_auth(agent);
     return wf_xrpc_query_params(agent->client, "app.bsky.actor.searchActors",
+                                 params, param_count, out);
+}
+
+wf_status wf_agent_search_actors_typeahead(wf_agent *agent, const char *query,
+                                           int limit, wf_response *out) {
+    if (!agent || !query || !query[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "q";
+    params[param_count].value = query;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client, "app.bsky.actor.searchActorsTypeahead",
                                  params, param_count, out);
 }
 

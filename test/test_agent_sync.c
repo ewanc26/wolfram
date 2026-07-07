@@ -289,12 +289,30 @@ int main(void) {
 
         /* getLists */
         WF_CHECK(wf_agent_get_lists(NULL, "did:plc:test", 0, NULL, NULL)
-                 == WF_ERR_INVALID_ARG);
+                  == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_lists(agent, NULL, 0, NULL, &res)
-                 == WF_ERR_INVALID_ARG);
+                  == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_lists(agent, "not-valid", 0, NULL, &res)
-                 == WF_ERR_INVALID_ARG);
+                  == WF_ERR_INVALID_ARG);
 
+        /* getSuggestedFollowsByActor */
+        WF_CHECK(wf_agent_get_suggested_follows_by_actor(NULL, "did:plc:test", NULL)
+                  == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggested_follows_by_actor(agent, NULL, NULL)
+                  == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggested_follows_by_actor(agent, "not-valid", &res)
+                  == WF_ERR_INVALID_ARG);
+
+        wf_agent_free(agent);
+    }
+
+    /* ── searchActorsTypeahead ─────────────────────────────────────── */
+    {
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+        wf_response res = {0};
+        WF_CHECK(wf_agent_search_actors_typeahead(NULL, "bob", 10, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_actors_typeahead(agent, NULL, 10, NULL) == WF_ERR_INVALID_ARG);
         wf_agent_free(agent);
     }
 
