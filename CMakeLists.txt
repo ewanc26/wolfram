@@ -98,6 +98,9 @@ add_library(wolfram
     src/validate/validate.c
     # High-level agent API
     src/agent/agent.c
+    src/agent/post.c
+    src/agent/feed.c
+    src/agent/graph.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
