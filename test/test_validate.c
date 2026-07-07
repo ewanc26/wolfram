@@ -17,7 +17,7 @@ static const char *LEX_GET_RECORD =
     "{\"lexicon\":1,\"id\":\"com.atproto.repo.getRecord\",\"defs\":{\"main\":{\"type\":\"query\",\"parameters\":{\"type\":\"params\",\"required\":[\"repo\",\"collection\",\"rkey\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"rkey\":{\"type\":\"string\",\"format\":\"record-key\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"}}}},\"inputParams\":{\"type\":\"object\",\"required\":[\"repo\",\"collection\",\"rkey\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"rkey\":{\"type\":\"string\",\"format\":\"record-key\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"}}}}}";
 
 static const char *LEX_CREATE_RECORD =
-    "{\"lexicon\":1,\"id\":\"com.atproto.repo.createRecord\",\"defs\":{\"input\":{\"type\":\"object\",\"required\":[\"repo\",\"collection\",\"record\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"record\":{\"type\":\"unknown\"}}}}}";
+    "{\"lexicon\":1,\"id\":\"com.atproto.repo.createRecord\",\"defs\":{\"main\":{\"type\":\"procedure\",\"input\":{\"encoding\":\"application/json\",\"schema\":{\"type\":\"object\",\"required\":[\"repo\",\"collection\",\"record\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"record\":{\"type\":\"unknown\"}}}},\"output\":{\"encoding\":\"application/json\",\"schema\":{\"type\":\"object\",\"required\":[\"uri\",\"cid\"],\"properties\":{\"uri\":{\"type\":\"string\",\"format\":\"at-uri\"},\"cid\":{\"type\":\"string\",\"format\":\"cid\"}}}}},\"input\":{\"type\":\"object\",\"required\":[\"repo\",\"collection\",\"record\"],\"properties\":{\"repo\":{\"type\":\"string\",\"format\":\"at-identifier\"},\"collection\":{\"type\":\"string\",\"format\":\"nsid\"},\"record\":{\"type\":\"unknown\"}}}}}";
 
 static void load(wf_lexicon_registry *r, const char *json) {
     WF_CHECK(wf_lexicon_registry_load(r, json, strlen(json)) == WF_OK);
@@ -107,13 +107,71 @@ static void test_com_atproto_repo_strongRef(void) {
     wf_lexicon_registry_free(r);
 }
 
+static void test_query_validation(void) {
+    wf_lexicon_registry *r = wf_lexicon_registry_new();
+    WF_CHECK(r != NULL);
+
+    load(r, LEX_GET_RECORD);
+
+    // Validate query parameters against the "main" def — should extract
+    // the "parameters" object automatically
+    {
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.getRecord", "main",
+            "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}",
+            strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}"));
+        WF_CHECK(res.success == 1 && res.errors == NULL);
+        wf_validate_result_free(&res);
+    }
+
+    // Missing required field in query params
+    {
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.getRecord", "main",
+            "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}",
+            strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}"));
+        WF_CHECK(res.success == 0 && res.errors != NULL);
+        WF_CHECK(error_path_contains(res.errors, "rkey"));
+        wf_validate_result_free(&res);
+    }
+
+    wf_lexicon_registry_free(r);
+}
+
+static void test_procedure_validation(void) {
+    wf_lexicon_registry *r = wf_lexicon_registry_new();
+    WF_CHECK(r != NULL);
+
+    load(r, LEX_CREATE_RECORD);
+
+    // Validate procedure input against the "main" def — should extract
+    // the "input.schema" automatically
+    {
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.createRecord", "main",
+            "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"record\":{}}",
+            strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"record\":{}}"));
+        WF_CHECK(res.success == 1 && res.errors == NULL);
+        wf_validate_result_free(&res);
+    }
+
+    // Missing required field in procedure input
+    {
+        wf_validate_result res = wf_validate_value(r, "com.atproto.repo.createRecord", "main",
+            "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}",
+            strlen("{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\"}"));
+        WF_CHECK(res.success == 0 && res.errors != NULL);
+        WF_CHECK(error_path_contains(res.errors, "record"));
+        wf_validate_result_free(&res);
+    }
+
+    wf_lexicon_registry_free(r);
+}
+
 static void test_com_atproto_repo_getRecord(void) {
     wf_lexicon_registry *r = wf_lexicon_registry_new();
     WF_CHECK(r != NULL);
 
     load(r, LEX_GET_RECORD);
 
-    // Valid getRecord request — validate against the "main" def (query type)
+    // Valid getRecord request — validate against the "inputParams" def (object type)
     {
         wf_validate_result res = wf_validate_value(r, "com.atproto.repo.getRecord", "inputParams",
             "{\"repo\":\"did:plc:123\",\"collection\":\"app.bsky.feed.post\",\"rkey\":\"3jkl0pp8sic\"}",
@@ -292,6 +350,8 @@ int main(void) {
     test_com_atproto_repo_strongRef();
     test_com_atproto_repo_getRecord();
     test_com_atproto_repo_createRecord();
+    test_query_validation();
+    test_procedure_validation();
 
     WF_TEST_SUMMARY();
 }

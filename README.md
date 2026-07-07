@@ -157,10 +157,14 @@ Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto
     with JSON frame parsing, cursor reconnect, and backoff.
 22. ✅ Repo diff tests — comprehensive tests for `wf_repo_diff_apply` and
     `wf_repo_operations_invert` including round-trip verification.
+23. ✅ Lexicon validation — runtime object/record validation against lexicon
+    schemas, supporting `object`, `record`, `query` (parameters extraction),
+    `procedure` (input.schema extraction), `params`, `blob`, `ref`,
+    `array`, `string` (including format validation), `integer`, `boolean`,
+    `unknown`, and `union` types (`wf_validate_value`, `wf_validate_record`).
 
 ### Next planned work
 
-- Lexicon validation tests + broader lexicon corpus coverage (the `validate` module needs a test suite).
 - Full-corpus generated lexicon clients exercised end-to-end against a live PDS in examples.
 - Repository sync toward verified incremental diff application and operation inversion in the agent/commit path.
 - More examples — threads, custom feeds, labeler records, image/embed posts via blob upload.

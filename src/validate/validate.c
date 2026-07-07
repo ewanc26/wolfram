@@ -852,6 +852,35 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
     if (strcmp(type, "unknown") == 0) {
         return wf_validate_unknown_schema(ctx, schema, value, path);
     }
+    if (strcmp(type, "query") == 0) {
+        const cJSON *params = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "parameters");
+        if (!cJSON_IsObject(params)) {
+            wf_ctx_simple(ctx, path, "query schema is missing parameters");
+            return WF_ERR_INVALID_ARG;
+        }
+        return wf_validate_schema(ctx, registry, current_lexicon_id, params, value, path, depth + 1, NULL);
+    }
+    if (strcmp(type, "procedure") == 0) {
+        const cJSON *input = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "input");
+        const cJSON *inner;
+        if (!cJSON_IsObject(input)) {
+            wf_ctx_simple(ctx, path, "procedure schema is missing input");
+            return WF_ERR_INVALID_ARG;
+        }
+        inner = cJSON_GetObjectItemCaseSensitive((cJSON *)input, "schema");
+        if (!cJSON_IsObject(inner)) {
+            wf_ctx_simple(ctx, path, "procedure input schema is missing schema body");
+            return WF_ERR_INVALID_ARG;
+        }
+        return wf_validate_schema(ctx, registry, current_lexicon_id, inner, value, path, depth + 1, NULL);
+    }
+    if (strcmp(type, "params") == 0) {
+        return wf_validate_object_schema(ctx, registry, current_lexicon_id, schema, value, path, depth);
+    }
+    if (strcmp(type, "subscription") == 0) {
+        wf_ctx_simple(ctx, path, "subscription schemas have no request-body validation");
+        return WF_OK;
+    }
     if (strcmp(type, "blob") == 0) {
         const cJSON *type_item;
         const cJSON *ref;
