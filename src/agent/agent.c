@@ -39,6 +39,10 @@
 
 typedef struct wf_agent {
     wf_xrpc_client *client;
+    /* Separate XRPC client for the Bluesky chat service (chat.bsky.convo.*).
+     * Lazily created via wf_agent_chat_service_resolve. Kept in sync with the
+     * private struct in _internal.h. */
+    wf_xrpc_client *chat_client;
     wf_session *session;
     char *service_url;
     /* Offline identity (for local repo mirror without network login). */
@@ -885,6 +889,8 @@ wf_agent *wf_agent_new(const char *service_url) {
         return NULL;
     }
 
+    agent->chat_client = NULL;
+
     agent->session = wf_session_new(service_url);
     if (!agent->session) {
         wf_xrpc_client_free(agent->client);
@@ -903,6 +909,7 @@ void wf_agent_free(wf_agent *agent) {
 
     wf_session_free(agent->session);
     wf_xrpc_client_free(agent->client);
+    wf_xrpc_client_free(agent->chat_client);
     free(agent->service_url);
     free(agent->mirror_did);
     free(agent->mirror_signing_key);
