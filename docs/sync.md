@@ -227,3 +227,109 @@ static void on_commit(const wf_subscribe_event *ev, void *ud) {
 `wf_sync_verify_commit` returns `WF_OK` even when signature verification fails
 — always check `*out_verified`. A non-`WF_OK` return means parsing or DID
 resolution failed (not a signature failure).
+
+## Function reference
+
+Self-contained examples for the most-used sync calls. All sync endpoints are
+unauthenticated reads, so a plain `wf_xrpc_client` is enough — you do not need a
+session. Every network call is marked `// needs network`.
+
+### `wf_sync_get_repo`
+
+```c
+#include "wolfram/sync.h"
+#include "wolfram/xrpc.h"
+
+wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social");
+
+wf_car car = {0};
+// Full export: pass NULL for `since`. Diff: pass a revision TID.
+wf_status st = wf_sync_get_repo(client, "did:plc:abc", NULL, &car); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "getRepo failed: %d\n", (int)st);
+    wf_xrpc_client_free(client);
+    return 1;
+}
+printf("repo has %zu blocks, %zu root(s)\n", car.block_count, car.root_count);
+wf_car_free(&car);   // always free when done
+
+wf_xrpc_client_free(client);
+```
+
+### `wf_sync_get_record`
+
+```c
+wf_car rec = {0};
+wf_status st = wf_sync_get_record(client, "did:plc:abc",
+                                  "app.bsky.feed.post", "rkey", &rec); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "getRecord failed: %d\n", (int)st);
+    return;
+}
+/* rec.block_count blocks; rec.roots[0] is the record's CID. */
+wf_car_free(&rec);
+```
+
+### `wf_agent_sync_get_blob` (agent wrapper)
+
+```c
+#include "wolfram/agent.h"
+
+wf_response blob = {0};
+wf_status st = wf_agent_sync_get_blob(agent, "did:plc:abc",
+                                      "bafyre...cid", &blob); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "getBlob failed: %d\n", (int)st);
+    return;
+}
+/* blob.body holds the blob bytes / JSON. */
+wf_response_free(&blob);
+```
+
+### Firehose subscription (`wf_subscribe_start`)
+
+```c
+#include "wolfram/sync_subscribe.h"
+
+static void on_event(const wf_subscribe_event *ev, void *ud) {
+    (void)ud;
+    if (ev->type == WF_SUBSCRIBE_EVENT_COMMIT) {
+        const wf_subscribe_commit *c = &ev->data.commit;
+        printf("commit seq=%lld did=%s\n", (long long)c->seq, c->did);
+    }
+}
+
+wf_subscribe_options opts = {
+    .service   = "wss://bsky.network",   // needs network
+    .on_event  = on_event,
+    .on_error  = NULL,
+    .userdata  = NULL,
+};
+
+wf_subscribe_handle *handle = NULL;
+wf_subscribe_start(&opts, &handle);   // blocks, delivering events
+
+/* From another thread / signal: wf_subscribe_stop(handle); */
+```
+
+### Commit verification (`wf_sync_verify_commit`)
+
+```c
+#include "wolfram/sync_verify.h"
+
+/* Inside a commit event callback, `commit` is the parsed wf_subscribe_commit. */
+int verified = 0;
+wf_commit out = {0};
+wf_status st = wf_sync_verify_commit(&commit, client, &verified, &out); // needs network
+if (st != WF_OK) {
+    fprintf(stderr, "verify parse failed: %d\n", (int)st);
+    return;
+}
+if (verified) {
+    char *cid = wf_cid_to_string(&out.cid);
+    printf("verified commit %s\n", cid);
+    free(cid);
+} else {
+    printf("commit FAILED signature verification\n");
+}
+```

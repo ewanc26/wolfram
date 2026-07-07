@@ -125,3 +125,55 @@ wf_validate_result_free(&r2);
 Always call `wf_validate_result_free(&res)` when you are done — it releases the
 entire error chain. The registry is freed separately with
 `wf_lexicon_registry_free(registry)`.
+
+## Function reference
+
+Self-contained examples for the two validation entry points. Both return a
+`wf_validate_result` **by value**; always call `wf_validate_result_free` to
+release the error chain, and free the registry with
+`wf_lexicon_registry_free`.
+
+### `wf_validate_record`
+
+```c
+#include "wolfram/validate.h"
+
+wf_lexicon_registry *registry = wf_lexicon_registry_new();
+if (!registry) { /* allocation failure */ }
+
+/* Load the post lexicon (and facet lexicon if you validate facets). */
+size_t len = 0;
+char *post_lex = read_file("lexicons/app/bsky/feed/post.json", &len);
+wf_lexicon_registry_load(registry, post_lex, len);
+free(post_lex);
+
+const char *post = "{\"text\":\"hello\",\"createdAt\":\"2024-01-01T00:00:00Z\"}";
+wf_validate_result res = wf_validate_record(registry, "app.bsky.feed.post",
+                                            post, strlen(post));
+if (res.success) {
+    printf("post is valid\n");
+} else {
+    for (const wf_validate_error *e = res.errors; e; e = e->next)
+        printf("  at %s: %s\n", e->path ? e->path : "<root>", e->message);
+}
+wf_validate_result_free(&res);
+wf_lexicon_registry_free(registry);
+```
+
+### `wf_validate_value`
+
+```c
+/* Validate an app.bsky.richtext.facet against its named definition `main`. */
+const char *facet =
+    "{\"index\":{\"byteStart\":0,\"byteEnd\":4},"
+     "\"features\":[{\"$type\":\"app.bsky.richtext.facet#link\","
+     "\"uri\":\"https://example.com\"}]}";
+
+wf_validate_result res = wf_validate_value(
+    registry, "app.bsky.richtext.facet", "main", facet, strlen(facet));
+if (!res.success) {
+    for (const wf_validate_error *e = res.errors; e; e = e->next)
+        printf("  %s: %s\n", e->path ? e->path : "<root>", e->message);
+}
+wf_validate_result_free(&res);
+```
