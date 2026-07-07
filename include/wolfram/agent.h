@@ -47,24 +47,35 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
                                  const char *embed_json, wf_agent_post_result *out);
 /* Generic record creation – works for any collection */
 wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
-                               const char *record_json, wf_agent_post_result *out);
+                                const char *record_json, wf_agent_post_result *out);
 void wf_agent_post_result_free(wf_agent_post_result *result);
+
+/* Update handle */
+wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle);
+
+/* Preferences */
+wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_response *out);
+
+/* Push notification registration */
+wf_status wf_agent_register_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);
+wf_status wf_agent_unregister_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);
 
 /* Reply API */
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
-                        const char *parent_uri, const char *parent_cid,
-                        wf_agent_post_result *out);
+                         const char *parent_uri, const char *parent_cid,
+                         wf_agent_post_result *out);
 
 /* Quote with a record embed */
 wf_status wf_agent_quote(wf_agent *agent, const char *text,
-                         const char *quote_uri, const char *quote_cid,
-                         wf_agent_post_result *out);
+                          const char *quote_uri, const char *quote_cid,
+                          wf_agent_post_result *out);
 
 /* Quote with a record + media embed */
 wf_status wf_agent_quote_with_media(wf_agent *agent, const char *text,
-                                    const char *quote_uri, const char *quote_cid,
-                                    cJSON *media_embed,
-                                    wf_agent_post_result *out);
+                                     const char *quote_uri, const char *quote_cid,
+                                     cJSON *media_embed,
+                                     wf_agent_post_result *out);
+
 
 /* Record CRUD — wraps com.atproto.repo endpoints */
 wf_status wf_agent_get_record(wf_agent *agent, const char *collection,

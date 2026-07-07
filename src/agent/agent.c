@@ -2792,19 +2792,19 @@ wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **ou
     if (!agent || !handle || !handle[0] || !out_did) {
         return WF_ERR_INVALID_ARG;
     }
-
+    
     if (!wf_syntax_handle_is_valid(handle)) {
         return WF_ERR_INVALID_ARG;
     }
-
+    
     *out_did = NULL;
-
+    
     wf_xrpc_param params[] = {
         {"handle", handle},
     };
-
+    
     wf_agent_sync_auth(agent);
-
+    
     wf_response res = {0};
     wf_status status = wf_xrpc_query_params(agent->client, WF_AGENT_RESOLVE_HANDLE_NSID,
                                              params, 1, &res);
@@ -2812,13 +2812,13 @@ wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **ou
         wf_response_free(&res);
         return status;
     }
-
+    
     cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
     if (!root) {
         wf_response_free(&res);
         return WF_ERR_PARSE;
     }
-
+    
     cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
     if (!cJSON_IsString(did) || !did->valuestring ||
         !wf_syntax_did_is_valid(did->valuestring)) {
@@ -2826,17 +2826,34 @@ wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **ou
         wf_response_free(&res);
         return WF_ERR_PARSE;
     }
-
+    
     status = wf_agent_set_string(out_did, did->valuestring);
     if (status != WF_OK) {
         free(*out_did);
         *out_did = NULL;
     }
-
+    
     cJSON_Delete(root);
     wf_response_free(&res);
     return status;
 }
+
+/* Update handle – com.atproto.identity.updateHandle */
+wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle) {
+    if (!agent || !new_handle || !new_handle[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_handle_is_valid(new_handle)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_lex_com_atproto_identity_update_handle_main_input input = { .handle = new_handle };
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_lex_com_atproto_identity_update_handle_main_call_auth(agent->client, &input, &res);
+    wf_response_free(&res);
+    return status;
+}
+
 
 void wf_agent_server_description_free(wf_agent_server_description *desc) {
     wf_agent_server_description_reset(desc);

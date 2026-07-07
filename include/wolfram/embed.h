@@ -48,4 +48,5 @@ cJSON *wf_embed_record_with_media_new(cJSON *record_embed, cJSON *media_embed);
 }
 #endif
 
+#include "wolfram/embed_typed.h"
 #endif /* WOLFRAM_EMBED_H */
