@@ -15,7 +15,7 @@ Thanks for your interest. This is an early scaffold, so there's more scope for s
 2. Build with CMake (see README) and confirm `ctest` passes before you start.
 3. Keep PRs scoped to one module or concern.
 4. Commit style: `type(scope): description` — e.g. `feat(repo): decode DAG-CBOR maps`.
-   Do **not** add `Co-authored-by`, `Generated with …`, or any other trailer lines to commit messages.
+   Human co-authors are welcome via the standard `Co-authored-by:` trailer. This only asks that *automated/assistant* commits not add spurious co-author or `Generated with …` trailers.
 
 ## References
 
