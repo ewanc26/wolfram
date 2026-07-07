@@ -35,6 +35,10 @@ if(NOT ZSTD_FOUND)
     endif()
 endif()
 
+# cJSON v1.7.18 and libcbor v0.13.0 declare an old cmake_minimum_required
+# (<3.5) which CMake 4.x rejects. Allow them to configure anyway.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+
 include(FetchContent)
 FetchContent_Declare(
     cjson
@@ -250,6 +254,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(timeline_thread_typed examples/timeline_thread_typed.c)
     target_link_libraries(timeline_thread_typed PRIVATE wolfram)
     target_include_directories(timeline_thread_typed PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(moderation_demo examples/moderation_demo.c)
+    target_link_libraries(moderation_demo PRIVATE wolfram)
+    target_include_directories(moderation_demo PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
@@ -472,4 +480,6 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_moderation PRIVATE wolfram)
     target_include_directories(test_moderation PRIVATE test)
     add_test(NAME moderation COMMAND test_moderation)
+
+    add_test(NAME moderation_demo COMMAND moderation_demo)
 endif()

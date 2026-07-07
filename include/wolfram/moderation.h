@@ -151,12 +151,16 @@ typedef struct wf_mod_prefs {
     wf_mod_label_pref *global_label_prefs; /* global per-label preferences */
     char **global_label_identifiers;       /* parallel identifiers */
     size_t global_label_count;
+    size_t global_label_cap;               /* allocation capacity (internal) */
     wf_mod_labeler_pref *labelers;
     size_t labeler_count;
+    size_t labeler_cap;                    /* allocation capacity (internal) */
     wf_mod_muted_word *muted_words;
     size_t muted_word_count;
+    size_t muted_word_cap;                 /* allocation capacity (internal) */
     char **hidden_posts;
     size_t hidden_post_count;
+    size_t hidden_post_cap;                /* allocation capacity (internal) */
 } wf_mod_prefs;
 
 /** Moderation options passed to decision functions. */
@@ -425,7 +429,62 @@ wf_mod_label_pref wf_mod_get_label_pref(const wf_mod_opts *opts,
 
 /** Get the action for a behavior in a given context. */
 wf_mod_action wf_mod_behavior_get(const wf_mod_behavior *beh,
-                                  wf_mod_context ctx);
+                                   wf_mod_context ctx);
+
+/* ------------------------------------------------------------------ */
+/* JSON ingestion (offline — parses API-shaped JSON into engine structs) */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Parse a user's moderation `preferences` JSON (the
+ * `app.bsky.actor.defs#preferences` array, or a bundled
+ * `app.bsky.actor.defs#moderationPrefs` object) into `wf_mod_prefs`.
+ *
+ * Recognized preference shapes:
+ *  - adultContentPref / moderationPrefs.adultContentEnabled -> adult_content_enabled
+ *  - labelersPref / moderationPrefs.labelers -> prefs.labelers (DID list)
+ *  - contentLabelPrefs / moderationPrefs.labels -> global per-label preferences
+ *  - hiddenPostsPref / moderationPrefs.hiddenPosts -> prefs.hidden_posts
+ *  - mutedWordsPref / moderationPrefs.mutedWords -> prefs.muted_words
+ *
+ * On success, `out` owns all pointed-to memory; free it with
+ * wf_mod_prefs_free. On failure, `out` is left zeroed.
+ */
+wf_status wf_mod_prefs_from_json(wf_mod_prefs *out, const char *json);
+
+/** Free a wf_mod_prefs produced by wf_mod_prefs_from_json. */
+void wf_mod_prefs_free(wf_mod_prefs *prefs);
+
+/**
+ * Parse a labeler's `labelValueDefinitions` JSON (the
+ * `com.atproto.label.defs#labelValueDefinition` array, found under
+ * `policies.labelValueDefinitions` of an `app.bsky.labeler.service` record)
+ * into `wf_mod_label_def` via wf_mod_interpret_label_def.
+ *
+ * `labeler_did` is recorded as `defined_by` on each definition. On success,
+ * `*out` points to a caller-owned array of `out_count` defs; free with
+ * wf_mod_label_defs_free. On failure, `*out` is set to NULL.
+ */
+wf_status wf_mod_label_defs_from_labeler(const char *labeler_did,
+                                         const char *json,
+                                         wf_mod_label_def **out,
+                                         size_t *out_count);
+
+/** Free an array of label defs produced by wf_mod_label_defs_from_labeler. */
+void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count);
+
+/**
+ * Parse a `labels` array (each item with `src`, `uri`, `val`, `cts`) into
+ * `wf_mod_label`. On success, `*out` points to a caller-owned array of
+ * `out_count` labels; free with wf_mod_labels_free. On failure, `*out` is
+ * set to NULL.
+ */
+wf_status wf_mod_labels_from_json(wf_mod_label **out,
+                                  size_t *out_count,
+                                  const char *json);
+
+/** Free an array of labels produced by wf_mod_labels_from_json. */
+void wf_mod_labels_free(wf_mod_label *labels, size_t count);
 
 /** Built-in behavior constants. */
 extern const wf_mod_behavior WF_MOD_BLOCK_BEHAVIOR;

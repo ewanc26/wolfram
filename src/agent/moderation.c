@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <cJSON.h>
 
 /* ------------------------------------------------------------------ */
 /* Built-in behavior constants                                          */
@@ -353,6 +354,26 @@ static wf_status add_cause(wf_mod_decision *d, const wf_mod_cause *cause) {
     return WF_OK;
 }
 
+/* Deep-copy a cause into dst, taking ownership of any copied heap data.
+ * The copy is independent: freeing src does not affect dst. */
+static wf_status cause_copy_deep(wf_mod_cause *dst, const wf_mod_cause *src) {
+    *dst = *src;
+    if (src->type == WF_MOD_CAUSE_LABEL) {
+        dst->label.src = dup_str(src->label.src);
+        dst->label.uri = dup_str(src->label.uri);
+        dst->label.val = dup_str(src->label.val);
+        dst->label.cts = dup_str(src->label.cts);
+    } else if (src->type == WF_MOD_CAUSE_MUTE_WORD && src->match_count > 0) {
+        dst->matches = calloc(src->match_count, sizeof(wf_mod_mute_word_match));
+        if (!dst->matches) return WF_ERR_ALLOC;
+        for (size_t i = 0; i < src->match_count; i++) {
+            dst->matches[i].value = dup_str(src->matches[i].value);
+            dst->matches[i].predicate = dup_str(src->matches[i].predicate);
+        }
+    }
+    return WF_OK;
+}
+
 wf_status wf_mod_decision_merge(wf_mod_decision *out,
                                 const wf_mod_decision *a,
                                 const wf_mod_decision *b) {
@@ -368,16 +389,15 @@ wf_status wf_mod_decision_merge(wf_mod_decision *out,
 
     if (a) {
         for (size_t i = 0; i < a->cause_count; i++) {
-            /* Deep copy label causes */
-            wf_mod_cause c = a->causes[i];
-            if (c.type == WF_MOD_CAUSE_LABEL) {
-                c.label.src = dup_str(a->causes[i].label.src);
-                c.label.uri = dup_str(a->causes[i].label.uri);
-                c.label.val = dup_str(a->causes[i].label.val);
-                c.label.cts = dup_str(a->causes[i].label.cts);
+            wf_mod_cause c;
+            wf_status cs = cause_copy_deep(&c, &a->causes[i]);
+            if (cs != WF_OK) {
+                wf_mod_decision_free(out);
+                return cs;
             }
             st = add_cause(out, &c);
             if (st != WF_OK) {
+                cause_free(&c);
                 wf_mod_decision_free(out);
                 return st;
             }
@@ -385,15 +405,15 @@ wf_status wf_mod_decision_merge(wf_mod_decision *out,
     }
     if (b) {
         for (size_t i = 0; i < b->cause_count; i++) {
-            wf_mod_cause c = b->causes[i];
-            if (c.type == WF_MOD_CAUSE_LABEL) {
-                c.label.src = dup_str(b->causes[i].label.src);
-                c.label.uri = dup_str(b->causes[i].label.uri);
-                c.label.val = dup_str(b->causes[i].label.val);
-                c.label.cts = dup_str(b->causes[i].label.cts);
+            wf_mod_cause c;
+            wf_status cs = cause_copy_deep(&c, &b->causes[i]);
+            if (cs != WF_OK) {
+                wf_mod_decision_free(out);
+                return cs;
             }
             st = add_cause(out, &c);
             if (st != WF_OK) {
+                cause_free(&c);
                 wf_mod_decision_free(out);
                 return st;
             }
@@ -1290,4 +1310,478 @@ void wf_mod_mute_word_matches_free(wf_mod_mute_word_match *matches, size_t count
         free(matches[i].predicate);
     }
     free(matches);
+}
+
+/* ------------------------------------------------------------------ */
+/* JSON ingestion                                                       */
+/* ------------------------------------------------------------------ */
+
+/* Forward declarations for the mutually-referential pref parsers. */
+static wf_status parse_pref_item(wf_mod_prefs *p, const cJSON *item);
+static wf_status parse_moderation_prefs(wf_mod_prefs *p, const cJSON *mp);
+
+/* Append a duplicated string to a growable char* array. */
+static wf_status json_strarr_push(char ***arr, size_t *count, size_t *cap,
+                                  const char *s) {
+    if (!s) return WF_OK;
+    if (*count >= *cap) {
+        size_t nc = (*cap == 0) ? 4 : *cap * 2;
+        char **na = realloc(*arr, nc * sizeof(char *));
+        if (!na) return WF_ERR_ALLOC;
+        *arr = na;
+        *cap = nc;
+    }
+    (*arr)[*count] = dup_str(s);
+    if (!(*arr)[*count]) return WF_ERR_ALLOC;
+    (*count)++;
+    return WF_OK;
+}
+
+/* Append a labeler preference (DID only) to a growable labeler array. */
+static wf_status json_labeler_push(wf_mod_labeler_pref **arr, size_t *count,
+                                   size_t *cap, const char *did) {
+    if (!did) return WF_OK;
+    if (*count >= *cap) {
+        size_t nc = (*cap == 0) ? 2 : *cap * 2;
+        wf_mod_labeler_pref *na = realloc(*arr, nc * sizeof(wf_mod_labeler_pref));
+        if (!na) return WF_ERR_ALLOC;
+        *arr = na;
+        *cap = nc;
+    }
+    wf_mod_labeler_pref *lp = &(*arr)[*count];
+    memset(lp, 0, sizeof(*lp));
+    lp->did = dup_str(did);
+    if (!lp->did) return WF_ERR_ALLOC;
+    (*count)++;
+    return WF_OK;
+}
+
+/* Append a muted word to a growable muted-word array. */
+static wf_status json_muted_word_push(wf_mod_muted_word **arr, size_t *count,
+                                      size_t *cap,
+                                      const wf_mod_muted_word *mw) {
+    if (*count >= *cap) {
+        size_t nc = (*cap == 0) ? 4 : *cap * 2;
+        wf_mod_muted_word *na = realloc(*arr, nc * sizeof(wf_mod_muted_word));
+        if (!na) return WF_ERR_ALLOC;
+        *arr = na;
+        *cap = nc;
+    }
+    wf_mod_muted_word *dst = &(*arr)[*count];
+    memset(dst, 0, sizeof(*dst));
+    dst->value = dup_str(mw->value);
+    dst->actor_target = dup_str(mw->actor_target);
+    dst->expires_at = dup_str(mw->expires_at);
+    dst->targets_content = mw->targets_content;
+    dst->targets_tag = mw->targets_tag;
+    if (!dst->value) return WF_ERR_ALLOC;
+    (*count)++;
+    return WF_OK;
+}
+
+static const char *json_str(const cJSON *item) {
+    if (item && cJSON_IsString(item) && item->valuestring) {
+        return item->valuestring;
+    }
+    return NULL;
+}
+
+/* Map a visibility string to a label preference. */
+static wf_mod_label_pref json_visibility_to_pref(const char *vis) {
+    if (!vis) return WF_MOD_PREF_WARN;
+    if (strcmp(vis, "hide") == 0) return WF_MOD_PREF_HIDE;
+    if (strcmp(vis, "ignore") == 0) return WF_MOD_PREF_IGNORE;
+    return WF_MOD_PREF_WARN;
+}
+
+/* Apply one content-label / global label entry to prefs. */
+static wf_status apply_global_label(wf_mod_prefs *p, const char *label,
+                                    const char *vis) {
+    if (!label) return WF_OK;
+    wf_mod_label_pref pref = json_visibility_to_pref(vis);
+    /* Overwrite if the label already exists. */
+    for (size_t i = 0; i < p->global_label_count; i++) {
+        if (str_eq(p->global_label_identifiers[i], label)) {
+            p->global_label_prefs[i] = pref;
+            return WF_OK;
+        }
+    }
+    if (p->global_label_count >= p->global_label_cap) {
+        size_t nc = (p->global_label_cap == 0) ? 4 : p->global_label_cap * 2;
+        char **ids = realloc(p->global_label_identifiers, nc * sizeof(char *));
+        wf_mod_label_pref *prefs = realloc(p->global_label_prefs, nc * sizeof(wf_mod_label_pref));
+        if (!ids || !prefs) { free(ids); free(prefs); return WF_ERR_ALLOC; }
+        p->global_label_identifiers = ids;
+        p->global_label_prefs = prefs;
+        p->global_label_cap = nc;
+    }
+    p->global_label_identifiers[p->global_label_count] = dup_str(label);
+    p->global_label_prefs[p->global_label_count] = pref;
+    if (!p->global_label_identifiers[p->global_label_count]) return WF_ERR_ALLOC;
+    p->global_label_count++;
+    return WF_OK;
+}
+
+/* Apply one muted-word object (with value/targets/actorTarget/expiresAt). */
+static wf_status apply_muted_word(wf_mod_prefs *p, const cJSON *word) {
+    const char *value = json_str(cJSON_GetObjectItemCaseSensitive(word, "value"));
+    if (!value) return WF_OK;
+    wf_mod_muted_word mw;
+    memset(&mw, 0, sizeof(mw));
+    mw.value = (char *)value;
+    mw.actor_target = (char *)json_str(
+        cJSON_GetObjectItemCaseSensitive(word, "actorTarget"));
+    mw.expires_at = (char *)json_str(
+        cJSON_GetObjectItemCaseSensitive(word, "expiresAt"));
+    cJSON *targets = cJSON_GetObjectItemCaseSensitive(word, "targets");
+    if (cJSON_IsArray(targets)) {
+        cJSON *t;
+        cJSON_ArrayForEach(t, targets) {
+            const char *ts = json_str(t);
+            if (!ts) continue;
+            if (strcmp(ts, "content") == 0) mw.targets_content = 1;
+            else if (strcmp(ts, "tag") == 0) mw.targets_tag = 1;
+        }
+    }
+    return json_muted_word_push(&p->muted_words, &p->muted_word_count,
+                                &p->muted_word_cap, &mw);
+}
+
+/* Parse a single preference item (by its $type). */
+static wf_status parse_pref_item(wf_mod_prefs *p, const cJSON *item) {
+    const char *type = json_str(cJSON_GetObjectItemCaseSensitive(item, "$type"));
+    if (!type) return WF_OK;
+
+    if (str_ends_with(type, "#adultContentPref")) {
+        cJSON *enabled = cJSON_GetObjectItemCaseSensitive(item, "enabled");
+        if (cJSON_IsBool(enabled)) {
+            p->adult_content_enabled = cJSON_IsTrue(enabled) ? 1 : 0;
+        }
+        return WF_OK;
+    }
+    if (str_ends_with(type, "#labelersPref")) {
+        cJSON *labelers = cJSON_GetObjectItemCaseSensitive(item, "labelers");
+        if (cJSON_IsArray(labelers)) {
+            cJSON *l;
+            cJSON_ArrayForEach(l, labelers) {
+                const char *did = json_str(cJSON_GetObjectItemCaseSensitive(l, "did"));
+                wf_status st = json_labeler_push(&p->labelers, &p->labeler_count,
+                                                 &p->labeler_cap, did);
+                if (st != WF_OK) return st;
+            }
+        }
+        return WF_OK;
+    }
+    if (str_ends_with(type, "#contentLabelPrefs")) {
+        cJSON *values = cJSON_GetObjectItemCaseSensitive(item, "values");
+        if (cJSON_IsArray(values)) {
+            cJSON *v;
+            cJSON_ArrayForEach(v, values) {
+                const char *label = json_str(cJSON_GetObjectItemCaseSensitive(v, "label"));
+                const char *vis = json_str(cJSON_GetObjectItemCaseSensitive(v, "visibility"));
+                wf_status st = apply_global_label(p, label, vis);
+                if (st != WF_OK) return st;
+            }
+        }
+        return WF_OK;
+    }
+    if (str_ends_with(type, "#hiddenPostsPref")) {
+        cJSON *posts = cJSON_GetObjectItemCaseSensitive(item, "posts");
+        if (cJSON_IsArray(posts)) {
+            cJSON *pp;
+            cJSON_ArrayForEach(pp, posts) {
+                wf_status st = json_strarr_push(&p->hidden_posts,
+                                                &p->hidden_post_count,
+                                                &p->hidden_post_cap,
+                                                json_str(pp));
+                if (st != WF_OK) return st;
+            }
+        }
+        return WF_OK;
+    }
+    if (str_ends_with(type, "#mutedWordsPref")) {
+        cJSON *words = cJSON_GetObjectItemCaseSensitive(item, "words");
+        if (cJSON_IsArray(words)) {
+            cJSON *w;
+            cJSON_ArrayForEach(w, words) {
+                wf_status st = apply_muted_word(p, w);
+                if (st != WF_OK) return st;
+            }
+        }
+        return WF_OK;
+    }
+    if (str_ends_with(type, "#moderationPrefs")) {
+        return parse_moderation_prefs(p, item);
+    }
+    return WF_OK;
+}
+
+/* Parse a bundled moderationPrefs object (or the sub-object of one). */
+static wf_status parse_moderation_prefs(wf_mod_prefs *p, const cJSON *mp) {
+    cJSON *adult = cJSON_GetObjectItemCaseSensitive(mp, "adultContentEnabled");
+    if (cJSON_IsBool(adult)) {
+        p->adult_content_enabled = cJSON_IsTrue(adult) ? 1 : 0;
+    }
+    cJSON *labelers = cJSON_GetObjectItemCaseSensitive(mp, "labelers");
+    if (cJSON_IsArray(labelers)) {
+        cJSON *l;
+        cJSON_ArrayForEach(l, labelers) {
+            const char *did = json_str(cJSON_GetObjectItemCaseSensitive(l, "did"));
+            wf_status st = json_labeler_push(&p->labelers, &p->labeler_count,
+                                             &p->labeler_cap, did);
+            if (st != WF_OK) return st;
+        }
+    }
+    cJSON *labels = cJSON_GetObjectItemCaseSensitive(mp, "labels");
+    if (cJSON_IsArray(labels)) {
+        cJSON *v;
+        cJSON_ArrayForEach(v, labels) {
+            const char *label = json_str(cJSON_GetObjectItemCaseSensitive(v, "label"));
+            const char *vis = json_str(cJSON_GetObjectItemCaseSensitive(v, "visibility"));
+            wf_status st = apply_global_label(p, label, vis);
+            if (st != WF_OK) return st;
+        }
+    }
+    cJSON *hidden = cJSON_GetObjectItemCaseSensitive(mp, "hiddenPosts");
+    if (cJSON_IsArray(hidden)) {
+        cJSON *pp;
+        cJSON_ArrayForEach(pp, hidden) {
+            wf_status st = json_strarr_push(&p->hidden_posts, &p->hidden_post_count,
+                                            &p->hidden_post_cap, json_str(pp));
+            if (st != WF_OK) return st;
+        }
+    }
+    cJSON *words = cJSON_GetObjectItemCaseSensitive(mp, "mutedWords");
+    if (cJSON_IsArray(words)) {
+        cJSON *w;
+        cJSON_ArrayForEach(w, words) {
+            wf_status st = apply_muted_word(p, w);
+            if (st != WF_OK) return st;
+        }
+    }
+    return WF_OK;
+}
+
+wf_status wf_mod_prefs_from_json(wf_mod_prefs *out, const char *json) {
+    if (!out || !json) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_Parse(json);
+    if (!root) {
+        memset(out, 0, sizeof(*out));
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_status st = WF_OK;
+
+    /* Resolve to the preferences collection. */
+    cJSON *items = root;
+    cJSON *prefs_field = cJSON_GetObjectItemCaseSensitive(root, "preferences");
+    if (cJSON_IsArray(prefs_field)) {
+        items = prefs_field;
+    }
+
+    if (cJSON_IsArray(items)) {
+        cJSON *item;
+        cJSON_ArrayForEach(item, items) {
+            st = parse_pref_item(out, item);
+            if (st != WF_OK) goto done;
+        }
+    } else if (cJSON_IsObject(items)) {
+        /* Could be a flat moderationPrefs object. */
+        st = parse_moderation_prefs(out, items);
+    }
+
+done:
+    cJSON_Delete(root);
+    if (st != WF_OK) wf_mod_prefs_free(out);
+    return st;
+}
+
+void wf_mod_prefs_free(wf_mod_prefs *prefs) {
+    if (!prefs) return;
+    for (size_t i = 0; i < prefs->global_label_count; i++) {
+        free(prefs->global_label_identifiers[i]);
+    }
+    free(prefs->global_label_identifiers);
+    free(prefs->global_label_prefs);
+
+    for (size_t i = 0; i < prefs->labeler_count; i++) {
+        free(prefs->labelers[i].did);
+        free(prefs->labelers[i].label_prefs);
+        for (size_t j = 0; j < prefs->labelers[i].label_count; j++) {
+            free(prefs->labelers[i].label_identifiers[j]);
+        }
+        free(prefs->labelers[i].label_identifiers);
+    }
+    free(prefs->labelers);
+
+    for (size_t i = 0; i < prefs->muted_word_count; i++) {
+        free(prefs->muted_words[i].value);
+        free(prefs->muted_words[i].actor_target);
+        free(prefs->muted_words[i].expires_at);
+    }
+    free(prefs->muted_words);
+
+    for (size_t i = 0; i < prefs->hidden_post_count; i++) {
+        free(prefs->hidden_posts[i]);
+    }
+    free(prefs->hidden_posts);
+
+    memset(prefs, 0, sizeof(*prefs));
+}
+
+wf_status wf_mod_label_defs_from_labeler(const char *labeler_did,
+                                         const char *json,
+                                         wf_mod_label_def **out,
+                                         size_t *out_count) {
+    if (!out || !out_count || !json) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    *out_count = 0;
+
+    cJSON *root = cJSON_Parse(json);
+    if (!root) return WF_ERR_INVALID_ARG;
+
+    wf_status st = WF_OK;
+    cJSON *defs = cJSON_GetObjectItemCaseSensitive(root, "labelValueDefinitions");
+    if (!defs) {
+        cJSON *policies = cJSON_GetObjectItemCaseSensitive(root, "policies");
+        if (cJSON_IsObject(policies)) {
+            defs = cJSON_GetObjectItemCaseSensitive(policies, "labelValueDefinitions");
+        }
+    }
+    if (!cJSON_IsArray(defs)) {
+        cJSON_Delete(root);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    size_t cap = 0;
+    wf_mod_label_def *arr = NULL;
+    cJSON *d;
+    cJSON_ArrayForEach(d, defs) {
+        const char *id = json_str(cJSON_GetObjectItemCaseSensitive(d, "identifier"));
+        const char *blurs = json_str(cJSON_GetObjectItemCaseSensitive(d, "blurs"));
+        const char *severity = json_str(cJSON_GetObjectItemCaseSensitive(d, "severity"));
+        const char *default_setting = json_str(
+            cJSON_GetObjectItemCaseSensitive(d, "defaultSetting"));
+        cJSON *adult = cJSON_GetObjectItemCaseSensitive(d, "adultOnly");
+        int adult_only = cJSON_IsTrue(adult) ? 1 : 0;
+        if (!id) continue;
+        if (*out_count >= cap) {
+            size_t nc = (cap == 0) ? 4 : cap * 2;
+            wf_mod_label_def *na = realloc(arr, nc * sizeof(wf_mod_label_def));
+            if (!na) { st = WF_ERR_ALLOC; goto done; }
+            arr = na;
+            cap = nc;
+        }
+        wf_mod_label_def *def = &arr[*out_count];
+        memset(def, 0, sizeof(*def));
+        st = wf_mod_interpret_label_def(def, id, labeler_did,
+                                        blurs, severity, adult_only,
+                                        default_setting);
+        if (st != WF_OK) goto done;
+        (*out_count)++;
+    }
+
+done:
+    cJSON_Delete(root);
+    if (st != WF_OK) {
+        if (arr) {
+            for (size_t i = 0; i < *out_count; i++) wf_mod_label_def_free(&arr[i]);
+            free(arr);
+        }
+        *out = NULL;
+        *out_count = 0;
+    } else {
+        *out = arr;
+    }
+    return st;
+}
+
+void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count) {
+    if (!defs) return;
+    for (size_t i = 0; i < count; i++) {
+        wf_mod_label_def_free(&defs[i]);
+    }
+    free(defs);
+}
+
+wf_status wf_mod_labels_from_json(wf_mod_label **out,
+                                  size_t *out_count,
+                                  const char *json) {
+    if (!out || !out_count || !json) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    *out_count = 0;
+
+    cJSON *root = cJSON_Parse(json);
+    if (!root) return WF_ERR_INVALID_ARG;
+
+    wf_status st = WF_OK;
+    cJSON *arr_json = root;
+    cJSON *labels_field = cJSON_GetObjectItemCaseSensitive(root, "labels");
+    if (cJSON_IsArray(labels_field)) {
+        arr_json = labels_field;
+    }
+    if (!cJSON_IsArray(arr_json)) {
+        cJSON_Delete(root);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    size_t cap = 0;
+    wf_mod_label *arr = NULL;
+    cJSON *l;
+    cJSON_ArrayForEach(l, arr_json) {
+        const char *src = json_str(cJSON_GetObjectItemCaseSensitive(l, "src"));
+        const char *uri = json_str(cJSON_GetObjectItemCaseSensitive(l, "uri"));
+        const char *val = json_str(cJSON_GetObjectItemCaseSensitive(l, "val"));
+        const char *cts = json_str(cJSON_GetObjectItemCaseSensitive(l, "cts"));
+        if (!val) continue;
+        if (*out_count >= cap) {
+            size_t nc = (cap == 0) ? 4 : cap * 2;
+            wf_mod_label *na = realloc(arr, nc * sizeof(wf_mod_label));
+            if (!na) { st = WF_ERR_ALLOC; goto done; }
+            arr = na;
+            cap = nc;
+        }
+        wf_mod_label *lab = &arr[*out_count];
+        memset(lab, 0, sizeof(*lab));
+        lab->src = dup_str(src);
+        lab->uri = dup_str(uri);
+        lab->val = dup_str(val);
+        lab->cts = dup_str(cts);
+        if (!lab->val || (src && !lab->src) || (uri && !lab->uri) ||
+            (cts && !lab->cts)) {
+            st = WF_ERR_ALLOC;
+            goto done;
+        }
+        (*out_count)++;
+    }
+
+done:
+    cJSON_Delete(root);
+    if (st != WF_OK) {
+        if (arr) {
+            for (size_t i = 0; i < *out_count; i++) {
+                free(arr[i].src); free(arr[i].uri);
+                free(arr[i].val); free(arr[i].cts);
+            }
+            free(arr);
+        }
+        *out = NULL;
+        *out_count = 0;
+    } else {
+        *out = arr;
+    }
+    return st;
+}
+
+void wf_mod_labels_free(wf_mod_label *labels, size_t count) {
+    if (!labels) return;
+    for (size_t i = 0; i < count; i++) {
+        free(labels[i].src);
+        free(labels[i].uri);
+        free(labels[i].val);
+        free(labels[i].cts);
+    }
+    free(labels);
 }
