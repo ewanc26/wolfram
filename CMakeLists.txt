@@ -110,6 +110,9 @@ add_library(wolfram
     src/agent/list_typed.c
     src/agent/moderation_typed.c
     src/agent/feedgen_typed.c
+    src/agent/chat_typed.c
+    src/agent/moderation_actions.c
+    src/agent/lexcall.c
 src/agent/push_endpoint.c
     src/agent/create_record.c
     # Rich text / facet detection
@@ -440,4 +443,25 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_feedgen_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME feedgen_typed COMMAND test_feedgen_typed)
+
+    add_executable(test_chat_typed test/test_chat_typed.c)
+    target_link_libraries(test_chat_typed PRIVATE wolfram)
+    target_include_directories(test_chat_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_chat_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME chat_typed COMMAND test_chat_typed)
+
+    add_executable(test_moderation_actions test/test_moderation_actions.c)
+    target_link_libraries(test_moderation_actions PRIVATE wolfram)
+    target_include_directories(test_moderation_actions PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_moderation_actions PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME moderation_actions COMMAND test_moderation_actions)
+
+    add_executable(test_lexcall test/test_lexcall.c)
+    target_link_libraries(test_lexcall PRIVATE wolfram)
+    target_include_directories(test_lexcall PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_lexcall PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME lexcall COMMAND test_lexcall)
 endif()

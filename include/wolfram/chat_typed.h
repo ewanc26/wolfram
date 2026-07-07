@@ -76,6 +76,9 @@ wf_status wf_agent_parse_convos(const char *json, size_t json_len,
 /* Free a parsed convo list and every owned subtree it holds. */
 void wf_chat_convo_list_free(wf_chat_convo_list *list);
 
+/* Free a single parsed convo (as returned by wf_agent_parse_convo). */
+void wf_chat_convo_free(wf_chat_convo *c);
+
 /* Parse a raw getConvo JSON body into a single owned convo (the `convo` object,
  * which embeds a `messages` array on the wire — that array is NOT retained by
  * this bounded parser). Same ownership/error rules as wf_agent_parse_convos. */

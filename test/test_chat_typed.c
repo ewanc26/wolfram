@@ -107,7 +107,7 @@ static void test_parse_convo(void) {
              strcmp(c.last_message_text, "hello there") == 0);
     WF_CHECK(c.type && strcmp(c.type, "direct") == 0);
 
-    wf_chat_convo_reset(&c);
+    wf_chat_convo_free(&c);
     free(json);
 }
 

@@ -307,6 +307,13 @@ void wf_chat_convo_list_free(wf_chat_convo_list *list) {
     memset(list, 0, sizeof(*list));
 }
 
+void wf_chat_convo_free(wf_chat_convo *c) {
+    if (!c) {
+        return;
+    }
+    wf_chat_convo_reset(c);
+}
+
 wf_status wf_agent_parse_convo(const char *json, size_t json_len,
                                wf_chat_convo *out) {
     if (!json || !out) {
