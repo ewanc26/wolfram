@@ -75,11 +75,11 @@ static void print_search_results(const wf_response *res) {
         printf("\n");
         printf("    %s\n", text);
         if (cJSON_IsNumber(like_count))
-            printf("    ♥ %d", (int)like_count->valuedouble);
+            printf("    likes: %d", (int)like_count->valuedouble);
         if (cJSON_IsNumber(repost_count))
-            printf(" ♺ %d", (int)repost_count->valuedouble);
+            printf(" reposts: %d", (int)repost_count->valuedouble);
         if (cJSON_IsNumber(reply_count))
-            printf(" ↳ %d", (int)reply_count->valuedouble);
+            printf(" replies: %d", (int)reply_count->valuedouble);
         printf("\n");
     }
 

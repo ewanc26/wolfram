@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: "💬 Discussions / Questions"
+  - name: "Discussions / Questions"
     url: https://github.com/ewanc26/wolfram/discussions
     about: Ask questions and discuss wolfram with the community before opening an issue.
-  - name: "📖 AT Protocol reference"
+  - name: "AT Protocol reference"
     url: https://github.com/bluesky-social/atproto
     about: Lexicons and wire formats — useful when reporting protocol-level bugs or proposing features.
