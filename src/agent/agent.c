@@ -1281,6 +1281,60 @@ wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_prof
     return status;
 }
 
+wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor, wf_response *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[] = {
+        {"actor", actor},
+    };
+
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.actor.getProfile",
+                                params, 1, out);
+}
+
+wf_status wf_agent_get_preferences(wf_agent *agent, char **out_json) {
+    if (!agent || !out_json) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    *out_json = NULL;
+
+    wf_response res = {0};
+    wf_status status = wf_xrpc_query_params(agent->client,
+                                            "app.bsky.actor.getPreferences",
+                                            NULL, 0, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    wf_status ret = WF_ERR_PARSE;
+    cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+    if (root) {
+        cJSON *prefs = cJSON_GetObjectItemCaseSensitive(root, "preferences");
+        if (cJSON_IsArray(prefs)) {
+            char *json = cJSON_PrintUnformatted(prefs);
+            if (json) {
+                *out_json = json;
+                ret = WF_OK;
+            } else {
+                ret = WF_ERR_ALLOC;
+            }
+        }
+        cJSON_Delete(root);
+    }
+
+    wf_response_free(&res);
+    return ret;
+}
+
 #if 0 // social functions moved to post.c
 
 wf_status wf_agent_follow(wf_agent *agent, const char *subject_did, wf_agent_post_result *out) {

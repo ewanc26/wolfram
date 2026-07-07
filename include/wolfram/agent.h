@@ -10,6 +10,7 @@
 
 #include "wolfram/session.h"
 #include "wolfram/repo.h"
+#include "wolfram/moderation.h"
 #include <cJSON.h>
 
 #ifdef __cplusplus
@@ -474,6 +475,79 @@ wf_status wf_agent_list_records_paged(wf_agent *agent, const char *collection,
                                       int limit, int max_pages,
                                       wf_agent_records_page_cb on_page,
                                       void *ud, char **out_last_cursor);
+
+/* ------------------------------------------------------------------ */
+/* Moderation — wiring the decision engine into the agent              */
+/* ------------------------------------------------------------------ */
+
+/* Raw `app.bsky.actor.getProfile` — returns the raw JSON response body
+ * in `out`; caller frees it with wf_response_free. The body carries the full
+ * profileView (including `viewer` state and `labels`) needed to build a
+ * moderation subject. NULL agent/out -> WF_ERR_INVALID_ARG. */
+wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor, wf_response *out);
+
+/* Fetch the current user's `app.bsky.actor.getPreferences` and return the
+ * `preferences` array as a heap-owned JSON string in *out_json.
+ * On WF_OK, caller frees *out_json with free(). NULL agent/out_json ->
+ * WF_ERR_INVALID_ARG. */
+wf_status wf_agent_get_preferences(wf_agent *agent, char **out_json);
+
+/*
+ * Build a wf_mod_opts for the current user, loading:
+ *   - opts->user_did : borrowed from the agent's session (do NOT free)
+ *   - opts->prefs    : the user's moderation preferences (free with
+ *                      wf_mod_prefs_free)
+ *   - opts->label_defs : interpreted label value definitions for each
+ *                      configured labeler (free with wf_mod_label_defs_free)
+ *
+ * Performs network I/O (preferences + one record fetch per labeler). On
+ * failure, returns an error and leaves `out` only partially populated; the
+ * caller should still release any prefs/label_defs that were assigned. NULL
+ * agent/out -> WF_ERR_INVALID_ARG.
+ */
+wf_status wf_agent_moderate_init_opts(wf_agent *agent, wf_mod_opts *out);
+
+/* Moderate an actor's profile: fetch it, build a wf_mod_subject_profile,
+ * load the user's opts, and merge wf_mod_decide_account + wf_mod_decide_profile.
+ * On WF_OK, *out is a heap-owned wf_mod_decision freed by the caller with
+ * wf_mod_decision_free. NULL agent/actor/out -> WF_ERR_INVALID_ARG. */
+wf_status wf_agent_moderate_profile(wf_agent *agent, const char *actor, wf_mod_decision **out);
+
+/* Moderate a post: fetch its thread, build a wf_mod_subject_post (author
+ * viewer/labels + post labels/text + embed), load the user's opts, and call
+ * wf_mod_decide_post. On WF_OK, *out is a heap-owned wf_mod_decision freed by
+ * the caller with wf_mod_decision_free. NULL agent/uri/out -> WF_ERR_INVALID_ARG. */
+wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri, wf_mod_decision **out);
+
+/*
+ * Offline-testable JSON shims (no network). Parse a profileView JSON object
+ * into a wf_mod_subject_profile. String fields are BORROWED from `obj` (the
+ * caller must keep `obj` alive until after the decision is computed), while
+ * *out_labels is a caller-owned wf_mod_label array (free with
+ * wf_mod_labels_free). *out is left zeroed/borrowed; on WF_OK the caller must
+ * free *out_labels after use.
+ */
+wf_status wf_agent_mod_profile_subject_from_json(const cJSON *obj,
+                                                 wf_mod_subject_profile *out,
+                                                 wf_mod_label **out_labels,
+                                                 size_t *out_label_count);
+
+/*
+ * Offline-testable JSON shim (no network). Parse a post + author JSON into a
+ * wf_mod_subject_post. `post` is the postView object and `author` its `author`
+ * profileView. String fields are BORROWED from `post`/`author` (keep them
+ * alive), while *out_labels (post content labels) and *out_author_labels
+ * (author labels) are caller-owned wf_mod_label arrays (free each with
+ * wf_mod_labels_free). On WF_OK the caller must free both label arrays after
+ * the decision is computed.
+ */
+wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
+                                              const cJSON *author,
+                                              wf_mod_subject_post *out,
+                                              wf_mod_label **out_labels,
+                                              size_t *out_label_count,
+                                              wf_mod_label **out_author_labels,
+                                              size_t *out_author_label_count);
 
 #ifdef __cplusplus
 }
