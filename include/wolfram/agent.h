@@ -111,6 +111,24 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
 /* Handle resolution — resolve a handle to a DID via com.atproto.identity.resolveHandle. */
 wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **out_did);
 
+/* Batch record operations — wraps com.atproto.repo.applyWrites */
+typedef enum {
+    WF_AGENT_WRITE_CREATE,
+    WF_AGENT_WRITE_UPDATE,
+    WF_AGENT_WRITE_DELETE
+} wf_agent_write_type;
+
+typedef struct wf_agent_write {
+    wf_agent_write_type type;
+    const char *collection;
+    const char *rkey;         /* NULL for auto-generated on create */
+    const char *value_json;   /* JSON string of record value; NULL for delete */
+} wf_agent_write;
+
+wf_status wf_agent_apply_writes(wf_agent *agent,
+                                 const wf_agent_write *writes, size_t write_count,
+                                 wf_response *out);
+
 /* Server account management — wraps com.atproto.server endpoints. */
 typedef struct wf_agent_server_description {
     char *did;

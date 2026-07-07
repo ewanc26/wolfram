@@ -1643,6 +1643,116 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
                                data, data_len, content_type, out);
 }
 
+/* ── applyWrites ────────────────────────────────────────────────────── */
+
+static cJSON *wf_agent_build_write_value(const wf_agent_write *write) {
+    if (!write->value_json || write->type == WF_AGENT_WRITE_DELETE) return NULL;
+    return cJSON_Parse(write->value_json);
+}
+
+static const char *wf_agent_write_type_str(wf_agent_write_type type) {
+    switch (type) {
+        case WF_AGENT_WRITE_CREATE: return "com.atproto.repo.applyWrites#create";
+        case WF_AGENT_WRITE_UPDATE: return "com.atproto.repo.applyWrites#update";
+        case WF_AGENT_WRITE_DELETE: return "com.atproto.repo.applyWrites#delete";
+    }
+    return NULL;
+}
+
+static wf_status wf_agent_add_write(cJSON *writes_array, const wf_agent_write *write) {
+    cJSON *item = cJSON_CreateObject();
+    if (!item) return WF_ERR_ALLOC;
+
+    const char *type_str = wf_agent_write_type_str(write->type);
+    if (!type_str || !cJSON_AddStringToObject(item, "$type", type_str) ||
+        !cJSON_AddStringToObject(item, "collection", write->collection)) {
+        cJSON_Delete(item);
+        return WF_ERR_ALLOC;
+    }
+
+    if (write->rkey && write->rkey[0]) {
+        if (!cJSON_AddStringToObject(item, "rkey", write->rkey)) {
+            cJSON_Delete(item);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    if (write->type != WF_AGENT_WRITE_DELETE) {
+        if (!write->value_json) {
+            cJSON_Delete(item);
+            return WF_ERR_INVALID_ARG;
+        }
+        cJSON *value = cJSON_Parse(write->value_json);
+        if (!value) {
+            cJSON_Delete(item);
+            return WF_ERR_PARSE;
+        }
+        if (!cJSON_AddItemToObject(item, "value", value)) {
+            cJSON_Delete(value);
+            cJSON_Delete(item);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    if (!cJSON_AddItemToArray(writes_array, item)) {
+        cJSON_Delete(item);
+        return WF_ERR_ALLOC;
+    }
+
+    return WF_OK;
+}
+
+wf_status wf_agent_apply_writes(wf_agent *agent,
+                                 const wf_agent_write *writes, size_t write_count,
+                                 wf_response *out) {
+    size_t i;
+    wf_status status;
+
+    if (!agent || !writes || write_count == 0 || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    for (i = 0; i < write_count; i++) {
+        if (!writes[i].collection) return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+
+    if (!cJSON_AddStringToObject(root, "repo", agent->session->data.did)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    cJSON *writes_array = cJSON_AddArrayToObject(root, "writes");
+    if (!writes_array) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    for (i = 0; i < write_count; i++) {
+        status = wf_agent_add_write(writes_array, &writes[i]);
+        if (status != WF_OK) {
+            cJSON_Delete(root);
+            return status;
+        }
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    status = wf_xrpc_procedure(agent->client,
+                                "com.atproto.repo.applyWrites",
+                                json, out);
+    free(json);
+    return status;
+}
+
 wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **out_did) {
     if (!agent || !handle || !handle[0] || !out_did) {
         return WF_ERR_INVALID_ARG;
