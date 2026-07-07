@@ -45,11 +45,13 @@ Per-module usage guides with runnable C snippets live in [`docs/`](docs/):
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
 | `wolfram/validate.h`     | Implemented | Runtime Lexicon schema validation (records and named values), refs/unions/format keywords |
 | `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, server + app-password management |
+| `wolfram/chat_typed.h`   | Implemented | Chat (DM) — `chat.bsky.convo` listConvos/getConvo/getMessages/sendMessage, with chat-service endpoint resolution (`wf_agent_chat_service_resolve` routes calls to the distinct Bluesky chat service) |
+| `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper (verify/emit labels, auth headers) |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
 | `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (13K header, 74K source) |
 | `wolfram/moderation.h`    | Implemented | Moderation decision engine — blur/alert/inform/filter for accounts, profiles, posts, notifications, feed generators, and user lists from labels, blocks, mutes, hidden posts, and muted words |
-| `wolfram/store.h`         | Partial/Optional | SQLite-backed session + repo-mirror persistence (OFF by default; build with `WOLFRAM_BUILD_STORE=ON`) |
+| `wolfram/store.h`         | Partial/Optional | SQLite-backed session + repo-mirror persistence + persisted-label storage for the moderation engine (OFF by default; build with `WOLFRAM_BUILD_STORE=ON`) |
 | `tools/wf_lexgen.py`      | Initial     | Lexicon JSON to typed C data-model declarations |
 
 ## Requirements
@@ -252,10 +254,15 @@ Logs in and issues a scoped app password via `com.atproto.server.createAppPasswo
 
 ### Next planned work
 
-- Full-corpus generated lexicon clients exercised end-to-end against a live PDS in examples.
-- More examples — threads, custom feeds, labeler records, image/embed posts via blob upload.
-- Documentation: per-function usage examples for the `agent`, `sync`, `validate`, and `oauth` modules.
-- Optional: JSON Structure / JSON Schema round-trip for non-Lexicon JSON if a use case appears.
+- Live end-to-end example runs against a real PDS (the new `get_thread`,
+  `list_notifications`, `list_convos`, and `ozone_moderation` examples currently
+  compile and are wired but expect runtime credentials).
+- `wolfram` command-line client: broaden subcommands (threads, notifications,
+  labels, moderation) beyond the current `login`/`post`/`get` skeleton.
+- Optional: JSON Structure / JSON Schema round-trip for non-Lexicon JSON if a
+  use case appears.
+- Optional: reusable DID-document fetch in `identity.c` so chat/label service
+  resolution reuses it instead of the transport-level `wf_http_get` shim.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.

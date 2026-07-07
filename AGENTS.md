@@ -29,7 +29,10 @@ Agentic principles and technical context for the `wolfram` repository.
 - `repo`: libcbor-backed canonical DAG-CBOR, CIDs, CAR parse/write, deterministic MST add/delete/merge, signed v3 commits, record create/get/update/delete, and full CAR ownership/signature/content verification/import. Tested.
 - `record`: schema-driven JSON-to-DAG-CBOR structured record encoding. Tested.
 - `sync`: `com.atproto.sync.getRepo` full/diff CAR download and parsing. Tested.
-- `agent`: Core agent struct, session management, `com.atproto.repo` CRUD (createRecord, getRecord, putRecord, deleteRecord, applyWrites, listRecords), `com.atproto.sync` wrappers (getBlob, getBlocks, getRecord, listBlobs), social graph (mute, unmute), graph/feed wrappers (getBlocks, getMutes, getKnownFollowers, getRelationships, getList, getLists, searchPosts, getActorLikes, getLikes, getRepostedBy, getUnreadCount). Tested.
+- `agent`: Core agent struct, session management, `com.atproto.repo` CRUD (createRecord, getRecord, putRecord, deleteRecord, applyWrites, listRecords), `com.atproto.sync` wrappers (getBlob, getBlocks, getRecord, listBlobs), social graph (mute, unmute), graph/feed wrappers (getBlocks, getMutes, getKnownFollowers, getRelationships, getList, getLists, searchPosts, getActorLikes, getLikes, getRepostedBy, getUnreadCount), and chat (DM) wrappers (`chat.bsky.convo.*`) that resolve the distinct Bluesky chat service endpoint. Tested.
+- `chat`: `chat.bsky.convo` listConvos/getConvo/getMessages/sendMessage with owned typed parsers and chat-service endpoint resolution (`wf_agent_chat_service_resolve`). Tested.
+- `ozone`: Ozone moderation-service / labeler helper — verify and emit labels, build service auth headers. Tested.
+- `cli`: `wolfram` command-line client exercising the SDK end-to-end (login, post, get, threads, notifications, labels, moderation). Built by default.
 - `agent_sync`: Input-validation tests for sync/graph/feed/notification wrappers. Tested.
 - `agent_repo`: Offline repo sync pipeline — seed CAR, verify and apply incremental diffs, query mirror head, invert operations. Tested.
 - `jetstream`: libcurl WebSockets, filters, runtime `options_update`, cursor reconnect/backoff, and optional dictionary-based zstd decoding. Tested.
