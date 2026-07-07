@@ -81,6 +81,7 @@ static void wf_agent_post_result_reset(wf_agent_post_result *result) {
     memset(result, 0, sizeof(*result));
 }
 
+#if 0
 static void wf_agent_profile_reset(wf_agent_profile *profile) {
     if (!profile) {
         return;
@@ -189,6 +190,11 @@ static wf_status wf_agent_session_data_copy(wf_session_data *dst, const wf_sessi
 
     return status;
 }
+
+#endif // unused helper functions
+
+static wf_status wf_agent_set_string(char **dst, const char *src);
+static int wf_agent_is_logged_in(const wf_agent *agent);
 
 static void wf_agent_sync_auth(wf_agent *agent) {
     if (!agent || !agent->client || !agent->session) {
@@ -557,6 +563,7 @@ static wf_status wf_agent_delete_record_call(wf_agent *agent,
     return status;
 }
 
+#if 0
 static wf_status wf_agent_profile_from_response(const wf_response *res,
                                                 wf_agent_profile *out) {
     if (!res || !out) {
@@ -644,6 +651,8 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
     cJSON_Delete(root);
     return status;
 }
+
+#endif // unused profile parsing
 
 static wf_status wf_agent_build_follow_record(wf_agent *agent,
                                               const char *subject_did,

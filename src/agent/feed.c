@@ -681,7 +681,7 @@ wf_status wf_agent_describe_feed_generator_lex(wf_agent *agent, wf_response *out
 
 wf_status wf_agent_get_feed_generators_lex(wf_agent *agent, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
-    wf_lex_app_bsky_feed_get_feed_generators_main_params params = {0};
+
     wf_agent_sync_auth(agent);
     return WF_OK;
 }
