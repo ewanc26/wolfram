@@ -18,6 +18,8 @@
 struct wf_xrpc_client {
     char *base_url;   /* e.g. "https://eurosky.social", no trailing slash */
     char *auth_header; /* "Authorization: Bearer <jwt>", or NULL */
+    wf_xrpc_handler_fn handler; /* NULL in production; test seam */
+    void *handler_userdata;
 };
 
 /* curl write callback: append incoming bytes to a growable buffer. */
@@ -113,6 +115,13 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     free(client);
 }
 
+void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
+                         void *userdata) {
+    if (!client) return;
+    client->handler = fn;
+    client->handler_userdata = userdata;
+}
+
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     if (!client) return;
 
@@ -128,23 +137,139 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     }
 }
 
-/* Shared request path for both query (GET) and POST variants. */
-static wf_status wf_xrpc_request(wf_xrpc_client *client,
-                                  const char *nsid,
-                                  const char *query_string,
-                                  const void *body,
-                                  size_t body_len,
-                                  const char *content_type,
-                                  int is_post,
-                                  wf_response *out) {
-    if (!client || !nsid || !out || (body_len > 0 && !body) ||
-        (is_post && !content_type)) {
-        return WF_ERR_INVALID_ARG;
+/* Convert a curl header list into an array of wf_http_header (owned copies). */
+static wf_http_header *wf_slist_to_headers(struct curl_slist *list,
+                                           size_t *count) {
+    size_t n = 0;
+    for (struct curl_slist *p = list; p; p = p->next) n++;
+    *count = n;
+    if (n == 0) return NULL;
+    wf_http_header *arr = calloc(n, sizeof(*arr));
+    if (!arr) {
+        *count = 0;
+        return NULL;
+    }
+    size_t i = 0;
+    for (struct curl_slist *p = list; p && i < n; p = p->next, i++) {
+        const char *data = p->data;
+        const char *colon = strchr(data, ':');
+        if (!colon) {
+            arr[i].name = (const char *)strdup(data);
+            arr[i].value = (const char *)strdup("");
+            continue;
+        }
+        size_t nl = (size_t)(colon - data);
+        char *name = malloc(nl + 1);
+        if (name) {
+            memcpy(name, data, nl);
+            name[nl] = '\0';
+        }
+        arr[i].name = (const char *)name;
+        const char *v = colon + 1;
+        while (*v == ' ' || *v == '\t') v++;
+        arr[i].value = (const char *)strdup(v);
+    }
+    return arr;
+}
+
+static void wf_http_headers_free(wf_http_header *arr, size_t count) {
+    if (!arr) return;
+    for (size_t i = 0; i < count; i++) {
+        free((void *)arr[i].name);
+        free((void *)arr[i].value);
+    }
+    free(arr);
+}
+
+/*
+ * Single transport primitive shared by every request path. When a test handler
+ * is installed it receives the fully-resolved request; otherwise the request is
+ * issued over libcurl. Network I/O therefore remains isolated to this module.
+ */
+static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
+                                 const char *url, const char *content_type,
+                                 const void *body, size_t body_len,
+                                 struct curl_slist *headers, wf_response *out) {
+    if (client->handler) {
+        wf_http_header *harr = NULL;
+        size_t hcount = 0;
+        if (headers) {
+            harr = wf_slist_to_headers(headers, &hcount);
+            if (hcount && !harr) {
+                curl_slist_free_all(headers);
+                return WF_ERR_ALLOC;
+            }
+        }
+        memset(out, 0, sizeof(*out));
+        wf_status status = client->handler(client->handler_userdata, method, url,
+                                           content_type, (const char *)body,
+                                           body_len, harr, hcount, out);
+        wf_http_headers_free(harr, hcount);
+        curl_slist_free_all(headers);
+        return status;
     }
 
     CURL *curl = curl_easy_init();
     if (!curl) {
+        curl_slist_free_all(headers);
         return WF_ERR_ALLOC;
+    }
+
+    struct wf_buffer buf = {0};
+    struct wf_header_capture capture = {0};
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
+    if (headers) {
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    }
+    if (strcmp(method, "POST") == 0) {
+        const char *post_body = body ? (const char *)body : "";
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_body);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)body_len);
+    }
+
+    wf_status status = WF_OK;
+    if (curl_easy_perform(curl) != CURLE_OK) {
+        status = WF_ERR_NETWORK;
+    } else {
+        long http_status = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);
+        out->status = http_status;
+        out->body = buf.data;
+        out->body_len = buf.len;
+        out->dpop_nonce = capture.dpop_nonce;
+        capture.dpop_nonce = NULL;
+
+        if (http_status < 200 || http_status >= 300) {
+            status = WF_ERR_HTTP;
+        }
+    }
+
+    if (status != WF_OK && buf.data) {
+        free(buf.data);
+    }
+    free(capture.dpop_nonce);
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    return status;
+}
+
+/* Shared request path for both query (GET) and POST variants. */
+static wf_status wf_xrpc_request(wf_xrpc_client *client,
+                                 const char *nsid,
+                                 const char *query_string,
+                                 const void *body,
+                                 size_t body_len,
+                                 const char *content_type,
+                                 int is_post,
+                                 wf_response *out) {
+    if (!client || !nsid || !out || (body_len > 0 && !body) ||
+        (is_post && !content_type)) {
+        return WF_ERR_INVALID_ARG;
     }
 
     /* Build "<base>/xrpc/<nsid>[?query]" */
@@ -152,7 +277,6 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
                      + (query_string ? strlen(query_string) + 1 : 0);
     char *url = malloc(url_cap);
     if (!url) {
-        curl_easy_cleanup(curl);
         return WF_ERR_ALLOC;
     }
 
@@ -162,8 +286,6 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
         snprintf(url, url_cap, "%s/xrpc/%s", client->base_url, nsid);
     }
 
-    struct wf_buffer buf = {0};
-    struct wf_header_capture capture = {0};
     struct curl_slist *headers = NULL;
     wf_status status = WF_OK;
 
@@ -186,46 +308,11 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
     }
 
     if (status == WF_OK) {
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
-        if (headers) {
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        }
-        if (is_post) {
-            const char *post_body = body ? (const char *)body : "";
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_body);
-            curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)body_len);
-        }
-
-        CURLcode res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            status = WF_ERR_NETWORK;
-        } else {
-            long http_status = 0;
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);
-            out->status = http_status;
-            out->body = buf.data;
-            out->body_len = buf.len;
-            out->dpop_nonce = capture.dpop_nonce;
-            capture.dpop_nonce = NULL;
-
-            if (http_status < 200 || http_status >= 300) {
-                status = WF_ERR_HTTP;
-            }
-        }
+        status = wf_xrpc_perform(client, is_post ? "POST" : "GET", url,
+                                 content_type, body, body_len, headers, out);
+    } else {
+        curl_slist_free_all(headers);
     }
-
-    if (status != WF_OK && buf.data) {
-        free(buf.data);
-    }
-    free(capture.dpop_nonce);
-
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
     free(url);
 
     return status;
@@ -330,15 +417,85 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client,
 }
 
 wf_status wf_xrpc_upload_blob(wf_xrpc_client *client,
-                              const char *nsid,
-                              const void *data,
-                              size_t data_len,
-                              const char *content_type,
-                              wf_response *out) {
+                               const char *nsid,
+                               const void *data,
+                               size_t data_len,
+                               const char *content_type,
+                               wf_response *out) {
     if (!client || !nsid || !data || data_len == 0 || !content_type || !*content_type || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_xrpc_request(client, nsid, NULL, data, data_len, content_type, 1, out);
+    return wf_xrpc_upload_blob_with_headers(client, nsid, data, data_len,
+                                           content_type, NULL, 0, out);
+}
+
+wf_status wf_xrpc_upload_blob_with_headers(
+    wf_xrpc_client *client, const char *nsid, const void *data,
+    size_t data_len, const char *content_type, const wf_http_header *headers,
+    size_t header_count, wf_response *out) {
+    struct curl_slist *list = NULL;
+    wf_status status = WF_OK;
+    char *base_url = NULL;
+    char *url = NULL;
+
+    if (!client || !nsid || !data || data_len == 0 || !content_type || !*content_type ||
+        !out || (header_count && !headers)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    base_url = wf_xrpc_get_base_url(client);
+    if (!base_url) return WF_ERR_ALLOC;
+    size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
+    url = malloc(url_cap);
+    if (!url) {
+        free(base_url);
+        return WF_ERR_ALLOC;
+    }
+    snprintf(url, url_cap, "%s/xrpc/%s", base_url, nsid);
+
+    {
+        size_t n = strlen("Content-Type: ") + strlen(content_type) + 1;
+        char *line = malloc(n);
+        if (!line) {
+            status = WF_ERR_ALLOC;
+        } else {
+            snprintf(line, n, "Content-Type: %s", content_type);
+            list = curl_slist_append(list, line);
+            free(line);
+            if (!list) status = WF_ERR_ALLOC;
+        }
+    }
+    for (size_t i = 0; status == WF_OK && i < header_count; i++) {
+        if (!headers[i].name || !headers[i].value) {
+            status = WF_ERR_INVALID_ARG;
+            break;
+        }
+        size_t n = strlen(headers[i].name) + strlen(headers[i].value) + 3;
+        char *line = malloc(n);
+        if (!line) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
+        snprintf(line, n, "%s: %s", headers[i].name, headers[i].value);
+        struct curl_slist *grown = curl_slist_append(list, line);
+        free(line);
+        if (!grown) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
+        list = grown;
+    }
+
+    if (status == WF_OK) {
+        status = wf_xrpc_perform(client, "POST", url, content_type, data,
+                                 data_len, list, out);
+    } else {
+        curl_slist_free_all(list);
+    }
+    free(url);
+    free(base_url);
+    return status;
 }
 
 void wf_response_free(wf_response *res) {
@@ -352,28 +509,23 @@ void wf_response_free(wf_response *res) {
 }
 
 wf_status wf_http_post(wf_xrpc_client *client, const char *url,
-                       const char *content_type, const char *body,
-                       const wf_http_header *extra, size_t extra_count,
-                       wf_response *out) {
-    CURL *curl;
-    struct wf_buffer buf = {0};
-    struct wf_header_capture capture = {0};
+                        const char *content_type, const char *body,
+                        const wf_http_header *extra, size_t extra_count,
+                        wf_response *out) {
     struct curl_slist *headers = NULL;
     wf_status status = WF_OK;
     size_t i;
     if (!client || !url || !content_type || !body || !out ||
         (extra_count && !extra)) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
-    curl = curl_easy_init();
-    if (!curl) return WF_ERR_ALLOC;
     {
         size_t n = strlen("Content-Type: ") + strlen(content_type) + 1;
         char *line = malloc(n);
-        if (!line) { curl_easy_cleanup(curl); return WF_ERR_ALLOC; }
+        if (!line) return WF_ERR_ALLOC;
         snprintf(line, n, "Content-Type: %s", content_type);
         headers = curl_slist_append(headers, line);
         free(line);
-        if (!headers) status = WF_ERR_ALLOC;
+        if (!headers) return WF_ERR_ALLOC;
     }
     for (i = 0; status == WF_OK && i < extra_count; i++) {
         size_t n;
@@ -390,30 +542,11 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
         headers = grown;
     }
     if (status == WF_OK) {
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(body));
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
-        curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
-        curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
-        curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
-        if (curl_easy_perform(curl) != CURLE_OK) status = WF_ERR_NETWORK;
+        status = wf_xrpc_perform(client, "POST", url, content_type, body,
+                                 strlen(body), headers, out);
+    } else {
+        curl_slist_free_all(headers);
     }
-    if (status == WF_OK) {
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &out->status);
-        out->body = buf.data;
-        out->body_len = buf.len;
-        out->dpop_nonce = capture.dpop_nonce;
-        buf.data = NULL;
-        capture.dpop_nonce = NULL;
-        if (out->status < 200 || out->status >= 300) status = WF_ERR_HTTP;
-    }
-    free(buf.data);
-    free(capture.dpop_nonce);
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
     return status;
 }
 
@@ -435,11 +568,8 @@ char *wf_xrpc_get_base_url(wf_xrpc_client *client) {
  * On WF_OK, `out` is populated and must be released with `wf_response_free`.
  */
 wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
-                                  const wf_http_header *extra, size_t extra_count,
-                                  wf_response *out) {
-    CURL *curl;
-    struct wf_buffer buf = {0};
-    struct wf_header_capture capture = {0};
+                                   const wf_http_header *extra, size_t extra_count,
+                                   wf_response *out) {
     struct curl_slist *headers = NULL;
     wf_status status = WF_OK;
     size_t i;
@@ -448,8 +578,6 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
         return WF_ERR_INVALID_ARG;
     }
     memset(out, 0, sizeof(*out));
-    curl = curl_easy_init();
-    if (!curl) return WF_ERR_ALLOC;
 
     if (client->auth_header) {
         headers = curl_slist_append(headers, client->auth_header);
@@ -470,33 +598,11 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
         headers = grown;
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
-    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
-    curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
-
-    if (curl_easy_perform(curl) != CURLE_OK) status = WF_ERR_NETWORK;
-
     if (status == WF_OK) {
-        long http_status = 0;
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);
-        out->status = http_status;
-        out->body = buf.data;
-        out->body_len = buf.len;
-        out->dpop_nonce = capture.dpop_nonce;
-
-        if (http_status < 200 || http_status >= 300) status = WF_ERR_HTTP;
+        status = wf_xrpc_perform(client, "GET", url, NULL, NULL, 0, headers, out);
+    } else {
+        curl_slist_free_all(headers);
     }
-
-    if (status != WF_OK && buf.data) {
-        free(buf.data);
-    }
-
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
     return status;
 }
 

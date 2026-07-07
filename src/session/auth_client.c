@@ -20,9 +20,9 @@ struct wf_auth_client {
 };
 
 wf_auth_client *wf_auth_client_new(wf_xrpc_client *client,
-                                  wf_oauth_session_state *session,
-                                  const wf_oauth_server_metadata *server,
-                                  const wf_oauth_client_auth *client_auth) {
+                                   wf_oauth_session_state *session,
+                                   const wf_oauth_server_metadata *server,
+                                   const wf_oauth_client_auth *client_auth) {
     if (!client || !session || !client_auth) return NULL;
     wf_auth_client *auth_client = calloc(1, sizeof(*auth_client));
     if (!auth_client) return NULL;
@@ -38,34 +38,66 @@ void wf_auth_client_free(wf_auth_client *auth_client) {
     free(auth_client);
 }
 
+/* Build the credential value ("Bearer <token>") for an Authorization header
+ * for the current token, or NULL when no token is available. Caller owns the
+ * result. The header name ("Authorization") is supplied by the caller. */
+static char *auth_client_build_authorization(const char *access_token) {
+    if (!access_token) return NULL;
+    size_t needed = strlen("Bearer ") + strlen(access_token) + 1;
+    char *authorization = malloc(needed);
+    if (!authorization) return NULL;
+    snprintf(authorization, needed, "Bearer %s", access_token);
+    return authorization;
+}
+
+/* Refresh the access token in place using the stored refresh token.
+ * Returns WF_OK on success; a transport/parse error (e.g. refresh rejected,
+ * or no refresh token) otherwise. Does not touch `out`. */
+static wf_status auth_client_refresh(wf_auth_client *auth_client) {
+    if (!auth_client->server || !auth_client->client_auth ||
+        !auth_client->session->refresh_token) {
+        return WF_ERR_NOT_FOUND;
+    }
+    return wf_oauth_session_refresh(auth_client->client,
+                                    auth_client->server,
+                                    auth_client->client_auth,
+                                    auth_client->session,
+                                    time(NULL));
+}
+
 /* Forward declarations of internal helpers */
-static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
-                                                 const char *nsid,
-                                                 const char *query_string,
-                                                 const char *json_body,
-                                                 int is_procedure,
-                                                 wf_response *out);
+static wf_status auth_client_perform(wf_auth_client *auth_client,
+                                     const char *nsid,
+                                     const char *query_string,
+                                     const char *json_body,
+                                     int is_procedure,
+                                     int is_upload,
+                                     const void *blob,
+                                     size_t blob_len,
+                                     const char *content_type,
+                                     wf_response *out);
 
 static wf_status wf_auth_client_ensure_session(wf_auth_client *auth_client,
-                                               int64_t now);
+                                                int64_t now);
 
 wf_status wf_auth_client_query(wf_auth_client *auth_client,
-                               const char *nsid,
-                               const char *query_string,
-                               wf_response *out) {
+                                const char *nsid,
+                                const char *query_string,
+                                wf_response *out) {
     if (!auth_client || !nsid || !out) return WF_ERR_INVALID_ARG;
-    
+
     wf_status status = wf_auth_client_ensure_session(auth_client, time(NULL));
     if (status != WF_OK) return status;
 
-    return wf_auth_client_request_internal(auth_client, nsid, query_string, NULL, 0, out);
+    return auth_client_perform(auth_client, nsid, query_string, NULL, 0, 0,
+                               NULL, 0, NULL, out);
 }
 
 wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
-                                      const char *nsid,
-                                      const wf_xrpc_param *params,
-                                      size_t param_count,
-                                      wf_response *out) {
+                                       const char *nsid,
+                                       const wf_xrpc_param *params,
+                                       size_t param_count,
+                                       wf_response *out) {
     if (!auth_client || !nsid || !out || (param_count > 0 && !params)) {
         return WF_ERR_INVALID_ARG;
     }
@@ -138,116 +170,88 @@ wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
 }
 
 wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
-                                   const char *nsid,
-                                   const char *json_body,
-                                   wf_response *out) {
+                                    const char *nsid,
+                                    const char *json_body,
+                                    wf_response *out) {
     if (!auth_client || !nsid || !out) return WF_ERR_INVALID_ARG;
 
     wf_status status = wf_auth_client_ensure_session(auth_client, time(NULL));
     if (status != WF_OK) return status;
 
-    return wf_auth_client_request_internal(auth_client, nsid, NULL, json_body, 1, out);
+    return auth_client_perform(auth_client, nsid, NULL, json_body, 1, 0,
+                               NULL, 0, NULL, out);
 }
 
 wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
-                                     const char *nsid,
-                                     const void *data,
-                                     size_t data_len,
-                                     const char *content_type,
-                                     wf_response *out) {
-    char *base_url = NULL;
-    char *full_url = NULL;
-    char *dpop_nonce = NULL;
-    wf_oauth_dpop_proof_options proof_opts = {0};
-    char *proof_jwt = NULL;
-    wf_status status;
-    wf_xrpc_client *client;
-    wf_oauth_dpop_key *dpop_key;
-
-    if (!auth_client || !nsid || !data || data_len == 0 || !content_type || !*content_type || !out) {
+                                      const char *nsid,
+                                      const void *data,
+                                      size_t data_len,
+                                      const char *content_type,
+                                      wf_response *out) {
+    if (!auth_client || !nsid || !data || data_len == 0 || !content_type ||
+        !*content_type || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
-    status = wf_auth_client_ensure_session(auth_client, time(NULL));
+    wf_status status = wf_auth_client_ensure_session(auth_client, time(NULL));
     if (status != WF_OK) return status;
 
-    client = auth_client->client;
-    dpop_key = auth_client->session->dpop_key;
-    if (!dpop_key) return WF_ERR_INVALID_ARG;
-
-    base_url = wf_xrpc_get_base_url(client);
-    if (!base_url) return WF_ERR_ALLOC;
-
-    size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
-    full_url = malloc(url_cap);
-    if (!full_url) {
-        free(base_url);
-        return WF_ERR_ALLOC;
-    }
-    snprintf(full_url, url_cap, "%s/xrpc/%s", base_url, nsid);
-
-    for (int attempt = 0; attempt < 2; attempt++) {
-        proof_opts.http_method = "POST";
-        proof_opts.http_uri = full_url;
-        if (dpop_nonce) {
-            proof_opts.nonce = dpop_nonce;
-        }
-
-        status = wf_oauth_dpop_proof_create(dpop_key, &proof_opts, &proof_jwt);
-        if (status != WF_OK) {
-            break;
-        }
-
-        status = wf_xrpc_upload_blob(client, nsid, data, data_len, content_type, out);
-        free(proof_jwt);
-        proof_jwt = NULL;
-
-        if (status == WF_OK) {
-            break;
-        } else if (status == WF_ERR_HTTP && out->status == 401 && out->dpop_nonce) {
-            dpop_nonce = out->dpop_nonce;
-            out->dpop_nonce = NULL;
-            wf_response_free(out);
-        } else {
-            break;
-        }
-    }
-
-    free(dpop_nonce);
-    free(full_url);
-    free(base_url);
-    return status;
+    return auth_client_perform(auth_client, nsid, NULL, NULL, 0, 1,
+                               data, data_len, content_type, out);
 }
 
 static wf_status wf_auth_client_ensure_session(wf_auth_client *auth_client,
-                                                int64_t now) {
+                                                 int64_t now) {
     if (auth_client->session->expires_at <= 0 || now < auth_client->session->expires_at) {
         return WF_OK;
     }
     if (!auth_client->server || !auth_client->client_auth) {
         return WF_ERR_NOT_FOUND;
     }
-    return wf_oauth_session_refresh(auth_client->client,
-                                    auth_client->server,
-                                    auth_client->client_auth,
-                                    auth_client->session,
-                                    now);
+    return auth_client_refresh(auth_client);
 }
 
-static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
-                                                 const char *nsid,
-                                                 const char *query_string,
-                                                 const char *json_body,
-                                                 int is_procedure,
-                                                 wf_response *out) {
+wf_status wf_auth_client_ensure_valid(wf_auth_client *auth_client) {
+    if (!auth_client || !auth_client->session) return WF_ERR_INVALID_ARG;
+    int64_t now = time(NULL);
+    /* A present, unexpired token is still valid: no network needed. */
+    if (auth_client->session->access_token &&
+        (auth_client->session->expires_at <= 0 ||
+         now < auth_client->session->expires_at)) {
+        return WF_OK;
+    }
+    /* Missing or expired: best-effort refresh in place. The caller owns
+     * `auth_client`; the refreshed session state is updated in place and
+     * remains owned by whoever supplied it. */
+    return auth_client_refresh(auth_client);
+}
+
+/*
+ * Issue a single authenticated request, transparently retrying once each for:
+ *   - a DPoP nonce rotation (401 with a fresh `dpop-nonce` header), and
+ *   - an expired/revoked access token (401 without a nonce), by refreshing
+ *     the token and re-issuing with the new bearer credential.
+ * If the token cannot be refreshed, the original 401 error is propagated.
+ */
+static wf_status auth_client_perform(wf_auth_client *auth_client,
+                                     const char *nsid,
+                                     const char *query_string,
+                                     const char *json_body,
+                                     int is_procedure,
+                                     int is_upload,
+                                     const void *blob,
+                                     size_t blob_len,
+                                     const char *content_type,
+                                     wf_response *out) {
     wf_status status = WF_OK;
     char *base_url = NULL;
     char *full_url = NULL;
     char *dpop_nonce = NULL;
     char *authorization = NULL;
-    wf_oauth_dpop_proof_options proof_opts = {0};
     char *proof_jwt = NULL;
+    wf_oauth_dpop_proof_options proof_opts = {0};
     wf_oauth_dpop_key *dpop_key = auth_client->session->dpop_key;
+    int refreshed = 0;
 
     if (!dpop_key) return WF_ERR_INVALID_ARG;
 
@@ -268,25 +272,14 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
         snprintf(full_url, url_cap, "%s/xrpc/%s", base_url, nsid);
     }
 
-    if (auth_client->session->access_token) {
-        size_t auth_len = strlen("Authorization: Bearer ") +
-                          strlen(auth_client->session->access_token) + 1;
-        authorization = malloc(auth_len);
-        if (!authorization) {
-            free(full_url);
-            free(base_url);
-            return WF_ERR_ALLOC;
-        }
-        snprintf(authorization, auth_len, "Authorization: Bearer %s",
-                 auth_client->session->access_token);
-    }
+    authorization = auth_client_build_authorization(
+        auth_client->session->access_token);
 
-    for (int attempt = 0; attempt < 2; attempt++) {
-        proof_opts.http_method = is_procedure ? "POST" : "GET";
+    for (int attempt = 0; attempt < 3; attempt++) {
+        proof_opts.http_method = is_upload ? "POST"
+                                          : (is_procedure ? "POST" : "GET");
         proof_opts.http_uri = full_url;
-        if (dpop_nonce) {
-            proof_opts.nonce = dpop_nonce;
-        }
+        proof_opts.nonce = dpop_nonce;
 
         status = wf_oauth_dpop_proof_create(dpop_key, &proof_opts, &proof_jwt);
         if (status != WF_OK) {
@@ -301,10 +294,17 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
         }
         headers[header_count++] = (wf_http_header){"DPoP", proof_jwt};
 
-        if (is_procedure) {
-            status = wf_http_post(auth_client->client, full_url, "application/json", json_body, headers, header_count, out);
+        if (is_upload) {
+            status = wf_xrpc_upload_blob_with_headers(
+                auth_client->client, nsid, blob, blob_len, content_type,
+                headers, header_count, out);
+        } else if (is_procedure) {
+            status = wf_http_post(auth_client->client, full_url,
+                                  "application/json", json_body, headers,
+                                  header_count, out);
         } else {
-            status = wf_http_get_with_headers(auth_client->client, full_url, headers, header_count, out);
+            status = wf_http_get_with_headers(auth_client->client, full_url,
+                                              headers, header_count, out);
         }
 
         free(proof_jwt);
@@ -312,16 +312,38 @@ static wf_status wf_auth_client_request_internal(wf_auth_client *auth_client,
 
         if (status == WF_OK) {
             break;
-        } else if (status == WF_ERR_HTTP && out->status == 401 && out->dpop_nonce) {
+        }
+
+        /* DPoP nonce rotation: re-issue once with the server-provided nonce. */
+        if (status == WF_ERR_HTTP && out->status == 401 && out->dpop_nonce) {
+            free(dpop_nonce);
             dpop_nonce = out->dpop_nonce;
             out->dpop_nonce = NULL;
             wf_response_free(out);
-        } else {
-            break;
+            continue;
         }
+
+        /* Expired/revoked token: refresh once and retry with the new token. */
+        if (status == WF_ERR_HTTP && out->status == 401 && !refreshed) {
+            wf_response_free(out);
+            wf_status refresh = auth_client_refresh(auth_client);
+            if (refresh != WF_OK) {
+                /* No refresh token, or the refresh was rejected: propagate the
+                 * original 401 error unchanged. */
+                status = WF_ERR_HTTP;
+                break;
+            }
+            refreshed = 1;
+            free(authorization);
+            authorization = auth_client_build_authorization(
+                auth_client->session->access_token);
+            continue;
+        }
+
+        break;
     }
 
-    if (dpop_nonce) free(dpop_nonce);
+    free(dpop_nonce);
     free(authorization);
     free(full_url);
     free(base_url);
