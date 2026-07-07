@@ -28,6 +28,7 @@ typedef struct wf_did_document {
     char *did;              /* e.g. "did:plc:ofrbh253gwicbkc5nktqepol" */
     char *pds_endpoint;     /* service endpoint for AtprotoPersonalDataServer */
     char *signing_key;      /* multibase-encoded verification key, if present */
+    char *notif_endpoint;   /* BskyNotificationService endpoint, if present */
     wf_did_method method;
 } wf_did_document;
 

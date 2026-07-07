@@ -43,6 +43,7 @@ static void wf_did_doc_init(wf_did_document *doc) {
     doc->did = NULL;
     doc->pds_endpoint = NULL;
     doc->signing_key = NULL;
+    doc->notif_endpoint = NULL;
     doc->method = WF_DID_METHOD_UNKNOWN;
 }
 
@@ -60,10 +61,13 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
         cJSON_ArrayForEach(item, service) {
             cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
             cJSON *endpoint = cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
-            if (cJSON_IsString(type) && strcmp(type->valuestring, "AtprotoPersonalDataServer") == 0 &&
-                cJSON_IsString(endpoint) && endpoint->valuestring) {
-                doc->pds_endpoint = wf_strdup(endpoint->valuestring);
-                break;
+            if (cJSON_IsString(type) && cJSON_IsString(endpoint) && endpoint->valuestring) {
+                if (strcmp(type->valuestring, "AtprotoPersonalDataServer") == 0 && !doc->pds_endpoint) {
+                    doc->pds_endpoint = wf_strdup(endpoint->valuestring);
+                } else if (strcmp(type->valuestring, "BskyNotificationService") == 0 && !doc->notif_endpoint) {
+                    doc->notif_endpoint = wf_strdup(endpoint->valuestring);
+                }
+                // Continue scanning to capture both if present.
             }
         }
     }
@@ -176,9 +180,11 @@ void wf_did_document_free(wf_did_document *doc) {
     free(doc->did);
     free(doc->pds_endpoint);
     free(doc->signing_key);
+    free(doc->notif_endpoint);
     doc->did = NULL;
     doc->pds_endpoint = NULL;
     doc->signing_key = NULL;
+    doc->notif_endpoint = NULL;
     doc->method = WF_DID_METHOD_UNKNOWN;
 }
 
