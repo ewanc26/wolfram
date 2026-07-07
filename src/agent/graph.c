@@ -20,6 +20,54 @@
 
 /* Graph endpoint implementations */
 
+wf_status wf_agent_get_profiles(wf_agent *agent, const char *const *actors,
+                                size_t actors_count, int limit,
+                                const char *cursor, wf_response *out) {
+    if (!agent || !actors || actors_count == 0 || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param *params = (wf_xrpc_param *)calloc(actors_count + 2,
+                                                    sizeof(*params));
+    if (!params) {
+        return WF_ERR_ALLOC;
+    }
+
+    size_t param_count = 0;
+    for (size_t i = 0; i < actors_count; ++i) {
+        if (!actors[i] || !wf_syntax_at_identifier_is_valid(actors[i])) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "actors";
+        params[param_count].value = actors[i];
+        param_count++;
+    }
+
+    char limit_buf[16];
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_query_params(agent->client,
+                                            "app.bsky.actor.getProfiles",
+                                            params, param_count, out);
+    free(params);
+    return status;
+}
+
 wf_status wf_agent_get_follows(wf_agent *agent, const char *actor,
                                int limit, const char *cursor, wf_response *out) {
     if (!agent || !actor || !out) {

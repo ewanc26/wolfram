@@ -1,0 +1,23 @@
+{
+  "cursor": "likes-cursor-7",
+  "likes": [
+    {
+      "actor": {
+        "did": "did:plc:liker1",
+        "handle": "erin.example.com",
+        "displayName": "Erin"
+      },
+      "createdAt": "2026-07-02T11:00:00Z",
+      "indexedAt": "2026-07-02T11:00:01Z"
+    },
+    {
+      "actor": {
+        "did": "did:plc:liker2",
+        "handle": "frank.example.com",
+        "displayName": "Frank"
+      },
+      "createdAt": "2026-07-02T10:00:00Z",
+      "indexedAt": "2026-07-02T10:00:01Z"
+    }
+  ]
+}

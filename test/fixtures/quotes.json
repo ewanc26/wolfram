@@ -1,0 +1,22 @@
+{
+  "cursor": "quotes-cursor-11",
+  "posts": [
+    {
+      "post": {
+        "uri": "at://did:plc:q/app.bsky.feed.post/quoted1",
+        "cid": "bafyquote1",
+        "author": {
+          "did": "did:plc:q",
+          "handle": "mallory.example.com",
+          "displayName": "Mallory"
+        },
+        "record": { "$type": "app.bsky.feed.post", "text": "quoting", "createdAt": "2026-07-03T09:00:00Z" },
+        "replyCount": 1,
+        "repostCount": 2,
+        "likeCount": 3,
+        "quoteCount": 0,
+        "indexedAt": "2026-07-03T09:00:01Z"
+      }
+    }
+  ]
+}

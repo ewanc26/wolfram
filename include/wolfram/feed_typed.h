@@ -86,6 +86,12 @@ typedef struct wf_agent_feed_list {
 wf_status wf_agent_parse_feed(const char *json, size_t json_len,
                               wf_agent_feed_list *out);
 
+/* Like wf_agent_parse_feed but reads the item array from `key` instead of
+ * "feed" (e.g. "posts" for app.bsky.feed.getQuotes). Same ownership/error
+ * rules. */
+wf_status wf_agent_parse_feed_key(const char *json, size_t json_len,
+                                  const char *key, wf_agent_feed_list *out);
+
 /* Free a parsed feed list and every owned subtree it holds. */
 void wf_agent_feed_list_free(wf_agent_feed_list *list);
 
@@ -99,6 +105,9 @@ wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
                                          int limit, const char *cursor,
                                          const char *filter,
                                          wf_agent_feed_list *out);
+wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
+                                    int limit, const char *cursor,
+                                    wf_agent_feed_list *out);
 
 #ifdef __cplusplus
 }

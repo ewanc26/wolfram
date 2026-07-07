@@ -1,0 +1,7 @@
+{
+  "cursor": "profiles-cursor-5",
+  "profiles": [
+    { "did": "did:plc:prof1", "handle": "ivan.example.com", "displayName": "Ivan", "avatar": "https://cdn.example.com/ivan.jpg" },
+    { "did": "did:plc:prof2", "handle": "judy.example.com", "displayName": "Judy" }
+  ]
+}

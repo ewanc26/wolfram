@@ -239,9 +239,9 @@ static wf_status wf_feed_parse_post_view(wf_agent_post_view *p, cJSON *obj) {
     return status;
 }
 
-wf_status wf_agent_parse_feed(const char *json, size_t json_len,
-                              wf_agent_feed_list *out) {
-    if (!json || !out) {
+static wf_status wf_feed_parse_key(const char *json, size_t json_len,
+                                   const char *key, wf_agent_feed_list *out) {
+    if (!json || !out || !key) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -253,13 +253,13 @@ wf_status wf_agent_parse_feed(const char *json, size_t json_len,
     }
 
     wf_status status = WF_OK;
-    cJSON *feed = cJSON_GetObjectItemCaseSensitive(root, "feed");
-    if (!cJSON_IsArray(feed)) {
+    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, key);
+    if (!cJSON_IsArray(arr)) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
 
-    size_t count = (size_t)cJSON_GetArraySize(feed);
+    size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_agent_feed_item *items = NULL;
     if (count > 0) {
         items = (wf_agent_feed_item *)calloc(count, sizeof(*items));
@@ -271,7 +271,7 @@ wf_status wf_agent_parse_feed(const char *json, size_t json_len,
 
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         wf_agent_feed_item *item = &items[i];
-        cJSON *fvp = cJSON_GetArrayItem(feed, (int)i);
+        cJSON *fvp = cJSON_GetArrayItem(arr, (int)i);
         if (!cJSON_IsObject(fvp)) {
             status = WF_ERR_PARSE;
             break;
@@ -329,6 +329,16 @@ wf_status wf_agent_parse_feed(const char *json, size_t json_len,
     return status;
 }
 
+wf_status wf_agent_parse_feed(const char *json, size_t json_len,
+                              wf_agent_feed_list *out) {
+    return wf_feed_parse_key(json, json_len, "feed", out);
+}
+
+wf_status wf_agent_parse_feed_key(const char *json, size_t json_len,
+                                  const char *key, wf_agent_feed_list *out) {
+    return wf_feed_parse_key(json, json_len, key, out);
+}
+
 void wf_agent_feed_list_free(wf_agent_feed_list *list) {
     wf_feed_list_reset(list);
 }
@@ -371,6 +381,26 @@ wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
     }
 
     status = wf_agent_parse_feed(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
+                                    int limit, const char *cursor,
+                                    wf_agent_feed_list *out) {
+    if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_quotes(agent, uri, limit, cursor, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    /* getQuotes returns a `posts` array of feedViewPost (same shape as feed). */
+    status = wf_feed_parse_key(res.body, res.body_len, "posts", out);
     wf_response_free(&res);
     return status;
 }

@@ -1,0 +1,7 @@
+{
+  "cursor": "reposted-cursor-3",
+  "repostedBy": [
+    { "did": "did:plc:reposter1", "handle": "grace.example.com", "displayName": "Grace" },
+    { "did": "did:plc:reposter2", "handle": "heidi.example.com" }
+  ]
+}

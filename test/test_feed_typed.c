@@ -139,6 +139,28 @@ int main(void) {
     WF_CHECK(wf_agent_get_timeline_typed(NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_timeline_typed(agent, 10, NULL, NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_author_feed_typed(agent, NULL, 10, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_quotes_typed(agent, NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 10, NULL, NULL) == WF_ERR_INVALID_ARG);
+
+    /* quotes body uses the "posts" key (same feedViewPost shape as feed). */
+    {
+        size_t qlen = 0;
+        char *qjson = load_fixture("quotes.json", &qlen);
+        WF_CHECK(qjson != NULL);
+        if (qjson) {
+            wf_agent_feed_list qlist = {0};
+            WF_CHECK(wf_agent_parse_feed_key(qjson, qlen, "posts", &qlist) == WF_OK);
+            WF_CHECK(qlist.item_count == 1);
+            if (qlist.item_count == 1) {
+                WF_CHECK(qlist.items[0].post.uri &&
+                         strstr(qlist.items[0].post.uri, "quoted1") != NULL);
+                WF_CHECK(qlist.items[0].post.has_like_count &&
+                         qlist.items[0].post.like_count == 3);
+            }
+            wf_agent_feed_list_free(&qlist);
+            free(qjson);
+        }
+    }
     wf_agent_free(agent);
 
     WF_TEST_SUMMARY();

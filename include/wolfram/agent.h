@@ -181,10 +181,13 @@ wf_status wf_agent_get_actor_feeds_lex(wf_agent *agent, const char *actor,
                                         wf_response *out);
 
 /* Graph queries — return raw JSON in `out`; caller frees with wf_response_free. */
+wf_status wf_agent_get_profiles(wf_agent *agent, const char *const *actors,
+                                 size_t actors_count, int limit,
+                                 const char *cursor, wf_response *out);
 wf_status wf_agent_get_follows(wf_agent *agent, const char *actor,
-                                int limit, const char *cursor, wf_response *out);
+                                 int limit, const char *cursor, wf_response *out);
 wf_status wf_agent_get_followers(wf_agent *agent, const char *actor,
-                                  int limit, const char *cursor, wf_response *out);
+                                   int limit, const char *cursor, wf_response *out);
 wf_status wf_agent_get_blocks(wf_agent *agent, int limit, const char *cursor,
                                wf_response *out);
 wf_status wf_agent_get_mutes(wf_agent *agent, int limit, const char *cursor,
