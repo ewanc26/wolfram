@@ -400,6 +400,8 @@ if(WOLFRAM_BUILD_TESTS)
     add_executable(test_agent_notifications test/test_agent_notifications.c)
     target_link_libraries(test_agent_notifications PRIVATE wolfram)
     target_include_directories(test_agent_notifications PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_agent_notifications PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME agent_notifications COMMAND test_agent_notifications)
 
     add_executable(test_feed_typed test/test_feed_typed.c)
