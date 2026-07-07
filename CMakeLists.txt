@@ -102,6 +102,7 @@ add_library(wolfram
     src/agent/embed_typed.c
     src/agent/feed.c
     src/agent/graph.c
+    src/agent/graph_lists.c
     src/agent/notification.c
     src/agent/agent_ext.c
     src/agent/feed_typed.c
@@ -366,6 +367,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_agent_sync PRIVATE ${cjson_SOURCE_DIR})
     target_include_directories(test_agent_sync PRIVATE test)
     add_test(NAME agent_sync COMMAND test_agent_sync)
+
+    add_executable(test_graph_lists test/test_graph_lists.c)
+    target_link_libraries(test_graph_lists PRIVATE wolfram)
+    target_include_directories(test_graph_lists PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME graph_lists COMMAND test_graph_lists)
 
     add_executable(test_agent_repo test/test_agent_repo.c)
     target_link_libraries(test_agent_repo PRIVATE wolfram)

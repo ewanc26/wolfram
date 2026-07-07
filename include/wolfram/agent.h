@@ -208,6 +208,42 @@ wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
                                                    const char *actor,
                                                    wf_response *out);
 
+/* List management — create, update, delete lists and list items. */
+typedef struct wf_agent_create_list_params {
+    const char *purpose;     /* app.bsky.graph.defs#modlist / #curatelist / #referencelist */
+    const char *name;        /* required */
+    const char *description; /* optional */
+    const char *description_facets_json; /* optional JSON array of facets */
+    const char *avatar_cid;  /* optional CID of a pre-uploaded blob */
+} wf_agent_create_list_params;
+
+wf_status wf_agent_create_list(wf_agent *agent,
+                              const wf_agent_create_list_params *params,
+                              wf_agent_post_result *out);
+
+typedef struct wf_agent_update_list_params {
+    const char *list_uri;   /* at:// URI of the list */
+    const char *name;
+    const char *description;
+    const char *description_facets_json;
+    const char *avatar_cid;
+} wf_agent_update_list_params;
+
+wf_status wf_agent_update_list(wf_agent *agent,
+                              const wf_agent_update_list_params *params);
+wf_status wf_agent_delete_list(wf_agent *agent, const char *list_uri);
+wf_status wf_agent_add_list_item(wf_agent *agent,
+                                 const char *list_uri,
+                                 const char *subject_did,
+                                 wf_agent_post_result *out);
+wf_status wf_agent_remove_list_item(wf_agent *agent,
+                                    const char *list_item_uri);
+wf_status wf_agent_mute_mod_list(wf_agent *agent, const char *list_uri);
+wf_status wf_agent_unmute_mod_list(wf_agent *agent, const char *list_uri);
+wf_status wf_agent_block_mod_list(wf_agent *agent, const char *list_uri,
+                                  wf_agent_post_result *out);
+wf_status wf_agent_unblock_mod_list(wf_agent *agent, const char *list_uri);
+
 /* Notifications — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
                                      wf_response *out);
