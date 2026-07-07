@@ -188,6 +188,14 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(reply_post examples/reply_post.c)
     target_link_libraries(reply_post PRIVATE wolfram)
     target_include_directories(reply_post PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(agent_feed_search examples/agent_feed_search.c)
+    target_link_libraries(agent_feed_search PRIVATE wolfram)
+    target_include_directories(agent_feed_search PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(agent_graph examples/agent_graph.c)
+    target_link_libraries(agent_graph PRIVATE wolfram)
+    target_include_directories(agent_graph PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
