@@ -1,19 +1,19 @@
 /*
- * labeler_service.c — create an app.bsky.labeler.service record.
+ * labeler_service.c — create and read an app.bsky.labeler.service record.
  *
  * Demonstrates:
  *   1. High-level agent login with wf_agent
- *   2. Building an app.bsky.labeler.service record value with cJSON
- *   3. Generic record creation via wf_agent_create_record
- *   4. Printing the returned uri/cid and freeing everything
+ *   2. Building an app.bsky.labeler.service record value with cJSON, including
+ *      a `policies` object whose `labelValueDefinitions` reference atproto
+ *      label values (com.atproto.label.defs#labelValueDefinition)
+ *   3. Record creation via wf_agent_create_record
+ *   4. Reading the record back with wf_agent_get_record
  *
- * Usage:
+ * Usage (all network gated behind argv — no args prints usage, exit 0):
  *   labeler_service <service-url> <handle-or-email> <password> <labeler-did>
  *
  * The <labeler-did> is the DID of the account that will run the labeler
- * (usually your own). The `labels` array references
- * com.atproto.label.defs#labelValue entries to advertise which labels the
- * labeler can issue.
+ * (usually your own).
  */
 
 #include <cJSON.h>
@@ -37,12 +37,73 @@ static int wf_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     return strftime(buf, buf_len, "%Y-%m-%dT%H:%M:%SZ", &tm_utc) != 0;
 }
 
+/* Extract the record key (rkey) from an at:// URI. Caller must free. */
+static char *wf_rkey_from_aturi(const char *uri) {
+    if (!uri) {
+        return NULL;
+    }
+
+    size_t len = strlen(uri);
+    const char *last_slash = NULL;
+    for (size_t i = 0; i < len; ++i) {
+        if (uri[i] == '/') {
+            last_slash = uri + i;
+        }
+    }
+
+    if (!last_slash || last_slash == uri + len - 1) {
+        return NULL;
+    }
+
+    const char *rkey = last_slash + 1;
+    size_t rkey_len = strlen(rkey);
+    char *out = malloc(rkey_len + 1);
+    if (!out) {
+        return NULL;
+    }
+
+    memcpy(out, rkey, rkey_len);
+    out[rkey_len] = '\0';
+    return out;
+}
+
+/* One label value definition entry for policies.labelValueDefinitions. */
+static void add_label_value_def(cJSON *defs, const char *identifier,
+                                const char *severity, const char *blurs,
+                                int adult_only, const char *default_setting) {
+    cJSON *def = cJSON_CreateObject();
+    if (!def) {
+        return;
+    }
+
+    cJSON_AddStringToObject(def, "identifier", identifier);
+    cJSON_AddStringToObject(def, "severity", severity);
+    cJSON_AddStringToObject(def, "blurs", blurs);
+    cJSON_AddBoolToObject(def, "adultOnly", adult_only);
+    cJSON_AddStringToObject(def, "defaultSetting", default_setting);
+
+    cJSON *locales = cJSON_CreateArray();
+    cJSON *locale = cJSON_CreateObject();
+    cJSON_AddStringToObject(locale, "langs", "en");
+    cJSON_AddStringToObject(locale, "name", identifier);
+    cJSON_AddStringToObject(locale, "description",
+                            "Label definition managed by this labeler.");
+    cJSON_AddItemToArray(locales, locale);
+    cJSON_AddItemToObject(def, "locales", locales);
+
+    cJSON_AddItemToArray(defs, def);
+}
+
+static void print_usage(const char *prog) {
+    printf("usage: %s <service-url> <handle-or-email> <password> <labeler-did>\n",
+           prog);
+    printf("  (no arguments: print usage and exit 0 — offline safe)\n");
+}
+
 int main(int argc, char **argv) {
     if (argc < 5) {
-        fprintf(stderr,
-                "usage: %s <service-url> <handle-or-email> <password> <labeler-did>\n",
-                argv[0]);
-        return 1;
+        print_usage(argv[0]);
+        return 0;
     }
 
     const char *service_url = argv[1];
@@ -87,37 +148,19 @@ int main(int argc, char **argv) {
     }
     cJSON_AddStringToObject(record, "createdAt", created_at);
 
-    cJSON *labels = cJSON_CreateArray();
-    if (!labels) {
-        fprintf(stderr, "failed to allocate labels array\n");
-        cJSON_Delete(record);
-        wf_agent_free(agent);
-        return 1;
-    }
+    /* policies.labelValueDefinitions — advertise which labels this labeler
+     * can issue, referencing atproto label values. */
+    cJSON *policies = cJSON_CreateObject();
+    cJSON *defs = cJSON_CreateArray();
 
-    /* A label value references com.atproto.label.defs#labelValue */
-    const char *const sample_labels[] = {
-        "!no-unauthenticated",
-        "!hide",
-        "spam",
-    };
+    add_label_value_def(defs, "!no-unauthenticated", "inform", "none", 0,
+                        "warn");
+    add_label_value_def(defs, "!hide", "inform", "none", 0, "warn");
+    add_label_value_def(defs, "spam", "alert", "content", 0, "warn");
+    add_label_value_def(defs, "porn", "alert", "content", 1, "hide");
 
-    for (size_t i = 0; i < sizeof(sample_labels) / sizeof(sample_labels[0]); ++i) {
-        cJSON *label = cJSON_CreateObject();
-        if (!label) {
-            fprintf(stderr, "failed to allocate label value\n");
-            cJSON_Delete(labels);
-            cJSON_Delete(record);
-            wf_agent_free(agent);
-            return 1;
-        }
-        cJSON_AddStringToObject(label, "$type", "com.atproto.label.defs#labelValue");
-        cJSON_AddStringToObject(label, "val", sample_labels[i]);
-        cJSON_AddBoolToObject(label, "neg", sample_labels[i][0] == '!');
-        cJSON_AddItemToArray(labels, label);
-    }
-
-    cJSON_AddItemToObject(record, "labels", labels);
+    cJSON_AddItemToObject(policies, "labelValueDefinitions", defs);
+    cJSON_AddItemToObject(record, "policies", policies);
 
     char *record_json = cJSON_PrintUnformatted(record);
     cJSON_Delete(record);
@@ -142,7 +185,60 @@ int main(int argc, char **argv) {
     printf("  uri: %s\n", res.uri);
     printf("  cid: %s\n", res.cid);
 
+    /* Read it back with getRecord. */
+    char *rkey = wf_rkey_from_aturi(res.uri);
     wf_agent_post_result_free(&res);
+    if (!rkey) {
+        fprintf(stderr, "failed to parse rkey from created uri\n");
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_response get_res = {0};
+    status = wf_agent_get_record(agent, "app.bsky.labeler.service", rkey,
+                                 &get_res);
+    if (status != WF_OK) {
+        fprintf(stderr, "getRecord failed: %d\n", (int)status);
+        free(rkey);
+        wf_response_free(&get_res);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    printf("Read back record:\n");
+    if (get_res.body && get_res.body_len) {
+        cJSON *root = cJSON_ParseWithLength(get_res.body, get_res.body_len);
+        if (root) {
+            cJSON *value = cJSON_GetObjectItemCaseSensitive(root, "value");
+            cJSON *v = value ? value : root;
+            cJSON *ld = cJSON_GetObjectItemCaseSensitive(v, "labelerDid");
+            cJSON *pol = cJSON_GetObjectItemCaseSensitive(v, "policies");
+            cJSON *defs_out = pol ? cJSON_GetObjectItemCaseSensitive(
+                                        pol, "labelValueDefinitions")
+                                  : NULL;
+            if (cJSON_IsString(ld)) {
+                printf("  labelerDid: %s\n", ld->valuestring);
+            }
+            if (cJSON_IsArray(defs_out)) {
+                printf("  labelValueDefinitions: %d\n",
+                       cJSON_GetArraySize(defs_out));
+                for (int i = 0; i < cJSON_GetArraySize(defs_out); ++i) {
+                    cJSON *d = cJSON_GetArrayItem(defs_out, i);
+                    cJSON *id = cJSON_GetObjectItemCaseSensitive(
+                        d, "identifier");
+                    if (cJSON_IsString(id)) {
+                        printf("    - %s\n", id->valuestring);
+                    }
+                }
+            }
+            cJSON_Delete(root);
+        } else {
+            printf("  (could not parse response body)\n");
+        }
+    }
+    wf_response_free(&get_res);
+    free(rkey);
+
     wf_agent_free(agent);
     return 0;
 }

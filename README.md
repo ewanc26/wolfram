@@ -122,6 +122,8 @@ Calls `com.atproto.repo.describeRepo` and prints the raw JSON response — no pa
 
 Logs in, detects rich text facets (mentions, links, tags), builds a `com.atproto.repo.createRecord` request, and creates a post via the AT Protocol.
 
+More end-to-end examples live in `examples/`: `feed_generator` (create/read an `app.bsky.feed.generator` record), `labeler_service` (create/read an `app.bsky.labeler.service` record with `policies.labelValueDefinitions`), `post_image_embed` (upload an image blob, build a facet + `app.bsky.embed.images` post), and `timeline_moderation` (run the moderation decision engine over the timeline, offline-sample or live).
+
 ### Roadmap
 
 1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
