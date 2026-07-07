@@ -187,28 +187,28 @@ Logs in and issues a scoped app password via `com.atproto.server.createAppPasswo
 
 ### Roadmap
 
-1. ✅ Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
-2. ✅ DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`).
-3. ✅ DAG-CBOR decode/encode, with full constraint validation and unit tests.
-4. ✅ SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
-5. ✅ CAR parsing (`wf_car_parse`).
-6. ✅ MST traversal + mutation (`wf_mst_find`, `wf_mst_add`, `wf_mst_delete`, `wf_mst_node_build`, `wf_mst_node_finalize`).
-7. ✅ secp256k1 and P-256 signing (`wf_sign`, `wf_verify`, `wf_signing_key_generate`).
-8. ✅ Signed commit creation (`wf_commit_create`).
-9. ✅ DNS TXT lookup for AT Protocol handle resolution (c-ares when available,
+1. Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
+2. DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`).
+3. DAG-CBOR decode/encode, with full constraint validation and unit tests.
+4. SHA-256 + CID computation (`wf_cid_of_block`, `wf_cid_to_string`).
+5. CAR parsing (`wf_car_parse`).
+6. MST traversal + mutation (`wf_mst_find`, `wf_mst_add`, `wf_mst_delete`, `wf_mst_node_build`, `wf_mst_node_finalize`).
+7. secp256k1 and P-256 signing (`wf_sign`, `wf_verify`, `wf_signing_key_generate`).
+8. Signed commit creation (`wf_commit_create`).
+9. DNS TXT lookup for AT Protocol handle resolution (c-ares when available,
    POSIX resolver fallback; multi-record and chunked TXT handling).
-10. ✅ DAG-CBOR schema-driven encoding (structured record creation).
-11. ✅ PDS client — session management, credential storage, auth token refresh.
-12. ✅ Repository data operations — create/update/delete records, full/diff CAR
+10. DAG-CBOR schema-driven encoding (structured record creation).
+11. PDS client — session management, credential storage, auth token refresh.
+12. Repository data operations — create/update/delete records, full/diff CAR
     download (`wf_sync_get_repo`), and ownership/signature/content-addressed
     verification/import (`wf_repo_verify`, `wf_repo_import`).
-13. ✅ Lexicon integration — typed C schemas, inline and referenced input
+13. Lexicon integration — typed C schemas, inline and referenced input
     objects, repeated-key array query parameters, complete JSON input encoders,
     generated query/procedure wrappers, and owning output decoders.
-14. ✅ Union/jetstream — libcurl WebSocket transport, filtered Jetstream URL
+14. Union/jetstream — libcurl WebSocket transport, filtered Jetstream URL
     construction, runtime subscriber options, JSON event envelopes,
     cursor-based reconnect/backoff, and dictionary-based zstd messages.
-15. ✅ OAuth — protected-resource, authorization-server, and discoverable
+15. OAuth — protected-resource, authorization-server, and discoverable
     client metadata validation/discovery, PKCE S256, persistent ES256 DPoP
     keys, JWK thumbprints/proofs, public-client PAR and authorization-code token
     exchange with mandatory nonce retry, state/issuer-bound callback
@@ -216,32 +216,32 @@ Logs in and issues a scoped app password via `com.atproto.server.createAppPasswo
     state and durable token sessions with private DPoP JWK validation,
     ES256 `private_key_jwt` authentication, authorization-begin orchestration,
     callback-to-session completion, and managed session refresh orchestration.
-16. ✅ Syntax validation — DID, handle, at-identifier, NSID, record key, TID,
+16. Syntax validation — DID, handle, at-identifier, NSID, record key, TID,
     AT URI, RFC 3339 datetime, and BCP 47 language tag validators.
-17. ✅ Rich text — grapheme-aware byte indexing, facet detection (mentions, links,
+17. Rich text — grapheme-aware byte indexing, facet detection (mentions, links,
     tags), and segment iteration.
-18. ✅ Firehose subscription — `com.atproto.sync.subscribeRepos` WebSocket stream
+18. Firehose subscription — `com.atproto.sync.subscribeRepos` WebSocket stream
     with CBOR frame parsing, cursor-based reconnect, and backoff.
-19. ✅ Firehose verification — commit signature verification, key resolution,
+19. Firehose verification — commit signature verification, key resolution,
     CAR parsing, and MST/root validation from the subscribeRepos stream.
-20. ✅ Blob upload — binary POST to `xrpc/{nsid}` with custom Content-Type,
+20. Blob upload — binary POST to `xrpc/{nsid}` with custom Content-Type,
     authenticated via session or DPoP (`wf_xrpc_upload_blob`,
     `wf_auth_client_upload_blob`).
-21. ✅ Label subscription — `com.atproto.label.subscribeLabels` WebSocket stream
+21. Label subscription — `com.atproto.label.subscribeLabels` WebSocket stream
     with JSON frame parsing, cursor reconnect, and backoff.
-22. ✅ Repo diff tests — comprehensive tests for `wf_repo_diff_apply` and
+22. Repo diff tests — comprehensive tests for `wf_repo_diff_apply` and
     `wf_repo_operations_invert` including round-trip verification.
-23. ✅ Lexicon validation — runtime object/record validation against lexicon
+23. Lexicon validation — runtime object/record validation against lexicon
     schemas, supporting `object`, `record`, `query` (parameters extraction),
     `procedure` (input.schema extraction), `params`, `blob`, `ref`,
      `array`, `string` (including format validation), `integer`, `boolean`,
      `unknown`, and `union` types (`wf_validate_value`, `wf_validate_record`).
-24. ✅ Agent API wrappers — `com.atproto.sync.getBlob/getBlocks/getRecord/listBlobs`,
+24. Agent API wrappers — `com.atproto.sync.getBlob/getBlocks/getRecord/listBlobs`,
      `com.atproto.repo.listRecords`, social graph (mute/unmute), graph wrappers
      (getBlocks, getMutes, getKnownFollowers, getRelationships, getList, getLists),
      feed wrappers (searchPosts, getActorLikes, getLikes, getRepostedBy),
      and notification wrappers (getUnreadCount). Full input validation tests.
-25. ✅ Agent repo sync pipeline — offline mirror seed, verified incremental
+25. Agent repo sync pipeline — offline mirror seed, verified incremental
      diff apply with CAR parsing, mirror head query, operation inversion,
      and local mirror record lookup (`wf_agent_set_did`, `wf_agent_set_signing_key`,
      `wf_agent_seed_repo`, `wf_agent_apply_repo_diff`, `wf_agent_repo_head`,
