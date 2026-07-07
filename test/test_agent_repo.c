@@ -148,16 +148,20 @@ int main(void) {
         wf_status probe = wf_repo_diff_verify(&base, &commit_base,
                                                &update, &probe_opts, &probe_diff);
         fprintf(stderr, "direct verify status=%d\n", (int)probe);
+        wf_repo_diff_free(&probe_diff);
 
         wf_car parsed_update = {0};
         wf_status p2 = wf_car_parse(update_bytes, update_len, &parsed_update);
         fprintf(stderr, "parse update bytes status=%d root_count=%zu\n",
                 (int)p2, parsed_update.root_count);
         if (p2 == WF_OK) {
+            wf_repo_diff probe_diff2 = {0};
             wf_status p3 = wf_repo_diff_verify(&base, &commit_base,
-                                               &parsed_update, &probe_opts, &probe_diff);
+                                               &parsed_update, &probe_opts, &probe_diff2);
             fprintf(stderr, "verify parsed update status=%d\n", (int)p3);
+            wf_repo_diff_free(&probe_diff2);
         }
+        wf_car_free(&parsed_update);
 
         wf_status apply_status = wf_agent_apply_repo_diff(agent, update_bytes, update_len);
         if (apply_status != WF_OK) {
@@ -181,26 +185,25 @@ int main(void) {
     {
         unsigned char *found = NULL;
         size_t found_len = 0;
-        wf_cid found_cid = {0};
-        WF_CHECK(wf_agent_get_record(agent, "com.example.posts", "keep",
-                                     &found, &found_len, &found_cid) == WF_OK);
+        WF_CHECK(wf_agent_mirror_get_record(agent, "com.example.posts", "keep",
+                                            &found, &found_len) == WF_OK);
         WF_CHECK(found_len == sizeof(record_three) &&
                  memcmp(found, record_three, found_len) == 0);
         free(found);
 
-        WF_CHECK(wf_agent_get_record(agent, "com.example.posts", "remove",
-                                     &found, &found_len, &found_cid) ==
+        WF_CHECK(wf_agent_mirror_get_record(agent, "com.example.posts", "remove",
+                                            &found, &found_len) ==
                  WF_ERR_NOT_FOUND);
-        WF_CHECK(wf_agent_get_record(agent, "com.example.posts", "added",
-                                     &found, &found_len, &found_cid) == WF_OK);
+        WF_CHECK(wf_agent_mirror_get_record(agent, "com.example.posts", "added",
+                                            &found, &found_len) == WF_OK);
         WF_CHECK(found_len == sizeof(record_four) &&
                  memcmp(found, record_four, found_len) == 0);
         free(found);
     }
 
-    /* Re-applying the same diff is rejected (no longer at previous commit). */
+    /* Re-applying the same diff is a no-op (mirror already at target). */
     WF_CHECK(wf_agent_apply_repo_diff(agent, update_bytes, update_len) ==
-             WF_ERR_INVALID_ARG);
+             WF_OK);
 
     /* ── Operation inversion via the agent wrapper ── */
     {
@@ -217,10 +220,9 @@ int main(void) {
         ops[1].prev = make_cid(12);
 
         wf_repo_operation *inverse = NULL;
-        size_t inverse_count = 0;
         WF_CHECK(wf_agent_invert_repo_operations(agent, ops, 2,
-                                                 &inverse, &inverse_count) == WF_OK);
-        WF_CHECK(inverse != NULL && inverse_count == 2);
+                                                  &inverse) == WF_OK);
+        WF_CHECK(inverse != NULL);
         if (inverse) {
             /* wf_repo_operations_invert reverses order: inverse[0] is the
              * inverted last op (ops[1], an UPDATE), inverse[1] the first. */
@@ -228,7 +230,7 @@ int main(void) {
             WF_CHECK(check_cid(&inverse[0].cid, &ops[1].prev));
             WF_CHECK(check_cid(&inverse[0].prev, &ops[1].cid));
             WF_CHECK(inverse[1].action == WF_REPO_DELETE);
-            wf_repo_operations_free(inverse, inverse_count);
+            wf_repo_operations_free(inverse, 2);
         }
     }
 

@@ -1,6 +1,7 @@
 #include "wolfram/agent.h"
 
 #include "wolfram/identity.h"
+#include "wolfram/repo.h"
 #include "wolfram/richtext.h"
 #include "wolfram/server.h"
 #include "wolfram/session.h"
@@ -38,6 +39,11 @@ typedef struct wf_agent {
     wf_xrpc_client *client;
     wf_session *session;
     char *service_url;
+    /* Offline identity (for local repo mirror without network login). */
+    char *mirror_did;
+    char *mirror_signing_key;
+    /* Local repo mirror — a wf_car whose root is the latest verified commit. */
+    wf_car mirror;
 } wf_agent;
 
 static char *wf_agent_strdup(const char *s) {
@@ -886,6 +892,9 @@ void wf_agent_free(wf_agent *agent) {
     wf_session_free(agent->session);
     wf_xrpc_client_free(agent->client);
     free(agent->service_url);
+    free(agent->mirror_did);
+    free(agent->mirror_signing_key);
+    wf_car_free(&agent->mirror);
     free(agent);
 }
 
@@ -2652,6 +2661,140 @@ wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *
 
     wf_agent_sync_auth(agent);
     return wf_server_delete_account(agent->client, &input);
+}
+
+/* ── repo sync: set_did / set_signing_key ──────────────────────────── */
+
+wf_status wf_agent_set_did(wf_agent *agent, const char *did) {
+    if (!agent || !did || !wf_syntax_did_is_valid(did))
+        return WF_ERR_INVALID_ARG;
+    char *copy = wf_agent_strdup(did);
+    if (!copy) return WF_ERR_ALLOC;
+    free(agent->mirror_did);
+    agent->mirror_did = copy;
+    return WF_OK;
+}
+
+wf_status wf_agent_set_signing_key(wf_agent *agent, const char *key) {
+    if (!agent || !key || !key[0])
+        return WF_ERR_INVALID_ARG;
+    char *copy = wf_agent_strdup(key);
+    if (!copy) return WF_ERR_ALLOC;
+    free(agent->mirror_signing_key);
+    agent->mirror_signing_key = copy;
+    return WF_OK;
+}
+
+/* ── repo sync: seed_repo ──────────────────────────────────────────── */
+
+wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car) {
+    if (!agent || !car || car->root_count == 0 || !car->roots)
+        return WF_ERR_INVALID_ARG;
+
+    wf_car existing = {0};
+    wf_status status = WF_OK;
+
+    /* Deep-copy the CAR into agent->mirror. */
+    existing.roots = malloc(car->root_count * sizeof(wf_cid));
+    if (!existing.roots) return WF_ERR_ALLOC;
+    existing.root_count = car->root_count;
+    for (size_t i = 0; i < car->root_count; i++)
+        existing.roots[i] = car->roots[i];
+
+    if (car->block_count > 0) {
+        existing.blocks = calloc(car->block_count, sizeof(wf_car_block));
+        if (!existing.blocks) {
+            free(existing.roots);
+            return WF_ERR_ALLOC;
+        }
+        for (size_t i = 0; i < car->block_count; i++) {
+            existing.blocks[i].data = malloc(car->blocks[i].data_len);
+            if (!existing.blocks[i].data) {
+                for (size_t j = 0; j < i; j++)
+                    free(existing.blocks[j].data);
+                free(existing.blocks);
+                free(existing.roots);
+                return WF_ERR_ALLOC;
+            }
+            memcpy(existing.blocks[i].data, car->blocks[i].data,
+                   car->blocks[i].data_len);
+            existing.blocks[i].data_len = car->blocks[i].data_len;
+            existing.blocks[i].cid = car->blocks[i].cid;
+        }
+        existing.block_count = car->block_count;
+    }
+
+    wf_car_free(&agent->mirror);
+    agent->mirror = existing;
+    return WF_OK;
+}
+
+/* ── repo sync: apply_repo_diff ────────────────────────────────────── */
+
+wf_status wf_agent_apply_repo_diff(wf_agent *agent,
+                                   const unsigned char *car_bytes,
+                                   size_t car_len) {
+    if (!agent || !car_bytes || car_len == 0)
+        return WF_ERR_INVALID_ARG;
+    if (agent->mirror.root_count != 1 || !agent->mirror.roots ||
+        !agent->mirror_did || !agent->mirror_signing_key)
+        return WF_ERR_INVALID_ARG;
+
+    wf_car update = {0};
+    wf_status status = wf_car_parse(car_bytes, car_len, &update);
+    if (status != WF_OK) return status;
+
+    wf_repo_verify_options opts = {
+        .expected_did = agent->mirror_did,
+        .signing_key = agent->mirror_signing_key,
+    };
+
+    wf_repo_diff diff = {0};
+    status = wf_repo_diff_verify(&agent->mirror, &agent->mirror.roots[0],
+                                 &update, &opts, &diff);
+    wf_car_free(&update);
+    if (status != WF_OK) return status;
+
+    status = wf_repo_diff_apply(&agent->mirror, &diff);
+    wf_repo_diff_free(&diff);
+    return status;
+}
+
+/* ── repo sync: repo_head ──────────────────────────────────────────── */
+
+wf_status wf_agent_repo_head(wf_agent *agent, char **out_head) {
+    if (!agent || !out_head)
+        return WF_ERR_INVALID_ARG;
+    if (agent->mirror.root_count != 1 || !agent->mirror.roots)
+        return WF_ERR_INVALID_ARG;
+
+    *out_head = wf_cid_to_string(&agent->mirror.roots[0]);
+    return *out_head ? WF_OK : WF_ERR_ALLOC;
+}
+
+/* ── repo sync: invert_repo_operations ─────────────────────────────── */
+
+wf_status wf_agent_invert_repo_operations(wf_agent *agent,
+                                          const wf_repo_operation *operations,
+                                          size_t count,
+                                          wf_repo_operation **out_inverse) {
+    (void)agent;
+    return wf_repo_operations_invert(operations, count, out_inverse);
+}
+
+/* ── repo sync: mirror_get_record ──────────────────────────────────── */
+
+wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
+                                     const char *rkey,
+                                     unsigned char **out_data, size_t *out_len) {
+    if (!agent || !collection || !rkey || !out_data || !out_len)
+        return WF_ERR_INVALID_ARG;
+    if (agent->mirror.root_count == 0)
+        return WF_ERR_INVALID_ARG;
+
+    wf_cid record_cid = {0};
+    return wf_repo_get_record(&agent->mirror, &agent->mirror.roots[0],
+                              collection, rkey, out_data, out_len, &record_cid);
 }
 
 /* ── sync.getBlob ──────────────────────────────────────────────────── */

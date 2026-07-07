@@ -9,6 +9,7 @@
 #define WOLFRAM_AGENT_H
 
 #include "wolfram/session.h"
+#include "wolfram/repo.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -221,6 +222,21 @@ void wf_agent_app_password_list_free(wf_agent_app_password_list *list);
 wf_status wf_agent_revoke_app_password(wf_agent *agent, const char *name);
 wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *password,
                                   const char *token);
+
+/* Repository sync — local verified repo mirror for incremental diff application. */
+wf_status wf_agent_set_did(wf_agent *agent, const char *did);
+wf_status wf_agent_set_signing_key(wf_agent *agent, const char *key);
+wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car);
+wf_status wf_agent_apply_repo_diff(wf_agent *agent,
+                                   const unsigned char *car_bytes, size_t car_len);
+wf_status wf_agent_repo_head(wf_agent *agent, char **out_head);
+wf_status wf_agent_invert_repo_operations(wf_agent *agent,
+                                          const wf_repo_operation *operations,
+                                          size_t count,
+                                          wf_repo_operation **out_inverse);
+wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
+                                     const char *rkey,
+                                     unsigned char **out_data, size_t *out_len);
 
 #ifdef __cplusplus
 }
