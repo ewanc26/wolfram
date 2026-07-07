@@ -26,5 +26,6 @@
 #include "wolfram/label.h"
 #include "wolfram/sync_subscribe.h"
 #include "wolfram/sync_verify.h"
+#include "wolfram/moderation.h"
 
 #endif /* WOLFRAM_H */
