@@ -271,6 +271,15 @@ if(WOLFRAM_BUILD_STORE)
     endif()
 endif()
 
+# wolfram command-line client — a thin end-to-end demonstration over the SDK.
+# Always built (not gated on WOLFRAM_BUILD_EXAMPLES) so the CLI is part of the
+# default build. The target is named wolfram_cli because the wolfram library
+# already owns the `wolfram` target name; OUTPUT_NAME keeps the binary `wolfram`.
+add_executable(wolfram_cli src/cli/main.c)
+target_link_libraries(wolfram_cli PRIVATE wolfram)
+target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
+set_target_properties(wolfram_cli PROPERTIES OUTPUT_NAME wolfram)
+
 if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(describe_repo examples/describe_repo.c)
     target_link_libraries(describe_repo PRIVATE wolfram)

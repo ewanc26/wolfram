@@ -259,6 +259,32 @@ Logs in and issues a scoped app password via `com.atproto.server.createAppPasswo
 - OpenSSL (libcrypto) — for SHA-256 hashing (install via `brew install openssl` on macOS, or your system package manager).
 - [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing (install via `brew install secp256k1`). Without it, crypto functions gracefully stub to `WF_ERR_INVALID_ARG`.
 
+## Command-line client (`wolfram`)
+
+The `wolfram` executable (built by default as `build/wolfram`) is a thin
+demonstration over the SDK that exercises the high-level agent API end to end.
+Every subcommand is network-gated: with missing arguments it prints usage and
+exits 0 without performing any network I/O.
+
+```sh
+wolfram login     <service> <handle> <password>
+wolfram post      <service> <handle> <password> <text...>
+wolfram timeline  <service> <handle> <password> [pages]
+wolfram get-post  <service> <at-uri>
+wolfram profile   <service> <actor>
+wolfram follow    <service> <handle> <password> <actor>
+wolfram unfollow  <service> <handle> <password> <actor>
+wolfram resolve   <handle-or-did>
+```
+
+`login` and `post` create a session via `wf_agent_login` / `wf_agent_post`.
+`timeline` fetches the authenticated user's timeline with the cursor-based
+`wf_agent_get_timeline_paged` helper. `get-post` resolves an `at://` URI and
+issues `com.atproto.repo.getRecord` over raw XRPC (no login required).
+`profile` calls `wf_agent_get_profile`. `follow`/`unfollow` resolve the actor
+to a DID and issue graph writes through the agent. `resolve` turns a handle
+into a DID via `wf_handle_resolve` (a DID is echoed back unchanged).
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
