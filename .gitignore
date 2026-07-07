@@ -1,5 +1,5 @@
-# Build output
-build/
+# Build output (covers build/, build-store/, build-*/)
+build*/
 out/
 bin/
 cmake-build-*/
@@ -71,3 +71,32 @@ Temporary Items
 core
 core.*
 .aider*
+
+# Editor / OS swap files
+*.swp
+*.swo
+*~
+
+# Tags / indexer output
+tags
+TAGS
+GTAGS
+GRTAGS
+GPATH
+cscope.*
+
+# Python tooling caches
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Coverage / sanitizers / patches
+*.gcda
+*.gcno
+*.gcov
+*.patch
+*.diff
+*.orig
+.cache/
