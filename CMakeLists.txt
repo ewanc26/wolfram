@@ -104,6 +104,7 @@ add_library(wolfram
     src/agent/graph.c
     src/agent/notification.c
     src/agent/agent_ext.c
+src/agent/push_endpoint.c
     src/agent/create_record.c
     # Rich text / facet detection
     src/richtext/richtext.c
