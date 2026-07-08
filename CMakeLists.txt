@@ -122,6 +122,7 @@ add_library(wolfram
     # getFeedSkeleton builder (validate/dedupe/cursor pagination)
     src/feedgen.c
     src/unspecced_typed.c
+    src/draft_typed.c
     src/agent/chat_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
@@ -691,6 +692,13 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_list_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME list_typed COMMAND test_list_typed)
+
+    add_executable(test_draft_typed test/test_draft_typed.c)
+    target_link_libraries(test_draft_typed PRIVATE wolfram)
+    target_include_directories(test_draft_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_draft_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME draft_typed COMMAND test_draft_typed)
 
     add_executable(test_moderation_typed test/test_moderation_typed.c)
     target_link_libraries(test_moderation_typed PRIVATE wolfram)
