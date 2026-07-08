@@ -501,7 +501,8 @@ if(WOLFRAM_BUILD_TESTS)
 
     add_executable(test_jetstream test/test_jetstream.c)
     target_link_libraries(test_jetstream PRIVATE wolfram)
-    target_include_directories(test_jetstream PRIVATE test)
+    target_include_directories(test_jetstream PRIVATE test
+        ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
     if(ZSTD_FOUND)
         target_include_directories(test_jetstream PRIVATE ${ZSTD_INCLUDE_DIRS})
         target_link_directories(test_jetstream PRIVATE ${ZSTD_LIBRARY_DIRS})
@@ -509,6 +510,12 @@ if(WOLFRAM_BUILD_TESTS)
         target_compile_definitions(test_jetstream PRIVATE HAVE_LIBZSTD)
     endif()
     add_test(NAME jetstream COMMAND test_jetstream)
+
+    add_executable(test_jetstream_typed test/test_jetstream_typed.c)
+    target_link_libraries(test_jetstream_typed PRIVATE wolfram)
+    target_include_directories(test_jetstream_typed PRIVATE test
+        ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
+    add_test(NAME jetstream_typed COMMAND test_jetstream_typed)
 
     add_executable(test_label_subscribe test/test_label_subscribe.c)
     target_link_libraries(test_label_subscribe PRIVATE wolfram)
