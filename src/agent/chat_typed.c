@@ -1059,3 +1059,386 @@ wf_status wf_agent_chat_list_convo_requests(wf_agent *agent, int limit,
     return wf_xrpc_query_params(cc, "chat.bsky.convo.listConvoRequests",
                                 params, param_count, out);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.group.*
+ *
+ * All endpoints route through the resolved chat service client (same as
+ * chat.bsky.convo.*). Queries return raw JSON in `out`.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* ── helpers ─────────────────────────────────────────────────────────── */
+
+/* Build a procedure body with a single string array field. */
+static cJSON *wf_chat_group_build_members(const char *convo_id,
+                                          const char *const *members,
+                                          size_t member_count) {
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return NULL;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id)) {
+        cJSON_Delete(root);
+        return NULL;
+    }
+    cJSON *arr = cJSON_AddArrayToObject(root, "members");
+    if (!arr) { cJSON_Delete(root); return NULL; }
+    for (size_t i = 0; i < member_count; i++) {
+        cJSON *item = cJSON_CreateString(members[i]);
+        if (!item || !cJSON_AddItemToArray(arr, item)) {
+            cJSON_Delete(item); cJSON_Delete(root);
+            return NULL;
+        }
+    }
+    return root;
+}
+
+static wf_status wf_chat_group_procedure_json(wf_agent *agent,
+                                               const char *nsid,
+                                               const char *json,
+                                               wf_response *out) {
+    if (!agent || !nsid || !json) return WF_ERR_INVALID_ARG;
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_procedure(cc, nsid, json, out);
+}
+
+/* ── createGroup ─────────────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_create_group(wf_agent *agent,
+                                      const char *const *member_dids,
+                                      size_t member_count,
+                                      const char *name,
+                                      wf_response *out) {
+    if (!agent || !member_dids || member_count == 0 || !name || !out)
+        return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+
+    cJSON *arr = cJSON_AddArrayToObject(root, "members");
+    if (!arr) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    for (size_t i = 0; i < member_count; i++) {
+        cJSON *item = cJSON_CreateString(member_dids[i]);
+        if (!item || !cJSON_AddItemToArray(arr, item)) {
+            cJSON_Delete(item); cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+    if (!cJSON_AddStringToObject(root, "name", name)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_status status = wf_chat_group_procedure_json(agent,
+                      "chat.bsky.group.createGroup", json, out);
+    free(json);
+    return status;
+}
+
+/* ── editGroup ───────────────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_edit_group(wf_agent *agent, const char *convo_id,
+                                    const char *name, wf_response *out) {
+    if (!agent || !convo_id || !name || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddStringToObject(root, "name", name)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_status status = wf_chat_group_procedure_json(agent,
+                      "chat.bsky.group.editGroup", json, out);
+    free(json);
+    return status;
+}
+
+/* ── addMembers / removeMembers ──────────────────────────────────────── */
+
+wf_status wf_agent_chat_add_members(wf_agent *agent, const char *convo_id,
+                                     const char *const *member_dids,
+                                     size_t member_count,
+                                     wf_response *out) {
+    if (!agent || !convo_id || !member_dids || member_count == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+
+    cJSON *root = wf_chat_group_build_members(convo_id, member_dids,
+                                              member_count);
+    if (!root) return WF_ERR_ALLOC;
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_status status = wf_chat_group_procedure_json(agent,
+                      "chat.bsky.group.addMembers", json, out);
+    free(json);
+    return status;
+}
+
+wf_status wf_agent_chat_remove_members(wf_agent *agent, const char *convo_id,
+                                        const char *const *member_dids,
+                                        size_t member_count,
+                                        wf_response *out) {
+    if (!agent || !convo_id || !member_dids || member_count == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+
+    cJSON *root = wf_chat_group_build_members(convo_id, member_dids,
+                                              member_count);
+    if (!root) return WF_ERR_ALLOC;
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_status status = wf_chat_group_procedure_json(agent,
+                      "chat.bsky.group.removeMembers", json, out);
+    free(json);
+    return status;
+}
+
+/* ── requestJoin / withdrawJoinRequest ───────────────────────────────── */
+
+wf_status wf_agent_chat_request_join(wf_agent *agent, const char *convo_id) {
+    return wf_chat_procedure_1arg(agent, "chat.bsky.group.requestJoin",
+                                  "convoId", convo_id);
+}
+
+wf_status wf_agent_chat_withdraw_join_request(wf_agent *agent,
+                                               const char *convo_id) {
+    return wf_chat_procedure_1arg(agent, "chat.bsky.group.withdrawJoinRequest",
+                                  "convoId", convo_id);
+}
+
+/* ── approveJoinRequest / rejectJoinRequest ──────────────────────────── */
+
+wf_status wf_agent_chat_approve_join_request(wf_agent *agent,
+                                              const char *convo_id,
+                                              const char *user_did,
+                                              wf_response *out) {
+    if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddStringToObject(root, "userId", user_did)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    return wf_chat_group_procedure_json(agent,
+               "chat.bsky.group.approveJoinRequest", json, out);
+}
+
+wf_status wf_agent_chat_reject_join_request(wf_agent *agent,
+                                             const char *convo_id,
+                                             const char *user_did,
+                                             wf_response *out) {
+    if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddStringToObject(root, "userId", user_did)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    return wf_chat_group_procedure_json(agent,
+               "chat.bsky.group.rejectJoinRequest", json, out);
+}
+
+/* ── listJoinRequests ────────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_list_join_requests(wf_agent *agent,
+                                            const char *convo_id,
+                                            int limit, const char *cursor,
+                                            wf_response *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t pc = 0;
+    char limit_buf[16];
+
+    params[pc].name = "convoId";
+    params[pc].value = convo_id;
+    pc++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "limit";
+        params[pc].value = limit_buf;
+        pc++;
+    }
+    if (cursor && cursor[0]) {
+        params[pc].name = "cursor";
+        params[pc].value = cursor;
+        pc++;
+    }
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query_params(cc, "chat.bsky.group.listJoinRequests",
+                                params, pc, out);
+}
+
+/* ── updateJoinRequestsRead ──────────────────────────────────────────── */
+
+wf_status wf_agent_chat_update_join_requests_read(wf_agent *agent,
+                                                    const char *convo_id) {
+    return wf_chat_procedure_1arg(agent,
+                                  "chat.bsky.group.updateJoinRequestsRead",
+                                  "convoId", convo_id);
+}
+
+/* ── createJoinLink ──────────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_create_join_link(wf_agent *agent,
+                                          const char *convo_id,
+                                          bool require_approval,
+                                          const char *join_rule,
+                                          wf_response *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddBoolToObject(root, "requireApproval", require_approval)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    if (join_rule && join_rule[0]) {
+        if (!cJSON_AddStringToObject(root, "joinRule", join_rule)) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    return wf_chat_group_procedure_json(agent,
+               "chat.bsky.group.createJoinLink", json, out);
+}
+
+/* ── editJoinLink ────────────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_edit_join_link(wf_agent *agent,
+                                        const char *convo_id,
+                                        const char *code,
+                                        wf_response *out) {
+    if (!agent || !convo_id || !code || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddStringToObject(root, "code", code)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    return wf_chat_group_procedure_json(agent,
+               "chat.bsky.group.editJoinLink", json, out);
+}
+
+/* ── disableJoinLink / enableJoinLink ────────────────────────────────── */
+
+wf_status wf_agent_chat_disable_join_link(wf_agent *agent,
+                                           const char *convo_id) {
+    return wf_chat_procedure_1arg(agent, "chat.bsky.group.disableJoinLink",
+                                  "convoId", convo_id);
+}
+
+wf_status wf_agent_chat_enable_join_link(wf_agent *agent,
+                                          const char *convo_id) {
+    return wf_chat_procedure_1arg(agent, "chat.bsky.group.enableJoinLink",
+                                  "convoId", convo_id);
+}
+
+/* ── getJoinLinkPreviews ─────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_get_join_link_previews(wf_agent *agent,
+                                                const char *const *codes,
+                                                size_t code_count,
+                                                wf_response *out) {
+    if (!agent || !codes || code_count == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    cJSON *arr = cJSON_AddArrayToObject(root, "codes");
+    if (!arr) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    for (size_t i = 0; i < code_count; i++) {
+        cJSON *item = cJSON_CreateString(codes[i]);
+        if (!item || !cJSON_AddItemToArray(arr, item)) {
+            cJSON_Delete(item); cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    return wf_chat_group_procedure_json(agent,
+               "chat.bsky.group.getJoinLinkPreviews", json, out);
+}
+
+/* ── listMutualGroups ────────────────────────────────────────────────── */
+
+wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
+                                            const char *convo_id,
+                                            int limit, const char *cursor,
+                                            wf_response *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t pc = 0;
+    char limit_buf[16];
+
+    params[pc].name = "convoId";
+    params[pc].value = convo_id;
+    pc++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "limit";
+        params[pc].value = limit_buf;
+        pc++;
+    }
+    if (cursor && cursor[0]) {
+        params[pc].name = "cursor";
+        params[pc].value = cursor;
+        pc++;
+    }
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query_params(cc, "chat.bsky.group.listMutualGroups",
+                                params, pc, out);
+}

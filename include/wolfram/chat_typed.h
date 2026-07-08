@@ -26,6 +26,7 @@
 #define WOLFRAM_CHAT_TYPED_H
 
 #include "wolfram/agent.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -233,8 +234,94 @@ wf_status wf_agent_chat_get_unread_counts(wf_agent *agent,
 
 /* List pending conversation requests (incoming). Returns raw JSON. */
 wf_status wf_agent_chat_list_convo_requests(wf_agent *agent, int limit,
-                                             const char *cursor,
+                                              const char *cursor,
+                                              wf_response *out);
+
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.group.*
+ *
+ * All endpoints route through the resolved chat service client (same as
+ * chat.bsky.convo.*). Queries return raw JSON in `out`; caller frees with
+ * wf_response_free. Procedures with no meaningful return body set `out` to
+ * the server response (caller should still call wf_response_free).
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* Create a group conversation. `member_dids` must be non-empty (max 49). */
+wf_status wf_agent_chat_create_group(wf_agent *agent,
+                                      const char *const *member_dids,
+                                      size_t member_count,
+                                      const char *name,
+                                      wf_response *out);
+
+/* Edit a group's name. Returns the updated convo view in `out`. */
+wf_status wf_agent_chat_edit_group(wf_agent *agent, const char *convo_id,
+                                    const char *name, wf_response *out);
+
+/* Add or remove members from a group. Members are added in 'request' status. */
+wf_status wf_agent_chat_add_members(wf_agent *agent, const char *convo_id,
+                                     const char *const *member_dids,
+                                     size_t member_count,
+                                     wf_response *out);
+wf_status wf_agent_chat_remove_members(wf_agent *agent, const char *convo_id,
+                                        const char *const *member_dids,
+                                        size_t member_count,
+                                        wf_response *out);
+
+/* Request to join a group conversation. */
+wf_status wf_agent_chat_request_join(wf_agent *agent, const char *convo_id);
+
+/* Withdraw a pending join request. */
+wf_status wf_agent_chat_withdraw_join_request(wf_agent *agent,
+                                               const char *convo_id);
+
+/* Approve or reject a user's request to join a group. */
+wf_status wf_agent_chat_approve_join_request(wf_agent *agent,
+                                              const char *convo_id,
+                                              const char *user_did,
+                                              wf_response *out);
+wf_status wf_agent_chat_reject_join_request(wf_agent *agent,
+                                             const char *convo_id,
+                                             const char *user_did,
                                              wf_response *out);
+
+/* List join requests for a group (group owner only). */
+wf_status wf_agent_chat_list_join_requests(wf_agent *agent,
+                                            const char *convo_id,
+                                            int limit, const char *cursor,
+                                            wf_response *out);
+
+/* Mark join requests as read. */
+wf_status wf_agent_chat_update_join_requests_read(wf_agent *agent,
+                                                    const char *convo_id);
+
+/* Create a join link for a group. */
+wf_status wf_agent_chat_create_join_link(wf_agent *agent,
+                                          const char *convo_id,
+                                          bool require_approval,
+                                          const char *join_rule,
+                                          wf_response *out);
+
+/* Edit, disable, or enable a join link. editJoinLink returns the updated link. */
+wf_status wf_agent_chat_edit_join_link(wf_agent *agent,
+                                        const char *convo_id,
+                                        const char *code,
+                                        wf_response *out);
+wf_status wf_agent_chat_disable_join_link(wf_agent *agent,
+                                           const char *convo_id);
+wf_status wf_agent_chat_enable_join_link(wf_agent *agent,
+                                          const char *convo_id);
+
+/* Get previews for one or more join link codes. */
+wf_status wf_agent_chat_get_join_link_previews(wf_agent *agent,
+                                                const char *const *codes,
+                                                size_t code_count,
+                                                wf_response *out);
+
+/* List mutual groups between the authenticated user and another user. */
+wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
+                                            const char *convo_id,
+                                            int limit, const char *cursor,
+                                            wf_response *out);
 
 #ifdef __cplusplus
 }
