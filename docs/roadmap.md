@@ -89,17 +89,29 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 34. Authenticated XRPC client (`auth_client.h`) — DPoP-binding OAuth-authenticated
     XRPC query/procedure/blob-upload wrapper (`wf_auth_client_*`) with session
     refresh and DPoP nonce retry.
+34. Labeler service record coverage (`labeler_typed.h`) — owned typed parsers +
+    agent wrappers for `com.atproto.label.queryLabels`, `app.bsky.labeler.getServices`
+    (including embedded service records, policies, and label value defs), and
+    `com.atproto.temp.fetchLabels`.
+35. Identity namespace wrappers (`identity_typed.h`) — owned typed parsers + agent
+    wrappers for `com.atproto.identity` (resolveHandle, resolveDid, updateHandle,
+    getRecommendedDidCredentials, signPlcOperation, submitPlcOperation,
+    resolveIdentity, refreshIdentity) and a PLC handle-rotation convenience
+    (`wf_agent_identity_rotate_handle`) built on `plc.h`.
+36. Notification v2 + activity subscriptions (`notification_v2_typed.h`) — owned
+    typed parsers + agent wrappers for `app.bsky.notification.putPreferencesV2`,
+    `listActivitySubscriptions`, and `putActivitySubscription`.
+37. Higher-level endpoint examples (`examples/`) — self-contained programs
+    exercising generated clients: label query, PLC handle rotation, notification
+    v2, and admin account search.
 
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
-- Broaden the `wolfram` CLI further (label subscription streaming) and wire
-  `help <command>`.
 - Continue cross-referencing `bluesky-social/atproto` and `rsky` for protocol
-  parity. Remaining parity items include full labeler service record coverage
-  and tooling.
-- Higher-level endpoint examples using generated clients.
+  parity. Remaining parity items include broader `tools.ozone.*` and
+  `app.bsky.*` record coverage and tooling.
 
 ## Dependencies
 
