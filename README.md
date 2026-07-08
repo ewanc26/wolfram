@@ -7,11 +7,12 @@ Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
 
 **Status:** Broad, multi-layer coverage is implemented and tested — transport
-(XRPC/WebSocket), identity (DID/handle), repo (DAG-CBOR/CAR/MST), agent
-(wraps `com.atproto.*` + chat/ozone/moderation), OAuth (DPoP/PAR), sync
-(firehose + Jetstream), moderation, DID PLC ops, rich text, syntax/validate/json,
-and optional SQLite store persistence — though it is not yet at full feature
-parity with the official SDKs.
+(XRPC/WebSocket), identity (DID/handle + `com.atproto.identity` typed wrappers),
+repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/moderation), OAuth
+(DPoP/PAR), sync (firehose + Jetstream), moderation, DID PLC ops, rich text,
+syntax/validate/json, labeler service coverage, notification v2 + activity
+subscriptions, optional SQLite store persistence, and higher-level endpoint
+examples — though it is not yet at full feature parity with the official SDKs.
 
 ## Documentation
 
