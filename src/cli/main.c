@@ -67,6 +67,8 @@
 #include "wolfram/version.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/thread_typed.h"
+#include "wolfram/feed_typed.h"
+#include "wolfram/actor_typed.h"
 #include "wolfram/moderation.h"
 
 /* ----------------------------------------------------------------- */
@@ -1025,6 +1027,127 @@ static int cmd_moderation(int argc, char **argv) {
     return 0;
 }
 
+/* wolfram search <service> <handle> <password> <query> [limit] */
+static int cmd_search(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *query = argv[4];
+    int limit = (argc >= 6) ? atoi(argv[5]) : 25;
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    wf_agent_actor_list list = {0};
+    wf_status s = wf_agent_search_actors_typed(agent, query, limit, NULL,
+                                               &list);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: search failed (status %d)\n", (int)s);
+        wf_agent_actor_list_free(&list);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    for (size_t i = 0; i < list.actor_count; ++i) {
+        const wf_agent_profile_view *a = &list.actors[i];
+        printf("%s (%s)\n",
+               a->handle ? a->handle : "?",
+               a->did ? a->did : "?");
+        if (a->display_name) {
+            printf("  %s\n", a->display_name);
+        }
+    }
+    if (list.actor_count == 0) {
+        printf("(no results)\n");
+    }
+
+    wf_agent_actor_list_free(&list);
+    wf_agent_free(agent);
+    return 0;
+}
+
+/* wolfram mute <service> <handle> <password> <actor> */
+static int cmd_mute(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *actor = argv[4];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    char *did = NULL;
+    wf_status s = resolve_actor_to_did(agent, actor, &did);
+    if (s != WF_OK || !did) {
+        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
+                actor, (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    s = wf_agent_mute(agent, did);
+    free(did);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: mute failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    printf("muted %s\n", actor);
+    wf_agent_free(agent);
+    return 0;
+}
+
+/* wolfram unmute <service> <handle> <password> <actor> */
+static int cmd_unmute(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *actor = argv[4];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    char *did = NULL;
+    wf_status s = resolve_actor_to_did(agent, actor, &did);
+    if (s != WF_OK || !did) {
+        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
+                actor, (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    s = wf_agent_unmute(agent, did);
+    free(did);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: unmute failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    printf("unmuted %s\n", actor);
+    wf_agent_free(agent);
+    return 0;
+}
+
 /* ----------------------------------------------------------------- */
 /* New subcommands                                                  */
 /* ----------------------------------------------------------------- */
@@ -1818,6 +1941,9 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "notifications") == 0) {
         return cmd_notifications(rest, cargv);
     }
+    if (strcmp(cmd, "search") == 0) {
+        return cmd_search(rest, cargv);
+    }
     if (strcmp(cmd, "moderation") == 0) {
         return cmd_moderation(rest, cargv);
     }
@@ -1832,6 +1958,12 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "mutes") == 0) {
         return cmd_mutes(rest, cargv);
+    }
+    if (strcmp(cmd, "mute") == 0) {
+        return cmd_mute(rest, cargv);
+    }
+    if (strcmp(cmd, "unmute") == 0) {
+        return cmd_unmute(rest, cargv);
     }
     if (strcmp(cmd, "list") == 0) {
         return cmd_list(rest, cargv);
