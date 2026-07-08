@@ -3,6 +3,7 @@
 #define WOLFRAM_JETSTREAM_H
 
 #include "wolfram/websocket.h"
+#include <cJSON.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -44,6 +45,12 @@ typedef enum wf_jetstream_event_kind {
     WF_JETSTREAM_EVENT_COMMIT,
     WF_JETSTREAM_EVENT_IDENTITY,
     WF_JETSTREAM_EVENT_ACCOUNT,
+    WF_JETSTREAM_EVENT_ACCOUNT_DELETE,
+    WF_JETSTREAM_EVENT_SYNC,
+    WF_JETSTREAM_EVENT_FORK,
+    WF_JETSTREAM_EVENT_TIMEOUT,
+    WF_JETSTREAM_EVENT_MIGRATE,
+    WF_JETSTREAM_EVENT_INFO,
 } wf_jetstream_event_kind;
 
 /** Parsed envelope plus its complete owned JSON. Free with wf_jetstream_event_free. */
@@ -54,6 +61,79 @@ typedef struct wf_jetstream_event {
     char *json;
     size_t json_len;
 } wf_jetstream_event;
+
+/**
+ * One repo mutation operation inside a commit payload. `cid`/`prev` may be
+ * NULL (e.g. deletion has no `cid`). `value` is the owned record JSON for
+ * create/update events; `has_value` distinguishes "present" from "absent".
+ * The owning `wf_jetstream_event_typed_free` deletes `value`.
+ */
+typedef struct wf_jetstream_op {
+    char *action; /* "create" | "update" | "delete" */
+    char *path;   /* "collection/rkey" */
+    char *cid;    /* nullable */
+    char *prev;   /* nullable */
+    cJSON *value; /* owned; only for create/update */
+    int has_value;
+} wf_jetstream_op;
+
+/** Owned, typed commit payload. `ops` is owned; `blocks` is owned base64 text. */
+typedef struct wf_jetstream_commit {
+    char *seq;         /* decimal stream sequence as text */
+    char *did;
+    char *time;
+    char *repo;
+    char *repo_rev;
+    int too_big;
+    char *blocks;      /* base64 CAR; owned */
+    wf_jetstream_op *ops;
+    size_t op_count;
+} wf_jetstream_commit;
+
+/** Owned, typed identity payload. */
+typedef struct wf_jetstream_identity {
+    char *seq;
+    char *did;
+    char *time;
+    char *handle;
+} wf_jetstream_identity;
+
+/** Owned, typed account payload. `status` is nullable. */
+typedef struct wf_jetstream_account {
+    char *seq;
+    char *did;
+    char *time;
+    int active;
+    char *status; /* nullable */
+} wf_jetstream_account;
+
+/**
+ * Owned, typed sync-family payload. Covers fork/timeout/migrate/info; `kind`
+ * records which of those triggered the parse so the caller can disambiguate.
+ * `seq`/`did`/`time`/`rev`/`too_big` are filled when present in the source.
+ */
+typedef struct wf_jetstream_sync {
+    char *seq;
+    char *did;
+    char *time;
+    char *rev;
+    int too_big;
+    wf_jetstream_event_kind kind;
+} wf_jetstream_sync;
+
+/**
+ * Owned, typed event: the envelope `kind`/`did` plus the typed payload of the
+ * matching union member. On WF_OK, `*out` is owned by the caller and freed
+ * with `wf_jetstream_event_typed_free`; on error it is left reset (no leaks).
+ */
+typedef struct wf_jetstream_event_typed {
+    wf_jetstream_event_kind kind;
+    char *did;
+    wf_jetstream_commit commit;
+    wf_jetstream_identity identity;
+    wf_jetstream_account account;
+    wf_jetstream_sync sync;
+} wf_jetstream_event_typed;
 
 typedef struct wf_jetstream wf_jetstream;
 
@@ -99,6 +179,18 @@ wf_status wf_jetstream_event_parse(const char *json, size_t json_len,
 
 void wf_jetstream_event_free(wf_jetstream_event *event);
 void wf_jetstream_free(wf_jetstream *stream);
+
+/**
+ * Parse one Jetstream JSON message into its typed payload. On WF_OK, `*out`
+ * is owned by the caller and freed with `wf_jetstream_event_typed_free`; on
+ * error it is left reset (no allocations escape). `time_us` is not required
+ * for this parser — only `kind` and `did` gate parsing.
+ */
+wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
+                                         wf_jetstream_event_typed *out);
+
+/** Free a typed event produced by `wf_jetstream_event_parse_typed`. */
+void wf_jetstream_event_typed_free(wf_jetstream_event_typed *ev);
 
 #ifdef __cplusplus
 }
