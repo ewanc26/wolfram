@@ -56,6 +56,13 @@ wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle);
 
 /* Preferences */
 wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_response *out);
+wf_status wf_agent_get_preferences_typed(
+    wf_agent *agent,
+    wf_lex_app_bsky_actor_get_preferences_main_output **out);
+wf_status wf_agent_put_preferences_json(
+    wf_agent *agent,
+    const wf_lex_app_bsky_actor_put_preferences_main_input *input,
+    wf_response *out);
 
 /* Push notification registration */
 wf_status wf_agent_register_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);

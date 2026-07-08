@@ -740,3 +740,38 @@ wf_status wf_agent_get_suggestions(wf_agent *agent, int limit,
                                 "app.bsky.actor.getSuggestions",
                                 params, param_count, out);
 }
+
+wf_status wf_agent_get_feed_skeleton(wf_agent *agent,
+                                      const char *feed,
+                                      int limit,
+                                      const char *cursor,
+                                      wf_response *out)
+{
+    if (!agent || !feed || !out) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t pc = 0;
+    char limit_buf[16];
+
+    params[pc].name = "feed";
+    params[pc].value = feed;
+    pc++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "limit";
+        params[pc].value = limit_buf;
+        pc++;
+    }
+    if (cursor && cursor[0]) {
+        params[pc].name = "cursor";
+        params[pc].value = cursor;
+        pc++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.feed.getFeedSkeleton",
+                                params, pc, out);
+}
