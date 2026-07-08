@@ -101,3 +101,24 @@ arrays, strings, and tokens recursively.
 End-to-end examples also live in `examples/`: `feed_generator`,
 `labeler_service`, `ozone_moderation`, `post_image_embed`, and
 `timeline_moderation`.
+
+## Available modules and guides
+
+wolfram's features are split across focused modules, each with a usage guide:
+
+- **Agent / high-level API** — [agent.md](agent.md), [typed_api.md](typed_api.md)
+  (feed, thread, graph, list, embed, notification, and the new
+  [unspecced.md](unspecced.md) typed parsers)
+- **Identity & server management** — DID/handle resolution plus
+  `com.atproto.identity` account ops and `com.atproto.server` account lifecycle.
+  See [identity.md](identity.md).
+- **Moderation & labeling** — [moderation.md](moderation.md)
+- **Sync / repo mirror** — [sync.md](sync.md)
+- **Video upload** — upload a video blob, poll the job status, and embed it in a
+  post. See [video.md](video.md).
+- **OAuth / DPoP** — [oauth.md](oauth.md)
+- **Validation** — [validate.md](validate.md); **Notifications** —
+  [notification.md](notification.md); **Agent internals** — [agent_usage.md](agent_usage.md)
+
+Build everything with the commands in [Building](#building) above, then pick the
+guide that matches what you're building.
