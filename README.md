@@ -29,6 +29,44 @@ Per-module usage guides with runnable C snippets live in [`docs/`](docs/):
 2. **Low RAM.** It's light on memory usage.
 3. **Wolves.** Wolves are cool.
 
+## Why C, not Rust?
+
+The dominant AT Protocol SDKs are written in TypeScript
+(`bluesky-social/atproto`) and Rust (`rsky`, `indigo`). `wolfram` is a C11
+alternative, and that choice is deliberate rather than incidental. The points
+below are the reasons it exists as a C library.
+
+- **Tiny, predictable footprint.** A C11 core with no runtime or allocator
+  built in keeps memory use low and latency deterministic. For long-lived
+  firehose/Jetstream consumers and embedded or edge services this matters
+  more than it does for a desktop client — there is no GC pause and no
+  `tokio` reactor to size.
+- **Trivial to embed.** `libwolfram` is a plain C library that links into a
+  host app the same way as zlib or SQLite would. There is no Cargo workspace,
+  no `std` redistribution, and no need to bridge a second toolchain into a
+  project that is already C/C++/Objective-C/Rust.
+- **Honest, explicit ownership.** Per `AGENTS.md`, every heap-allocated output
+  has a matching `_free` and the ownership transfer is documented at the call
+  site. Rust encodes ownership in the type system; C makes it a documented
+  contract. Either works — C just keeps the contract in the header where a
+  binding author in any language can read it.
+- **Selective dependency surface.** Like the curl-based transport it already
+  uses, `wolfram` treats heavy dependencies as opt-in: SQLite, libsodium,
+  libidn2 and libmicrohttpd are only compiled when their `WOLFRAM_BUILD_*`
+  flag is on. A Rust PDS/app tends to pull a much larger default tree.
+- **Stable ABI, stable API.** C's stable calling convention makes FFI from
+  other languages straightforward and future-proof. Generated Lexicon clients
+  (`atproto_lex.h`) are plain C structures and functions, not a macro-heavy
+  generic abstraction.
+- **Licensing flexibility.** MIT, with no dual-licensing friction for
+  downstream proprietary or embedded use.
+
+This is not a claim that C is universally better — the TypeScript and Rust
+ecosystems have far richer tooling and a larger surface of ready-made Lexicon
+support. `wolfram` targets the case where you want a small, embeddable,
+dependency-light native core and you are willing to do a little more of the
+wiring yourself.
+
 ## Layout
 
 | Module                  | Status      | Notes                                          |
