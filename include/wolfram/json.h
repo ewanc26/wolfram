@@ -43,6 +43,16 @@ wf_status wf_json_canonicalize(const char *in, size_t len, char **out);
  *   properties  : object mapping key -> sub-schema; each present key is
  *                 validated recursively against its sub-schema.
  *   items       : sub-schema applied to every element when type=="array".
+ *   enum        : value must equal one listed value (type-aware).
+ *   const       : value must equal the given const.
+ *   format      : "date-time","email","uri","hostname" basic checks; unknown
+ *                 formats are ignored.
+ *   minimum/maximum/exclusiveMinimum/exclusiveMaximum/multipleOf : numeric.
+ *   minLength/maxLength : string byte-length bounds.
+ *   pattern     : POSIX ERE match (invalid pattern is a schema error).
+ *   minItems/maxItems/uniqueItems : array constraints.
+ *   additionalProperties : false rejects extra keys; a schema validates them.
+ *   anyOf/oneOf/not : subschema combinators.
  *
  * On the first failure, sets *out_error to a freshly heap-allocated,
  * human-readable, NUL-terminated message (caller free()s it) and returns a
