@@ -128,6 +128,7 @@ add_library(wolfram
     src/draft_typed.c
     src/temp_typed.c
     src/agent/chat_typed.c
+    src/admin_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
     src/agent/lexcall.c
@@ -793,6 +794,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_moderation_actions PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME moderation_actions COMMAND test_moderation_actions)
+
+    add_executable(test_admin_typed test/test_admin_typed.c)
+    target_link_libraries(test_admin_typed PRIVATE wolfram)
+    target_include_directories(test_admin_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME admin_typed COMMAND test_admin_typed)
 
     add_executable(test_lexcall test/test_lexcall.c)
     target_link_libraries(test_lexcall PRIVATE wolfram)
