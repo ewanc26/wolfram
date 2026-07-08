@@ -118,6 +118,7 @@ add_library(wolfram
     src/moderation_report_typed.c
     src/contact_typed.c
     src/labeler_typed.c
+    src/identity_typed.c
     src/bookmark_typed.c
     src/agent/list_typed.c
     src/agent/moderation_typed.c
@@ -798,6 +799,13 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_labeler_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME labeler_typed COMMAND test_labeler_typed)
+
+    add_executable(test_identity_typed test/test_identity_typed.c)
+    target_link_libraries(test_identity_typed PRIVATE wolfram)
+    target_include_directories(test_identity_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_identity_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME identity_typed COMMAND test_identity_typed)
 
     add_executable(test_chat_write test/test_chat_write.c)
     target_link_libraries(test_chat_write PRIVATE wolfram)
