@@ -2,6 +2,7 @@
 #define WOLFRAM_LABEL_H
 
 #include "wolfram/websocket.h"
+#include "wolfram/xrpc.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -94,6 +95,36 @@ wf_status wf_label_subscribe_start(const wf_label_subscribe_options *opts,
 
 /** Request that an active subscription loop stop as soon as possible. */
 void wf_label_subscribe_stop(wf_label_subscribe_handle *handle);
+
+/* ── queryLabels / getLabels (request/response) ─────────────────────────── */
+
+/* Find labels relevant to the provided AT-URI patterns.
+ *
+ * `uris`/`uri_count` is the required list of AT-URI patterns to match
+ * (boolean OR; each may be a prefix ending in '*' or a full URI). `sources`/
+ * `source_count` is an optional list of labeler DIDs to filter on. `limit`
+ * is optional (>0 selects it; the server default of 50 applies otherwise).
+ *
+ * Delegates to the generated lexicon wrapper
+ * `wf_lex_com_atproto_label_query_labels_main_call`. On WF_OK `out` is
+ * populated and must be released with wf_response_free. NULL client/uris or
+ * a zero `uri_count` returns WF_ERR_INVALID_ARG. */
+wf_status wf_label_query_labels(wf_xrpc_client *client,
+                                const char *const *uris, size_t uri_count,
+                                const char *const *sources, size_t source_count,
+                                int limit, wf_response *out);
+
+/* Fetch labels applied to a single URI (com.atproto.label.getLabels).
+ *
+ * `uri` is required; `sources`/`source_count` is an optional list of labeler
+ * DIDs to filter on. There is no generated lexicon wrapper for this endpoint,
+ * so it is issued as a direct authenticated XRPC GET via wf_xrpc_query_params.
+ * On WF_OK `out` is populated and must be released with wf_response_free. NULL
+ * client/uri or a NULL `out` returns WF_ERR_INVALID_ARG. */
+wf_status wf_label_get_labels(wf_xrpc_client *client,
+                              const char *uri,
+                              const char *const *sources, size_t source_count,
+                              wf_response *out);
 
 #ifdef __cplusplus
 }
