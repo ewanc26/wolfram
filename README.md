@@ -27,8 +27,37 @@ Per-module usage guides with runnable C snippets live in [`docs/`](docs/):
 
 `wolfram` was chosen for three reasons:
 
-1. **Tungsten.** Wolfram is an older name for tungsten (element symbol **W**).
-2. **Low RAM.** It's light on memory usage.
+1. **Tungsten.** Wolfram is an older name for tungsten, a chemical element
+   with symbol **W** (from the German *Wolfram*) and atomic number **74**. It
+   is a metal found in nature almost exclusively in compounds with other
+   elements. It was identified as a distinct element in 1781 and first isolated
+   as a metal in 1783. Its important ores include scheelite and wolframite, the
+   latter lending the element its alternative name.
+2. **Low RAM.** It's light on memory usage, and the codebase is structured to
+   stay that way:
+
+   - **No runtime, no allocator, no GC.** The C11 core builds and runs without
+     a built-in allocator, event loop, or garbage collector. There is no
+     reactor to size and no periodic collection pause, so a long-lived
+     firehose/Jetstream consumer has a flat, predictable heap profile rather
+     than a sawtooth one.
+   - **A small default dependency tree.** A stock build only hard-requires
+     `libcurl` and OpenSSL's `libcrypto` (`find_package(CURL REQUIRED)` /
+     `find_package(OpenSSL REQUIRED)` in `CMakeLists.txt`). `libsecp256k1`,
+     `libzstd`, and `c-ares` are optional (probed with `pkg_check_modules(…)`
+     and degrade gracefully). The heavyweight libraries — SQLite3, libsodium,
+     libidn2, and libmicrohttpd — are gated behind `WOLFRAM_BUILD_*` flags and
+     are simply not compiled or linked unless you opt in.
+   - **Explicit, documented ownership.** Per `AGENTS.md`, every heap-allocated
+     output has a matching `_free` and the transfer is documented at the call
+     site (e.g. `wf_agent_free`, `wf_session_free`, `wf_car_free`). There is no
+     hidden allocation and no implicit ownership hand-off, so memory lifetime is
+     visible and bounded rather than leaking through a runtime.
+   - **Borrowed views over copies.** The generated Lexicon code borrows input
+     strings, arrays, and references into caller-owned buffers (they must
+     outlive the struct), while only owning decoders return heap objects with a
+     `_output_free`. Request paths therefore allocate scratch only for what they
+     genuinely must, and never copy whole trees just to encode them.
 3. **Wolves.** Wolves are cool.
 
 ## Why C, not Rust?
