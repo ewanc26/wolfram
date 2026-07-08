@@ -29,9 +29,12 @@
 #define WF_AGENT_LIKE_RECORD_TYPE     "app.bsky.feed.like"
 #define WF_AGENT_REPOST_COLLECTION    "app.bsky.feed.repost"
 #define WF_AGENT_REPOST_RECORD_TYPE   "app.bsky.feed.repost"
+#define WF_AGENT_BLOCK_COLLECTION     "app.bsky.graph.block"
+#define WF_AGENT_BLOCK_RECORD_TYPE    "app.bsky.graph.block"
 #define WF_AGENT_PROFILE_COLLECTION   "app.bsky.actor.profile"
 #define WF_AGENT_PROFILE_RECORD_TYPE  "app.bsky.actor.profile"
 #define WF_AGENT_PROFILE_RKEY         "self"
+#define WF_AGENT_RESOLVE_HANDLE_NSID  "com.atproto.identity.resolveHandle"
 #define WF_AGENT_UPLOAD_BLOB_NSID     "com.atproto.repo.uploadBlob"
 #define WF_AGENT_RESOLVE_HANDLE_NSID  "com.atproto.identity.resolveHandle"
 #define WF_AGENT_FACET_MENTION_TYPE   "app.bsky.richtext.facet#mention"
@@ -1212,6 +1215,59 @@ wf_status wf_agent_delete_repost(wf_agent *agent, const char *repost_uri) {
 
     status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
 
+
+    done:
+        wf_syntax_aturi_free(&parsed);
+        return status;
+}
+
+wf_status wf_agent_block(wf_agent *agent, const char *subject_did,
+                          wf_agent_post_result *out) {
+    if (!agent || !subject_did || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_did_is_valid(subject_did)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    char created_at[32];
+    if (!wf_agent_make_rfc3339_timestamp(created_at, sizeof(created_at)) ||
+        !wf_syntax_datetime_is_valid(created_at)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *record = cJSON_CreateObject();
+    if (!record) return WF_ERR_ALLOC;
+
+    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_BLOCK_RECORD_TYPE) ||
+        !cJSON_AddStringToObject(record, "subject", subject_did) ||
+        !cJSON_AddStringToObject(record, "createdAt", created_at)) {
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
+
+    return wf_agent_create_record_call(agent, WF_AGENT_BLOCK_COLLECTION, record, out);
+}
+
+wf_status wf_agent_unblock(wf_agent *agent, const char *block_uri) {
+    if (!agent || !block_uri) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(block_uri, &parsed)) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    if (!parsed.authority || !wf_agent_authority_matches_session(agent, parsed.authority) ||
+        !parsed.collection || !parsed.record_key ||
+        strcmp(parsed.collection, WF_AGENT_BLOCK_COLLECTION) != 0) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+
+    status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
 
     done:
         wf_syntax_aturi_free(&parsed);
