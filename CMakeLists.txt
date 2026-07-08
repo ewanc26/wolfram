@@ -116,6 +116,7 @@ add_library(wolfram
     src/agent/moderation_typed.c
     src/agent/feedgen_typed.c
     src/agent/chat_typed.c
+    src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
     src/agent/lexcall.c
     src/agent/pagination.c
