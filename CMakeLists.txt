@@ -128,6 +128,7 @@ add_library(wolfram
     src/draft_typed.c
     src/temp_typed.c
     src/agent/chat_typed.c
+    src/sync_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
     src/agent/lexcall.c
@@ -701,6 +702,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_actor_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME actor_typed COMMAND test_actor_typed)
+
+    add_executable(test_sync_typed test/test_sync_typed.c)
+    target_link_libraries(test_sync_typed PRIVATE wolfram)
+    target_include_directories(test_sync_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME sync_typed COMMAND test_sync_typed)
 
     add_executable(test_ageassurance_typed test/test_ageassurance_typed.c)
     target_link_libraries(test_ageassurance_typed PRIVATE wolfram)
