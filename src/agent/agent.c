@@ -3488,3 +3488,100 @@ wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did,
     return wf_xrpc_query_params(agent->client, "com.atproto.sync.listBlobs",
                                 params, param_count, out);
 }
+
+/* ── actor status ───────────────────────────────────────────────────── */
+
+wf_status wf_agent_put_actor_status(wf_agent *agent, const char *status,
+                                     int duration_minutes,
+                                     const char *embed_json,
+                                     wf_agent_post_result *out) {
+    if (!agent || !status || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *record = cJSON_CreateObject();
+    if (!record) return WF_ERR_ALLOC;
+
+    if (!cJSON_AddStringToObject(record, "status", status) ||
+        !cJSON_AddStringToObject(record, "$type", "app.bsky.actor.status")) {
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
+
+    if (duration_minutes > 0) {
+        if (!cJSON_AddNumberToObject(record, "durationMinutes", duration_minutes)) {
+            cJSON_Delete(record);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    if (embed_json && embed_json[0]) {
+        cJSON *embed = cJSON_Parse(embed_json);
+        if (!embed) {
+            cJSON_Delete(record);
+            return WF_ERR_PARSE;
+        }
+        if (!cJSON_AddItemToObject(record, "embed", embed)) {
+            cJSON_Delete(embed);
+            cJSON_Delete(record);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    /* createdAt — use current time */
+    time_t now = time(NULL);
+    struct tm tm_utc;
+    gmtime_r(&now, &tm_utc);
+    char ts_buf[32];
+    strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%dT%H:%M:%SZ", &tm_utc);
+    if (!cJSON_AddStringToObject(record, "createdAt", ts_buf)) {
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json_str = cJSON_PrintUnformatted(record);
+    cJSON_Delete(record);
+    if (!json_str) return WF_ERR_ALLOC;
+
+    wf_status status_ret = wf_agent_put_record(agent, "app.bsky.actor.status",
+                                                "self", json_str, out);
+    free(json_str);
+    return status_ret;
+}
+
+wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
+                                          wf_response *out) {
+    if (!agent || !job_id || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[] = {
+        {"jobId", job_id},
+    };
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                WF_LEX_APP_BSKY_VIDEO_GET_JOB_STATUS_NSID,
+                                params, 1, out);
+}
+
+wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
+                                             wf_response *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_agent_is_logged_in(agent)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_LIMITS_NSID,
+                                NULL, 0, out);
+}
