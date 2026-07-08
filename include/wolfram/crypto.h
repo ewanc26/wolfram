@@ -36,6 +36,21 @@ typedef struct wf_signing_key {
 wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out);
 
 /**
+ * Derive the `did:key:z...` multibase-encoded public key for a signing key.
+ *
+ * The returned string uses the same multicodec prefixes the SDK's verifier
+ * understands (secp256k1-pub 0xe701, p256-pub 0x8024) and is suitable for
+ * use as a PLC rotation/verification key or as the `sig` map key when signing
+ * a DID PLC operation.
+ *
+ * On WF_OK, *out_didkey is heap-allocated and owned by the caller (free() it).
+ * secp256k1 support requires HAVE_LIBSECP256K1; otherwise it returns
+ * WF_ERR_INVALID_ARG.
+ */
+wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
+                                       char **out_didkey);
+
+/**
  * Sign a message (typically the SHA-256 digest of a DAG-CBOR block)
  * and write the raw signature bytes into `sig_out`, which must be at
  * least 64 bytes.

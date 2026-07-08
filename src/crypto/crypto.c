@@ -69,6 +69,135 @@ static wf_status wf_p256_normalize_s(const EC_KEY *eckey, BIGNUM **s_io) {
 #include <secp256k1.h>
 #endif
 
+/* base58btc (multibase 'z') encoder — used only for did:key derivation. */
+static const char wf_b58_alphabet[] =
+    "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+static char *wf_b58_encode(const unsigned char *data, size_t len) {
+    /* Count leading zero bytes. */
+    size_t zeros = 0;
+    while (zeros < len && data[zeros] == 0) zeros++;
+
+    /* Big-number base conversion into a temporary buffer (8 bits -> 58). */
+    size_t out_size = len * 138 / 100 + 1; /* conservative upper bound */
+    unsigned char *buf = calloc(out_size, 1);
+    if (!buf) return NULL;
+
+    for (size_t i = zeros; i < len; i++) {
+        unsigned carry = data[i];
+        for (size_t j = out_size; j-- > 0;) {
+            carry += (unsigned)buf[j] * 256u;
+            buf[j] = (unsigned char)(carry % 58u);
+            carry /= 58u;
+        }
+    }
+
+    size_t out_len = 0;
+    while (out_len < out_size && buf[out_len] == 0) out_len++;
+
+    /* Build the string: leading '1' per zero byte, then base58 digits. */
+    size_t total = zeros + (out_size - out_len);
+    char *result = malloc(total + 1);
+    if (!result) {
+        free(buf);
+        return NULL;
+    }
+    size_t p = 0;
+    for (size_t i = 0; i < zeros; i++) result[p++] = '1';
+    for (size_t i = out_len; i < out_size; i++) {
+        result[p++] = wf_b58_alphabet[buf[i]];
+    }
+    result[p] = '\0';
+
+    free(buf);
+    return result;
+}
+
+wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
+                                       char **out_didkey) {
+    unsigned char raw[33];
+    unsigned char prefixed[35];
+    const unsigned char *multicodec;
+    char *b58;
+    char *didkey;
+
+    if (!key || !out_didkey) return WF_ERR_INVALID_ARG;
+    *out_didkey = NULL;
+
+    if (key->type == WF_KEY_TYPE_P256) {
+        EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+        const EC_GROUP *group;
+        const BIGNUM *priv;
+        EC_POINT *point;
+        BIGNUM *bn_priv;
+        size_t n;
+
+        if (!eckey) return WF_ERR_ALLOC;
+        group = EC_KEY_get0_group(eckey);
+        bn_priv = BN_bin2bn(key->bytes, 32, NULL);
+        if (!bn_priv || EC_KEY_set_private_key(eckey, bn_priv) != 1) {
+            BN_free(bn_priv);
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
+        priv = EC_KEY_get0_private_key(eckey);
+        point = EC_POINT_new(group);
+        if (!point || EC_POINT_mul(group, point, priv, NULL, NULL, NULL) != 1) {
+            EC_POINT_free(point);
+            BN_free(bn_priv);
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
+        n = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
+                               raw, sizeof(raw), NULL);
+        EC_POINT_free(point);
+        BN_free(bn_priv);
+        EC_KEY_free(eckey);
+        if (n != 33) return WF_ERR_ALLOC;
+        prefixed[0] = 0x80;
+        prefixed[1] = 0x24;
+        memcpy(prefixed + 2, raw, 33);
+    } else if (key->type == WF_KEY_TYPE_SECP256K1) {
+#ifdef HAVE_LIBSECP256K1
+        secp256k1_context *ctx =
+            secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+        secp256k1_pubkey pubkey;
+        size_t clen = 33;
+        if (!ctx) return WF_ERR_ALLOC;
+        if (secp256k1_ec_pubkey_create(ctx, &pubkey, key->bytes) != 1 ||
+            secp256k1_ec_pubkey_serialize(ctx, raw, &clen, &pubkey,
+                                          SECP256K1_EC_COMPRESSED) != 1) {
+            secp256k1_context_destroy(ctx);
+            return WF_ERR_ALLOC;
+        }
+        secp256k1_context_destroy(ctx);
+        prefixed[0] = 0xe7;
+        prefixed[1] = 0x01;
+        memcpy(prefixed + 2, raw, 33);
+#else
+        (void)multicodec;
+        (void)raw;
+        return WF_ERR_INVALID_ARG; /* TODO: secp256k1 support needs libsecp256k1 */
+#endif
+    } else {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    b58 = wf_b58_encode(prefixed, sizeof(prefixed));
+    if (!b58) return WF_ERR_ALLOC;
+
+    didkey = malloc(strlen("did:key:z") + strlen(b58) + 1);
+    if (!didkey) {
+        free(b58);
+        return WF_ERR_ALLOC;
+    }
+    sprintf(didkey, "did:key:z%s", b58);
+    free(b58);
+
+    *out_didkey = didkey;
+    return WF_OK;
+}
+
 wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
     if (!out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
