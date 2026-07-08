@@ -117,6 +117,9 @@ wf_status wf_agent_mute(wf_agent *agent, const char *actor);
 wf_status wf_agent_unmute(wf_agent *agent, const char *actor);
 wf_status wf_agent_mute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri);
+wf_status wf_agent_block(wf_agent *agent, const char *subject_did,
+                          wf_agent_post_result *out);
+wf_status wf_agent_unblock(wf_agent *agent, const char *block_uri);
 
 /* Repost operations */
 wf_status wf_agent_repost(wf_agent *agent, const char *post_uri, const char *post_cid,
