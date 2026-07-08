@@ -377,10 +377,30 @@ wf_status wf_agent_chat_mod_get_convo_members(wf_agent *agent,
 
 /* Update a user's chat access (allow/block from chat). */
 wf_status wf_agent_chat_mod_update_actor_access(wf_agent *agent,
-                                                 const char *actor_did,
-                                                 bool allow_access,
-                                                 const char *ref,
-                                                 wf_response *out);
+                                                  const char *actor_did,
+                                                  bool allow_access,
+                                                  const char *ref,
+                                                  wf_response *out);
+
+/* ── remaining chat.bsky.convo wrappers ──────────────────────────────── */
+
+/*
+ * Send a batch of messages. `items_json` is a JSON array of batchItem objects:
+ * [{"convoId": "...", "message": {"text": "...", ...}}, ...].
+ */
+wf_status wf_agent_chat_send_message_batch(wf_agent *agent,
+                                            const char *items_json,
+                                            wf_response *out);
+
+/* Lock or unlock a group conversation. */
+wf_status wf_agent_chat_lock_convo(wf_agent *agent, const char *convo_id,
+                                    wf_response *out);
+wf_status wf_agent_chat_unlock_convo(wf_agent *agent, const char *convo_id,
+                                      wf_response *out);
+
+/* Get the conversation event log. Returns raw JSON. */
+wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
+                                 const char *cursor, wf_response *out);
 
 #ifdef __cplusplus
 }

@@ -193,6 +193,8 @@ wf_status wf_agent_get_feed_generators(wf_agent *agent,
                                         size_t feed_count,
                                         wf_response *out);
 wf_status wf_agent_get_suggested_feeds(wf_agent *agent, wf_response *out);
+wf_status wf_agent_get_suggestions(wf_agent *agent, int limit,
+                                    const char *cursor, wf_response *out);
 
 /* Graph queries — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_get_profiles(wf_agent *agent, const char *const *actors,
@@ -741,6 +743,20 @@ wf_status wf_agent_resolve_did(wf_agent *agent, const char *did,
 /* Get recommended DID credentials for account creation. Returns raw JSON. */
 wf_status wf_agent_get_recommended_did_credentials(wf_agent *agent,
                                                     wf_response *out);
+
+/* Describe a repository (owner DID, handle, collections, etc.). */
+wf_status wf_agent_describe_repo(wf_agent *agent, const char *repo,
+                                  wf_response *out);
+
+/*
+ * Send feed interactions for suggestion training.
+ * `feed_uri` may be NULL. `interactions_json` is a JSON array of interaction
+ * objects (see app.bsky.feed.sendInteractions).
+ */
+wf_status wf_agent_send_interactions(wf_agent *agent,
+                                      const char *feed_uri,
+                                      const char *interactions_json,
+                                      wf_response *out);
 
 #ifdef __cplusplus
 }

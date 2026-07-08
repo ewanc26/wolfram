@@ -712,3 +712,31 @@ wf_status wf_agent_get_suggested_follows_by_actor_lex(wf_agent *agent, const cha
                                 "app.bsky.graph.getSuggestedFollowsByActor",
                                 params, 1, out);
 }
+
+wf_status wf_agent_get_suggestions(wf_agent *agent, int limit,
+                                    const char *cursor, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.actor.getSuggestions",
+                                params, param_count, out);
+}
