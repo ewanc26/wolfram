@@ -3478,7 +3478,14 @@ wf_status wf_agent_sync_get_record(wf_agent *agent, const char *did,
         {"rkey", rkey},
     };
     return wf_xrpc_query_params(agent->client, "com.atproto.sync.getRecord",
-                                params, 3, out);
+                                 params, 3, out);
+}
+
+/* Expose the agent's underlying XRPC client. Needed by the typed sync layer
+ * (sync_typed.c) which issues raw queries for the JSON sync endpoints
+ * (getRepoStatus / getLatestCommit) that have no dedicated agent wrapper. */
+wf_xrpc_client *wf_agent_xrpc_client(wf_agent *agent) {
+    return agent ? agent->client : NULL;
 }
 
 /* ── sync.listBlobs ────────────────────────────────────────────────── */
