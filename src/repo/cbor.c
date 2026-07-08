@@ -260,6 +260,42 @@ void wf_cbor_free(wf_cbor_item *item) {
 
 /* ── DAG-CBOR serializer ──────────────────────────────────── */
 
+/* DRISL (Deterministic Representation for Interoperable Structures and Links)
+ * invariants enforced here:
+ *   (1) map keys are emitted in ascending bytewise order of their canonical
+ *       CBOR encoding (see wf_cbor_pair_key_cmp below);
+ *   (2) integers use shortest-form major-type + argument encoding
+ *       (wf_cbor_ser_write_uint);
+ *   (3) floats (incl. NaN/Infinity) cannot be produced — wf_cbor_item has no
+ *       float type, and wf_cbor_parse rejects them;
+ *   (4) CIDs are emitted as CBOR tag 42 with the historical 0x00 prefix
+ *       (WF_CBOR_LINK case). */
+
+/* DRISL (rule 1): compare two map keys by their canonical bytewise encoding. */
+static int wf_cbor_item_key_cmp(const wf_cbor_item *a, const wf_cbor_item *b) {
+    unsigned char *ka = NULL, *kb = NULL;
+    size_t la = 0, lb = 0, common;
+    int res;
+    ka = wf_cbor_serialize(a, &la);
+    kb = wf_cbor_serialize(b, &lb);
+    if (!ka || !kb) { res = 0; goto done; }
+    common = la < lb ? la : lb;
+    int c = memcmp(ka, kb, common);
+    if (c != 0) res = c < 0 ? -1 : 1;
+    else if (la < lb) res = -1;
+    else if (la > lb) res = 1;
+    else res = 0;
+done:
+    free(ka); free(kb);
+    return res;
+}
+
+static int wf_cbor_pair_key_cmp(const void *pa, const void *pb) {
+    const wf_cbor_pair *a = (const wf_cbor_pair *)pa;
+    const wf_cbor_pair *b = (const wf_cbor_pair *)pb;
+    return wf_cbor_item_key_cmp(a->key, b->key);
+}
+
 static size_t wf_cbor_ser_uint_size(uint64_t val) {
     if (val <= 23) return 1;
     if (val <= 0xFF) return 2;
@@ -375,13 +411,27 @@ static void wf_cbor_ser_write_item(const wf_cbor_item *item,
         for (size_t i = 0; i < item->children.count; i++)
             wf_cbor_ser_write_item(item->children.items[i], pos);
         break;
-    case WF_CBOR_MAP:
+    case WF_CBOR_MAP: {
         wf_cbor_ser_write_uint(5, item->map.count, pos);
-        for (size_t i = 0; i < item->map.count; i++) {
-            wf_cbor_ser_write_item(item->map.pairs[i].key, pos);
-            wf_cbor_ser_write_item(item->map.pairs[i].value, pos);
+        if (item->map.count > 0) {
+            /* DRISL (rule 1): emit map keys in ascending bytewise order. */
+            wf_cbor_pair *sorted = malloc(item->map.count * sizeof(*sorted));
+            const wf_cbor_pair *pairs = item->map.pairs;
+            if (sorted) {
+                memcpy(sorted, item->map.pairs,
+                       item->map.count * sizeof(*sorted));
+                qsort(sorted, item->map.count, sizeof(*sorted),
+                      wf_cbor_pair_key_cmp);
+                pairs = sorted;
+            }
+            for (size_t i = 0; i < item->map.count; i++) {
+                wf_cbor_ser_write_item(pairs[i].key, pos);
+                wf_cbor_ser_write_item(pairs[i].value, pos);
+            }
+            free(sorted);
         }
         break;
+    }
     case WF_CBOR_SIMPLE: {
         int sv = item->simple_value;
         if (sv >= 20 && sv <= 23) {
