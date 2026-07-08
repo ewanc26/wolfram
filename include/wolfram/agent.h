@@ -656,8 +656,36 @@ wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
                                               wf_mod_subject_post *out,
                                               wf_mod_label **out_labels,
                                               size_t *out_label_count,
-                                              wf_mod_label **out_author_labels,
-                                              size_t *out_author_label_count);
+                                                                 wf_mod_label **out_author_labels,
+                                                                 size_t *out_author_label_count);
+
+/* ── actor status ───────────────────────────────────────────────────── */
+
+/*
+ * Create or update the authenticated user's actor status record (rkey "self").
+ * `status` is the status string (e.g. "app.bsky.actor.status#live").
+ * `duration_minutes` is optional (pass 0 or negative to omit).
+ * `embed_json` is an optional JSON embed object string (pass NULL or "" to
+ * omit). On success, `*out` receives the URI and CID.
+ */
+wf_status wf_agent_put_actor_status(wf_agent *agent, const char *status,
+                                     int duration_minutes,
+                                     const char *embed_json,
+                                     wf_agent_post_result *out);
+
+/*
+ * Poll the status of a video processing job by job ID.
+ * Returns raw JSON; caller frees with wf_response_free.
+ */
+wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
+                                          wf_response *out);
+
+/*
+ * Get the authenticated user's video upload limits.
+ * Returns raw JSON; caller frees with wf_response_free.
+ */
+wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
+                                             wf_response *out);
 
 #ifdef __cplusplus
 }
