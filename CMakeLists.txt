@@ -147,6 +147,8 @@ src/agent/push_endpoint.c
     src/sync/sync_subscribe.c
     # Firehose commit verification
     src/sync/sync_verify.c
+    # End-to-end record commit signature verification
+    src/verify.c
     # Generated lexicon endpoint wrappers
     src/atproto_lex.c
     # Server account management
@@ -580,6 +582,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_sync_verify PRIVATE wolfram)
     target_include_directories(test_sync_verify PRIVATE test)
     add_test(NAME sync_verify COMMAND test_sync_verify)
+
+    add_executable(test_verify_record test/test_verify_record.c)
+    target_link_libraries(test_verify_record PRIVATE wolfram)
+    target_include_directories(test_verify_record PRIVATE test)
+    target_include_directories(test_verify_record PRIVATE ${cjson_SOURCE_DIR})
+    add_test(NAME verify_record COMMAND test_verify_record)
 
     add_executable(test_sync_subscribe test/test_sync_subscribe.c)
     target_link_libraries(test_sync_subscribe PRIVATE wolfram)
