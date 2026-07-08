@@ -335,3 +335,206 @@ wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
     return wf_xrpc_query_params(agent->client, "app.bsky.graph.getSuggestedFollowsByActor",
                                  params, param_count, out);
 }
+
+wf_status wf_agent_get_actor_starter_packs(wf_agent *agent, const char *actor,
+                                            int limit, const char *cursor,
+                                            wf_response *out) {
+    if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.graph.getActorStarterPacks",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_starter_pack(wf_agent *agent, const char *starter_pack_uri,
+                                     wf_response *out) {
+    if (!agent || !starter_pack_uri || !out) return WF_ERR_INVALID_ARG;
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(starter_pack_uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
+    wf_xrpc_param params[1];
+    params[0].name = "starterPack";
+    params[0].value = starter_pack_uri;
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.graph.getStarterPack",
+                                params, 1, out);
+}
+
+wf_status wf_agent_get_starter_packs(wf_agent *agent,
+                                      const char *const *uris, size_t uri_count,
+                                      wf_response *out) {
+    if (!agent || !uris || uri_count == 0 || !out) return WF_ERR_INVALID_ARG;
+
+    for (size_t i = 0; i < uri_count; ++i) {
+        if (!uris[i]) return WF_ERR_INVALID_ARG;
+        wf_syntax_aturi parsed = {0};
+        if (!wf_syntax_aturi_parse(uris[i], &parsed)) return WF_ERR_PARSE;
+        wf_syntax_aturi_free(&parsed);
+    }
+
+    wf_xrpc_param *params = calloc(uri_count, sizeof(*params));
+    if (!params) return WF_ERR_ALLOC;
+
+    for (size_t i = 0; i < uri_count; ++i) {
+        params[i].name = "uris";
+        params[i].value = uris[i];
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_query_params(agent->client,
+                                             "app.bsky.graph.getStarterPacks",
+                                             params, uri_count, out);
+    free(params);
+    return status;
+}
+
+wf_status wf_agent_search_starter_packs(wf_agent *agent, const char *query,
+                                         int limit, const char *cursor,
+                                         wf_response *out) {
+    if (!agent || !query || !out) return WF_ERR_INVALID_ARG;
+    if (!query[0]) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "q";
+    params[param_count].value = query;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.graph.searchStarterPacks",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_starter_packs_with_membership(wf_agent *agent,
+                                                      const char *actor,
+                                                      int limit,
+                                                      const char *cursor,
+                                                      wf_response *out) {
+    if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    params[param_count].name = "actor";
+    params[param_count].value = actor;
+    param_count++;
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.graph.getStarterPacksWithMembership",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_mute_thread(wf_agent *agent, const char *root_uri) {
+    if (!agent || !root_uri || !root_uri[0]) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(root_uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "root", root_uri)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "app.bsky.graph.muteThread",
+                                          json, &res);
+    free(json);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri) {
+    if (!agent || !root_uri || !root_uri[0]) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(root_uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "root", root_uri)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "app.bsky.graph.unmuteThread",
+                                          json, &res);
+    free(json);
+    wf_response_free(&res);
+    return status;
+}
