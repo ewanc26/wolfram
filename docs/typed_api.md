@@ -9,6 +9,25 @@ All typed calls are declared in `include/wolfram/agent.h` and the companion
 headers `feed_typed.h`, `thread_typed.h`, and `graph_typed.h`. A single include
 of `wolfram/agent.h` pulls in all three.
 
+## Typed parser modules
+
+wolfram ships several self-contained typed-parser headers, each parsing a
+specific family of responses into owned structs freed by a matching `_free`:
+
+- **Feed** — `feed_typed.h` (`wf_agent_get_timeline_typed`, author feed, quotes, likes)
+- **Thread** — `thread_typed.h` (`wf_agent_get_post_thread_typed`, recursive reply tree)
+- **List** — `list_typed.h` (list records / members)
+- **Graph** — `graph_typed.h` (follows, followers, profiles, search, reposts, likes)
+- **Embed** — `embed_typed.h` (build owned image / video / record / external embeds)
+- **Notification** — `agent.h` + `notification` parsers (`wf_agent_list_notifications_typed`)
+- **Unspecced** (NEW) — `unspecced_typed.h` (trending topics, tagged/suggestions skeletons, config, age assurance, onboarding starter packs, starter-pack search). See [unspecced.md](unspecced.md).
+- **Chat** — `chat_typed.h` (conversation / message views)
+- **Moderation** — `moderation_typed.h` (label / moderation detail views)
+- **Feed generator** — `feedgen_typed.h` (feed generator / skeleton parsing)
+
+Each module documents its own ownership rules; the common conventions in the
+next section apply to all of them.
+
 ## Ownership rules
 
 - Every `*_list`, `*_thread`, and `*_notification_list` returned by a typed call
