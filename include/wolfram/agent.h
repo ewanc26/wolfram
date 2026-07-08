@@ -11,9 +11,15 @@
 #include "wolfram/session.h"
 #include "wolfram/repo.h"
 #include "wolfram/moderation.h"
+#include "wolfram/identity.h"
 #include "wolfram/atproto_lex.h"
 #include <cJSON.h>
 #include "wolfram/atproto_lex.h"
+
+/* server.h is intentionally NOT included here (it pulls in wolfram.h, which
+ * includes agent.h, creating a cycle). The single server type referenced by
+ * the management wrappers below is forward-declared. */
+typedef struct wf_server_revoke_invite_codes_input wf_server_revoke_invite_codes_input;
 
 #ifdef __cplusplus
 extern "C" {
@@ -774,6 +780,28 @@ wf_status wf_agent_confirm_email(wf_agent *agent, const char *email,
                                   const char *token, wf_response *out);
 wf_status wf_agent_update_email(wf_agent *agent, const char *email,
                                  wf_response *out);
+
+/* ── identity/server management ──────────────────────────────────────── */
+/* Convenience wrappers over the com.atproto.identity and com.atproto.server
+ * account/identity-management endpoints that are not already present
+ * elsewhere in this header. The bulk (createInviteCode/Codes, activate/
+ * deactivateAccount, confirmEmail, updateEmail, requestEmailUpdate/
+ * Confirmation, requestPlcOperationSignature, signPlcOperation,
+ * submitPlcOperation, getRecommendedDidCredentials, updateHandle,
+ * resolveDid) already exist as wf_agent_* wrappers returning raw
+ * wf_response; these delegate to the typed low-level wrappers. */
+
+/* Check whether a handle is available / correctly configured. */
+wf_status wf_agent_check_handle(wf_agent *agent,
+                                const wf_identity_check_handle_input *input,
+                                wf_identity_check_handle_result *out);
+
+/* Verify that a handle bi-directionally matches its DID (local convenience). */
+wf_status wf_agent_verify_handle(wf_agent *agent, const char *handle, int *out_valid);
+
+/* Revoke invite codes. */
+wf_status wf_agent_revoke_invite_codes(
+    wf_agent *agent, const wf_server_revoke_invite_codes_input *input);
 
 /* ── identity wrappers ───────────────────────────────────────────────── */
 

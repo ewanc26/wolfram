@@ -125,6 +125,7 @@ src/agent/push_endpoint.c
     src/agent/moderation.c
     src/agent/moderation_apply.c
     src/agent/label_persist.c
+    src/agent/identity_mgmt.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -591,6 +592,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_plc PRIVATE wolfram)
     target_include_directories(test_plc PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME plc COMMAND test_plc)
+
+    add_executable(test_identity_mgmt test/test_identity_mgmt.c)
+    target_link_libraries(test_identity_mgmt PRIVATE wolfram)
+    target_include_directories(test_identity_mgmt PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME identity_mgmt COMMAND test_identity_mgmt)
 
     add_executable(test_diff test/test_diff.c)
     target_link_libraries(test_diff PRIVATE wolfram)
