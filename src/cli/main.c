@@ -16,6 +16,7 @@
  *   wolfram reply       <service> <handle> <password> <parent-at-uri> <text...>
  *   wolfram timeline    <service> <handle> <password> [pages]
  *   wolfram get-post    <service> <at-uri>
+ *   wolfram get-record  <service> <handle> <password> <collection> <rkey>
  *   wolfram profile     <service> <actor>
  *   wolfram follow      <service> <handle> <password> <actor>
  *   wolfram unfollow    <service> <handle> <password> <actor>
@@ -30,7 +31,15 @@
  *   wolfram resolve     <service> <handle-or-did>
  *   wolfram thread      <service> <handle> <password> <at-uri> [depth]
  *   wolfram notifications <service> <handle> <password> [limit]
- *   wolfram labels      <service> [cursor]
+ *   wolfram follows     <service> <actor> [limit]
+ *   wolfram followers   <service> <actor> [limit]
+ *   wolfram blocks      <service> <handle> <password> [limit]
+ *   wolfram mutes       <service> <handle> <password> [limit]
+ *   wolfram list        <service> <list-uri> [limit]
+ *   wolfram lists       <service> <actor> [limit]
+ *   wolfram labels subscribe <service> [--cursor N] [--seconds N]
+ *   wolfram video upload <service> <handle> <password> <file.mp4>
+ *   wolfram video status <service> <handle> <password> <job-id>
  *   wolfram moderation  <service> <actor> [labeler-did]
  *   wolfram oauth-login <service> <handle> [client-id] [redirect-uri]
  *   wolfram describe-server <service>
@@ -41,6 +50,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include <cJSON.h>
 
@@ -48,6 +58,7 @@
 #include <time.h>
 
 #include "wolfram/agent.h"
+#include "wolfram/blob.h"
 #include "wolfram/identity.h"
 #include "wolfram/label.h"
 #include "wolfram/oauth.h"
@@ -98,11 +109,24 @@ static void usage_stream(FILE *out) {
          "    mute             <service> <handle> <password> <actor>\n"
          "    unmute           <service> <handle> <password> <actor>\n"
          "\n"
-         "  Identity & moderation:\n"
+          "  Identity & moderation:\n"
          "    resolve          <service> <handle-or-did>\n"
-         "    labels           <service> [cursor]\n"
+         "    labels subscribe <service> [--cursor N] [--seconds N]\n"
          "    moderation       <service> <actor> [labeler-did]\n"
          "    oauth-login      <service> <handle> [client-id] [redirect-uri]\n"
+         "\n"
+         "  Graph & lists:\n"
+         "    follows          <service> <actor> [limit]\n"
+         "    followers        <service> <actor> [limit]\n"
+         "    blocks           <service> <handle> <password> [limit]\n"
+         "    mutes            <service> <handle> <password> [limit]\n"
+         "    list             <service> <list-uri> [limit]\n"
+         "    lists            <service> <actor> [limit]\n"
+         "\n"
+         "  Records & media:\n"
+         "    get-record       <service> <handle> <password> <collection> <rkey>\n"
+         "    video upload     <service> <handle> <password> <file.mp4>\n"
+         "    video status     <service> <handle> <password> <job-id>\n"
          "\n"
          "  <at-uri> is an at:// URI (e.g. at://did:plc:xxx/app.bsky.feed.post/rkey)\n"
          "  <actor> is a handle or DID\n", WOLFRAM_VERSION_STRING);
@@ -121,32 +145,26 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
          "Fetch server metadata via com.atproto.server.describeServer (no auth)."},
         {"post",             "post <service> <handle> <password> <text...>",
          "Create a new post. Rich-text facets (mentions, links, tags) are auto-detected."},
-        {"reply",            "reply <service> <handle> <password> <at-uri> <text...>",
-         "Reply to an existing post. The parent post's CID and root reference are resolved via getPosts."},
+        {"reply",            "reply <service> <handle> <password> <parent-at-uri> <text...>",
+         "Reply to a post. The parent CID and root ref are resolved via getPosts and a reply record is created via wf_agent_create_record."},
         {"delete",           "delete <service> <handle> <password> <at-uri>",
          "Delete a post created by the authenticated user."},
         {"like",             "like <service> <handle> <password> <at-uri>",
          "Like a post. The post's CID is resolved via getPosts, then wf_agent_like is called."},
-        {"unlike",            "unlike <service> <handle> <password> <like-at-uri>",
+        {"unlike",           "unlike <service> <handle> <password> <like-at-uri>",
          "Delete a like record by its at:// URI via wf_agent_unlike."},
         {"repost",           "repost <service> <handle> <password> <at-uri>",
          "Repost a post. The post's CID is resolved via getPosts, then wf_agent_repost is called."},
         {"delete-repost",    "delete-repost <service> <handle> <password> <repost-at-uri>",
          "Delete a repost record by its at:// URI via wf_agent_delete_repost."},
-        {"unrepost",         "delete-repost <service> <handle> <password> <repost-at-uri>",
+        {"unrepost",         "unrepost <service> <handle> <password> <repost-at-uri>",
          "Alias for delete-repost: remove a repost record by its at:// URI."},
-        {"reply",            "reply <service> <handle> <password> <parent-at-uri> <text...>",
-         "Reply to a post. The parent CID and root ref are resolved via getPosts and a reply record is created via wf_agent_create_record."},
-        {"labels",           "labels <service> [cursor]",
-         "Subscribe to com.atproto.label.subscribeLabels via the label.h streaming API and print each arriving label."},
-        {"oauth-login",      "oauth-login <service> <handle> [client-id] [redirect-uri]",
-         "Demonstrate the OAuth login path: discover the authorization server and begin a PAR flow (wf_oauth_authorization_begin), printing the authorization URL and state."},
         {"timeline",         "timeline <service> <handle> <password> [pages]",
          "Fetch the authenticated user's home timeline. pages=0 (default) fetches until exhausted."},
         {"get-post",         "get-post <service> <at-uri>",
          "Fetch a single record via com.atproto.repo.getRecord (no auth)."},
         {"profile",          "profile <service> <actor>",
-         "Fetch and display an actor's profile."},
+         "Fetch and display an actor's profile via wf_agent_get_profile."},
         {"search",           "search <service> <handle> <password> <query> [limit]",
          "Search posts via app.bsky.feed.searchPosts. limit defaults to 25."},
         {"thread",           "thread <service> <handle> <password> <at-uri> [depth]",
@@ -162,11 +180,31 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
         {"unmute",           "unmute <service> <handle> <password> <actor>",
          "Unmute an actor (handle or DID)."},
         {"resolve",          "resolve <service> <handle-or-did>",
-         "Resolve a handle to a DID via com.atproto.identity.resolveHandle. A DID is echoed back unchanged."},
-        {"labels",           "labels <actor-or-did>",
-         "Query labels for an actor's records via com.atproto.label.queryLabels."},
+         "Resolve a handle to a DID via wf_handle_resolve. A DID is echoed back unchanged."},
+        {"labels",           "labels subscribe <service> [--cursor N] [--seconds N]",
+         "Subscribe to com.atproto.label.subscribeLabels via the label.h streaming API and print each arriving label. Bounded by --seconds (default 30) or SIGINT."},
         {"moderation",       "moderation <service> <actor> [labeler-did]",
          "Run the moderation decision engine on an actor's profile."},
+        {"oauth-login",      "oauth-login <service> <handle> [client-id] [redirect-uri]",
+         "Demonstrate the OAuth login path: discover the authorization server and begin a PAR flow, printing the authorization URL and state."},
+        {"follows",          "follows <service> <actor> [limit]",
+         "List the accounts an actor follows via wf_agent_get_follows."},
+        {"followers",        "followers <service> <actor> [limit]",
+         "List an actor's followers via wf_agent_get_followers."},
+        {"blocks",           "blocks <service> <handle> <password> [limit]",
+         "List the accounts the authenticated user blocks via wf_agent_get_blocks."},
+        {"mutes",            "mutes <service> <handle> <password> [limit]",
+         "List the accounts the authenticated user mutes via wf_agent_get_mutes."},
+        {"list",             "list <service> <list-uri> [limit]",
+         "Fetch the items of a list via wf_agent_get_list."},
+        {"lists",            "lists <service> <actor> [limit]",
+         "List the lists an actor owns via wf_agent_get_lists."},
+        {"get-record",       "get-record <service> <handle> <password> <collection> <rkey>",
+         "Fetch a single record via wf_agent_get_record and print the JSON."},
+        {"video",            "video upload <service> <handle> <password> <file.mp4>",
+         "Upload a video blob via wf_agent_upload_video and report the blob CID and size."},
+        {"video",            "video status <service> <handle> <password> <job-id>",
+         "Poll a video processing job via wf_agent_get_video_job_status."},
     };
 
     for (size_t i = 0; i < sizeof(cmds)/sizeof(cmds[0]); ++i) {
@@ -1212,13 +1250,25 @@ static int cmd_reply(int argc, char **argv) {
 }
 
 /* Labels streaming — subscribe to com.atproto.label.subscribeLabels and
- * print each arriving label. The subscription blocks until interrupted; a
- * small event cap stops the live subscription cleanly via the handle pointer
- * trick (mirrors examples/subscribe_labels.c). */
-#define CLI_LABEL_MAX_EVENTS 20
+ * print each arriving label. The subscription blocks until interrupted (Ctrl-C
+ * / SIGINT), a time bound elapses, or a small event cap is reached; it is
+ * stopped cleanly via the handle pointer trick (mirrors
+ * examples/subscribe_labels.c). */
+#define CLI_LABEL_MAX_EVENTS 100
 
+static volatile sig_atomic_t g_label_stop = 0;
 static int g_label_count = 0;
+static time_t g_label_start = 0;
+static int g_label_seconds = 30;
 static wf_label_subscribe_handle **g_label_handle_ptr = NULL;
+
+static void label_on_sigint(int sig) {
+    (void)sig;
+    g_label_stop = 1;
+    if (g_label_handle_ptr && *g_label_handle_ptr) {
+        wf_label_subscribe_stop(*g_label_handle_ptr);
+    }
+}
 
 static void label_on_label(const wf_label *label, void *userdata) {
     (void)userdata;
@@ -1231,9 +1281,13 @@ static void label_on_label(const wf_label *label, void *userdata) {
            label->exp ? label->exp : "",
            label->neg);
     fflush(stdout);
-    if (g_label_handle_ptr && *g_label_handle_ptr &&
-        g_label_count >= CLI_LABEL_MAX_EVENTS) {
-        wf_label_subscribe_stop(*g_label_handle_ptr);
+    if (g_label_stop ||
+        (g_label_seconds > 0 && (time(NULL) - g_label_start) >= g_label_seconds) ||
+        (g_label_handle_ptr && *g_label_handle_ptr &&
+         g_label_count >= CLI_LABEL_MAX_EVENTS)) {
+        if (g_label_handle_ptr && *g_label_handle_ptr) {
+            wf_label_subscribe_stop(*g_label_handle_ptr);
+        }
     }
 }
 
@@ -1251,19 +1305,44 @@ static void label_on_error(wf_status status, const char *msg, void *userdata) {
             msg ? msg : "");
 }
 
+/* wolfram labels subscribe <service> [--cursor N] [--seconds N] */
 static int cmd_labels(int argc, char **argv) {
-    if (argc < 2) {
+    if (argc < 3) {
         usage_stream(stderr);
         return 0;
     }
-    const char *service = argv[1];
+
+    const char *sub = argv[1];
+    if (strcmp(sub, "subscribe") != 0) {
+        fprintf(stderr, "error: unknown labels subcommand '%s' (try 'subscribe')\n",
+                sub);
+        return 1;
+    }
+
+    const char *service = argv[2];
 
     int64_t cursor = 0;
     int has_cursor = 0;
-    if (argc >= 3) {
-        cursor = (int64_t)strtoll(argv[2], NULL, 10);
-        has_cursor = 1;
+    for (int i = 3; i < argc; ++i) {
+        if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc) {
+            cursor = (int64_t)strtoll(argv[++i], NULL, 10);
+            has_cursor = 1;
+        } else if (strcmp(argv[i], "--seconds") == 0 && i + 1 < argc) {
+            g_label_seconds = atoi(argv[++i]);
+        } else {
+            fprintf(stderr, "error: unexpected labels argument '%s'\n", argv[i]);
+            return 1;
+        }
     }
+
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = label_on_sigint;
+    sigaction(SIGINT, &sa, NULL);
+
+    g_label_stop = 0;
+    g_label_count = 0;
+    g_label_start = time(NULL);
 
     wf_label_subscribe_options opts;
     memset(&opts, 0, sizeof(opts));
@@ -1276,8 +1355,9 @@ static int cmd_labels(int argc, char **argv) {
     opts.on_info = label_on_info;
     opts.on_error = label_on_error;
 
-    printf("subscribing to label stream at %s (cursor=%s, max %d events)\n",
-           service, has_cursor ? argv[2] : "none", CLI_LABEL_MAX_EVENTS);
+    printf("subscribing to label stream at %s (cursor=%s, max %d events, %ds)\n",
+           service, has_cursor ? argv[2] : "none", CLI_LABEL_MAX_EVENTS,
+           g_label_seconds);
 
     wf_label_subscribe_handle *handle = NULL;
     g_label_handle_ptr = &handle;
@@ -1288,8 +1368,273 @@ static int cmd_labels(int argc, char **argv) {
         fprintf(stderr, "error: label subscription ended (status %d)\n", (int)s);
         return 1;
     }
-    printf("label subscription ended cleanly\n");
+    printf("label subscription ended cleanly (%d labels)\n", g_label_count);
     return 0;
+}
+
+/* Print a raw JSON agent response, freeing resources, returning 0 on success.
+ * On error prints to stderr and returns 1. */
+static int finish_agent_response(wf_agent *agent, wf_status s, wf_response *res) {
+    int rc = 0;
+    if (s != WF_OK) {
+        fprintf(stderr, "error: request failed (status %d)\n", (int)s);
+        rc = 1;
+    } else if (res->body && res->body_len > 0) {
+        printf("%s\n", res->body);
+    } else {
+        printf("(empty response, HTTP %ld)\n", res->status);
+    }
+    wf_response_free(res);
+    wf_agent_free(agent);
+    return rc;
+}
+
+/* wolfram follows <service> <actor> [limit] */
+static int cmd_follows(int argc, char **argv) {
+    if (argc < 3) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *actor = argv[2];
+    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_follows(agent, actor, limit, NULL, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram followers <service> <actor> [limit] */
+static int cmd_followers(int argc, char **argv) {
+    if (argc < 3) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *actor = argv[2];
+    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_followers(agent, actor, limit, NULL, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram blocks <service> <handle> <password> [limit] */
+static int cmd_blocks(int argc, char **argv) {
+    if (argc < 4) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    int limit = (argc >= 5) ? atoi(argv[4]) : 50;
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_blocks(agent, limit, NULL, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram mutes <service> <handle> <password> [limit] */
+static int cmd_mutes(int argc, char **argv) {
+    if (argc < 4) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    int limit = (argc >= 5) ? atoi(argv[4]) : 50;
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_mutes(agent, limit, NULL, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram list <service> <list-uri> [limit] */
+static int cmd_list(int argc, char **argv) {
+    if (argc < 3) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *list_uri = argv[2];
+    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_list(agent, list_uri, limit, NULL, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram lists <service> <actor> [limit] */
+static int cmd_lists(int argc, char **argv) {
+    if (argc < 3) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *actor = argv[2];
+    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_lists(agent, actor, limit, NULL, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram get-record <service> <handle> <password> <collection> <rkey> */
+static int cmd_get_record(int argc, char **argv) {
+    if (argc < 6) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *collection = argv[4];
+    const char *rkey = argv[5];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    wf_response res = {0};
+    wf_status s = wf_agent_get_record(agent, collection, rkey, &res);
+    return finish_agent_response(agent, s, &res);
+}
+
+/* wolfram video upload <service> <handle> <password> <file.mp4>
+ * wolfram video status <service> <handle> <password> <job-id> */
+static int cmd_video(int argc, char **argv) {
+    if (argc < 3) {
+        usage_stream(stderr);
+        return 0;
+    }
+
+    const char *sub = argv[1];
+    if (strcmp(sub, "upload") == 0) {
+        if (argc < 6) {
+            usage_stream(stderr);
+            return 0;
+        }
+        const char *service = argv[2];
+        const char *handle = argv[3];
+        const char *password = argv[4];
+        const char *path = argv[5];
+
+        FILE *f = fopen(path, "rb");
+        if (!f) {
+            fprintf(stderr, "error: cannot open '%s'\n", path);
+            return 1;
+        }
+        if (fseek(f, 0, SEEK_END) != 0) {
+            fclose(f);
+            fprintf(stderr, "error: cannot seek '%s'\n", path);
+            return 1;
+        }
+        long size = ftell(f);
+        if (size < 0) {
+            fclose(f);
+            fprintf(stderr, "error: cannot stat '%s'\n", path);
+            return 1;
+        }
+        rewind(f);
+        void *buf = malloc((size_t)size > 0 ? (size_t)size : 1);
+        if (!buf) {
+            fclose(f);
+            fprintf(stderr, "error: out of memory\n");
+            return 1;
+        }
+        if (fread(buf, 1, (size_t)size, f) != (size_t)size) {
+            fclose(f);
+            free(buf);
+            fprintf(stderr, "error: failed to read '%s'\n", path);
+            return 1;
+        }
+        fclose(f);
+
+        wf_agent *agent = agent_login_or_err(service, handle, password);
+        if (!agent) {
+            free(buf);
+            return 1;
+        }
+
+        wf_uploaded_blob blob = {0};
+        wf_status s = wf_agent_upload_video(agent, buf, (size_t)size,
+                                            "video/mp4", &blob);
+        free(buf);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: video upload failed (status %d)\n", (int)s);
+            wf_agent_free(agent);
+            return 1;
+        }
+
+        printf("uploaded: cid=%s mime=%s size=%zu\n",
+               blob.cid ? blob.cid : "?",
+               blob.mime_type ? blob.mime_type : "?",
+               blob.size);
+        wf_uploaded_blob_free(&blob);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    if (strcmp(sub, "status") == 0) {
+        if (argc < 6) {
+            usage_stream(stderr);
+            return 0;
+        }
+        const char *service = argv[2];
+        const char *handle = argv[3];
+        const char *password = argv[4];
+        const char *job_id = argv[5];
+
+        wf_agent *agent = agent_login_or_err(service, handle, password);
+        if (!agent) {
+            return 1;
+        }
+
+        wf_response res = {0};
+        wf_status s = wf_agent_get_video_job_status(agent, job_id, &res);
+        return finish_agent_response(agent, s, &res);
+    }
+
+    fprintf(stderr, "error: unknown video subcommand '%s' (try 'upload' or 'status')\n",
+            sub);
+    return 1;
 }
 
 /* OAuth login demonstration — discover the authorization server for the
@@ -1403,6 +1748,11 @@ int main(int argc, char **argv) {
         return usage_exit();
     }
 
+    if (strcmp(cmd, "--version") == 0 || strcmp(cmd, "-v") == 0) {
+        printf("%s\n", WOLFRAM_VERSION_STRING);
+        return 0;
+    }
+
     if (strcmp(cmd, "help") == 0) {
         if (argc >= 3) {
             cmd_help_stream(stdout, argv[2]);
@@ -1468,11 +1818,32 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "notifications") == 0) {
         return cmd_notifications(rest, cargv);
     }
-    if (strcmp(cmd, "labels") == 0) {
-        return cmd_labels(rest, cargv);
-    }
     if (strcmp(cmd, "moderation") == 0) {
         return cmd_moderation(rest, cargv);
+    }
+    if (strcmp(cmd, "follows") == 0) {
+        return cmd_follows(rest, cargv);
+    }
+    if (strcmp(cmd, "followers") == 0) {
+        return cmd_followers(rest, cargv);
+    }
+    if (strcmp(cmd, "blocks") == 0) {
+        return cmd_blocks(rest, cargv);
+    }
+    if (strcmp(cmd, "mutes") == 0) {
+        return cmd_mutes(rest, cargv);
+    }
+    if (strcmp(cmd, "list") == 0) {
+        return cmd_list(rest, cargv);
+    }
+    if (strcmp(cmd, "lists") == 0) {
+        return cmd_lists(rest, cargv);
+    }
+    if (strcmp(cmd, "get-record") == 0) {
+        return cmd_get_record(rest, cargv);
+    }
+    if (strcmp(cmd, "video") == 0) {
+        return cmd_video(rest, cargv);
     }
 
     fprintf(stderr, "error: unknown command '%s'\n\n", cmd);
