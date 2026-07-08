@@ -109,8 +109,8 @@ wiring yourself.
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 | `wolfram/oauth.h`         | Implemented | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
-| `wolfram/jetstream.h`     | Implemented | Filtered Jetstream JSON subscription transport  |
-| `wolfram/json.h`         | Implemented | Generic (non-Lexicon) JSON: canonical round-trip and a minimal JSON-Schema validator (type/required/properties/items) |
+| `wolfram/jetstream.h`     | Implemented | Filtered Jetstream JSON subscription transport, cursor reconnect/backoff, optional zstd, and typed commit/identity/account/sync event payload parsing (owned `wf_jetstream_event_typed`) |
+| `wolfram/json.h`         | Implemented | Generic (non-Lexicon) JSON: canonical round-trip and a JSON-Schema validator subset (type/required/properties/items, enum/const, format, numeric bounds, string length/pattern, array constraints, additionalProperties, anyOf/oneOf/not) |
 | `wolfram/label.h`        | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
 | `wolfram/validate.h`     | Implemented | Runtime Lexicon schema validation (records and named values), refs/unions/format keywords |
@@ -342,7 +342,8 @@ implemented and tested). For what's still ahead, see [Next planned work](#next-p
   (`enum`/`format`/`minimum`/`additionalProperties`/`anyOf`) or add a sorted
   canonical form if a use case appears.
 - Continue cross-referencing `bluesky-social/atproto` and `rsky` for protocol
-  parity (e.g. full `chat.bsky.convo` write surface, labeler service records).
+  parity. The full `chat.bsky.convo`/`group`/`actor`/`moderation` write surface
+  is now implemented; remaining parity items include labeler service records.
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
