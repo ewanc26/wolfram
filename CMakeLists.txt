@@ -468,6 +468,22 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(validate_record examples/validate_record.c)
     target_link_libraries(validate_record PRIVATE wolfram)
     target_include_directories(validate_record PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(example_label_query examples/label_query.c)
+    target_link_libraries(example_label_query PRIVATE wolfram)
+    target_include_directories(example_label_query PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(example_identity_rotate examples/identity_rotate.c)
+    target_link_libraries(example_identity_rotate PRIVATE wolfram)
+    target_include_directories(example_identity_rotate PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(example_notification_v2 examples/notification_v2.c)
+    target_link_libraries(example_notification_v2 PRIVATE wolfram)
+    target_include_directories(example_notification_v2 PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(example_admin_search examples/admin_search.c)
+    target_link_libraries(example_admin_search PRIVATE wolfram)
+    target_include_directories(example_admin_search PRIVATE ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
