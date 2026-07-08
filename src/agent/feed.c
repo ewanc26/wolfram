@@ -749,6 +749,10 @@ wf_status wf_agent_get_feed_skeleton(wf_agent *agent,
 {
     if (!agent || !feed || !out) return WF_ERR_INVALID_ARG;
 
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(feed, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
     wf_xrpc_param params[3];
     size_t pc = 0;
     char limit_buf[16];

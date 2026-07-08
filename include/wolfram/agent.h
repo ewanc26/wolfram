@@ -124,6 +124,14 @@ wf_status wf_agent_like(wf_agent *agent, const char *post_uri, const char *post_
 wf_status wf_agent_unlike(wf_agent *agent, const char *like_uri);
 wf_status wf_agent_mute(wf_agent *agent, const char *actor);
 wf_status wf_agent_unmute(wf_agent *agent, const char *actor);
+
+/* Distinct, explicitly-named mute/unmute wrappers for a single actor.
+ * `wf_agent_mute_actor` issues com.atproto.graph.muteActor (procedure;
+ * input {actor}); `wf_agent_unmute_actor` issues com.atproto.graph.unmuteActor.
+ * Both require a logged-in agent and a valid at-identifier. No heap output is
+ * produced; the response body is consumed internally. */
+wf_status wf_agent_mute_actor(wf_agent *agent, const char *actor);
+wf_status wf_agent_unmute_actor(wf_agent *agent, const char *actor);
 wf_status wf_agent_mute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_block(wf_agent *agent, const char *subject_did,
@@ -205,6 +213,14 @@ wf_status wf_agent_get_suggested_feeds(wf_agent *agent, wf_response *out);
 wf_status wf_agent_get_suggestions(wf_agent *agent, int limit,
                                     const char *cursor, wf_response *out);
 
+/* Feed skeleton — com.atproto.feed.getFeedSkeleton. Returns the raw JSON
+ * skeleton produced by a feed generator (the list of post AT-URIs before
+ * hydration) in `out`; the caller owns `out` and frees it with
+ * wf_response_free. `feed` must be a valid feed-generator AT-URI. */
+wf_status wf_agent_get_feed_skeleton(wf_agent *agent, const char *feed_uri,
+                                     int limit, const char *cursor,
+                                     wf_response *out);
+
 /* Graph queries — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_get_profiles(wf_agent *agent, const char *const *actors,
                                  size_t actors_count, int limit,
@@ -236,6 +252,13 @@ wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
 wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
                                                     const char *actor,
                                                     wf_response *out);
+
+/* Convenience alias for `wf_agent_get_suggested_follows_by_actor`:
+ * com.atproto.graph.getSuggestedFollowsByActor. The raw JSON response is
+ * written to `out`; the caller owns `out` and frees it with wf_response_free. */
+wf_status wf_agent_get_suggested_follows(wf_agent *agent,
+                                         const char *actor,
+                                         wf_response *out);
 
 /* Starter packs */
 wf_status wf_agent_get_actor_starter_packs(wf_agent *agent, const char *actor,
@@ -292,6 +315,15 @@ wf_status wf_agent_unmute_mod_list(wf_agent *agent, const char *list_uri);
 wf_status wf_agent_block_mod_list(wf_agent *agent, const char *list_uri,
                                   wf_agent_post_result *out);
 wf_status wf_agent_unblock_mod_list(wf_agent *agent, const char *list_uri);
+
+/* Unmute every member of a list: com.atproto.graph.unmuteActorList
+ * (procedure; input {list: at-uri}). NOTE: the companion
+ * `wf_agent_mute_actor_list` (com.atproto.graph.muteActorList) is declared in
+ * wolfram/moderation_actions.h and returns a typed `wf_mod_list_view_result`.
+ * `wf_agent_unmute_actor_list` requires a logged-in agent and a valid list
+ * AT-URI; no heap output is produced (the response body is consumed
+ * internally). */
+wf_status wf_agent_unmute_actor_list(wf_agent *agent, const char *list_uri);
 
 /* Notifications — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
