@@ -538,3 +538,59 @@ wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri) {
     wf_response_free(&res);
     return status;
 }
+
+wf_status wf_agent_get_list_blocks(wf_agent *agent, int limit,
+                                    const char *cursor, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                WF_LEX_APP_BSKY_GRAPH_GET_LIST_BLOCKS_NSID,
+                                params, param_count, out);
+}
+
+wf_status wf_agent_get_list_mutes(wf_agent *agent, int limit,
+                                   const char *cursor, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                WF_LEX_APP_BSKY_GRAPH_GET_LIST_MUTES_NSID,
+                                params, param_count, out);
+}

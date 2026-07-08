@@ -639,48 +639,76 @@ wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
 
 /* ── additional lexicon wrappers ─────────────────────────────────────── */
 
-wf_status wf_agent_describe_feed_generator_lex(wf_agent *agent, wf_response *out) {
+wf_status wf_agent_describe_feed_generator(wf_agent *agent, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
-    return WF_OK;
+    return wf_xrpc_query(agent->client,
+                         "app.bsky.feed.describeFeedGenerator", NULL, out);
 }
 
-wf_status wf_agent_get_feed_generators_lex(wf_agent *agent, wf_response *out) {
-    if (!agent || !out) return WF_ERR_INVALID_ARG;
-
-    wf_agent_sync_auth(agent);
-    return WF_OK;
-}
-
-wf_status wf_agent_get_feed_skeleton_lex(wf_agent *agent, const char *feed_uri,
-                                          int limit, const char *cursor,
-                                          wf_response *out) {
+wf_status wf_agent_get_feed_generator(wf_agent *agent, const char *feed_uri,
+                                        wf_response *out) {
     if (!agent || !feed_uri || !out) return WF_ERR_INVALID_ARG;
-    wf_lex_app_bsky_feed_get_feed_skeleton_main_params params = {0};
-    params.feed = feed_uri;
-    if (limit > 0) {
-        params.has_limit = true;
-        params.limit = limit;
-    }
-    if (cursor && cursor[0]) {
-        params.has_cursor = true;
-        params.cursor = cursor;
-    }
-    wf_agent_sync_auth(agent);
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_syntax_aturi parsed = {0};
-    if (!wf_syntax_aturi_parse(feed_uri, &parsed)) {
-        return WF_ERR_PARSE;
-    }
+    if (!wf_syntax_aturi_parse(feed_uri, &parsed)) return WF_ERR_PARSE;
     wf_syntax_aturi_free(&parsed);
-    return WF_OK;
+
+    wf_xrpc_param params[] = {{"feed", feed_uri}};
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.feed.getFeedGenerator",
+                                params, 1, out);
+}
+
+wf_status wf_agent_get_feed_generators(wf_agent *agent,
+                                        const char *const *feed_uris,
+                                        size_t feed_count,
+                                        wf_response *out) {
+    if (!agent || !feed_uris || feed_count == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    cJSON *feeds_arr = cJSON_AddArrayToObject(root, "feeds");
+    if (!feeds_arr) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    for (size_t i = 0; i < feed_count; i++) {
+        cJSON *item = cJSON_CreateString(feed_uris[i]);
+        if (!item || !cJSON_AddItemToArray(feeds_arr, item)) {
+            cJSON_Delete(item); cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_procedure(agent->client,
+                                          "app.bsky.feed.getFeedGenerators",
+                                          json, out);
+    free(json);
+    return status;
+}
+
+wf_status wf_agent_get_suggested_feeds(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query(agent->client,
+                         "app.bsky.feed.getSuggestedFeeds", NULL, out);
 }
 
 wf_status wf_agent_get_suggested_follows_by_actor_lex(wf_agent *agent, const char *actor,
-                                                      wf_response *out) {
+                                                       wf_response *out) {
     if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
-    wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_params params = {0};
-    params.actor = actor;
+
+    wf_xrpc_param params[] = {{"actor", actor}};
     wf_agent_sync_auth(agent);
-    return WF_OK;
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.graph.getSuggestedFollowsByActor",
+                                params, 1, out);
 }
