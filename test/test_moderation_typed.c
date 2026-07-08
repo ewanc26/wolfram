@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/moderation_typed.h"
+#include "wolfram/actor_typed.h"
 
 #include "test.h"
 
