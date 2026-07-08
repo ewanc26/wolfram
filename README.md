@@ -2,6 +2,8 @@
 
 A C SDK for the AT Protocol.
 
+**Topics:** AT Protocol · Bluesky · C SDK · dag-cbor · oauth · firehose · jetstream · mst · DID · CAR · MST
+
 The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
@@ -76,9 +78,9 @@ wiring yourself.
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
 | `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit, diff verify/apply, operation inversion |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
-| `wolfram/oauth.h`         | Partial     | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
+| `wolfram/oauth.h`         | Implemented | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
-| `wolfram/jetstream.h`     | Partial     | Filtered Jetstream JSON subscription transport  |
+| `wolfram/jetstream.h`     | Implemented | Filtered Jetstream JSON subscription transport  |
 | `wolfram/json.h`         | Implemented | Generic (non-Lexicon) JSON: canonical round-trip and a minimal JSON-Schema validator (type/required/properties/items) |
 | `wolfram/label.h`        | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
@@ -138,6 +140,13 @@ cmake -S . -B build
 cmake --build build
 ctest --test-dir build
 ```
+
+The generated Lexicon wrappers (`include/wolfram/atproto_lex.h` and
+`src/atproto_lex.c`, referenced by the build above) are **prebuilt and checked
+into the repository**, so a fresh clone compiles and links without running
+`wf_lexgen.py`. You only need to run it if you want to regenerate the wrappers
+from a different or newer set of Lexicon JSON files, or to produce your own
+`atproto_lex.h` for a custom lexicon.
 
 Generate typed, borrowed-view C declarations from one or more Lexicon files:
 
@@ -229,7 +238,10 @@ Creates a new account via `com.atproto.server.createAccount`.
 
 Logs in and issues a scoped app password via `com.atproto.server.createAppPassword`.
 
-### Roadmap
+### What's been built
+
+The items below are a historical record of the surface that has shipped (each is
+implemented and tested). For what's still ahead, see [Next planned work](#next-planned-work).
 
 1. Wire in a JSON library ([cJSON](https://github.com/DaveGamble/cJSON)).
 2. DID/handle resolution (`wf_did_resolve`, `wf_handle_resolve`).
