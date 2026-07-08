@@ -594,3 +594,78 @@ wf_status wf_agent_get_list_mutes(wf_agent *agent, int limit,
                                 WF_LEX_APP_BSKY_GRAPH_GET_LIST_MUTES_NSID,
                                 params, param_count, out);
 }
+
+/* ── muteActor / unmuteActor (explicit, single-actor) ────────────────── */
+
+wf_status wf_agent_mute_actor(wf_agent *agent, const char *actor) {
+    if (!agent || !actor || !actor[0]) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+
+    wf_lex_app_bsky_graph_mute_actor_main_input in = { .actor = actor };
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_graph_mute_actor_main_input_encode_json(&in, &json);
+    if (status != WF_OK) return status;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    status = wf_xrpc_procedure(agent->client,
+                               WF_LEX_APP_BSKY_GRAPH_MUTE_ACTOR_NSID,
+                               json, &res);
+    wf_lex_app_bsky_graph_mute_actor_main_json_free(json);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_unmute_actor(wf_agent *agent, const char *actor) {
+    if (!agent || !actor || !actor[0]) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+
+    wf_lex_app_bsky_graph_unmute_actor_main_input in = { .actor = actor };
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_graph_unmute_actor_main_input_encode_json(&in, &json);
+    if (status != WF_OK) return status;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    status = wf_xrpc_procedure(agent->client,
+                               WF_LEX_APP_BSKY_GRAPH_UNMUTE_ACTOR_NSID,
+                               json, &res);
+    wf_lex_app_bsky_graph_unmute_actor_main_json_free(json);
+    wf_response_free(&res);
+    return status;
+}
+
+/* ── unmuteActorList (muteActorList lives in moderation_actions.c) ───── */
+
+wf_status wf_agent_unmute_actor_list(wf_agent *agent, const char *list_uri) {
+    if (!agent || !list_uri || !list_uri[0]) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(list_uri, &parsed)) return WF_ERR_PARSE;
+    wf_syntax_aturi_free(&parsed);
+
+    wf_lex_app_bsky_graph_unmute_actor_list_main_input in = { .list = list_uri };
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_graph_unmute_actor_list_main_input_encode_json(&in, &json);
+    if (status != WF_OK) return status;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    status = wf_xrpc_procedure(agent->client,
+                               WF_LEX_APP_BSKY_GRAPH_UNMUTE_ACTOR_LIST_NSID,
+                               json, &res);
+    wf_lex_app_bsky_graph_unmute_actor_list_main_json_free(json);
+    wf_response_free(&res);
+    return status;
+}
+
+/* ── getSuggestedFollowsByActor alias ───────────────────────────────── */
+
+wf_status wf_agent_get_suggested_follows(wf_agent *agent,
+                                         const char *actor,
+                                         wf_response *out) {
+    return wf_agent_get_suggested_follows_by_actor(agent, actor, out);
+}

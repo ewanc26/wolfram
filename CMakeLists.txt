@@ -735,6 +735,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_json_schema PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME json_schema COMMAND test_json_schema)
 
+    add_executable(test_agent_graph_feed test/test_agent_graph_feed.c)
+    target_link_libraries(test_agent_graph_feed PRIVATE wolfram)
+    target_include_directories(test_agent_graph_feed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME agent_graph_feed COMMAND test_agent_graph_feed)
+
     if(WOLFRAM_BUILD_STORE)
         if(WOLFRAM_BUILD_STORE_CRYPTO)
             add_executable(test_store_crypto test/test_store_crypto.c)
