@@ -3741,3 +3741,50 @@ wf_status wf_agent_get_recommended_did_credentials(wf_agent *agent,
                           "com.atproto.identity.getRecommendedDidCredentials",
                           NULL, out);
 }
+
+wf_status wf_agent_describe_repo(wf_agent *agent, const char *repo,
+                                  wf_response *out) {
+    if (!agent || !repo || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(repo)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[] = {{"repo", repo}};
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "com.atproto.repo.describeRepo",
+                                params, 1, out);
+}
+wf_status wf_agent_send_interactions(wf_agent *agent,
+                                      const char *feed_uri,
+                                      const char *interactions_json,
+                                      wf_response *out) {
+    if (!agent || !interactions_json || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_Parse(interactions_json);
+    if (!root) return WF_ERR_PARSE;
+
+    cJSON *body = cJSON_CreateObject();
+    if (!body) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+
+    if (feed_uri && feed_uri[0]) {
+        if (!cJSON_AddStringToObject(body, "feed", feed_uri)) {
+            cJSON_Delete(root); cJSON_Delete(body);
+            return WF_ERR_ALLOC;
+        }
+    }
+    if (!cJSON_AddItemToObject(body, "interactions", root)) {
+        cJSON_Delete(root); cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(body);
+    cJSON_Delete(body);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_procedure(agent->client,
+                            "app.bsky.feed.sendInteractions",
+                            json, out);
+    free(json);
+    return status;
+}
