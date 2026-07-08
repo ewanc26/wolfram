@@ -170,6 +170,72 @@ wf_status wf_agent_chat_service_did_from_describe(const char *json,
                                                   size_t json_len,
                                                   char **out_did);
 
+/* Extended conversation operations — wrappers for the remaining
+ * chat.bsky.convo.* endpoints. Unless noted, these route through the resolved
+ * chat service client (same as listConvos/getConvo/etc.). */
+
+/* Accept an incoming conversation request. */
+wf_status wf_agent_chat_accept_convo(wf_agent *agent, const char *convo_id);
+
+/* Leave a conversation. */
+wf_status wf_agent_chat_leave_convo(wf_agent *agent, const char *convo_id);
+
+/* Mute or unmute a conversation. */
+wf_status wf_agent_chat_mute_convo(wf_agent *agent, const char *convo_id);
+wf_status wf_agent_chat_unmute_convo(wf_agent *agent, const char *convo_id);
+
+/* Delete a message for yourself only. */
+wf_status wf_agent_chat_delete_message_for_self(wf_agent *agent,
+                                                  const char *convo_id,
+                                                  const char *message_id);
+
+/* Add or remove a reaction on a message. `value` is the reaction emoji/text. */
+wf_status wf_agent_chat_add_reaction(wf_agent *agent,
+                                      const char *convo_id,
+                                      const char *message_id,
+                                      const char *value);
+wf_status wf_agent_chat_remove_reaction(wf_agent *agent,
+                                         const char *convo_id,
+                                         const char *message_id,
+                                         const char *value);
+
+/* Mark a specific message as read, or mark the entire conversation as read. */
+wf_status wf_agent_chat_update_read(wf_agent *agent,
+                                     const char *convo_id,
+                                     const char *message_id);
+wf_status wf_agent_chat_update_all_read(wf_agent *agent,
+                                         const char *convo_id);
+
+/* Query endpoints — return raw JSON in `out`; caller frees with
+ * wf_response_free. */
+
+/* Check whether the given DIDs are available for chat. Returns the raw
+ * getConvoAvailability response. */
+wf_status wf_agent_chat_get_convo_availability(wf_agent *agent,
+                                                const char *const *member_dids,
+                                                size_t member_count,
+                                                wf_response *out);
+
+/* Get or create a conversation for the given member DIDs. Returns raw JSON. */
+wf_status wf_agent_chat_get_convo_for_members(wf_agent *agent,
+                                               const char *const *member_dids,
+                                               size_t member_count,
+                                               wf_response *out);
+
+/* Get the members of a conversation. Returns raw JSON. */
+wf_status wf_agent_chat_get_convo_members(wf_agent *agent,
+                                           const char *convo_id,
+                                           wf_response *out);
+
+/* Get unread conversation counts. Returns raw JSON. */
+wf_status wf_agent_chat_get_unread_counts(wf_agent *agent,
+                                           wf_response *out);
+
+/* List pending conversation requests (incoming). Returns raw JSON. */
+wf_status wf_agent_chat_list_convo_requests(wf_agent *agent, int limit,
+                                             const char *cursor,
+                                             wf_response *out);
+
 #ifdef __cplusplus
 }
 #endif
