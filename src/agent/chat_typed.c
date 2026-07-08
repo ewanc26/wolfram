@@ -1442,3 +1442,205 @@ wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
     return wf_xrpc_query_params(cc, "chat.bsky.group.listMutualGroups",
                                 params, pc, out);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.actor.*
+ *
+ * Chat-account-level operations. All route through the resolved chat service.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+wf_status wf_agent_chat_get_status(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query(cc, "chat.bsky.actor.getStatus", NULL, out);
+}
+
+wf_status wf_agent_chat_delete_account(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_procedure(cc, "chat.bsky.actor.deleteAccount", "{}", out);
+}
+
+wf_status wf_agent_chat_export_account_data(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query(cc, "chat.bsky.actor.exportAccountData", NULL, out);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.moderation.*
+ *
+ * Chat moderation endpoints for Ozone/moderator tooling. Route through the
+ * resolved chat service client. Return raw JSON in `out`.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+wf_status wf_agent_chat_mod_get_actor_metadata(wf_agent *agent,
+                                                const char *actor_did,
+                                                wf_response *out) {
+    if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param params[] = {{"actor", actor_did}};
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query_params(cc, "chat.bsky.moderation.getActorMetadata",
+                                 params, 1, out);
+}
+
+wf_status wf_agent_chat_mod_get_message_context(wf_agent *agent,
+                                                 const char *message_id,
+                                                 const char *convo_id,
+                                                 int before, int after,
+                                                 int max_interleaved,
+                                                 wf_response *out) {
+    if (!agent || !message_id || !out) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[5];
+    size_t pc = 0;
+    char before_buf[16], after_buf[16], max_buf[16];
+
+    params[pc].name = "messageId";
+    params[pc].value = message_id;
+    pc++;
+    if (convo_id && convo_id[0]) {
+        params[pc].name = "convoId";
+        params[pc].value = convo_id;
+        pc++;
+    }
+    if (before > 0) {
+        if (!wf_agent_int_to_str(before, before_buf, sizeof(before_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "before";
+        params[pc].value = before_buf;
+        pc++;
+    }
+    if (after > 0) {
+        if (!wf_agent_int_to_str(after, after_buf, sizeof(after_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "after";
+        params[pc].value = after_buf;
+        pc++;
+    }
+    if (max_interleaved > 0) {
+        if (!wf_agent_int_to_str(max_interleaved, max_buf, sizeof(max_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "maxInterleavedSystemMessages";
+        params[pc].value = max_buf;
+        pc++;
+    }
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query_params(cc, "chat.bsky.moderation.getMessageContext",
+                                 params, pc, out);
+}
+
+wf_status wf_agent_chat_mod_get_convo(wf_agent *agent, const char *convo_id,
+                                       wf_response *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param params[] = {{"convoId", convo_id}};
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvo",
+                                 params, 1, out);
+}
+
+wf_status wf_agent_chat_mod_get_convos(wf_agent *agent,
+                                        const char *const *convo_ids,
+                                        size_t convo_count,
+                                        wf_response *out) {
+    if (!agent || !convo_ids || convo_count == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+
+    /* Build the convoIds as a repeated query parameter. */
+    wf_xrpc_param *params = calloc(convo_count, sizeof(*params));
+    if (!params) return WF_ERR_ALLOC;
+    for (size_t i = 0; i < convo_count; i++) {
+        params[i].name = "convoIds";
+        params[i].value = convo_ids[i];
+    }
+
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvos",
+                                              params, convo_count, out);
+    free(params);
+    return status;
+}
+
+wf_status wf_agent_chat_mod_get_convo_members(wf_agent *agent,
+                                               const char *convo_id,
+                                               int limit, const char *cursor,
+                                               wf_response *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[3];
+    size_t pc = 0;
+    char limit_buf[16];
+
+    params[pc].name = "convoId";
+    params[pc].value = convo_id;
+    pc++;
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[pc].name = "limit";
+        params[pc].value = limit_buf;
+        pc++;
+    }
+    if (cursor && cursor[0]) {
+        params[pc].name = "cursor";
+        params[pc].value = cursor;
+        pc++;
+    }
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_chat_auth(agent);
+    return wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvoMembers",
+                                 params, pc, out);
+}
+
+wf_status wf_agent_chat_mod_update_actor_access(wf_agent *agent,
+                                                 const char *actor_did,
+                                                 bool allow_access,
+                                                 const char *ref,
+                                                 wf_response *out) {
+    if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "actor", actor_did) ||
+        !cJSON_AddBoolToObject(root, "allowAccess", allow_access)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    if (ref && ref[0]) {
+        if (!cJSON_AddStringToObject(root, "ref", ref)) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_procedure(cc,
+                          "chat.bsky.moderation.updateActorAccess",
+                          json, out);
+    free(json);
+    return status;
+}

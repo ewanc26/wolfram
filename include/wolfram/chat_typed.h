@@ -323,6 +323,65 @@ wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
                                             int limit, const char *cursor,
                                             wf_response *out);
 
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.actor.*
+ *
+ * Chat-account-level operations. All route through the resolved chat service.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* Get the authenticated user's chat status. Returns raw JSON. */
+wf_status wf_agent_chat_get_status(wf_agent *agent, wf_response *out);
+
+/* Delete the authenticated user's chat account data. Returns raw JSON. */
+wf_status wf_agent_chat_delete_account(wf_agent *agent, wf_response *out);
+
+/* Export the authenticated user's chat account data (JSONL). Returns raw. */
+wf_status wf_agent_chat_export_account_data(wf_agent *agent, wf_response *out);
+
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.moderation.*
+ *
+ * Chat moderation endpoints for Ozone/moderator tooling. Route through the
+ * resolved chat service client. Return raw JSON in `out`; caller frees with
+ * wf_response_free.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* Get chat metadata for an actor (message counts, convo counts). */
+wf_status wf_agent_chat_mod_get_actor_metadata(wf_agent *agent,
+                                                const char *actor_did,
+                                                wf_response *out);
+
+/* Get message context (surrounding messages) for moderation review. */
+wf_status wf_agent_chat_mod_get_message_context(wf_agent *agent,
+                                                 const char *message_id,
+                                                 const char *convo_id,
+                                                 int before, int after,
+                                                 int max_interleaved,
+                                                 wf_response *out);
+
+/* Get a single conversation by ID (moderation, non-member access). */
+wf_status wf_agent_chat_mod_get_convo(wf_agent *agent, const char *convo_id,
+                                       wf_response *out);
+
+/* Get conversations by IDs (moderation, non-member access). */
+wf_status wf_agent_chat_mod_get_convos(wf_agent *agent,
+                                        const char *const *convo_ids,
+                                        size_t convo_count,
+                                        wf_response *out);
+
+/* Get members of a conversation (moderation, non-member access). */
+wf_status wf_agent_chat_mod_get_convo_members(wf_agent *agent,
+                                               const char *convo_id,
+                                               int limit, const char *cursor,
+                                               wf_response *out);
+
+/* Update a user's chat access (allow/block from chat). */
+wf_status wf_agent_chat_mod_update_actor_access(wf_agent *agent,
+                                                 const char *actor_did,
+                                                 bool allow_access,
+                                                 const char *ref,
+                                                 wf_response *out);
+
 #ifdef __cplusplus
 }
 #endif
