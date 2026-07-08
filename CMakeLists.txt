@@ -115,6 +115,7 @@ add_library(wolfram
     src/agent/thread_typed.c
     src/agent/graph_typed.c
     src/actor_typed.c
+    src/contact_typed.c
     src/bookmark_typed.c
     src/agent/list_typed.c
     src/agent/moderation_typed.c
@@ -740,6 +741,13 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_chat_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME chat_typed COMMAND test_chat_typed)
+
+    add_executable(test_contact_typed test/test_contact_typed.c)
+    target_link_libraries(test_contact_typed PRIVATE wolfram)
+    target_include_directories(test_contact_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_contact_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME contact_typed COMMAND test_contact_typed)
 
     add_executable(test_chat_write test/test_chat_write.c)
     target_link_libraries(test_chat_write PRIVATE wolfram)
