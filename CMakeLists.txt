@@ -476,6 +476,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_repo PRIVATE test)
     add_test(NAME repo COMMAND test_repo)
 
+    add_executable(test_drisl test/test_drisl.c)
+    target_link_libraries(test_drisl PRIVATE wolfram)
+    target_include_directories(test_drisl PRIVATE test)
+    add_test(NAME drisl COMMAND test_drisl)
+
     add_executable(test_record test/test_record.c)
     target_link_libraries(test_record PRIVATE wolfram)
     target_include_directories(test_record PRIVATE test)
