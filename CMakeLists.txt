@@ -156,6 +156,8 @@ src/agent/push_endpoint.c
     src/ozone/ozone.c
     # Generic JSON round-trip / schema-subset validation
     src/json/json.c
+    # Image dimension probing via vendored stb_image (header-only, third_party/)
+    src/image.c
 )
 
 target_include_directories(wolfram
@@ -164,6 +166,7 @@ target_include_directories(wolfram
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party
         ${cjson_SOURCE_DIR}
         ${cjson_BINARY_DIR}
         ${SECP256K1_INCLUDE_DIRS}
@@ -171,6 +174,10 @@ target_include_directories(wolfram
 
 target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
 target_link_libraries(wolfram PRIVATE libcbor::libcbor)
+
+# stb_image.h (vendored, third_party/) emits warnings under -Wextra -Wpedantic.
+# Silence the toolchain warnings for this single third-party TU only.
+set_source_files_properties(src/image.c PROPERTIES COMPILE_FLAGS "-w")
 
 if(CARES_FOUND)
     target_include_directories(wolfram PRIVATE ${CARES_INCLUDE_DIRS})
@@ -641,6 +648,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_embed PRIVATE wolfram)
     target_include_directories(test_embed PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME embed COMMAND test_embed)
+
+    add_executable(test_image_aspect test/test_image_aspect.c)
+    target_link_libraries(test_image_aspect PRIVATE wolfram)
+    target_include_directories(test_image_aspect PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME image_aspect COMMAND test_image_aspect)
 
     add_executable(test_agent_preferences test/test_agent_preferences.c)
     target_link_libraries(test_agent_preferences PRIVATE wolfram)

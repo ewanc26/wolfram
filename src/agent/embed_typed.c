@@ -31,6 +31,8 @@ wf_status wf_embed_images_add(wf_embed_images_t *imgs, const wf_uploaded_blob *b
     img->mime_type = wf_dup_span(blob->mime_type, strlen(blob->mime_type));
     img->size = blob->size;
     img->alt = alt ? wf_dup_span(alt, strlen(alt)) : NULL;
+    img->width = 0;
+    img->height = 0;
     if (!img->cid || !img->mime_type || (alt && !img->alt)) {
         free(img->cid);
         free(img->mime_type);
@@ -38,6 +40,15 @@ wf_status wf_embed_images_add(wf_embed_images_t *imgs, const wf_uploaded_blob *b
         return WF_ERR_ALLOC;
     }
     imgs->count++;
+    return WF_OK;
+}
+
+wf_status wf_embed_images_add_with_aspect(wf_embed_images_t *imgs, const wf_uploaded_blob *blob, const char *alt, int width, int height) {
+    wf_status s = wf_embed_images_add(imgs, blob, alt);
+    if (s != WF_OK) return s;
+    wf_embed_image_t *img = &imgs->items[imgs->count - 1];
+    img->width = width;
+    img->height = height;
     return WF_OK;
 }
 
@@ -64,6 +75,25 @@ cJSON *wf_embed_images_build(const wf_embed_images_t *imgs) {
         if (s != WF_OK) {
             cJSON_Delete(embed);
             return NULL;
+        }
+        if (img->width > 0 && img->height > 0) {
+            cJSON *images = cJSON_GetObjectItem(embed, "images");
+            cJSON *image_obj = cJSON_GetArrayItem(images, (int)i);
+            if (!image_obj) {
+                cJSON_Delete(embed);
+                return NULL;
+            }
+            cJSON *ar = cJSON_CreateObject();
+            if (!ar) { cJSON_Delete(embed); return NULL; }
+            if (!cJSON_AddNumberToObject(ar, "width", img->width)) {
+                cJSON_Delete(ar); cJSON_Delete(embed); return NULL;
+            }
+            if (!cJSON_AddNumberToObject(ar, "height", img->height)) {
+                cJSON_Delete(ar); cJSON_Delete(embed); return NULL;
+            }
+            if (!cJSON_AddItemToObject(image_obj, "aspectRatio", ar)) {
+                cJSON_Delete(ar); cJSON_Delete(embed); return NULL;
+            }
         }
     }
     return embed;

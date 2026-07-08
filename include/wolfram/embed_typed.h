@@ -15,6 +15,8 @@ typedef struct {
     char *mime_type;
     size_t size;
     char *alt; /* optional, may be NULL */
+    int width;  /* aspect ratio width; 0 means unset */
+    int height; /* aspect ratio height; 0 means unset */
 } wf_embed_image_t;
 
 typedef struct {
@@ -25,6 +27,10 @@ typedef struct {
 
 wf_status wf_embed_images_init(wf_embed_images_t *imgs);
 wf_status wf_embed_images_add(wf_embed_images_t *imgs, const wf_uploaded_blob *blob, const char *alt);
+/* Like wf_embed_images_add but also records the image aspectRatio. Prefer this
+ * (or call wf_image_dimensions first) so the embed carries the required
+ * aspectRatio field; wf_embed_images_add leaves the aspect unset. */
+wf_status wf_embed_images_add_with_aspect(wf_embed_images_t *imgs, const wf_uploaded_blob *blob, const char *alt, int width, int height);
 void wf_embed_images_free(wf_embed_images_t *imgs);
 cJSON *wf_embed_images_build(const wf_embed_images_t *imgs);
 
