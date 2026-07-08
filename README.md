@@ -117,6 +117,7 @@ wiring yourself.
 | `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, server + app-password management |
 | `wolfram/chat_typed.h`   | Implemented | Chat (DM) — `chat.bsky.convo` listConvos/getConvo/getMessages/sendMessage, with chat-service endpoint resolution (`wf_agent_chat_service_resolve` routes calls to the distinct Bluesky chat service) |
 | `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper (verify/emit labels, auth headers) |
+| `wolfram/plc.h`          | Implemented | DID PLC operation build/sign/submit helpers (`wf_plc_*`): create/rotate/tombstone, signing-key and handle operations with ES256 signature + verification |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
 | `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (13K header, 74K source) |
@@ -366,6 +367,13 @@ wolfram profile   <service> <actor>
 wolfram follow    <service> <handle> <password> <actor>
 wolfram unfollow  <service> <handle> <password> <actor>
 wolfram resolve   <handle-or-did>
+wolfram like      <service> <handle> <password> <at-uri>
+wolfram unlike    <service> <handle> <password> <uri/record>
+wolfram repost    <service> <handle> <password> <at-uri>
+wolfram reply     <service> <handle> <password> <parent-at-uri> <text...>
+wolfram labels    <service> <handle> <password> <at-uri> [sources...]
+wolfram oauth-login <service> [--client-id ID] [--redirect-uri URI] [--scope S] [--port P]
+wolfram help      [command]
 ```
 
 `login` and `post` create a session via `wf_agent_login` / `wf_agent_post`.
@@ -374,7 +382,10 @@ wolfram resolve   <handle-or-did>
 issues `com.atproto.repo.getRecord` over raw XRPC (no login required).
 `profile` calls `wf_agent_get_profile`. `follow`/`unfollow` resolve the actor
 to a DID and issue graph writes through the agent. `resolve` turns a handle
-into a DID via `wf_handle_resolve` (a DID is echoed back unchanged).
+into a DID via `wf_handle_resolve` (a DID is echoed back unchanged). `like` /
+`unlike` / `repost` / `reply` exercise the record-write helpers (`wf_agent_like`,
+`wf_agent_repost`, `wf_agent_reply`); `labels` reads subject labels; `oauth-login`
+drives the OAuth/PAR/DPoP flow; `help [command]` prints usage for a subcommand.
 
 ## Contributing
 
