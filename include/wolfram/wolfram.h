@@ -28,4 +28,14 @@
 #include "wolfram/sync_verify.h"
 #include "wolfram/moderation.h"
 
+/* Typed, owned parsers + agent wrappers for individual lexicon namespaces.
+ * Each is self-contained (includes agent.h) and kept separate from the
+ * higher-level agent API so applications can pull in only what they use. */
+#include "wolfram/contact_typed.h"
+#include "wolfram/admin_typed.h"
+#include "wolfram/notification_prefs_typed.h"
+#include "wolfram/labeler_typed.h"
+#include "wolfram/identity_typed.h"
+#include "wolfram/notification_v2_typed.h"
+
 #endif /* WOLFRAM_H */
