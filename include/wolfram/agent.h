@@ -702,6 +702,46 @@ wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
 wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
                                              wf_response *out);
 
+/* ── server wrappers ─────────────────────────────────────────────────── */
+
+/*
+ * Create an invite code. `use_count` is the number of uses allowed.
+ * Returns raw JSON; caller frees with wf_response_free.
+ */
+wf_status wf_agent_create_invite_code(wf_agent *agent, int use_count,
+                                       wf_response *out);
+
+/*
+ * Get the authenticated user's available invite codes.
+ * Returns raw JSON; caller frees with wf_response_free.
+ */
+wf_status wf_agent_get_account_invite_codes(wf_agent *agent, int limit,
+                                             const char *cursor,
+                                             wf_response *out);
+
+/* Activate or deactivate the authenticated user's account. */
+wf_status wf_agent_activate_account(wf_agent *agent, wf_response *out);
+wf_status wf_agent_deactivate_account(wf_agent *agent, wf_response *out);
+
+/* Check the authenticated user's account status (migration, import, etc.). */
+wf_status wf_agent_check_account_status(wf_agent *agent, wf_response *out);
+
+/* Confirm an email with a token, or update the account email. */
+wf_status wf_agent_confirm_email(wf_agent *agent, const char *email,
+                                  const char *token, wf_response *out);
+wf_status wf_agent_update_email(wf_agent *agent, const char *email,
+                                 wf_response *out);
+
+/* ── identity wrappers ───────────────────────────────────────────────── */
+
+/* Resolve a DID to its DID document. Returns raw JSON. */
+wf_status wf_agent_resolve_did(wf_agent *agent, const char *did,
+                                wf_response *out);
+
+/* Get recommended DID credentials for account creation. Returns raw JSON. */
+wf_status wf_agent_get_recommended_did_credentials(wf_agent *agent,
+                                                    wf_response *out);
+
 #ifdef __cplusplus
 }
 #endif

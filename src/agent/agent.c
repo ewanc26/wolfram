@@ -3585,3 +3585,159 @@ wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
                                 WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_LIMITS_NSID,
                                 NULL, 0, out);
 }
+
+/* ── server wrappers ─────────────────────────────────────────────────── */
+
+wf_status wf_agent_create_invite_code(wf_agent *agent,
+                                       int use_count,
+                                       wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddNumberToObject(root, "useCount", use_count)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_procedure(agent->client,
+                            "com.atproto.server.createInviteCode",
+                            json, out);
+    free(json);
+    return status;
+}
+
+wf_status wf_agent_get_account_invite_codes(wf_agent *agent,
+                                              int limit,
+                                              const char *cursor,
+                                              wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    char limit_buf[16];
+
+    if (limit > 0) {
+        if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
+            return WF_ERR_INVALID_ARG;
+        params[param_count].name = "limit";
+        params[param_count].value = limit_buf;
+        param_count++;
+    }
+    if (cursor && cursor[0]) {
+        params[param_count].name = "cursor";
+        params[param_count].value = cursor;
+        param_count++;
+    }
+
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "com.atproto.server.getAccountInviteCodes",
+                                params, param_count, out);
+}
+
+wf_status wf_agent_activate_account(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_procedure(agent->client,
+                              "com.atproto.server.activateAccount",
+                              "{}", out);
+}
+
+wf_status wf_agent_deactivate_account(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_procedure(agent->client,
+                              "com.atproto.server.deactivateAccount",
+                              "{}", out);
+}
+
+wf_status wf_agent_check_account_status(wf_agent *agent, wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query(agent->client,
+                          "com.atproto.server.checkAccountStatus",
+                          NULL, out);
+}
+
+wf_status wf_agent_confirm_email(wf_agent *agent, const char *email,
+                                  const char *token, wf_response *out) {
+    if (!agent || !email || !token || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "email", email) ||
+        !cJSON_AddStringToObject(root, "token", token)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_procedure(agent->client,
+                            "com.atproto.server.confirmEmail",
+                            json, out);
+    free(json);
+    return status;
+}
+
+wf_status wf_agent_update_email(wf_agent *agent, const char *email,
+                                 wf_response *out) {
+    if (!agent || !email || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "email", email)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_xrpc_procedure(agent->client,
+                            "com.atproto.server.updateEmail",
+                            json, out);
+    free(json);
+    return status;
+}
+
+/* ── identity wrappers ───────────────────────────────────────────────── */
+
+wf_status wf_agent_resolve_did(wf_agent *agent, const char *did,
+                                wf_response *out) {
+    if (!agent || !did || !out) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_did_is_valid(did)) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param params[] = {{"did", did}};
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params(agent->client,
+                                "com.atproto.identity.resolveDid",
+                                params, 1, out);
+}
+
+wf_status wf_agent_get_recommended_did_credentials(wf_agent *agent,
+                                                    wf_response *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query(agent->client,
+                          "com.atproto.identity.getRecommendedDidCredentials",
+                          NULL, out);
+}
