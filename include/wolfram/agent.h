@@ -90,8 +90,8 @@ wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
                                const char *rkey, const char *record_json,
                                wf_agent_post_result *out);
 wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
-                                int limit, const char *cursor,
-                                wf_response *out);
+                                 int limit, const char *cursor,
+                                 wf_response *out);
 
 /* Profile operations */
 typedef struct wf_agent_profile {
@@ -475,6 +475,7 @@ const wf_mod_label *wf_agent_get_persisted_labels(const wf_agent *agent,
 #include "wolfram/moderation_typed.h"
 #include "wolfram/feedgen_typed.h"
 #include "wolfram/chat_typed.h"
+#include "wolfram/threadgate_postgate.h"
 #include "wolfram/moderation_actions.h"
 #include "wolfram/lexcall.h"
 
