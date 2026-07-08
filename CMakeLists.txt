@@ -136,6 +136,8 @@ src/agent/push_endpoint.c
     src/atproto_lex.c
     # Server account management
     src/server/server.c
+    # DID PLC operation build / sign / submit helpers
+    src/plc/plc.c
     # New utilities and embed support
     src/util.c
     src/blob.c
@@ -584,6 +586,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_server PRIVATE wolfram)
     target_include_directories(test_server PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME server COMMAND test_server)
+
+    add_executable(test_plc test/test_plc.c)
+    target_link_libraries(test_plc PRIVATE wolfram)
+    target_include_directories(test_plc PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME plc COMMAND test_plc)
 
     add_executable(test_diff test/test_diff.c)
     target_link_libraries(test_diff PRIVATE wolfram)
