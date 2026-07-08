@@ -115,6 +115,7 @@ add_library(wolfram
     src/agent/thread_typed.c
     src/agent/graph_typed.c
     src/actor_typed.c
+    src/moderation_report_typed.c
     src/bookmark_typed.c
     src/agent/list_typed.c
     src/agent/moderation_typed.c
@@ -714,6 +715,13 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_moderation_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME moderation_typed COMMAND test_moderation_typed)
+
+    add_executable(test_moderation_report_typed test/test_moderation_report_typed.c)
+    target_link_libraries(test_moderation_report_typed PRIVATE wolfram)
+    target_include_directories(test_moderation_report_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_moderation_report_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME moderation_report_typed COMMAND test_moderation_report_typed)
 
     add_executable(test_feedgen_typed test/test_feedgen_typed.c)
     target_link_libraries(test_feedgen_typed PRIVATE wolfram)
