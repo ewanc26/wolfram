@@ -11,6 +11,7 @@
 #include "wolfram/session.h"
 #include "wolfram/repo.h"
 #include "wolfram/moderation.h"
+#include "wolfram/atproto_lex.h"
 #include <cJSON.h>
 
 #ifdef __cplusplus
