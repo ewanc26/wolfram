@@ -4,6 +4,7 @@
  */
 
 #include "wolfram/graph_typed.h"
+#include "wolfram/actor_typed.h"
 #include "wolfram/feed_typed.h"
 #include "wolfram/thread_typed.h"
 #include "test.h"

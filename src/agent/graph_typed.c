@@ -1,12 +1,17 @@
 /*
- * graph_typed.c — typed parser for actor-list responses.
+ * graph_typed.c — typed parsers for social-graph follow relationships and the
+ * shared like-list parser.
  *
- * See include/wolfram/graph_typed.h for the public API and ownership rules.
+ * Actor-profile parsing and the actor/search/suggestions typed wrappers now
+ * live in actor_typed.c; this file keeps only the graph-domain concerns and
+ * reuses wf_agent_parse_actors / wf_agent_actor_list_free from actor_typed.h.
+ *
  * Follows the same conventions as notification.c / feed_typed.c: static
  * strdup/set_string/reset helpers, owned strings, full cleanup on first error.
  */
 
 #include "wolfram/graph_typed.h"
+#include "wolfram/actor_typed.h"
 
 #include <cJSON.h>
 
@@ -46,125 +51,6 @@ static void wf_graph_profile_view_reset(wf_agent_profile_view *p) {
     free(p->avatar);
     memset(p, 0, sizeof(*p));
 }
-
-static void wf_graph_list_reset(wf_agent_actor_list *list) {
-    if (!list) {
-        return;
-    }
-    for (size_t i = 0; i < list->actor_count; ++i) {
-        wf_graph_profile_view_reset(&list->actors[i]);
-    }
-    free(list->actors);
-    free(list->cursor);
-    memset(list, 0, sizeof(*list));
-}
-
-/* Parse a profileView array held under `key` into an owned actor list. */
-static wf_status wf_graph_parse_profile_views(const char *json, size_t json_len,
-                                              const char *key,
-                                              wf_agent_actor_list *out) {
-    if (!json || !out || !key) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    memset(out, 0, sizeof(*out));
-
-    cJSON *root = cJSON_ParseWithLength(json, json_len);
-    if (!root) {
-        return WF_ERR_PARSE;
-    }
-
-    wf_status status = WF_OK;
-    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, key);
-    if (!cJSON_IsArray(arr)) {
-        cJSON_Delete(root);
-        return WF_ERR_PARSE;
-    }
-
-    size_t count = (size_t)cJSON_GetArraySize(arr);
-    wf_agent_profile_view *items = NULL;
-    if (count > 0) {
-        items = (wf_agent_profile_view *)calloc(count, sizeof(*items));
-        if (!items) {
-            cJSON_Delete(root);
-            return WF_ERR_ALLOC;
-        }
-    }
-
-    for (size_t i = 0; i < count && status == WF_OK; ++i) {
-        wf_agent_profile_view *p = &items[i];
-        cJSON *obj = cJSON_GetArrayItem(arr, (int)i);
-        if (!cJSON_IsObject(obj)) {
-            status = WF_ERR_PARSE;
-            break;
-        }
-
-        cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
-        cJSON *handle = cJSON_GetObjectItemCaseSensitive(obj, "handle");
-        cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
-        cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
-
-        if (cJSON_IsString(did) && did->valuestring) {
-            status = wf_graph_set_string(&p->did, did->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-            status = wf_graph_set_string(&p->handle, handle->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-            status = wf_graph_set_string(&p->display_name, name->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-            status = wf_graph_set_string(&p->avatar, avatar->valuestring);
-        }
-
-        if (status != WF_OK) {
-            wf_graph_profile_view_reset(p);
-        }
-    }
-
-    if (status == WF_OK) {
-        out->actors = items;
-        out->actor_count = count;
-
-        cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
-        if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
-        }
-    }
-
-    if (status != WF_OK) {
-        for (size_t i = 0; i < count; ++i) {
-            wf_graph_profile_view_reset(&items[i]);
-        }
-        free(items);
-        memset(out, 0, sizeof(*out));
-    }
-
-    cJSON_Delete(root);
-    return status;
-}
-
-wf_status wf_agent_parse_actors(const char *json, size_t json_len,
-                                wf_agent_actor_list *out) {
-    return wf_graph_parse_profile_views(json, json_len, "actors", out);
-}
-
-wf_status wf_agent_parse_profile_views(const char *json, size_t json_len,
-                                       const char *key,
-                                       wf_agent_actor_list *out) {
-    return wf_graph_parse_profile_views(json, json_len, key, out);
-}
-
-wf_status wf_agent_parse_reposted_by(const char *json, size_t json_len,
-                                     wf_agent_actor_list *out) {
-    return wf_graph_parse_profile_views(json, json_len, "repostedBy", out);
-}
-
-void wf_agent_actor_list_free(wf_agent_actor_list *list) {
-    wf_graph_list_reset(list);
-}
-
-/* ---- like-list parsing (app.bsky.feed.getLikes) ------------------------- */
 
 static void wf_graph_like_reset(wf_agent_like_item *l) {
     if (!l) {
@@ -242,7 +128,8 @@ wf_status wf_agent_parse_likes(const char *json, size_t json_len,
                 status = wf_graph_set_string(&l->actor.handle, handle->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-                status = wf_graph_set_string(&l->actor.display_name, name->valuestring);
+                status = wf_graph_set_string(&l->actor.display_name,
+                                             name->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
                 status = wf_graph_set_string(&l->actor.avatar, avatar->valuestring);
@@ -322,86 +209,6 @@ wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
     }
 
     status = wf_agent_parse_actors(res.body, res.body_len, out);
-    wf_response_free(&res);
-    return status;
-}
-
-wf_status wf_agent_search_actors_typed(wf_agent *agent, const char *query,
-                                       int limit, const char *cursor,
-                                       wf_agent_actor_list *out) {
-    if (!agent || !query || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    wf_response res = {0};
-    wf_status status = wf_agent_search_actors(agent, query, limit, cursor, &res);
-    if (status != WF_OK) {
-        wf_response_free(&res);
-        return status;
-    }
-
-    status = wf_agent_parse_actors(res.body, res.body_len, out);
-    wf_response_free(&res);
-    return status;
-}
-
-wf_status wf_agent_get_profiles_typed(wf_agent *agent,
-                                      const char *const *actors,
-                                      size_t actors_count, int limit,
-                                      const char *cursor,
-                                      wf_agent_actor_list *out) {
-    if (!agent || !actors || actors_count == 0 || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    wf_response res = {0};
-    wf_status status = wf_agent_get_profiles(agent, actors, actors_count,
-                                             limit, cursor, &res);
-    if (status != WF_OK) {
-        wf_response_free(&res);
-        return status;
-    }
-
-    status = wf_agent_parse_profile_views(res.body, res.body_len, "profiles",
-                                          out);
-    wf_response_free(&res);
-    return status;
-}
-
-wf_status wf_agent_get_reposted_by_typed(wf_agent *agent, const char *uri,
-                                         int limit, const char *cursor,
-                                         wf_agent_actor_list *out) {
-    if (!agent || !uri || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    wf_response res = {0};
-    wf_status status = wf_agent_get_reposted_by(agent, uri, limit, cursor, &res);
-    if (status != WF_OK) {
-        wf_response_free(&res);
-        return status;
-    }
-
-    status = wf_agent_parse_reposted_by(res.body, res.body_len, out);
-    wf_response_free(&res);
-    return status;
-}
-
-wf_status wf_agent_get_likes_typed(wf_agent *agent, const char *uri,
-                                   int limit, const char *cursor,
-                                   wf_agent_like_list *out) {
-    if (!agent || !uri || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    wf_response res = {0};
-    wf_status status = wf_agent_get_likes(agent, uri, limit, cursor, &res);
-    if (status != WF_OK) {
-        wf_response_free(&res);
-        return status;
-    }
-
-    status = wf_agent_parse_likes(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }

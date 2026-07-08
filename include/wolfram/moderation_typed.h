@@ -5,22 +5,25 @@
  * These wrap the raw agent calls for `app.bsky.graph.getBlocks`,
  * `app.bsky.graph.getMutes`, and `app.bsky.graph.getKnownFollowers`, parsing
  * the response body into an owned `wf_agent_actor_list` via the shared
- * `wf_agent_parse_profile_views` parser (declared in graph_typed.h). Callers
- * free the result with `wf_agent_actor_list_free`.
+ * `wf_agent_parse_profile_views` parser (declared in actor_typed.h, which
+ * includes graph_typed.h). Callers free the result with
+ * `wf_agent_actor_list_free`.
  */
 
 #ifndef WOLFRAM_MODERATION_TYPED_H
 #define WOLFRAM_MODERATION_TYPED_H
 
-#include "wolfram/graph_typed.h"
+#include "wolfram/agent.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Forward declaration: wf_agent_actor_list is fully defined in graph_typed.h
- * and used here only as a pointer parameter (these wrappers reuse the shared
- * wf_agent_parse_profile_views parser). */
+/* wf_agent_actor_list is only used here as a pointer parameter, so an
+ * incomplete-type forward declaration suffices; the full definition lives in
+ * graph_typed.h (pulled in by moderation_typed.c via actor_typed.h). Using a
+ * forward declaration avoids re-entering graph_typed.h during the agent.h
+ * include cycle. */
 typedef struct wf_agent_actor_list wf_agent_actor_list;
 
 /* Issue app.bsky.graph.getBlocks and parse the `blocks` profileView array. */
