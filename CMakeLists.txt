@@ -96,6 +96,8 @@ add_library(wolfram
     src/jetstream/jetstream.c
     # Label subscriptions
     src/label/label.c
+    # Label query/get (request/response)
+    src/label_query.c
     # Syntax validation
     src/syntax/syntax.c
     # Lexicon validation
@@ -521,11 +523,10 @@ if(WOLFRAM_BUILD_TESTS)
         ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
     add_test(NAME jetstream_typed COMMAND test_jetstream_typed)
 
-    add_executable(test_label_subscribe test/test_label_subscribe.c)
-    target_link_libraries(test_label_subscribe PRIVATE wolfram)
-    target_include_directories(test_label_subscribe PRIVATE test)
-    add_test(NAME label_subscribe COMMAND test_label_subscribe)
-    set_tests_properties(label_subscribe PROPERTIES TIMEOUT 30)
+    add_executable(test_label_query test/test_label_query.c)
+    target_link_libraries(test_label_query PRIVATE wolfram)
+    target_include_directories(test_label_query PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME label_query COMMAND test_label_query)
 
     add_executable(test_oauth test/test_oauth.c)
     target_link_libraries(test_oauth PRIVATE wolfram)
