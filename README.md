@@ -6,8 +6,11 @@ The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
 
-**Status:** Early development — core transport, identity, repo, agent, OAuth,
-and sync layers are implemented and tested, but it is not yet at full feature
+**Status:** Broad, multi-layer coverage is implemented and tested — transport
+(XRPC/WebSocket), identity (DID/handle), repo (DAG-CBOR/CAR/MST), agent
+(wraps `com.atproto.*` + chat/ozone/moderation), OAuth (DPoP/PAR), sync
+(firehose + Jetstream), moderation, DID PLC ops, rich text, syntax/validate/json,
+and optional SQLite store persistence — though it is not yet at full feature
 parity with the official SDKs.
 
 ## Documentation
@@ -17,6 +20,7 @@ Per-module usage guides (runnable C snippets):
 - [`docs/agent.md`](docs/agent.md) — high-level `wf_agent_*` API
 - [`docs/sync.md`](docs/sync.md) — repo CAR, firehose, commit verification
 - [`docs/validate.md`](docs/validate.md) — `wf_validate_value` / `wf_validate_record`
+- [`docs/moderation.md`](docs/moderation.md) — `wf_mod_*` decision engine
 - [`docs/oauth.md`](docs/oauth.md) — OAuth/DPoP, PKCE, PAR, callback flow
 
 Topic guides:
