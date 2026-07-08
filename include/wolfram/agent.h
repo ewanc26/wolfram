@@ -115,6 +115,8 @@ wf_status wf_agent_like(wf_agent *agent, const char *post_uri, const char *post_
 wf_status wf_agent_unlike(wf_agent *agent, const char *like_uri);
 wf_status wf_agent_mute(wf_agent *agent, const char *actor);
 wf_status wf_agent_unmute(wf_agent *agent, const char *actor);
+wf_status wf_agent_mute_thread(wf_agent *agent, const char *root_uri);
+wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri);
 
 /* Repost operations */
 wf_status wf_agent_repost(wf_agent *agent, const char *post_uri, const char *post_cid,
@@ -206,8 +208,28 @@ wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
                               int limit, const char *cursor,
                               wf_response *out);
 wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
-                                                   const char *actor,
-                                                   wf_response *out);
+                                                    const char *actor,
+                                                    wf_response *out);
+
+/* Starter packs */
+wf_status wf_agent_get_actor_starter_packs(wf_agent *agent, const char *actor,
+                                            int limit, const char *cursor,
+                                            wf_response *out);
+wf_status wf_agent_get_starter_pack(wf_agent *agent,
+                                     const char *starter_pack_uri,
+                                     wf_response *out);
+wf_status wf_agent_get_starter_packs(wf_agent *agent,
+                                      const char *const *uris,
+                                      size_t uri_count,
+                                      wf_response *out);
+wf_status wf_agent_search_starter_packs(wf_agent *agent, const char *query,
+                                         int limit, const char *cursor,
+                                         wf_response *out);
+wf_status wf_agent_get_starter_packs_with_membership(wf_agent *agent,
+                                                      const char *actor,
+                                                      int limit,
+                                                      const char *cursor,
+                                                      wf_response *out);
 
 /* List management — create, update, delete lists and list items. */
 typedef struct wf_agent_create_list_params {
