@@ -122,6 +122,20 @@ static char *wf_strdup(const char *text) {
     return copy;
 }
 
+static wf_jetstream_event_kind wf_jetstream_kind_from_string(const char *kind) {
+    if (!kind) return WF_JETSTREAM_EVENT_UNKNOWN;
+    if (strcmp(kind, "commit") == 0) return WF_JETSTREAM_EVENT_COMMIT;
+    if (strcmp(kind, "identity") == 0) return WF_JETSTREAM_EVENT_IDENTITY;
+    if (strcmp(kind, "account") == 0) return WF_JETSTREAM_EVENT_ACCOUNT;
+    if (strcmp(kind, "account_delete") == 0) return WF_JETSTREAM_EVENT_ACCOUNT_DELETE;
+    if (strcmp(kind, "sync") == 0) return WF_JETSTREAM_EVENT_SYNC;
+    if (strcmp(kind, "fork") == 0) return WF_JETSTREAM_EVENT_FORK;
+    if (strcmp(kind, "timeout") == 0) return WF_JETSTREAM_EVENT_TIMEOUT;
+    if (strcmp(kind, "migrate") == 0) return WF_JETSTREAM_EVENT_MIGRATE;
+    if (strcmp(kind, "info") == 0) return WF_JETSTREAM_EVENT_INFO;
+    return WF_JETSTREAM_EVENT_UNKNOWN;
+}
+
 static uint64_t wf_now_ms(void) {
     struct timespec now;
     if (timespec_get(&now, TIME_UTC) != TIME_UTC) return 0;
@@ -361,9 +375,7 @@ wf_status wf_jetstream_event_parse(const char *json, size_t json_len,
     }
     memcpy(out->did, did->valuestring, did_len + 1);
     memcpy(out->json, json, json_len); out->json[json_len] = '\0';
-    if (strcmp(kind->valuestring, "commit") == 0) out->kind = WF_JETSTREAM_EVENT_COMMIT;
-    else if (strcmp(kind->valuestring, "identity") == 0) out->kind = WF_JETSTREAM_EVENT_IDENTITY;
-    else if (strcmp(kind->valuestring, "account") == 0) out->kind = WF_JETSTREAM_EVENT_ACCOUNT;
+    out->kind = wf_jetstream_kind_from_string(kind->valuestring);
     out->time_us = (int64_t)time_us->valuedouble;
     out->json_len = json_len;
     cJSON_Delete(root); return WF_OK;
@@ -419,6 +431,185 @@ uint32_t wf_jetstream_reconnect_after_ms(const wf_jetstream *stream) {
 
 void wf_jetstream_event_free(wf_jetstream_event *event) {
     if (!event) return; free(event->did); free(event->json); memset(event, 0, sizeof(*event));
+}
+
+/* ── typed payload parsing ── */
+
+static char *wf_jetstream_dup_string(cJSON *parent, const char *key) {
+    cJSON *item = parent ? cJSON_GetObjectItemCaseSensitive(parent, key) : NULL;
+    if (!item || !cJSON_IsString(item) || !item->valuestring) return NULL;
+    return wf_strdup(item->valuestring);
+}
+
+static char *wf_jetstream_dup_seq(cJSON *parent, const char *key) {
+    cJSON *item = parent ? cJSON_GetObjectItemCaseSensitive(parent, key) : NULL;
+    if (!item || !cJSON_IsNumber(item)) return NULL;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%lld", (long long)item->valuedouble);
+    return wf_strdup(buf);
+}
+
+static int wf_jetstream_op_parse(cJSON *raw, wf_jetstream_op *out) {
+    memset(out, 0, sizeof(*out));
+    if (!cJSON_IsObject(raw)) return 0;
+    out->action = wf_jetstream_dup_string(raw, "action");
+    out->path = wf_jetstream_dup_string(raw, "path");
+    out->cid = wf_jetstream_dup_string(raw, "cid");
+    out->prev = wf_jetstream_dup_string(raw, "prev");
+    cJSON *value = cJSON_GetObjectItemCaseSensitive(raw, "value");
+    if (value && !cJSON_IsNull(value)) {
+        out->value = cJSON_Duplicate(value, 1);
+        out->has_value = out->value ? 1 : 0;
+    }
+    if (!out->action || !out->path) return 0;
+    return 1;
+}
+
+static wf_status wf_jetstream_commit_parse(cJSON *raw, wf_jetstream_commit *out) {
+    if (!cJSON_IsObject(raw)) return WF_ERR_PARSE;
+    memset(out, 0, sizeof(*out));
+    out->seq = wf_jetstream_dup_seq(raw, "seq");
+    out->repo = wf_jetstream_dup_string(raw, "repo");
+    out->did = wf_jetstream_dup_string(raw, "did");
+    if (!out->did && out->repo) out->did = wf_strdup(out->repo);
+    out->time = wf_jetstream_dup_string(raw, "time");
+    out->repo_rev = wf_jetstream_dup_string(raw, "rev");
+    out->blocks = wf_jetstream_dup_string(raw, "blocks");
+    cJSON *too_big = cJSON_GetObjectItemCaseSensitive(raw, "tooBig");
+    if (too_big && cJSON_IsBool(too_big)) out->too_big = cJSON_IsTrue(too_big);
+    cJSON *ops = cJSON_GetObjectItemCaseSensitive(raw, "ops");
+    if (ops && cJSON_IsArray(ops)) {
+        out->op_count = (size_t)cJSON_GetArraySize(ops);
+        if (out->op_count) {
+            out->ops = calloc(out->op_count, sizeof(wf_jetstream_op));
+            if (!out->ops) return WF_ERR_ALLOC;
+            for (size_t i = 0; i < out->op_count; ++i) {
+                if (!wf_jetstream_op_parse(cJSON_GetArrayItem(ops, (int)i),
+                                           &out->ops[i])) {
+                    return WF_ERR_PARSE;
+                }
+            }
+        }
+    }
+    if (!out->seq || !out->repo) return WF_ERR_PARSE;
+    return WF_OK;
+}
+
+static wf_status wf_jetstream_identity_parse(cJSON *raw,
+                                             wf_jetstream_identity *out) {
+    if (!cJSON_IsObject(raw)) return WF_ERR_PARSE;
+    memset(out, 0, sizeof(*out));
+    out->seq = wf_jetstream_dup_seq(raw, "seq");
+    out->did = wf_jetstream_dup_string(raw, "did");
+    out->time = wf_jetstream_dup_string(raw, "time");
+    out->handle = wf_jetstream_dup_string(raw, "handle");
+    if (!out->seq || !out->did) return WF_ERR_PARSE;
+    return WF_OK;
+}
+
+static wf_status wf_jetstream_account_parse(cJSON *raw,
+                                            wf_jetstream_account *out) {
+    if (!cJSON_IsObject(raw)) return WF_ERR_PARSE;
+    memset(out, 0, sizeof(*out));
+    out->seq = wf_jetstream_dup_seq(raw, "seq");
+    out->did = wf_jetstream_dup_string(raw, "did");
+    out->time = wf_jetstream_dup_string(raw, "time");
+    out->status = wf_jetstream_dup_string(raw, "status");
+    cJSON *active = cJSON_GetObjectItemCaseSensitive(raw, "active");
+    if (!cJSON_IsBool(active)) return WF_ERR_PARSE;
+    out->active = cJSON_IsTrue(active);
+    if (!out->seq || !out->did) return WF_ERR_PARSE;
+    return WF_OK;
+}
+
+static wf_status wf_jetstream_sync_parse(cJSON *raw, wf_jetstream_event_kind kind,
+                                         wf_jetstream_sync *out) {
+    if (raw && !cJSON_IsObject(raw)) return WF_ERR_PARSE;
+    memset(out, 0, sizeof(*out));
+    out->kind = kind;
+    if (!raw) return WF_OK;
+    out->seq = wf_jetstream_dup_seq(raw, "seq");
+    out->did = wf_jetstream_dup_string(raw, "did");
+    if (!out->did) out->did = wf_jetstream_dup_string(raw, "repo");
+    out->time = wf_jetstream_dup_string(raw, "time");
+    out->rev = wf_jetstream_dup_string(raw, "rev");
+    cJSON *too_big = cJSON_GetObjectItemCaseSensitive(raw, "tooBig");
+    if (too_big && cJSON_IsBool(too_big)) out->too_big = cJSON_IsTrue(too_big);
+    return WF_OK;
+}
+
+wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
+                                         wf_jetstream_event_typed *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    cJSON *kind = root ? cJSON_GetObjectItemCaseSensitive(root, "kind") : NULL;
+    cJSON *did = root ? cJSON_GetObjectItemCaseSensitive(root, "did") : NULL;
+    if (!cJSON_IsObject(root) || !cJSON_IsString(kind) ||
+        !cJSON_IsString(did) || !did->valuestring) {
+        cJSON_Delete(root); return WF_ERR_PARSE;
+    }
+    out->kind = wf_jetstream_kind_from_string(kind->valuestring);
+    out->did = wf_strdup(did->valuestring);
+    if (!out->did) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+
+    wf_status status = WF_ERR_PARSE;
+    switch (out->kind) {
+    case WF_JETSTREAM_EVENT_COMMIT: {
+        cJSON *payload = cJSON_GetObjectItemCaseSensitive(root, "commit");
+        status = wf_jetstream_commit_parse(payload, &out->commit);
+        break;
+    }
+    case WF_JETSTREAM_EVENT_IDENTITY: {
+        cJSON *payload = cJSON_GetObjectItemCaseSensitive(root, "identity");
+        status = wf_jetstream_identity_parse(payload, &out->identity);
+        break;
+    }
+    case WF_JETSTREAM_EVENT_ACCOUNT:
+    case WF_JETSTREAM_EVENT_ACCOUNT_DELETE: {
+        cJSON *payload = cJSON_GetObjectItemCaseSensitive(root, "account");
+        status = wf_jetstream_account_parse(payload, &out->account);
+        break;
+    }
+    case WF_JETSTREAM_EVENT_SYNC:
+    case WF_JETSTREAM_EVENT_FORK:
+    case WF_JETSTREAM_EVENT_TIMEOUT:
+    case WF_JETSTREAM_EVENT_MIGRATE:
+    case WF_JETSTREAM_EVENT_INFO: {
+        cJSON *payload = cJSON_GetObjectItemCaseSensitive(root, kind->valuestring);
+        status = wf_jetstream_sync_parse(payload, out->kind, &out->sync);
+        break;
+    }
+    default:
+        status = WF_ERR_PARSE;
+        break;
+    }
+
+    cJSON_Delete(root);
+    if (status != WF_OK) { wf_jetstream_event_typed_free(out); return status; }
+    return WF_OK;
+}
+
+void wf_jetstream_event_typed_free(wf_jetstream_event_typed *ev) {
+    if (!ev) return;
+    free(ev->did);
+    if (ev->commit.ops) {
+        for (size_t i = 0; i < ev->commit.op_count; ++i) {
+            wf_jetstream_op *op = &ev->commit.ops[i];
+            free(op->action); free(op->path); free(op->cid);
+            free(op->prev); cJSON_Delete(op->value);
+        }
+        free(ev->commit.ops);
+    }
+    free(ev->commit.seq); free(ev->commit.did); free(ev->commit.time);
+    free(ev->commit.repo); free(ev->commit.repo_rev); free(ev->commit.blocks);
+    free(ev->identity.seq); free(ev->identity.did); free(ev->identity.time);
+    free(ev->identity.handle);
+    free(ev->account.seq); free(ev->account.did); free(ev->account.time);
+    free(ev->account.status);
+    free(ev->sync.seq); free(ev->sync.did); free(ev->sync.time);
+    free(ev->sync.rev);
+    memset(ev, 0, sizeof(*ev));
 }
 
 void wf_jetstream_free(wf_jetstream *stream) {
