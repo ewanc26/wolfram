@@ -57,6 +57,38 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     wrappers, and notification wrappers. Full input-validation tests.
 25. Agent repo sync pipeline — offline mirror seed, verified incremental diff
     apply, mirror head query, operation inversion, local mirror record lookup.
+26. DID PLC operation helpers (`wf_plc_*`, `plc.h`) — build/sign/submit
+    `plc` operations (create, rotate signing/handle/rotation keys, tombstone)
+    with ES256 signatures and verification.
+27. Moderation decision engine (`moderation.h`) — blur/alert/inform/filter
+    decisions for accounts, profiles, posts, notifications, feed generators,
+    and user lists from labels, blocks, mutes, hidden posts, and muted words.
+    Offline; ingests API-shaped JSON (`wf_mod_prefs_from_json`,
+    `wf_mod_label_defs_from_labeler`, `wf_mod_labels_from_json`).
+28. Generic JSON module (`json.h`) — canonical round-trip (`wf_json_canonicalize`)
+    and a JSON-Schema validator subset (type/required/properties/items,
+    enum/const, format, numeric bounds, string length/pattern, array
+    constraints, additionalProperties, anyOf/oneOf/not).
+29. SQLite store persistence (`store.h`) — session + repo-mirror persistence and
+    persisted-label storage for the moderation engine; OFF by default, build
+    with `WOLFRAM_BUILD_STORE=ON`. With `WOLFRAM_BUILD_STORE_CRYPTO=ON` (libsodium)
+    the session credentials are encrypted at rest (XSalsa20-Poly1305, Argon2id).
+30. Video upload (`blob.h` / `agent.h`) — dedicated video endpoint upload
+    (`wf_agent_upload_video`), job-status polling
+    (`wf_agent_get_video_job_status`), and upload limits
+    (`wf_agent_get_video_upload_limits`).
+31. Chat typed wrappers (`chat_typed.h`) — `chat.bsky.convo`/`group`/`actor`/
+    `moderation` write+query wrappers with chat-service endpoint resolution.
+    The full chat write surface is now implemented.
+32. Ozone moderation-service / labeler helper (`ozone.h`) — verify and emit
+    labels, build service auth headers for the Ozone moderation service.
+33. Generated typed wrappers — owning parsers for embed/feed/feed-generator/
+    graph/list/thread records (`embed_typed.h`, `feed_typed.h`,
+    `feedgen_typed.h`, `graph_typed.h`, `list_typed.h`, `thread_typed.h`) plus
+    threadgate/postgate record helpers (`threadgate_postgate.h`).
+34. Authenticated XRPC client (`auth_client.h`) — DPoP-binding OAuth-authenticated
+    XRPC query/procedure/blob-upload wrapper (`wf_auth_client_*`) with session
+    refresh and DPoP nonce retry.
 
 ## Next planned work
 
@@ -64,11 +96,10 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Broaden the `wolfram` CLI further (label subscription streaming) and wire
   `help <command>`.
-- Generic JSON module (`wolfram/json.h`): add a sorted canonical form if a use
-  case appears.
 - Continue cross-referencing `bluesky-social/atproto` and `rsky` for protocol
-  parity. The full `chat.bsky.convo`/`group`/`actor`/`moderation` write surface
-  is now implemented; remaining parity items include labeler service records.
+  parity. Remaining parity items include full labeler service record coverage
+  and tooling.
+- Higher-level endpoint examples using generated clients.
 
 ## Dependencies
 
