@@ -183,8 +183,16 @@ wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
                                      int limit, const char *cursor,
                                      wf_response *out);
 wf_status wf_agent_get_actor_feeds_lex(wf_agent *agent, const char *actor,
-                                        int limit, const char *cursor,
+                                         int limit, const char *cursor,
+                                         wf_response *out);
+wf_status wf_agent_describe_feed_generator(wf_agent *agent, wf_response *out);
+wf_status wf_agent_get_feed_generator(wf_agent *agent, const char *feed_uri,
+                                       wf_response *out);
+wf_status wf_agent_get_feed_generators(wf_agent *agent,
+                                        const char *const *feed_uris,
+                                        size_t feed_count,
                                         wf_response *out);
+wf_status wf_agent_get_suggested_feeds(wf_agent *agent, wf_response *out);
 
 /* Graph queries — return raw JSON in `out`; caller frees with wf_response_free. */
 wf_status wf_agent_get_profiles(wf_agent *agent, const char *const *actors,
@@ -196,6 +204,10 @@ wf_status wf_agent_get_followers(wf_agent *agent, const char *actor,
                                    int limit, const char *cursor, wf_response *out);
 wf_status wf_agent_get_blocks(wf_agent *agent, int limit, const char *cursor,
                                wf_response *out);
+wf_status wf_agent_get_list_blocks(wf_agent *agent, int limit,
+                                    const char *cursor, wf_response *out);
+wf_status wf_agent_get_list_mutes(wf_agent *agent, int limit,
+                                   const char *cursor, wf_response *out);
 wf_status wf_agent_get_mutes(wf_agent *agent, int limit, const char *cursor,
                               wf_response *out);
 wf_status wf_agent_get_known_followers(wf_agent *agent, const char *actor,
