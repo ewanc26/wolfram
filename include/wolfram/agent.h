@@ -13,6 +13,7 @@
 #include "wolfram/moderation.h"
 #include "wolfram/atproto_lex.h"
 #include <cJSON.h>
+#include "wolfram/atproto_lex.h"
 
 #ifdef __cplusplus
 extern "C" {
