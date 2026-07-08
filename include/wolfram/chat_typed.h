@@ -402,6 +402,24 @@ wf_status wf_agent_chat_unlock_convo(wf_agent *agent, const char *convo_id,
 wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
                                  const char *cursor, wf_response *out);
 
+/* ── test-only body builders ────────────────────────────────────────────
+ * These build the exact request JSON a wrapper would send, without doing any
+ * network I/O. Exposed for deterministic, offline unit tests. The caller owns
+ * the returned string (*out_json) and must free() it. */
+
+wf_status wf_chat_build_accept_convo_body(const char *convo_id,
+                                           char **out_json);
+
+wf_status wf_chat_build_add_reaction_body(const char *convo_id,
+                                           const char *message_id,
+                                           const char *value,
+                                           char **out_json);
+
+wf_status wf_chat_build_create_group_body(const char *const *member_dids,
+                                            size_t member_count,
+                                            const char *name,
+                                            char **out_json);
+
 #ifdef __cplusplus
 }
 #endif
