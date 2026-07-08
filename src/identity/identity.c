@@ -12,6 +12,8 @@
  */
 
 #include "wolfram/identity.h"
+#include "wolfram/atproto_lex.h"
+#include "wolfram/plc.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/version.h"
 
@@ -536,5 +538,310 @@ wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle, char **o
     if (ascii_handle) idn2_free(ascii_handle);
 #endif
 
+    return status;
+}
+
+/* ------------------------------------------------------------------ */
+/* com.atproto.identity account / identity-management operations.      */
+/* ------------------------------------------------------------------ */
+
+static wf_status wf_identity_dup_string_array(const char *const *src,
+                                              size_t count, char ***out,
+                                              size_t *out_count) {
+    char **items = NULL;
+
+    if (!out || !out_count) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    *out_count = 0;
+    if (count == 0) {
+        return WF_OK;
+    }
+
+    items = calloc(count, sizeof(*items));
+    if (!items) {
+        return WF_ERR_ALLOC;
+    }
+    for (size_t i = 0; i < count; i++) {
+        items[i] = wf_strdup(src[i]);
+        if (!items[i]) {
+            for (size_t j = 0; j < i; j++) {
+                free(items[j]);
+            }
+            free(items);
+            return WF_ERR_ALLOC;
+        }
+    }
+    *out = items;
+    *out_count = count;
+    return WF_OK;
+}
+
+static char *wf_identity_json_string_dup(const wf_lex_json *json) {
+    if (!json || !json->data || json->length == 0) {
+        return NULL;
+    }
+    char *copy = malloc(json->length + 1);
+    if (!copy) {
+        return NULL;
+    }
+    memcpy(copy, json->data, json->length);
+    copy[json->length] = '\0';
+    return copy;
+}
+
+void wf_identity_recommended_did_credentials_free(
+    wf_identity_recommended_did_credentials *creds) {
+    if (!creds) {
+        return;
+    }
+    if (creds->rotation_keys) {
+        for (size_t i = 0; i < creds->rotation_keys_count; i++) {
+            free(creds->rotation_keys[i]);
+        }
+        free(creds->rotation_keys);
+    }
+    if (creds->also_known_as) {
+        for (size_t i = 0; i < creds->also_known_as_count; i++) {
+            free(creds->also_known_as[i]);
+        }
+        free(creds->also_known_as);
+    }
+    free(creds->verification_methods);
+    free(creds->services);
+    memset(creds, 0, sizeof(*creds));
+}
+
+wf_status wf_identity_get_recommended_did_credentials(
+    wf_xrpc_client *client, wf_identity_recommended_did_credentials *out) {
+    wf_response res = {0};
+    wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output *lex =
+        NULL;
+    wf_status status;
+
+    if (!client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    status = wf_lex_com_atproto_identity_get_recommended_did_credentials_main_call(
+        client, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_decode_json(
+        res.body, res.body_len, &lex);
+    wf_response_free(&res);
+    if (status != WF_OK || !lex) {
+        return status != WF_OK ? status : WF_ERR_PARSE;
+    }
+
+    if (lex->has_rotation_keys) {
+        status = wf_identity_dup_string_array(lex->rotation_keys.items,
+                                              lex->rotation_keys.count,
+                                              &out->rotation_keys,
+                                              &out->rotation_keys_count);
+    }
+    if (status == WF_OK && lex->has_also_known_as) {
+        status = wf_identity_dup_string_array(lex->also_known_as.items,
+                                              lex->also_known_as.count,
+                                              &out->also_known_as,
+                                              &out->also_known_as_count);
+    }
+    if (status == WF_OK && lex->has_verification_methods) {
+        out->verification_methods =
+            wf_identity_json_string_dup(&lex->verification_methods);
+        if (lex->verification_methods.length && !out->verification_methods) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+    if (status == WF_OK && lex->has_services) {
+        out->services = wf_identity_json_string_dup(&lex->services);
+        if (lex->services.length && !out->services) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+
+    wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_free(
+        lex);
+    if (status != WF_OK) {
+        wf_identity_recommended_did_credentials_free(out);
+    }
+    return status;
+}
+
+wf_status wf_identity_request_plc_operation_signature(wf_xrpc_client *client,
+                                                      const char *did) {
+    return wf_plc_request_signature(client, did);
+}
+
+void wf_identity_sign_plc_operation_result_free(
+    wf_identity_sign_plc_operation_result *result) {
+    if (!result) {
+        return;
+    }
+    free(result->operation);
+    memset(result, 0, sizeof(*result));
+}
+
+wf_status wf_identity_sign_plc_operation(
+    wf_xrpc_client *client, const wf_identity_sign_plc_operation_input *input,
+    wf_identity_sign_plc_operation_result *out) {
+    wf_response res = {0};
+    wf_lex_com_atproto_identity_sign_plc_operation_main_input lex_in = {0};
+    wf_lex_com_atproto_identity_sign_plc_operation_main_output *lex_out = NULL;
+    wf_status status;
+
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    if (input->token && input->token[0] != '\0') {
+        lex_in.has_token = 1;
+        lex_in.token = input->token;
+    }
+    if (input->rotation_keys_count > 0 && input->rotation_keys) {
+        lex_in.has_rotation_keys = 1;
+        lex_in.rotation_keys.items = input->rotation_keys;
+        lex_in.rotation_keys.count = input->rotation_keys_count;
+    }
+    if (input->also_known_as_count > 0 && input->also_known_as) {
+        lex_in.has_also_known_as = 1;
+        lex_in.also_known_as.items = input->also_known_as;
+        lex_in.also_known_as.count = input->also_known_as_count;
+    }
+    if (input->verification_methods_json && input->verification_methods_json[0]) {
+        lex_in.has_verification_methods = 1;
+        lex_in.verification_methods.data = input->verification_methods_json;
+        lex_in.verification_methods.length =
+            strlen(input->verification_methods_json);
+    }
+    if (input->services_json && input->services_json[0]) {
+        lex_in.has_services = 1;
+        lex_in.services.data = input->services_json;
+        lex_in.services.length = strlen(input->services_json);
+    }
+
+    status = wf_lex_com_atproto_identity_sign_plc_operation_main_call(client,
+                                                                      &lex_in, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_lex_com_atproto_identity_sign_plc_operation_main_output_decode_json(
+        res.body, res.body_len, &lex_out);
+    wf_response_free(&res);
+    if (status != WF_OK || !lex_out) {
+        return status != WF_OK ? status : WF_ERR_PARSE;
+    }
+
+    out->operation = wf_identity_json_string_dup(&lex_out->operation);
+    wf_lex_com_atproto_identity_sign_plc_operation_main_output_free(lex_out);
+    if (!out->operation && lex_out->operation.length) {
+        wf_identity_sign_plc_operation_result_free(out);
+        return WF_ERR_ALLOC;
+    }
+    return WF_OK;
+}
+
+wf_status wf_identity_submit_plc_operation(wf_xrpc_client *client,
+                                           const char *signed_op_json) {
+    return wf_plc_submit_operation(client, signed_op_json);
+}
+
+wf_status wf_identity_update_handle(wf_xrpc_client *client, const char *handle) {
+    return wf_plc_update_handle(client, handle);
+}
+
+wf_status wf_identity_check_handle(wf_xrpc_client *client,
+                                   const wf_identity_check_handle_input *input,
+                                   wf_identity_check_handle_result *out) {
+    wf_response res = {0};
+    wf_xrpc_param params[2];
+    size_t param_count = 0;
+    cJSON *root = NULL;
+    const cJSON *valid;
+    wf_status status;
+
+    if (!client || !input || !out || !input->handle || input->handle[0] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+    out->valid = -1;
+
+    params[param_count].name = "handle";
+    params[param_count].value = input->handle;
+    param_count++;
+    if (input->did && input->did[0] != '\0') {
+        params[param_count].name = "did";
+        params[param_count].value = input->did;
+        param_count++;
+    }
+
+    status = wf_xrpc_query_params(client, "com.atproto.identity.checkHandle",
+                                  params, param_count, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    root = cJSON_ParseWithLength(res.body, res.body_len);
+    wf_response_free(&res);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    valid = cJSON_GetObjectItemCaseSensitive(root, "valid");
+    if (valid && cJSON_IsBool(valid)) {
+        out->valid = cJSON_IsTrue(valid) ? 1 : 0;
+    }
+    cJSON_Delete(root);
+    return WF_OK;
+}
+
+wf_status wf_identity_verify_handle(wf_xrpc_client *client, const char *handle,
+                                    int *out_valid) {
+    char *did = NULL;
+    cJSON *root = NULL;
+    wf_status status;
+
+    if (!client || !handle || handle[0] == '\0' || !out_valid) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_valid = 0;
+
+    status = wf_handle_resolve(client, handle, &did);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    status = did_fetch_document(client, did, &root);
+    if (status == WF_OK && root) {
+        int match = 1;
+        cJSON *aka = cJSON_GetObjectItemCaseSensitive(root, "alsoKnownAs");
+        if (aka && cJSON_IsArray(aka)) {
+            match = 0;
+            cJSON *item = NULL;
+            const char *prefix = "at://";
+            size_t prefix_len = strlen(prefix);
+            cJSON_ArrayForEach(item, aka) {
+                if (cJSON_IsString(item) && item->valuestring &&
+                    strncmp(item->valuestring, prefix, prefix_len) == 0 &&
+                    strcmp(item->valuestring + prefix_len, handle) == 0) {
+                    match = 1;
+                    break;
+                }
+            }
+        }
+        *out_valid = match;
+        cJSON_Delete(root);
+    }
+    free(did);
     return status;
 }
