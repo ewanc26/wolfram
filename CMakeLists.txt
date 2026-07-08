@@ -127,6 +127,7 @@ add_library(wolfram
     src/unspecced_typed.c
     src/draft_typed.c
     src/temp_typed.c
+    src/notification_prefs_typed.c
     src/agent/chat_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
@@ -832,6 +833,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_json_schema PRIVATE wolfram)
     target_include_directories(test_json_schema PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME json_schema COMMAND test_json_schema)
+
+    add_executable(test_notification_prefs_typed test/test_notification_prefs_typed.c)
+    target_link_libraries(test_notification_prefs_typed PRIVATE wolfram)
+    target_include_directories(test_notification_prefs_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME notification_prefs COMMAND test_notification_prefs_typed)
 
     add_executable(test_agent_graph_feed test/test_agent_graph_feed.c)
     target_link_libraries(test_agent_graph_feed PRIVATE wolfram)
