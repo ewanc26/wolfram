@@ -65,7 +65,9 @@ static int test_query_events_parse(void) {
     static const char *body =
         "{\"events\":[{\"id\":1,\"event\":{\"$type\":"
         "\"tools.ozone.moderation.defs#modEventLabel\"},\"subject\":{"
-        "\"$type\":\"com.atproto.admin.defs#repoRef\"}}],\"cursor\":\"c1\"}";
+        "\"$type\":\"com.atproto.admin.defs#repoRef\"},\"subjectBlobCids\":[],"
+        "\"createdBy\":\"did:plc:moderatorexample\","
+        "\"createdAt\":\"2024-01-01T00:00:00Z\"}],\"cursor\":\"c1\"}";
 
     wf_response resp;
     memset(&resp, 0, sizeof(resp));
@@ -88,9 +90,10 @@ static int test_query_events_parse(void) {
 static int test_get_reporter_stats_parse(void) {
     static const char *body =
         "{\"stats\":[{\"did\":\"did:plc:reporterexample\","
-        "\"totalReports\":3,\"acceptedReports\":1,\"rejectedReports\":0,"
-        "\"escalatedReports\":0,\"pendingReports\":2,"
-        "\"takeDownReports\":0,\"labelReports\":1}]}";
+        "\"accountReportCount\":3,\"recordReportCount\":1,"
+        "\"reportedAccountCount\":2,\"reportedRecordCount\":1,"
+        "\"takendownAccountCount\":0,\"takendownRecordCount\":0,"
+        "\"labeledAccountCount\":1,\"labeledRecordCount\":1}]}";
 
     wf_response resp;
     memset(&resp, 0, sizeof(resp));
