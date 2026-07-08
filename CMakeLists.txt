@@ -711,6 +711,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_json_roundtrip PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME json_roundtrip COMMAND test_json_roundtrip)
 
+    add_executable(test_ozone test/test_ozone.c)
+    target_link_libraries(test_ozone PRIVATE wolfram)
+    target_include_directories(test_ozone PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME ozone COMMAND test_ozone)
+
     if(WOLFRAM_BUILD_STORE)
         if(WOLFRAM_BUILD_STORE_CRYPTO)
             add_executable(test_store_crypto test/test_store_crypto.c)
