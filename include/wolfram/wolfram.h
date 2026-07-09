@@ -39,6 +39,7 @@
 #include "wolfram/identity_typed.h"
 #include "wolfram/graph_social_typed.h"
 #include "wolfram/actor_status_typed.h"
+#include "wolfram/notification_typed.h"
 #include "wolfram/notification_v2_typed.h"
 #include "wolfram/ozone_typed.h"
 #include "wolfram/bsky_agent.h"
