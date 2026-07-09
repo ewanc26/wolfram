@@ -11,10 +11,14 @@ This document records the agreed conventions for the two C-adjacent bindings:
 
 ## Hard constraints (apply to every binding)
 
-1. **C11 core is authoritative.** A binding calls `libwolfram` functions; it does
-   not copy their logic. If wolfram has an honest stub (`WF_ERR_INVALID_ARG` +
-   `TODO`), the binding surfaces that as an error/exception — never a fabricated
-   success.
+1. **Wrappers only — never reimplement.** The C++ and C# layers are thin
+   pass-through wrappers over `libwolfram`. They must **not** reimplement any
+   wolfram logic: no signing/hashing (libsecp256k1/OpenSSL), no DAG-CBOR or
+   CAR (libcbor), no transport/DNS (libcurl/c-ares), no server (libmicrohttpd).
+   Every wrapper ultimately calls a `libwolfram` function; the binding layer
+   only adds ownership (RAII/`SafeHandle`), error mapping, and idiomatic
+   naming. If wolfram has an honest stub (`WF_ERR_INVALID_ARG` + `TODO`), the
+   binding surfaces that as an error/exception — never a fabricated success.
 2. **Ownership mirrored 1:1.** wolfram exposes a uniform contract: every owned
    output type `wf_T` has a matching `wf_T_free`, and JSON strings use
    `wf_*_json_free(char*)` (freed via `cJSON_free`, **not** `free`/`delete`).
@@ -33,18 +37,39 @@ This document records the agreed conventions for the two C-adjacent bindings:
 
 ## C++ — `wolfram-cpp` (header-only RAII layer)
 
-C++ includes the C headers directly, so there is **no binding generator** — just
-a thin RAII wrapper over the C API.
+Implemented as `cpp/wolfram-cpp/` (build with `-DWOLFRAM_BUILD_CPP=ON`; the
+`wolfram-cpp-smoke` test exercises it offline). C++ includes the C headers
+directly, so there is **no binding generator** for the wrapper itself — just a
+thin RAII layer:
 
-- **Owned outputs:** `std::unique_ptr<wf_T, TFree>` with one stateless deleter
-  functor per `wf_T_free`. Deleters are fully regular (`wf_*_free` set), so they
-  can be enumerated and generated once.
-- **JSON strings:** a `CString` RAII type whose deleter calls the *specific*
-  `wf_*_json_free` — never `std::free`/`delete`.
-- **Errors:** map `wf_status` to `std::error_code` via a custom `error_category`
-  (static singleton). Provide both `error_code` and throwing overloads.
-- **Inputs:** fluent helpers over the plain-C `wf_*_input` structs.
-- **Build:** header-only; consumers `target_link_libraries(app wolfram)`.
+- `wolfram/unique_handle.hpp` — `unique_handle<T, Free>` RAII owner mirroring
+  wolfram's `wf_T` + `wf_T_free` contract (move-only, `get()`/`release()`/`reset()`).
+- `wolfram/cstring.hpp` — RAII owner of a heap `char*`; default deleter is
+  `std::free`, pass a `wf_*_json_free` for cJSON-backed strings.
+- `wolfram/status.hpp` — `wf_status` → `std::error_code` via a custom
+  `error_category`, plus `wolfram::require(wf_status)` that throws
+  `std::system_error`. `wf_status` is `is_error_code_enum`-enabled so it
+  constructs `std::error_code` directly.
+- `tools/gen_owners.py` — scans `include/wolfram/*.h` for `void wf_<T>_free(...)`
+  and emits `wolfram/generated_owners.hpp` with one `wf_<T>_handle` typedef per
+  owned type (372 handles from 51 headers). Regenerate after changing headers.
+- `wolfram/wolfram.hpp` — umbrella include.
+
+### Core changes required for C++ consumption
+The C public headers were made C++-clean as part of adding this wrapper:
+- Unified the two status enums: `wf_status` (xrpc.h) is now the single canonical
+  enum (full 27-code set, values preserved from the old `wf_error`); `wf_error`
+  (in `_result.h`) is a `typedef` alias of `wf_status`. Previously the same
+  enumerators existed in both enums with divergent values (e.g. `WF_ERR_RATE_LIMIT`
+  was 8 vs 21), which broke any translation unit that included both.
+- `_result.h` now wraps its declarations in `extern "C"` and no longer has a stray
+  `type` token before `static inline` (a latent bug that also failed to compile
+  in C++).
+- `project(... LANGUAGES C CXX)` so the C++ target is buildable.
+
+## C# — `Wolfram.Interop` (P/Invoke, AOT-capable)
+
+*Not yet scaffolded.* Planned approach:
 
 ## C# — `Wolfram.Interop` (P/Invoke, AOT-capable)
 

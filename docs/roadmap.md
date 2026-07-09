@@ -193,7 +193,19 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     (unknown fields preserved in owned `extra`); builders for the defs and upload
     limits shapes; and agent wrappers (`wf_agent_video_get_job_status`,
     `wf_agent_video_get_upload_limits`, `wf_agent_video_upload`) that call the
-    existing raw video helpers and return owned structs. Tested.
+     existing raw video helpers and return owned structs. Tested.
+
+ 52. C++ RAII wrapper (`wolfram-cpp`, `cpp/wolfram-cpp/`) — header-only consumer
+     layer over `libwolfram`: `unique_handle<T, Free>` mirroring the `wf_T` +
+     `wf_T_free` ownership contract, a `cstring` RAII owner for heap `char*`, and
+     `wf_status` → `std::error_code` mapping with a throwing `require`. Owned
+     handle typedefs are generated from the `wf_*_free` set
+     (`tools/gen_owners.py` → `generated_owners.hpp`, 372 handles from 51 headers).
+     Built with `WOLFRAM_BUILD_CPP=ON`; covered by an offline `wolfram-cpp-smoke`
+     test. As part of adding it, the C public headers were made C++-clean: the
+     `wf_status` / `wf_error` status enums were unified (previously duplicated
+     with divergent values), `_result.h` gained `extern "C"` guards, and a stray
+     `type` token before `static inline` was removed.
 
 ## Next planned work
 
