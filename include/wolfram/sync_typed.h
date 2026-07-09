@@ -78,6 +78,25 @@ wf_status wf_sync_latest_commit_parse(const char *json, size_t json_len,
 /* Free the owned contents of a parsed latest-commit (safe on reset). */
 void wf_sync_latest_commit_free(wf_sync_latest_commit *c);
 
+/* ── com.atproto.sync.getHead (deprecated) ───────────────────────── */
+/* { root } — the required commit CID of the repo head. This endpoint is
+ * deprecated upstream in favour of getLatestCommit, but the generated lex
+ * call exists so we provide an owned typed wrapper for completeness. The
+ * owned struct name is suffixed `_typed` to avoid colliding with the
+ * pre-existing wf_sync_head in sync.h. */
+typedef struct wf_sync_head_typed {
+    char *root;      /* owned; required head commit CID */
+} wf_sync_head_typed;
+
+/* Parse a getHead JSON body ("root"). Same ownership/error rules as the
+ * repo-status parser (required root; missing -> WF_ERR_PARSE). On any error
+ * `out` is reset. */
+wf_status wf_sync_head_typed_parse(const char *json, size_t json_len,
+                                   wf_sync_head_typed *out);
+
+/* Free the owned contents of a parsed head (safe on reset). */
+void wf_sync_head_typed_free(wf_sync_head_typed *h);
+
 /* ── com.atproto.sync.getBlocks ──────────────────────────────────── */
 /* CAR archive -> list of { cid (string), value (owned CBOR bytes) }. */
 typedef struct wf_sync_block {
@@ -137,6 +156,12 @@ wf_status wf_agent_get_repo_status_typed(wf_agent *agent, const char *did,
 
 wf_status wf_agent_get_latest_commit_typed(wf_agent *agent, const char *did,
                                            wf_sync_latest_commit *out);
+
+/* com.atproto.sync.getHead (deprecated). Issues the query for `did` and parses
+ * the { root } response into an owned struct (free with
+ * wf_sync_head_typed_free). */
+wf_status wf_agent_get_head_typed(wf_agent *agent, const char *did,
+                                  wf_sync_head_typed *out);
 
 wf_status wf_agent_sync_get_blocks_typed(wf_agent *agent, const char *did,
                                      const char *const *cids, size_t n,
