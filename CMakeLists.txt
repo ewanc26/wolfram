@@ -190,6 +190,8 @@ if(WOLFRAM_BUILD_SERVER)
     find_path(MICROHTTPD_INCLUDE_DIR NAMES microhttpd.h REQUIRED)
     find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
     target_sources(wolfram PRIVATE src/server/xrpc_server.c)
+    # Feed-generator skeleton server helper (builds on the XRPC server).
+    target_sources(wolfram PRIVATE src/feedgen_server.c)
     target_include_directories(wolfram PRIVATE ${MICROHTTPD_INCLUDE_DIR})
     target_link_libraries(wolfram PUBLIC ${MICROHTTPD_LIBRARY})
 
@@ -198,6 +200,11 @@ if(WOLFRAM_BUILD_SERVER)
         target_link_libraries(test_xrpc_server PRIVATE wolfram)
         target_include_directories(test_xrpc_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
         add_test(NAME xrpc_server COMMAND test_xrpc_server)
+
+        add_executable(test_feedgen_skeleton test/test_feedgen_skeleton.c)
+        target_link_libraries(test_feedgen_skeleton PRIVATE wolfram)
+        target_include_directories(test_feedgen_skeleton PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
+        add_test(NAME feedgen_skeleton COMMAND test_feedgen_skeleton)
     endif()
 endif()
 
