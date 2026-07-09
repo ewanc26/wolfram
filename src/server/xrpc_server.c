@@ -14,6 +14,7 @@
 
 #include <arpa/inet.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -206,6 +207,7 @@ typedef enum {
 typedef struct wf_route {
     char                     *nsid;
     wf_route_kind             kind;
+    bool                      is_sse; /* true if this route uses Server-Sent Events */
     union {
         wf_xrpc_query_handler      query;
         wf_xrpc_procedure_handler  procedure;
@@ -571,7 +573,11 @@ send:
         goto cleanup;
     }
 
-    MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
+    if (route && route->is_sse) {
+        MHD_add_response_header(mhd_resp, "Content-Type", "text/event-stream");
+    } else {
+        MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
+    }
     MHD_add_response_header(mhd_resp, "Access-Control-Allow-Origin", "*");
     MHD_add_response_header(mhd_resp, "Access-Control-Allow-Headers",
                              "Authorization, Content-Type");
@@ -737,9 +743,9 @@ wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
 }
 
 wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
-                                            const char *nsid,
-                                            wf_xrpc_procedure_handler handler,
-                                            void *ctx) {
+                                             const char *nsid,
+                                             wf_xrpc_procedure_handler handler,
+                                             void *ctx) {
     wf_route *r;
 
     if (!server || !nsid || !handler) {
@@ -757,6 +763,35 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
     r->kind = WF_ROUTE_PROCEDURE;
     r->handler.procedure = handler;
     r->ctx = ctx;
+    r->next = server->routes;
+    server->routes = r;
+    return WF_OK;
+}
+
+/* Register a Server-Sent Events (SSE) endpoint. The handler is a GET query handler
+   that should populate resp.body with SSE-formatted data. The connection will
+   be closed after the response is sent. */
+wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
+                                      const char *nsid,
+                                      wf_xrpc_query_handler handler,
+                                      void *ctx) {
+    wf_route *r;
+    if (!server || !nsid || !handler) {
+        return WF_ERR_INVALID_ARG;
+    }
+    r = (wf_route *)calloc(1, sizeof(*r));
+    if (!r) {
+        return WF_ERR_ALLOC;
+    }
+    r->nsid = strdup(nsid);
+    if (!r->nsid) {
+        free(r);
+        return WF_ERR_ALLOC;
+    }
+    r->kind = WF_ROUTE_QUERY;
+    r->handler.query = handler;
+    r->ctx = ctx;
+    r->is_sse = true;
     r->next = server->routes;
     server->routes = r;
     return WF_OK;

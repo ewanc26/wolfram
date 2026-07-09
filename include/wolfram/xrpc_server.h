@@ -128,9 +128,15 @@ wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
                                          void *ctx);
 
 wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
-                                            const char *nsid,
-                                            wf_xrpc_procedure_handler handler,
-                                            void *ctx);
+                                          const char *nsid,
+                                          wf_xrpc_procedure_handler handler,
+                                          void *ctx);
+
+/* Register an SSE endpoint (GET) */
+wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
+                                      const char *nsid,
+                                      wf_xrpc_query_handler handler,
+                                      void *ctx);
 
 /* ------------------------------------------------------------------ */
 /* Auth middleware                                                      */
