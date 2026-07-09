@@ -34,6 +34,7 @@
 | `wolfram/list_typed.h`    | Implemented | Generated owning parser for list records (`app.bsky.graph.list*`) |
 | `wolfram/thread_typed.h`  | Implemented | Generated owning parser for thread records (`app.bsky.feed.defs#thread*`) |
 | `wolfram/labeler_typed.h` | Implemented | Owned typed parsers + agent wrappers for labeler service coverage (`com.atproto.label.queryLabels`, `app.bsky.labeler.getServices`, `com.atproto.temp.fetchLabels`, service record + policies + label value defs) |
+| `wolfram/lexicon_typed.h` | Implemented | Owned parser + agent wrapper for `com.atproto.lexicon.resolveLexicon` (lexicon document fetch by NSID/version) |
 | `wolfram/identity_typed.h` | Implemented | Owned typed parsers + agent wrappers for `com.atproto.identity` (resolveHandle, resolveDid, updateHandle, getRecommendedDidCredentials, signPlcOperation, submitPlcOperation, resolveIdentity, refreshIdentity) plus a PLC handle-rotation convenience (`wf_agent_identity_rotate_handle`) |
 | `wolfram/notification_v2_typed.h` | Implemented | Owned typed parsers + agent wrappers for `app.bsky.notification` v2 preferences + activity subscriptions (`putPreferencesV2`, `listActivitySubscriptions`, `putActivitySubscription`) |
 | `examples/` | Implemented | Higher-level endpoint examples using generated clients (label query, PLC handle rotation, notification v2, admin search) |
