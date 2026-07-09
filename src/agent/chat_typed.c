@@ -3363,3 +3363,289 @@ wf_status wf_agent_chat_get_status_typed(wf_agent *agent,
     if (s != WF_OK) wf_chat_actor_status_free(out);
     return s;
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Extended typed wrappers for the remaining chat.bsky.group / moderation /
+ * actor endpoints (rejectJoinRequest, updateJoinRequestsRead,
+ * withdrawJoinRequest, deleteAccount, moderation.updateActorAccess,
+ * actor.exportAccountData, moderation.subscribeModEvents).
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* Perform a single-arg chat procedure and capture the response body (so the
+ * empty `{}` result can be parsed into a wf_chat_ok). */
+static wf_status wf_chat_procedure_1arg_response(wf_agent *agent,
+        const char *nsid, const char *key, const char *value,
+        wf_response *out) {
+    if (!agent || !nsid || !key || !value || !out) return WF_ERR_INVALID_ARG;
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, key, value)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_procedure(cc, nsid, json, out);
+    free(json);
+    return status;
+}
+
+wf_status wf_agent_parse_chat_ok(const char *json, size_t json_len,
+                                 wf_chat_ok *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    /* An empty body (no bytes) is also a valid empty-object result. */
+    if (json_len == 0) {
+        out->ok = 1;
+        return WF_OK;
+    }
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) return WF_ERR_PARSE;
+    if (!cJSON_IsObject(root)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    out->ok = 1;
+    cJSON_Delete(root);
+    return WF_OK;
+}
+
+void wf_chat_ok_free(wf_chat_ok *o) {
+    if (!o) return;
+    memset(o, 0, sizeof(*o));
+}
+
+wf_status wf_agent_chat_reject_join_request_typed(wf_agent *agent,
+        const char *convo_id, const char *user_did, wf_chat_ok *out) {
+    if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddStringToObject(root, "member", user_did)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    wf_agent_sync_chat_auth(agent);
+    wf_response res = {0};
+    wf_status s = wf_xrpc_procedure(cc, "chat.bsky.group.rejectJoinRequest",
+                                    json, &res);
+    free(json);
+    if (s != WF_OK) { wf_response_free(&res); return s; }
+    s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (s != WF_OK) wf_chat_ok_free(out);
+    return s;
+}
+
+wf_status wf_agent_chat_update_join_requests_read_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_ok *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    wf_response res = {0};
+    wf_status s = wf_chat_procedure_1arg_response(agent,
+            "chat.bsky.group.updateJoinRequestsRead", "convoId", convo_id, &res);
+    if (s != WF_OK) { wf_response_free(&res); return s; }
+    s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (s != WF_OK) wf_chat_ok_free(out);
+    return s;
+}
+
+wf_status wf_agent_chat_withdraw_join_request_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_ok *out) {
+    if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    wf_response res = {0};
+    wf_status s = wf_chat_procedure_1arg_response(agent,
+            "chat.bsky.group.withdrawJoinRequest", "convoId", convo_id, &res);
+    if (s != WF_OK) { wf_response_free(&res); return s; }
+    s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (s != WF_OK) wf_chat_ok_free(out);
+    return s;
+}
+
+wf_status wf_agent_chat_delete_account_typed(wf_agent *agent,
+        wf_chat_ok *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    wf_response res = {0};
+    wf_status s = wf_agent_chat_delete_account(agent, &res);
+    if (s != WF_OK) { wf_response_free(&res); return s; }
+    s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (s != WF_OK) wf_chat_ok_free(out);
+    return s;
+}
+
+wf_status wf_agent_chat_mod_update_actor_access_typed(wf_agent *agent,
+        const char *actor_did, bool allow_access, const char *ref,
+        wf_chat_ok *out) {
+    if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    wf_response res = {0};
+    wf_status s = wf_agent_chat_mod_update_actor_access(agent, actor_did,
+                                                         allow_access, ref, &res);
+    if (s != WF_OK) { wf_response_free(&res); return s; }
+    s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (s != WF_OK) wf_chat_ok_free(out);
+    return s;
+}
+
+/* ── actor.exportAccountData (JSONL) ──────────────────────────────────── */
+
+static void wf_chat_export_record_reset(wf_chat_export_record *r) {
+    if (!r) return;
+    free(r->json);
+    memset(r, 0, sizeof(*r));
+}
+
+static void wf_chat_export_account_data_reset(wf_chat_export_account_data *e) {
+    if (!e) return;
+    for (size_t i = 0; i < e->record_count; ++i)
+        wf_chat_export_record_reset(&e->records[i]);
+    free(e->records);
+    memset(e, 0, sizeof(*e));
+}
+
+wf_status wf_agent_parse_export_account_data(const char *json, size_t json_len,
+        wf_chat_export_account_data *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    wf_chat_export_record *recs = NULL;
+    size_t cap = 0, n = 0;
+    const char *p = json;
+    const char *end = json + json_len;
+    wf_status status = WF_OK;
+
+    while (p < end && status == WF_OK) {
+        while (p < end && (*p == '\n' || *p == '\r')) p++;
+        if (p >= end) break;
+        const char *line_start = p;
+        while (p < end && *p != '\n') p++;
+        const char *line_end = p;
+        while (line_end > line_start && line_end[-1] == '\r') line_end--;
+        size_t llen = (size_t)(line_end - line_start);
+        if (llen == 0) continue; /* skip blank line */
+
+        if (n == cap) {
+            size_t ncap = cap ? cap * 2 : 4;
+            wf_chat_export_record *nr = realloc(recs, ncap * sizeof(*nr));
+            if (!nr) { status = WF_ERR_ALLOC; break; }
+            recs = nr;
+            cap = ncap;
+        }
+        memset(&recs[n], 0, sizeof(recs[n]));
+        char *copy = malloc(llen + 1);
+        if (!copy) { status = WF_ERR_ALLOC; break; }
+        memcpy(copy, line_start, llen);
+        copy[llen] = '\0';
+        recs[n].json = copy;
+        n++;
+    }
+
+    if (status != WF_OK) {
+        for (size_t i = 0; i < n; ++i) free(recs[i].json);
+        free(recs);
+        memset(out, 0, sizeof(*out));
+        return status;
+    }
+    out->records = recs;
+    out->record_count = n;
+    return WF_OK;
+}
+
+void wf_chat_export_account_data_free(wf_chat_export_account_data *e) {
+    if (!e) return;
+    wf_chat_export_account_data_reset(e);
+}
+
+wf_status wf_agent_chat_export_account_data_typed(wf_agent *agent,
+        wf_chat_export_account_data *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    wf_response res = {0};
+    wf_status s = wf_agent_chat_export_account_data(agent, &res);
+    if (s != WF_OK) { wf_response_free(&res); return s; }
+    s = wf_agent_parse_export_account_data(res.body, res.body_len, out);
+    wf_response_free(&res);
+    if (s != WF_OK) wf_chat_export_account_data_free(out);
+    return s;
+}
+
+/* ── moderation.subscribeModEvents ─────────────────────────────────────── */
+
+static void wf_chat_mod_event_reset(wf_chat_mod_event *e) {
+    if (!e) return;
+    free(e->type);
+    free(e->convo_id);
+    free(e->rev);
+    free(e->created_at);
+    free(e->actor_did);
+    free(e->subject_did);
+    memset(e, 0, sizeof(*e));
+}
+
+wf_status wf_agent_parse_mod_event(const char *json, size_t json_len,
+        wf_chat_mod_event *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) return WF_ERR_PARSE;
+
+    wf_status status = WF_OK;
+    cJSON *tp = cJSON_GetObjectItemCaseSensitive(root, "$type");
+    cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "convoId");
+    cJSON *rev = cJSON_GetObjectItemCaseSensitive(root, "rev");
+    cJSON *ca = cJSON_GetObjectItemCaseSensitive(root, "createdAt");
+    cJSON *ad = cJSON_GetObjectItemCaseSensitive(root, "actorDid");
+    cJSON *sd = cJSON_GetObjectItemCaseSensitive(root, "subjectDid");
+    if (cJSON_IsString(tp) && tp->valuestring)
+        status = wf_chat_set_string(&out->type, tp->valuestring);
+    if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring)
+        status = wf_chat_set_string(&out->convo_id, cid->valuestring);
+    if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring)
+        status = wf_chat_set_string(&out->rev, rev->valuestring);
+    if (status == WF_OK && cJSON_IsString(ca) && ca->valuestring)
+        status = wf_chat_set_string(&out->created_at, ca->valuestring);
+    if (status == WF_OK && cJSON_IsString(ad) && ad->valuestring)
+        status = wf_chat_set_string(&out->actor_did, ad->valuestring);
+    if (status == WF_OK && cJSON_IsString(sd) && sd->valuestring)
+        status = wf_chat_set_string(&out->subject_did, sd->valuestring);
+
+    if (status != WF_OK) wf_chat_mod_event_reset(out);
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_chat_mod_event_free(wf_chat_mod_event *e) {
+    if (!e) return;
+    wf_chat_mod_event_reset(e);
+}
+
+wf_status wf_agent_chat_subscribe_mod_events_typed(wf_agent *agent,
+        const char *cursor) {
+    /* TODO: chat.bsky.moderation.subscribeModEvents is a streaming WebSocket
+     * subscription served by the chat service. The typed chat layer currently
+     * only wraps request/response XRPC calls (query/procedure), so a live
+     * subscription is not wired here. Callers needing the event stream should
+     * use the raw chat client with the WebSocket transport directly. */
+    (void)agent;
+    (void)cursor;
+    return WF_ERR_INVALID_ARG;
+}
