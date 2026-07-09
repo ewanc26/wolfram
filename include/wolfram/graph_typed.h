@@ -53,15 +53,54 @@ wf_status wf_agent_parse_likes(const char *json, size_t json_len,
 /* Free a parsed like list and every owned field it holds. */
 void wf_agent_like_list_free(wf_agent_like_list *list);
 
+/* A single bi-directional relationship (app.bsky.graph.getRelationships).
+ * Each at-uri field is NULL when the relationship is absent. */
+typedef struct wf_agent_relationship {
+    char *did;               /* target actor DID (required) */
+    char *following;         /* at-uri of follow record, or NULL */
+    char *followed_by;       /* at-uri, or NULL */
+    char *blocking;          /* at-uri of block record, or NULL */
+    char *blocked_by;        /* at-uri, or NULL */
+    char *blocking_by_list;  /* at-uri of listblock, or NULL */
+    char *blocked_by_list;   /* at-uri of listblock, or NULL */
+} wf_agent_relationship;
+
+/* A parsed getRelationships response. */
+typedef struct wf_agent_relationship_list {
+    char *actor;
+    wf_agent_relationship *rels;
+    size_t rel_count;
+} wf_agent_relationship_list;
+
+/* Parse a getRelationships JSON body into owned structs. Returns
+ * WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or a
+ * missing `relationships` array, WF_ERR_ALLOC on allocation failure. */
+wf_status wf_agent_parse_relationships(const char *json, size_t json_len,
+                                       wf_agent_relationship_list *out);
+
+/* Free a parsed relationship list and every owned field it holds. */
+void wf_agent_relationship_list_free(wf_agent_relationship_list *list);
+
 /* Typed high-level wrappers for graph follow relationships. On success `out`
  * is owned by the caller (free with wf_agent_actor_list_free); on error it is
  * left reset. */
 wf_status wf_agent_get_follows_typed(wf_agent *agent, const char *actor,
-                                     int limit, const char *cursor,
-                                     wf_agent_actor_list *out);
+                                      int limit, const char *cursor,
+                                      wf_agent_actor_list *out);
 wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
-                                       int limit, const char *cursor,
-                                       wf_agent_actor_list *out);
+                                        int limit, const char *cursor,
+                                        wf_agent_actor_list *out);
+
+/* Typed high-level wrappers for graph relationships and thread muting. On
+ * success `out` is owned by the caller (free with wf_agent_relationship_list_free);
+ * on error it is left reset. The mute/unmute procedures return only a wf_status
+ * (the thread root URI is validated). */
+wf_status wf_agent_get_relationships_typed(wf_agent *agent, const char *actor,
+                                            const char *const *others,
+                                            size_t others_count,
+                                            wf_agent_relationship_list *out);
+wf_status wf_agent_mute_thread_typed(wf_agent *agent, const char *root_uri);
+wf_status wf_agent_unmute_thread_typed(wf_agent *agent, const char *root_uri);
 
 #ifdef __cplusplus
 }

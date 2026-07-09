@@ -1,0 +1,13 @@
+{
+  "cursor": "skeleton-cursor-5",
+  "reqId": "req-xyz-987",
+  "feed": [
+    {
+      "post": "at://did:plc:gen/app.bsky.feed.post/sk1",
+      "reason": { "$type": "app.bsky.feed.defs#skeletonReasonPin" }
+    },
+    {
+      "post": "at://did:plc:gen/app.bsky.feed.post/sk2"
+    }
+  ]
+}

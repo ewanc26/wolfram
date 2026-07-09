@@ -195,8 +195,8 @@ wf_status wf_agent_get_follows_typed(wf_agent *agent, const char *actor,
 }
 
 wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
-                                       int limit, const char *cursor,
-                                       wf_agent_actor_list *out) {
+                                        int limit, const char *cursor,
+                                        wf_agent_actor_list *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -211,4 +211,172 @@ wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
     status = wf_agent_parse_actors(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
+}
+
+/* ── getRelationships / muteThread / unmuteThread ───────────────────────── */
+
+static void wf_graph_relationship_reset(wf_agent_relationship *r) {
+    if (!r) {
+        return;
+    }
+    free(r->did);
+    free(r->following);
+    free(r->followed_by);
+    free(r->blocking);
+    free(r->blocked_by);
+    free(r->blocking_by_list);
+    free(r->blocked_by_list);
+    memset(r, 0, sizeof(*r));
+}
+
+static void wf_graph_relationship_list_reset(wf_agent_relationship_list *list) {
+    if (!list) {
+        return;
+    }
+    free(list->actor);
+    for (size_t i = 0; i < list->rel_count; ++i) {
+        wf_graph_relationship_reset(&list->rels[i]);
+    }
+    free(list->rels);
+    memset(list, 0, sizeof(*list));
+}
+
+/* Copy `src` into `dst` when it is a non-empty string; leave `dst` alone
+ * (no error) when the value is absent/null. */
+static wf_status wf_graph_set_opt_aturi(char **dst, cJSON *src) {
+    if (cJSON_IsString(src) && src->valuestring) {
+        return wf_graph_set_string(dst, src->valuestring);
+    }
+    return WF_OK;
+}
+
+wf_status wf_agent_parse_relationships(const char *json, size_t json_len,
+                                       wf_agent_relationship_list *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *actor = cJSON_GetObjectItemCaseSensitive(root, "actor");
+    if (cJSON_IsString(actor) && actor->valuestring) {
+        status = wf_graph_set_string(&out->actor, actor->valuestring);
+    }
+
+    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "relationships");
+    if (status == WF_OK && !cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = (size_t)cJSON_GetArraySize(arr);
+    wf_agent_relationship *items = NULL;
+    if (status == WF_OK && count > 0) {
+        items = (wf_agent_relationship *)calloc(count, sizeof(*items));
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    for (size_t i = 0; i < count && status == WF_OK; ++i) {
+        wf_agent_relationship *r = &items[i];
+        cJSON *obj = cJSON_GetArrayItem(arr, (int)i);
+        if (!cJSON_IsObject(obj)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
+        if (cJSON_IsString(did) && did->valuestring) {
+            status = wf_graph_set_string(&r->did, did->valuestring);
+        } else {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        if (status == WF_OK) {
+            status = wf_graph_set_opt_aturi(&r->following,
+                cJSON_GetObjectItemCaseSensitive(obj, "following"));
+        }
+        if (status == WF_OK) {
+            status = wf_graph_set_opt_aturi(&r->followed_by,
+                cJSON_GetObjectItemCaseSensitive(obj, "followedBy"));
+        }
+        if (status == WF_OK) {
+            status = wf_graph_set_opt_aturi(&r->blocking,
+                cJSON_GetObjectItemCaseSensitive(obj, "blocking"));
+        }
+        if (status == WF_OK) {
+            status = wf_graph_set_opt_aturi(&r->blocked_by,
+                cJSON_GetObjectItemCaseSensitive(obj, "blockedBy"));
+        }
+        if (status == WF_OK) {
+            status = wf_graph_set_opt_aturi(&r->blocking_by_list,
+                cJSON_GetObjectItemCaseSensitive(obj, "blockingByList"));
+        }
+        if (status == WF_OK) {
+            status = wf_graph_set_opt_aturi(&r->blocked_by_list,
+                cJSON_GetObjectItemCaseSensitive(obj, "blockedByList"));
+        }
+        if (status != WF_OK) {
+            wf_graph_relationship_reset(r);
+        }
+    }
+
+    if (status == WF_OK) {
+        out->rels = items;
+        out->rel_count = count;
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            wf_graph_relationship_reset(&items[i]);
+        }
+        free(items);
+        memset(out, 0, sizeof(*out));
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_agent_relationship_list_free(wf_agent_relationship_list *list) {
+    wf_graph_relationship_list_reset(list);
+}
+
+wf_status wf_agent_get_relationships_typed(wf_agent *agent, const char *actor,
+                                            const char *const *others,
+                                            size_t others_count,
+                                            wf_agent_relationship_list *out) {
+    if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_relationships(agent, actor, others,
+                                                  others_count, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_relationships(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_mute_thread_typed(wf_agent *agent, const char *root_uri) {
+    if (!agent || !root_uri || !root_uri[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_agent_mute_thread(agent, root_uri);
+}
+
+wf_status wf_agent_unmute_thread_typed(wf_agent *agent, const char *root_uri) {
+    if (!agent || !root_uri || !root_uri[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_agent_unmute_thread(agent, root_uri);
 }

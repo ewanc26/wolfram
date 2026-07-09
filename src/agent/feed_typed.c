@@ -404,3 +404,326 @@ wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
     wf_response_free(&res);
     return status;
 }
+
+/* ── getPosts / getFeedSkeleton / describeFeedGenerator ──────────────────── */
+
+static void wf_feed_post_list_reset(wf_agent_post_list *list) {
+    if (!list) {
+        return;
+    }
+    for (size_t i = 0; i < list->post_count; ++i) {
+        wf_feed_post_view_reset(&list->posts[i]);
+    }
+    free(list->posts);
+    memset(list, 0, sizeof(*list));
+}
+
+wf_status wf_agent_parse_posts(const char *json, size_t json_len,
+                              wf_agent_post_list *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "posts");
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = (size_t)cJSON_GetArraySize(arr);
+    wf_agent_post_view *items = NULL;
+    if (count > 0) {
+        items = (wf_agent_post_view *)calloc(count, sizeof(*items));
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    for (size_t i = 0; i < count && status == WF_OK; ++i) {
+        cJSON *obj = cJSON_GetArrayItem(arr, (int)i);
+        if (!cJSON_IsObject(obj)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        status = wf_feed_parse_post_view(&items[i], obj);
+        if (status != WF_OK) {
+            wf_feed_post_view_reset(&items[i]);
+        }
+    }
+
+    if (status == WF_OK) {
+        out->posts = items;
+        out->post_count = count;
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            wf_feed_post_view_reset(&items[i]);
+        }
+        free(items);
+        memset(out, 0, sizeof(*out));
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_agent_post_list_free(wf_agent_post_list *list) {
+    wf_feed_post_list_reset(list);
+}
+
+static void wf_feed_skeleton_reset(wf_agent_skeleton_post *p) {
+    if (!p) {
+        return;
+    }
+    free(p->post);
+    if (p->reason) {
+        cJSON_Delete(p->reason);
+    }
+    memset(p, 0, sizeof(*p));
+}
+
+static void wf_feed_skeleton_list_reset(wf_agent_skeleton_list *list) {
+    if (!list) {
+        return;
+    }
+    for (size_t i = 0; i < list->post_count; ++i) {
+        wf_feed_skeleton_reset(&list->posts[i]);
+    }
+    free(list->posts);
+    free(list->cursor);
+    free(list->req_id);
+    memset(list, 0, sizeof(*list));
+}
+
+wf_status wf_agent_parse_feed_skeleton(const char *json, size_t json_len,
+                                       wf_agent_skeleton_list *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "feed");
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = (size_t)cJSON_GetArraySize(arr);
+    wf_agent_skeleton_post *items = NULL;
+    if (count > 0) {
+        items = (wf_agent_skeleton_post *)calloc(count, sizeof(*items));
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    for (size_t i = 0; i < count && status == WF_OK; ++i) {
+        wf_agent_skeleton_post *item = &items[i];
+        cJSON *obj = cJSON_GetArrayItem(arr, (int)i);
+        if (!cJSON_IsObject(obj)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        cJSON *post = cJSON_GetObjectItemCaseSensitive(obj, "post");
+        if (cJSON_IsString(post) && post->valuestring) {
+            status = wf_feed_set_string(&item->post, post->valuestring);
+        } else {
+            status = WF_ERR_PARSE;
+        }
+        if (status == WF_OK) {
+            cJSON *reason = cJSON_GetObjectItemCaseSensitive(obj, "reason");
+            if (cJSON_IsObject(reason)) {
+                item->reason = cJSON_DetachItemFromObject(obj, "reason");
+            }
+        }
+        if (status != WF_OK) {
+            wf_feed_skeleton_reset(item);
+        }
+    }
+
+    if (status == WF_OK) {
+        out->posts = items;
+        out->post_count = count;
+        cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
+        if (cJSON_IsString(cursor) && cursor->valuestring) {
+            status = wf_feed_set_string(&out->cursor, cursor->valuestring);
+        }
+        cJSON *req_id = cJSON_GetObjectItemCaseSensitive(root, "reqId");
+        if (status == WF_OK && cJSON_IsString(req_id) && req_id->valuestring) {
+            status = wf_feed_set_string(&out->req_id, req_id->valuestring);
+        }
+    }
+
+    if (status != WF_OK) {
+        for (size_t i = 0; i < count; ++i) {
+            wf_feed_skeleton_reset(&items[i]);
+        }
+        free(items);
+        memset(out, 0, sizeof(*out));
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_agent_skeleton_list_free(wf_agent_skeleton_list *list) {
+    wf_feed_skeleton_list_reset(list);
+}
+
+static void wf_feed_gen_describe_reset(wf_agent_feed_gen_describe *d) {
+    if (!d) {
+        return;
+    }
+    free(d->did);
+    for (size_t i = 0; i < d->feed_count; ++i) {
+        free(d->feeds[i].uri);
+    }
+    free(d->feeds);
+    if (d->links) {
+        cJSON_Delete(d->links);
+    }
+    memset(d, 0, sizeof(*d));
+}
+
+wf_status wf_agent_parse_describe_feed_generator(const char *json,
+                                                size_t json_len,
+                                                wf_agent_feed_gen_describe *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
+    if (cJSON_IsString(did) && did->valuestring) {
+        status = wf_feed_set_string(&out->did, did->valuestring);
+    }
+
+    cJSON *feeds = cJSON_GetObjectItemCaseSensitive(root, "feeds");
+    if (status == WF_OK && cJSON_IsArray(feeds)) {
+        size_t count = (size_t)cJSON_GetArraySize(feeds);
+        wf_agent_feed_gen_feed *items = NULL;
+        if (count > 0) {
+            items = (wf_agent_feed_gen_feed *)calloc(count, sizeof(*items));
+            if (!items) {
+                cJSON_Delete(root);
+                return WF_ERR_ALLOC;
+            }
+        }
+        for (size_t i = 0; i < count && status == WF_OK; ++i) {
+            cJSON *obj = cJSON_GetArrayItem(feeds, (int)i);
+            cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
+            if (cJSON_IsString(uri) && uri->valuestring) {
+                status = wf_feed_set_string(&items[i].uri, uri->valuestring);
+            }
+            if (status != WF_OK) {
+                free(items[i].uri);
+            }
+        }
+        if (status == WF_OK) {
+            out->feeds = items;
+            out->feed_count = count;
+        } else {
+            for (size_t i = 0; i < count; ++i) {
+                free(items[i].uri);
+            }
+            free(items);
+        }
+    }
+
+    if (status == WF_OK) {
+        cJSON *links = cJSON_GetObjectItemCaseSensitive(root, "links");
+        if (cJSON_IsObject(links)) {
+            out->links = cJSON_DetachItemFromObject(root, "links");
+        }
+    }
+
+    if (status != WF_OK) {
+        wf_feed_gen_describe_reset(out);
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_agent_feed_gen_describe_free(wf_agent_feed_gen_describe *out) {
+    wf_feed_gen_describe_reset(out);
+}
+
+/* Typed convenience wrappers for the remaining core feed read endpoints. */
+
+wf_status wf_agent_get_posts_typed(wf_agent *agent, const char *const *uris,
+                                   size_t uri_count, wf_agent_post_list *out) {
+    if (!agent || !uris || uri_count == 0 || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_posts(agent, uris, uri_count, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_posts(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
+                                           const char *feed_uri, int limit,
+                                           const char *cursor,
+                                           wf_agent_skeleton_list *out) {
+    if (!agent || !feed_uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_feed_skeleton(agent, feed_uri, limit,
+                                                  cursor, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_feed_skeleton(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_describe_feed_generator_typed(wf_agent *agent,
+                                                 wf_agent_feed_gen_describe *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_describe_feed_generator(agent, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_describe_feed_generator(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}

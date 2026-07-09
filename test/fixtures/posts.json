@@ -1,0 +1,28 @@
+{
+  "posts": [
+    {
+      "uri": "at://did:plc:alice/app.bsky.feed.post/postA",
+      "cid": "bafyposta",
+      "author": {
+        "did": "did:plc:alice",
+        "handle": "alice.bsky.social",
+        "displayName": "Alice"
+      },
+      "record": { "$type": "app.bsky.feed.post", "text": "hello", "createdAt": "2026-07-04T10:00:00Z" },
+      "replyCount": 1,
+      "repostCount": 2,
+      "likeCount": 7,
+      "quoteCount": 0,
+      "indexedAt": "2026-07-04T10:00:01Z"
+    },
+    {
+      "uri": "at://did:plc:bob/app.bsky.feed.post/postB",
+      "cid": "bafypostb",
+      "author": {
+        "did": "did:plc:bob",
+        "handle": "bob.example.com"
+      },
+      "indexedAt": "2026-07-04T10:05:00Z"
+    }
+  ]
+}
