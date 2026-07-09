@@ -216,21 +216,45 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       of `wf_status`, and `WolframException` raised on non-`Ok`. Covered by an
       offline xUnit smoke test (`Wolfram.Interop.Tests`).
 
- 54. WebSocket (RFC 6455) subscription endpoints for the XRPC server — real
-      server→client push over a libmicrohttpd upgrade (`MHD_create_response_for_upgrade`
-      + `MHD_ALLOW_UPGRADE`, libmicrohttpd 1.0.5). A WS route receives a
-      `wf_xrpc_ws_stream` in its handler (invoked from the connection's upgrade
-      worker thread after the 101 handshake, with `Sec-WebSocket-Accept` computed
-      via SHA-1 + base64 over the client key and the RFC GUID). Frames are pushed
-      with `wf_xrpc_server_ws_send` (binary, opcode 0x2, UNMASKED) and the stream is
-      ended with `wf_xrpc_server_ws_close` (close frame, opcode 0x8). The upgrade
-      worker also reads client control frames — answering ping (0x9) with pong (0xA)
-      and honouring client close (0x8) — while inbound data frames are drained and
-      ignored. Suspended/upgraded connections are resumed, shut down, and joined on
-      `wf_xrpc_server_stop` / `wf_xrpc_server_free` so teardown never hangs. Built
-      when `WOLFRAM_BUILD_SERVER=ON`. Tested by `test_xrpc_server_ws` (raw-client
-      handshake + accept verification, ordered binary frames, close termination,
-      clean teardown).
+  54. WebSocket (RFC 6455) subscription endpoints for the XRPC server — real
+       server→client push over a libmicrohttpd upgrade (`MHD_create_response_for_upgrade`
+       + `MHD_ALLOW_UPGRADE`, libmicrohttpd 1.0.5). A WS route receives a
+       `wf_xrpc_ws_stream` in its handler (invoked from the connection's upgrade
+       worker thread after the 101 handshake, with `Sec-WebSocket-Accept` computed
+       via SHA-1 + base64 over the client key and the RFC GUID). Frames are pushed
+       with `wf_xrpc_server_ws_send` (binary, opcode 0x2, UNMASKED) and the stream is
+       ended with `wf_xrpc_server_ws_close` (close frame, opcode 0x8). The upgrade
+       worker also reads client control frames — answering ping (0x9) with pong (0xA)
+       and honouring client close (0x8) — while inbound data frames are drained and
+       ignored. Suspended/upgraded connections are resumed, shut down, and joined on
+       `wf_xrpc_server_stop` / `wf_xrpc_server_free` so teardown never hangs. Built
+       when `WOLFRAM_BUILD_SERVER=ON`. Tested by `test_xrpc_server_ws` (raw-client
+       handshake + accept verification, ordered binary frames, close termination,
+       clean teardown).
+
+  55. Typed-wrapper coverage broadened across remaining lexicon endpoints
+      (developed on parallel branches, all merged to `main`). `embed_typed.h`:
+      owning parser + agent wrapper for `app.bsky.embed.getEmbedExternalView`.
+      `feed_gen_typed.h`: `wf_feedgen_send_interactions_typed` for
+      `app.bsky.feed.sendInteractions`. `graph_social_typed.h`: owning parsers +
+      agent wrappers for `app.bsky.graph.getListsWithMembership` and
+      `app.bsky.graph.getStarterPacksWithMembership` (membership envelopes reuse
+      `wf_graph_list_view` / `wf_graph_starter_pack_view` + an optional
+      `wf_graph_list_item_view`); `searchStarterPacks` is reused from
+      `unspecced_typed.h` rather than redefined. `repo_typed.h`: owning parser for
+      create/put record results + agent wrappers for `com.atproto.repo`
+      createRecord/putRecord/deleteRecord/uploadBlob/importRepo. `server_typed.h`:
+      agent wrappers for the remaining `com.atproto.server` endpoints
+      (describeServer, createAccount, createAppPassword, listAppPasswords,
+      revokeAppPassword, deleteSession, activate/deactivateAccount, confirmEmail,
+      resetPassword, updateEmail, createInviteCode(s)) layered on the owned
+      `server.h` result structs. `sync_typed.h`: `wf_agent_get_blob_typed` for
+      `com.atproto.sync.getBlob`. `temp_typed.h`: real `revokeAccountCredentials`
+      wrapper carrying the required `account` input (replaces the prior stub). New
+      `lexicon_typed.h` module: owning parser + `wf_agent_resolve_lexicon_typed`
+      for `com.atproto.lexicon.resolveLexicon`. `chat_typed.h`: owning parser +
+      agent wrappers for `chat.bsky.notification.getPreferences` / `putPreferences`.
+      All tested offline (parser round-trips + argument validation).
 
 ## Next planned work
 
