@@ -36,8 +36,17 @@
 #include <wolfram/notification_prefs_typed.h>
 #include <wolfram/notification_typed.h>
 #include <wolfram/notification_v2_typed.h>
+#include <wolfram/oauth/callback.h>
+#include <wolfram/oauth/dpop.h>
+#include <wolfram/oauth/flow.h>
+#include <wolfram/oauth/metadata.h>
+#include <wolfram/oauth/par.h>
+#include <wolfram/oauth/state.h>
 #include <wolfram/ozone_moderation_ops_typed.h>
 #include <wolfram/ozone_typed.h>
+#include <wolfram/repo/car.h>
+#include <wolfram/repo/diff.h>
+#include <wolfram/repo/mst.h>
 #include <wolfram/repo_typed.h>
 #include <wolfram/richtext.h>
 #include <wolfram/server.h>
@@ -108,6 +117,7 @@ using wf_bookmark_create_result_handle = unique_handle<wf_bookmark_create_result
 using wf_bookmark_delete_result_handle = unique_handle<wf_bookmark_delete_result, wf_bookmark_delete_result_free>;
 using wf_bookmark_list_handle = unique_handle<wf_bookmark_list, wf_bookmark_list_free>;
 using wf_bsky_agent_handle = unique_handle<wf_bsky_agent, wf_bsky_agent_free>;
+using wf_car_handle = unique_handle<wf_car, wf_car_free>;
 using wf_chat_actor_metadata_handle = unique_handle<wf_chat_actor_metadata, wf_chat_actor_metadata_free>;
 using wf_chat_actor_status_handle = unique_handle<wf_chat_actor_status, wf_chat_actor_status_free>;
 using wf_chat_convo_handle = unique_handle<wf_chat_convo, wf_chat_convo_free>;
@@ -415,11 +425,23 @@ using wf_mod_prefs_handle = unique_handle<wf_mod_prefs, wf_mod_prefs_free>;
 using wf_mod_ui_handle = unique_handle<wf_mod_ui, wf_mod_ui_free>;
 using wf_moderation_report_handle = unique_handle<wf_moderation_report, wf_moderation_report_free>;
 using wf_moderation_report_record_handle = unique_handle<wf_moderation_report_record, wf_moderation_report_record_free>;
+using wf_mst_node_handle = unique_handle<wf_mst_node, wf_mst_node_free>;
 using wf_notif_v2_activity_subscription_result_handle = unique_handle<wf_notif_v2_activity_subscription_result, wf_notif_v2_activity_subscription_result_free>;
 using wf_notif_v2_preferences_handle = unique_handle<wf_notif_v2_preferences, wf_notif_v2_preferences_free>;
 using wf_notif_v2_subscription_view_list_handle = unique_handle<wf_notif_v2_subscription_view_list, wf_notif_v2_subscription_view_list_free>;
 using wf_notification_list_handle = unique_handle<wf_notification_list, wf_notification_list_free>;
 using wf_notification_prefs_handle = unique_handle<wf_notification_prefs, wf_notification_prefs_free>;
+using wf_oauth_authorization_begin_result_handle = unique_handle<wf_oauth_authorization_begin_result, wf_oauth_authorization_begin_result_free>;
+using wf_oauth_authorization_complete_result_handle = unique_handle<wf_oauth_authorization_complete_result, wf_oauth_authorization_complete_result_free>;
+using wf_oauth_authorization_state_handle = unique_handle<wf_oauth_authorization_state, wf_oauth_authorization_state_free>;
+using wf_oauth_callback_result_handle = unique_handle<wf_oauth_callback_result, wf_oauth_callback_result_free>;
+using wf_oauth_client_metadata_handle = unique_handle<wf_oauth_client_metadata, wf_oauth_client_metadata_free>;
+using wf_oauth_dpop_key_handle = unique_handle<wf_oauth_dpop_key, wf_oauth_dpop_key_free>;
+using wf_oauth_par_response_handle = unique_handle<wf_oauth_par_response, wf_oauth_par_response_free>;
+using wf_oauth_resource_metadata_handle = unique_handle<wf_oauth_resource_metadata, wf_oauth_resource_metadata_free>;
+using wf_oauth_server_metadata_handle = unique_handle<wf_oauth_server_metadata, wf_oauth_server_metadata_free>;
+using wf_oauth_session_state_handle = unique_handle<wf_oauth_session_state, wf_oauth_session_state_free>;
+using wf_oauth_token_response_handle = unique_handle<wf_oauth_token_response, wf_oauth_token_response_free>;
 using wf_ozone_ops_account_handle = unique_handle<wf_ozone_ops_account, wf_ozone_ops_account_free>;
 using wf_ozone_ops_account_list_handle = unique_handle<wf_ozone_ops_account_list, wf_ozone_ops_account_list_free>;
 using wf_ozone_ops_historical_stats_list_handle = unique_handle<wf_ozone_ops_historical_stats_list, wf_ozone_ops_historical_stats_list_free>;
@@ -441,6 +463,7 @@ using wf_ozone_team_member_list_handle = unique_handle<wf_ozone_team_member_list
 using wf_rate_limiter_handle = unique_handle<wf_rate_limiter, wf_rate_limiter_free>;
 using wf_repo_apply_writes_result_handle = unique_handle<wf_repo_apply_writes_result, wf_repo_apply_writes_result_free>;
 using wf_repo_description_handle = unique_handle<wf_repo_description, wf_repo_description_free>;
+using wf_repo_diff_handle = unique_handle<wf_repo_diff, wf_repo_diff_free>;
 using wf_repo_missing_blob_list_handle = unique_handle<wf_repo_missing_blob_list, wf_repo_missing_blob_list_free>;
 using wf_repo_record_handle = unique_handle<wf_repo_record, wf_repo_record_free>;
 using wf_repo_record_list_handle = unique_handle<wf_repo_record_list, wf_repo_record_list_free>;
