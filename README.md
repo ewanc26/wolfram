@@ -10,7 +10,8 @@ embedded in, or required by applications using `libwolfram`.
 (XRPC/WebSocket), identity (DID/handle + `com.atproto.identity` typed wrappers),
 repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/moderation), OAuth
  (DPoP/PAR), sync (firehose + Jetstream), moderation, DID PLC ops, rich text,
-syntax/validate/json, labeler service coverage, notification v2 + activity
+syntax/validate/json, labeler service coverage, `app.bsky.video` typed wrappers
+(job status / upload limits / upload), notification v2 + activity
 subscriptions, optional SQLite store persistence, app.bsky.graph write
 wrappers (`wf_agent_graph_*`: mute/unmute thread + actor-list,
 block/list/listitem/starterpack/listblock create/update/delete), and

@@ -187,6 +187,14 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     Tested end-to-end against an offline mock PDS (asserting returned
     uri/cid and the exact request payloads). Tested.
 
+48. `app.bsky.video` typed wrappers (`video_typed.h`) — owning parsers for the
+    `getJobStatus` and `uploadVideo` jobStatus envelopes, the `getUploadLimits`
+    output, and the shared `app.bsky.video.defs#jobStatus` blob-bearing object
+    (unknown fields preserved in owned `extra`); builders for the defs and upload
+    limits shapes; and agent wrappers (`wf_agent_video_get_job_status`,
+    `wf_agent_video_get_upload_limits`, `wf_agent_video_upload`) that call the
+    existing raw video helpers and return owned structs. Tested.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
