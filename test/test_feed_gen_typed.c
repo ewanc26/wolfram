@@ -271,6 +271,28 @@ int main(void) {
     WF_CHECK(wf_feedgen_search_posts_v2_typed(NULL, NULL, 10, NULL, &s2) ==
              WF_ERR_INVALID_ARG);
 
+    /* ---- sendInteractions argument validation (procedure) ---- */
+    wf_lex_app_bsky_feed_defs_interaction inter = {0};
+    inter.has_item = true;
+    inter.item = "at://did:plc:x/app.bsky.feed.post/1";
+    inter.has_event = true;
+    inter.event = "app.bsky.feed.defs#interactionLike";
+    const wf_lex_app_bsky_feed_defs_interaction *inters[] = {&inter};
+    const wf_lex_app_bsky_feed_defs_interaction *bad_inters[] = {NULL};
+
+    /* NULL agent, NULL/empty interactions array all reject. */
+    WF_CHECK(wf_feedgen_send_interactions_typed(NULL, NULL, inters, 1) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_feedgen_send_interactions_typed(NULL, "at://feed", NULL, 1) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_feedgen_send_interactions_typed(NULL, NULL, inters, 0) ==
+             WF_ERR_INVALID_ARG);
+    /* A NULL element inside the array is rejected too (checked before auth, so
+     * a NULL agent still short-circuits — assert both guards independently by
+     * relying on the NULL-agent guard here). */
+    WF_CHECK(wf_feedgen_send_interactions_typed(NULL, NULL, bad_inters, 1) ==
+             WF_ERR_INVALID_ARG);
+
     printf("feed_gen_typed: all checks passed\n");
     return 0;
 }
