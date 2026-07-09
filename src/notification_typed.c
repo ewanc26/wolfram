@@ -79,10 +79,8 @@ static wf_status wf_notification_parse_view(cJSON *obj, wf_notification_view *v)
     cJSON *author = cJSON_GetObjectItemCaseSensitive(obj, "author");
     cJSON *reason = cJSON_GetObjectItemCaseSensitive(obj, "reason");
     cJSON *rs = cJSON_GetObjectItemCaseSensitive(obj, "reasonSubject");
-    cJSON *record = cJSON_GetObjectItemCaseSensitive(obj, "record");
     cJSON *is_read = cJSON_GetObjectItemCaseSensitive(obj, "isRead");
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
-    cJSON *labels = cJSON_GetObjectItemCaseSensitive(obj, "labels");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
         status = wf_notif_set_string(&v->uri, uri->valuestring);

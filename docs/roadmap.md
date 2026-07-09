@@ -131,6 +131,23 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
      setting (listOptions, removeOptions, upsertOption), hosting
      (getAccountHistory), server (getConfig), and safelink
      (addRule, queryEvents, queryRules, removeRule, updateRule). Tested.
+43. Feed generator + discovery typed wrappers (`feed_gen_typed.h`) — owned
+    parsers + agent wrappers for `app.bsky.feed` generator/discovery endpoints
+    (getFeedGenerator[s], getActorFeeds, getSuggestedFeeds, getLikes,
+    getRepostedBy, getQuotes, getActorLikes, getListFeed, searchPosts[V2]),
+    reusing `wf_agent_feed_list`/`wf_agent_actor_list` where they fit. Tested.
+44. Graph social typed wrappers (`graph_social_typed.h`) — owned parsers +
+    agent wrappers for mutes/blocks list views (getListMutes, getListBlocks),
+    starter packs (getStarterPack[s], getActorStarterPacks), suggested follows,
+    and mute/unmute (actor + actor-list) procedures. Tested.
+45. Core notification typed wrappers (`notification_typed.h`) — a richer
+    notification view union (all reason types) plus wrappers for
+    listNotifications, getUnreadCount, updateSeen, register/unregisterPush,
+    distinct from the v2 preferences module. Tested.
+46. Actor preferences typed wrappers (`actor_prefs_typed.h`) — an owned
+    preferences union (all 16 known `$type` preference objects, unknown types
+    preserved verbatim) with parser + builder, plus getSuggestions and a
+    declaration parser/builder. Tested.
 
 ## Next planned work
 
