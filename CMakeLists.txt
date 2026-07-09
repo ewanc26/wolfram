@@ -147,6 +147,7 @@ add_library(wolfram
     src/admin_typed.c
     src/sync_typed.c
     src/server_typed.c
+    src/agent/lexicon_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
     src/agent/lexcall.c
@@ -987,6 +988,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_server_typed PRIVATE test ${cjson_SOURCE_DIR})
     target_compile_definitions(test_server_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME server_typed COMMAND test_server_typed)
+
+    add_executable(test_lexicon_typed test/test_lexicon_typed.c)
+    target_link_libraries(test_lexicon_typed PRIVATE wolfram)
+    target_include_directories(test_lexicon_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME lexicon_typed COMMAND test_lexicon_typed)
 
     add_executable(test_lexcall test/test_lexcall.c)
     target_link_libraries(test_lexcall PRIVATE wolfram)

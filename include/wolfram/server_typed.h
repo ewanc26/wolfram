@@ -29,6 +29,20 @@
 
 #include "wolfram/agent.h"
 
+/* The additional wrappers below reuse the owned result structs declared in
+ * wolfram/server.h (wf_server_description, wf_server_create_account_result,
+ * wf_server_app_password(_list), wf_server_create_invite_code(s)_result). Those
+ * structs are forward-declared here rather than #include'd to avoid a
+ * circular include (wolfram.h -> server_typed.h -> server.h -> wolfram.h).
+ * server_typed.c includes wolfram/server.h for the full definitions. */
+typedef struct wf_server_description wf_server_description;
+typedef struct wf_server_create_account_input wf_server_create_account_input;
+typedef struct wf_server_create_account_result wf_server_create_account_result;
+typedef struct wf_server_app_password wf_server_app_password;
+typedef struct wf_server_app_password_list wf_server_app_password_list;
+typedef struct wf_server_create_invite_code_result wf_server_create_invite_code_result;
+typedef struct wf_server_create_invite_codes_result wf_server_create_invite_codes_result;
+
 #include <cJSON.h>
 
 #include <stdbool.h>
@@ -208,7 +222,72 @@ wf_status wf_agent_create_session_typed(wf_agent *agent, const char *identifier,
 
 /* com.atproto.server.refreshSession */
 wf_status wf_agent_refresh_session_typed(wf_agent *agent,
-                                        wf_server_session_tokens *out);
+                                         wf_server_session_tokens *out);
+
+/* ---- Additional com.atproto.server typed wrappers ----
+ * These reuse the owned result structs already declared in wolfram/server.h
+ * and delegate to the matching lower-level server.h call after syncing auth,
+ * so no second owned parser is introduced and no type is redefined. Procedures
+ * that return no body (deleteSession, activateAccount, deactivateAccount,
+ * confirmEmail, resetPassword, updateEmail) return wf_status only. */
+
+/* com.atproto.server.describeServer */
+wf_status wf_agent_describe_server_typed(wf_agent *agent,
+                                        wf_server_description *out);
+
+/* com.atproto.server.createAccount */
+wf_status wf_agent_create_account_typed(
+    wf_agent *agent, const wf_server_create_account_input *input,
+    wf_server_create_account_result *out);
+
+/* com.atproto.server.createAppPassword. `privileged` non-zero requests a
+ * privileged password. */
+wf_status wf_agent_create_app_password_typed(wf_agent *agent, const char *name,
+                                             int privileged,
+                                             wf_server_app_password *out);
+
+/* com.atproto.server.listAppPasswords */
+wf_status wf_agent_list_app_passwords_typed(wf_agent *agent,
+                                            wf_server_app_password_list *out);
+
+/* com.atproto.server.revokeAppPassword */
+wf_status wf_agent_revoke_app_password_typed(wf_agent *agent, const char *name);
+
+/* com.atproto.server.deleteSession (procedure, no output) */
+wf_status wf_agent_delete_session_typed(wf_agent *agent);
+
+/* com.atproto.server.activateAccount (procedure, no output) */
+wf_status wf_agent_activate_account_typed(wf_agent *agent);
+
+/* com.atproto.server.deactivateAccount (procedure, no output).
+ * `delete_after_or_null` is an optional RFC-3339 recommendation. */
+wf_status wf_agent_deactivate_account_typed(wf_agent *agent,
+                                            const char *delete_after_or_null);
+
+/* com.atproto.server.confirmEmail (procedure, no output) */
+wf_status wf_agent_confirm_email_typed(wf_agent *agent, const char *email,
+                                       const char *token);
+
+/* com.atproto.server.resetPassword (procedure, no output) */
+wf_status wf_agent_reset_password_typed(wf_agent *agent, const char *reset_token,
+                                        const char *new_password);
+
+/* com.atproto.server.updateEmail (procedure, no output). `email_auth_factor`
+ * non-zero sets the flag. */
+wf_status wf_agent_update_email_typed(wf_agent *agent, const char *email,
+                                      const char *token, int email_auth_factor);
+
+/* com.atproto.server.createInviteCode */
+wf_status wf_agent_create_invite_code_typed(
+    wf_agent *agent, int64_t use_count, const char *for_account_or_null,
+    wf_server_create_invite_code_result *out);
+
+/* com.atproto.server.createInviteCodes. `for_accounts`/`for_accounts_count`
+ * are optional. */
+wf_status wf_agent_create_invite_codes_typed(
+    wf_agent *agent, int64_t code_count, int64_t use_count,
+    const char *const *for_accounts, size_t for_accounts_count,
+    wf_server_create_invite_codes_result *out);
 
 #ifdef __cplusplus
 }
