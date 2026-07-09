@@ -418,6 +418,89 @@ void wf_chat_message_list_free(wf_chat_message_list *list) {
     memset(list, 0, sizeof(*list));
 }
 
+/* ── chat.bsky.notification parses ────────────────────────────────────── */
+
+static void wf_chat_notification_pref_reset(wf_chat_notification_preference *p) {
+    if (!p) {
+        return;
+    }
+    free(p->include);
+    memset(p, 0, sizeof(*p));
+}
+
+static wf_status wf_chat_notification_pref_parse(wf_chat_notification_preference *out,
+                                                  cJSON *obj) {
+    wf_status status = WF_OK;
+    if (!cJSON_IsObject(obj)) {
+        return WF_ERR_PARSE;
+    }
+    cJSON *include = cJSON_GetObjectItemCaseSensitive(obj, "include");
+    cJSON *push = cJSON_GetObjectItemCaseSensitive(obj, "push");
+
+    if (cJSON_IsString(include) && include->valuestring) {
+        status = wf_chat_set_string(&out->include, include->valuestring);
+    }
+    if (status == WF_OK) {
+        if (cJSON_IsBool(push)) {
+            out->push = cJSON_IsTrue(push) ? 1 : 0;
+            out->has_push = 1;
+        }
+    }
+    return status;
+}
+
+wf_status wf_agent_parse_chat_notification_preferences(const char *json,
+                                                        size_t json_len,
+                                                        wf_chat_notification_preferences *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *prefs = cJSON_GetObjectItemCaseSensitive(root, "preferences");
+    if (!cJSON_IsObject(prefs)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    cJSON *chat = cJSON_GetObjectItemCaseSensitive(prefs, "chat");
+    cJSON *chat_request = cJSON_GetObjectItemCaseSensitive(prefs, "chatRequest");
+    if (!cJSON_IsObject(chat) || !cJSON_IsObject(chat_request)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    status = wf_chat_notification_pref_parse(&out->chat, chat);
+    if (status == WF_OK) {
+        status = wf_chat_notification_pref_parse(&out->chat_request, chat_request);
+    }
+
+    if (status != WF_OK) {
+        wf_chat_notification_pref_reset(&out->chat);
+        wf_chat_notification_pref_reset(&out->chat_request);
+        memset(out, 0, sizeof(*out));
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_chat_notification_preferences_free(wf_chat_notification_preferences *p) {
+    if (!p) {
+        return;
+    }
+    wf_chat_notification_pref_reset(&p->chat);
+    wf_chat_notification_pref_reset(&p->chat_request);
+    memset(p, 0, sizeof(*p));
+}
+
 /* Typed high-level wrappers. */
 
 /* Default chat service endpoint (mirrors rsky rsky-common/src/lib.rs:204). */
@@ -1796,4 +1879,80 @@ wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
     wf_agent_sync_chat_auth(agent);
     return wf_xrpc_query_params(cc, "chat.bsky.convo.getLog",
                                  params, pc, out);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.notification.*
+ * ════════════════════════════════════════════════════════════════════════ */
+
+wf_status wf_agent_chat_notification_get_preferences(wf_agent *agent,
+                                                      wf_chat_notification_preferences *out) {
+    if (!agent || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+
+    wf_agent_sync_chat_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_chat_bsky_notification_get_preferences_main_call(cc, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_chat_notification_preferences(res.body,
+                                                           res.body_len, out);
+    wf_response_free(&res);
+    if (status != WF_OK) {
+        wf_chat_notification_preferences_free(out);
+    }
+    return status;
+}
+
+wf_status wf_agent_chat_notification_put_preferences(wf_agent *agent,
+                                                      const wf_chat_notification_preferences *in,
+                                                      wf_chat_notification_preferences *out) {
+    if (!agent || !in || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    /* Build the generated input from the owned preference struct. Both `chat`
+     * and `chatRequest` are always present in the owned struct. */
+    wf_lex_chat_bsky_notification_defs_chat_preference chat_lex;
+    memset(&chat_lex, 0, sizeof(chat_lex));
+    chat_lex.include = in->chat.include;
+    chat_lex.push = in->chat.push;
+
+    wf_lex_chat_bsky_notification_defs_chat_preference chat_request_lex;
+    memset(&chat_request_lex, 0, sizeof(chat_request_lex));
+    chat_request_lex.include = in->chat_request.include;
+    chat_request_lex.push = in->chat_request.push;
+
+    wf_lex_chat_bsky_notification_put_preferences_main_input input;
+    memset(&input, 0, sizeof(input));
+    input.has_chat = 1;
+    input.chat = &chat_lex;
+    input.has_chat_request = 1;
+    input.chat_request = &chat_request_lex;
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+
+    wf_agent_sync_chat_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_chat_bsky_notification_put_preferences_main_call(cc, &input, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_chat_notification_preferences(res.body,
+                                                           res.body_len, out);
+    wf_response_free(&res);
+    if (status != WF_OK) {
+        wf_chat_notification_preferences_free(out);
+    }
+    return status;
 }
