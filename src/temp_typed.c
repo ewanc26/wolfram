@@ -454,3 +454,24 @@ wf_status wf_agent_dereference_scope(wf_agent *agent,
     wf_response_free(&res);
     return status;
 }
+
+/* revokeAccountCredentials (procedure, input: account). Carries the required
+ * `account` (at-identifier) input, unlike the legacy honest-stub
+ * wf_agent_revoke_account_credentials. */
+wf_status wf_agent_revoke_account_credentials_typed(wf_agent *agent,
+                                                    const char *account) {
+    if (!agent || !agent->client || !account || !account[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_com_atproto_temp_revoke_account_credentials_main_input input = {0};
+    input.account = account;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_com_atproto_temp_revoke_account_credentials_main_call(
+            agent->client, &input, &res);
+    wf_response_free(&res);
+    return status;
+}

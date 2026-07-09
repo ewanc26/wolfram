@@ -299,6 +299,91 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
     }
 
+    /* ---- createRecord / putRecord result parser ---- */
+    {
+        static const char *json =
+            "{\"uri\":\"at://did:plc:abc/app.bsky.feed.post/abc123\","
+            "\"cid\":\"bafyreig\",\"commit\":{\"cid\":\"bafy:rev\","
+            "\"rev\":\"3\"},\"validationStatus\":\"valid\"}";
+        wf_repo_write_record_result out = {0};
+        wf_status s = wf_repo_parse_write_record_result(
+            json, strlen(json), &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.uri &&
+                 strcmp(out.uri,
+                        "at://did:plc:abc/app.bsky.feed.post/abc123") == 0);
+        WF_CHECK(out.cid && strcmp(out.cid, "bafyreig") == 0);
+        WF_CHECK(out.extra != NULL);
+        if (out.extra) {
+            cJSON *commit =
+                cJSON_GetObjectItemCaseSensitive(out.extra, "commit");
+            WF_CHECK(cJSON_IsObject(commit));
+        }
+        wf_repo_write_record_result_free(&out);
+        wf_repo_write_record_result_free(&out); /* idempotent */
+
+        WF_CHECK(wf_repo_parse_write_record_result(NULL, 0, &out) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_parse_write_record_result(NULL, 0, NULL) ==
+                 WF_ERR_INVALID_ARG);
+    }
+
+    /* ---- uploadBlob result parser ---- */
+    {
+        static const char *json =
+            "{\"blob\":{\"cid\":\"bafy:blob\",\"mimeType\":\"image/png\","
+            "\"size\":1234}}";
+        wf_repo_upload_blob_result out = {0};
+        wf_status s = wf_repo_parse_upload_blob_result(
+            json, strlen(json), &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.cid && strcmp(out.cid, "bafy:blob") == 0);
+        WF_CHECK(out.mime_type &&
+                 strcmp(out.mime_type, "image/png") == 0);
+        WF_CHECK(out.has_size && out.size == 1234);
+        wf_repo_upload_blob_result_free(&out);
+
+        static const char *bad = "{\"blob\":{\"mimeType\":\"x\"}}";
+        wf_repo_upload_blob_result bad_out = {0};
+        WF_CHECK(wf_repo_parse_upload_blob_result(
+                     bad, strlen(bad), &bad_out) == WF_OK);
+        WF_CHECK(bad_out.cid == NULL && bad_out.has_size == false);
+        wf_repo_upload_blob_result_free(&bad_out);
+
+        WF_CHECK(wf_repo_parse_upload_blob_result(NULL, 0, &out) ==
+                 WF_ERR_INVALID_ARG);
+    }
+
+    /* ---- New agent wrapper NULL validation (NULL agent passed so the
+       wrappers never dereference a fake pointer; the wrappers validate the
+       agent first, so NULL agent is enough to exercise the invalid path). ---- */
+    {
+        wf_repo_write_record_result wr = {0};
+        wf_repo_upload_blob_result ub = {0};
+
+        WF_CHECK(wf_agent_create_record_typed(NULL, "r", "c", NULL, -1,
+                                             "{}", NULL, &wr) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_record_typed(NULL, "r", "c", NULL, -1, "{}",
+                                             NULL, NULL) == WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_put_record_typed(NULL, "r", "c", "k", -1, "{}", NULL,
+                                           NULL, &wr) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_put_record_typed(NULL, "r", "c", "k", -1, "{}", NULL,
+                                           NULL, NULL) == WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_delete_record_typed(NULL, "r", "c", "k", NULL,
+                                              NULL) == WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_upload_blob_typed(NULL, "x", 1, "image/png", &ub) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_upload_blob_typed(NULL, "x", 1, "image/png", NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_import_repo_typed(NULL, "x", 1) ==
+                 WF_ERR_INVALID_ARG);
+    }
+
     printf("repo_typed: all checks passed\n");
     return 0;
 }

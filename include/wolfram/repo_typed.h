@@ -160,12 +160,83 @@ wf_status wf_repo_writes_build_json(wf_repo_writes_builder *b, const char *repo,
 /* Free the builder and any buffered value objects. Safe on NULL. */
 void wf_repo_writes_builder_free(wf_repo_writes_builder *b);
 
+/* Result of com.atproto.repo.createRecord / putRecord. Both return
+ * { uri, cid, commit?, validationStatus? }; `uri` and `cid` are surfaced as
+ * owned scalars and any other fields remain in the owned `extra` subtree. */
+typedef struct wf_repo_write_record_result {
+    char *uri;            /* owned; required */
+    char *cid;            /* owned; required */
+    cJSON *extra;         /* owned detached subtree of unknown fields */
+} wf_repo_write_record_result;
+
+/* Result of com.atproto.repo.uploadBlob. The body is
+ * { blob: { cid, mimeType, size } }; the inner blob fields are surfaced as
+ * owned scalars. */
+typedef struct wf_repo_upload_blob_result {
+    char *cid;            /* owned; required blob CID */
+    char *mime_type;      /* owned; required blob MIME type */
+    bool has_size;
+    int64_t size;         /* required blob size in bytes */
+} wf_repo_upload_blob_result;
+
+/* Parse a com.atproto.repo.createRecord / putRecord JSON body
+ * ("uri", "cid", optional "commit"/"validationStatus"). */
+wf_status wf_repo_parse_write_record_result(const char *json, size_t json_len,
+                                            wf_repo_write_record_result *out);
+
+/* Parse a com.atproto.repo.uploadBlob JSON body ("blob"). */
+wf_status wf_repo_parse_upload_blob_result(const char *json, size_t json_len,
+                                           wf_repo_upload_blob_result *out);
+
+/* Free a wf_repo_write_record_result (safe on a reset struct). */
+void wf_repo_write_record_result_free(wf_repo_write_record_result *r);
+
+/* Free a wf_repo_upload_blob_result (safe on a reset struct). */
+void wf_repo_upload_blob_result_free(wf_repo_upload_blob_result *r);
+
 /* ---- Agent convenience wrappers ----
  * Each issues the corresponding lex call against the agent's primary XRPC
  * client (after syncing auth) and parses the body into `out`. On success `out`
  * is owned by the caller (free with the matching `_free`); on error it is left
  * reset. Required inputs are validated and return WF_ERR_INVALID_ARG when
  * NULL/empty. */
+
+/* com.atproto.repo.createRecord. `record_json` is the serialized record value
+ * (must contain a $type). `validate`: <0 unset, 0 false, 1 true.
+ * `swap_commit_or_null` is optional. */
+wf_status wf_agent_create_record_typed(wf_agent *agent, const char *repo,
+                                       const char *collection,
+                                       const char *rkey_or_null, int validate,
+                                       const char *record_json,
+                                       const char *swap_commit_or_null,
+                                       wf_repo_write_record_result *out);
+
+/* com.atproto.repo.putRecord. `rkey` is required (put replaces by key).
+ * `swap_record_or_null` / `swap_commit_or_null` are optional. */
+wf_status wf_agent_put_record_typed(wf_agent *agent, const char *repo,
+                                    const char *collection, const char *rkey,
+                                    int validate, const char *record_json,
+                                    const char *swap_record_or_null,
+                                    const char *swap_commit_or_null,
+                                    wf_repo_write_record_result *out);
+
+/* com.atproto.repo.deleteRecord (procedure, no output). `swap_record_or_null`
+ * / `swap_commit_or_null` are optional. */
+wf_status wf_agent_delete_record_typed(wf_agent *agent, const char *repo,
+                                       const char *collection, const char *rkey,
+                                       const char *swap_record_or_null,
+                                       const char *swap_commit_or_null);
+
+/* com.atproto.repo.uploadBlob. Uploads `data_len` bytes of `data` with the
+ * given `content_type` and parses the returned blob ref into `out`. */
+wf_status wf_agent_upload_blob_typed(wf_agent *agent, const void *data,
+                                     size_t data_len, const char *content_type,
+                                     wf_repo_upload_blob_result *out);
+
+/* com.atproto.repo.importRepo (procedure, CAR body, no output). `car` is the
+ * full repo CAR archive to import. */
+wf_status wf_agent_import_repo_typed(wf_agent *agent, const void *car,
+                                     size_t car_len);
 
 /* com.atproto.repo.getRecord. `cid_or_null` is optional. */
 wf_status wf_agent_get_record_typed(wf_agent *agent, const char *repo,

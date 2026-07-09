@@ -4,6 +4,7 @@
  */
 
 #include "wolfram/server_typed.h"
+#include "wolfram/server.h"
 #include "test.h"
 
 #include <cJSON.h>
@@ -263,6 +264,90 @@ int main(void) {
         wf_server_auth_token_free(&at);
         wf_server_session_tokens_free(&st);
         wf_server_email_update_request_free(&eu);
+    }
+
+    /* ---- new agent wrapper NULL validation (NULL agent, so the wrappers
+       return before touching a client). ---- */
+    {
+        wf_server_description desc = {0};
+        wf_server_create_account_result car = {0};
+        wf_server_create_account_input cain = {0};
+        wf_server_app_password ap = {0};
+        wf_server_app_password_list apl = {0};
+        wf_server_create_invite_code_result cic = {0};
+        wf_server_create_invite_codes_result cics = {0};
+
+        WF_CHECK(wf_agent_describe_server_typed(NULL, &desc) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_describe_server_typed(NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_create_account_typed(NULL, &cain, &car) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_account_typed(NULL, NULL, &car) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_account_typed(NULL, &cain, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_create_app_password_typed(NULL, "n", 0, &ap) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_app_password_typed(NULL, NULL, 0, &ap) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_app_password_typed(NULL, "n", 0, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_list_app_passwords_typed(NULL, &apl) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_list_app_passwords_typed(NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_revoke_app_password_typed(NULL, "n") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_revoke_app_password_typed(NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_delete_session_typed(NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_activate_account_typed(NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_deactivate_account_typed(NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_confirm_email_typed(NULL, "e", "t") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_confirm_email_typed(NULL, NULL, "t") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_confirm_email_typed(NULL, "e", NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_reset_password_typed(NULL, "t", "p") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_reset_password_typed(NULL, NULL, "p") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_reset_password_typed(NULL, "t", NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_update_email_typed(NULL, "e", "t", 0) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_update_email_typed(NULL, NULL, "t", 0) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_create_invite_code_typed(NULL, 1, NULL, &cic) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_invite_code_typed(NULL, 1, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_create_invite_codes_typed(NULL, 1, 1, NULL, 0,
+                                                   &cics) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_invite_codes_typed(NULL, 1, 1, NULL, 0,
+                                                     NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        wf_server_describe_free(&desc);
+        wf_server_create_account_result_free(&car);
+        wf_server_app_password_free(&ap);
+        wf_server_app_password_list_free(&apl);
+        wf_server_create_invite_code_result_free(&cic);
+        wf_server_create_invite_codes_result_free(&cics);
     }
 
     WF_TEST_SUMMARY();

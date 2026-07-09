@@ -15,6 +15,7 @@
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
+#include "wolfram/server.h"
 
 #include <cJSON.h>
 
@@ -837,4 +838,186 @@ wf_status wf_agent_refresh_session_typed(wf_agent *agent,
         *out = tok;
     }
     return status;
+}
+
+/* ------------------------------------------------------------------ */
+/* Additional com.atproto.server typed agent wrappers.                */
+/* These layer on the lower-level, already-owned server.h calls (which */
+/* parse into wf_server_* owned structs and free with wf_server_*_free) */
+/* so no second owned parser is introduced and no type is redefined.   */
+/* ------------------------------------------------------------------ */
+
+/* com.atproto.server.describeServer */
+wf_status wf_agent_describe_server_typed(wf_agent *agent,
+                                        wf_server_description *out) {
+    if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_server_describe(agent->client, out);
+}
+
+/* com.atproto.server.createAccount */
+wf_status wf_agent_create_account_typed(
+    wf_agent *agent, const wf_server_create_account_input *input,
+    wf_server_create_account_result *out) {
+    if (!agent || !agent->client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_server_create_account(agent->client, input, out);
+}
+
+/* com.atproto.server.createAppPassword */
+wf_status wf_agent_create_app_password_typed(wf_agent *agent, const char *name,
+                                             int privileged,
+                                             wf_server_app_password *out) {
+    if (!agent || !agent->client || !name || !name[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_create_app_password_input input = {
+        .name = name,
+        .privileged = privileged,
+    };
+    wf_agent_sync_auth(agent);
+    return wf_server_create_app_password(agent->client, &input, out);
+}
+
+/* com.atproto.server.listAppPasswords */
+wf_status wf_agent_list_app_passwords_typed(wf_agent *agent,
+                                            wf_server_app_password_list *out) {
+    if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_server_list_app_passwords(agent->client, out);
+}
+
+/* com.atproto.server.revokeAppPassword */
+wf_status wf_agent_revoke_app_password_typed(wf_agent *agent, const char *name) {
+    if (!agent || !agent->client || !name || !name[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_revoke_app_password_input input = { .name = name };
+    wf_agent_sync_auth(agent);
+    return wf_server_revoke_app_password(agent->client, &input);
+}
+
+/* com.atproto.server.deleteSession (procedure, no output) */
+wf_status wf_agent_delete_session_typed(wf_agent *agent) {
+    if (!agent || !agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_server_delete_session_main_call(
+        agent->client, &res);
+    wf_response_free(&res);
+    return status;
+}
+
+/* com.atproto.server.activateAccount (procedure, no output) */
+wf_status wf_agent_activate_account_typed(wf_agent *agent) {
+    if (!agent || !agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_server_activate_account_main_call(
+        agent->client, &res);
+    wf_response_free(&res);
+    return status;
+}
+
+/* com.atproto.server.deactivateAccount (procedure, no output) */
+wf_status wf_agent_deactivate_account_typed(wf_agent *agent,
+                                            const char *delete_after_or_null) {
+    if (!agent || !agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_deactivate_account_input input = {0};
+    if (delete_after_or_null && delete_after_or_null[0]) {
+        input.delete_after = delete_after_or_null;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_server_deactivate_account(agent->client, &input);
+}
+
+/* com.atproto.server.confirmEmail (procedure, no output) */
+wf_status wf_agent_confirm_email_typed(wf_agent *agent, const char *email,
+                                       const char *token) {
+    if (!agent || !agent->client || !email || !email[0] || !token ||
+        !token[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_confirm_email_input input = { .email = email, .token = token };
+    wf_agent_sync_auth(agent);
+    return wf_server_confirm_email(agent->client, &input);
+}
+
+/* com.atproto.server.resetPassword (procedure, no output) */
+wf_status wf_agent_reset_password_typed(wf_agent *agent, const char *reset_token,
+                                        const char *new_password) {
+    if (!agent || !agent->client || !reset_token || !reset_token[0] ||
+        !new_password || !new_password[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_reset_password_input input = {
+        .reset_token = reset_token,
+        .new_password = new_password,
+    };
+    wf_agent_sync_auth(agent);
+    return wf_server_reset_password(agent->client, &input);
+}
+
+/* com.atproto.server.updateEmail (procedure, no output) */
+wf_status wf_agent_update_email_typed(wf_agent *agent, const char *email,
+                                      const char *token, int email_auth_factor) {
+    if (!agent || !agent->client || !email || !email[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_update_email_input input = {0};
+    input.email = email;
+    if (email_auth_factor) {
+        input.has_email_auth_factor = 1;
+        input.email_auth_factor = 1;
+    }
+    if (token && token[0]) {
+        input.has_token = 1;
+        input.token = token;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_server_update_email(agent->client, &input);
+}
+
+/* com.atproto.server.createInviteCode */
+wf_status wf_agent_create_invite_code_typed(
+    wf_agent *agent, int64_t use_count, const char *for_account_or_null,
+    wf_server_create_invite_code_result *out) {
+    if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_create_invite_code_input input = { .use_count = use_count };
+    if (for_account_or_null && for_account_or_null[0]) {
+        input.for_account = for_account_or_null;
+    }
+    wf_agent_sync_auth(agent);
+    return wf_server_create_invite_code(agent->client, &input, out);
+}
+
+/* com.atproto.server.createInviteCodes */
+wf_status wf_agent_create_invite_codes_typed(
+    wf_agent *agent, int64_t code_count, int64_t use_count,
+    const char *const *for_accounts, size_t for_accounts_count,
+    wf_server_create_invite_codes_result *out) {
+    if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_server_create_invite_codes_input input = {0};
+    input.code_count = code_count;
+    input.use_count = use_count;
+    input.for_accounts = for_accounts;
+    input.for_accounts_count = for_accounts_count;
+    wf_agent_sync_auth(agent);
+    return wf_server_create_invite_codes(agent->client, &input, out);
 }
