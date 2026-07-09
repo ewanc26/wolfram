@@ -636,7 +636,8 @@ wf_status wf_ozone_moderation_get_suggestions(
     *out_json = NULL;
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status st = wf_ozone_get_suggestions(agent->client, ignore_subjects, n,
+    wf_status st = wf_ozone_get_suggestions(agent->client,
+                                            (const char **)ignore_subjects, n,
                                             limit, cursor, &res);
     if (st != WF_OK) {
         wf_response_free(&res);
@@ -666,7 +667,8 @@ wf_status wf_ozone_moderation_get_label_definitions(
     *out_json = NULL;
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status st = wf_ozone_get_label_defs(agent->client, uris, n, &res);
+    wf_status st = wf_ozone_get_label_defs(agent->client, (const char **)uris, n,
+                                          &res);
     if (st != WF_OK) {
         wf_response_free(&res);
         return st;

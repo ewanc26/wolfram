@@ -60,8 +60,6 @@ static int test_null_args(void) {
 
     wf_agent_post_result post = {0};
     wf_agent_profile prof = {0};
-    wf_agent_feed_list feed = {0};
-    wf_agent_notification_list notifs = {0};
     wf_agent_actor_list actors = {0};
     wf_agent_thread thread = {0};
     char *did = NULL;
