@@ -24,6 +24,8 @@ Agentic principles and technical context for the `wolfram` repository.
 - Build: `cmake -S . -B build && cmake --build build`
 - Test: `ctest --test-dir build`
 - Lexicon tests: `python3 test/test_lexgen.py`
+- C++ wrapper: `cmake -S . -B build -DWOLFRAM_BUILD_CPP=ON && cmake --build build && ctest --test-dir build` (offline `wolfram-cpp-smoke`).
+- C# wrapper: `dotnet test dotnet/Wolfram.Interop.Tests/Wolfram.Interop.Tests.csproj` (requires a built `libwolfram` with `WOLFRAM_NATIVE_LIB` pointing at it; offline xUnit smoke).
 - Regenerate lexicons after editing `lexicons/**/*.json` or `tools/wf_lexgen.py`:
   `python3 tools/wf_lexgen.py $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h`
 - Optional modules are gated by CMake options: `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server + SSE), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption of session credentials).

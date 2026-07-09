@@ -1,0 +1,15 @@
+# ClangSharpPInvokeGenerator response file.
+#
+# Regenerates the raw P/Invoke tier from wolfram's C public headers. Run with:
+#   dotnet tool install --global ClangSharpPInvokeGenerator
+#   ClangSharpPInvokeGenerator @tools/generate.rsp
+#
+# The generated output replaces/augments Internal/Raw.cs. The hand-written
+# Raw.cs currently covers the functions the managed tier wraps; expand the
+# -f list to pull in more of include/wolfram/*.h as needed.
+-f include/wolfram/xrpc.h
+-f include/wolfram/json.h
+-n Wolfram.Interop.Internal
+-o Internal/Raw.generated.cs
+-m Methods
+--libraryPath wolfram
