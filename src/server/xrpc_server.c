@@ -18,8 +18,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <unistd.h>
+#include <poll.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <openssl/sha.h>
 
 /* Simple growable buffer used to accumulate POST request bodies. */
 typedef struct post_buf {
@@ -210,10 +215,12 @@ typedef struct wf_route {
     char                     *nsid;
     wf_route_kind             kind;
     bool                      is_sse; /* true if this route uses Server-Sent Events */
+    bool                      is_ws;  /* true if this route is a WebSocket subscription */
     union {
         wf_xrpc_query_handler      query;
         wf_xrpc_procedure_handler  procedure;
         wf_xrpc_sse_handler        sse;
+        wf_xrpc_ws_handler         ws;
     } handler;
     void                     *ctx;
     struct wf_route          *next;   /* linked list */
@@ -232,6 +239,8 @@ struct wf_xrpc_server {
     wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
     wf_xrpc_sse_stream  *sse_streams;          /* open SSE connections */
     pthread_mutex_t      sse_mutex;            /* guards sse_streams */
+    wf_xrpc_ws_stream   *ws_streams;           /* open WebSocket connections */
+    pthread_mutex_t      ws_mutex;             /* guards ws_streams */
 };
 
 /* ------------------------------------------------------------------ */
@@ -519,6 +528,413 @@ wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream) {
     s->closed = true;
     pthread_mutex_unlock(&s->mutex);
     MHD_resume_connection(s->conn);
+    return WF_OK;
+}
+
+/* ------------------------------------------------------------------ */
+/* WebSocket (RFC 6455) subscription endpoints                          */
+/* ------------------------------------------------------------------ */
+
+/** A live WebSocket connection, created after a successful upgrade. */
+struct wf_xrpc_ws_stream {
+    struct MHD_Connection        *conn;   /* owning MHD connection */
+    struct MHD_UpgradeResponseHandle *urh;/* upgrade handle (for close) */
+    wf_xrpc_server               *server; /* back-pointer for teardown */
+    char                         *nsid;   /* route NSID (diagnostics) */
+    int                           sock;   /* raw socket fd (server→client) */
+    pthread_t                     thread; /* upgrade worker thread */
+    pthread_mutex_t               mutex;  /* guards closed + serialises writes */
+    bool                          closed; /* end-of-stream requested */
+    struct wf_xrpc_ws_stream     *next;   /* global list in server */
+};
+
+/** Closure handed to libmicrohttpd's upgrade handler. */
+typedef struct wf_ws_upgrade_ctx {
+    wf_xrpc_server      *server;
+    wf_route            *route;
+    wf_xrpc_ws_stream   *stream;
+    wf_xrpc_request      req;     /* request copy for the user handler */
+} wf_ws_upgrade_ctx;
+
+/** RFC 4648 standard base64 with '=' padding (for Sec-WebSocket-Accept). */
+static void wf_ws_base64_encode(const unsigned char *in, size_t len, char *out) {
+    static const char tab[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    size_t i, o = 0;
+    for (i = 0; i + 3 <= len; i += 3) {
+        unsigned int n = ((unsigned int)in[i] << 16) |
+                         ((unsigned int)in[i + 1] << 8) | (unsigned int)in[i + 2];
+        out[o++] = tab[(n >> 18) & 0x3f];
+        out[o++] = tab[(n >> 12) & 0x3f];
+        out[o++] = tab[(n >> 6) & 0x3f];
+        out[o++] = tab[n & 0x3f];
+    }
+    if (i < len) {
+        unsigned int n = ((unsigned int)in[i] << 16) |
+                         ((i + 1 < len) ? ((unsigned int)in[i + 1] << 8) : 0);
+        out[o++] = tab[(n >> 18) & 0x3f];
+        out[o++] = tab[(n >> 12) & 0x3f];
+        out[o++] = (i + 1 < len) ? tab[(n >> 6) & 0x3f] : '=';
+        out[o++] = '=';
+    }
+    out[o] = '\0';
+}
+
+/** Write the full buffer to the socket; returns 0 on success, -1 on error. */
+static int wf_ws_write_all(int sock, const void *buf, size_t len) {
+    const char *p = (const char *)buf;
+    size_t off = 0;
+    while (off < len) {
+        ssize_t n = write(sock, p + off, len - off);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct pollfd pfd = { sock, POLLOUT, 0 };
+                if (poll(&pfd, 1, 2000) <= 0) return -1;
+                continue;
+            }
+            return -1;
+        }
+        if (n == 0) return -1;
+        off += (size_t)n;
+    }
+    return 0;
+}
+
+/** Read exactly `len` bytes with a per-read timeout; 0 ok, -1 error/EOF/timeout. */
+static int wf_ws_read_exact(int sock, void *buf, size_t len, int timeout_ms) {
+    char *p = (char *)buf;
+    size_t off = 0;
+    while (off < len) {
+        struct pollfd pfd = { sock, POLLIN, 0 };
+        int pr = poll(&pfd, 1, timeout_ms);
+        if (pr < 0) { if (errno == EINTR) continue; return -1; }
+        if (pr == 0) return -1;
+        ssize_t n = read(sock, p + off, len - off);
+        if (n < 0) { if (errno == EINTR) continue; return -1; }
+        if (n == 0) return -1;
+        off += (size_t)n;
+    }
+    return 0;
+}
+
+/** Write a server→client frame (UNMASKED) of the given opcode.
+ *  Caller MUST hold s->mutex (serialises all writes to the socket). */
+static wf_status wf_ws_write_frame_locked(wf_xrpc_ws_stream *s, uint8_t opcode,
+                                          const void *data, size_t len) {
+    unsigned char hdr[10];
+    size_t hlen = 0;
+    hdr[0] = (unsigned char)(0x80 | (opcode & 0x0f));
+    if (len < 126) {
+        hdr[1] = (unsigned char)len;
+        hlen = 2;
+    } else if (len <= 0xFFFF) {
+        hdr[1] = 126;
+        hdr[2] = (unsigned char)((len >> 8) & 0xff);
+        hdr[3] = (unsigned char)(len & 0xff);
+        hlen = 4;
+    } else {
+        hdr[1] = 127;
+        for (int i = 0; i < 8; i++) {
+            hdr[2 + i] = (unsigned char)((len >> (8 * (7 - i))) & 0xff);
+        }
+        hlen = 10;
+    }
+    wf_status rc = WF_OK;
+    if (wf_ws_write_all(s->sock, hdr, hlen) != 0 ||
+        (len > 0 && wf_ws_write_all(s->sock, data, len) != 0)) {
+        rc = WF_ERR_NETWORK;
+    }
+    return rc;
+}
+
+/** Upgrade worker: run the user handler then drain client control frames. */
+static void *wf_ws_serve_thread(void *arg) {
+    wf_ws_upgrade_ctx *uc = (wf_ws_upgrade_ctx *)arg;
+    wf_xrpc_ws_stream *s = uc->stream;
+    wf_route *route = uc->route;
+    wf_xrpc_request req = uc->req;
+    free(uc);
+
+    /* 1) Invoke the user handler (it pushes frames / may close). */
+    route->handler.ws(route->ctx, &req, s);
+
+    /* 2) Control-frame loop: read client frames, answer ping, honour close. */
+    for (;;) {
+        bool closed;
+        pthread_mutex_lock(&s->mutex);
+        closed = s->closed;
+        pthread_mutex_unlock(&s->mutex);
+        if (closed) {
+            break;
+        }
+
+        struct pollfd pfd = { s->sock, POLLIN, 0 };
+        int pr = poll(&pfd, 1, 250);
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        if (pr == 0) {
+            continue; /* timed out: re-check closed flag */
+        }
+
+        unsigned char h[2];
+        if (wf_ws_read_exact(s->sock, h, 2, 1000) != 0) break;
+        uint8_t opcode = (uint8_t)(h[0] & 0x0f);
+        bool masked = (h[1] & 0x80) != 0;
+        uint64_t plen = (uint64_t)(h[1] & 0x7f);
+        if (plen == 126) {
+            unsigned char e[2];
+            if (wf_ws_read_exact(s->sock, e, 2, 1000) != 0) break;
+            plen = ((uint64_t)e[0] << 8) | (uint64_t)e[1];
+        } else if (plen == 127) {
+            unsigned char e[8];
+            if (wf_ws_read_exact(s->sock, e, 8, 1000) != 0) break;
+            plen = 0;
+            for (int i = 0; i < 8; i++) plen = (plen << 8) | (uint64_t)e[i];
+        }
+        unsigned char mask[4] = { 0, 0, 0, 0 };
+        if (masked) {
+            if (wf_ws_read_exact(s->sock, mask, 4, 1000) != 0) break;
+        }
+        unsigned char *payload = NULL;
+        if (plen > 0) {
+            if (plen > 16 * 1024 * 1024) break; /* safety guard */
+            payload = (unsigned char *)malloc((size_t)plen ? (size_t)plen : 1);
+            if (!payload) break;
+            if (wf_ws_read_exact(s->sock, payload, (size_t)plen, 2000) != 0) {
+                free(payload);
+                break;
+            }
+            if (masked) {
+                for (uint64_t i = 0; i < plen; i++) payload[i] ^= mask[i & 3];
+            }
+        }
+
+        if (opcode == 0x9) {                 /* ping → pong */
+            pthread_mutex_lock(&s->mutex);
+            wf_ws_write_frame_locked(s, 0xA, payload, (size_t)plen);
+            pthread_mutex_unlock(&s->mutex);
+        } else if (opcode == 0x8) {          /* close */
+            pthread_mutex_lock(&s->mutex);
+            if (!s->closed) {
+                s->closed = true;
+                wf_ws_write_frame_locked(s, 0x8, payload, (size_t)plen);
+            }
+            pthread_mutex_unlock(&s->mutex);
+            free(payload);
+            break;
+        }
+        free(payload);
+    }
+
+    /* 3) Tear down the upgraded socket via libmicrohttpd. */
+    MHD_upgrade_action(s->urh, MHD_UPGRADE_ACTION_CLOSE);
+
+    if (s->server) {
+        pthread_mutex_lock(&s->server->ws_mutex);
+        wf_xrpc_ws_stream **pp = &s->server->ws_streams;
+        while (*pp) {
+            if (*pp == s) { *pp = s->next; break; }
+            pp = &(*pp)->next;
+        }
+        pthread_mutex_unlock(&s->server->ws_mutex);
+    }
+    free((void *)req.nsid);
+    free((void *)req.auth_header);
+    free(s->nsid);
+    pthread_mutex_destroy(&s->mutex);
+    free(s);
+    return NULL;
+}
+
+/** libmicrohttpd upgrade callback: hand off the raw socket to a worker. */
+static void wf_ws_upgrade_handler(void *cls,
+                                  struct MHD_Connection *connection,
+                                  void *req_cls,
+                                  const char *extra_in,
+                                  size_t extra_in_size,
+                                  MHD_socket sock,
+                                  struct MHD_UpgradeResponseHandle *urh) {
+    (void)connection;
+    (void)req_cls;
+    (void)extra_in;
+    (void)extra_in_size;
+    wf_ws_upgrade_ctx *uc = (wf_ws_upgrade_ctx *)cls;
+    wf_xrpc_server *server = uc->server;
+    pthread_t tid;
+
+    uc->stream->sock = (int)sock;
+    uc->stream->urh = urh;
+
+    pthread_mutex_lock(&server->ws_mutex);
+    uc->stream->next = server->ws_streams;
+    server->ws_streams = uc->stream;
+    pthread_mutex_unlock(&server->ws_mutex);
+
+    if (pthread_create(&tid, NULL, wf_ws_serve_thread, uc) != 0) {
+        /* Could not spawn a worker: close the upgrade immediately. */
+        MHD_upgrade_action(urh, MHD_UPGRADE_ACTION_CLOSE);
+        pthread_mutex_lock(&server->ws_mutex);
+        if (server->ws_streams == uc->stream) {
+            server->ws_streams = uc->stream->next;
+        } else {
+            wf_xrpc_ws_stream *pr = server->ws_streams;
+            while (pr && pr->next != uc->stream) pr = pr->next;
+            if (pr) pr->next = uc->stream->next;
+        }
+        pthread_mutex_unlock(&server->ws_mutex);
+        free((void *)uc->req.nsid);
+        free((void *)uc->req.auth_header);
+        free(uc->stream->nsid);
+        pthread_mutex_destroy(&uc->stream->mutex);
+        free(uc->stream);
+        free(uc);
+        return;
+    }
+    uc->stream->thread = tid;
+    /* Not detached: wf_xrpc_server_free joins the worker thread. */
+}
+
+/**
+ * Perform the RFC 6455 handshake and queue the 101 upgrade response.
+ * Returns MHD_YES if the upgrade was queued (caller returns MHD_YES), or
+ * MHD_NO if the request was not a valid WebSocket upgrade (caller should
+ * send a 400 error).
+ */
+static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
+                                              wf_route *route,
+                                              struct MHD_Connection *conn,
+                                              const char *nsid) {
+    const char *upgrade = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
+                                                       "Upgrade");
+    const char *connection = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
+                                                          "Connection");
+    const char *key = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
+                                                  "Sec-WebSocket-Key");
+    const char *version = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
+                                                      "Sec-WebSocket-Version");
+    wf_xrpc_ws_stream *stream;
+    wf_ws_upgrade_ctx *uc;
+    struct MHD_Response *resp;
+    unsigned char digest[SHA_DIGEST_LENGTH];
+    char accept[40];
+    char concat[256];
+
+    /* Validate the handshake request per RFC 6455 §4.2.1. */
+    if (!upgrade || strcasecmp(upgrade, "websocket") != 0) return MHD_NO;
+    if (!connection || strcasestr(connection, "upgrade") == NULL) return MHD_NO;
+    if (!version || strcmp(version, "13") != 0) return MHD_NO;
+    if (!key || key[0] == '\0') return MHD_NO;
+
+    snprintf(concat, sizeof(concat),
+             "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11", key);
+    SHA1((const unsigned char *)concat, strlen(concat), digest);
+    wf_ws_base64_encode(digest, SHA_DIGEST_LENGTH, accept);
+
+    stream = (wf_xrpc_ws_stream *)calloc(1, sizeof(*stream));
+    if (!stream) return MHD_NO;
+    stream->server = server;
+    stream->nsid = nsid ? strdup(nsid) : NULL;
+    if (nsid && !stream->nsid) {
+        free(stream);
+        return MHD_NO;
+    }
+    if (pthread_mutex_init(&stream->mutex, NULL) != 0) {
+        free(stream->nsid);
+        free(stream);
+        return MHD_NO;
+    }
+
+    uc = (wf_ws_upgrade_ctx *)calloc(1, sizeof(*uc));
+    if (!uc) {
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream->nsid);
+        free(stream);
+        return MHD_NO;
+    }
+    uc->server = server;
+    uc->route = route;
+    uc->stream = stream;
+    uc->req.nsid = nsid ? strdup(nsid) : NULL;
+    uc->req.method = "GET";
+    uc->req.auth_header = NULL;
+    uc->req.params = NULL;
+    uc->req.handler_ctx = route->ctx;
+
+    resp = MHD_create_response_for_upgrade(wf_ws_upgrade_handler, uc);
+    if (!resp) {
+        free((void *)uc->req.nsid);
+        free(uc);
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream->nsid);
+        free(stream);
+        return MHD_NO;
+    }
+    MHD_add_response_header(resp, "Upgrade", "websocket");
+    MHD_add_response_header(resp, "Connection", "Upgrade");
+    MHD_add_response_header(resp, "Sec-WebSocket-Accept", accept);
+    MHD_queue_response(conn, MHD_HTTP_SWITCHING_PROTOCOLS, resp);
+    MHD_destroy_response(resp);
+    return MHD_YES;
+}
+
+wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
+                                 const void *data, size_t len) {
+    wf_xrpc_ws_stream *s = stream;
+    if (!s || s->closed) {
+        /* TODO: stream is closed or invalid; cannot send. */
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!data && len > 0) {
+        return WF_ERR_INVALID_ARG;
+    }
+    pthread_mutex_lock(&s->mutex);
+    wf_status rc = wf_ws_write_frame_locked(s, 0x2, data ? data : "", len);
+    pthread_mutex_unlock(&s->mutex);
+    return rc;
+}
+
+wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code) {
+    wf_xrpc_ws_stream *s = stream;
+    unsigned char body[2];
+    if (!s || s->closed) {
+        /* TODO: stream already closed or invalid. */
+        return WF_ERR_INVALID_ARG;
+    }
+    body[0] = (unsigned char)((code >> 8) & 0xff);
+    body[1] = (unsigned char)(code & 0xff);
+    pthread_mutex_lock(&s->mutex);
+    s->closed = true;
+    wf_ws_write_frame_locked(s, 0x8, body, 2);
+    pthread_mutex_unlock(&s->mutex);
+    return WF_OK;
+}
+
+wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
+                                     const char *nsid,
+                                     wf_xrpc_ws_handler handler,
+                                     void *ctx) {
+    wf_route *r;
+    if (!server || !nsid || !handler) {
+        return WF_ERR_INVALID_ARG;
+    }
+    r = (wf_route *)calloc(1, sizeof(*r));
+    if (!r) {
+        return WF_ERR_ALLOC;
+    }
+    r->nsid = strdup(nsid);
+    if (!r->nsid) {
+        free(r);
+        return WF_ERR_ALLOC;
+    }
+    r->kind = WF_ROUTE_QUERY;
+    r->handler.ws = handler;
+    r->ctx = ctx;
+    r->is_ws = true;
+    r->next = server->routes;
+    server->routes = r;
     return WF_OK;
 }
 
@@ -862,6 +1278,18 @@ process:
     req.params = params;
     req.handler_ctx = route->ctx;
 
+    if (route->is_ws) {
+        enum MHD_Result wsr = wf_server_ws_handshake(server, route, conn, nsid);
+        if (wsr == MHD_YES) {
+            ret = MHD_YES;
+            goto cleanup;
+        }
+        /* Not a valid WebSocket upgrade request. */
+        wf_xrpc_response_set_error(&resp, 400, "InvalidRequest",
+                                   "WebSocket upgrade required");
+        goto send;
+    }
+
     if (route->is_sse) {
         goto sse_stream;
     }
@@ -1028,7 +1456,13 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
     }
     server->port = port;
     server->sse_streams = NULL;
+    server->ws_streams = NULL;
     if (pthread_mutex_init(&server->sse_mutex, NULL) != 0) {
+        free(server);
+        return NULL;
+    }
+    if (pthread_mutex_init(&server->ws_mutex, NULL) != 0) {
+        pthread_mutex_destroy(&server->sse_mutex);
         free(server);
         return NULL;
     }
@@ -1038,7 +1472,8 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
     }
 
     server->daemon = MHD_start_daemon(
-        MHD_USE_INTERNAL_POLLING_THREAD | MHD_ALLOW_SUSPEND_RESUME,
+        MHD_USE_INTERNAL_POLLING_THREAD | MHD_ALLOW_SUSPEND_RESUME |
+            MHD_ALLOW_UPGRADE,
         port,
         NULL, NULL,                       /* Accept policy */
         &wf_server_mhd_handler, server,   /* Main handler */
@@ -1075,6 +1510,17 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
     }
     pthread_mutex_unlock(&server->sse_mutex);
 
+    /* Mark open WebSocket connections closed and wake their poll loops so the
+     * upgrade worker threads exit promptly (they join in wf_xrpc_server_free). */
+    pthread_mutex_lock(&server->ws_mutex);
+    for (wf_xrpc_ws_stream *s = server->ws_streams; s; s = s->next) {
+        pthread_mutex_lock(&s->mutex);
+        s->closed = true;
+        pthread_mutex_unlock(&s->mutex);
+        shutdown(s->sock, SHUT_RDWR);
+    }
+    pthread_mutex_unlock(&server->ws_mutex);
+
     MHD_stop_daemon(server->daemon);
     server->daemon = NULL;
 }
@@ -1088,6 +1534,24 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
         return;
     }
     wf_xrpc_server_stop(server);
+    /* Join any still-running WebSocket upgrade worker threads. stop() has set
+     * their closed flag (and shut down their sockets), so each thread exits
+     * its poll loop and frees its own stream shortly. Snapshot the thread
+     * handles and clear the list so workers unlink harmlessly. */
+    {
+        pthread_t handles[64];
+        size_t n = 0;
+        pthread_mutex_lock(&server->ws_mutex);
+        for (wf_xrpc_ws_stream *s = server->ws_streams; s && n < 64;
+             s = s->next) {
+            handles[n++] = s->thread;
+        }
+        server->ws_streams = NULL;
+        pthread_mutex_unlock(&server->ws_mutex);
+        for (size_t i = 0; i < n; i++) {
+            pthread_join(handles[i], NULL);
+        }
+    }
     r = server->routes;
     while (r) {
         wf_route *next = r->next;
@@ -1099,6 +1563,7 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
         wf_server_free_rate_limit_entries(server->rate_limit_entries);
     }
     pthread_mutex_destroy(&server->sse_mutex);
+    pthread_mutex_destroy(&server->ws_mutex);
     free(server);
 }
 
