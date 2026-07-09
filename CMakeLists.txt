@@ -750,6 +750,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_embed PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME embed COMMAND test_embed)
 
+    add_executable(test_embed_typed test/test_embed_typed.c)
+    target_link_libraries(test_embed_typed PRIVATE wolfram)
+    target_include_directories(test_embed_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME embed_typed COMMAND test_embed_typed)
+
     add_executable(test_image_aspect test/test_image_aspect.c)
     target_link_libraries(test_image_aspect PRIVATE wolfram)
     target_include_directories(test_image_aspect PRIVATE test ${cjson_SOURCE_DIR})

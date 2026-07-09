@@ -30,6 +30,7 @@
  *   - app.bsky.feed.searchPosts              -> wf_feedgen_search_result_list
  *   - app.bsky.feed.searchPostsV2            -> wf_feedgen_search_result_list
  *   - app.bsky.feed.getListFeed              -> wf_agent_feed_list (reused)
+ *   - app.bsky.feed.sendInteractions         -> procedure (wf_status only)
  *
  * app.bsky.feed.getPopularFeedGenerators is NOT covered: there is no
  * app.bsky.feed.getPopularFeedGenerators generated lex wrapper (the NSID exists
@@ -210,6 +211,18 @@ wf_status wf_feedgen_search_posts_typed(wf_agent *agent, const char *query,
 wf_status wf_feedgen_search_posts_v2_typed(wf_agent *agent, const char *query,
                                            int limit, const char *cursor,
                                            wf_feedgen_search_result_list *out);
+
+/* app.bsky.feed.sendInteractions — send feedback about interactions with feed
+ * items back to the feed generator that served them (a procedure with an empty
+ * response body; this wrapper returns wf_status only). `feed_uri` is the feed
+ * generator AT-URI and may be NULL. `interactions`/`interaction_count` is a
+ * non-empty array of app.bsky.feed.defs#interaction objects (each element must
+ * be non-NULL). Syncs auth and issues the generated procedure call. Returns
+ * WF_ERR_INVALID_ARG when the interactions array is NULL/empty. */
+wf_status wf_feedgen_send_interactions_typed(
+    wf_agent *agent, const char *feed_uri,
+    const wf_lex_app_bsky_feed_defs_interaction *const *interactions,
+    size_t interaction_count);
 
 #ifdef __cplusplus
 }
