@@ -44,6 +44,7 @@
 #include "wolfram/repo_typed.h"
 #include "wolfram/notification_v2_typed.h"
 #include "wolfram/actor_prefs_typed.h"
+#include "wolfram/unspecced_trends_typed.h"
 #include "wolfram/ozone_typed.h"
 #include "wolfram/server_typed.h"
 #include "wolfram/bsky_agent.h"
