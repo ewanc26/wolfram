@@ -1,0 +1,11 @@
+{
+  "did": "did:plc:generator1",
+  "feeds": [
+    { "uri": "at://did:plc:generator1/app.bsky.feed.generator/hot" },
+    { "uri": "at://did:plc:generator1/app.bsky.feed.generator/new" }
+  ],
+  "links": {
+    "privacyPolicy": "https://example.com/privacy",
+    "termsOfService": "https://example.com/tos"
+  }
+}

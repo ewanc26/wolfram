@@ -181,6 +181,71 @@ int main(void) {
         }
     }
 
+    /* getRelationships parse (owns did + optional at-uri fields). */
+    {
+        size_t rlen = 0;
+        char *rjson = load_fixture("relationships.json", &rlen);
+        WF_CHECK(rjson != NULL);
+        if (rjson) {
+            wf_agent_relationship_list rl = {0};
+            WF_CHECK(wf_agent_parse_relationships(rjson, rlen, &rl) == WF_OK);
+            WF_CHECK(rl.actor && strcmp(rl.actor, "did:plc:me") == 0);
+            WF_CHECK(rl.rel_count == 2);
+            if (rl.rel_count == 2) {
+                WF_CHECK(rl.rels[0].did &&
+                         strcmp(rl.rels[0].did, "did:plc:alice") == 0);
+                WF_CHECK(rl.rels[0].following &&
+                         strstr(rl.rels[0].following, "follow/f1") != NULL);
+                WF_CHECK(rl.rels[0].followed_by &&
+                         strstr(rl.rels[0].followed_by, "follow/f2") != NULL);
+                WF_CHECK(rl.rels[0].blocking == NULL);
+                WF_CHECK(rl.rels[0].blocked_by == NULL);
+
+                WF_CHECK(rl.rels[1].did &&
+                         strcmp(rl.rels[1].did, "did:plc:bob") == 0);
+                WF_CHECK(rl.rels[1].following == NULL);
+                WF_CHECK(rl.rels[1].blocking &&
+                         strstr(rl.rels[1].blocking, "block/b1") != NULL);
+                WF_CHECK(rl.rels[1].blocking_by_list &&
+                         strstr(rl.rels[1].blocking_by_list,
+                                "listblock/lb1") != NULL);
+            }
+            wf_agent_relationship_list_free(&rl);
+            WF_CHECK(rl.rels == NULL && rl.rel_count == 0 && rl.actor == NULL);
+            free(rjson);
+        }
+    }
+
+    /* Parser arg validation for relationships. */
+    {
+        wf_agent_relationship_list rl = {0};
+        WF_CHECK(wf_agent_parse_relationships(NULL, 0, &rl) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_relationships("{}", 2, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_relationships("not json", 8, &rl) == WF_ERR_PARSE);
+        WF_CHECK(wf_agent_parse_relationships("{\"cursor\":\"x\"}", 13,
+                                              &rl) == WF_ERR_PARSE);
+    }
+
+    /* muteThread / unmuteThread typed wrappers (offline arg validation). */
+    {
+        const char *others[] = { "did:plc:alice" };
+        wf_agent_relationship_list rl = {0};
+        WF_CHECK(wf_agent_get_relationships_typed(NULL, "did:plc:me", others, 1,
+                                                  &rl) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_relationships_typed(agent, NULL, others, 1,
+                                                  &rl) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_relationships_typed(agent, "did:plc:me", others, 1,
+                                                  NULL) == WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_mute_thread_typed(NULL, "at://x") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mute_thread_typed(agent, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mute_thread_typed(agent, "") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mute_thread_typed(agent, "not-an-uri") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_unmute_thread_typed(NULL, "at://x") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_unmute_thread_typed(agent, "") == WF_ERR_INVALID_ARG);
+    }
+
     wf_agent_free(agent);
     WF_TEST_SUMMARY();
     return 0; /* unreachable */

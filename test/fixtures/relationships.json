@@ -1,0 +1,20 @@
+{
+  "actor": "did:plc:me",
+  "relationships": [
+    {
+      "did": "did:plc:alice",
+      "following": "at://did:plc:me/app.bsky.graph.follow/f1",
+      "followedBy": "at://did:plc:alice/app.bsky.graph.follow/f2",
+      "blocking": null,
+      "blockedBy": null
+    },
+    {
+      "did": "did:plc:bob",
+      "following": null,
+      "followedBy": null,
+      "blocking": "at://did:plc:me/app.bsky.graph.block/b1",
+      "blockedBy": null,
+      "blockingByList": "at://did:plc:me/app.bsky.graph.listblock/lb1"
+    }
+  ]
+}
