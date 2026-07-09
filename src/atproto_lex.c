@@ -60323,6 +60323,16 @@ void wf_lex_app_bsky_video_upload_video_main_output_free(wf_lex_app_bsky_video_u
     wf_lex_clear_wf_lex_app_bsky_video_upload_video_main_output(value); free(value);
 }
 
+wf_status wf_lex_app_bsky_video_upload_video_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "app.bsky.video.uploadVideo", NULL, response);
+}
+
+wf_status wf_lex_app_bsky_video_upload_video_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "app.bsky.video.uploadVideo", NULL, response);
+}
+
 wf_status wf_lex_chat_bsky_actor_delete_account_main_output_decode_json(
     const char *json, size_t length, wf_lex_chat_bsky_actor_delete_account_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -60338,6 +60348,16 @@ wf_status wf_lex_chat_bsky_actor_delete_account_main_output_decode_json(
 
 void wf_lex_chat_bsky_actor_delete_account_main_output_free(wf_lex_chat_bsky_actor_delete_account_main_output *value) {
     wf_lex_clear_wf_lex_chat_bsky_actor_delete_account_main_output(value); free(value);
+}
+
+wf_status wf_lex_chat_bsky_actor_delete_account_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "chat.bsky.actor.deleteAccount", NULL, response);
+}
+
+wf_status wf_lex_chat_bsky_actor_delete_account_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "chat.bsky.actor.deleteAccount", NULL, response);
 }
 
 wf_status wf_lex_chat_bsky_actor_export_account_data_main_call(wf_xrpc_client *client, wf_response *response) {
@@ -64216,6 +64236,16 @@ wf_status wf_lex_com_atproto_identity_refresh_identity_main_call_auth(wf_auth_cl
     return status;
 }
 
+wf_status wf_lex_com_atproto_identity_request_plc_operation_signature_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.identity.requestPlcOperationSignature", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_identity_request_plc_operation_signature_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.identity.requestPlcOperationSignature", NULL, response);
+}
+
 wf_status wf_lex_com_atproto_identity_resolve_did_main_output_decode_json(
     const char *json, size_t length, wf_lex_com_atproto_identity_resolve_did_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -65070,6 +65100,16 @@ wf_status wf_lex_com_atproto_repo_get_record_main_call_auth(wf_auth_client *clie
     free(encoded); free(number_values); return status;
 }
 
+wf_status wf_lex_com_atproto_repo_import_repo_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.repo.importRepo", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_repo_import_repo_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.repo.importRepo", NULL, response);
+}
+
 wf_status wf_lex_com_atproto_repo_list_missing_blobs_main_output_decode_json(
     const char *json, size_t length, wf_lex_com_atproto_repo_list_missing_blobs_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -65347,6 +65387,26 @@ wf_status wf_lex_com_atproto_repo_upload_blob_main_output_decode_json(
 
 void wf_lex_com_atproto_repo_upload_blob_main_output_free(wf_lex_com_atproto_repo_upload_blob_main_output *value) {
     wf_lex_clear_wf_lex_com_atproto_repo_upload_blob_main_output(value); free(value);
+}
+
+wf_status wf_lex_com_atproto_repo_upload_blob_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.repo.uploadBlob", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_repo_upload_blob_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.repo.uploadBlob", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_activate_account_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.server.activateAccount", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_activate_account_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.server.activateAccount", NULL, response);
 }
 
 wf_status wf_lex_com_atproto_server_check_account_status_main_output_decode_json(
@@ -65740,6 +65800,16 @@ wf_status wf_lex_com_atproto_server_delete_account_main_call_auth(wf_auth_client
     return status;
 }
 
+wf_status wf_lex_com_atproto_server_delete_session_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.server.deleteSession", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_delete_session_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.server.deleteSession", NULL, response);
+}
+
 wf_status wf_lex_com_atproto_server_describe_server_main_output_decode_json(
     const char *json, size_t length, wf_lex_com_atproto_server_describe_server_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -66016,6 +66086,36 @@ void wf_lex_com_atproto_server_refresh_session_main_output_free(wf_lex_com_atpro
     wf_lex_clear_wf_lex_com_atproto_server_refresh_session_main_output(value); free(value);
 }
 
+wf_status wf_lex_com_atproto_server_refresh_session_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.server.refreshSession", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_refresh_session_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.server.refreshSession", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_request_account_delete_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.server.requestAccountDelete", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_request_account_delete_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.server.requestAccountDelete", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_request_email_confirmation_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.server.requestEmailConfirmation", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_request_email_confirmation_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.server.requestEmailConfirmation", NULL, response);
+}
+
 wf_status wf_lex_com_atproto_server_request_email_update_main_output_decode_json(
     const char *json, size_t length, wf_lex_com_atproto_server_request_email_update_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -66031,6 +66131,16 @@ wf_status wf_lex_com_atproto_server_request_email_update_main_output_decode_json
 
 void wf_lex_com_atproto_server_request_email_update_main_output_free(wf_lex_com_atproto_server_request_email_update_main_output *value) {
     wf_lex_clear_wf_lex_com_atproto_server_request_email_update_main_output(value); free(value);
+}
+
+wf_status wf_lex_com_atproto_server_request_email_update_main_call(wf_xrpc_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_xrpc_procedure(client, "com.atproto.server.requestEmailUpdate", NULL, response);
+}
+
+wf_status wf_lex_com_atproto_server_request_email_update_main_call_auth(wf_auth_client *client, wf_response *response) {
+    if (!client || !response) return WF_ERR_INVALID_ARG;
+    return wf_auth_client_procedure(client, "com.atproto.server.requestEmailUpdate", NULL, response);
 }
 
 wf_status wf_lex_com_atproto_server_request_password_reset_main_input_encode_json(

@@ -711,46 +711,57 @@ wf_status wf_agent_reserve_signing_key_typed(wf_agent *agent,
     return status;
 }
 
-/*
- * NOTE: wf_lex_com_atproto_server_request_account_delete_main_call is declared
- * in atproto_lex.h but its definition is missing from the generated lex source.
- * Per convention, this wrapper is an honest stub until the generated transport
- * call is added.
- */
+/* requestAccountDelete has no input or output; it just fires the procedure. */
 wf_status wf_agent_request_account_delete_typed(wf_agent *agent) {
-    (void)agent;
-    /* TODO: generated wf_lex_com_atproto_server_request_account_delete_main_call
-     * is absent from atproto_lex.c; wire this up once it is generated. */
-    return WF_ERR_INVALID_ARG;
+    if (!agent) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_server_request_account_delete_main_call(
+        agent->client, &res);
+    wf_response_free(&res);
+    return status;
 }
 
-/*
- * NOTE: wf_lex_com_atproto_server_request_email_update_main_call is declared in
- * atproto_lex.h but its definition is missing from the generated lex source.
- * Per convention, this wrapper is an honest stub until the generated transport
- * call is added.
- */
+/* requestEmailUpdate returns { tokenRequired: boolean }; parse into `out`. */
 wf_status wf_agent_request_email_update_typed(
     wf_agent *agent, wf_server_email_update_request *out) {
-    (void)agent;
-    (void)out;
-    /* TODO: generated wf_lex_com_atproto_server_request_email_update_main_call
-     * is absent from atproto_lex.c; wire this up once it is generated. */
-    return WF_ERR_INVALID_ARG;
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_server_email_update_request req = {0};
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_server_request_email_update_main_call(
+        agent->client, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_server_parse_email_update(res.body, res.body_len, &req);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = req;
+    }
+    return status;
 }
 
-/*
- * NOTE: wf_lex_com_atproto_server_request_email_confirmation_main_call is
- * declared in atproto_lex.h but its definition is missing from the generated
- * lex source. Per convention, this wrapper is an honest stub until the
- * generated transport call is added.
- */
+/* requestEmailConfirmation has no input or output; it just fires the procedure. */
 wf_status wf_agent_request_email_confirmation_typed(wf_agent *agent) {
-    (void)agent;
-    /* TODO: generated
-     * wf_lex_com_atproto_server_request_email_confirmation_main_call is absent
-     * from atproto_lex.c; wire this up once it is generated. */
-    return WF_ERR_INVALID_ARG;
+    if (!agent) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_com_atproto_server_request_email_confirmation_main_call(
+            agent->client, &res);
+    wf_response_free(&res);
+    return status;
 }
 
 wf_status wf_agent_request_password_reset_typed(wf_agent *agent,
@@ -804,17 +815,26 @@ wf_status wf_agent_create_session_typed(wf_agent *agent, const char *identifier,
     return status;
 }
 
-/*
- * NOTE: wf_lex_com_atproto_server_refresh_session_main_call is declared in
- * atproto_lex.h but its definition is missing from the generated lex source
- * (only the output decoder/free are present). Per convention, this wrapper is
- * an honest stub until the generated transport call is added.
- */
+/* refreshSession returns a fresh set of session tokens; parse into `out`. */
 wf_status wf_agent_refresh_session_typed(wf_agent *agent,
-                                        wf_server_session_tokens *out) {
-    (void)agent;
-    (void)out;
-    /* TODO: generated wf_lex_com_atproto_server_refresh_session_main_call is
-     * absent from atproto_lex.c; wire this up once it is generated. */
-    return WF_ERR_INVALID_ARG;
+                                         wf_server_session_tokens *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_server_session_tokens tok = {0};
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_server_refresh_session_main_call(
+        agent->client, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_server_parse_session_tokens(res.body, res.body_len, &tok);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = tok;
+    }
+    return status;
 }

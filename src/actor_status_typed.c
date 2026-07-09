@@ -328,11 +328,15 @@ wf_status wf_actor_status_build_record(const char *created_at,
 }
 
 /* ---- Agent convenience wrappers ----
- * The atproto lexicon corpus currently ships only the record type for
- * app.bsky.actor.status and does not generate the query/procedure call helpers
- * (getActorStatus/getStatus/putStatus). Until those generated bindings exist,
- * these are honest stubs: they validate required inputs and return
- * WF_ERR_INVALID_ARG with a TODO explaining what is missing. */
+ * The atproto lexicon corpus for app.bsky.actor.status only ships a `main`
+ * record type and a `live` token; it does NOT define the getActorStatus /
+ * getStatus / putStatus query/procedure endpoints. Because the lexicon
+ * generator only emits `*_main_call` transport helpers for query/procedure
+ * `main` defs, no wf_lex_app_bsky_actor_status_{getActorStatus,getStatus,
+ * putStatus}_main_call bindings exist. These wrappers are therefore honest
+ * stubs: they validate required inputs and return WF_ERR_INVALID_ARG with a
+ * TODO explaining what is missing until the upstream lexicon adds those
+ * endpoints. (Re-running the regenerated lexgen does not change this.) */
 
 wf_status wf_agent_get_actor_status(wf_agent *agent, const char *actor,
                                     wf_actor_status_view *out) {
