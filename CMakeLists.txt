@@ -918,6 +918,13 @@ if(WOLFRAM_BUILD_TESTS)
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME chat_typed COMMAND test_chat_typed)
 
+    add_executable(test_ozone_extra_typed test/test_ozone_extra_typed.c)
+    target_link_libraries(test_ozone_extra_typed PRIVATE wolfram)
+    target_include_directories(test_ozone_extra_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_ozone_extra_typed PRIVATE
+        WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME ozone_extra_typed COMMAND test_ozone_extra_typed)
+
     add_executable(test_contact_typed test/test_contact_typed.c)
     target_link_libraries(test_contact_typed PRIVATE wolfram)
     target_include_directories(test_contact_typed PRIVATE test ${cjson_SOURCE_DIR})
