@@ -15,6 +15,7 @@ Agentic principles and technical context for the `wolfram` repository.
 
 - **Comments are allowed and encouraged** where they aid understanding — especially next to public API declarations (ownership rules, lifetime, thread-safety), non-obvious transport/protocol details, and the `honest stub`/`TODO` notes described in the philosophy. The existing codebase uses comments pervasively; match that. Do not add noise comments that merely restate the code.
 - **Conventional commits**: scope by module — `feat(xrpc)`, `feat(repo)`, `fix(identity)`, `fix(lexgen)`, `docs(roadmap)`, etc. Feature work lands on a dedicated `feat/<area>` branch and is merged to `main` with `--no-ff` so the branch history is preserved.
+- **No AI co-authors**: commits must not add a `Co-authored-by:` trailer crediting an AI agent (e.g. `Co-authored-by: Claude ...` or `Co-authored-by: Kilo ...`). AI assistance is welcome, but credit for committed work goes to human authors only. Omit the trailer entirely.
 - **Module layering**: transport → identity → repo → agent. New protocol surface follows the existing pattern: generated lex wrappers (`atproto_lex.{c,h}`) for the wire calls, then `*_typed.{c,h}` owning parsers/builders, then `wf_agent_*` convenience wrappers that sync auth and delegate to the generated call.
 - **No commented-out code** left in place; delete dead code or move it to a test.
 - Follow the surrounding file's indentation and brace style.
