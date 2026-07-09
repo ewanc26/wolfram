@@ -948,3 +948,32 @@ wf_status wf_feedgen_search_posts_v2_typed(wf_agent *agent, const char *query,
  * lex wrappers. The NSID only exists as app.bsky.unspecced.getPopularFeedGenerators
  * (wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_call). Add an
  * unspecced_typed wrapper if a typed popular-feed generator list is required. */
+
+wf_status wf_feedgen_send_interactions_typed(
+    wf_agent *agent, const char *feed_uri,
+    const wf_lex_app_bsky_feed_defs_interaction *const *interactions,
+    size_t interaction_count) {
+    if (!agent || !agent->client || !interactions || interaction_count == 0) {
+        return WF_ERR_INVALID_ARG;
+    }
+    for (size_t i = 0; i < interaction_count; ++i) {
+        if (!interactions[i]) {
+            return WF_ERR_INVALID_ARG;
+        }
+    }
+
+    wf_lex_app_bsky_feed_send_interactions_main_input input = {0};
+    if (feed_uri && feed_uri[0]) {
+        input.has_feed = true;
+        input.feed = feed_uri;
+    }
+    input.interactions.items = interactions;
+    input.interactions.count = interaction_count;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_app_bsky_feed_send_interactions_main_call(
+        agent->client, &input, &res);
+    wf_response_free(&res);
+    return status;
+}

@@ -1,6 +1,8 @@
 #include "wolfram/embed.h"
 #include "wolfram/embed_typed.h"
 #include "wolfram/util.h"
+#include "agent/_internal.h"
+#include "wolfram/atproto_lex.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -165,4 +167,143 @@ cJSON *wf_embed_record_with_media_build(const wf_embed_record_t *record, const c
         cJSON_Delete(rec_json);
     }
     return out;
+}
+
+/* ----- getEmbedExternalView (owned typed parser + agent wrapper) ----- */
+
+/* Small string helpers kept static per TU (mirrors actor_typed.c). */
+static char *wf_embed_strdup(const char *s) {
+    if (!s) {
+        return NULL;
+    }
+    size_t len = strlen(s);
+    char *copy = (char *)malloc(len + 1);
+    if (copy) {
+        memcpy(copy, s, len + 1);
+    }
+    return copy;
+}
+
+static wf_status wf_embed_set_string(char **dst, const char *src) {
+    char *copy = wf_embed_strdup(src);
+    if (src && !copy) {
+        return WF_ERR_ALLOC;
+    }
+    free(*dst);
+    *dst = copy;
+    return WF_OK;
+}
+
+void wf_embed_external_view_free(wf_embed_external_view *v) {
+    if (!v) {
+        return;
+    }
+    free(v->uri);
+    free(v->title);
+    free(v->description);
+    free(v->thumb);
+    if (v->view) {
+        cJSON_Delete(v->view);
+    }
+    if (v->associated_refs) {
+        cJSON_Delete(v->associated_refs);
+    }
+    if (v->associated_records) {
+        cJSON_Delete(v->associated_records);
+    }
+    memset(v, 0, sizeof(*v));
+}
+
+wf_status wf_embed_parse_external_view(const char *json, size_t json_len,
+                                       wf_embed_external_view *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *view = cJSON_GetObjectItemCaseSensitive(root, "view");
+    if (cJSON_IsObject(view)) {
+        out->has_view = true;
+        cJSON *external = cJSON_GetObjectItemCaseSensitive(view, "external");
+        if (cJSON_IsObject(external)) {
+            cJSON *uri = cJSON_GetObjectItemCaseSensitive(external, "uri");
+            cJSON *title = cJSON_GetObjectItemCaseSensitive(external, "title");
+            cJSON *desc =
+                cJSON_GetObjectItemCaseSensitive(external, "description");
+            cJSON *thumb = cJSON_GetObjectItemCaseSensitive(external, "thumb");
+            if (cJSON_IsString(uri) && uri->valuestring) {
+                status = wf_embed_set_string(&out->uri, uri->valuestring);
+            }
+            if (status == WF_OK && cJSON_IsString(title) && title->valuestring) {
+                status = wf_embed_set_string(&out->title, title->valuestring);
+            }
+            if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
+                status = wf_embed_set_string(&out->description, desc->valuestring);
+            }
+            if (status == WF_OK && cJSON_IsString(thumb) && thumb->valuestring) {
+                status = wf_embed_set_string(&out->thumb, thumb->valuestring);
+            }
+        }
+    }
+
+    if (status == WF_OK) {
+        out->view = cJSON_DetachItemFromObject(root, "view");
+        out->associated_refs =
+            cJSON_DetachItemFromObject(root, "associatedRefs");
+        out->associated_records =
+            cJSON_DetachItemFromObject(root, "associatedRecords");
+    } else {
+        wf_embed_external_view_free(out);
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+wf_status wf_agent_get_embed_external_view_typed(wf_agent *agent,
+                                                 const char *url,
+                                                 const char *const *uris,
+                                                 size_t uri_count,
+                                                 wf_embed_external_view *out) {
+    if (!agent || !agent->client || !url || !url[0] || !uris ||
+        uri_count == 0 || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    for (size_t i = 0; i < uri_count; ++i) {
+        if (!uris[i] || !uris[i][0]) {
+            return WF_ERR_INVALID_ARG;
+        }
+    }
+
+    wf_lex_app_bsky_embed_get_embed_external_view_main_params params = {0};
+    params.url = url;
+    params.uris.items = uris;
+    params.uris.count = uri_count;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_app_bsky_embed_get_embed_external_view_main_call(
+        agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    wf_embed_external_view v = {0};
+    status = wf_embed_parse_external_view(res.body, res.body_len, &v);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = v;
+    }
+    return status;
 }
