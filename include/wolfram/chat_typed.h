@@ -799,10 +799,100 @@ typedef struct wf_chat_actor_status {
 } wf_chat_actor_status;
 
 wf_status wf_agent_parse_actor_status(const char *json, size_t json_len,
-        wf_chat_actor_status *out);
+         wf_chat_actor_status *out);
 void wf_chat_actor_status_free(wf_chat_actor_status *s);
 wf_status wf_agent_chat_get_status_typed(wf_agent *agent,
-        wf_chat_actor_status *out);
+         wf_chat_actor_status *out);
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Extended typed wrappers for the remaining chat.bsky.group / moderation /
+ * actor endpoints that were not yet wrapped.
+ *
+ * Several of these procedures return an EMPTY `{}` body on success
+ * (rejectJoinRequest, updateJoinRequestsRead, withdrawJoinRequest,
+ * deleteAccount, moderation.updateActorAccess). A shared `wf_chat_ok` result
+ * captures "a JSON object body was returned" without inventing fields that do
+ * not exist on the wire. The chat-service call + parse is identical to the
+ * other typed wrappers above (resolve client, sync auth, XRPC, parse).
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* Result of a chat.bsky procedure whose output schema is an empty object.
+ * `ok` is set when the response parsed as a (possibly empty) JSON object; no
+ * owned fields are carried, so the matching free is a no-op reset. */
+typedef struct wf_chat_ok {
+    int ok;   /* 1 when a JSON object body was returned */
+} wf_chat_ok;
+
+wf_status wf_agent_parse_chat_ok(const char *json, size_t json_len,
+                                  wf_chat_ok *out);
+void wf_chat_ok_free(wf_chat_ok *o);
+
+/* chat.bsky.group.rejectJoinRequest — { convoId, member }. Returns `{}`. */
+wf_status wf_agent_chat_reject_join_request_typed(wf_agent *agent,
+         const char *convo_id, const char *user_did, wf_chat_ok *out);
+
+/* chat.bsky.group.updateJoinRequestsRead — { convoId }. Returns `{}`. */
+wf_status wf_agent_chat_update_join_requests_read_typed(wf_agent *agent,
+         const char *convo_id, wf_chat_ok *out);
+
+/* chat.bsky.group.withdrawJoinRequest — { convoId }. Returns `{}`. */
+wf_status wf_agent_chat_withdraw_join_request_typed(wf_agent *agent,
+         const char *convo_id, wf_chat_ok *out);
+
+/* chat.bsky.actor.deleteAccount — no input, returns `{}`. */
+wf_status wf_agent_chat_delete_account_typed(wf_agent *agent,
+         wf_chat_ok *out);
+
+/* chat.bsky.moderation.updateActorAccess — { actor, allowAccess, ref? }.
+ * Returns `{}`. */
+wf_status wf_agent_chat_mod_update_actor_access_typed(wf_agent *agent,
+         const char *actor_did, bool allow_access, const char *ref,
+         wf_chat_ok *out);
+
+/* chat.bsky.actor.exportAccountData — query returning application/jsonl.
+ * Each JSONL line is owned verbatim (NOT further parsed) so callers can
+ * decode the individual records with their own lexicon parsers. */
+typedef struct wf_chat_export_record {
+    char *json;   /* owned copy of one JSONL line (no trailing newline) */
+} wf_chat_export_record;
+
+typedef struct wf_chat_export_account_data {
+    wf_chat_export_record *records;
+    size_t record_count;
+} wf_chat_export_account_data;
+
+wf_status wf_agent_parse_export_account_data(const char *json, size_t json_len,
+         wf_chat_export_account_data *out);
+void wf_chat_export_account_data_free(wf_chat_export_account_data *e);
+wf_status wf_agent_chat_export_account_data_typed(wf_agent *agent,
+         wf_chat_export_account_data *out);
+
+/* chat.bsky.moderation.subscribeModEvents — one streamed union event.
+ * Only the bounded identifying fields common across all event refs are
+ * retained (the $type union tag, convoId, rev, createdAt, and the actor /
+ * subject DIDs where present). Full per-event decoding is left to callers. */
+typedef struct wf_chat_mod_event {
+    char *type;        /* $type union tag (required on the wire) */
+    char *convo_id;
+    char *rev;
+    char *created_at;
+    char *actor_did;
+    char *subject_did;
+} wf_chat_mod_event;
+
+wf_status wf_agent_parse_mod_event(const char *json, size_t json_len,
+                                   wf_chat_mod_event *out);
+void wf_chat_mod_event_free(wf_chat_mod_event *e);
+
+/* chat.bsky.moderation.subscribeModEvents — honest stub.
+ *
+ * TODO: this is a streaming WebSocket subscription served by the chat service.
+ * The typed chat layer currently only wraps request/response XRPC calls
+ * (query/procedure), so a live subscription is not wired here. Callers
+ * needing the event stream should use the raw chat client with the WebSocket
+ * transport directly. Returns WF_ERR_INVALID_ARG (not implemented). */
+wf_status wf_agent_chat_subscribe_mod_events_typed(wf_agent *agent,
+         const char *cursor);
 
 #ifdef __cplusplus
 }

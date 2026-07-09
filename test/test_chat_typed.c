@@ -672,6 +672,139 @@ static void test_extended_typed_parsers_invalid(void) {
     WF_CHECK(wf_agent_parse_actor_status(NULL, 0, &s) == WF_ERR_INVALID_ARG);
 }
 
+static void test_parse_chat_ok(void) {
+    /* Empty-body procedures parse as ok=true. */
+    wf_chat_ok o = {0};
+    wf_status s = wf_agent_parse_chat_ok("{}", 2, &o);
+    WF_CHECK(s == WF_OK && o.ok == 1);
+    wf_chat_ok_free(&o);
+    WF_CHECK(o.ok == 0);
+
+    wf_chat_ok o2 = {0};
+    const char *ok_body = "{\"rev\":\"r1\"}";
+    WF_CHECK(wf_agent_parse_chat_ok(ok_body, strlen(ok_body), &o2) == WF_OK);
+    wf_chat_ok_free(&o2);
+
+    /* A non-object body is rejected. */
+    wf_chat_ok o3 = {0};
+    WF_CHECK(wf_agent_parse_chat_ok("not json", 8, &o3) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_chat_ok("[1,2]", 5, &o3) == WF_ERR_PARSE);
+
+    /* NULL inputs. */
+    WF_CHECK(wf_agent_parse_chat_ok(NULL, 0, &o3) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_chat_ok("{}", 2, NULL) == WF_ERR_INVALID_ARG);
+}
+
+static void test_parse_export_account_data(void) {
+    const char *jsonl =
+        "{\"uri\":\"at://did:plc:a/.../r1\"}\n"
+        "{\"uri\":\"at://did:plc:a/.../r2\"}\r\n"
+        "{\"uri\":\"at://did:plc:a/.../r3\"}";
+    wf_chat_export_account_data e = {0};
+    wf_status s = wf_agent_parse_export_account_data(jsonl, strlen(jsonl), &e);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(e.record_count == 3);
+    WF_CHECK(e.records[0].json &&
+              strstr(e.records[0].json, "r1") != NULL);
+    WF_CHECK(e.records[2].json &&
+              strstr(e.records[2].json, "r3") != NULL);
+    wf_chat_export_account_data_free(&e);
+    WF_CHECK(e.records == NULL && e.record_count == 0);
+
+    /* Blank lines are skipped. */
+    wf_chat_export_account_data e2 = {0};
+    WF_CHECK(wf_agent_parse_export_account_data("\n\n{\"a\":1}\n",
+             strlen("\n\n{\"a\":1}\n"), &e2) == WF_OK);
+    WF_CHECK(e2.record_count == 1);
+    wf_chat_export_account_data_free(&e2);
+
+    wf_chat_export_account_data e3 = {0};
+    WF_CHECK(wf_agent_parse_export_account_data(NULL, 0, &e3) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_export_account_data("x", 1, NULL) ==
+              WF_ERR_INVALID_ARG);
+}
+
+static void test_parse_mod_event(void) {
+    const char *json =
+        "{\"$type\":\"#eventGroupChatCreated\",\"convoId\":\"c1\","
+        "\"rev\":\"r1\",\"createdAt\":\"2024-01-01T00:00:00Z\","
+        "\"actorDid\":\"did:plc:owner\",\"subjectDid\":\"did:plc:sub\"}";
+    wf_chat_mod_event ev = {0};
+    wf_status s = wf_agent_parse_mod_event(json, strlen(json), &ev);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(ev.type && strcmp(ev.type, "#eventGroupChatCreated") == 0);
+    WF_CHECK(ev.convo_id && strcmp(ev.convo_id, "c1") == 0);
+    WF_CHECK(ev.rev && strcmp(ev.rev, "r1") == 0);
+    WF_CHECK(ev.created_at &&
+              strcmp(ev.created_at, "2024-01-01T00:00:00Z") == 0);
+    WF_CHECK(ev.actor_did && strcmp(ev.actor_did, "did:plc:owner") == 0);
+    WF_CHECK(ev.subject_did && strcmp(ev.subject_did, "did:plc:sub") == 0);
+    wf_chat_mod_event_free(&ev);
+    WF_CHECK(ev.type == NULL);
+
+    wf_chat_mod_event ev2 = {0};
+    WF_CHECK(wf_agent_parse_mod_event("not json", 8, &ev2) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_mod_event(NULL, 0, &ev2) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_mod_event("{}", 2, NULL) ==
+              WF_ERR_INVALID_ARG);
+}
+
+static void test_new_typed_wrappers_null_arg(void) {
+    /* Argument validation (no network): NULL agent / NULL out. */
+    wf_chat_ok ok = {0};
+    WF_CHECK(wf_agent_chat_reject_join_request_typed(NULL, "x", "y", &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_reject_join_request_typed((wf_agent *)1, NULL, "y",
+                                                     &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_reject_join_request_typed((wf_agent *)1, "x", NULL,
+                                                     &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_reject_join_request_typed((wf_agent *)1, "x", "y",
+                                                     NULL) == WF_ERR_INVALID_ARG);
+
+    WF_CHECK(wf_agent_chat_update_join_requests_read_typed(NULL, "x", &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_update_join_requests_read_typed((wf_agent *)1, NULL,
+                                                          &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_update_join_requests_read_typed((wf_agent *)1, "x",
+                                                          NULL) ==
+              WF_ERR_INVALID_ARG);
+
+    WF_CHECK(wf_agent_chat_withdraw_join_request_typed(NULL, "x", &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_withdraw_join_request_typed((wf_agent *)1, "x",
+                                                      NULL) == WF_ERR_INVALID_ARG);
+
+    WF_CHECK(wf_agent_chat_delete_account_typed(NULL, &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_delete_account_typed((wf_agent *)1, NULL) ==
+              WF_ERR_INVALID_ARG);
+
+    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed(NULL, "x", true, "r",
+                                                        &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed((wf_agent *)1, NULL,
+                                                         true, "r", &ok) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed((wf_agent *)1, "x",
+                                                         true, "r", NULL) ==
+              WF_ERR_INVALID_ARG);
+
+    wf_chat_export_account_data ex = {0};
+    WF_CHECK(wf_agent_chat_export_account_data_typed(NULL, &ex) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_export_account_data_typed((wf_agent *)1, NULL) ==
+              WF_ERR_INVALID_ARG);
+
+    /* subscribeModEvents is an honest stub (streaming not wired). */
+    WF_CHECK(wf_agent_chat_subscribe_mod_events_typed(NULL, NULL) ==
+              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_subscribe_mod_events_typed((wf_agent *)1, "cur") ==
+              WF_ERR_INVALID_ARG);
+}
+
 int main(void) {
     test_parse_convos();
     test_parse_convo();
@@ -707,5 +840,9 @@ int main(void) {
     test_parse_actor_status();
     test_extended_typed_wrappers_null_arg();
     test_extended_typed_parsers_invalid();
+    test_parse_chat_ok();
+    test_parse_export_account_data();
+    test_parse_mod_event();
+    test_new_typed_wrappers_null_arg();
     WF_TEST_SUMMARY();
 }
