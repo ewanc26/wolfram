@@ -143,8 +143,15 @@ wf_status wf_agent_sync_get_blocks_typed(wf_agent *agent, const char *did,
                                      wf_sync_block_list *out);
 
 wf_status wf_agent_sync_get_record_typed(wf_agent *agent, const char *did,
-                                    const char *collection, const char *rkey,
-                                    wf_sync_record *out);
+                                     const char *collection, const char *rkey,
+                                     wf_sync_record *out);
+
+/* com.atproto.sync.getBlob (query, params: did, cid). Returns the raw blob
+ * bytes; on WF_OK the caller owns the buffer returned in *out_data (free with
+ * free()). `out_len` receives the byte length. */
+wf_status wf_agent_get_blob_typed(wf_agent *agent, const char *did,
+                                  const char *cid, uint8_t **out_data,
+                                  size_t *out_len);
 
 #ifdef __cplusplus
 }

@@ -408,7 +408,49 @@ wf_status wf_agent_sync_get_record_typed(wf_agent *agent, const char *did,
     }
 
     status = wf_sync_record_parse_car((const unsigned char *)res.body,
-                                      res.body_len, collection, rkey, out);
+                                       res.body_len, collection, rkey, out);
     wf_response_free(&res);
     return status;
+}
+
+/* com.atproto.sync.getBlob — query returning the raw blob bytes. */
+wf_status wf_agent_get_blob_typed(wf_agent *agent, const char *did,
+                                  const char *cid, uint8_t **out_data,
+                                  size_t *out_len) {
+    if (!agent || !did || !did[0] || !cid || !cid[0] || !out_data ||
+        !out_len) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_client *client = wf_agent_xrpc_client(agent);
+    if (!client) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[] = {
+        {"did", did},
+        {"cid", cid},
+    };
+    wf_response res = {0};
+    wf_status status = wf_xrpc_query_params(client,
+                                            "com.atproto.sync.getBlob",
+                                            params, 2, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    uint8_t *buf = NULL;
+    if (res.body_len > 0) {
+        buf = (uint8_t *)malloc(res.body_len);
+        if (!buf) {
+            wf_response_free(&res);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(buf, res.body, res.body_len);
+    }
+    *out_data = buf;
+    *out_len = res.body_len;
+    wf_response_free(&res);
+    return WF_OK;
 }

@@ -232,6 +232,22 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         wf_sync_record_free(&rec);
 
+        /* ---- getBlob argument validation ---- */
+        {
+            uint8_t *data = NULL;
+            size_t len = 0;
+            WF_CHECK(wf_agent_get_blob_typed(NULL, "did:plc:x", "cid", &data,
+                                            &len) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_blob_typed(agent, NULL, "cid", &data,
+                                            &len) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_blob_typed(agent, "did:plc:x", NULL, &data,
+                                            &len) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_blob_typed(agent, "did:plc:x", "cid", NULL,
+                                            &len) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_blob_typed(agent, "did:plc:x", "cid", &data,
+                                            NULL) == WF_ERR_INVALID_ARG);
+        }
+
         wf_agent_free(agent);
     }
 
