@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/ci]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Default build: core C11 library + CLI + unit tests. No optional modules.
+  default:
+    name: default build + ctest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libssl-dev \
+            libsecp256k1-dev \
+            python3
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+
+  # Full-features build: server + store + store-crypto + C++ wrapper.
+  # Also exercises the Python lexicon generator test suite.
+  full:
+    name: full-features build + ctest + lexgen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libssl-dev \
+            libsecp256k1-dev \
+            libsodium-dev \
+            libsqlite3-dev \
+            libmicrohttpd-dev \
+            libzstd-dev \
+            libc-ares-dev \
+            python3
+
+      - name: Configure
+        run: cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DWOLFRAM_BUILD_SERVER=ON \
+            -DWOLFRAM_BUILD_STORE=ON \
+            -DWOLFRAM_BUILD_STORE_CRYPTO=ON \
+            -DWOLFRAM_BUILD_CPP=ON
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test (ctest)
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+
+      - name: Lexicon generator tests
+        run: python3 test/test_lexgen.py
+
+  # C# interop wrapper. Requires the .NET SDK; gated so the overall CI does
+  # not fail when dotnet is unavailable. The wrapper P/Invokes the shared
+  # libwolfram, so we build it as a shared library and point WOLFRAM_NATIVE_LIB
+  # at the built .so.
+  dotnet:
+    name: C# interop (gated on dotnet)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libssl-dev \
+            libsecp256k1-dev \
+            python3
+
+      - name: Set up .NET SDK
+        id: dotnet
+        continue-on-error: true
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Check dotnet availability
+        id: check
+        run: |
+          if command -v dotnet >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "dotnet not found — skipping C# interop job"
+          fi
+
+      - name: Build shared libwolfram
+        if: steps.check.outputs.available == 'true'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON
+          cmake --build build -j"$(nproc)"
+
+      - name: Test C# interop
+        if: steps.check.outputs.available == 'true'
+        env:
+          WOLFRAM_NATIVE_LIB: ${{ github.workspace }}/build/libwolfram.so
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build:${{ github.workspace }}/build/_deps/cjson-build:${{ github.workspace }}/build/_deps/libcbor-build/src
+        run: dotnet test dotnet/Wolfram.Interop.Tests/Wolfram.Interop.Tests.csproj
