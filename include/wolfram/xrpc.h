@@ -30,6 +30,7 @@ typedef enum wf_status {
     WF_ERR_PARSE,
     WF_ERR_NOT_FOUND,
     WF_ERR_WOULD_BLOCK, /* non-blocking transport has no data ready yet */
+    WF_ERR_RATE_LIMIT,  /* rate limiter rejected the request */
 } wf_status;
 
 /** Opaque XRPC client. Holds the service base URL, auth state, and

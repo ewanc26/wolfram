@@ -23,6 +23,7 @@
 #include <cJSON.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -137,6 +138,53 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
                                        wf_xrpc_auth_cb cb, void *ctx);
+
+/* ------------------------------------------------------------------ */
+/* Rate limiter (optional, per-server-mount or per-route)              */
+/* ------------------------------------------------------------------ */
+
+/** Opaque token-bucket rate limiter handle. */
+typedef struct wf_rate_limiter wf_rate_limiter;
+
+/**
+ * Create a memory-backed token-bucket rate limiter.
+ *
+ * @param points            Maximum tokens the bucket can hold (burst).
+ * @param duration_seconds  Time window in seconds for token refill.
+ *                          Tokens refill at `points / duration_seconds` per second.
+ * @param bucket_count      Number of buckets (keys tracked simultaneously).
+ *                          0 uses a default (256). Each bucket is a linked-list
+ *                          node; higher values reduce hash collisions.
+ * @return  Handle, or NULL on allocation failure.
+ */
+wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
+                                      unsigned int duration_seconds,
+                                      unsigned int bucket_count);
+
+/** Free a rate limiter. Safe to call with NULL. */
+void wf_rate_limiter_free(wf_rate_limiter *rl);
+
+/**
+ * Try to consume `cost` tokens for the given `key`.
+ *
+ * @param rl    Rate limiter handle.
+ * @param key   NUL-terminated key string (e.g. client IP, auth token).
+ * @param cost  Number of tokens to consume (1 for a normal request).
+ * @param out_retry_after  If non-NULL and rate limited, set to the number of
+ *              seconds the caller should wait before retrying.
+ * @return WF_OK if tokens were consumed, WF_ERR_RATE_LIMIT if the bucket is
+ *         empty, WF_ERR_INVALID_ARG on bad inputs.
+ */
+wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
+                                   const char *key,
+                                   unsigned int cost,
+                                   unsigned int *out_retry_after);
+
+/* Attach a rate limiter to a server. When set, every request is charged
+ * 1 token against the client's IP address before the auth callback.
+ * Passing NULL removes the rate limiter. */
+void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
+                                      wf_rate_limiter *rl);
 
 #ifdef __cplusplus
 }

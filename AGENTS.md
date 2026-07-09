@@ -47,8 +47,8 @@ Agentic principles and technical context for the `wolfram` repository.
 - `sync_verify`: Firehose commit verification — parses the CAR from a commit event, resolves the repo DID to obtain the signing key, and verifies the commit signature, block integrity, and MST structure. Tested.
 - `test_sync_subscribe`: Integration test connecting to `wss://bsky.network`, receiving up to 5 events, verifying WebSocket connection and CBOR event parsing. Graceful skip when network unavailable.
 - `unspecced`: Full XRPC-level wrapper coverage for all 30 `app.bsky.unspecced` endpoints. 8 endpoints have agent-level wrappers with custom cJSON parsers (`unspecced_typed.h`); all 22 remaining endpoints have generated-type-based call wrappers and parse helpers (`wf_unspecced_*`). Combined with the 8 agent-level wrappers, all unspecced endpoints are now covered.
-- `server_xrpc`: Optional `libmicrohttpd`-backed XRPC server module (`WOLFRAM_BUILD_SERVER`). Route registration (query/procedure), auth middleware, query parameter parsing, POST body accumulation, CORS headers, and readback of bound port. Tested with an offline round-trip test against the `wf_xrpc_client` transport.
+- `server_xrpc`: Optional `libmicrohttpd`-backed XRPC server module (`WOLFRAM_BUILD_SERVER`). Route registration (query/procedure), auth middleware, query parameter parsing, POST body accumulation, CORS headers, integrated token-bucket rate limiter (`wf_rate_limiter`), and readback of bound port. Tested with offline round-trip, rate limiter unit, rate limiter refill, and server rate limit integration tests against the `wf_xrpc_client` transport.
 
 ## Next planned work
 
-- Continue evaluating upstream C libraries for server-side infrastructure (event loop, config parsing, etc.).
+- Continue evaluating upstream C libraries for server-side infrastructure (event loop, config parsing, rate limiting).
