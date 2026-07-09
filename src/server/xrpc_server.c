@@ -13,10 +13,13 @@
 #include <microhttpd.h>
 
 #include <arpa/inet.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 /* Simple growable buffer used to accumulate POST request bodies. */
 typedef struct post_buf {
@@ -206,9 +209,11 @@ typedef enum {
 typedef struct wf_route {
     char                     *nsid;
     wf_route_kind             kind;
+    bool                      is_sse; /* true if this route uses Server-Sent Events */
     union {
         wf_xrpc_query_handler      query;
         wf_xrpc_procedure_handler  procedure;
+        wf_xrpc_sse_handler        sse;
     } handler;
     void                     *ctx;
     struct wf_route          *next;   /* linked list */
@@ -225,7 +230,297 @@ struct wf_xrpc_server {
     void                *auth_ctx;
     wf_rate_limiter     *rate_limiter;        /* global IP-based limiter */
     wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
+    wf_xrpc_sse_stream  *sse_streams;          /* open SSE connections */
+    pthread_mutex_t      sse_mutex;            /* guards sse_streams */
 };
+
+/* ------------------------------------------------------------------ */
+/* Server-Sent Events (SSE) streaming                                  */
+/* ------------------------------------------------------------------ */
+
+/** A buffered chunk of bytes queued for the SSE connection. */
+typedef struct wf_sse_chunk {
+    char                 *data;
+    size_t                len;
+    size_t                off;        /* bytes already copied out */
+    struct wf_sse_chunk  *next;
+} wf_sse_chunk;
+
+struct wf_xrpc_sse_stream {
+    struct MHD_Connection *conn;       /* owning MHD connection */
+    wf_xrpc_server        *server;     /* back-pointer for teardown */
+    char                  *nsid;       /* route NSID (for diagnostics) */
+    pthread_mutex_t        mutex;      /* guards chunks / closed / started */
+    wf_sse_chunk          *chunks;     /* pending output, head */
+    wf_sse_chunk          *chunks_tail;/* pending output, tail */
+    bool                   closed;     /* end-of-stream requested */
+    bool                   started;    /* at least one frame queued */
+    struct wf_xrpc_sse_stream *next;   /* global list in server */
+};
+
+/** Fallback definitions for libmicrohttpd versions lacking these macros. */
+#ifndef MHD_CONTENT_READER_END_OF_STREAM
+#define MHD_CONTENT_READER_END_OF_STREAM ((ssize_t)-1)
+#endif
+
+/** Append a byte range to the stream's pending queue. Caller holds mutex. */
+static wf_status wf_sse_append_locked(wf_xrpc_sse_stream *s,
+                                      const char *data, size_t len) {
+    wf_sse_chunk *c;
+    if (len == 0) {
+        return WF_OK;
+    }
+    c = (wf_sse_chunk *)calloc(1, sizeof(*c));
+    if (!c) {
+        return WF_ERR_ALLOC;
+    }
+    c->data = (char *)malloc(len);
+    if (!c->data) {
+        free(c);
+        return WF_ERR_ALLOC;
+    }
+    memcpy(c->data, data, len);
+    c->len = len;
+    c->off = 0;
+    if (s->chunks_tail) {
+        s->chunks_tail->next = c;
+    } else {
+        s->chunks = c;
+    }
+    s->chunks_tail = c;
+    return WF_OK;
+}
+
+/** Copy up to `max` pending bytes into `buf`. Caller holds mutex. */
+static size_t wf_sse_drain_locked(wf_xrpc_sse_stream *s, char *buf,
+                                  size_t max) {
+    size_t wrote = 0;
+    while (s->chunks && wrote < max) {
+        wf_sse_chunk *c = s->chunks;
+        size_t avail = c->len - c->off;
+        size_t take = max - wrote;
+        if (take > avail) {
+            take = avail;
+        }
+        memcpy(buf + wrote, c->data + c->off, take);
+        wrote += take;
+        c->off += take;
+        if (c->off >= c->len) {
+            s->chunks = c->next;
+            if (s->chunks_tail == c) {
+                s->chunks_tail = NULL;
+            }
+            free(c->data);
+            free(c);
+        }
+    }
+    return wrote;
+}
+
+/** Create an SSE stream bound to a connection. Caller registers it. */
+static wf_xrpc_sse_stream *wf_sse_stream_new(wf_xrpc_server *server,
+                                             struct MHD_Connection *conn,
+                                             const char *nsid) {
+    wf_xrpc_sse_stream *s;
+    s = (wf_xrpc_sse_stream *)calloc(1, sizeof(*s));
+    if (!s) {
+        return NULL;
+    }
+    s->server = server;
+    s->conn = conn;
+    s->nsid = nsid ? strdup(nsid) : NULL;
+    if (nsid && !s->nsid) {
+        free(s);
+        return NULL;
+    }
+    if (pthread_mutex_init(&s->mutex, NULL) != 0) {
+        free(s->nsid);
+        free(s);
+        return NULL;
+    }
+    return s;
+}
+
+/** MHD content-reader callback: feed buffered bytes, suspend when empty. */
+static ssize_t wf_sse_content_reader(void *cls, uint64_t pos, char *buf,
+                                     size_t max) {
+    wf_xrpc_sse_stream *s = (wf_xrpc_sse_stream *)cls;
+    ssize_t wrote;
+    bool closed;
+    (void)pos;
+
+    pthread_mutex_lock(&s->mutex);
+    wrote = (ssize_t)wf_sse_drain_locked(s, buf, max);
+    if (wrote > 0) {
+        pthread_mutex_unlock(&s->mutex);
+        return wrote;
+    }
+    closed = s->closed;
+    if (!closed) {
+        /* No data available: park the connection until resumed. Calling
+         * MHD_suspend_connection while holding the stream mutex serialises
+         * against wf_xrpc_server_sse_send, which prevents a lost wake-up. */
+        MHD_suspend_connection(s->conn);
+    }
+    pthread_mutex_unlock(&s->mutex);
+
+    if (closed) {
+        return MHD_CONTENT_READER_END_OF_STREAM;
+    }
+    return 0; /* suspended; MHD calls again after MHD_resume_connection */
+}
+
+/** MHD content-reader free callback: unlink and release the stream. */
+static void wf_sse_stream_free(void *cls) {
+    wf_xrpc_sse_stream *s = (wf_xrpc_sse_stream *)cls;
+    wf_xrpc_server *server = s->server;
+
+    if (server) {
+        pthread_mutex_lock(&server->sse_mutex);
+        wf_xrpc_sse_stream **pp = &server->sse_streams;
+        while (*pp) {
+            if (*pp == s) {
+                *pp = s->next;
+                break;
+            }
+            pp = &(*pp)->next;
+        }
+        pthread_mutex_unlock(&server->sse_mutex);
+    }
+
+    while (s->chunks) {
+        wf_sse_chunk *nx = s->chunks->next;
+        free(s->chunks->data);
+        free(s->chunks);
+        s->chunks = nx;
+    }
+    free(s->nsid);
+    pthread_mutex_destroy(&s->mutex);
+    free(s);
+}
+
+/** Register a freshly created stream in the server's open-SSE list. */
+static void wf_sse_register(wf_xrpc_server *server, wf_xrpc_sse_stream *s) {
+    pthread_mutex_lock(&server->sse_mutex);
+    s->next = server->sse_streams;
+    server->sse_streams = s;
+    pthread_mutex_unlock(&server->sse_mutex);
+}
+
+wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
+                                  const char *event, const char *data) {
+    wf_xrpc_sse_stream *s = stream;
+    char *frame = NULL;
+    size_t frame_cap = 0, frame_len = 0;
+    wf_status rc = WF_OK;
+
+    if (!s || s->closed) {
+        /* TODO: stream is closed or invalid; cannot send. */
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!data) {
+        data = "";
+    }
+
+    /* Optional "event:" line. */
+    if (event && event[0] != '\0') {
+        size_t need = strlen("event: ") + strlen(event) + strlen("\n");
+        if (frame_len + need + 1 > frame_cap) {
+            char *tmp = (char *)realloc(frame, frame_len + need + 1);
+            if (!tmp) { rc = WF_ERR_ALLOC; goto out; }
+            frame = tmp;
+            frame_cap = frame_len + need + 1;
+        }
+        frame_len += (size_t)snprintf(frame + frame_len, frame_cap - frame_len,
+                                      "event: %s\n", event);
+    }
+
+    /* "data:" lines — one per newline in the payload. */
+    {
+        const char *p = data;
+        const char *line = data;
+        while (1) {
+            const char *nl = strchr(p, '\n');
+            size_t llen = nl ? (size_t)(nl - line) : strlen(line);
+            size_t need = strlen("data: ") + llen + strlen("\n");
+            if (frame_len + need + 1 > frame_cap) {
+                char *tmp = (char *)realloc(frame, frame_len + need + 16);
+                if (!tmp) { rc = WF_ERR_ALLOC; goto out; }
+                frame = tmp;
+                frame_cap = frame_len + need + 16;
+            }
+            frame_len += (size_t)snprintf(frame + frame_len,
+                                          frame_cap - frame_len,
+                                          "data: %.*s\n", (int)llen, line);
+            if (!nl) {
+                break;
+            }
+            p = nl + 1;
+            line = p;
+        }
+    }
+
+    /* Trailing blank line terminates the event. */
+    {
+        size_t need = strlen("\n");
+        if (frame_len + need + 1 > frame_cap) {
+            char *tmp = (char *)realloc(frame, frame_len + need + 1);
+            if (!tmp) { rc = WF_ERR_ALLOC; goto out; }
+            frame = tmp;
+            frame_cap = frame_len + need + 1;
+        }
+        frame_len += (size_t)snprintf(frame + frame_len, frame_cap - frame_len,
+                                      "\n");
+    }
+
+    pthread_mutex_lock(&s->mutex);
+    rc = wf_sse_append_locked(s, frame, frame_len);
+    if (rc == WF_OK) {
+        s->started = true;
+    }
+    pthread_mutex_unlock(&s->mutex);
+
+    if (rc == WF_OK) {
+        MHD_resume_connection(s->conn);
+    }
+
+out:
+    free(frame);
+    return rc;
+}
+
+wf_status wf_xrpc_server_sse_send_raw(wf_xrpc_sse_stream *stream,
+                                      const char *frame, size_t len) {
+    wf_xrpc_sse_stream *s = stream;
+    wf_status rc;
+    if (!s || s->closed || !frame) {
+        /* TODO: stream is closed/invalid or frame is NULL. */
+        return WF_ERR_INVALID_ARG;
+    }
+    pthread_mutex_lock(&s->mutex);
+    rc = wf_sse_append_locked(s, frame, len);
+    if (rc == WF_OK) {
+        s->started = true;
+    }
+    pthread_mutex_unlock(&s->mutex);
+    if (rc == WF_OK) {
+        MHD_resume_connection(s->conn);
+    }
+    return rc;
+}
+
+wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream) {
+    wf_xrpc_sse_stream *s = stream;
+    if (!s || s->closed) {
+        /* TODO: stream already closed or invalid. */
+        return WF_ERR_INVALID_ARG;
+    }
+    pthread_mutex_lock(&s->mutex);
+    s->closed = true;
+    pthread_mutex_unlock(&s->mutex);
+    MHD_resume_connection(s->conn);
+    return WF_OK;
+}
 
 /* ------------------------------------------------------------------ */
 /* Response helpers                                                     */
@@ -382,6 +677,17 @@ static wf_route *wf_server_find_route(const wf_xrpc_server *server,
 /* ------------------------------------------------------------------ */
 /* MHD request handler                                                  */
 /* ------------------------------------------------------------------ */
+
+/* Forward declaration — defined later (CORS preflight). */
+static enum MHD_Result wf_server_mhd_options(void *cls,
+                                              struct MHD_Connection *conn,
+                                              const char *url,
+                                              const char *method,
+                                              const char *version,
+                                              const char *upload_data,
+                                              size_t *upload_data_size,
+                                              void **con_cls);
+
 static enum MHD_Result wf_server_mhd_handler(void *cls,
                                               struct MHD_Connection *conn,
                                               const char *url,
@@ -401,6 +707,12 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     char *nsid = NULL;
     cJSON *params = NULL;
     const char *auth_header;
+
+    /* CORS preflight (OPTIONS) — handled directly, no route lookup. */
+    if (strcmp(method, "OPTIONS") == 0) {
+        return wf_server_mhd_options(cls, conn, url, method, version,
+                                     upload_data, upload_data_size, con_cls);
+    }
 
     /* One-time initialisation per connection */
     if (*con_cls == NULL) {
@@ -518,6 +830,7 @@ process:
                     MHD_queue_response(conn, 429, mhd_rl);
                     MHD_destroy_response(mhd_rl);
                 }
+                ret = MHD_YES;
                 goto cleanup;
             }
         }
@@ -549,6 +862,10 @@ process:
     req.params = params;
     req.handler_ctx = route->ctx;
 
+    if (route->is_sse) {
+        goto sse_stream;
+    }
+
     if (kind == WF_ROUTE_QUERY) {
         route->handler.query(route->ctx, &req, &resp);
     } else {
@@ -571,7 +888,11 @@ send:
         goto cleanup;
     }
 
-    MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
+    if (route && route->is_sse) {
+        MHD_add_response_header(mhd_resp, "Content-Type", "text/event-stream");
+    } else {
+        MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
+    }
     MHD_add_response_header(mhd_resp, "Access-Control-Allow-Origin", "*");
     MHD_add_response_header(mhd_resp, "Access-Control-Allow-Headers",
                              "Authorization, Content-Type");
@@ -582,6 +903,68 @@ send:
 
     ret = MHD_queue_response(conn, resp.http_status, mhd_resp);
     MHD_destroy_response(mhd_resp);
+
+    goto cleanup;
+
+sse_stream:
+    {
+        wf_xrpc_sse_stream *stream;
+        struct MHD_Response *mhd_resp_sse;
+
+        stream = wf_sse_stream_new(server, conn, nsid);
+        if (!stream) {
+            wf_xrpc_response_set_error(&resp, 500, "InternalError",
+                                       "Failed to allocate SSE stream");
+            goto send;
+        }
+        wf_sse_register(server, stream);
+
+        /* Hand the stream to the user handler. The handler should return
+         * promptly and stream from a worker thread (see header docs). */
+        route->handler.sse(route->ctx, &req, stream);
+
+        mhd_resp_sse = MHD_create_response_from_callback(
+            MHD_SIZE_UNKNOWN, 4096,
+            wf_sse_content_reader, stream, wf_sse_stream_free);
+        if (!mhd_resp_sse) {
+            /* Detach and release the stream; report an error. */
+            pthread_mutex_lock(&server->sse_mutex);
+            if (server->sse_streams == stream) {
+                server->sse_streams = stream->next;
+            } else {
+                wf_xrpc_sse_stream *pr = server->sse_streams;
+                while (pr && pr->next != stream) {
+                    pr = pr->next;
+                }
+                if (pr) {
+                    pr->next = stream->next;
+                }
+            }
+            pthread_mutex_unlock(&server->sse_mutex);
+            wf_sse_stream_free(stream);
+            wf_xrpc_response_set_error(&resp, 500, "InternalError",
+                                       "Failed to create SSE response");
+            goto send;
+        }
+
+        MHD_add_response_header(mhd_resp_sse, "Content-Type",
+                                "text/event-stream");
+        MHD_add_response_header(mhd_resp_sse, "Cache-Control", "no-cache");
+        MHD_add_response_header(mhd_resp_sse, "Connection", "keep-alive");
+        MHD_add_response_header(mhd_resp_sse, "X-Accel-Buffering", "no");
+        MHD_add_response_header(mhd_resp_sse, "Access-Control-Allow-Origin",
+                                "*");
+        MHD_add_response_header(mhd_resp_sse, "Access-Control-Allow-Headers",
+                                "Authorization, Content-Type");
+        MHD_add_response_header(mhd_resp_sse, "Access-Control-Expose-Headers",
+                                "Content-Type");
+
+        ret = MHD_queue_response(conn, MHD_HTTP_OK, mhd_resp_sse);
+        MHD_destroy_response(mhd_resp_sse);
+        /* The connection is left open: wf_sse_content_reader suspends it
+         * whenever the buffer is empty, and SSE sends resume it. */
+        goto cleanup;
+    }
 
 cleanup:
     free(nsid);
@@ -644,13 +1027,18 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
         return NULL;
     }
     server->port = port;
+    server->sse_streams = NULL;
+    if (pthread_mutex_init(&server->sse_mutex, NULL) != 0) {
+        free(server);
+        return NULL;
+    }
 
     if (thread_count == 0) {
         thread_count = 4;
     }
 
     server->daemon = MHD_start_daemon(
-        MHD_USE_INTERNAL_POLLING_THREAD,
+        MHD_USE_INTERNAL_POLLING_THREAD | MHD_ALLOW_SUSPEND_RESUME,
         port,
         NULL, NULL,                       /* Accept policy */
         &wf_server_mhd_handler, server,   /* Main handler */
@@ -676,6 +1064,17 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
     if (!server || !server->daemon) {
         return;
     }
+    /* Resume and mark any still-suspended SSE connections for closure so the
+     * daemon can finish draining them and exit cleanly (no hung threads). */
+    pthread_mutex_lock(&server->sse_mutex);
+    for (wf_xrpc_sse_stream *s = server->sse_streams; s; s = s->next) {
+        pthread_mutex_lock(&s->mutex);
+        s->closed = true;
+        pthread_mutex_unlock(&s->mutex);
+        MHD_resume_connection(s->conn);
+    }
+    pthread_mutex_unlock(&server->sse_mutex);
+
     MHD_stop_daemon(server->daemon);
     server->daemon = NULL;
 }
@@ -699,6 +1098,7 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     if (server->rate_limit_entries) {
         wf_server_free_rate_limit_entries(server->rate_limit_entries);
     }
+    pthread_mutex_destroy(&server->sse_mutex);
     free(server);
 }
 
@@ -737,9 +1137,9 @@ wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
 }
 
 wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
-                                            const char *nsid,
-                                            wf_xrpc_procedure_handler handler,
-                                            void *ctx) {
+                                             const char *nsid,
+                                             wf_xrpc_procedure_handler handler,
+                                             void *ctx) {
     wf_route *r;
 
     if (!server || !nsid || !handler) {
@@ -757,6 +1157,36 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
     r->kind = WF_ROUTE_PROCEDURE;
     r->handler.procedure = handler;
     r->ctx = ctx;
+    r->next = server->routes;
+    server->routes = r;
+    return WF_OK;
+}
+
+/* Register a Server-Sent Events (SSE) endpoint. The connection is kept open
+   and frames are pushed with wf_xrpc_server_sse_send until closed with
+   wf_xrpc_server_sse_close. A handler that sends a single frame and closes
+   produces a single-shot SSE response. */
+wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
+                                       const char *nsid,
+                                       wf_xrpc_sse_handler handler,
+                                       void *ctx) {
+    wf_route *r;
+    if (!server || !nsid || !handler) {
+        return WF_ERR_INVALID_ARG;
+    }
+    r = (wf_route *)calloc(1, sizeof(*r));
+    if (!r) {
+        return WF_ERR_ALLOC;
+    }
+    r->nsid = strdup(nsid);
+    if (!r->nsid) {
+        free(r);
+        return WF_ERR_ALLOC;
+    }
+    r->kind = WF_ROUTE_QUERY;
+    r->handler.sse = handler;
+    r->ctx = ctx;
+    r->is_sse = true;
     r->next = server->routes;
     server->routes = r;
     return WF_OK;

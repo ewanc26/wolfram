@@ -189,15 +189,21 @@ src/agent/push_endpoint.c
 if(WOLFRAM_BUILD_SERVER)
     find_path(MICROHTTPD_INCLUDE_DIR NAMES microhttpd.h REQUIRED)
     find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
+    find_package(Threads REQUIRED)
     target_sources(wolfram PRIVATE src/server/xrpc_server.c)
     target_include_directories(wolfram PRIVATE ${MICROHTTPD_INCLUDE_DIR})
-    target_link_libraries(wolfram PUBLIC ${MICROHTTPD_LIBRARY})
+    target_link_libraries(wolfram PUBLIC ${MICROHTTPD_LIBRARY} Threads::Threads)
 
     if(WOLFRAM_BUILD_TESTS)
         add_executable(test_xrpc_server test/test_xrpc_server.c)
-        target_link_libraries(test_xrpc_server PRIVATE wolfram)
+        target_link_libraries(test_xrpc_server PRIVATE wolfram Threads::Threads)
         target_include_directories(test_xrpc_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
         add_test(NAME xrpc_server COMMAND test_xrpc_server)
+
+        add_executable(test_xrpc_server_sse test/test_xrpc_server_sse.c)
+        target_link_libraries(test_xrpc_server_sse PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_xrpc_server_sse PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
+        add_test(NAME xrpc_server_sse COMMAND test_xrpc_server_sse)
     endif()
 endif()
 
