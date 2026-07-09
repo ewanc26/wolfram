@@ -158,6 +158,8 @@ src/agent/push_endpoint.c
     src/agent/moderation_apply.c
     src/agent/label_persist.c
     src/agent/identity_mgmt.c
+    # Owned typed wrappers for tools.ozone.report/queue/signature moderation ops
+    src/agent/ozone_moderation_ops_typed.c
     # High-level BskyAgent convenience wrapper
     src/bsky_agent.c
     # Rich text / facet detection
@@ -1038,6 +1040,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_ozone_typed PRIVATE test ${cjson_SOURCE_DIR})
     target_compile_definitions(test_ozone_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME ozone_typed COMMAND test_ozone_typed)
+
+    add_executable(test_ozone_moderation_ops_typed test/test_ozone_moderation_ops_typed.c)
+    target_link_libraries(test_ozone_moderation_ops_typed PRIVATE wolfram)
+    target_include_directories(test_ozone_moderation_ops_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_ozone_moderation_ops_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME ozone_moderation_ops_typed COMMAND test_ozone_moderation_ops_typed)
 
     add_executable(test_json_schema test/test_json_schema.c)
     target_link_libraries(test_json_schema PRIVATE wolfram)
