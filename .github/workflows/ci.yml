@@ -64,7 +64,8 @@ jobs:
             python3
 
       - name: Configure
-        run: cmake -S . -B build \
+        run: |
+          cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Debug \
             -DWOLFRAM_BUILD_SERVER=ON \
             -DWOLFRAM_BUILD_STORE=ON \
