@@ -37,6 +37,10 @@ static const char *k_labels_json =
 static const char *k_scope_json =
     "{\"scope\":\"ref:xyz\"}";
 
+/* addReservedHandle: empty output (lexicon) with an optional echoed handle. */
+static const char *k_add_reserved_handle_json =
+    "{\"handle\":\"alice.example.com\"}";
+
 int main(void) {
     /* ---- checkHandleAvailability: available ---- */
     {
@@ -184,12 +188,144 @@ int main(void) {
     /* ---- revokeAccountCredentials (typed) argument validation ---- */
     {
         WF_CHECK(wf_agent_revoke_account_credentials_typed(NULL,
-                                                          "did:plc:a") ==
-                 WF_ERR_INVALID_ARG);
+                                                           "did:plc:a") ==
+                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_revoke_account_credentials_typed(NULL, NULL) ==
-                 WF_ERR_INVALID_ARG);
+                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_revoke_account_credentials_typed(NULL, "") ==
-                 WF_ERR_INVALID_ARG);
+                  WF_ERR_INVALID_ARG);
+    }
+
+    /* ---- addReservedHandle: parse (optional echoed handle) ---- */
+    {
+        wf_temp_add_reserved_handle_result out = {0};
+        wf_status s = wf_temp_add_reserved_handle_parse(
+            k_add_reserved_handle_json, strlen(k_add_reserved_handle_json), &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.ok == 1);
+        WF_CHECK(out.handle && strcmp(out.handle, "alice.example.com") == 0);
+        wf_temp_add_reserved_handle_result_free(&out);
+    }
+
+    /* ---- addReservedHandle: empty output (lexicon) parses ok ---- */
+    {
+        wf_temp_add_reserved_handle_result out = {0};
+        wf_status s = wf_temp_add_reserved_handle_parse(
+            "{}", strlen("{}"), &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.ok == 1);
+        WF_CHECK(out.handle == NULL);
+        wf_temp_add_reserved_handle_result_free(&out);
+    }
+
+    /* ---- requestPhoneVerification: empty output parses ok ---- */
+    {
+        wf_temp_request_phone_verification_result out = {0};
+        wf_status s = wf_temp_request_phone_verification_parse(
+            "{}", strlen("{}"), &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.ok == 1);
+        wf_temp_request_phone_verification_result_free(&out);
+    }
+
+    /* ---- revokeAccountCredentials: empty output parses ok ---- */
+    {
+        wf_temp_revoke_account_credentials_result out = {0};
+        wf_status s = wf_temp_revoke_account_credentials_parse(
+            "{}", strlen("{}"), &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.ok == 1);
+        wf_temp_revoke_account_credentials_result_free(&out);
+    }
+
+    /* ---- Write-side parsers: non-object body => WF_ERR_PARSE ---- */
+    {
+        wf_temp_add_reserved_handle_result a = {0};
+        WF_CHECK(wf_temp_add_reserved_handle_parse("[]", strlen("[]"), &a) ==
+                  WF_ERR_PARSE);
+        wf_temp_request_phone_verification_result b = {0};
+        WF_CHECK(wf_temp_request_phone_verification_parse("[]", strlen("[]"),
+                                                          &b) == WF_ERR_PARSE);
+        wf_temp_revoke_account_credentials_result c = {0};
+        WF_CHECK(wf_temp_revoke_account_credentials_parse("[]", strlen("[]"),
+                                                          &c) == WF_ERR_PARSE);
+    }
+
+    /* ---- Write-side parsers: NULL args => WF_ERR_INVALID_ARG ---- */
+    {
+        wf_temp_add_reserved_handle_result a = {0};
+        WF_CHECK(wf_temp_add_reserved_handle_parse(NULL, 0, &a) ==
+                  WF_ERR_INVALID_ARG);
+        wf_temp_request_phone_verification_result b = {0};
+        WF_CHECK(wf_temp_request_phone_verification_parse(NULL, 0, &b) ==
+                  WF_ERR_INVALID_ARG);
+        wf_temp_revoke_account_credentials_result c = {0};
+        WF_CHECK(wf_temp_revoke_account_credentials_parse(NULL, 0, &c) ==
+                  WF_ERR_INVALID_ARG);
+    }
+
+    /* ---- Write-side input encode round-trip (no network) ---- */
+    {
+        wf_lex_com_atproto_temp_add_reserved_handle_main_input ai = {0};
+        ai.handle = "alice.example.com";
+        char *aj = NULL;
+        wf_status s =
+            wf_lex_com_atproto_temp_add_reserved_handle_main_input_encode_json(
+                &ai, &aj);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(aj && strstr(aj, "alice.example.com") != NULL);
+        wf_lex_com_atproto_temp_add_reserved_handle_main_json_free(aj);
+
+        wf_lex_com_atproto_temp_request_phone_verification_main_input ri = {0};
+        ri.phone_number = "+15551234567";
+        char *rj = NULL;
+        s = wf_lex_com_atproto_temp_request_phone_verification_main_input_encode_json(
+            &ri, &rj);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(rj && strstr(rj, "+15551234567") != NULL);
+        wf_lex_com_atproto_temp_request_phone_verification_main_json_free(rj);
+
+        wf_lex_com_atproto_temp_revoke_account_credentials_main_input ci = {0};
+        ci.account = "did:plc:abc";
+        char *cj = NULL;
+        s = wf_lex_com_atproto_temp_revoke_account_credentials_main_input_encode_json(
+            &ci, &cj);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(cj && strstr(cj, "did:plc:abc") != NULL);
+        wf_lex_com_atproto_temp_revoke_account_credentials_main_json_free(cj);
+    }
+
+    /* ---- New _typed agent wrapper argument validation (no network) ---- */
+    {
+        wf_temp_add_reserved_handle_result a = {0};
+        WF_CHECK(wf_agent_temp_add_reserved_handle_typed(NULL, "h", &a) ==
+                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_temp_add_reserved_handle_typed(NULL, "", &a) ==
+                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_temp_add_reserved_handle_typed(NULL, "h", NULL) ==
+                  WF_ERR_INVALID_ARG);
+
+        wf_temp_request_phone_verification_result b = {0};
+        WF_CHECK(wf_agent_temp_request_phone_verification_typed(NULL, "123",
+                                                               &b) ==
+                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_temp_request_phone_verification_typed(NULL, "", &b) ==
+                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_temp_request_phone_verification_typed(NULL, "123",
+                                                               NULL) ==
+                  WF_ERR_INVALID_ARG);
+
+        wf_temp_revoke_account_credentials_result c = {0};
+        WF_CHECK(wf_agent_temp_revoke_account_credentials_typed(NULL,
+                                                               "did:plc:a",
+                                                               &c) ==
+                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_temp_revoke_account_credentials_typed(NULL, NULL,
+                                                               &c) ==
+                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_temp_revoke_account_credentials_typed(NULL, "",
+                                                               &c) ==
+                  WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();
