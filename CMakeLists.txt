@@ -165,6 +165,8 @@ src/agent/push_endpoint.c
     src/embed.c
     # Ozone moderation / labeler helper
     src/ozone/ozone.c
+    # Owned typed wrappers for the tools.ozone.* namespaces
+    src/ozone_typed.c
     # Generic JSON round-trip / schema-subset validation
     src/json/json.c
     # Image dimension probing via vendored stb_image (header-only, third_party/)
@@ -888,6 +890,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_ozone PRIVATE wolfram)
     target_include_directories(test_ozone PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME ozone COMMAND test_ozone)
+
+    add_executable(test_ozone_typed test/test_ozone_typed.c)
+    target_link_libraries(test_ozone_typed PRIVATE wolfram)
+    target_include_directories(test_ozone_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_ozone_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME ozone_typed COMMAND test_ozone_typed)
 
     add_executable(test_json_schema test/test_json_schema.c)
     target_link_libraries(test_json_schema PRIVATE wolfram)
