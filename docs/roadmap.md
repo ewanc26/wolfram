@@ -114,23 +114,34 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     labeler/actor ownership model. The `getActorStatus`/`getStatus`/`putStatus`
     agent wrappers are honest stubs (`WF_ERR_INVALID_ARG` + `TODO`) because the
     local lexicon snapshot lacks generated bindings for those endpoints. Tested.
-40. `tools.ozone.*` typed coverage (`ozone_typed.h`) — owned typed parsers +
-    agent wrappers across moderation, setting, communication, team, server,
-    verification, signature, hosting, set, queue, report, and safelink
-    namespaces, reusing the generated owning decoders from `atproto_lex.h`.
-    `getSuggestions`/`getLabelDefinitions` fall back to JSON-in/JSON-out (the
-    lexicon snapshot lacks them). Tested.
-41. `wolfram` CLI social commands — `profile`, `timeline`, `follow`,
-    `unfollow`, `like`, `repost`, `search`, `notifications`, `mute`, `unmute`,
-    and `thread`, reusing the existing `wf_agent_*` APIs.
+ 40. `tools.ozone.*` typed coverage (`ozone.h`/`ozone.c`) — initial batch of
+     typed convenience wrappers for moderation (queryStatuses, getLabelDefs,
+     emitEvent, queryEvents, getEvent, getReporterStats, getSubjects,
+     getSuggestions), communication templates, and set values. Tested.
+ 41. `wolfram` CLI social commands — `profile`, `timeline`, `follow`,
+     `unfollow`, `like`, `repost`, `search`, `notifications`, `mute`, `unmute`,
+     and `thread`, reusing the existing `wf_agent_*` APIs.
+ 42. Remaining `tools.ozone.*` typed wrappers (`ozone.h`/`ozone.c`) — additional
+     moderation sub-endpoints (getAccountTimeline, getRecords, getRepo, getRepos,
+     searchRepos, cancelScheduledActions, scheduleAction, listScheduledActions),
+     queue (assignModerator, createQueue, deleteQueue, getAssignments, listQueues,
+     routeReports, unassignModerator, updateQueue), report (14 endpoints),
+     team (add/delete/list/update member), verification (grant/list/revoke),
+     signature (findCorrelation, findRelatedAccounts, searchAccounts),
+     setting (listOptions, removeOptions, upsertOption), hosting
+     (getAccountHistory), server (getConfig), and safelink
+     (addRule, queryEvents, queryRules, removeRule, updateRule). Tested.
 
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
-- Continue cross-referencing `bluesky-social/atproto` and `rsky` for protocol
-  parity. Remaining parity items include broader `tools.ozone.*` and
-  `app.bsky.*` record coverage and tooling.
+- Continue cross-referencing `bluesky-social/atproto` for protocol parity on
+  remaining `app.bsky.unspecced.*` skeleton/search endpoints.
+- Explore a minimal PDS server stub using the existing `libmicrohttpd` test
+  infrastructure.
+- Continue evaluating upstream C libraries for server-side infrastructure
+  (event loop, config parsing, etc.).
 
 ## Dependencies
 
