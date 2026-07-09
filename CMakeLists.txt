@@ -3,7 +3,7 @@ cmake_policy(SET CMP0077 NEW)
 project(wolfram
     VERSION 0.1.0
     DESCRIPTION "A C SDK for the AT Protocol"
-    LANGUAGES C
+    LANGUAGES C CXX
 )
 
 set(CMAKE_C_STANDARD 11)
@@ -334,7 +334,8 @@ option(WOLFRAM_BUILD_SERVER "Build the XRPC server module (requires libmicrohttp
 # lookup and decodes punycode responses back to Unicode for display. OFF by
 # default so the default build stays dependency-free and passes handles through
 # unchanged. Install via `brew install libidn2` / `apt install libidn2-dev`.
-option(WOLFRAM_BUILD_IDN "Build with libidn2 IDNA/punycode handle resolution" OFF)
+ option(WOLFRAM_BUILD_IDN "Build with libidn2 IDNA/punycode handle resolution" OFF)
+ option(WOLFRAM_BUILD_CPP "Build the C++ RAII wrapper (wolfram-cpp)" OFF)
 
 if(WOLFRAM_BUILD_STORE_CRYPTO)
     set(WOLFRAM_BUILD_STORE ON CACHE BOOL "" FORCE)
@@ -1080,4 +1081,8 @@ if(WOLFRAM_BUILD_TESTS)
         )
         add_test(NAME graph_writes COMMAND test_graph_writes)
     endif()
+endif()
+
+if(WOLFRAM_BUILD_CPP)
+    add_subdirectory(cpp)
 endif()

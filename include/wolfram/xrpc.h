@@ -20,17 +20,36 @@
 extern "C" {
 #endif
 
-/** Result/error codes returned by wolfram functions. */
+/** Result/error codes returned by wolfram functions. This is the single
+ *  canonical status enum; `wf_error` (in _result.h) is a typedef alias of it. */
 typedef enum wf_status {
     WF_OK = 0,
-    WF_ERR_INVALID_ARG,
-    WF_ERR_ALLOC,
-    WF_ERR_NETWORK,
-    WF_ERR_HTTP,      /* transport succeeded, server returned non-2xx */
-    WF_ERR_PARSE,
-    WF_ERR_NOT_FOUND,
-    WF_ERR_WOULD_BLOCK, /* non-blocking transport has no data ready yet */
-    WF_ERR_RATE_LIMIT,  /* rate limiter rejected the request */
+    WF_ERR_INVALID_ARG = 1,
+    WF_ERR_ALLOC = 2,
+    WF_ERR_NETWORK = 3,
+    WF_ERR_HTTP = 4,      /* transport succeeded, server returned non-2xx */
+    WF_ERR_PARSE = 5,
+    WF_ERR_NOT_FOUND = 6,
+    WF_ERR_WOULD_BLOCK = 7, /* non-blocking transport has no data ready yet */
+    WF_ERR_DID_RESOLVE = 8,
+    WF_ERR_DID_DOCUMENT_NOT_FOUND = 9,
+    WF_ERR_HANDLE_RESOLVE = 10,
+    WF_ERR_HANDLE_DOCUMENT_NOT_FOUND = 11,
+    WF_ERR_HANDLE_TTL_EXPIRED = 12,
+    WF_ERR_HANDLE_CACHE_KEY = 13,
+    WF_ERR_CRYPTO = 14,
+    WF_ERR_VALIDATION = 15,
+    WF_ERR_STATE = 16,
+    WF_ERR_CONFIG = 17,
+    WF_ERR_TIMEOUT = 18,
+    WF_ERR_UNSUPPORTED = 19,
+    WF_ERR_PERMISSION = 20,
+    WF_ERR_RATE_LIMIT = 21,  /* rate limiter rejected the request */
+    WF_ERR_DUPLICATE = 22,
+    WF_ERR_CONFLICT = 23,
+    WF_ERR_NOT_IMPLEMENTED = 24,
+    WF_ERR_INTERNAL = 25,
+    WF_ERR_UNKNOWN = 26
 } wf_status;
 
 /** Opaque XRPC client. Holds the service base URL, auth state, and
