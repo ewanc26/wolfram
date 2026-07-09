@@ -1,6 +1,7 @@
 #include "wolfram/agent.h"
 #include "wolfram/syntax.h"
 #include "wolfram/util.h"
+#include "wolfram/tid.h"
 #include "_internal.h"
 #include "wolfram/atproto_lex.h"
 #include <cJSON.h>
@@ -107,4 +108,22 @@ wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
         cJSON_Delete(record);
     }
     return status;
+}
+
+/*
+ * Mint a fresh monotonic TID and use it as the record key via the
+ * putRecord path. Keeps wf_agent_create_record (server-assigned key) and
+ * wf_agent_put_record (caller-supplied key) unchanged.
+ */
+wf_status wf_agent_create_record_with_tid(wf_agent *agent,
+                                         const char *collection,
+                                         const char *record_json,
+                                         wf_agent_post_result *out) {
+    if (!agent || !collection || !record_json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    char rkey[15];
+    wf_status status = wf_tid_now(rkey);
+    if (status != WF_OK) return status;
+    return wf_agent_put_record(agent, collection, rkey, record_json, out);
 }

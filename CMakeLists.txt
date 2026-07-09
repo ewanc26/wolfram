@@ -18,6 +18,7 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 
 find_package(CURL REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(Threads REQUIRED)
 find_package(PkgConfig QUIET)
 if(PkgConfig_FOUND)
     pkg_check_modules(SECP256K1 libsecp256k1)
@@ -100,6 +101,8 @@ add_library(wolfram
     src/label_query.c
     # Syntax validation
     src/syntax/syntax.c
+    # TID generation clock
+    src/tid.c
     # Lexicon validation
     src/validate/validate.c
     # High-level agent API
@@ -228,7 +231,7 @@ target_include_directories(wolfram
         ${SECP256K1_INCLUDE_DIRS}
 )
 
-target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto)
+target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto Threads::Threads)
 target_link_libraries(wolfram PRIVATE libcbor::libcbor)
 
 # stb_image.h (vendored, third_party/) emits warnings under -Wextra -Wpedantic.
@@ -642,6 +645,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_syntax PRIVATE wolfram)
     target_include_directories(test_syntax PRIVATE test)
     add_test(NAME syntax COMMAND test_syntax)
+
+    add_executable(test_tid test/test_tid.c)
+    target_link_libraries(test_tid PRIVATE wolfram)
+    target_include_directories(test_tid PRIVATE test)
+    add_test(NAME tid COMMAND test_tid)
 
     add_executable(test_syntax_interop test/test_syntax_interop.c)
     target_link_libraries(test_syntax_interop PRIVATE wolfram)

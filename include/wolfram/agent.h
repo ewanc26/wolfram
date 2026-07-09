@@ -57,6 +57,16 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
 /* Generic record creation – works for any collection */
 wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
                                 const char *record_json, wf_agent_post_result *out);
+/*
+ * Like wf_agent_create_record, but mints a fresh monotonic TID record key
+ * internally (via wf_tid_now) instead of requiring the caller to supply one.
+ * Delegates to the existing wf_agent_put_record path; existing signatures are
+ * unchanged.
+ */
+wf_status wf_agent_create_record_with_tid(wf_agent *agent,
+                                         const char *collection,
+                                         const char *record_json,
+                                         wf_agent_post_result *out);
 void wf_agent_post_result_free(wf_agent_post_result *result);
 
 /* Update handle */
