@@ -116,6 +116,7 @@ add_library(wolfram
     src/agent/graph_typed.c
     src/agent/graph_social_typed.c
     src/actor_typed.c
+    src/sync_list_typed.c
     src/actor_prefs_typed.c
     src/actor_status_typed.c
     src/moderation_report_typed.c
@@ -766,7 +767,14 @@ if(WOLFRAM_BUILD_TESTS)
     add_executable(test_sync_typed test/test_sync_typed.c)
     target_link_libraries(test_sync_typed PRIVATE wolfram)
     target_include_directories(test_sync_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_sync_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME sync_typed COMMAND test_sync_typed)
+
+    add_executable(test_sync_list_typed test/test_sync_list_typed.c)
+    target_link_libraries(test_sync_list_typed PRIVATE wolfram)
+    target_include_directories(test_sync_list_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_sync_list_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME sync_list_typed COMMAND test_sync_list_typed)
 
     add_executable(test_ageassurance_typed test/test_ageassurance_typed.c)
     target_link_libraries(test_ageassurance_typed PRIVATE wolfram)
