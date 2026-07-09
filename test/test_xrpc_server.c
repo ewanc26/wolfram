@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* ------------------------------------------------------------------ */
 /* Test handler                                                        */
@@ -270,6 +271,206 @@ static int run_test(void) {
     return 1;
 }
 
+/* ------------------------------------------------------------------ */
+/* Rate limiter tests                                                  */
+/* ------------------------------------------------------------------ */
+
+static int test_rate_limiter_basic(void) {
+    wf_rate_limiter *rl;
+    unsigned int retry;
+
+    /* Invalid args */
+    if (wf_rate_limiter_new(0, 1, 0) != NULL) {
+        fprintf(stderr, "FAIL: rl new with 0 points should fail\n");
+        return 1;
+    }
+    if (wf_rate_limiter_new(1, 0, 0) != NULL) {
+        fprintf(stderr, "FAIL: rl new with 0 duration should fail\n");
+        return 1;
+    }
+
+    rl = wf_rate_limiter_new(3, 1, 0); /* 3 tokens, 1 sec window */
+    if (!rl) {
+        fprintf(stderr, "FAIL: rl new returned NULL\n");
+        return 1;
+    }
+
+    /* Consume 3 tokens — all should succeed */
+    if (wf_rate_limiter_consume(rl, "alice", 1, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rl consume 1\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+    if (wf_rate_limiter_consume(rl, "alice", 1, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rl consume 2\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+    if (wf_rate_limiter_consume(rl, "alice", 1, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rl consume 3\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+
+    /* 4th should fail — bucket empty */
+    if (wf_rate_limiter_consume(rl, "alice", 1, &retry) != WF_ERR_RATE_LIMIT) {
+        fprintf(stderr, "FAIL: rl consume 4 should be rate limited\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+    if (retry == 0) {
+        fprintf(stderr, "FAIL: rl retry-after should be >0\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+
+    /* Different key should still work */
+    if (wf_rate_limiter_consume(rl, "bob", 1, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rl different key should succeed\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+
+    wf_rate_limiter_free(rl);
+    printf("PASS: rate limiter basic\n");
+    return 0;
+}
+
+static int test_rate_limiter_refill(void) {
+    wf_rate_limiter *rl;
+    unsigned int retry;
+
+    /* 2 tokens, 2 sec window — 1 token/sec refill */
+    rl = wf_rate_limiter_new(2, 2, 0);
+    if (!rl) {
+        fprintf(stderr, "FAIL: rl refill new failed\n");
+        return 1;
+    }
+
+    /* Use all 2 tokens */
+    if (wf_rate_limiter_consume(rl, "key", 2, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rl refill consume 2\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+    /* Bucket empty — should fail */
+    if (wf_rate_limiter_consume(rl, "key", 1, &retry) != WF_ERR_RATE_LIMIT) {
+        fprintf(stderr, "FAIL: rl refill should be empty\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+
+    /* Wait 1 sec for 1 token to refill */
+    sleep(1);
+    if (wf_rate_limiter_consume(rl, "key", 1, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rl refill after 1s should have 1 token\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+    /* Should be empty again */
+    if (wf_rate_limiter_consume(rl, "key", 1, &retry) != WF_ERR_RATE_LIMIT) {
+        fprintf(stderr, "FAIL: rl refill should be empty again\n");
+        wf_rate_limiter_free(rl);
+        return 1;
+    }
+
+    wf_rate_limiter_free(rl);
+    printf("PASS: rate limiter refill\n");
+    return 0;
+}
+
+static int test_server_rate_limit(void) {
+    wf_xrpc_server *server;
+    wf_xrpc_client *client;
+    wf_rate_limiter *rl;
+    wf_response res = {0};
+    int failures = 0;
+
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    if (!server) {
+        fprintf(stderr, "FAIL: srv rate limit start\n");
+        return 1;
+    }
+
+    /* Register handler and attach rate limiter */
+    if (wf_xrpc_server_register_query(server, "io.example.ping",
+                                       test_query_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: srv rate limit register\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+
+    /* 2 tokens, 60 sec window — effectively 2 requests then blocked */
+    rl = wf_rate_limiter_new(2, 60, 0);
+    wf_xrpc_server_set_rate_limiter(server, rl);
+
+    uint16_t port = wf_xrpc_server_port(server);
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
+    client = wf_xrpc_client_new(base_url);
+    if (!client) {
+        fprintf(stderr, "FAIL: srv rate limit client\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+
+    /* First 2 requests should succeed */
+    wf_status s;
+    wf_xrpc_param params[] = {{"msg", "ok"}};
+
+    s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
+    if (s != WF_OK || res.status != 200) {
+        fprintf(stderr, "FAIL: srv rate limit req 1: status=%d http=%ld\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
+    if (s != WF_OK || res.status != 200) {
+        fprintf(stderr, "FAIL: srv rate limit req 2: status=%d http=%ld\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    /* 3rd should get 429 */
+    s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
+    if (s != WF_ERR_HTTP || res.status != 429) {
+        fprintf(stderr, "FAIL: srv rate limit req 3: expected 429, "
+                "got status=%d http=%ld\n", (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    /* Detach rate limiter — all requests should succeed again */
+    wf_xrpc_server_set_rate_limiter(server, NULL);
+    s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
+    if (s != WF_OK || res.status != 200) {
+        fprintf(stderr, "FAIL: srv rate limit after detach: status=%d http=%ld\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    wf_xrpc_client_free(client);
+    wf_xrpc_server_free(server);
+    wf_rate_limiter_free(rl);
+
+    if (failures == 0) {
+        printf("PASS: server rate limit\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
-    return run_test();
+    int failures = 0;
+
+    failures += run_test();
+    failures += test_rate_limiter_basic();
+    failures += test_rate_limiter_refill();
+    failures += test_server_rate_limit();
+
+    return failures;
 }

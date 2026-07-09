@@ -12,8 +12,11 @@
 #include <cJSON.h>
 #include <microhttpd.h>
 
+#include <arpa/inet.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /* Simple growable buffer used to accumulate POST request bodies. */
 typedef struct post_buf {
@@ -37,6 +40,152 @@ static int post_buf_append(post_buf *b, const char *data, size_t len) {
     memcpy(b->data + b->len, data, len);
     b->len = needed;
     return 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* Rate limiter                                                        */
+/* ------------------------------------------------------------------ */
+
+/** A single token-bucket entry keyed by an arbitrary string. */
+typedef struct wf_rate_bucket {
+    char                  *key;
+    double                 tokens;
+    time_t                 last_refill;
+    struct wf_rate_bucket *next;
+} wf_rate_bucket;
+
+struct wf_rate_limiter {
+    unsigned int     points;          /* Max tokens (burst capacity) */
+    unsigned int     duration_seconds;/* Refill window */
+    unsigned int     bucket_count;    /* Hash table size */
+    wf_rate_bucket **buckets;         /* Hash table array, owned */
+};
+
+/** FNV-1a hash for a NUL-terminated string. */
+static unsigned int wf_rl_hash(const char *key, unsigned int mod) {
+    unsigned int h = 2166136261U;
+    while (*key) {
+        h ^= (unsigned char)*key++;
+        h *= 16777619U;
+    }
+    return h % mod;
+}
+
+wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
+                                      unsigned int duration_seconds,
+                                      unsigned int bucket_count) {
+    wf_rate_limiter *rl;
+
+    if (points == 0 || duration_seconds == 0) {
+        return NULL;
+    }
+    if (bucket_count == 0) {
+        bucket_count = 256;
+    }
+    rl = (wf_rate_limiter *)calloc(1, sizeof(*rl));
+    if (!rl) {
+        return NULL;
+    }
+    rl->points = points;
+    rl->duration_seconds = duration_seconds;
+    rl->bucket_count = bucket_count;
+    rl->buckets = (wf_rate_bucket **)calloc(bucket_count, sizeof(wf_rate_bucket *));
+    if (!rl->buckets) {
+        free(rl);
+        return NULL;
+    }
+    return rl;
+}
+
+void wf_rate_limiter_free(wf_rate_limiter *rl) {
+    unsigned int i;
+    if (!rl) {
+        return;
+    }
+    for (i = 0; i < rl->bucket_count; i++) {
+        wf_rate_bucket *b = rl->buckets[i];
+        while (b) {
+            wf_rate_bucket *next = b->next;
+            free(b->key);
+            free(b);
+            b = next;
+        }
+    }
+    free(rl->buckets);
+    free(rl);
+}
+
+wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
+                                   const char *key,
+                                   unsigned int cost,
+                                   unsigned int *out_retry_after) {
+    unsigned int idx;
+    wf_rate_bucket *b;
+    time_t now;
+    double refill_rate;
+    double elapsed;
+
+    if (!rl || !key || cost == 0) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    now = time(NULL);
+    refill_rate = (double)rl->points / (double)rl->duration_seconds;
+
+    idx = wf_rl_hash(key, rl->bucket_count);
+    b = rl->buckets[idx];
+
+    /* Look up existing bucket */
+    while (b) {
+        if (strcmp(b->key, key) == 0) {
+            break;
+        }
+        b = b->next;
+    }
+
+    if (b) {
+        /* Refill tokens based on elapsed time */
+        elapsed = difftime(now, b->last_refill);
+        if (elapsed > 0) {
+            b->tokens += elapsed * refill_rate;
+            if (b->tokens > (double)rl->points) {
+                b->tokens = (double)rl->points;
+            }
+        }
+    } else {
+        /* Create new bucket */
+        b = (wf_rate_bucket *)calloc(1, sizeof(*b));
+        if (!b) {
+            return WF_ERR_ALLOC;
+        }
+        b->key = strdup(key);
+        if (!b->key) {
+            free(b);
+            return WF_ERR_ALLOC;
+        }
+        b->tokens = (double)rl->points;
+        b->last_refill = now;
+        b->next = rl->buckets[idx];
+        rl->buckets[idx] = b;
+    }
+
+    b->last_refill = now;
+
+    if (b->tokens < (double)cost) {
+        if (out_retry_after) {
+            /* Seconds until one token is available */
+            double wait = ((double)cost - b->tokens) / refill_rate;
+            if (wait < 1.0) wait = 1.0;
+            *out_retry_after = (unsigned int)(wait + 0.5);
+        }
+        return WF_ERR_RATE_LIMIT;
+    }
+
+    b->tokens -= (double)cost;
+    if (out_retry_after) {
+        *out_retry_after = 0;
+    }
+    return WF_OK;
 }
 
 /* ------------------------------------------------------------------ */
@@ -67,6 +216,7 @@ struct wf_xrpc_server {
     wf_route            *routes;
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
+    wf_rate_limiter     *rate_limiter;
 };
 
 /* ------------------------------------------------------------------ */
@@ -315,6 +465,56 @@ process:
         goto send;
     }
 
+    /* Rate limiter — charge 1 token against client IP */
+    if (server->rate_limiter) {
+        const union MHD_ConnectionInfo *ci;
+        char ip_str[INET6_ADDRSTRLEN];
+        unsigned int retry_after = 0;
+
+        ci = MHD_get_connection_info(conn,
+                                      MHD_CONNECTION_INFO_CLIENT_ADDRESS);
+        if (ci && ci->client_addr) {
+            if (ci->client_addr->sa_family == AF_INET) {
+                inet_ntop(AF_INET,
+                          &((struct sockaddr_in *)ci->client_addr)->sin_addr,
+                          ip_str, sizeof(ip_str));
+            } else if (ci->client_addr->sa_family == AF_INET6) {
+                inet_ntop(AF_INET6,
+                          &((struct sockaddr_in6 *)ci->client_addr)->sin6_addr,
+                          ip_str, sizeof(ip_str));
+            } else {
+                (void)snprintf(ip_str, sizeof(ip_str), "unknown");
+            }
+
+            if (wf_rate_limiter_consume(server->rate_limiter, ip_str,
+                                        1, &retry_after) != WF_OK) {
+                struct MHD_Response *mhd_rl;
+                char body[192];
+                char ra_str[16];
+                int n;
+
+                n = snprintf(body, sizeof(body),
+                             "{\"error\":\"RateLimitExceeded\","
+                             "\"message\":\"Rate limit exceeded. "
+                             "Retry after %u seconds.\"}",
+                             retry_after);
+                if (n < 0 || (size_t)n >= sizeof(body)) n = (int)sizeof(body) - 1;
+
+                mhd_rl = MHD_create_response_from_buffer(
+                    (size_t)n, body, MHD_RESPMEM_MUST_COPY);
+                if (mhd_rl) {
+                    snprintf(ra_str, sizeof(ra_str), "%u", retry_after);
+                    MHD_add_response_header(mhd_rl, "Content-Type",
+                                             "application/json");
+                    MHD_add_response_header(mhd_rl, "Retry-After", ra_str);
+                    MHD_queue_response(conn, 429, mhd_rl);
+                    MHD_destroy_response(mhd_rl);
+                }
+                goto cleanup;
+            }
+        }
+    }
+
     /* Auth callback */
     auth_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
                                                "Authorization");
@@ -556,4 +756,12 @@ void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
     }
     server->auth_cb = cb;
     server->auth_ctx = ctx;
+}
+
+void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
+                                      wf_rate_limiter *rl) {
+    if (!server) {
+        return;
+    }
+    server->rate_limiter = rl;
 }

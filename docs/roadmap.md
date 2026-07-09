@@ -151,16 +151,21 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 
 47. XRPC server module (`xrpc_server.h`) — optional `libmicrohttpd`-backed
     server with route registration (query/procedure), auth middleware, query
-    parameter parsing, POST body accumulation, CORS headers, and readback of
-    the bound port. Built when `WOLFRAM_BUILD_SERVER=ON`. Tested with an
-    offline round-trip test against `wf_xrpc_client`.
+    parameter parsing, POST body accumulation, CORS headers, integrated
+    token-bucket rate limiter (`wf_rate_limiter`), and readback of the bound
+    port. Built when `WOLFRAM_BUILD_SERVER=ON`. Tested with an offline
+    round-trip test against `wf_xrpc_client`, rate limiter unit tests, and
+    a server rate-limit integration test.
 
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Continue evaluating upstream C libraries for server-side infrastructure
-  (event loop, config parsing, etc.).
+  (event loop, config parsing, rate limiting).
+- Explore per-route rate limiters (different limits for different XRPC methods).
+- Explore Server-Sent Events (SSE) support in the server for subscription
+  endpoints.
 
 ## Dependencies
 
