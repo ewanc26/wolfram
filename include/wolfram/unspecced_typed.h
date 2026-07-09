@@ -267,6 +267,98 @@ wf_status wf_agent_search_starter_packs_typed(
     wf_agent *agent, const char *q, const char *viewer, int limit,
     const char *cursor, wf_agent_search_starter_packs_list *out);
 
+/* ------------------------------------------------------------------ */
+/* Unspecced — XRPC-level convenience wrappers                        */
+/* ------------------------------------------------------------------ */
+
+#define WF_UNSPECCED_GETONBOARDINGSUGGESTEDUSERSSKELETON_NSID        "app.bsky.unspecced.getOnboardingSuggestedUsersSkeleton"
+#define WF_UNSPECCED_GETPOPULARFEEDGENERATORS_NSID                   "app.bsky.unspecced.getPopularFeedGenerators"
+#define WF_UNSPECCED_GETPOSTTHREADOTHERV2_NSID                       "app.bsky.unspecced.getPostThreadOtherV2"
+#define WF_UNSPECCED_GETPOSTTHREADV2_NSID                            "app.bsky.unspecced.getPostThreadV2"
+#define WF_UNSPECCED_GETSUGGESTEDFEEDS_NSID                          "app.bsky.unspecced.getSuggestedFeeds"
+#define WF_UNSPECCED_GETSUGGESTEDFEEDSSKELETON_NSID                  "app.bsky.unspecced.getSuggestedFeedsSkeleton"
+#define WF_UNSPECCED_GETSUGGESTEDONBOARDINGUSERS_NSID                "app.bsky.unspecced.getSuggestedOnboardingUsers"
+#define WF_UNSPECCED_GETSUGGESTEDSTARTERPACKS_NSID                   "app.bsky.unspecced.getSuggestedStarterPacks"
+#define WF_UNSPECCED_GETSUGGESTEDSTARTERPACKSSKELETON_NSID           "app.bsky.unspecced.getSuggestedStarterPacksSkeleton"
+#define WF_UNSPECCED_GETSUGGESTEDUSERS_NSID                          "app.bsky.unspecced.getSuggestedUsers"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSFORDISCOVER_NSID               "app.bsky.unspecced.getSuggestedUsersForDiscover"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSFORDISCOVERSKELETON_NSID       "app.bsky.unspecced.getSuggestedUsersForDiscoverSkeleton"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSFOREXPLORE_NSID                "app.bsky.unspecced.getSuggestedUsersForExplore"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSFOREXPLORESKELETON_NSID        "app.bsky.unspecced.getSuggestedUsersForExploreSkeleton"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSFORSEEMORE_NSID                "app.bsky.unspecced.getSuggestedUsersForSeeMore"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSFORSEEMORESKELETON_NSID        "app.bsky.unspecced.getSuggestedUsersForSeeMoreSkeleton"
+#define WF_UNSPECCED_GETSUGGESTEDUSERSSKELETON_NSID                  "app.bsky.unspecced.getSuggestedUsersSkeleton"
+#define WF_UNSPECCED_GETTRENDS_NSID                                  "app.bsky.unspecced.getTrends"
+#define WF_UNSPECCED_GETTRENDSSKELETON_NSID                          "app.bsky.unspecced.getTrendsSkeleton"
+#define WF_UNSPECCED_INITAGEASSURANCE_NSID                           "app.bsky.unspecced.initAgeAssurance"
+#define WF_UNSPECCED_SEARCHACTORSSKELETON_NSID                       "app.bsky.unspecced.searchActorsSkeleton"
+#define WF_UNSPECCED_SEARCHPOSTSSKELETON_NSID                        "app.bsky.unspecced.searchPostsSkeleton"
+
+wf_status wf_unspecced_get_onboarding_suggested_users_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_onboarding_suggested_users_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_popular_feed_generators(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_popular_feed_generators_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output **out);
+
+wf_status wf_unspecced_get_post_thread_other_v2(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_post_thread_other_v2_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output **out);
+
+wf_status wf_unspecced_get_post_thread_v2(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_post_thread_v2_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_post_thread_v2_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output **out);
+
+wf_status wf_unspecced_get_suggested_feeds(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_feeds_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_feeds_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output **out);
+
+wf_status wf_unspecced_get_suggested_feeds_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_feeds_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_suggested_onboarding_users(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_onboarding_users_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output **out);
+
+wf_status wf_unspecced_get_suggested_starter_packs(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_starter_packs_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output **out);
+
+wf_status wf_unspecced_get_suggested_starter_packs_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_starter_packs_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_for_discover(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_for_discover_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_for_discover_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_for_discover_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_for_explore(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_for_explore_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_for_explore_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_for_explore_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_for_see_more(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_for_see_more_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_suggested_users_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_suggested_users_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output **out);
+
+wf_status wf_unspecced_get_trends(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_trends_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_trends_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_trends_main_output **out);
+
+wf_status wf_unspecced_get_trends_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_get_trends_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_get_trends_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output **out);
+
+wf_status wf_unspecced_init_age_assurance(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_init_age_assurance_main_input *input, wf_response *out);
+
+wf_status wf_unspecced_search_actors_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_search_actors_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_search_actors_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output **out);
+
+wf_status wf_unspecced_search_posts_skeleton(wf_xrpc_client *client, const wf_lex_app_bsky_unspecced_search_posts_skeleton_main_params *params, wf_response *out);
+wf_status wf_unspecced_search_posts_skeleton_parse(const wf_response *resp, wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output **out);
+
 #ifdef __cplusplus
 }
 #endif

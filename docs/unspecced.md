@@ -1,21 +1,16 @@
 # Unspecced typed API (`unspecced_typed.h`)
 
 The `app.bsky.unspecced` lexicon holds experimental or auxiliary endpoints that
-are not part of the stable core API. `unspecced_typed.h` provides *typed* wrappers
-that issue the agent call and parse the raw JSON body into owned C structs, plus
-lower-level `wf_agent_parse_*` functions for parsing an already-fetched body
-(e.g. an offline fixture).
+are not part of the stable core API. `unspecced_typed.h` provides:
 
-Covered endpoints:
-
-- `getTrendingTopics` — trending topics and suggested topics
-- `getTaggedSuggestions` — curated actor/feed suggestions by tag
-- `getSuggestionsSkeleton` — suggested actors (skeleton)
-- `getConfig` — server/live-now configuration for the viewer
-- `getAgeAssuranceState` — viewer age-assurance status
-- `getOnboardingSuggestedStarterPacks` — full starter-pack views
-- `getOnboardingSuggestedStarterPacksSkeleton` — starter-pack at-uris only
-- `searchStarterPacksSkeleton` — starter-pack search hits
+- **Agent-level typed wrappers** (`wf_agent_*_typed`) for 8 endpoints with
+  custom cJSON parsers (trending topics, tagged suggestions, suggestions
+  skeleton, config, age assurance, onboarding starter packs, starter-pack
+  search).
+- **XRPC-level convenience wrappers** (`wf_unspecced_*`) for all 30
+  `app.bsky.unspecced` endpoints, using the generated atproto_lex.h types.
+  Each query endpoint has a `wf_unspecced_*_parse` helper that decodes the
+  raw `wf_response` body into an owned generated output struct.
 
 This module mirrors the conventions in `feed_typed.h` / `feedgen_typed.h`: it
 returns `wf_status` error codes (`WF_ERR_INVALID_ARG`, `WF_ERR_PARSE`,
@@ -175,3 +170,42 @@ Available parse functions: `wf_agent_parse_trending_topics`,
 | `wf_agent_search_starter_packs_list` | `wf_agent_search_starter_packs_free` |
 
 All free functions are safe to call with `NULL`.
+
+## XRPC-level wrappers (`wf_unspecced_*`)
+
+The 22 remaining `app.bsky.unspecced` endpoints are exposed as thin
+XRPC-level wrappers in `unspecced_typed.h`. They follow the `ozone.h` pattern:
+the call function validates inputs and delegates to the generated
+`wf_lex_app_bsky_unspecced_*_main_call`; the `*_parse` helper wraps the
+generated `_output_decode_json`.
+
+Usage pattern:
+
+```c
+#include "wolfram/unspecced_typed.h"  /* also reachable via agent.h */
+
+wf_xrpc_client *client = /* … */;
+/* Query params */
+wf_lex_app_bsky_unspecced_search_actors_skeleton_main_params params = {0};
+params.q = "alice";
+params.has_limit = true;
+params.limit = 25;
+
+wf_response res = {0};
+wf_status s = wf_unspecced_search_actors_skeleton(client, &params, &res);
+if (s != WF_OK) { /* handle error */ }
+
+/* Decode the response body into an owned typed struct */
+wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output *out = NULL;
+s = wf_unspecced_search_actors_skeleton_parse(&res, &out);
+if (s == WF_OK && out) {
+    for (size_t i = 0; i < out->actors.count; ++i) {
+        printf("actor: %s\n", out->actors.items[i]->did);
+    }
+    wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output_free(out);
+}
+wf_response_free(&res);
+```
+
+Each NSID is also available as a `WF_UNSPECCED_*_NSID` define for use with
+the lower-level XRPC API directly.
