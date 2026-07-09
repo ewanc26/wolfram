@@ -166,7 +166,7 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     `stop`/`free`, and an offline round-trip test against `wf_xrpc_client`.
     Built when `WOLFRAM_BUILD_SERVER=ON`. Tested.
 
-48. Server-Sent Events (SSE) streaming for the XRPC server — real streaming via
+ 49. Server-Sent Events (SSE) streaming for the XRPC server — real streaming via
     libmicrohttpd `MHD_suspend_connection` / `MHD_resume_connection`. An SSE
     route receives a `wf_xrpc_sse_stream` in its handler; frames are pushed with
     `wf_xrpc_server_sse_send` (formats `data: <payload>\n\n`, optional
