@@ -14,6 +14,7 @@
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
+#include "wolfram/syntax.h"
 
 #include <cJSON.h>
 
@@ -258,8 +259,26 @@ static void wf_graph_list_item_view_reset(wf_graph_list_item_view *v) {
     memset(v, 0, sizeof(*v));
 }
 
+/* Parse a single listItemView object into an owned wf_graph_list_item_view. */
+static wf_status wf_graph_parse_list_item_view(cJSON *obj,
+                                               wf_graph_list_item_view *v) {
+    wf_status status = WF_OK;
+    cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
+    cJSON *subject = cJSON_GetObjectItemCaseSensitive(obj, "subject");
+    if (cJSON_IsString(uri) && uri->valuestring) {
+        status = wf_graph_set_string(&v->uri, uri->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsObject(subject)) {
+        status = wf_graph_parse_profile_view(&v->subject, subject);
+    }
+    if (status != WF_OK) {
+        wf_graph_list_item_view_reset(v);
+    }
+    return status;
+}
+
 wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
-                                         wf_graph_list_item_view_list *out) {
+                                          wf_graph_list_item_view_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -305,14 +324,7 @@ wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
             break;
         }
         wf_graph_list_item_view *it = &items[i];
-        cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
-        cJSON *subject = cJSON_GetObjectItemCaseSensitive(obj, "subject");
-        if (cJSON_IsString(uri) && uri->valuestring) {
-            status = wf_graph_set_string(&it->uri, uri->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsObject(subject)) {
-            status = wf_graph_parse_profile_view(&it->subject, subject);
-        }
+        status = wf_graph_parse_list_item_view(obj, it);
         if (status == WF_OK) {
             it->extra = cJSON_DetachItemViaPointer(arr, obj);
         }
@@ -321,6 +333,7 @@ wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
         }
     }
     free(ptrs);
+
 
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
@@ -514,6 +527,219 @@ wf_status wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
 }
 
 /* ------------------------------------------------------------------ */
+/* listWithMembership / starterPackWithMembership                     */
+/* ------------------------------------------------------------------ */
+
+static void wf_graph_list_membership_reset(wf_graph_list_membership *m) {
+    if (!m) {
+        return;
+    }
+    wf_graph_list_view_reset(&m->list);
+    wf_graph_list_item_view_reset(&m->list_item);
+    memset(m, 0, sizeof(*m));
+}
+
+static void wf_graph_starter_pack_membership_reset(
+    wf_graph_starter_pack_membership *m) {
+    if (!m) {
+        return;
+    }
+    wf_graph_starter_pack_view_reset(&m->starter_pack);
+    wf_graph_list_item_view_reset(&m->list_item);
+    memset(m, 0, sizeof(*m));
+}
+
+/* Parse `listsWithMembership` into owned list-with-membership entries. */
+wf_status wf_graph_parse_list_memberships(const char *json, size_t json_len,
+                                          wf_graph_list_membership_list *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "listsWithMembership");
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = (size_t)cJSON_GetArraySize(arr);
+    wf_graph_list_membership *items = NULL;
+    cJSON **ptrs = NULL;
+    if (count > 0) {
+        items = (wf_graph_list_membership *)calloc(count, sizeof(*items));
+        ptrs = (cJSON **)calloc(count, sizeof(*ptrs));
+        if (!items || !ptrs) {
+            free(items);
+            free(ptrs);
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+        for (size_t i = 0; i < count; ++i) {
+            ptrs[i] = cJSON_GetArrayItem(arr, (int)i);
+        }
+    }
+
+    for (size_t i = 0; i < count && status == WF_OK; ++i) {
+        cJSON *obj = ptrs[i];
+        if (!cJSON_IsObject(obj)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        wf_graph_list_membership *m = &items[i];
+        cJSON *list = cJSON_GetObjectItemCaseSensitive(obj, "list");
+        cJSON *list_item =
+            cJSON_GetObjectItemCaseSensitive(obj, "listItem");
+        if (!cJSON_IsObject(list)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        status = wf_graph_parse_list_view(list, &m->list);
+        if (status == WF_OK && cJSON_IsObject(list_item)) {
+            status = wf_graph_parse_list_item_view(list_item, &m->list_item);
+            if (status == WF_OK) {
+                m->has_list_item = true;
+            }
+        }
+        if (status == WF_OK) {
+            m->list.extra = cJSON_DetachItemViaPointer(arr, obj);
+        }
+        if (status != WF_OK) {
+            wf_graph_list_membership_reset(m);
+        }
+    }
+    free(ptrs);
+
+    if (status == WF_OK) {
+        cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
+        if (cJSON_IsString(cursor) && cursor->valuestring) {
+            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+        }
+    }
+
+    if (status == WF_OK) {
+        out->memberships = items;
+        out->membership_count = count;
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            wf_graph_list_membership_reset(&items[i]);
+        }
+        free(items);
+        memset(out, 0, sizeof(*out));
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+/* Parse `starterPacksWithMembership` into owned starter-pack-with-membership
+ * entries. */
+wf_status wf_graph_parse_starter_pack_memberships(
+    const char *json, size_t json_len,
+    wf_graph_starter_pack_membership_list *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *arr =
+        cJSON_GetObjectItemCaseSensitive(root, "starterPacksWithMembership");
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = (size_t)cJSON_GetArraySize(arr);
+    wf_graph_starter_pack_membership *items = NULL;
+    cJSON **ptrs = NULL;
+    if (count > 0) {
+        items = (wf_graph_starter_pack_membership *)calloc(
+            count, sizeof(*items));
+        ptrs = (cJSON **)calloc(count, sizeof(*ptrs));
+        if (!items || !ptrs) {
+            free(items);
+            free(ptrs);
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+        for (size_t i = 0; i < count; ++i) {
+            ptrs[i] = cJSON_GetArrayItem(arr, (int)i);
+        }
+    }
+
+    for (size_t i = 0; i < count && status == WF_OK; ++i) {
+        cJSON *obj = ptrs[i];
+        if (!cJSON_IsObject(obj)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        wf_graph_starter_pack_membership *m = &items[i];
+        cJSON *pack =
+            cJSON_GetObjectItemCaseSensitive(obj, "starterPack");
+        cJSON *list_item =
+            cJSON_GetObjectItemCaseSensitive(obj, "listItem");
+        if (!cJSON_IsObject(pack)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        status = wf_graph_parse_starter_pack_view(pack, &m->starter_pack);
+        if (status == WF_OK && cJSON_IsObject(list_item)) {
+            status = wf_graph_parse_list_item_view(list_item, &m->list_item);
+            if (status == WF_OK) {
+                m->has_list_item = true;
+            }
+        }
+        if (status == WF_OK) {
+            m->starter_pack.extra =
+                cJSON_DetachItemViaPointer(arr, obj);
+        }
+        if (status != WF_OK) {
+            wf_graph_starter_pack_membership_reset(m);
+        }
+    }
+    free(ptrs);
+
+    if (status == WF_OK) {
+        cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
+        if (cJSON_IsString(cursor) && cursor->valuestring) {
+            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+        }
+    }
+
+    if (status == WF_OK) {
+        out->memberships = items;
+        out->membership_count = count;
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            wf_graph_starter_pack_membership_reset(&items[i]);
+        }
+        free(items);
+        memset(out, 0, sizeof(*out));
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+/* ------------------------------------------------------------------ */
 /* Free functions                                                     */
 /* ------------------------------------------------------------------ */
 
@@ -558,6 +784,40 @@ void wf_graph_starter_pack_view_list_free(wf_graph_starter_pack_view_list *list)
     }
     free(list->packs);
     free(list->s_cursor);
+    memset(list, 0, sizeof(*list));
+}
+
+void wf_graph_list_membership_free(wf_graph_list_membership *m) {
+    wf_graph_list_membership_reset(m);
+}
+
+void wf_graph_list_membership_list_free(wf_graph_list_membership_list *list) {
+    if (!list) {
+        return;
+    }
+    for (size_t i = 0; i < list->membership_count; ++i) {
+        wf_graph_list_membership_reset(&list->memberships[i]);
+    }
+    free(list->memberships);
+    free(list->cursor);
+    memset(list, 0, sizeof(*list));
+}
+
+void wf_graph_starter_pack_membership_free(
+    wf_graph_starter_pack_membership *m) {
+    wf_graph_starter_pack_membership_reset(m);
+}
+
+void wf_graph_starter_pack_membership_list_free(
+    wf_graph_starter_pack_membership_list *list) {
+    if (!list) {
+        return;
+    }
+    for (size_t i = 0; i < list->membership_count; ++i) {
+        wf_graph_starter_pack_membership_reset(&list->memberships[i]);
+    }
+    free(list->memberships);
+    free(list->cursor);
     memset(list, 0, sizeof(*list));
 }
 
@@ -776,6 +1036,61 @@ wf_status wf_agent_get_starter_pack_typed(wf_agent *agent,
         memset(&list.packs[0], 0, sizeof(list.packs[0]));
     }
     wf_graph_starter_pack_view_list_free(&list);
+    return status;
+}
+
+wf_status wf_agent_get_lists_with_membership_typed(
+    wf_agent *agent, const char *actor, int limit, const char *cursor,
+    wf_graph_list_membership_list *out) {
+    if (!agent || !agent->client || !actor || !actor[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_lex_app_bsky_graph_get_lists_with_membership_main_params params = {0};
+    params.actor = actor;
+    wf_graph_fill_limit_cursor(&limit, cursor, &params.has_limit, &params.limit,
+                               &params.has_cursor, &params.cursor);
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_app_bsky_graph_get_lists_with_membership_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_graph_parse_list_memberships(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_get_starter_packs_with_membership_typed(
+    wf_agent *agent, const char *actor, int limit, const char *cursor,
+    wf_graph_starter_pack_membership_list *out) {
+    if (!agent || !agent->client || !actor || !actor[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!wf_syntax_at_identifier_is_valid(actor)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_params params =
+        {0};
+    params.actor = actor;
+    wf_graph_fill_limit_cursor(&limit, cursor, &params.has_limit, &params.limit,
+                               &params.has_cursor, &params.cursor);
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_graph_parse_starter_pack_memberships(res.body, res.body_len, out);
+    wf_response_free(&res);
     return status;
 }
 

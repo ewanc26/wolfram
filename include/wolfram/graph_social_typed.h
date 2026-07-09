@@ -38,9 +38,15 @@
  *     app.bsky.graph.getStarterPack           -> wf_graph_starter_pack_view (single) [this module]
  *     app.bsky.graph.getSuggestedFollowsByActor -> wf_agent_actor_list ("suggestions") [this module]
  *     app.bsky.graph.searchStarterPacks       -> unspecced_typed (wf_agent_search_starter_packs_list)
+ *     app.bsky.graph.getListsWithMembership   -> wf_graph_list_membership_list [this module]
+ *     app.bsky.graph.getStarterPacksWithMembership -> wf_graph_starter_pack_membership_list [this module]
  *   (getMutes / getBlocks / searchStarterPacks share identical signatures with
  *    wrappers already provided by moderation_typed.h / unspecced_typed.h, so
- *    this module does not redefine them to avoid symbol collisions.)
+ *    this module does not redefine them to avoid symbol collisions.
+ *    searchStarterPacks is intentionally reused from unspecced_typed.h rather
+ *    than wrapped here. app.bsky.graph.getListMemberships has no NSID in the
+ *    local lexicon set (lexicons/), so there is no generated binding and it is
+ *    skipped.)
  *   WRITE (procedures; return wf_status, no owned output)
  *     app.bsky.graph.muteActor / unmuteActor
  *     app.bsky.graph.muteActorList / unmuteActorList
@@ -151,6 +157,46 @@ typedef struct wf_graph_starter_pack_view_list {
 } wf_graph_starter_pack_view_list;
 
 /* ------------------------------------------------------------------ */
+/* Membership wraps (with-membership endpoints)                        */
+/*   getListsWithMembership / getStarterPacksWithMembership           */
+/* ------------------------------------------------------------------ */
+
+/* A parsed list-with-membership entry (app.bsky.graph.getListsWithMembership).
+ * `list` reuses the full listView (wf_graph_list_view). When the viewer is a
+ * member of the list, `has_list_item` is true and `list_item` carries the
+ * membership record (listItemView, reused wf_graph_list_item_view). When the
+ * viewer is not a member `has_list_item` is false and `list_item` is reset. */
+typedef struct wf_graph_list_membership {
+    wf_graph_list_view list;
+    bool has_list_item;
+    wf_graph_list_item_view list_item;
+} wf_graph_list_membership;
+
+/* A parsed list of list-with-membership entries. */
+typedef struct wf_graph_list_membership_list {
+    wf_graph_list_membership *memberships;
+    size_t membership_count;
+    char *cursor;
+} wf_graph_list_membership_list;
+
+/* A parsed starter-pack-with-membership entry
+ * (app.bsky.graph.getStarterPacksWithMembership). `starter_pack` reuses the full
+ * starterPackView (wf_graph_starter_pack_view); `list_item` (when
+ * `has_list_item`) carries the viewer's membership record into the pack's list. */
+typedef struct wf_graph_starter_pack_membership {
+    wf_graph_starter_pack_view starter_pack;
+    bool has_list_item;
+    wf_graph_list_item_view list_item;
+} wf_graph_starter_pack_membership;
+
+/* A parsed list of starter-pack-with-membership entries. */
+typedef struct wf_graph_starter_pack_membership_list {
+    wf_graph_starter_pack_membership *memberships;
+    size_t membership_count;
+    char *cursor;
+} wf_graph_starter_pack_membership_list;
+
+/* ------------------------------------------------------------------ */
 /* Parsers                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -178,6 +224,27 @@ void wf_graph_list_view_list_free(wf_graph_list_view_list *list);
 void wf_graph_list_item_view_list_free(wf_graph_list_item_view_list *list);
 void wf_graph_starter_pack_view_free(wf_graph_starter_pack_view *v);
 void wf_graph_starter_pack_view_list_free(wf_graph_starter_pack_view_list *list);
+
+/* Parse a JSON body containing a "listsWithMembership" array of list-with-
+ * membership entries (getListsWithMembership) into owned structs. Each entry
+ * reuses wf_graph_list_view for its `list` and (optionally) wf_graph_list_item_
+ * view for its `listItem` membership record. Same ownership/error rules as the
+ * other parse helpers. */
+wf_status wf_graph_parse_list_memberships(const char *json, size_t json_len,
+                                          wf_graph_list_membership_list *out);
+
+/* Parse a JSON body containing a "starterPacksWithMembership" array of
+ * starter-pack-with-membership entries (getStarterPacksWithMembership) into
+ * owned structs. Same ownership/error rules. */
+wf_status wf_graph_parse_starter_pack_memberships(
+    const char *json, size_t json_len,
+    wf_graph_starter_pack_membership_list *out);
+
+void wf_graph_list_membership_free(wf_graph_list_membership *m);
+void wf_graph_list_membership_list_free(wf_graph_list_membership_list *list);
+void wf_graph_starter_pack_membership_free(wf_graph_starter_pack_membership *m);
+void wf_graph_starter_pack_membership_list_free(
+    wf_graph_starter_pack_membership_list *list);
 
 /* ------------------------------------------------------------------ */
 /* Agent convenience wrappers                                         */
@@ -229,6 +296,21 @@ wf_status wf_agent_get_starter_pack_typed(wf_agent *agent,
 wf_status wf_agent_get_suggested_follows_by_actor_typed(wf_agent *agent,
                                                         const char *actor,
                                                         wf_agent_actor_list *out);
+
+/* app.bsky.graph.getListsWithMembership -> wf_graph_list_membership_list
+ * ("listsWithMembership"). `actor` is required (a valid AT-identifier). */
+wf_status wf_agent_get_lists_with_membership_typed(wf_agent *agent,
+                                                   const char *actor, int limit,
+                                                   const char *cursor,
+                                                   wf_graph_list_membership_list *out);
+
+/* app.bsky.graph.getStarterPacksWithMembership -> wf_graph_starter_pack_
+ * membership_list ("starterPacksWithMembership"). `actor` is required. The
+ * untyped raw call is wf_agent_get_starter_packs_with_membership in graph.c;
+ * this is the owned-struct companion. */
+wf_status wf_agent_get_starter_packs_with_membership_typed(
+    wf_agent *agent, const char *actor, int limit, const char *cursor,
+    wf_graph_starter_pack_membership_list *out);
 
 /* app.bsky.graph.searchStarterPacks is provided by unspecced_typed.h
  * (wf_agent_search_starter_packs_typed); this module reuses it rather than
