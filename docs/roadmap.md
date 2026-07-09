@@ -176,6 +176,17 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     `wf_xrpc_server_stop` / `wf_xrpc_server_free` so teardown never hangs.
     Tested by `test_xrpc_server_sse` (streaming + single-shot, clean teardown).
 
+48. Graph write wrappers (`graph_write.c` / `graph_write.h`) — agent-level
+    write helpers for the app.bsky.graph lexicon: `wf_agent_graph_*`
+    for mute/unmute thread and actor-list procedures, and record-backed
+    writes (block/unblock, list create/update/delete, listitem
+    create/delete, starterpack create/update/delete, listblock
+    create/delete). Create operations return an owned `wf_agent_post_result`
+    ({uri, cid}, freed with `wf_agent_post_result_free`); deletes and
+    procedures return `wf_status`. Inputs are validated (no silent no-ops).
+    Tested end-to-end against an offline mock PDS (asserting returned
+    uri/cid and the exact request payloads). Tested.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
