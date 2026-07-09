@@ -232,6 +232,53 @@ static void test_chat_resolve_args(void) {
     WF_CHECK(wf_agent_chat_service_resolve(NULL) == WF_ERR_INVALID_ARG);
 }
 
+static void test_parse_chat_notification_prefs(void) {
+    size_t len = 0;
+    char *json = load_fixture("chat_notification_prefs.json", &len);
+    WF_CHECK(json != NULL);
+
+    wf_chat_notification_preferences prefs = {0};
+    wf_status s = wf_agent_parse_chat_notification_preferences(json, len, &prefs);
+    WF_CHECK(s == WF_OK);
+
+    WF_CHECK(prefs.chat.include && strcmp(prefs.chat.include, "all") == 0);
+    WF_CHECK(prefs.chat.has_push && prefs.chat.push == 1);
+    WF_CHECK(prefs.chat_request.include &&
+             strcmp(prefs.chat_request.include, "follows") == 0);
+    WF_CHECK(prefs.chat_request.has_push && prefs.chat_request.push == 0);
+
+    wf_chat_notification_preferences_free(&prefs);
+    WF_CHECK(prefs.chat.include == NULL && prefs.chat_request.include == NULL);
+    free(json);
+}
+
+static void test_parse_chat_notification_prefs_invalid(void) {
+    wf_chat_notification_preferences p = {0};
+    WF_CHECK(wf_agent_parse_chat_notification_preferences(NULL, 0, &p) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_chat_notification_preferences("not json", 8, &p) ==
+             WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_chat_notification_preferences("{}", 2, &p) ==
+             WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_chat_notification_preferences(
+                 "{\"preferences\":{\"chat\":{}}}", 26, &p) == WF_ERR_PARSE);
+    WF_CHECK(p.chat.include == NULL);
+}
+
+static void test_chat_notification_wrappers_null_arg(void) {
+    wf_chat_notification_preferences p = {0};
+    WF_CHECK(wf_agent_chat_notification_get_preferences(NULL, &p) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_notification_get_preferences((wf_agent *)1, NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_notification_put_preferences(NULL, &p, &p) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_notification_put_preferences((wf_agent *)1, NULL, &p) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_notification_put_preferences((wf_agent *)1, &p, NULL) ==
+             WF_ERR_INVALID_ARG);
+}
+
 static void test_wrappers_null_arg(void) {
     wf_chat_convo_list l = {0};
     WF_CHECK(wf_agent_chat_list_convos(NULL, 0, NULL, &l) == WF_ERR_INVALID_ARG);
@@ -260,5 +307,8 @@ int main(void) {
     test_chat_service_did_from_describe();
     test_chat_default_endpoint();
     test_chat_resolve_args();
+    test_parse_chat_notification_prefs();
+    test_parse_chat_notification_prefs_invalid();
+    test_chat_notification_wrappers_null_arg();
     WF_TEST_SUMMARY();
 }

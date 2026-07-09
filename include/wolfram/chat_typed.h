@@ -402,6 +402,63 @@ wf_status wf_agent_chat_unlock_convo(wf_agent *agent, const char *convo_id,
 wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
                                  const char *cursor, wf_response *out);
 
+/* ════════════════════════════════════════════════════════════════════════
+ * chat.bsky.notification.*
+ *
+ * Chat notification preferences. Both endpoints route through the resolved
+ * chat service client (same idiom as chat.bsky.convo.*). The response body is
+ * parsed into owned structs here (rather than returned as raw JSON) because
+ * the shape is small and stable: a `preferences` object with exactly two
+ * `chatPreference` members (`chat` and `chatRequest`), each carrying an
+ * `include` enum ("all" | "follows") and a `push` boolean.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* A single chat notification preference (chat.bsky.notification.defs#
+ * chatPreference). `include` is required ("all" or "follows"); `push` is
+ * required. `has_push` lets callers distinguish an explicit `false` from a
+ * missing field, though both source fields are required on the wire. */
+typedef struct wf_chat_notification_preference {
+    char *include;   /* "all" or "follows" (required) */
+    int push;        /* required boolean (push notifications on/off) */
+    int has_push;
+} wf_chat_notification_preference;
+
+/* Chat notification preferences (defs#preferences). Both members are
+ * required on the wire. */
+typedef struct wf_chat_notification_preferences {
+    wf_chat_notification_preference chat;
+    wf_chat_notification_preference chat_request;
+} wf_chat_notification_preferences;
+
+/* Parse a raw chat.bsky.notification.getPreferences / putPreferences JSON
+ * body (the `{"preferences": {...}}` envelope) into owned structs.
+ * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or
+ * a missing/invalid `preferences` object, WF_ERR_ALLOC on allocation failure,
+ * WF_OK on success. On any error `out` is left fully reset (no partial leaks). */
+wf_status wf_agent_parse_chat_notification_preferences(const char *json,
+                                                        size_t json_len,
+                                                        wf_chat_notification_preferences *out);
+
+/* Free a parsed chat notification preferences struct and every owned string it
+ * holds. Safe to call with NULL or on an already-reset struct. */
+void wf_chat_notification_preferences_free(wf_chat_notification_preferences *p);
+
+/* Get the authenticated user's chat notification preferences. Returns the
+ * parsed `preferences` in `out`; the caller owns it and must free with
+ * wf_chat_notification_preferences_free. On error `out` is left reset.
+ * Returns WF_ERR_INVALID_ARG on NULL required inputs. */
+wf_status wf_agent_chat_notification_get_preferences(wf_agent *agent,
+                                                      wf_chat_notification_preferences *out);
+
+/* Set the authenticated user's chat notification preferences. `in` carries
+ * the full `chat` + `chatRequest` preference set to write; `out` receives the
+ * server's resulting (full) preferences, owned by the caller and freed with
+ * wf_chat_notification_preferences_free. On error `out` is left reset.
+ * Returns WF_ERR_INVALID_ARG on NULL required inputs. */
+wf_status wf_agent_chat_notification_put_preferences(wf_agent *agent,
+                                                      const wf_chat_notification_preferences *in,
+                                                      wf_chat_notification_preferences *out);
+
 /* ── test-only body builders ────────────────────────────────────────────
  * These build the exact request JSON a wrapper would send, without doing any
  * network I/O. Exposed for deterministic, offline unit tests. The caller owns

@@ -1,0 +1,6 @@
+{
+  "preferences": {
+    "chat": { "include": "all", "push": true },
+    "chatRequest": { "include": "follows", "push": false }
+  }
+}
