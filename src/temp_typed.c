@@ -271,6 +271,122 @@ void wf_temp_dereference_scope_free(wf_temp_dereference_scope *v) {
     memset(v, 0, sizeof(*v));
 }
 
+/* ---- Write-side parsers (com.atproto.temp procedures) ------------------- */
+
+wf_status wf_temp_add_reserved_handle_parse(
+    const char *json, size_t json_len,
+    wf_temp_add_reserved_handle_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    if (!cJSON_IsObject(root)) {
+        status = WF_ERR_PARSE;
+    } else {
+        /* The lexicon output is empty; `ok` is set unconditionally. An optional
+         * echoed handle is captured when the server includes one. */
+        out->ok = 1;
+        cJSON *handle = cJSON_GetObjectItemCaseSensitive(root, "handle");
+        if (cJSON_IsString(handle) && handle->valuestring) {
+            status = wf_temp_set_string(&out->handle, handle->valuestring);
+        }
+    }
+
+    if (status != WF_OK) {
+        free(out->handle);
+        memset(out, 0, sizeof(*out));
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_temp_add_reserved_handle_result_free(
+    wf_temp_add_reserved_handle_result *v) {
+    if (!v) {
+        return;
+    }
+    free(v->handle);
+    memset(v, 0, sizeof(*v));
+}
+
+wf_status wf_temp_request_phone_verification_parse(
+    const char *json, size_t json_len,
+    wf_temp_request_phone_verification_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    /* The lexicon declares no output; an empty JSON object is the success
+     * signal. Tolerate an absent body here too (callers may pass "" for an
+     * empty response) and treat it as success. */
+    if (json_len == 0 || (json_len == 1 && json[0] == ' ')) {
+        out->ok = 1;
+        return WF_OK;
+    }
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = cJSON_IsObject(root) ? WF_OK : WF_ERR_PARSE;
+    if (status == WF_OK) {
+        out->ok = 1;
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_temp_request_phone_verification_result_free(
+    wf_temp_request_phone_verification_result *v) {
+    if (v) {
+        memset(v, 0, sizeof(*v));
+    }
+}
+
+wf_status wf_temp_revoke_account_credentials_parse(
+    const char *json, size_t json_len,
+    wf_temp_revoke_account_credentials_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    /* The lexicon declares no output; an empty JSON object is the success
+     * signal. Tolerate an absent body here too and treat it as success. */
+    if (json_len == 0 || (json_len == 1 && json[0] == ' ')) {
+        out->ok = 1;
+        return WF_OK;
+    }
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = cJSON_IsObject(root) ? WF_OK : WF_ERR_PARSE;
+    if (status == WF_OK) {
+        out->ok = 1;
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_temp_revoke_account_credentials_result_free(
+    wf_temp_revoke_account_credentials_result *v) {
+    if (v) {
+        memset(v, 0, sizeof(*v));
+    }
+}
+
 /* ---- Agent convenience wrappers ----------------------------------------- */
 
 wf_status wf_agent_check_handle_availability(wf_agent *agent,
@@ -472,6 +588,100 @@ wf_status wf_agent_revoke_account_credentials_typed(wf_agent *agent,
     wf_status status =
         wf_lex_com_atproto_temp_revoke_account_credentials_main_call(
             agent->client, &input, &res);
+    wf_response_free(&res);
+    return status;
+}
+
+/* addReservedHandle (procedure, input: handle; empty output, optional echoed
+ * handle). Mirrors wf_agent_get_timeline_typed: sync auth, issue the generated
+ * call, then parse the body into the owned result. */
+wf_status wf_agent_temp_add_reserved_handle_typed(
+    wf_agent *agent, const char *handle,
+    wf_temp_add_reserved_handle_result *out) {
+    if (!agent || !agent->client || !handle || !handle[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_com_atproto_temp_add_reserved_handle_main_input input = {0};
+    input.handle = handle;
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_lex_com_atproto_temp_add_reserved_handle_main_call(
+        agent->client, &input, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_temp_add_reserved_handle_parse(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+/* requestPhoneVerification (procedure, input: phoneNumber; no output). */
+wf_status wf_agent_temp_request_phone_verification_typed(
+    wf_agent *agent, const char *phone_number,
+    wf_temp_request_phone_verification_result *out) {
+    if (!agent || !agent->client || !phone_number || !phone_number[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_com_atproto_temp_request_phone_verification_main_input input = {0};
+    input.phone_number = phone_number;
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status =
+        wf_lex_com_atproto_temp_request_phone_verification_main_call(
+            agent->client, &input, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    /* An empty/whitespace body is the expected (empty) output for this
+     * procedure; treat it as success rather than a parse error. */
+    if (res.body_len == 0) {
+        out->ok = 1;
+    } else {
+        status = wf_temp_request_phone_verification_parse(res.body, res.body_len,
+                                                          out);
+    }
+    wf_response_free(&res);
+    return status;
+}
+
+/* revokeAccountCredentials (procedure, input: account at-identifier; no
+ * output). */
+wf_status wf_agent_temp_revoke_account_credentials_typed(
+    wf_agent *agent, const char *account,
+    wf_temp_revoke_account_credentials_result *out) {
+    if (!agent || !agent->client || !account || !account[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_com_atproto_temp_revoke_account_credentials_main_input input = {0};
+    input.account = account;
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status =
+        wf_lex_com_atproto_temp_revoke_account_credentials_main_call(
+            agent->client, &input, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    /* An empty/whitespace body is the expected (empty) output for this
+     * procedure; treat it as success rather than a parse error. */
+    if (res.body_len == 0) {
+        out->ok = 1;
+    } else {
+        status = wf_temp_revoke_account_credentials_parse(res.body, res.body_len,
+                                                          out);
+    }
     wf_response_free(&res);
     return status;
 }
