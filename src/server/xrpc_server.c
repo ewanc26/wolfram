@@ -195,67 +195,6 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
     return WF_OK;
 }
 
-/* Free the per-route rate-limit entries */
-static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
-    wf_rate_limit_entry *cur = head;
-    while (cur) {
-        wf_rate_limit_entry *next = cur->next;
-        free(cur->route_key);
-        if (cur->rl) wf_rate_limiter_free(cur->rl);
-        free(cur);
-        cur = next;
-    }
-}
-
-/* Per-route rate limiter lookup */
-static wf_rate_limiter *wf_server_find_route_rate_limiter(wf_xrpc_server *server,
-                                                          const char *method,
-                                                          const char *url) {
-    wf_rate_limit_entry *entry = server->rate_limit_entries;
-    char route_key[256];
-
-    (void)snprintf(route_key, sizeof(route_key), "%s:%s", method, url);
-
-    while (entry) {
-        if (strcmp(entry->route_key, route_key) == 0) {
-            return entry->rl;
-        }
-        entry = entry->next;
-    }
-    return NULL;
-}
-
-/* Add a per-route rate limiter (method+url)
-   Transfers ownership of 'rl' to the server */
-wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
-                                           const char *method,
-                                           const char *url,
-                                           wf_rate_limiter *rl) {
-    wf_rate_limit_entry *entry;
-
-    if (!server || !method || !url) {
-        return WF_ERR_INVALID_ARG;
-    }
-    if (!rl) {
-        return WF_OK;
-    }
-    entry = (wf_rate_limit_entry *)calloc(1, sizeof(*entry));
-    if (!entry) {
-        wf_rate_limiter_free(rl);
-        return WF_ERR_ALLOC;
-    }
-    entry->route_key = strdup(url);
-    if (!entry->route_key) {
-        free(entry);
-        wf_rate_limiter_free(rl);
-        return WF_ERR_ALLOC;
-    }
-    entry->rl = rl;
-    entry->next = server->rate_limit_entries;
-    server->rate_limit_entries = entry;
-    return WF_OK;
-}
-
 /* ------------------------------------------------------------------ */
 /* Route entry                                                         */
 /* ------------------------------------------------------------------ */
@@ -741,6 +680,8 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
     server->daemon = NULL;
 }
 
+static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head);
+
 void wf_xrpc_server_free(wf_xrpc_server *server) {
     wf_route *r;
 
@@ -754,6 +695,9 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
         free(r->nsid);
         free(r);
         r = next;
+    }
+    if (server->rate_limit_entries) {
+        wf_server_free_rate_limit_entries(server->rate_limit_entries);
     }
     free(server);
 }
@@ -877,4 +821,15 @@ void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
     if (wf_server_set_route_rate_limiter(server, method, url, rl) != WF_OK) {
         if (rl) wf_rate_limiter_free(rl);
     }
+}
+
+/* Set the global IP-based rate limiter. The limiter is borrowed by the
+   server: the caller retains ownership and is responsible for freeing it
+   (typically after the server is destroyed). Passing NULL detaches it. */
+void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
+                                     wf_rate_limiter *rl) {
+    if (!server) {
+        return;
+    }
+    server->rate_limiter = rl;
 }
