@@ -1521,23 +1521,10 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
     }
     pthread_mutex_unlock(&server->ws_mutex);
 
-    MHD_stop_daemon(server->daemon);
-    server->daemon = NULL;
-}
-
-static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head);
-
-void wf_xrpc_server_free(wf_xrpc_server *server) {
-    wf_route *r;
-
-    if (!server) {
-        return;
-    }
-    wf_xrpc_server_stop(server);
-    /* Join any still-running WebSocket upgrade worker threads. stop() has set
-     * their closed flag (and shut down their sockets), so each thread exits
-     * its poll loop and frees its own stream shortly. Snapshot the thread
-     * handles and clear the list so workers unlink harmlessly. */
+    /* Join the WebSocket upgrade worker threads BEFORE tearing down the daemon:
+     * each worker calls MHD_upgrade_action() to close its upgrade, which is only
+     * valid while the daemon is still alive. Snapshot the thread handles and
+     * clear the list so workers unlink harmlessly. */
     {
         pthread_t handles[64];
         size_t n = 0;
@@ -1552,6 +1539,22 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
             pthread_join(handles[i], NULL);
         }
     }
+
+    MHD_stop_daemon(server->daemon);
+    server->daemon = NULL;
+}
+
+static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head);
+
+void wf_xrpc_server_free(wf_xrpc_server *server) {
+    wf_route *r;
+
+    if (!server) {
+        return;
+    }
+    wf_xrpc_server_stop(server);
+    /* stop() has already joined every WebSocket upgrade worker thread (and
+     * torn down the daemon), so no streams remain and routes can be freed. */
     r = server->routes;
     while (r) {
         wf_route *next = r->next;
