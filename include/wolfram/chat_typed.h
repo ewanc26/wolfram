@@ -473,9 +473,336 @@ wf_status wf_chat_build_add_reaction_body(const char *convo_id,
                                            char **out_json);
 
 wf_status wf_chat_build_create_group_body(const char *const *member_dids,
-                                            size_t member_count,
-                                            const char *name,
-                                            char **out_json);
+                                             size_t member_count,
+                                             const char *name,
+                                             char **out_json);
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Extended owned-struct typed wrappers for the remaining chat.bsky.* endpoints.
+ *
+ * The wrappers below parse the raw chat-service JSON response into an OWNED
+ * struct (mirroring listConvos/getConvo/getMessages). They are named with a
+ * `_typed` suffix to avoid colliding with the existing raw-JSON wrappers that
+ * return `wf_response *` (which remain available for callers wanting the body
+ * verbatim). Each `out` struct is owned by the caller and freed with the
+ * matching `*_free`; on error it is left reset. All route through the resolved
+ * chat service client, exactly like the convo wrappers above.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* chat.bsky.convo.getConvoAvailability — { canChat, hasConvo, convo }. */
+typedef struct wf_chat_convo_availability {
+    int can_chat;        /* required bool ("canChat") */
+    int has_can_chat;
+    int has_convo;       /* required bool ("hasConvo") */
+    int has_has_convo;
+    wf_chat_convo convo; /* present only when hasConvo is true */
+} wf_chat_convo_availability;
+
+wf_status wf_agent_parse_convo_availability(const char *json, size_t json_len,
+                                            wf_chat_convo_availability *out);
+void wf_chat_convo_availability_free(wf_chat_convo_availability *a);
+wf_status wf_agent_chat_get_convo_availability_typed(wf_agent *agent,
+        const char *const *member_dids, size_t member_count,
+        wf_chat_convo_availability *out);
+
+/* A paginated member list (getConvoMembers / moderation.getConvoMembers).
+ * `members` is an array of profile-view-basics. */
+typedef struct wf_chat_convo_members {
+    wf_agent_profile_view *members;
+    size_t member_count;
+    char *cursor;        /* optional; NULL when absent */
+} wf_chat_convo_members;
+
+wf_status wf_agent_parse_convo_members(const char *json, size_t json_len,
+                                       wf_chat_convo_members *out);
+void wf_chat_convo_members_free(wf_chat_convo_members *m);
+wf_status wf_agent_chat_get_convo_members_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_convo_members *out);
+wf_status wf_agent_chat_mod_get_convo_members_typed(wf_agent *agent,
+        const char *convo_id, int limit, const char *cursor,
+        wf_chat_convo_members *out);
+
+/* chat.bsky.convo.getUnreadCounts — aggregate counts. */
+typedef struct wf_chat_unread_counts {
+    int unread_accepted_convos;   /* required ("unreadAcceptedConvos") */
+    int has_unread_accepted;
+    int unread_request_convos;    /* required ("unreadRequestConvos") */
+    int has_unread_request;
+} wf_chat_unread_counts;
+
+wf_status wf_agent_parse_unread_counts(const char *json, size_t json_len,
+                                       wf_chat_unread_counts *out);
+void wf_chat_unread_counts_free(wf_chat_unread_counts *u);
+wf_status wf_agent_chat_get_unread_counts_typed(wf_agent *agent,
+        wf_chat_unread_counts *out);
+
+/* chat.bsky.convo.listConvoRequests — convoViews under the "requests" key.
+ * Reuses wf_chat_convo_list (same shape as listConvos) and its free. */
+wf_status wf_agent_parse_convo_requests(const char *json, size_t json_len,
+                                        wf_chat_convo_list *out);
+wf_status wf_agent_chat_list_convo_requests_typed(wf_agent *agent, int limit,
+        const char *cursor, wf_chat_convo_list *out);
+
+/* chat.bsky.convo.getLog — an array of union log events + cursor. Only the
+ * bounded identifying fields (id/rev/$type/convoId) are retained. */
+typedef struct wf_chat_log_event {
+    char *id;
+    char *rev;
+    char *type;       /* union $type tag */
+    char *convo_id;
+} wf_chat_log_event;
+
+typedef struct wf_chat_log {
+    wf_chat_log_event *events;
+    size_t event_count;
+    char *cursor;     /* optional; NULL when absent */
+} wf_chat_log;
+
+wf_status wf_agent_parse_log(const char *json, size_t json_len, wf_chat_log *out);
+void wf_chat_log_free(wf_chat_log *l);
+wf_status wf_agent_chat_get_log_typed(wf_agent *agent, int limit,
+        const char *cursor, wf_chat_log *out);
+
+/* chat.bsky.convo.sendMessageBatch — { items: [{convoId, message}] }. */
+typedef struct wf_chat_message_batch_item {
+    char *convo_id;
+    wf_chat_message message;
+} wf_chat_message_batch_item;
+
+typedef struct wf_chat_message_batch {
+    wf_chat_message_batch_item *items;
+    size_t item_count;
+} wf_chat_message_batch;
+
+wf_status wf_agent_parse_message_batch(const char *json, size_t json_len,
+        wf_chat_message_batch *out);
+void wf_chat_message_batch_free(wf_chat_message_batch *b);
+wf_status wf_agent_chat_send_message_batch_typed(wf_agent *agent,
+        const char *items_json, wf_chat_message_batch *out);
+
+/* chat.bsky.convo.leaveConvo — { convoId, rev }. */
+typedef struct wf_chat_convo_ref {
+    char *convo_id;
+    char *rev;
+} wf_chat_convo_ref;
+
+wf_status wf_agent_parse_convo_ref(const char *json, size_t json_len,
+        wf_chat_convo_ref *out);
+void wf_chat_convo_ref_free(wf_chat_convo_ref *r);
+wf_status wf_agent_chat_leave_convo_typed(wf_agent *agent, const char *convo_id,
+        wf_chat_convo_ref *out);
+
+/* chat.bsky.convo.updateAllRead — { updatedCount }. */
+typedef struct wf_chat_updated_count {
+    int updated_count;        /* required ("updatedCount") */
+    int has_updated_count;
+} wf_chat_updated_count;
+
+wf_status wf_agent_parse_updated_count(const char *json, size_t json_len,
+        wf_chat_updated_count *out);
+void wf_chat_updated_count_free(wf_chat_updated_count *u);
+wf_status wf_agent_chat_update_all_read_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_updated_count *out);
+
+/* chat.bsky.convo.addReaction / removeReaction — { message: messageView }. */
+wf_status wf_agent_parse_message_ref(const char *json, size_t json_len,
+        wf_chat_message *out);
+wf_status wf_agent_chat_add_reaction_typed(wf_agent *agent,
+        const char *convo_id, const char *message_id, const char *value,
+        wf_chat_message *out);
+wf_status wf_agent_chat_remove_reaction_typed(wf_agent *agent,
+        const char *convo_id, const char *message_id, const char *value,
+        wf_chat_message *out);
+
+/* convoView-returning endpoints reuse wf_chat_convo + wf_chat_convo_free. */
+wf_status wf_agent_chat_get_convo_for_members_typed(wf_agent *agent,
+        const char *const *member_dids, size_t member_count,
+        wf_chat_convo *out);
+wf_status wf_agent_chat_accept_convo_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_convo *out);
+wf_status wf_agent_chat_mute_convo_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_convo *out);
+wf_status wf_agent_chat_unmute_convo_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_convo *out);
+wf_status wf_agent_chat_lock_convo_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_convo *out);
+wf_status wf_agent_chat_unlock_convo_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_convo *out);
+wf_status wf_agent_chat_update_read_typed(wf_agent *agent,
+        const char *convo_id, const char *message_id, wf_chat_convo *out);
+wf_status wf_agent_chat_create_group_typed(wf_agent *agent,
+        const char *const *member_dids, size_t member_count, const char *name,
+        wf_chat_convo *out);
+wf_status wf_agent_chat_edit_group_typed(wf_agent *agent, const char *convo_id,
+        const char *name, wf_chat_convo *out);
+wf_status wf_agent_chat_add_members_typed(wf_agent *agent, const char *convo_id,
+        const char *const *member_dids, size_t member_count,
+        wf_chat_convo *out);
+wf_status wf_agent_chat_remove_members_typed(wf_agent *agent,
+        const char *convo_id, const char *const *member_dids,
+        size_t member_count, wf_chat_convo *out);
+wf_status wf_agent_chat_approve_join_request_typed(wf_agent *agent,
+        const char *convo_id, const char *user_did, wf_chat_convo *out);
+
+/* chat.bsky.group.listMutualGroups / moderation.getConvos — convoViews under
+ * the "convos" key. Reuse wf_chat_convo_list + wf_chat_convo_list_free. */
+wf_status wf_agent_parse_convo_array(const char *json, size_t json_len,
+        const char *key, wf_chat_convo_list *out);
+wf_status wf_agent_chat_list_mutual_groups_typed(wf_agent *agent,
+        const char *convo_id, int limit, const char *cursor,
+        wf_chat_convo_list *out);
+
+/* chat.bsky.group join links — { joinLink: { code, enabledStatus,
+ * requireApproval, joinRule, createdAt } }. */
+typedef struct wf_chat_join_link {
+    char *code;
+    char *enabled_status;     /* "enabled" | "disabled" | "invalid" */
+    int require_approval;     /* required bool */
+    int has_require_approval;
+    char *join_rule;          /* e.g. "all-members" */
+    char *created_at;
+} wf_chat_join_link;
+
+wf_status wf_agent_parse_join_link(const char *json, size_t json_len,
+        wf_chat_join_link *out);
+void wf_chat_join_link_free(wf_chat_join_link *j);
+wf_status wf_agent_chat_create_join_link_typed(wf_agent *agent,
+        const char *convo_id, bool require_approval, const char *join_rule,
+        wf_chat_join_link *out);
+wf_status wf_agent_chat_edit_join_link_typed(wf_agent *agent,
+        const char *convo_id, const char *code, wf_chat_join_link *out);
+wf_status wf_agent_chat_disable_join_link_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_join_link *out);
+wf_status wf_agent_chat_enable_join_link_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_join_link *out);
+
+/* chat.bsky.group.getJoinLinkPreviews — union array of previews. */
+typedef struct wf_chat_join_link_preview {
+    char *code;
+    char *name;
+    char *join_rule;
+    int require_approval;     /* present on the full (valid) variant */
+    int has_require_approval;
+    char *kind;               /* $type tag (valid / disabled / invalid) */
+} wf_chat_join_link_preview;
+
+typedef struct wf_chat_join_link_previews {
+    wf_chat_join_link_preview *items;
+    size_t item_count;
+} wf_chat_join_link_previews;
+
+wf_status wf_agent_parse_join_link_previews(const char *json, size_t json_len,
+        wf_chat_join_link_previews *out);
+void wf_chat_join_link_previews_free(wf_chat_join_link_previews *l);
+wf_status wf_agent_chat_get_join_link_previews_typed(wf_agent *agent,
+        const char *const *codes, size_t code_count,
+        wf_chat_join_link_previews *out);
+
+/* chat.bsky.group.listJoinRequests — { requests: [{convoId, requestedBy,
+ * requestedAt}] }. */
+typedef struct wf_chat_join_request {
+    char *convo_id;
+    wf_agent_profile_view requested_by;
+    char *requested_at;
+} wf_chat_join_request;
+
+typedef struct wf_chat_join_requests {
+    wf_chat_join_request *items;
+    size_t item_count;
+    char *cursor;     /* optional; NULL when absent */
+} wf_chat_join_requests;
+
+wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
+        wf_chat_join_requests *out);
+void wf_chat_join_requests_free(wf_chat_join_requests *r);
+wf_status wf_agent_chat_list_join_requests_typed(wf_agent *agent,
+        const char *convo_id, int limit, const char *cursor,
+        wf_chat_join_requests *out);
+
+/* chat.bsky.group.requestJoin — { status, convo? }. */
+typedef struct wf_chat_request_join {
+    char *status;
+    wf_chat_convo convo;   /* present only when status == "joined" */
+    int has_convo;
+} wf_chat_request_join;
+
+wf_status wf_agent_parse_request_join(const char *json, size_t json_len,
+        wf_chat_request_join *out);
+void wf_chat_request_join_free(wf_chat_request_join *r);
+wf_status wf_agent_chat_request_join_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_request_join *out);
+
+/* chat.bsky.moderation.getActorMetadata — { day, month, all } period stats. */
+typedef struct wf_chat_actor_metadata_period {
+    int messages_sent;        /* required */
+    int has_messages_sent;
+    int messages_received;    /* required */
+    int has_messages_received;
+    int convos;               /* required */
+    int has_convos;
+    int convos_started;       /* required */
+    int has_convos_started;
+} wf_chat_actor_metadata_period;
+
+typedef struct wf_chat_actor_metadata {
+    wf_chat_actor_metadata_period day;
+    wf_chat_actor_metadata_period month;
+    wf_chat_actor_metadata_period all;
+} wf_chat_actor_metadata;
+
+wf_status wf_agent_parse_actor_metadata(const char *json, size_t json_len,
+        wf_chat_actor_metadata *out);
+void wf_chat_actor_metadata_free(wf_chat_actor_metadata *m);
+wf_status wf_agent_chat_mod_get_actor_metadata_typed(wf_agent *agent,
+        const char *actor_did, wf_chat_actor_metadata *out);
+
+/* chat.bsky.moderation.getConvo(s) — moderation convoView { id, rev, kind }.
+ * `kind` is a JSON union; only its $type tag is retained. */
+typedef struct wf_chat_mod_convo {
+    char *id;
+    char *rev;
+    char *type;       /* kind $type tag */
+} wf_chat_mod_convo;
+
+typedef struct wf_chat_mod_convo_list {
+    wf_chat_mod_convo *convos;
+    size_t convo_count;
+} wf_chat_mod_convo_list;
+
+wf_status wf_agent_parse_mod_convo(const char *json, size_t json_len,
+        wf_chat_mod_convo *out);
+void wf_chat_mod_convo_free(wf_chat_mod_convo *c);
+wf_status wf_agent_parse_mod_convos(const char *json, size_t json_len,
+        wf_chat_mod_convo_list *out);
+void wf_chat_mod_convo_list_free(wf_chat_mod_convo_list *l);
+wf_status wf_agent_chat_mod_get_convos_typed(wf_agent *agent,
+        const char *const *convo_ids, size_t convo_count,
+        wf_chat_mod_convo_list *out);
+wf_status wf_agent_chat_mod_get_convo_typed(wf_agent *agent,
+        const char *convo_id, wf_chat_mod_convo *out);
+
+/* chat.bsky.moderation.getMessageContext — { messages: [...] }. Reuses
+ * wf_chat_message_list + wf_chat_message_list_free. */
+wf_status wf_agent_chat_mod_get_message_context_typed(wf_agent *agent,
+        const char *message_id, const char *convo_id, int before, int after,
+        int max_interleaved, wf_chat_message_list *out);
+
+/* chat.bsky.actor.getStatus — { chatDisabled, canCreateGroups,
+ * groupMemberLimit }. */
+typedef struct wf_chat_actor_status {
+    int chat_disabled;        /* required bool */
+    int has_chat_disabled;
+    int can_create_groups;    /* required bool */
+    int has_can_create_groups;
+    int64_t group_member_limit;  /* required int */
+    int has_group_member_limit;
+} wf_chat_actor_status;
+
+wf_status wf_agent_parse_actor_status(const char *json, size_t json_len,
+        wf_chat_actor_status *out);
+void wf_chat_actor_status_free(wf_chat_actor_status *s);
+wf_status wf_agent_chat_get_status_typed(wf_agent *agent,
+        wf_chat_actor_status *out);
 
 #ifdef __cplusplus
 }
