@@ -157,15 +157,23 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     round-trip test against `wf_xrpc_client`, rate limiter unit tests, and
     a server rate-limit integration test.
 
+48. Server-Sent Events (SSE) streaming for the XRPC server — real streaming via
+    libmicrohttpd `MHD_suspend_connection` / `MHD_resume_connection`. An SSE
+    route receives a `wf_xrpc_sse_stream` in its handler; frames are pushed with
+    `wf_xrpc_server_sse_send` (formats `data: <payload>\n\n`, optional
+    `event:` line) or `wf_xrpc_server_sse_send_raw`, and the connection is
+    closed with `wf_xrpc_server_sse_close`. Single-shot SSE (send then close) is
+    supported as a fallback. Suspended connections are resumed and drained on
+    `wf_xrpc_server_stop` / `wf_xrpc_server_free` so teardown never hangs.
+    Tested by `test_xrpc_server_sse` (streaming + single-shot, clean teardown).
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Continue evaluating upstream C libraries for server-side infrastructure
-  (event loop, config parsing, rate limiting).
+  (event poll/event loop, config parsing, rate limiting).
 - Explore per-route rate limiters (different limits for different XRPC methods).
-- Explore Server-Sent Events (SSE) support in the server for subscription
-  endpoints.
 
 ## Dependencies
 

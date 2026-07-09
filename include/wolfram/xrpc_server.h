@@ -87,6 +87,32 @@ typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
                                                 wf_xrpc_response *resp);
 
 /* ------------------------------------------------------------------ */
+/* SSE (Server-Sent Events) streaming                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opaque handle for an open Server-Sent Events stream.
+ *
+ * Created by the server when an SSE route is invoked. Pass it to
+ * wf_xrpc_server_sse_send / wf_xrpc_server_sse_close from a worker thread
+ * (NOT from inside the SSE handler itself) to push frames and then close the
+ * stream. The server owns the handle and frees it once the connection ends.
+ */
+typedef struct wf_xrpc_sse_stream wf_xrpc_sse_stream;
+
+/**
+ * SSE handler (GET /xrpc/<nsid> registered as SSE).
+ *
+ * The handler should return quickly. To stream, spawn a worker thread that
+ * calls wf_xrpc_server_sse_send / wf_xrpc_server_sse_close; the connection is
+ * left open (suspended) until the stream is closed. A handler that sends one
+ * frame and immediately closes produces a single-shot SSE response.
+ */
+typedef wf_status (*wf_xrpc_sse_handler)(void *ctx,
+                                         const wf_xrpc_request *req,
+                                         wf_xrpc_sse_stream *stream);
+
+/* ------------------------------------------------------------------ */
 /* Auth callback (optional)                                            */
 /* ------------------------------------------------------------------ */
 
@@ -132,12 +158,46 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
                                           wf_xrpc_procedure_handler handler,
                                           void *ctx);
 
-/* Register an SSE endpoint (GET) */
+/* Register an SSE (Server-Sent Events) endpoint (GET). The connection is kept
+ * open and frames are pushed with wf_xrpc_server_sse_send until closed with
+ * wf_xrpc_server_sse_close. A handler that sends a single frame and closes
+ * produces a single-shot SSE response. */
 wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
                                       const char *nsid,
-                                      wf_xrpc_query_handler handler,
+                                      wf_xrpc_sse_handler handler,
                                       void *ctx);
 
+/**
+ * Push a single SSE frame to an open stream.
+ *
+ * Formats `data: <payload>\n\n` (optionally preceded by `event: <event>\n`
+ * when `event` is non-NULL and non-empty). Newlines in `data` are expanded
+ * into multiple `data:` lines per the SSE spec. The frame is buffered and the
+ * suspended connection is resumed so libmicrohttpd flushes it to the client.
+ *
+ * Must be called from a context other than the SSE handler invocation
+ * (typically a dedicated worker thread). Returns WF_ERR_INVALID_ARG if the
+ * stream is already closed.
+ */
+wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
+                                  const char *event, const char *data);
+
+/**
+ * Push a pre-formatted raw frame to an open stream. The caller is responsible
+ * for SSE framing (`data: ...\n\n`). The connection is resumed after queuing.
+ */
+wf_status wf_xrpc_server_sse_send_raw(wf_xrpc_sse_stream *stream,
+                                      const char *frame, size_t len);
+
+/**
+ * Close an SSE stream. Any buffered frames are flushed, then the connection is
+ * ended (HTTP chunk terminated / connection closed) and the stream handle is
+ * released by libmicrohttpd. Subsequent sends return WF_ERR_INVALID_ARG.
+ */
+wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream);
+
+/* ------------------------------------------------------------------ */
+/* Auth callback (optional)                                            */
 /* ------------------------------------------------------------------ */
 /* Auth middleware                                                      */
 /* ------------------------------------------------------------------ */
