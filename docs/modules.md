@@ -17,7 +17,7 @@
 | `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, **video upload** (`wf_agent_upload_video`/`wf_agent_get_video_job_status`/`wf_agent_get_video_upload_limits`), server + app-password management |
 | `wolfram/blob.h`         | Implemented | Binary blob upload — image/blob POST (`wf_xrpc_upload_blob`) and dedicated **video** upload (`wf_agent_upload_video`, `wf_uploaded_blob_free`) |
 | `wolfram/chat_typed.h`   | Implemented | Chat (DM) — `chat.bsky.convo`/`group`/`actor`/`moderation` write+query wrappers with chat-service endpoint resolution |
-| `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper (verify/emit labels, auth headers) |
+| `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper — verify and emit labels, build service auth headers. Full typed wrapper coverage across all tools.ozone.* namespaces: moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, and set value wrappers |
 | `wolfram/auth_client.h`  | Implemented | Authenticated XRPC client — DPoP-binding OAuth-authenticated query/procedure/blob-upload (`wf_auth_client_*`) with session refresh and DPoP nonce retry |
 | `wolfram/plc.h`          | Implemented | DID PLC operation build/sign/submit helpers (`wf_plc_*`): create/rotate/tombstone, signing-key and handle operations with ES256 signature + verification |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
