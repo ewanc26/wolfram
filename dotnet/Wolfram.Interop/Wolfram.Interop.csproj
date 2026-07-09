@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Wolfram.Interop</RootNamespace>
+    <AssemblyName>Wolfram.Interop</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Description>C# interop wrapper over the wolfram C11 SDK (libwolfram). Wrappers only.</Description>
+  </PropertyGroup>
+
+</Project>

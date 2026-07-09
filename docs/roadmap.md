@@ -207,6 +207,15 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
      with divergent values), `_result.h` gained `extern "C"` guards, and a stray
      `type` token before `static inline` was removed.
 
+ 53. C# interop wrapper (`Wolfram.Interop`, `dotnet/Wolfram.Interop/`) — pure
+     pass-through P/Invoke layer over `libwolfram` (no reimplementation of
+     crypto/transport/serialization/server logic). Raw tier uses source-generated
+     `LibraryImport` (NativeAOT/trim-safe) with explicit UTF-8 marshalling and a
+     combined `DllImportResolver` for `libwolfram` (+ platform libc to free owned
+     strings); managed tier adds `XrpcClientHandle : SafeHandle`, a `Status` mirror
+     of `wf_status`, and `WolframException` raised on non-`Ok`. Covered by an
+     offline xUnit smoke test (`Wolfram.Interop.Tests`).
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real

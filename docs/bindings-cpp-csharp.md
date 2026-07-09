@@ -69,32 +69,29 @@ The C public headers were made C++-clean as part of adding this wrapper:
 
 ## C# — `Wolfram.Interop` (P/Invoke, AOT-capable)
 
-*Not yet scaffolded.* Planned approach:
+Implemented as `dotnet/Wolfram.Interop/` (build + test with `dotnet test
+dotnet/Wolfram.Interop.Tests`). Pure pass-through wrappers — no crypto,
+transport, DAG-CBOR, or server logic is reimplemented; every call forwards to
+`libwolfram`.
 
-## C# — `Wolfram.Interop` (P/Invoke, AOT-capable)
-
-- **Generation:** **ClangSharpPInvokeGenerator** parses `include/wolfram/*.h`
-  into raw blittable P/Invoke bindings (response file:
-  `-f include/wolfram/*.h -n Wolfram -o Wolfram.gen.cs`). This is the raw
-  tier; a hand-written managed tier sits on top (ClangSharp's tier-3 pattern).
-- **Interop style:** prefer **`LibraryImport`** (.NET 7+, source-generated,
-  NativeAOT/trim-safe) over `DllImport` (runtime IL stubs, not AOT-safe). Use
-  `DllImport` only for .NET Framework targets.
-- **Handles:** every owned output `wf_T` → a `THandle : SafeHandle` whose
-  `ReleaseHandle()` calls `wf_T_free`. No raw `IntPtr` escapes the interop
-  layer.
-- **Strings:** specify UTF-8 explicitly — `StringMarshalling = Utf8` /
-  `[MarshalAs(UnmanagedType.LPUTF8Str)]`.
-- **Widths:** `nuint`/`nint` for `size_t`; `CLong`/`CULong` for C `long` (with
-  `[assembly: DisableRuntimeMarshalling]`). Never map `size_t` to `ulong`.
-- **Errors:** `bool Try…(out …)` plus a typed exception on non-`WF_OK`.
-- **Buffers:** callee-alloc/caller-free outputs → `SafeHandle`; caller-provided
-  output buffers → `Span<T>`/`stackalloc` + `Utf8StringMarshaller`.
+- **Raw tier** (`Internal/Raw.cs`) — `LibraryImport` (source-generated,
+  NativeAOT/trim-safe) P/Invoke declarations, 1:1 with the C ABI. UTF-8 strings
+  explicit (`StringMarshalling = Utf8` / `UnmanagedType.LPUTF8Str`), `nuint` for
+  `size_t`, opaque handles as `IntPtr`. A combined `DllImportResolver` loads
+  `libwolfram` (honoring `WOLFRAM_NATIVE_LIB`) and the platform libc (only to
+  free owned strings the SDK returns).
+- **Managed tier** — `XrpcClientHandle : SafeHandle` owns `wf_xrpc_client*`
+  (released via `wf_xrpc_client_free`; no raw `IntPtr` escapes). `Status` mirrors
+  `wf_status`; `WolframException` is raised on non-`Ok` (honest stubs surface
+  here, never faked). `Wolfram` / `WolframClient` give an idiomatic API.
+- **Regeneration** — `tools/generate.rsp` is a ClangSharpPInvokeGenerator
+  response file to regenerate/expand the raw tier from `include/wolfram/*.h`
+  (the hand-written `Raw.cs` currently covers the wrapped functions).
 
 ## Layout
 
 - `cpp/wolfram-cpp/` — header-only C++ RAII wrapper (links `libwolfram`).
-- `dotnet/Wolfram.Interop/` — ClangSharp-generated raw bindings + hand-written
-  managed layer (links `libwolfram`).
+- `dotnet/Wolfram.Interop/` — raw P/Invoke tier + hand-written managed layer
+  (links `libwolfram`).
 
 Both consume the same built `libwolfram`; neither ships crypto/transport code.
