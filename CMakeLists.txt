@@ -115,6 +115,7 @@ add_library(wolfram
     src/agent/thread_typed.c
     src/agent/graph_typed.c
     src/agent/graph_social_typed.c
+    src/agent/graph_write.c
     src/actor_typed.c
     src/sync_list_typed.c
     src/actor_prefs_typed.c
@@ -1050,5 +1051,14 @@ if(WOLFRAM_BUILD_TESTS)
             ${cjson_SOURCE_DIR}
         )
         add_test(NAME mock_pds COMMAND test_mock_pds)
+
+        add_executable(test_graph_writes test/test_graph_writes.c test/mock_pds.c)
+        target_link_libraries(test_graph_writes PRIVATE wolfram ${MICROHTTPD_LIBRARY})
+        target_include_directories(test_graph_writes PRIVATE
+            test
+            ${MICROHTTPD_INCLUDE_DIR}
+            ${cjson_SOURCE_DIR}
+        )
+        add_test(NAME graph_writes COMMAND test_graph_writes)
     endif()
 endif()
