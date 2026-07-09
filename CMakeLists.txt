@@ -115,6 +115,7 @@ add_library(wolfram
     src/agent/thread_typed.c
     src/agent/graph_typed.c
     src/actor_typed.c
+    src/actor_prefs_typed.c
     src/actor_status_typed.c
     src/moderation_report_typed.c
     src/contact_typed.c
@@ -740,6 +741,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_actor_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME actor_typed COMMAND test_actor_typed)
+
+    add_executable(test_actor_prefs_typed test/test_actor_prefs_typed.c)
+    target_link_libraries(test_actor_prefs_typed PRIVATE wolfram)
+    target_include_directories(test_actor_prefs_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_actor_prefs_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME actor_prefs_typed COMMAND test_actor_prefs_typed)
 
     add_executable(test_actor_status_typed test/test_actor_status_typed.c)
     target_link_libraries(test_actor_status_typed PRIVATE wolfram)
