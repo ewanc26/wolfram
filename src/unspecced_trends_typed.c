@@ -429,6 +429,137 @@ wf_status wf_agent_get_suggested_users_typed(wf_agent *agent,
     return status;
 }
 
+wf_status wf_agent_get_suggested_users_for_discover_typed(
+    wf_agent *agent, int limit, wf_agent_actor_list *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_actor_list list = {0};
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params params =
+        {0};
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_unspecced_parse_suggested_users(res.body, res.body_len, &list);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = list;
+    }
+    return status;
+}
+
+wf_status wf_agent_get_suggested_users_for_explore_typed(
+    wf_agent *agent, const char *category_or_null, int limit,
+    wf_agent_actor_list *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_actor_list list = {0};
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params params =
+        {0};
+    if (category_or_null && category_or_null[0]) {
+        params.has_category = true;
+        params.category = category_or_null;
+    }
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_unspecced_parse_suggested_users(res.body, res.body_len, &list);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = list;
+    }
+    return status;
+}
+
+wf_status wf_agent_get_suggested_users_for_see_more_typed(
+    wf_agent *agent, const char *category_or_null, int limit,
+    wf_agent_actor_list *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_actor_list list = {0};
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params params =
+        {0};
+    if (category_or_null && category_or_null[0]) {
+        params.has_category = true;
+        params.category = category_or_null;
+    }
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_unspecced_parse_suggested_users(res.body, res.body_len, &list);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = list;
+    }
+    return status;
+}
+
+wf_status wf_agent_get_suggested_onboarding_users_typed(
+    wf_agent *agent, const char *category_or_null, int limit,
+    wf_agent_actor_list *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_actor_list list = {0};
+    wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params params =
+        {0};
+    if (category_or_null && category_or_null[0]) {
+        params.has_category = true;
+        params.category = category_or_null;
+    }
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_unspecced_parse_suggested_users(res.body, res.body_len, &list);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = list;
+    }
+    return status;
+}
+
 wf_status wf_agent_get_suggested_feeds_typed(wf_agent *agent, int limit,
                                              wf_agent_generator_view_list *out) {
     if (!agent || !out) {
