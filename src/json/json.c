@@ -14,9 +14,26 @@ wf_status wf_json_canonicalize(const char *in, size_t len, char **out) {
         return WF_ERR_INVALID_ARG;
     }
 
-    cJSON *root = cJSON_ParseWithLength(in, len);
+    /* Parse and capture where parsing stopped so we can reject documents with
+     * trailing garbage after the top-level value (e.g. "1 2 trailing"), which
+     * cJSON otherwise accepts by ignoring the remainder. Only trailing
+     * whitespace is permitted. */
+    const char *parse_end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(in, len, &parse_end, 0);
     if (!root) {
         return WF_ERR_PARSE;
+    }
+    if (parse_end) {
+        const char *end = in + len;
+        while (parse_end < end &&
+               (*parse_end == ' ' || *parse_end == '\t' ||
+                *parse_end == '\n' || *parse_end == '\r')) {
+            parse_end++;
+        }
+        if (parse_end < end) {
+            cJSON_Delete(root);
+            return WF_ERR_PARSE;
+        }
     }
 
     char *printed = cJSON_PrintUnformatted(root);

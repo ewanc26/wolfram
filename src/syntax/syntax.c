@@ -147,7 +147,14 @@ int wf_syntax_at_identifier_is_valid(const char *id) {
 int wf_syntax_nsid_is_valid(const char *nsid) {
     const char *seg_start, *p;
     int seg_count = 0;
-    if (!nsid || strlen(nsid) > 317) return 0;
+    size_t nsid_len;
+    if (!nsid) return 0;
+    nsid_len = strlen(nsid);
+    if (nsid_len == 0 || nsid_len > 317) return 0;
+    /* A trailing '.' yields an empty final segment (e.g. "com.example.foo."),
+     * which atproto rejects — the segment loop below would otherwise stop at
+     * the terminator and miss it, so guard explicitly. */
+    if (nsid[nsid_len - 1] == '.') return 0;
     seg_start = nsid;
     while (*seg_start) {
         size_t seg_len;
