@@ -185,6 +185,22 @@ src/agent/push_endpoint.c
     src/image.c
 )
 
+# XRPC server module (optional, requires libmicrohttpd)
+if(WOLFRAM_BUILD_SERVER)
+    find_path(MICROHTTPD_INCLUDE_DIR NAMES microhttpd.h REQUIRED)
+    find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
+    target_sources(wolfram PRIVATE src/server/xrpc_server.c)
+    target_include_directories(wolfram PRIVATE ${MICROHTTPD_INCLUDE_DIR})
+    target_link_libraries(wolfram PUBLIC ${MICROHTTPD_LIBRARY})
+
+    if(WOLFRAM_BUILD_TESTS)
+        add_executable(test_xrpc_server test/test_xrpc_server.c)
+        target_link_libraries(test_xrpc_server PRIVATE wolfram)
+        target_include_directories(test_xrpc_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
+        add_test(NAME xrpc_server COMMAND test_xrpc_server)
+    endif()
+endif()
+
 target_include_directories(wolfram
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -291,6 +307,11 @@ option(WOLFRAM_BUILD_STORE_CRYPTO "Encrypt persisted sessions at rest with libso
 # XRPC client at a real local HTTP server. OFF by default so the default test
 # suite has no extra dependency.
 option(WOLFRAM_BUILD_TEST_HTTPD "Build the optional libmicrohttpd-backed mock PDS and offline HTTP integration test" OFF)
+
+# Optional XRPC server module (libmicrohttpd-based). When ON, the system
+# libmicrohttpd library is required. Adds wf_xrpc_server_start/stop/free
+# and route registration APIs to the wolfram library.
+option(WOLFRAM_BUILD_SERVER "Build the XRPC server module (requires libmicrohttpd)" OFF)
 
 # Optional libidn2-backed IDNA2008 / punycode handle resolution. When ON, the
 # system libidn2 library (GNU, MIT) is required (no network FetchContent). It

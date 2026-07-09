@@ -149,14 +149,16 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     preserved verbatim) with parser + builder, plus getSuggestions and a
     declaration parser/builder. Tested.
 
+47. XRPC server module (`xrpc_server.h`) — optional `libmicrohttpd`-backed
+    server with route registration (query/procedure), auth middleware, query
+    parameter parsing, POST body accumulation, CORS headers, and readback of
+    the bound port. Built when `WOLFRAM_BUILD_SERVER=ON`. Tested with an
+    offline round-trip test against `wf_xrpc_client`.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
-- Continue cross-referencing `bluesky-social/atproto` for protocol parity on
-  remaining `app.bsky.unspecced.*` skeleton/search endpoints.
-- Explore a minimal PDS server stub using the existing `libmicrohttpd` test
-  infrastructure.
 - Continue evaluating upstream C libraries for server-side infrastructure
   (event loop, config parsing, etc.).
 
