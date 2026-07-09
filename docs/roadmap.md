@@ -157,6 +157,14 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     round-trip test against `wf_xrpc_client`, rate limiter unit tests, and
     a server rate-limit integration test.
 
+48. `app.bsky.video` typed wrappers (`video_typed.h`) — owning parsers for the
+    `getJobStatus` and `uploadVideo` jobStatus envelopes, the `getUploadLimits`
+    output, and the shared `app.bsky.video.defs#jobStatus` blob-bearing object
+    (unknown fields preserved in owned `extra`); builders for the defs and upload
+    limits shapes; and agent wrappers (`wf_agent_video_get_job_status`,
+    `wf_agent_video_get_upload_limits`, `wf_agent_video_upload`) that call the
+    existing raw video helpers and return owned structs. Tested.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real

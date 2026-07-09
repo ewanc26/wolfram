@@ -122,6 +122,7 @@ add_library(wolfram
     src/moderation_report_typed.c
     src/contact_typed.c
     src/labeler_typed.c
+    src/video_typed.c
     src/identity_typed.c
     src/notification_v2_typed.c
     src/bookmark_typed.c
@@ -892,6 +893,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_labeler_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME labeler_typed COMMAND test_labeler_typed)
+
+    add_executable(test_video_typed test/test_video_typed.c)
+    target_link_libraries(test_video_typed PRIVATE wolfram)
+    target_include_directories(test_video_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME video_typed COMMAND test_video_typed)
 
     add_executable(test_identity_typed test/test_identity_typed.c)
     target_link_libraries(test_identity_typed PRIVATE wolfram)
