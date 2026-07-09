@@ -236,6 +236,93 @@ void wf_draft_list_free(wf_draft_list *list) {
     wf_draft_list_reset(list);
 }
 
+/* ---- Owned output parsers for the write procedures ---- */
+
+wf_status wf_draft_createDraft_parse(const char *json, size_t len,
+                                     wf_draft_createDraft_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, len);
+    if (!root) {
+        /* An empty/zero-length body yields no id (left NULL). */
+        if (len == 0) {
+            return WF_OK;
+        }
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id");
+    if (cJSON_IsString(id) && id->valuestring) {
+        status = wf_draft_set_string(&out->id, id->valuestring);
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_draft_createDraft_result_free(wf_draft_createDraft_result *r) {
+    if (!r) {
+        return;
+    }
+    free(r->id);
+    memset(r, 0, sizeof(*r));
+}
+
+/* updateDraft / deleteDraft return no body on the wire; treat successful
+ * decode (including an empty body) as ok=true. */
+static wf_status wf_draft_parse_ok(const char *json, size_t len, bool *ok) {
+    if (!json || !ok) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *ok = false;
+    if (len == 0) {
+        *ok = true;
+        return WF_OK;
+    }
+    cJSON *root = cJSON_ParseWithLength(json, len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    *ok = true;
+    cJSON_Delete(root);
+    return WF_OK;
+}
+
+wf_status wf_draft_updateDraft_parse(const char *json, size_t len,
+                                     wf_draft_updateDraft_result *out) {
+    if (!out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+    return wf_draft_parse_ok(json, len, &out->ok);
+}
+
+void wf_draft_updateDraft_result_free(wf_draft_updateDraft_result *r) {
+    if (!r) {
+        return;
+    }
+    memset(r, 0, sizeof(*r));
+}
+
+wf_status wf_draft_deleteDraft_parse(const char *json, size_t len,
+                                     wf_draft_deleteDraft_result *out) {
+    if (!out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+    return wf_draft_parse_ok(json, len, &out->ok);
+}
+
+void wf_draft_deleteDraft_result_free(wf_draft_deleteDraft_result *r) {
+    if (!r) {
+        return;
+    }
+    memset(r, 0, sizeof(*r));
+}
+
 /* ---- Agent convenience wrappers ---- */
 
 /* Build a lex `defs#draft` from a draft record JSON. Strings are borrowed from
@@ -328,69 +415,62 @@ static wf_status wf_draft_build_lex(cJSON *root,
 
 wf_status wf_agent_create_draft(wf_agent *agent, const char *draft_json,
                                 char **out_uri) {
-    if (!agent || !draft_json || !*draft_json || !out_uri) {
+    if (!out_uri) {
         return WF_ERR_INVALID_ARG;
     }
     *out_uri = NULL;
 
-    cJSON *root = cJSON_Parse(draft_json);
-    if (!root || !cJSON_IsObject(root)) {
-        cJSON_Delete(root);
-        return WF_ERR_INVALID_ARG;
+    wf_draft_createDraft_result res = {0};
+    wf_status status = wf_agent_draft_createDraft_typed(agent, draft_json, &res);
+    if (status == WF_OK && res.id) {
+        /* Transfer ownership of the id string to the caller. */
+        *out_uri = res.id;
+        res.id = NULL;
     }
-
-    wf_lex_app_bsky_draft_defs_draft draft = {0};
-    wf_lex_app_bsky_draft_defs_draft_post **posts = NULL;
-    char **langs = NULL;
-    wf_status status = wf_draft_build_lex(root, &draft, &posts, &langs);
-    if (status != WF_OK) {
-        cJSON_Delete(root);
-        free(posts);
-        free(langs);
-        return status;
-    }
-
-    wf_lex_app_bsky_draft_create_draft_main_input input = {0};
-    input.draft = &draft;
-
-    wf_response res = {0};
-    wf_agent_sync_auth(agent);
-    status = wf_lex_app_bsky_draft_create_draft_main_call(agent->client, &input,
-                                                          &res);
-
-    if (status == WF_OK) {
-        wf_lex_app_bsky_draft_create_draft_main_output *output = NULL;
-        status = wf_lex_app_bsky_draft_create_draft_main_output_decode_json(
-            res.body, res.body_len, &output);
-        if (status == WF_OK && output && output->id) {
-            *out_uri = wf_draft_strdup(output->id);
-            if (!*out_uri) {
-                status = WF_ERR_ALLOC;
-            }
-        }
-        if (output) {
-            wf_lex_app_bsky_draft_create_draft_main_output_free(output);
-        }
-    }
-
-    wf_response_free(&res);
-    for (size_t i = 0; posts && i < draft.posts.count; ++i) {
-        free(posts[i]);
-    }
-    free(posts);
-    free(langs);
-    cJSON_Delete(root);
+    wf_draft_createDraft_result_free(&res);
     return status;
 }
 
 wf_status wf_agent_update_draft(wf_agent *agent, const char *draft_uri,
                                 const char *draft_json, char **out_uri) {
-    if (!agent || !draft_uri || !*draft_uri || !draft_json || !*draft_json ||
-        !out_uri) {
+    if (!out_uri) {
         return WF_ERR_INVALID_ARG;
     }
     *out_uri = NULL;
 
+    wf_draft_updateDraft_result res = {0};
+    wf_status status =
+        wf_agent_draft_updateDraft_typed(agent, draft_uri, draft_json, &res);
+    if (status == WF_OK && draft_uri) {
+        /* updateDraft returns no body; echo the supplied id as the result. */
+        *out_uri = wf_draft_strdup(draft_uri);
+        if (!*out_uri) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+    wf_draft_updateDraft_result_free(&res);
+    return status;
+}
+
+wf_status wf_agent_delete_draft(wf_agent *agent, const char *draft_uri) {
+    wf_draft_deleteDraft_result res = {0};
+    wf_status status = wf_agent_draft_deleteDraft_typed(agent, draft_uri, &res);
+    wf_draft_deleteDraft_result_free(&res);
+    return status;
+}
+
+/* ---- Typed write-procedure wrappers ----
+
+ * The nested `app.bsky.draft.defs#draft` object is accepted as a pre-built
+ * `draft_json` and embedded via `wf_draft_build_lex` (which borrows the
+ * strings from the parsed document and only allocates the array containers).
+ * This deliberately avoids modeling every sub-field of the draft up-front;
+ * the public surface stays small and stable. */
+
+static wf_status wf_agent_draft_build_and_call_create(
+    wf_agent *agent, const char *draft_json,
+    wf_lex_app_bsky_draft_create_draft_main_input *input,
+    wf_lex_app_bsky_draft_defs_draft_post ***posts_out, char ***langs_out) {
     cJSON *root = cJSON_Parse(draft_json);
     if (!root || !cJSON_IsObject(root)) {
         cJSON_Delete(root);
@@ -398,8 +478,73 @@ wf_status wf_agent_update_draft(wf_agent *agent, const char *draft_uri,
     }
 
     wf_lex_app_bsky_draft_defs_draft draft = {0};
+    wf_status status = wf_draft_build_lex(root, &draft, posts_out, langs_out);
+    if (status != WF_OK) {
+        cJSON_Delete(root);
+        return status;
+    }
+
+    input->draft = &draft;
+    (void)agent;
+    return WF_OK;
+}
+
+wf_status wf_agent_draft_createDraft_typed(wf_agent *agent,
+                                           const char *draft_json,
+                                           wf_draft_createDraft_result *out) {
+    if (!agent || !draft_json || !*draft_json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
     wf_lex_app_bsky_draft_defs_draft_post **posts = NULL;
     char **langs = NULL;
+    wf_lex_app_bsky_draft_create_draft_main_input input = {0};
+    wf_status status =
+        wf_agent_draft_build_and_call_create(agent, draft_json, &input, &posts,
+                                             &langs);
+    if (status != WF_OK) {
+        free(posts);
+        free(langs);
+        return status;
+    }
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    status = wf_lex_app_bsky_draft_create_draft_main_call(agent->client, &input,
+                                                          &res);
+    if (status == WF_OK) {
+        status = wf_draft_createDraft_parse(res.body, res.body_len, out);
+    }
+
+    wf_response_free(&res);
+    for (size_t i = 0; posts && i < input.draft->posts.count; ++i) {
+        free(posts[i]);
+    }
+    free(posts);
+    free(langs);
+    return status;
+}
+
+wf_status wf_agent_draft_updateDraft_typed(wf_agent *agent,
+                                           const char *draft_id,
+                                           const char *draft_json,
+                                           wf_draft_updateDraft_result *out) {
+    if (!agent || !draft_id || !*draft_id || !draft_json || !*draft_json ||
+        !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_Parse(draft_json);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_app_bsky_draft_defs_draft_post **posts = NULL;
+    char **langs = NULL;
+    wf_lex_app_bsky_draft_defs_draft draft = {0};
     wf_status status = wf_draft_build_lex(root, &draft, &posts, &langs);
     if (status != WF_OK) {
         cJSON_Delete(root);
@@ -409,7 +554,7 @@ wf_status wf_agent_update_draft(wf_agent *agent, const char *draft_uri,
     }
 
     wf_lex_app_bsky_draft_defs_draft_with_id with_id = {0};
-    with_id.id = draft_uri;
+    with_id.id = draft_id;
     with_id.draft = &draft;
 
     wf_lex_app_bsky_draft_update_draft_main_input input = {0};
@@ -418,14 +563,9 @@ wf_status wf_agent_update_draft(wf_agent *agent, const char *draft_uri,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     status = wf_lex_app_bsky_draft_update_draft_main_call(agent->client, &input,
-                                                         &res);
-
-    if (status == WF_OK && out_uri) {
-        /* updateDraft returns no body; echo the supplied uri as the result. */
-        *out_uri = wf_draft_strdup(draft_uri);
-        if (!*out_uri) {
-            status = WF_ERR_ALLOC;
-        }
+                                                          &res);
+    if (status == WF_OK) {
+        status = wf_draft_updateDraft_parse(res.body, res.body_len, out);
     }
 
     wf_response_free(&res);
@@ -438,18 +578,24 @@ wf_status wf_agent_update_draft(wf_agent *agent, const char *draft_uri,
     return status;
 }
 
-wf_status wf_agent_delete_draft(wf_agent *agent, const char *draft_uri) {
-    if (!agent || !draft_uri || !*draft_uri) {
+wf_status wf_agent_draft_deleteDraft_typed(wf_agent *agent,
+                                           const char *draft_id,
+                                           wf_draft_deleteDraft_result *out) {
+    if (!agent || !draft_id || !*draft_id || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    memset(out, 0, sizeof(*out));
 
     wf_lex_app_bsky_draft_delete_draft_main_input input = {0};
-    input.id = draft_uri;
+    input.id = draft_id;
 
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status = wf_lex_app_bsky_draft_delete_draft_main_call(
         agent->client, &input, &res);
+    if (status == WF_OK) {
+        status = wf_draft_deleteDraft_parse(res.body, res.body_len, out);
+    }
     wf_response_free(&res);
     return status;
 }
