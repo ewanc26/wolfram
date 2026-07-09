@@ -32,6 +32,7 @@
  * Each is self-contained (includes agent.h) and kept separate from the
  * higher-level agent API so applications can pull in only what they use. */
 #include "wolfram/contact_typed.h"
+#include "wolfram/sync_list_typed.h"
 #include "wolfram/admin_typed.h"
 #include "wolfram/notification_prefs_typed.h"
 #include "wolfram/labeler_typed.h"
