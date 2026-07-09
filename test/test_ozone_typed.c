@@ -178,12 +178,10 @@ int main(void) {
         wf_lex_tools_ozone_moderation_query_statuses_main_output *out = NULL;
         WF_CHECK(wf_ozone_moderation_queryStatuses(
                      NULL, NULL, &out) == WF_ERR_INVALID_ARG);
-        wf_lex_tools_ozone_moderation_query_statuses_main_params qp = {0};
         WF_CHECK(wf_ozone_moderation_queryStatuses(
                      agent, NULL, &out) == WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_team_list_members_main_output *tout = NULL;
-        wf_lex_tools_ozone_team_list_members_main_params tp = {0};
         WF_CHECK(wf_ozone_team_listMembers(
                      agent, NULL, &tout) == WF_ERR_INVALID_ARG);
 
@@ -191,7 +189,6 @@ int main(void) {
         WF_CHECK(wf_ozone_communication_listTemplates(
                      NULL, &c) == WF_ERR_INVALID_ARG);
 
-        wf_lex_tools_ozone_moderation_emit_event_main_input ein = {0};
         wf_response r = {0};
         WF_CHECK(wf_ozone_moderation_emitEvent(
                      NULL, NULL, &r) == WF_ERR_INVALID_ARG);

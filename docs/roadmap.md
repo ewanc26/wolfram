@@ -104,6 +104,25 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 37. Higher-level endpoint examples (`examples/`) — self-contained programs
     exercising generated clients: label query, PLC handle rotation, notification
     v2, and admin account search.
+38. High-level `wf_bsky_agent` convenience wrapper (`bsky_agent.h`) — a
+    BskyAgent equivalent bundling session + xrpc + identity + agent, with
+    one-line helpers for login, post, getProfile, getTimeline, resolveHandle,
+    follow, unfollow, like, repost, mute/unmute, getNotifications, searchActors,
+    and getThread (all delegating to the existing `wf_agent_*` API). Tested.
+39. `app.bsky.actor.status` typed wrappers (`actor_status_typed.h`) — owned
+    parsers + a record builder for status records/views following the
+    labeler/actor ownership model. The `getActorStatus`/`getStatus`/`putStatus`
+    agent wrappers are honest stubs (`WF_ERR_INVALID_ARG` + `TODO`) because the
+    local lexicon snapshot lacks generated bindings for those endpoints. Tested.
+40. `tools.ozone.*` typed coverage (`ozone_typed.h`) — owned typed parsers +
+    agent wrappers across moderation, setting, communication, team, server,
+    verification, signature, hosting, set, queue, report, and safelink
+    namespaces, reusing the generated owning decoders from `atproto_lex.h`.
+    `getSuggestions`/`getLabelDefinitions` fall back to JSON-in/JSON-out (the
+    lexicon snapshot lacks them). Tested.
+41. `wolfram` CLI social commands — `profile`, `timeline`, `follow`,
+    `unfollow`, `like`, `repost`, `search`, `notifications`, `mute`, `unmute`,
+    and `thread`, reusing the existing `wf_agent_*` APIs.
 
 ## Next planned work
 
