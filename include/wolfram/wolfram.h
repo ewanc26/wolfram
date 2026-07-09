@@ -35,6 +35,7 @@
 #include "wolfram/admin_typed.h"
 #include "wolfram/notification_prefs_typed.h"
 #include "wolfram/labeler_typed.h"
+#include "wolfram/feed_gen_typed.h"
 #include "wolfram/identity_typed.h"
 #include "wolfram/actor_status_typed.h"
 #include "wolfram/notification_v2_typed.h"
