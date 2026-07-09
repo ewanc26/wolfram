@@ -126,6 +126,7 @@ add_library(wolfram
     src/agent/moderation_typed.c
     src/ageassurance_typed.c
     src/agent/feedgen_typed.c
+    src/agent/feed_gen_typed.c
     # getFeedSkeleton builder (validate/dedupe/cursor pagination)
     src/feedgen.c
     src/unspecced_typed.c
@@ -798,6 +799,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_feedgen_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME feedgen_typed COMMAND test_feedgen_typed)
+
+    add_executable(test_feed_gen_typed test/test_feed_gen_typed.c)
+    target_link_libraries(test_feed_gen_typed PRIVATE wolfram)
+    target_include_directories(test_feed_gen_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_feed_gen_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME feed_gen_typed COMMAND test_feed_gen_typed)
 
     add_executable(test_feedgen test/test_feedgen.c)
     target_link_libraries(test_feedgen PRIVATE wolfram)
