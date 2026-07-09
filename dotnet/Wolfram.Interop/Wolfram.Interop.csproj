@@ -11,4 +11,8 @@
     <Description>C# interop wrapper over the wolfram C11 SDK (libwolfram). Wrappers only.</Description>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Wolfram.Interop.Tests" />
+  </ItemGroup>
+
 </Project>

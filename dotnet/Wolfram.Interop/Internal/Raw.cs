@@ -103,6 +103,105 @@ internal static unsafe partial class Raw
     // out IntPtr is the native char**; the caller copies it and frees via libc.
     [LibraryImport("wolfram")]
     public static partial int wf_json_canonicalize([MarshalAs(UnmanagedType.LPUTF8Str)] string input, nuint len, out IntPtr output);
+
+    // --- draft/temp/bookmark typed wrappers ---
+
+    // draft: createDraft
+    [LibraryImport("wolfram")]
+    public static partial int wf_draft_createDraft_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint len, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_draft_createDraft_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_draft_createDraft_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string draftJson, IntPtr result);
+
+    // draft: updateDraft
+    [LibraryImport("wolfram")]
+    public static partial int wf_draft_updateDraft_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint len, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_draft_updateDraft_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_draft_updateDraft_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string draftId,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string draftJson, IntPtr result);
+
+    // draft: deleteDraft
+    [LibraryImport("wolfram")]
+    public static partial int wf_draft_deleteDraft_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint len, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_draft_deleteDraft_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_draft_deleteDraft_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string draftId, IntPtr result);
+
+    // temp: addReservedHandle
+    [LibraryImport("wolfram")]
+    public static partial int wf_temp_add_reserved_handle_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint jsonLen, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_temp_add_reserved_handle_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_temp_add_reserved_handle_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string handle, IntPtr result);
+
+    // temp: requestPhoneVerification
+    [LibraryImport("wolfram")]
+    public static partial int wf_temp_request_phone_verification_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint jsonLen, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_temp_request_phone_verification_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_temp_request_phone_verification_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string phoneNumber, IntPtr result);
+
+    // temp: revokeAccountCredentials
+    [LibraryImport("wolfram")]
+    public static partial int wf_temp_revoke_account_credentials_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint jsonLen, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_temp_revoke_account_credentials_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_temp_revoke_account_credentials_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string account, IntPtr result);
+
+    // bookmark: create
+    [LibraryImport("wolfram")]
+    public static partial int wf_bookmark_create_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint len, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_bookmark_create_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_bookmark_create_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string uri, IntPtr result);
+
+    // bookmark: delete
+    [LibraryImport("wolfram")]
+    public static partial int wf_bookmark_delete_parse(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint len, IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial void wf_bookmark_delete_result_free(IntPtr result);
+
+    [LibraryImport("wolfram")]
+    public static partial int wf_agent_bookmark_delete_typed(
+        IntPtr agent, [MarshalAs(UnmanagedType.LPUTF8Str)] string uri, IntPtr result);
 }
 
 // Free a heap pointer allocated by libwolfram (its C allocator == the process
