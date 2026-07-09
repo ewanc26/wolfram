@@ -9,10 +9,51 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Description>C# interop wrapper over the wolfram C11 SDK (libwolfram). Wrappers only.</Description>
+
+    <!-- Path to the wolfram C headers, relative to this project. -->
+    <WolframIncludeDir>../../include/wolfram</WolframIncludeDir>
+    <!-- Path to the repo root (for ClangSharpPInvokeGenerator). -->
+    <WolframRepoRoot>../..</WolframRepoRoot>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Wolfram.Interop.Tests" />
   </ItemGroup>
+
+  <!-- Generated files are auto-included by the SDK's default globbing. -->
+
+  <!-- Generate SafeHandle subclasses from C headers (requires Python 3).
+       Runs before every build; regenerates when any C header changes. -->
+  <Target Name="GenerateSafeHandles"
+          BeforeTargets="BeforeBuild"
+          Inputs="$(WolframIncludeDir)/**/*.h"
+          Outputs="SafeHandles/SafeHandles.generated.cs">
+
+    <Exec Command="python3 tools/gen_safehandles.py $(WolframIncludeDir) SafeHandles/SafeHandles.generated.cs"
+          WorkingDirectory="$(ProjectDir)"
+          IgnoreStandardErrorWarningFormat="true" />
+  </Target>
+
+  <!-- Optionally regenerate the raw P/Invoke tier with ClangSharpPInvokeGenerator.
+       Only runs if the tool is installed (dotnet tool install -g ClangSharpPInvokeGenerator).
+       This is not required for building — the hand-written Raw.cs covers the
+       functions the managed tier currently wraps. The generated file
+       (Internal/Raw.generated.cs) supplements it with declarations for all
+       other C functions. Skip with -p:SkipClangSharp=true. -->
+  <Target Name="GenerateRawPInvoke"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(SkipClangSharp)' != 'true' AND Exists('$(WolframRepoRoot)/include/wolfram/xrpc.h')">
+
+    <Exec Command="ClangSharpPInvokeGenerator @tools/generate.rsp"
+          WorkingDirectory="$(ProjectDir)"
+          IgnoreExitCode="true"
+          ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="ClangSharpOutput" />
+    </Exec>
+
+    <Message Text="ClangSharpPInvokeGenerator: $(ClangSharpOutput)"
+             Importance="low"
+             Condition="'$(ClangSharpOutput)' != ''" />
+  </Target>
 
 </Project>

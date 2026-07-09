@@ -4,11 +4,137 @@
 #   dotnet tool install --global ClangSharpPInvokeGenerator
 #   ClangSharpPInvokeGenerator @tools/generate.rsp
 #
-# The generated output replaces/augments Internal/Raw.cs. The hand-written
-# Raw.cs currently covers the functions the managed tier wraps; expand the
-# -f list to pull in more of include/wolfram/*.h as needed.
--f include/wolfram/xrpc.h
--f include/wolfram/json.h
+# The generated output replaces/augments Internal/Raw.generated.cs. The
+# hand-written Raw.cs covers functions the managed tier currently wraps; the
+# generated file picks up everything else automatically.
+#
+# Paths are relative to the dotnet/Wolfram.Interop/ directory.
+#
+# To regenerate after adding new C headers, just re-run the command above.
+# The MSBuild pre-build target (wired in Wolfram.Interop.csproj) runs this
+# automatically if ClangSharpPInvokeGenerator is installed.
+
+# --- Core transport & infrastructure ---
+-f ../../include/wolfram/xrpc.h
+-f ../../include/wolfram/xrpc_server.h
+-f ../../include/wolfram/websocket.h
+-f ../../include/wolfram/json.h
+-f ../../include/wolfram/util.h
+-f ../../include/wolfram/version.h
+-f ../../include/wolfram/tid.h
+-f ../../include/wolfram/image.h
+-f ../../include/wolfram/blob.h
+-f ../../include/wolfram/embed.h
+
+# --- Identity & crypto ---
+-f ../../include/wolfram/identity.h
+-f ../../include/wolfram/crypto.h
+-f ../../include/wolfram/plc.h
+
+# --- Session & auth ---
+-f ../../include/wolfram/session.h
+-f ../../include/wolfram/auth_client.h
+
+# --- OAuth (subdirectory) ---
+-f ../../include/wolfram/oauth.h
+-f ../../include/wolfram/oauth/callback.h
+-f ../../include/wolfram/oauth/dpop.h
+-f ../../include/wolfram/oauth/flow.h
+-f ../../include/wolfram/oauth/metadata.h
+-f ../../include/wolfram/oauth/par.h
+-f ../../include/wolfram/oauth/pkce.h
+-f ../../include/wolfram/oauth/state.h
+
+# --- Repository (DAG-CBOR, CID, CAR, MST) ---
+-f ../../include/wolfram/repo.h
+-f ../../include/wolfram/repo/car.h
+-f ../../include/wolfram/repo/cbor.h
+-f ../../include/wolfram/repo/cid.h
+-f ../../include/wolfram/repo/commit.h
+-f ../../include/wolfram/repo/diff.h
+-f ../../include/wolfram/repo/mst.h
+-f ../../include/wolfram/repo/record.h
+
+# --- Sync & firehose ---
+-f ../../include/wolfram/sync.h
+-f ../../include/wolfram/sync_subscribe.h
+-f ../../include/wolfram/sync_verify.h
+-f ../../include/wolfram/sync_typed.h
+-f ../../include/wolfram/sync_list_typed.h
+
+# --- Jetstream ---
+-f ../../include/wolfram/jetstream.h
+
+# --- Labels ---
+-f ../../include/wolfram/label.h
+-f ../../include/wolfram/label_typed.h
+
+# --- Syntax & validation ---
+-f ../../include/wolfram/syntax.h
+-f ../../include/wolfram/validate.h
+-f ../../include/wolfram/verify.h
+
+# --- Rich text ---
+-f ../../include/wolfram/richtext.h
+
+# --- Server ---
+-f ../../include/wolfram/server.h
+-f ../../include/wolfram/server_typed.h
+
+# --- Moderation ---
+-f ../../include/wolfram/moderation.h
+-f ../../include/wolfram/moderation_actions.h
+-f ../../include/wolfram/moderation_typed.h
+-f ../../include/wolfram/moderation_report_typed.h
+
+# --- Agent API ---
+-f ../../include/wolfram/agent.h
+-f ../../include/wolfram/bsky_agent.h
+-f ../../include/wolfram/atproto_lex.h
+-f ../../include/wolfram/lexcall.h
+-f ../../include/wolfram/lexicon_typed.h
+-f ../../include/wolfram/feedgen.h
+-f ../../include/wolfram/feedgen_server.h
+-f ../../include/wolfram/graph_write.h
+-f ../../include/wolfram/threadgate_postgate.h
+
+# --- Typed wrappers (lexicon-derived) ---
+-f ../../include/wolfram/actor_typed.h
+-f ../../include/wolfram/actor_prefs_typed.h
+-f ../../include/wolfram/actor_status_typed.h
+-f ../../include/wolfram/admin_typed.h
+-f ../../include/wolfram/ageassurance_typed.h
+-f ../../include/wolfram/bookmark_typed.h
+-f ../../include/wolfram/chat_typed.h
+-f ../../include/wolfram/contact_typed.h
+-f ../../include/wolfram/draft_typed.h
+-f ../../include/wolfram/embed_typed.h
+-f ../../include/wolfram/feed_typed.h
+-f ../../include/wolfram/feed_gen_typed.h
+-f ../../include/wolfram/feedgen_typed.h
+-f ../../include/wolfram/graph_typed.h
+-f ../../include/wolfram/graph_social_typed.h
+-f ../../include/wolfram/identity_typed.h
+-f ../../include/wolfram/labeler_typed.h
+-f ../../include/wolfram/list_typed.h
+-f ../../include/wolfram/notification_typed.h
+-f ../../include/wolfram/notification_v2_typed.h
+-f ../../include/wolfram/notification_prefs_typed.h
+-f ../../include/wolfram/ozone.h
+-f ../../include/wolfram/ozone_typed.h
+-f ../../include/wolfram/ozone_admin_typed.h
+-f ../../include/wolfram/ozone_moderation_ops_typed.h
+-f ../../include/wolfram/repo_typed.h
+-f ../../include/wolfram/temp_typed.h
+-f ../../include/wolfram/thread_typed.h
+-f ../../include/wolfram/unspecced_typed.h
+-f ../../include/wolfram/unspecced_trends_typed.h
+-f ../../include/wolfram/video_typed.h
+
+# --- Store (optional) ---
+-f ../../include/wolfram/store.h
+
+# --- Generator settings ---
 -n Wolfram.Interop.Internal
 -o Internal/Raw.generated.cs
 -m Methods
