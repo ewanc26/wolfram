@@ -212,6 +212,11 @@ if(WOLFRAM_BUILD_SERVER)
         target_include_directories(test_xrpc_server_sse PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
         add_test(NAME xrpc_server_sse COMMAND test_xrpc_server_sse)
 
+        add_executable(test_xrpc_server_ws test/test_xrpc_server_ws.c)
+        target_link_libraries(test_xrpc_server_ws PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_xrpc_server_ws PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME xrpc_server_ws COMMAND test_xrpc_server_ws)
+
         add_executable(test_feedgen_skeleton test/test_feedgen_skeleton.c)
         target_link_libraries(test_feedgen_skeleton PRIVATE wolfram)
         target_include_directories(test_feedgen_skeleton PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
