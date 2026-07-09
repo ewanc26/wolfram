@@ -13,6 +13,7 @@
 //     in the managed tier, never here.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -109,7 +110,7 @@ internal static unsafe partial class Raw
     // draft: createDraft
     [LibraryImport("wolfram")]
     public static partial int wf_draft_createDraft_parse(
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string json, nuint len, IntPtr result);
+        [MarshalAs(UnmanagedType.LPUTF8Str)] [AllowNull] string? json, nuint len, IntPtr result);
 
     [LibraryImport("wolfram")]
     public static partial void wf_draft_createDraft_result_free(IntPtr result);
