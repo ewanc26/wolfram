@@ -209,6 +209,166 @@ static void test_parse_errors(void) {
              WF_ERR_PARSE);
 }
 
+/* A missing/invalid required field in the nested jobStatus def must fail the
+ * whole envelope parse (and leave the out struct reset). */
+static void test_parse_job_status_missing_required(void) {
+    static const char *no_state =
+        "{\"jobStatus\":{\"jobId\":\"j\",\"did\":\"did:plc:x\"}}";
+    static const char *bad_blob =
+        "{\"jobStatus\":{\"jobId\":\"j\",\"did\":\"did:plc:x\","
+        "\"state\":\"s\",\"blob\":42}}";
+    wf_video_job_status s = {0};
+    WF_CHECK(wf_video_job_status_parse(no_state, strlen(no_state), &s) ==
+             WF_ERR_PARSE);
+    WF_CHECK(s.job_status.job_id == NULL);
+    WF_CHECK(wf_video_job_status_parse(bad_blob, strlen(bad_blob), &s) ==
+             WF_ERR_PARSE);
+
+    /* def parser applies the same required-field discipline directly. */
+    wf_video_job_status_def d = {0};
+    static const char *no_did = "{\"jobId\":\"j\",\"state\":\"s\"}";
+    WF_CHECK(wf_video_job_status_def_parse(no_did, strlen(no_did), &d) ==
+             WF_ERR_PARSE);
+    WF_CHECK(d.did == NULL);
+}
+
+/* getUploadLimits: a present-but-wrong-typed optional numeric field is a hard
+ * parse error (matches the parser's explicit `!= NULL` type checks). */
+static void test_parse_upload_limits_bad_optional(void) {
+    static const char *bad_videos =
+        "{\"canUpload\":true,\"remainingDailyVideos\":\"nope\"}";
+    static const char *bad_bytes =
+        "{\"canUpload\":true,\"remainingDailyBytes\":\"nope\"}";
+    wf_video_upload_limits l = {0};
+    WF_CHECK(wf_video_upload_limits_parse(bad_videos, strlen(bad_videos), &l) ==
+             WF_ERR_PARSE);
+    WF_CHECK(wf_video_upload_limits_parse(bad_bytes, strlen(bad_bytes), &l) ==
+             WF_ERR_PARSE);
+}
+
+/* Unknown fields must survive a parse (in the owned `extra` subtrees) and be
+ * re-emitted verbatim by the builders. */
+static void test_extra_preservation(void) {
+    /* Envelope-level, def-level, and blob-level unknown fields. */
+    static const char *json =
+        "{"
+        "  \"jobStatus\": {"
+        "    \"jobId\": \"j1\","
+        "    \"did\": \"did:plc:x\","
+        "    \"state\": \"JOB_STATE_COMPLETED\","
+        "    \"blob\": {"
+        "      \"$type\": \"blob\","
+        "      \"ref\": { \"$link\": \"bafycid\" },"
+        "      \"mimeType\": \"video/mp4\","
+        "      \"size\": 10,"
+        "      \"blobExtra\": \"bx\""
+        "    },"
+        "    \"defExtra\": 7"
+        "  },"
+        "  \"envExtra\": true"
+        "}";
+    wf_video_job_status s = {0};
+    wf_status st = wf_video_job_status_parse(json, strlen(json), &s);
+    WF_CHECK(st == WF_OK);
+    /* envelope extra */
+    WF_CHECK(s.extra != NULL);
+    WF_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(s.extra,
+                                                           "envExtra")));
+    /* def extra */
+    WF_CHECK(s.job_status.extra != NULL);
+    WF_CHECK(cJSON_GetObjectItemCaseSensitive(s.job_status.extra, "defExtra") !=
+             NULL);
+    /* blob extra */
+    WF_CHECK(s.job_status.has_blob && s.job_status.blob.extra != NULL);
+    cJSON *bx = cJSON_GetObjectItemCaseSensitive(s.job_status.blob.extra,
+                                                 "blobExtra");
+    WF_CHECK(cJSON_IsString(bx) && strcmp(bx->valuestring, "bx") == 0);
+
+    /* The def builder must re-emit the def and blob extras verbatim. */
+    char *rebuilt = NULL;
+    st = wf_video_job_status_def_build(&s.job_status, &rebuilt);
+    WF_CHECK(st == WF_OK && rebuilt != NULL);
+    if (rebuilt) {
+        WF_CHECK(strstr(rebuilt, "defExtra") != NULL);
+        WF_CHECK(strstr(rebuilt, "blobExtra") != NULL);
+        free(rebuilt);
+    }
+    wf_video_job_status_free(&s);
+
+    /* upload limits builder must re-emit unknown fields too. */
+    static const char *lim = "{\"canUpload\":true,\"quirk\":\"q\"}";
+    wf_video_upload_limits l = {0};
+    st = wf_video_upload_limits_parse(lim, strlen(lim), &l);
+    WF_CHECK(st == WF_OK && l.extra != NULL);
+    char *lim_out = NULL;
+    st = wf_video_upload_limits_build(&l, &lim_out);
+    WF_CHECK(st == WF_OK && lim_out != NULL);
+    if (lim_out) {
+        WF_CHECK(strstr(lim_out, "quirk") != NULL);
+        free(lim_out);
+    }
+    wf_video_upload_limits_free(&l);
+}
+
+/* _free must be idempotent and safe on a zeroed struct. */
+static void test_free_idempotent(void) {
+    wf_video_job_status s = {0};
+    wf_video_job_status_free(&s);
+    wf_video_job_status_free(&s); /* second free is a no-op */
+
+    wf_video_job_status_def d = {0};
+    wf_video_job_status_def_free(&d);
+
+    wf_video_upload_limits l = {0};
+    wf_video_upload_limits_free(&l);
+
+    wf_video_blob b = {0};
+    wf_video_blob_free(&b);
+
+    /* NULL-tolerant. */
+    wf_video_job_status_free(NULL);
+    wf_video_job_status_def_free(NULL);
+    wf_video_upload_limits_free(NULL);
+    wf_video_blob_free(NULL);
+}
+
+/* Agent wrappers require live auth; offline we can only assert that required
+ * inputs are validated (WF_ERR_INVALID_ARG) rather than silently no-op'ing.
+ * A NULL agent short-circuits before any dereference, so these are safe. */
+static void test_agent_wrappers_validate_args(void) {
+    wf_video_job_status js = {0};
+    wf_video_upload_limits lim = {0};
+    static const unsigned char data[] = {0x00, 0x01, 0x02};
+
+    /* getJobStatus: NULL agent / job_id / out all rejected. */
+    WF_CHECK(wf_agent_video_get_job_status(NULL, "job", &js) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_get_job_status(NULL, NULL, &js) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_get_job_status(NULL, "job", NULL) ==
+             WF_ERR_INVALID_ARG);
+
+    /* getUploadLimits: NULL agent / out rejected. */
+    WF_CHECK(wf_agent_video_get_upload_limits(NULL, &lim) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_get_upload_limits(NULL, NULL) ==
+             WF_ERR_INVALID_ARG);
+
+    /* uploadVideo: NULL agent, empty data, missing content type, NULL out. */
+    WF_CHECK(wf_agent_video_upload(NULL, data, sizeof(data), "video/mp4",
+                                   &js) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_upload(NULL, NULL, 0, "video/mp4", &js) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_upload(NULL, data, 0, "video/mp4", &js) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_upload(NULL, data, sizeof(data), NULL, &js) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_upload(NULL, data, sizeof(data), "", &js) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_video_upload(NULL, data, sizeof(data), "video/mp4",
+                                   NULL) == WF_ERR_INVALID_ARG);
+}
+
 int main(void) {
     test_parse_job_status();
     test_parse_upload_limits();
@@ -218,5 +378,10 @@ int main(void) {
     test_build_job_status_def_roundtrip();
     test_build_upload_limits_roundtrip();
     test_parse_errors();
+    test_parse_job_status_missing_required();
+    test_parse_upload_limits_bad_optional();
+    test_extra_preservation();
+    test_free_idempotent();
+    test_agent_wrappers_validate_args();
     WF_TEST_SUMMARY();
 }
