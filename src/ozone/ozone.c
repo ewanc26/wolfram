@@ -591,3 +591,1002 @@ wf_status wf_ozone_set_upsert_values(
     }
     return wf_lex_tools_ozone_set_upsert_set_main_call(client, input, out);
 }
+
+/* --- Moderation — additional typed wrappers ------------------------ */
+
+wf_status wf_ozone_get_account_timeline(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_get_account_timeline_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_account_timeline_main_call(client, params, out);
+}
+
+wf_status wf_ozone_get_account_timeline_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_moderation_get_account_timeline_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_account_timeline_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_get_records(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_get_records_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_records_main_call(client, params, out);
+}
+
+wf_status wf_ozone_get_records_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_moderation_get_records_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_records_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_get_repo(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_get_repo_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_repo_main_call(client, params, out);
+}
+
+wf_status wf_ozone_get_repos(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_get_repos_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_repos_main_call(client, params, out);
+}
+
+wf_status wf_ozone_get_repos_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_moderation_get_repos_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_get_repos_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_search_repos(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_search_repos_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_search_repos_main_call(client, params, out);
+}
+
+wf_status wf_ozone_search_repos_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_moderation_search_repos_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_search_repos_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_cancel_scheduled_actions(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_call(client, input, out);
+}
+
+wf_status wf_ozone_schedule_action(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_schedule_action_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_schedule_action_main_call(client, input, out);
+}
+
+wf_status wf_ozone_list_scheduled_actions(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_list_scheduled_actions_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_list_scheduled_actions_main_call(client, input, out);
+}
+
+wf_status wf_ozone_list_scheduled_actions_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Queue --------------------------------------------------------- */
+
+wf_status wf_ozone_queue_assign_moderator(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_assign_moderator_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_assign_moderator_main_call(client, input, out);
+}
+
+wf_status wf_ozone_queue_create_queue(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_create_queue_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_create_queue_main_call(client, input, out);
+}
+
+wf_status wf_ozone_queue_create_queue_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_queue_create_queue_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_create_queue_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_queue_delete_queue(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_delete_queue_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_delete_queue_main_call(client, input, out);
+}
+
+wf_status wf_ozone_queue_delete_queue_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_queue_delete_queue_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_delete_queue_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_queue_get_assignments(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_get_assignments_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_get_assignments_main_call(client, params, out);
+}
+
+wf_status wf_ozone_queue_get_assignments_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_queue_get_assignments_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_get_assignments_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_queue_list_queues(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_list_queues_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_list_queues_main_call(client, params, out);
+}
+
+wf_status wf_ozone_queue_list_queues_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_queue_list_queues_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_list_queues_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_queue_route_reports(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_route_reports_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_route_reports_main_call(client, input, out);
+}
+
+wf_status wf_ozone_queue_route_reports_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_queue_route_reports_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_route_reports_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_queue_unassign_moderator(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_unassign_moderator_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_unassign_moderator_main_call(client, input, out);
+}
+
+wf_status wf_ozone_queue_update_queue(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_queue_update_queue_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_update_queue_main_call(client, input, out);
+}
+
+wf_status wf_ozone_queue_update_queue_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_queue_update_queue_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_queue_update_queue_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Report -------------------------------------------------------- */
+
+wf_status wf_ozone_report_assign_moderator(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_assign_moderator_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_assign_moderator_main_call(client, input, out);
+}
+
+wf_status wf_ozone_report_create_activity(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_create_activity_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_create_activity_main_call(client, input, out);
+}
+
+wf_status wf_ozone_report_create_activity_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_create_activity_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_create_activity_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_get_assignments(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_get_assignments_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_assignments_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_get_assignments_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_get_assignments_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_assignments_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_get_historical_stats(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_get_historical_stats_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_historical_stats_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_get_historical_stats_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_get_historical_stats_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_historical_stats_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_get_latest_report(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_get_latest_report_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_latest_report_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_get_latest_report_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_get_latest_report_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_latest_report_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_get_live_stats(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_get_live_stats_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_live_stats_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_get_live_stats_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_get_live_stats_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_live_stats_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_get_report(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_get_report_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_get_report_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_list_activities(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_list_activities_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_list_activities_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_list_activities_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_list_activities_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_list_activities_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_query_activities(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_query_activities_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_query_activities_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_query_activities_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_query_activities_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_query_activities_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_query_reports(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_query_reports_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_query_reports_main_call(client, params, out);
+}
+
+wf_status wf_ozone_report_query_reports_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_query_reports_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_query_reports_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_reassign_queue(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_reassign_queue_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_reassign_queue_main_call(client, input, out);
+}
+
+wf_status wf_ozone_report_reassign_queue_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_reassign_queue_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_reassign_queue_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_refresh_stats(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_refresh_stats_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_refresh_stats_main_call(client, input, out);
+}
+
+wf_status wf_ozone_report_refresh_stats_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_report_refresh_stats_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_refresh_stats_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_report_unassign_moderator(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_unassign_moderator_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_report_unassign_moderator_main_call(client, input, out);
+}
+
+/* --- Team ---------------------------------------------------------- */
+
+wf_status wf_ozone_team_add_member(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_team_add_member_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_team_add_member_main_call(client, input, out);
+}
+
+wf_status wf_ozone_team_delete_member(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_team_delete_member_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_team_delete_member_main_call(client, input, out);
+}
+
+wf_status wf_ozone_team_list_members(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_team_list_members_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_team_list_members_main_call(client, params, out);
+}
+
+wf_status wf_ozone_team_list_members_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_team_list_members_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_team_list_members_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_team_update_member(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_team_update_member_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_team_update_member_main_call(client, input, out);
+}
+
+/* --- Verification -------------------------------------------------- */
+
+wf_status wf_ozone_verification_grant(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_verification_grant_verifications_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_verification_grant_verifications_main_call(client, input, out);
+}
+
+wf_status wf_ozone_verification_grant_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_verification_grant_verifications_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_verification_grant_verifications_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_verification_list(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_verification_list_verifications_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_verification_list_verifications_main_call(client, params, out);
+}
+
+wf_status wf_ozone_verification_list_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_verification_list_verifications_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_verification_list_verifications_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_verification_revoke(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_verification_revoke_verifications_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_verification_revoke_verifications_main_call(client, input, out);
+}
+
+wf_status wf_ozone_verification_revoke_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_verification_revoke_verifications_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_verification_revoke_verifications_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Signature ----------------------------------------------------- */
+
+wf_status wf_ozone_signature_find_correlation(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_signature_find_correlation_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_signature_find_correlation_main_call(client, params, out);
+}
+
+wf_status wf_ozone_signature_find_correlation_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_signature_find_correlation_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_signature_find_correlation_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_signature_find_related_accounts(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_signature_find_related_accounts_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_signature_find_related_accounts_main_call(client, params, out);
+}
+
+wf_status wf_ozone_signature_find_related_accounts_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_signature_find_related_accounts_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_signature_find_related_accounts_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_signature_search_accounts(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_signature_search_accounts_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_signature_search_accounts_main_call(client, params, out);
+}
+
+wf_status wf_ozone_signature_search_accounts_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_signature_search_accounts_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_signature_search_accounts_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Setting ------------------------------------------------------- */
+
+wf_status wf_ozone_setting_list_options(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_setting_list_options_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_setting_list_options_main_call(client, params, out);
+}
+
+wf_status wf_ozone_setting_list_options_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_setting_list_options_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_setting_list_options_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_setting_remove_options(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_setting_remove_options_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_setting_remove_options_main_call(client, input, out);
+}
+
+wf_status wf_ozone_setting_remove_options_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_setting_remove_options_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_setting_remove_options_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_setting_upsert_option(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_setting_upsert_option_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_setting_upsert_option_main_call(client, input, out);
+}
+
+wf_status wf_ozone_setting_upsert_option_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_setting_upsert_option_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_setting_upsert_option_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Hosting ------------------------------------------------------- */
+
+wf_status wf_ozone_hosting_get_account_history(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_hosting_get_account_history_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_hosting_get_account_history_main_call(client, params, out);
+}
+
+wf_status wf_ozone_hosting_get_account_history_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_hosting_get_account_history_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_hosting_get_account_history_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Server -------------------------------------------------------- */
+
+wf_status wf_ozone_server_get_config(
+    wf_xrpc_client *client,
+    wf_response *out) {
+    if (!client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_server_get_config_main_call(client, out);
+}
+
+wf_status wf_ozone_server_get_config_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_server_get_config_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_server_get_config_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+/* --- Safelink ------------------------------------------------------ */
+
+wf_status wf_ozone_safelink_add_rule(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_safelink_add_rule_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_add_rule_main_call(client, input, out);
+}
+
+wf_status wf_ozone_safelink_query_events(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_safelink_query_events_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_query_events_main_call(client, input, out);
+}
+
+wf_status wf_ozone_safelink_query_events_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_safelink_query_events_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_query_events_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_safelink_query_rules(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_safelink_query_rules_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_query_rules_main_call(client, input, out);
+}
+
+wf_status wf_ozone_safelink_query_rules_parse(
+    const wf_response *resp,
+    wf_lex_tools_ozone_safelink_query_rules_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_query_rules_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_ozone_safelink_remove_rule(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_safelink_remove_rule_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_remove_rule_main_call(client, input, out);
+}
+
+wf_status wf_ozone_safelink_update_rule(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_safelink_update_rule_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_tools_ozone_safelink_update_rule_main_call(client, input, out);
+}
