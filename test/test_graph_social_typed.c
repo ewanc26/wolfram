@@ -82,6 +82,16 @@ static cJSON *make_starter_pack_view(const char *uri, const char *name) {
     return sp;
 }
 
+static cJSON *make_list_item_view(const char *uri, const char *subject_did,
+                                  const char *subject_handle) {
+    cJSON *li = cJSON_CreateObject();
+    cJSON_AddStringToObject(li, "uri", uri);
+    cJSON_AddItemToObject(
+        li, "subject",
+        make_profile_view(subject_did, subject_handle, "Member", NULL));
+    return li;
+}
+
 int main(void) {
     wf_agent *agent = wf_agent_new("https://example.com");
     WF_CHECK(agent != NULL);
@@ -258,6 +268,92 @@ int main(void) {
         free(json);
     }
 
+    /* ---- getListsWithMembership (wf_graph_list_membership_list) ---- */
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON *arr = cJSON_AddArrayToObject(root, "listsWithMembership");
+        cJSON *e0 = cJSON_CreateObject();
+        cJSON_AddItemToObject(e0, "list",
+                              make_list_view("at://x/lwm/1", "Joined List",
+                                             "curatelist"));
+        cJSON_AddItemToObject(
+            e0, "listItem",
+            make_list_item_view("at://x/lwm/1/item/9", "did:plc:me",
+                                 "me.example.com"));
+        cJSON_AddItemToArray(arr, e0);
+        cJSON *e1 = cJSON_CreateObject();
+        cJSON_AddItemToObject(e1, "list",
+                              make_list_view("at://x/lwm/2", "Other List",
+                                             "modlist"));
+        cJSON_AddItemToArray(arr, e1);
+        cJSON_AddStringToObject(root, "cursor", "lwm-cursor-7");
+        size_t len = 0;
+        char *json = json_string(root, &len);
+        cJSON_Delete(root);
+        WF_CHECK(json != NULL);
+
+        wf_graph_list_membership_list lm = {0};
+        WF_CHECK(wf_graph_parse_list_memberships(json, len, &lm) == WF_OK);
+        WF_CHECK(lm.membership_count == 2);
+        WF_CHECK(lm.cursor && strcmp(lm.cursor, "lwm-cursor-7") == 0);
+        if (lm.membership_count == 2) {
+            WF_CHECK(lm.memberships[0].list.uri &&
+                     strcmp(lm.memberships[0].list.uri,
+                            "at://x/lwm/1") == 0);
+            WF_CHECK(lm.memberships[0].has_list_item &&
+                     lm.memberships[0].list_item.uri &&
+                     strcmp(lm.memberships[0].list_item.uri,
+                            "at://x/lwm/1/item/9") == 0);
+            WF_CHECK(lm.memberships[0].list_item.subject.did &&
+                     strcmp(lm.memberships[0].list_item.subject.did,
+                            "did:plc:me") == 0);
+            WF_CHECK(!lm.memberships[1].has_list_item);
+            WF_CHECK(lm.memberships[1].list.name &&
+                     strcmp(lm.memberships[1].list.name, "Other List") == 0);
+        }
+        wf_graph_list_membership_list_free(&lm);
+        free(json);
+    }
+
+    /* ---- getStarterPacksWithMembership
+     * (wf_graph_starter_pack_membership_list) ---- */
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON *arr = cJSON_AddArrayToObject(root, "starterPacksWithMembership");
+        cJSON *e0 = cJSON_CreateObject();
+        cJSON_AddItemToObject(
+            e0, "starterPack",
+            make_starter_pack_view("at://x/spwm/1", "Pack Alpha"));
+        cJSON_AddItemToObject(
+            e0, "listItem",
+            make_list_item_view("at://x/spwm/1/item/3", "did:plc:mem",
+                                 "mem.example.com"));
+        cJSON_AddItemToArray(arr, e0);
+        size_t len = 0;
+        char *json = json_string(root, &len);
+        cJSON_Delete(root);
+        WF_CHECK(json != NULL);
+
+        wf_graph_starter_pack_membership_list sm = {0};
+        WF_CHECK(wf_graph_parse_starter_pack_memberships(json, len, &sm) ==
+                 WF_OK);
+        WF_CHECK(sm.membership_count == 1);
+        if (sm.membership_count == 1) {
+            WF_CHECK(sm.memberships[0].starter_pack.uri &&
+                     strcmp(sm.memberships[0].starter_pack.uri,
+                            "at://x/spwm/1") == 0);
+            WF_CHECK(sm.memberships[0].starter_pack.name &&
+                     strcmp(sm.memberships[0].starter_pack.name,
+                            "Pack Alpha") == 0);
+            WF_CHECK(sm.memberships[0].has_list_item &&
+                     sm.memberships[0].list_item.subject.did &&
+                     strcmp(sm.memberships[0].list_item.subject.did,
+                            "did:plc:mem") == 0);
+        }
+        wf_graph_starter_pack_membership_list_free(&sm);
+        free(json);
+    }
+
     /* ---- parser arg validation ---- */
     {
         wf_graph_list_view_list gv = {0};
@@ -277,6 +373,32 @@ int main(void) {
         wf_graph_list_view_list gv = {0};
         wf_graph_starter_pack_view_list spl = {0};
         wf_graph_starter_pack_view spv = {0};
+        wf_graph_list_membership_list lml = {0};
+        wf_graph_starter_pack_membership_list spml = {0};
+
+        WF_CHECK(wf_graph_parse_list_memberships(NULL, 0, &lml) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_graph_parse_starter_pack_memberships(NULL, 0, &spml) ==
+                 WF_ERR_INVALID_ARG);
+
+        WF_CHECK(wf_agent_get_lists_with_membership_typed(NULL, "did:plc:x", 10,
+                                                         NULL, &lml) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_lists_with_membership_typed(agent, NULL, 10, NULL,
+                                                         &lml) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_lists_with_membership_typed(agent, "not a did",
+                                                         10, NULL, &lml) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_lists_with_membership_typed(agent, "did:plc:x", 10,
+                                                         NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_starter_packs_with_membership_typed(
+                     NULL, "did:plc:x", 10, NULL, &spml) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_starter_packs_with_membership_typed(
+                     agent, NULL, 10, NULL, &spml) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_starter_packs_with_membership_typed(
+                     agent, "bad", 10, NULL, &spml) == WF_ERR_INVALID_ARG);
 
         WF_CHECK(wf_agent_get_list_mutes_typed(NULL, 10, NULL, &gv) ==
                  WF_ERR_INVALID_ARG);
@@ -322,6 +444,8 @@ int main(void) {
         wf_graph_list_view_list_free(&gv);
         wf_graph_starter_pack_view_list_free(&spl);
         wf_graph_starter_pack_view_free(&spv);
+        wf_graph_list_membership_list_free(&lml);
+        wf_graph_starter_pack_membership_list_free(&spml);
     }
 
     wf_agent_free(agent);
