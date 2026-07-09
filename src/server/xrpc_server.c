@@ -236,12 +236,33 @@ struct wf_xrpc_server {
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
     wf_rate_limiter     *rate_limiter;        /* global IP-based limiter */
+    wf_rate_limiter     *rate_limiter_owned;  /* non-NULL => server frees it */
     wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
     wf_xrpc_sse_stream  *sse_streams;          /* open SSE connections */
     pthread_mutex_t      sse_mutex;            /* guards sse_streams */
     wf_xrpc_ws_stream   *ws_streams;           /* open WebSocket connections */
     pthread_mutex_t      ws_mutex;             /* guards ws_streams */
+    bool                 cors_enabled;          /* emit CORS headers when true */
+    char                *cors_origin;           /* owned Allow-Origin value */
 };
+
+/* Apply the server's CORS policy to an outgoing MHD response (no-op when
+ * CORS is disabled). Falls back to "*" when no origin was configured. */
+static void wf_server_apply_cors(wf_xrpc_server *server,
+                                  struct MHD_Response *resp) {
+    const char *origin;
+    if (!server || !server->cors_enabled) {
+        return;
+    }
+    origin = server->cors_origin ? server->cors_origin : "*";
+    MHD_add_response_header(resp, "Access-Control-Allow-Origin", origin);
+    MHD_add_response_header(resp, "Access-Control-Allow-Headers",
+                             "Authorization, Content-Type");
+    MHD_add_response_header(resp, "Access-Control-Allow-Methods",
+                             "GET, POST, OPTIONS");
+    MHD_add_response_header(resp, "Access-Control-Expose-Headers",
+                             "Content-Type");
+}
 
 /* ------------------------------------------------------------------ */
 /* Server-Sent Events (SSE) streaming                                  */
@@ -1321,13 +1342,7 @@ send:
     } else {
         MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
     }
-    MHD_add_response_header(mhd_resp, "Access-Control-Allow-Origin", "*");
-    MHD_add_response_header(mhd_resp, "Access-Control-Allow-Headers",
-                             "Authorization, Content-Type");
-    MHD_add_response_header(mhd_resp, "Access-Control-Allow-Methods",
-                             "GET, POST, OPTIONS");
-    MHD_add_response_header(mhd_resp, "Access-Control-Expose-Headers",
-                             "Content-Type");
+    wf_server_apply_cors(server, mhd_resp);
 
     ret = MHD_queue_response(conn, resp.http_status, mhd_resp);
     MHD_destroy_response(mhd_resp);
@@ -1414,7 +1429,7 @@ static enum MHD_Result wf_server_mhd_options(void *cls,
                                               const char *upload_data,
                                               size_t *upload_data_size,
                                               void **con_cls) {
-    (void)cls;
+    wf_xrpc_server *server = (wf_xrpc_server *)cls;
     (void)url;
     (void)method;
     (void)version;
@@ -1428,11 +1443,7 @@ static enum MHD_Result wf_server_mhd_options(void *cls,
     if (!resp) {
         return MHD_NO;
     }
-    MHD_add_response_header(resp, "Access-Control-Allow-Origin", "*");
-    MHD_add_response_header(resp, "Access-Control-Allow-Headers",
-                             "Authorization, Content-Type");
-    MHD_add_response_header(resp, "Access-Control-Allow-Methods",
-                             "GET, POST, OPTIONS");
+    wf_server_apply_cors(server, resp);
     MHD_add_response_header(resp, "Access-Control-Max-Age", "86400");
     ret = MHD_queue_response(conn, 204, resp);
     MHD_destroy_response(resp);
@@ -1457,6 +1468,8 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
     server->port = port;
     server->sse_streams = NULL;
     server->ws_streams = NULL;
+    server->cors_enabled = true;
+    server->cors_origin = (char *)strdup("*"); /* NULL falls back to "*" */
     if (pthread_mutex_init(&server->sse_mutex, NULL) != 0) {
         free(server);
         return NULL;
@@ -1567,6 +1580,10 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     }
     pthread_mutex_destroy(&server->sse_mutex);
     pthread_mutex_destroy(&server->ws_mutex);
+    free(server->cors_origin);
+    if (server->rate_limiter_owned) {
+        wf_rate_limiter_free(server->rate_limiter_owned);
+    }
     free(server);
 }
 
@@ -1660,6 +1677,16 @@ wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
     return WF_OK;
 }
 
+void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
+                              const char *origin) {
+    if (!server) {
+        return;
+    }
+    server->cors_enabled = enabled;
+    free(server->cors_origin);
+    server->cors_origin = (origin && origin[0]) ? strdup(origin) : NULL;
+}
+
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
                                        wf_xrpc_auth_cb cb, void *ctx) {
     if (!server) {
@@ -1725,9 +1752,27 @@ void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
    server: the caller retains ownership and is responsible for freeing it
    (typically after the server is destroyed). Passing NULL detaches it. */
 void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
-                                     wf_rate_limiter *rl) {
+                                      wf_rate_limiter *rl) {
     if (!server) {
         return;
     }
+    server->rate_limiter = rl;
+}
+
+/**
+ * Attach an owned global rate limiter. Unlike wf_xrpc_server_set_rate_limiter
+ * (which borrows), the server takes ownership and frees it in
+ * wf_xrpc_server_free. Passing NULL is a no-op.
+ */
+void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
+                                            wf_rate_limiter *rl) {
+    if (!server || !rl) {
+        return;
+    }
+    if (server->rate_limiter_owned &&
+        server->rate_limiter_owned != rl) {
+        wf_rate_limiter_free(server->rate_limiter_owned);
+    }
+    server->rate_limiter_owned = rl;
     server->rate_limiter = rl;
 }

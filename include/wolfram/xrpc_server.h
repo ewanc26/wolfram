@@ -21,6 +21,7 @@
 
 #include "wolfram/xrpc.h"
 #include <cJSON.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <time.h>
@@ -320,7 +321,15 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
  * 1 token against the client's IP address before the auth callback.
  * Passing NULL removes the rate limiter. */
 void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
-                                      wf_rate_limiter *rl);
+                                       wf_rate_limiter *rl);
+
+/**
+ * Attach a rate limiter the server owns. Unlike wf_xrpc_server_set_rate_limiter
+ * (which borrows the handle), the server frees it in wf_xrpc_server_free.
+ * Passing NULL is a no-op. Primarily used by wf_xrpc_server_new_with_config.
+ */
+void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
+                                             wf_rate_limiter *rl);
 
 /* Attach a per-route rate limiter. Requests to this exact method/nsid
  * will be charged `rl` tokens (defaults to IP-based limiter if none set).
@@ -330,9 +339,113 @@ void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
  * full URL path as it appears in the request (e.g. "/xrpc/io.example.ping").
  */
 void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
-                                           const char *method,
-                                           const char *url,
-                                           wf_rate_limiter *rl);
+                                            const char *method,
+                                            const char *url,
+                                            wf_rate_limiter *rl);
+
+/* ------------------------------------------------------------------ */
+/* CORS configuration                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Enable/disable CORS and set the allowed origin returned in
+ * `Access-Control-Allow-Origin`.
+ *
+ * When `enabled` is false, no CORS headers are emitted. When true, the
+ * origin is taken from `origin` (which may be "*", a single origin, or NULL
+ * to fall back to "*"). The server takes a copy of `origin`.
+ */
+void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
+                              const char *origin);
+
+/* ------------------------------------------------------------------ */
+/* JSON configuration loader                                            */
+/* ------------------------------------------------------------------ */
+
+/** Method discriminator for a configured route entry. */
+typedef enum {
+    WF_XRPC_CONFIG_METHOD_QUERY = 0,
+    WF_XRPC_CONFIG_METHOD_PROCEDURE = 1,
+} wf_xrpc_server_config_method;
+
+/** A single configured route entry: NSID + method. */
+typedef struct wf_xrpc_server_config_route {
+    char *nsid;   /* owned; e.g. "io.example.ping" */
+    int    method; /* wf_xrpc_server_config_method */
+} wf_xrpc_server_config_route;
+
+/**
+ * Owned XRPC server configuration, parsed from JSON.
+ *
+ * Ownership: produced by wf_xrpc_server_config_parse and freed with
+ * wf_xrpc_server_config_free. All string members are owned copies.
+ *
+ * Defaults (applied when the corresponding field is absent or invalid):
+ *   - host            "0.0.0.0"
+ *   - port            8080
+ *   - cors_enabled    true
+ *   - cors_origin     "*"
+ *   - rate_limit      disabled (max_tokens == 0 || refill_per_second == 0)
+ *   - routes          empty
+ *
+ * The JSON schema is:
+ * {
+ *   "host": "0.0.0.0",
+ *   "port": 8080,
+ *   "cors": { "enabled": true, "allowed_origin": "*" },
+ *   "rate_limit": { "max_tokens": 100, "refill_per_second": 10 },
+ *   "routes": [ { "nsid": "io.example.ping", "method": "query" } ]
+ * }
+ *
+ * Unknown/extra fields are ignored. Malformed JSON returns WF_ERR_CONFIG.
+ */
+typedef struct wf_xrpc_server_config {
+    char    *host;               /* owned; default "0.0.0.0" */
+    uint16_t port;               /* default 8080 */
+    bool     cors_enabled;       /* default true */
+    char    *cors_origin;        /* owned; default "*" */
+    struct {
+        unsigned int max_tokens;        /* burst capacity; 0 disables */
+        unsigned int refill_per_second; /* tokens refilled per second */
+    } rate_limit;
+    wf_xrpc_server_config_route *routes; /* owned array; route_count entries */
+    size_t route_count;
+} wf_xrpc_server_config;
+
+/**
+ * Parse an XRPC server config from a JSON buffer of `len` bytes.
+ *
+ * @param json  NUL-terminated-or-not JSON text (len bytes parsed exactly).
+ * @param len   Number of bytes in `json`.
+ * @param out   On WF_OK, set to a newly allocated config (free with
+ *              wf_xrpc_server_config_free). Set to NULL on error.
+ * @return WF_OK on success, WF_ERR_CONFIG on malformed JSON,
+ *         WF_ERR_ALLOC on allocation failure, WF_ERR_INVALID_ARG on NULL
+ *         inputs. On any error *out is NULL and nothing is leaked.
+ */
+wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
+                                       wf_xrpc_server_config **out);
+
+/** Free a config produced by wf_xrpc_server_config_parse. NULL-safe. */
+void wf_xrpc_server_config_free(wf_xrpc_server_config *cfg);
+
+/**
+ * Create and start an XRPC server from a parsed config.
+ *
+ * Applies the configured host/port, CORS settings, and (if enabled) a global
+ * per-IP token-bucket rate limiter derived from `rate_limit`. Each configured
+ * route is registered with a built-in echo handler (it replies 200 with the
+ * NSID/method and a copy of the request params/body) so the server is
+ * immediately usable for smoke testing. Callers that need real handlers should
+ * additionally register them with wf_xrpc_server_register_query/procedure.
+ *
+ * @param cfg  Parsed config (must not be NULL).
+ * @param out  On WF_OK, set to a started server (free with
+ *             wf_xrpc_server_free). NULL on error.
+ * @return WF_OK, WF_ERR_INVALID_ARG, or WF_ERR_INTERNAL on start failure.
+ */
+wf_status wf_xrpc_server_new_with_config(const wf_xrpc_server_config *cfg,
+                                         wf_xrpc_server **out);
 
 #ifdef __cplusplus
 }
