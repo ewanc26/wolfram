@@ -27,6 +27,7 @@ Agentic principles and technical context for the `wolfram` repository.
 - Regenerate lexicons after editing `lexicons/**/*.json` or `tools/wf_lexgen.py`:
   `python3 tools/wf_lexgen.py $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h`
 - Optional modules are gated by CMake options: `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server + SSE), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption of session credentials).
+- Companion-language bindings (C++ `wolfram-cpp`, C# `Wolfram.Interop`) are separate consumer layers that link `libwolfram`; the C11 core stays the single source of truth. Conventions: `docs/bindings-cpp-csharp.md`.
 - When picking this back up cold, read the `## Roadmap` section of README.md and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
 - Before changing protocol behavior, inspect `/Volumes/Storage/Developer/Local/atproto` and then verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
