@@ -1062,3 +1062,521 @@ wf_status wf_agent_search_starter_packs_typed(
     wf_response_free(&res);
     return status;
 }
+
+/* ================================================================== */
+/* Unspecced — generated XRPC-level convenience wrappers              */
+/* ================================================================== */
+
+wf_status wf_unspecced_get_onboarding_suggested_users_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_onboarding_suggested_users_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_popular_feed_generators(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_popular_feed_generators_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_post_thread_other_v2(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_post_thread_other_v2_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_post_thread_v2(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_post_thread_v2_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_post_thread_v2_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_post_thread_v2_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_feeds(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_feeds_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_feeds_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_feeds_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_feeds_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_feeds_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_onboarding_users(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_onboarding_users_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_starter_packs(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_starter_packs_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_starter_packs_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_starter_packs_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_discover(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_discover_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_discover_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_discover_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_explore(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_explore_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_explore_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_explore_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_see_more(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_see_more_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_suggested_users_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_trends(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_trends_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_trends_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_trends_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_trends_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_trends_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_get_trends_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_get_trends_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_trends_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_get_trends_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_init_age_assurance(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_init_age_assurance_main_input *input,
+    wf_response *out) {
+    if (!client || !input || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_init_age_assurance_main_call(client, input, out);
+}
+
+wf_status wf_unspecced_search_actors_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_search_actors_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_search_actors_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_search_actors_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}
+
+wf_status wf_unspecced_search_posts_skeleton(
+    wf_xrpc_client *client,
+    const wf_lex_app_bsky_unspecced_search_posts_skeleton_main_params *params,
+    wf_response *out) {
+    if (!client || !params || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_search_posts_skeleton_main_call(client, params, out);
+}
+
+wf_status wf_unspecced_search_posts_skeleton_parse(
+    const wf_response *resp,
+    wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output **out) {
+    if (!resp || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!resp->body) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output_decode_json(
+        resp->body, resp->body_len, out);
+}

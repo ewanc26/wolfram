@@ -20,7 +20,7 @@ specific family of responses into owned structs freed by a matching `_free`:
 - **Graph** — `graph_typed.h` (follows, followers, profiles, search, reposts, likes)
 - **Embed** — `embed_typed.h` (build owned image / video / record / external embeds)
 - **Notification** — `agent.h` + `notification` parsers (`wf_agent_list_notifications_typed`)
-- **Unspecced** (NEW) — `unspecced_typed.h` (trending topics, tagged/suggestions skeletons, config, age assurance, onboarding starter packs, starter-pack search). See [unspecced.md](unspecced.md).
+- **Unspecced** — `unspecced_typed.h` (full coverage: 8 agent-level wrappers with custom cJSON parsers + 22 XRPC-level wrappers using generated atproto_lex.h types). See [unspecced.md](unspecced.md).
 - **Chat** — `chat_typed.h` (conversation / message views)
 - **Moderation** — `moderation_typed.h` (label / moderation detail views)
 - **Feed generator** — `feedgen_typed.h` (feed generator / skeleton parsing)
