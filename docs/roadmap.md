@@ -176,7 +176,7 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     `wf_xrpc_server_stop` / `wf_xrpc_server_free` so teardown never hangs.
     Tested by `test_xrpc_server_sse` (streaming + single-shot, clean teardown).
 
-48. Graph write wrappers (`graph_write.c` / `graph_write.h`) — agent-level
+ 50. Graph write wrappers (`graph_write.c` / `graph_write.h`) — agent-level
     write helpers for the app.bsky.graph lexicon: `wf_agent_graph_*`
     for mute/unmute thread and actor-list procedures, and record-backed
     writes (block/unblock, list create/update/delete, listitem
@@ -187,7 +187,7 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     Tested end-to-end against an offline mock PDS (asserting returned
     uri/cid and the exact request payloads). Tested.
 
-48. `app.bsky.video` typed wrappers (`video_typed.h`) — owning parsers for the
+ 51. `app.bsky.video` typed wrappers (`video_typed.h`) — owning parsers for the
     `getJobStatus` and `uploadVideo` jobStatus envelopes, the `getUploadLimits`
     output, and the shared `app.bsky.video.defs#jobStatus` blob-bearing object
     (unknown fields preserved in owned `extra`); builders for the defs and upload
@@ -200,8 +200,12 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Continue evaluating upstream C libraries for server-side infrastructure
-  (event poll/event loop, config parsing, rate limiting).
-- Explore per-route rate limiters (different limits for different XRPC methods).
+  (event loop, config parsing).
+- Consider WebSocket subscription endpoints served from the XRPC server (e.g.
+  `com.atproto.sync.subscribeRepos` / `com.atproto.label.subscribeLabels`
+  relays), building on the SSE streaming transport.
+- Broaden generated typed-wrapper coverage for any remaining lexicon endpoints
+  not yet wrapped at the agent level.
 
 ## Dependencies
 
