@@ -127,6 +127,7 @@ add_library(wolfram
     src/agent/list_typed.c
     src/agent/moderation_typed.c
     src/notification_typed.c
+    src/repo_typed.c
     src/ageassurance_typed.c
     src/agent/feedgen_typed.c
     src/agent/feed_gen_typed.c
@@ -873,6 +874,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_notification_typed PRIVATE test ${cjson_SOURCE_DIR})
     target_compile_definitions(test_notification_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME notification_typed COMMAND test_notification_typed)
+
+    add_executable(test_repo_typed test/test_repo_typed.c)
+    target_link_libraries(test_repo_typed PRIVATE wolfram)
+    target_include_directories(test_repo_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_repo_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME repo_typed COMMAND test_repo_typed)
 
     add_executable(test_chat_write test/test_chat_write.c)
     target_link_libraries(test_chat_write PRIVATE wolfram)
