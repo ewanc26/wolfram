@@ -1273,3 +1273,8 @@ wf_status wf_agent_unblock(wf_agent *agent, const char *block_uri) {
         wf_syntax_aturi_free(&parsed);
         return status;
 }
+
+wf_status wf_agent_delete_record(wf_agent *agent, const char *collection,
+                                  const char *rkey) {
+    return wf_agent_delete_record_call(agent, collection, rkey);
+}

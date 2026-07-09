@@ -102,8 +102,10 @@ wf_status wf_agent_quote_with_media(wf_agent *agent, const char *text,
 wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
                                const char *rkey, wf_response *out);
 wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
-                               const char *rkey, const char *record_json,
-                               wf_agent_post_result *out);
+                                const char *rkey, const char *record_json,
+                                wf_agent_post_result *out);
+wf_status wf_agent_delete_record(wf_agent *agent, const char *collection,
+                                 const char *rkey);
 wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
                                  int limit, const char *cursor,
                                  wf_response *out);

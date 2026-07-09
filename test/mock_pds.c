@@ -9,6 +9,7 @@
 #include "mock_pds.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,12 +20,23 @@ struct wf_mock_pds_entry {
     char *json;
 };
 
+/* Per-connection upload accumulator (only used for POST/PUT bodies). */
+struct wf_mock_pds_upload {
+    char *body;
+    size_t len;
+    size_t cap;
+};
+
 struct wf_mock_pds {
     struct MHD_Daemon *daemon;
     int port;
     struct wf_mock_pds_entry *entries;
     size_t count;
     size_t cap;
+    /* Most-recent request (borrowed until the next request / free). */
+    char *last_nsid;
+    char *last_method;
+    char *last_body;
 };
 
 static const char *const MOCK_NOT_FOUND_BODY =
@@ -50,17 +62,47 @@ mock_handler(void *cls,
              void **con_cls)
 {
     (void)version;
-    (void)upload_data;
-    (void)con_cls;
+    (void)connection;
 
     wf_mock_pds *pds = (wf_mock_pds *)cls;
 
-    /* For POST/PUT the transport hands us the request body in chunks. Drain
-     * it so MHD can advance to the response phase. */
+    /* First call per connection: allocate per-connection upload state and tell
+     * MHD to keep streaming the body (return YES with no response yet). */
+    if (*con_cls == NULL) {
+        struct wf_mock_pds_upload *st =
+            (struct wf_mock_pds_upload *)calloc(1, sizeof(*st));
+        if (st == NULL) {
+            return MHD_NO;
+        }
+        *con_cls = st;
+        return MHD_YES;
+    }
+
+    struct wf_mock_pds_upload *st = (struct wf_mock_pds_upload *)*con_cls;
+
+    /* For POST/PUT the transport streams the request body in chunks. Accumulate
+     * it so we can surface it to tests, then drain it so MHD advances. */
     if (strcmp(method, "GET") != 0 && *upload_data_size != 0) {
+        if (st->len + *upload_data_size + 1 > st->cap) {
+            size_t ncap = st->cap == 0 ? 256 : st->cap * 2;
+            while (ncap < st->len + *upload_data_size + 1) {
+                ncap *= 2;
+            }
+            char *nb = (char *)realloc(st->body, ncap);
+            if (nb == NULL) {
+                return MHD_NO;
+            }
+            st->body = nb;
+            st->cap = ncap;
+        }
+        memcpy(st->body + st->len, upload_data, *upload_data_size);
+        st->len += *upload_data_size;
+        st->body[st->len] = '\0';
         *upload_data_size = 0;
         return MHD_YES;
     }
+
+    /* upload_data_size == 0: body fully read (or a GET / bodyless request). */
 
     const char *body = NULL;
     unsigned int status = MHD_HTTP_OK;
@@ -73,6 +115,22 @@ mock_handler(void *cls,
     if (body == NULL) {
         status = MHD_HTTP_NOT_FOUND;
         body = MOCK_NOT_FOUND_BODY;
+    }
+
+    /* Capture the request for test assertions (replace any previous one). */
+    free(pds->last_nsid);
+    free(pds->last_method);
+    free(pds->last_body);
+    pds->last_nsid = strdup(nsid);
+    pds->last_method = strdup(method);
+    if (*con_cls != NULL) {
+        struct wf_mock_pds_upload *st = (struct wf_mock_pds_upload *)*con_cls;
+        pds->last_body = st->len > 0 ? strdup(st->body) : NULL;
+        free(st->body);
+        free(st);
+        *con_cls = NULL;
+    } else {
+        pds->last_body = NULL;
     }
 
     struct MHD_Response *resp = MHD_create_response_from_buffer(
@@ -190,5 +248,22 @@ void wf_mock_pds_free(wf_mock_pds *pds) {
         free(pds->entries[i].json);
     }
     free(pds->entries);
+    free(pds->last_nsid);
+    free(pds->last_method);
+    free(pds->last_body);
     free(pds);
+}
+
+wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds,
+                                        const char **nsid,
+                                        const char **method,
+                                        const char **body) {
+    if (pds == NULL || nsid == NULL || method == NULL || body == NULL) {
+        return WF_ERR_INVALID_ARG;
+    }
+    /* When no request has been served yet, all out-params are set to NULL. */
+    *nsid = pds->last_nsid;
+    *method = pds->last_method;
+    *body = pds->last_body;
+    return WF_OK;
 }

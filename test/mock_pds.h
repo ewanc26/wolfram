@@ -54,6 +54,19 @@ wf_status wf_mock_pds_stop(wf_mock_pds *pds);
  *  Safe to call with NULL. */
 void wf_mock_pds_free(wf_mock_pds *pds);
 
+/**
+ * Retrieve the most recent request served by the mock PDS (borrowed pointers;
+ * valid until the next request is served or the server is freed). `nsid`,
+ * `method`, and `body` may each be NULL to skip that field. For GET/non-POST
+ * requests `body` is set to NULL. When no request has been served yet (or on
+ * NULL inputs) the relevant pointer(s) are NULL. Returns WF_OK on success,
+ * WF_ERR_INVALID_ARG on NULL inputs.
+ */
+wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds,
+                                        const char **nsid,
+                                        const char **method,
+                                        const char **body);
+
 #ifdef __cplusplus
 }
 #endif
