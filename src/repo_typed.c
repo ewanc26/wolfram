@@ -16,6 +16,7 @@
 
 #include <cJSON.h>
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -894,5 +895,295 @@ wf_status wf_agent_apply_writes_typed(wf_agent *agent, const char *writes_json,
     } else {
         wf_repo_apply_writes_result_free(&result);
     }
+    return status;
+}
+
+/* ---- write record result (createRecord / putRecord) ---- */
+
+static void wf_repo_write_record_result_reset(wf_repo_write_record_result *r) {
+    if (!r) {
+        return;
+    }
+    free(r->uri);
+    free(r->cid);
+    if (r->extra) {
+        cJSON_Delete(r->extra);
+    }
+    memset(r, 0, sizeof(*r));
+}
+
+wf_status wf_repo_parse_write_record_result(const char *json, size_t json_len,
+                                            wf_repo_write_record_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *uri = cJSON_GetObjectItemCaseSensitive(root, "uri");
+    cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
+    if (cJSON_IsString(uri) && uri->valuestring) {
+        status = wf_repo_set_string(&out->uri, uri->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
+        status = wf_repo_set_string(&out->cid, cid->valuestring);
+    }
+
+    if (status == WF_OK) {
+        cJSON_DetachItemFromObject(root, "uri");
+        cJSON_DetachItemFromObject(root, "cid");
+        out->extra = root;
+    } else {
+        wf_repo_write_record_result_reset(out);
+        cJSON_Delete(root);
+    }
+    return status;
+}
+
+void wf_repo_write_record_result_free(wf_repo_write_record_result *r) {
+    if (!r) {
+        return;
+    }
+    wf_repo_write_record_result_reset(r);
+}
+
+/* ---- upload blob result ---- */
+
+static void wf_repo_upload_blob_result_reset(wf_repo_upload_blob_result *r) {
+    if (!r) {
+        return;
+    }
+    free(r->cid);
+    free(r->mime_type);
+    memset(r, 0, sizeof(*r));
+}
+
+wf_status wf_repo_parse_upload_blob_result(const char *json, size_t json_len,
+                                           wf_repo_upload_blob_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *blob = cJSON_GetObjectItemCaseSensitive(root, "blob");
+    if (!blob || !cJSON_IsObject(blob)) {
+        wf_repo_upload_blob_result_reset(out);
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    cJSON *cid = cJSON_GetObjectItemCaseSensitive(blob, "cid");
+    cJSON *mime = cJSON_GetObjectItemCaseSensitive(blob, "mimeType");
+    cJSON *size = cJSON_GetObjectItemCaseSensitive(blob, "size");
+    if (cJSON_IsString(cid) && cid->valuestring) {
+        status = wf_repo_set_string(&out->cid, cid->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(mime) && mime->valuestring) {
+        status = wf_repo_set_string(&out->mime_type, mime->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsNumber(size)) {
+        out->has_size = true;
+        out->size = (int64_t)size->valuedouble;
+    }
+
+    if (status != WF_OK) {
+        wf_repo_upload_blob_result_reset(out);
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_repo_upload_blob_result_free(wf_repo_upload_blob_result *r) {
+    if (!r) {
+        return;
+    }
+    wf_repo_upload_blob_result_reset(r);
+}
+
+/* ---- createRecord / putRecord / deleteRecord / uploadBlob / importRepo ---- */
+
+wf_status wf_agent_create_record_typed(wf_agent *agent, const char *repo,
+                                       const char *collection,
+                                       const char *rkey_or_null, int validate,
+                                       const char *record_json,
+                                       const char *swap_commit_or_null,
+                                       wf_repo_write_record_result *out) {
+    if (!agent || !agent->client || !repo || !repo[0] || !collection ||
+        !collection[0] || !record_json || !record_json[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_repo_write_record_result result = {0};
+    wf_lex_com_atproto_repo_create_record_main_input input = {0};
+    input.repo = repo;
+    input.collection = collection;
+    if (rkey_or_null && rkey_or_null[0]) {
+        input.has_rkey = true;
+        input.rkey = rkey_or_null;
+    }
+    if (validate >= 0) {
+        input.has_validate = true;
+        input.validate = (validate != 0);
+    }
+    input.record.data = record_json;
+    input.record.length = strlen(record_json);
+    if (swap_commit_or_null && swap_commit_or_null[0]) {
+        input.has_swap_commit = true;
+        input.swap_commit = swap_commit_or_null;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_repo_create_record_main_call(
+        agent->client, &input, &res);
+    if (status == WF_OK) {
+        status = wf_repo_parse_write_record_result(res.body, res.body_len,
+                                                   &result);
+    }
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = result;
+    } else {
+        wf_repo_write_record_result_free(&result);
+    }
+    return status;
+}
+
+wf_status wf_agent_put_record_typed(wf_agent *agent, const char *repo,
+                                    const char *collection, const char *rkey,
+                                    int validate, const char *record_json,
+                                    const char *swap_record_or_null,
+                                    const char *swap_commit_or_null,
+                                    wf_repo_write_record_result *out) {
+    if (!agent || !agent->client || !repo || !repo[0] || !collection ||
+        !collection[0] || !rkey || !rkey[0] || !record_json ||
+        !record_json[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_repo_write_record_result result = {0};
+    wf_lex_com_atproto_repo_put_record_main_input input = {0};
+    input.repo = repo;
+    input.collection = collection;
+    input.rkey = rkey;
+    if (validate >= 0) {
+        input.has_validate = true;
+        input.validate = (validate != 0);
+    }
+    input.record.data = record_json;
+    input.record.length = strlen(record_json);
+    if (swap_record_or_null && swap_record_or_null[0]) {
+        input.has_swap_record = true;
+        input.swap_record = swap_record_or_null;
+    }
+    if (swap_commit_or_null && swap_commit_or_null[0]) {
+        input.has_swap_commit = true;
+        input.swap_commit = swap_commit_or_null;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_repo_put_record_main_call(
+        agent->client, &input, &res);
+    if (status == WF_OK) {
+        status = wf_repo_parse_write_record_result(res.body, res.body_len,
+                                                   &result);
+    }
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = result;
+    } else {
+        wf_repo_write_record_result_free(&result);
+    }
+    return status;
+}
+
+wf_status wf_agent_delete_record_typed(wf_agent *agent, const char *repo,
+                                       const char *collection, const char *rkey,
+                                       const char *swap_record_or_null,
+                                       const char *swap_commit_or_null) {
+    if (!agent || !agent->client || !repo || !repo[0] || !collection ||
+        !collection[0] || !rkey || !rkey[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_com_atproto_repo_delete_record_main_input input = {0};
+    input.repo = repo;
+    input.collection = collection;
+    input.rkey = rkey;
+    if (swap_record_or_null && swap_record_or_null[0]) {
+        input.has_swap_record = true;
+        input.swap_record = swap_record_or_null;
+    }
+    if (swap_commit_or_null && swap_commit_or_null[0]) {
+        input.has_swap_commit = true;
+        input.swap_commit = swap_commit_or_null;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_com_atproto_repo_delete_record_main_call(
+        agent->client, &input, &res);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_upload_blob_typed(wf_agent *agent, const void *data,
+                                     size_t data_len, const char *content_type,
+                                     wf_repo_upload_blob_result *out) {
+    if (!agent || !agent->client || !data || data_len == 0 || !content_type ||
+        !content_type[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_repo_upload_blob_result result = {0};
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_xrpc_upload_blob(
+        agent->client, "com.atproto.repo.uploadBlob", data, data_len,
+        content_type, &res);
+    if (status == WF_OK) {
+        status = wf_repo_parse_upload_blob_result(res.body, res.body_len,
+                                                  &result);
+    }
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = result;
+    } else {
+        wf_repo_upload_blob_result_free(&result);
+    }
+    return status;
+}
+
+wf_status wf_agent_import_repo_typed(wf_agent *agent, const void *car,
+                                     size_t car_len) {
+    if (!agent || !agent->client || !car || car_len == 0) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_xrpc_upload_blob(
+        agent->client, "com.atproto.repo.importRepo", car, car_len,
+        "application/vnd.ipld.car", &res);
+    wf_response_free(&res);
     return status;
 }
