@@ -291,3 +291,140 @@ wf_status wf_agent_get_bookmarks_typed(wf_agent *agent, int limit,
     wf_response_free(&res);
     return status;
 }
+
+/* ── createBookmark / deleteBookmark output parsers ──
+ *
+ * Both procedures return an empty body on success; the owned results carry only
+ * an `ok` flag. Any valid JSON object (including `{}`) is accepted so the parser
+ * is tolerant of an empty body and of incidental extra fields. */
+
+wf_status wf_bookmark_create_parse(const char *json, size_t len,
+                                   wf_bookmark_create_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    /* An empty body (len == 0) is the success case for this procedure. */
+    if (len == 0) {
+        out->ok = true;
+        return WF_OK;
+    }
+
+    cJSON *root = cJSON_ParseWithLength(json, len);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    out->ok = true;
+    cJSON_Delete(root);
+    return WF_OK;
+}
+
+void wf_bookmark_create_result_free(wf_bookmark_create_result *out) {
+    if (out) {
+        memset(out, 0, sizeof(*out));
+    }
+}
+
+wf_status wf_bookmark_delete_parse(const char *json, size_t len,
+                                   wf_bookmark_delete_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    if (len == 0) {
+        out->ok = true;
+        return WF_OK;
+    }
+
+    cJSON *root = cJSON_ParseWithLength(json, len);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    out->ok = true;
+    cJSON_Delete(root);
+    return WF_OK;
+}
+
+void wf_bookmark_delete_result_free(wf_bookmark_delete_result *out) {
+    if (out) {
+        memset(out, 0, sizeof(*out));
+    }
+}
+
+/* ── createBookmark / deleteBookmark agent wrappers ── */
+
+wf_status wf_agent_bookmark_create_typed(wf_agent *agent, const char *uri,
+                                         wf_bookmark_create_result *out) {
+    if (out) {
+        memset(out, 0, sizeof(*out));
+    }
+    if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_syntax_aturi_free(&parsed);
+
+    /* createBookmark requires both `uri` and `cid` on the wire; the caller
+     * supplies only the at-uri, so resolve the cid via getRecord. */
+    char *cid = NULL;
+    wf_status status = wf_bookmark_resolve_cid(agent, uri, &cid);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    wf_lex_app_bsky_bookmark_create_bookmark_main_input input = {0};
+    input.uri = uri;
+    input.cid = cid;
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    status = wf_lex_app_bsky_bookmark_create_bookmark_main_call(agent->client,
+                                                               &input, &res);
+    free(cid);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_bookmark_create_parse(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_bookmark_delete_typed(wf_agent *agent, const char *uri,
+                                         wf_bookmark_delete_result *out) {
+    if (out) {
+        memset(out, 0, sizeof(*out));
+    }
+    if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(uri, &parsed)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_syntax_aturi_free(&parsed);
+
+    wf_lex_app_bsky_bookmark_delete_bookmark_main_input input = {0};
+    input.uri = uri;
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status = wf_lex_app_bsky_bookmark_delete_bookmark_main_call(
+        agent->client, &input, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_bookmark_delete_parse(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
