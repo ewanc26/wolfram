@@ -771,36 +771,35 @@ class Generator:
                 schema = definition.get("input", {}).get("schema")
                 input_type = (self.json_input_type(nsid, base, schema)
                               if schema else None)
-                if not input_type:
-                    continue
-                if schema.get("type") == "object":
-                    encoder = base + "_input"
-                else:
-                    resolved = (self.resolve_ref(nsid, schema["ref"])
-                                if schema.get("type") == "ref" else None)
-                    encoder = (ref_type(nsid, schema["ref"])
-                               if resolved and resolved[1].get("type") == "object"
-                               else None)
-                function = [f"wf_status {base}_input_encode_json(",
-                            f"    const {input_type} *value, char **out_json) {{",
-                            "    if (!value || !out_json) return WF_ERR_INVALID_ARG;",
-                            "    *out_json = NULL; cJSON *root = NULL;",
-                            "    wf_status status = WF_OK;", "    (void)status;"]
-                if encoder:
-                    function += [f"    status = wf_lex_encode_{encoder}(value, &root);",
-                                 "    if (status != WF_OK) return status;"]
-                else:
-                    self.add_encoded_value(function, nsid, base, schema, "*value",
-                                           "root", "input", "    ")
-                function += ["    *out_json = cJSON_PrintUnformatted(root);", "    cJSON_Delete(root);",
-                             "    return *out_json ? WF_OK : WF_ERR_ALLOC;"]
-                if any("goto invalid;" in line for line in function):
-                    function += ["invalid:", "    cJSON_Delete(root); return WF_ERR_INVALID_ARG;"]
-                if any("goto fail;" in line for line in function):
-                    function += ["fail:", "    cJSON_Delete(root); return WF_ERR_ALLOC;"]
-                if any("goto status_fail;" in line for line in function):
-                    function += ["status_fail:", "    cJSON_Delete(root); return status;"]
-                out += function + ["}", "", f"void {base}_json_free(char *json) {{ cJSON_free(json); }}", ""]
+                if input_type:
+                    if schema.get("type") == "object":
+                        encoder = base + "_input"
+                    else:
+                        resolved = (self.resolve_ref(nsid, schema["ref"])
+                                    if schema.get("type") == "ref" else None)
+                        encoder = (ref_type(nsid, schema["ref"])
+                                   if resolved and resolved[1].get("type") == "object"
+                                   else None)
+                    function = [f"wf_status {base}_input_encode_json(",
+                                f"    const {input_type} *value, char **out_json) {{",
+                                "    if (!value || !out_json) return WF_ERR_INVALID_ARG;",
+                                "    *out_json = NULL; cJSON *root = NULL;",
+                                "    wf_status status = WF_OK;", "    (void)status;"]
+                    if encoder:
+                        function += [f"    status = wf_lex_encode_{encoder}(value, &root);",
+                                     "    if (status != WF_OK) return status;"]
+                    else:
+                        self.add_encoded_value(function, nsid, base, schema, "*value",
+                                               "root", "input", "    ")
+                    function += ["    *out_json = cJSON_PrintUnformatted(root);", "    cJSON_Delete(root);",
+                                 "    return *out_json ? WF_OK : WF_ERR_ALLOC;"]
+                    if any("goto invalid;" in line for line in function):
+                        function += ["invalid:", "    cJSON_Delete(root); return WF_ERR_INVALID_ARG;"]
+                    if any("goto fail;" in line for line in function):
+                        function += ["fail:", "    cJSON_Delete(root); return WF_ERR_ALLOC;"]
+                    if any("goto status_fail;" in line for line in function):
+                        function += ["status_fail:", "    cJSON_Delete(root); return status;"]
+                    out += function + ["}", "", f"void {base}_json_free(char *json) {{ cJSON_free(json); }}", ""]
                 if definition.get("type") == "procedure" and not definition.get("parameters"):
                     if input_type:
                         out += [f"wf_status {base}_call(wf_xrpc_client *client,",
