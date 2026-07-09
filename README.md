@@ -13,6 +13,9 @@ repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/moderation), OAuth
 syntax/validate/json, labeler service coverage, notification v2 + activity
 subscriptions, optional SQLite store persistence, and higher-level endpoint
 examples — though it is not yet at full feature parity with the official SDKs.
+The optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER=ON`)
+supports route registration, auth middleware, a token-bucket rate limiter, and
+Server-Sent Events (SSE) streaming for subscription-style endpoints.
 
 ## Documentation
 
