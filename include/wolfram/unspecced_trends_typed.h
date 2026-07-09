@@ -114,6 +114,27 @@ wf_status wf_agent_get_suggested_users_typed(wf_agent *agent,
                                              const char *category_or_null,
                                              int limit, wf_agent_actor_list *out);
 
+/* Sibling suggested-user feeds. All return the same "actors" array of
+ * actor.defs#profileView (plus a recId/recIdStr hint which is ignored here), so
+ * they reuse wf_unspecced_parse_suggested_users. getSuggestedUsersForDiscover
+ * accepts only a limit; the others also accept an optional category. On success
+ * `out` is owned by the caller (free with wf_agent_actor_list_free); on error it
+ * is left reset. Each returns WF_ERR_INVALID_ARG on a NULL agent/out. */
+wf_status wf_agent_get_suggested_users_for_discover_typed(
+    wf_agent *agent, int limit, wf_agent_actor_list *out);
+
+wf_status wf_agent_get_suggested_users_for_explore_typed(
+    wf_agent *agent, const char *category_or_null, int limit,
+    wf_agent_actor_list *out);
+
+wf_status wf_agent_get_suggested_users_for_see_more_typed(
+    wf_agent *agent, const char *category_or_null, int limit,
+    wf_agent_actor_list *out);
+
+wf_status wf_agent_get_suggested_onboarding_users_typed(
+    wf_agent *agent, const char *category_or_null, int limit,
+    wf_agent_actor_list *out);
+
 wf_status wf_agent_get_suggested_feeds_typed(wf_agent *agent, int limit,
                                              wf_agent_generator_view_list *out);
 

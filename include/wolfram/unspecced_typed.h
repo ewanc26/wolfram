@@ -259,6 +259,15 @@ wf_status wf_agent_get_age_assurance_state_typed(wf_agent *agent,
 wf_status wf_agent_get_onboarding_suggested_starter_packs_typed(
     wf_agent *agent, int limit, wf_agent_starter_pack_view_list *out);
 
+/* app.bsky.unspecced.getSuggestedStarterPacks — hydrated starter-pack views
+ * ("starterPacks" array of graph.defs#starterPackView), identical output shape
+ * to getOnboardingSuggestedStarterPacks, so it reuses
+ * wf_agent_parse_onboarding_starter_packs. On success `out` is owned by the
+ * caller (free with wf_agent_starter_pack_view_list_free); on error it is left
+ * reset. Returns WF_ERR_INVALID_ARG on a NULL agent/out. */
+wf_status wf_agent_get_suggested_starter_packs_typed(
+    wf_agent *agent, int limit, wf_agent_starter_pack_view_list *out);
+
 wf_status wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(
     wf_agent *agent, const char *viewer, int limit,
     wf_agent_starter_pack_skeleton_list *out);

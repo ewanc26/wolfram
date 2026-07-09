@@ -999,6 +999,33 @@ wf_status wf_agent_get_onboarding_suggested_starter_packs_typed(
     return status;
 }
 
+/* getSuggestedStarterPacks returns the same "starterPacks" array of hydrated
+ * graph.defs#starterPackView objects as getOnboardingSuggestedStarterPacks, so
+ * the owned wf_agent_starter_pack_view_list parser is shared verbatim. */
+wf_status wf_agent_get_suggested_starter_packs_typed(
+    wf_agent *agent, int limit, wf_agent_starter_pack_view_list *out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params params = {0};
+    if (limit > 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    wf_status status =
+        wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_call(
+            agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    status = wf_agent_parse_onboarding_starter_packs(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
 wf_status wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(
     wf_agent *agent, const char *viewer, int limit,
     wf_agent_starter_pack_skeleton_list *out) {

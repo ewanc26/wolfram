@@ -253,6 +253,15 @@ int main(void) {
                                                      &sp) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, NULL, NULL, 0,
                                                      NULL, &sp) == WF_ERR_INVALID_ARG);
+
+        /* getSuggestedStarterPacks reuses the onboarding starter-pack parser and
+         * shares its NULL validation. */
+        wf_agent_starter_pack_view_list ssp = {0};
+        WF_CHECK(wf_agent_get_suggested_starter_packs_typed(NULL, 0, &ssp) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggested_starter_packs_typed((wf_agent *)1, 0,
+                                                            NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();

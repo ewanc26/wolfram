@@ -168,6 +168,40 @@ static int test_parse_thread_v2(void) {
     return 0;
 }
 
+/* The getSuggestedUsersFor{Discover,Explore,SeeMore} and
+ * getSuggestedOnboardingUsers endpoints return an "actors" array of profileView
+ * plus a recId/recIdStr recommendation hint. The shared suggested-users parser
+ * must extract the actors and ignore the trailing hint fields. */
+static int test_parse_suggested_users_with_recid(void) {
+    cJSON *root = cJSON_CreateObject();
+    cJSON *actors = cJSON_CreateArray();
+    cJSON *a = cJSON_CreateObject();
+    cJSON_AddItemToObject(a, "did", cJSON_CreateString("did:plc:disc1"));
+    cJSON_AddItemToObject(a, "handle", cJSON_CreateString("disc1.bsky.social"));
+    cJSON_AddItemToObject(a, "displayName", cJSON_CreateString("Discover One"));
+    cJSON_AddItemToArray(actors, a);
+    cJSON_AddItemToObject(root, "actors", actors);
+    cJSON_AddItemToObject(root, "recId", cJSON_CreateNumber(42));
+    cJSON_AddItemToObject(root, "recIdStr", cJSON_CreateString("snowflake-42"));
+
+    char *json = to_string(root);
+    cJSON_Delete(root);
+    CHECK(json != NULL);
+
+    wf_agent_actor_list list = {0};
+    wf_status st = wf_unspecced_parse_suggested_users(json, strlen(json), &list);
+    free(json);
+    CHECK(st == WF_OK);
+    CHECK(list.actor_count == 1);
+    CHECK(list.actors != NULL);
+    CHECK(strcmp(list.actors[0].did, "did:plc:disc1") == 0);
+    CHECK(list.actors[0].handle != NULL);
+    CHECK(strcmp(list.actors[0].handle, "disc1.bsky.social") == 0);
+
+    wf_agent_actor_list_free(&list);
+    return 0;
+}
+
 static int test_invalid_args(void) {
     wf_unspecced_trend_list t = {0};
     wf_agent_actor_list a = {0};
@@ -186,6 +220,27 @@ static int test_invalid_args(void) {
     CHECK(wf_agent_get_post_thread_other_v2_typed((wf_agent *)1, NULL, &th) ==
           WF_ERR_INVALID_ARG);
 
+    /* Sibling suggested-user feeds reject NULL agent and NULL out. */
+    CHECK(wf_agent_get_suggested_users_for_discover_typed(NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_discover_typed((wf_agent *)1, 10, NULL) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_explore_typed(NULL, NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_explore_typed((wf_agent *)1, "art", 10,
+                                                         NULL) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_see_more_typed(NULL, NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_see_more_typed((wf_agent *)1, "art", 10,
+                                                          NULL) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_onboarding_users_typed(NULL, NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_onboarding_users_typed((wf_agent *)1, NULL, 10,
+                                                        NULL) ==
+          WF_ERR_INVALID_ARG);
+
     CHECK(wf_unspecced_parse_trends(NULL, 0, &t) == WF_ERR_INVALID_ARG);
     CHECK(wf_unspecced_parse_thread_v2(NULL, 0, &th) == WF_ERR_INVALID_ARG);
     return 0;
@@ -202,6 +257,9 @@ int main(void) {
         return 1;
     }
     if (test_parse_thread_v2()) {
+        return 1;
+    }
+    if (test_parse_suggested_users_with_recid()) {
         return 1;
     }
     if (test_invalid_args()) {
