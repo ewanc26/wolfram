@@ -155,7 +155,16 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     token-bucket rate limiter (`wf_rate_limiter`), and readback of the bound
     port. Built when `WOLFRAM_BUILD_SERVER=ON`. Tested with an offline
     round-trip test against `wf_xrpc_client`, rate limiter unit tests, and
-    a server rate-limit integration test.
+     a server rate-limit integration test.
+
+48. Feed-generator skeleton server helper (`feedgen_server.h`) — high-level
+    helper built on the XRPC server that serves `app.bsky.feed.getFeedSkeleton`
+    (delegated to a caller-supplied callback returning skeleton post AT-URIs)
+    and `app.bsky.feed.getFeedGenerator` (synthesised from a config struct of
+    display name, description, DID, and optional avatar/CID). Deep-copied
+    config with `wf_feedgen_server_config_free`, `wf_feedgen_server_new`/`start`/
+    `stop`/`free`, and an offline round-trip test against `wf_xrpc_client`.
+    Built when `WOLFRAM_BUILD_SERVER=ON`. Tested.
 
 48. Server-Sent Events (SSE) streaming for the XRPC server — real streaming via
     libmicrohttpd `MHD_suspend_connection` / `MHD_resume_connection`. An SSE
