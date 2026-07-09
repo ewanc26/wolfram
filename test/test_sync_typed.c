@@ -104,6 +104,22 @@ int main(void) {
         WF_CHECK(c.cid == NULL && c.rev == NULL);
     }
 
+    /* ── getHead parse (deprecated) ─────────────────────────────── */
+    {
+        const char *json = "{\"root\":\"bafyreigheadxxxx\"}";
+        wf_sync_head_typed h;
+        memset(&h, 0, sizeof(h));
+        WF_CHECK(wf_sync_head_typed_parse(json, strlen(json), &h) == WF_OK);
+        WF_CHECK(h.root && strcmp(h.root, "bafyreigheadxxxx") == 0);
+        wf_sync_head_typed_free(&h);
+        WF_CHECK(h.root == NULL);
+
+        /* required root missing -> parse error; NULL args -> invalid arg */
+        WF_CHECK(wf_sync_head_typed_parse(NULL, 0, &h) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sync_head_typed_parse("{}", 2, &h) == WF_ERR_PARSE);
+        wf_sync_head_typed_free(&h);
+    }
+
     /* ── arg / malformed validation ─────────────────────────────── */
     {
         wf_sync_repo_status_typed s;
@@ -204,6 +220,16 @@ int main(void) {
         WF_CHECK(wf_agent_get_latest_commit_typed(agent, "did:plc:x", NULL) ==
                  WF_ERR_INVALID_ARG);
         wf_sync_latest_commit_free(&c);
+
+        wf_sync_head_typed h;
+        memset(&h, 0, sizeof(h));
+        WF_CHECK(wf_agent_get_head_typed(NULL, "did:plc:x", &h) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_head_typed(agent, NULL, &h) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_head_typed(agent, "did:plc:x", NULL) ==
+                 WF_ERR_INVALID_ARG);
+        wf_sync_head_typed_free(&h);
 
         const char *cids[] = {"bafycid"};
         wf_sync_block_list bl;

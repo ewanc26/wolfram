@@ -315,6 +315,45 @@ wf_status wf_sync_record_parse_car(const unsigned char *car_bytes,
     return status;
 }
 
+/* ── com.atproto.sync.getHead (deprecated) ─────────────────────── */
+
+void wf_sync_head_typed_free(wf_sync_head_typed *h) {
+    if (!h) {
+        return;
+    }
+    free(h->root);
+    memset(h, 0, sizeof(*h));
+}
+
+wf_status wf_sync_head_typed_parse(const char *json, size_t json_len,
+                                   wf_sync_head_typed *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *root_f = cJSON_GetObjectItemCaseSensitive(root, "root");
+    if (!(cJSON_IsString(root_f) && root_f->valuestring &&
+          root_f->valuestring[0])) {
+        status = WF_ERR_PARSE;
+    }
+    if (status == WF_OK) {
+        status = wf_sync_set_string(&out->root, root_f->valuestring);
+    }
+
+    cJSON_Delete(root);
+    if (status != WF_OK) {
+        wf_sync_head_typed_free(out);
+    }
+    return status;
+}
+
 /* ── Agent convenience wrappers ─────────────────────────────────── */
 
 wf_status wf_agent_get_repo_status_typed(wf_agent *agent, const char *did,
@@ -367,6 +406,33 @@ wf_status wf_agent_get_latest_commit_typed(wf_agent *agent, const char *did,
     }
 
     status = wf_sync_latest_commit_parse(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_get_head_typed(wf_agent *agent, const char *did,
+                                  wf_sync_head_typed *out) {
+    if (!agent || !did || !did[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_xrpc_client *client = wf_agent_xrpc_client(agent);
+    if (!client) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_xrpc_param params[] = {
+        {"did", did},
+    };
+    wf_response res = {0};
+    wf_status status = wf_xrpc_query_params(client,
+                                            "com.atproto.sync.getHead",
+                                            params, 1, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_sync_head_typed_parse(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
