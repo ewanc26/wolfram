@@ -109,8 +109,45 @@ typedef struct wf_xrpc_sse_stream wf_xrpc_sse_stream;
  * frame and immediately closes produces a single-shot SSE response.
  */
 typedef wf_status (*wf_xrpc_sse_handler)(void *ctx,
-                                         const wf_xrpc_request *req,
-                                         wf_xrpc_sse_stream *stream);
+                                          const wf_xrpc_request *req,
+                                          wf_xrpc_sse_stream *stream);
+
+/* ------------------------------------------------------------------ */
+/* WebSocket (RFC 6455) subscription endpoints                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opaque handle for an open WebSocket connection (server → client push).
+ *
+ * Created by the server after a successful RFC 6455 upgrade. Pass it to
+ * wf_xrpc_server_ws_send / wf_xrpc_server_ws_close from a worker thread
+ * (NOT from inside the WS handler itself) to push binary frames and then
+ * close the connection. The server owns the handle and frees it once the
+ * connection ends (after the upgrade worker thread returns).
+ *
+ * Thread-safety: wf_xrpc_server_ws_send / wf_xrpc_server_ws_close are
+ * serialised against each other and against the server's control-frame
+ * reader by an internal mutex, so they may be called from any thread that
+ * holds the stream (typically a worker the handler spawned). All server →
+ * client frames are sent UNMASKED per RFC 6455; client frames are masked
+ * and only control frames (close / ping) are processed (ping is answered
+ * with pong). Inbound data frames are drained and ignored.
+ */
+typedef struct wf_xrpc_ws_stream wf_xrpc_ws_stream;
+
+/**
+ * WebSocket handler (GET /xrpc/<nsid> registered as a WS subscription).
+ *
+ * Invoked after the RFC 6455 handshake completes (101 Switching Protocols),
+ * from the connection's upgrade worker thread. The handler should return
+ * promptly (typically after spawning a worker thread that calls
+ * wf_xrpc_server_ws_send / wf_xrpc_server_ws_close) — the connection is kept
+ * open until wf_xrpc_server_ws_close is called or the client closes it. A
+ * handler that sends one frame and closes produces a single-shot stream.
+ */
+typedef wf_status (*wf_xrpc_ws_handler)(void *ctx,
+                                        const wf_xrpc_request *req,
+                                        wf_xrpc_ws_stream *stream);
 
 /* ------------------------------------------------------------------ */
 /* Auth callback (optional)                                            */
@@ -195,6 +232,39 @@ wf_status wf_xrpc_server_sse_send_raw(wf_xrpc_sse_stream *stream,
  * released by libmicrohttpd. Subsequent sends return WF_ERR_INVALID_ARG.
  */
 wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream);
+
+/**
+ * Register a WebSocket (RFC 6455) subscription endpoint (GET). On a valid
+ * upgrade request the server completes the handshake (101 Switching
+ * Protocols) and invokes `handler` with a live `wf_xrpc_ws_stream`; the
+ * handler pushes binary frames with wf_xrpc_server_ws_send and ends the
+ * stream with wf_xrpc_server_ws_close. An invalid or non-upgrade request
+ * receives a 400 error. Enough WebSocket machinery is provided for
+ * server → client subscription streaming: binary and close frames, and
+ * answering client ping with pong.
+ */
+wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
+                                     const char *nsid,
+                                     wf_xrpc_ws_handler handler,
+                                     void *ctx);
+
+/**
+ * Send a single binary (opcode 0x2) WebSocket frame to the client.
+ *
+ * Must be called from a context other than the WS handler invocation
+ * (typically a dedicated worker thread). Returns WF_ERR_INVALID_ARG if the
+ * stream is already closed. Server → client frames are sent UNMASKED.
+ */
+wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
+                                 const void *data, size_t len);
+
+/**
+ * Send a close (opcode 0x8) frame carrying `code` and tear down the
+ * connection. The upgrade worker thread then ends the stream and the
+ * socket is closed via libmicrohttpd. Subsequent sends return
+ * WF_ERR_INVALID_ARG.
+ */
+wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code);
 
 /* ------------------------------------------------------------------ */
 /* Auth callback (optional)                                            */

@@ -208,13 +208,29 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
      `type` token before `static inline` was removed.
 
  53. C# interop wrapper (`Wolfram.Interop`, `dotnet/Wolfram.Interop/`) — pure
-     pass-through P/Invoke layer over `libwolfram` (no reimplementation of
-     crypto/transport/serialization/server logic). Raw tier uses source-generated
-     `LibraryImport` (NativeAOT/trim-safe) with explicit UTF-8 marshalling and a
-     combined `DllImportResolver` for `libwolfram` (+ platform libc to free owned
-     strings); managed tier adds `XrpcClientHandle : SafeHandle`, a `Status` mirror
-     of `wf_status`, and `WolframException` raised on non-`Ok`. Covered by an
-     offline xUnit smoke test (`Wolfram.Interop.Tests`).
+      pass-through P/Invoke layer over `libwolfram` (no reimplementation of
+      crypto/transport/serialization/server logic). Raw tier uses source-generated
+      `LibraryImport` (NativeAOT/trim-safe) with explicit UTF-8 marshalling and a
+      combined `DllImportResolver` for `libwolfram` (+ platform libc to free owned
+      strings); managed tier adds `XrpcClientHandle : SafeHandle`, a `Status` mirror
+      of `wf_status`, and `WolframException` raised on non-`Ok`. Covered by an
+      offline xUnit smoke test (`Wolfram.Interop.Tests`).
+
+ 54. WebSocket (RFC 6455) subscription endpoints for the XRPC server — real
+      server→client push over a libmicrohttpd upgrade (`MHD_create_response_for_upgrade`
+      + `MHD_ALLOW_UPGRADE`, libmicrohttpd 1.0.5). A WS route receives a
+      `wf_xrpc_ws_stream` in its handler (invoked from the connection's upgrade
+      worker thread after the 101 handshake, with `Sec-WebSocket-Accept` computed
+      via SHA-1 + base64 over the client key and the RFC GUID). Frames are pushed
+      with `wf_xrpc_server_ws_send` (binary, opcode 0x2, UNMASKED) and the stream is
+      ended with `wf_xrpc_server_ws_close` (close frame, opcode 0x8). The upgrade
+      worker also reads client control frames — answering ping (0x9) with pong (0xA)
+      and honouring client close (0x8) — while inbound data frames are drained and
+      ignored. Suspended/upgraded connections are resumed, shut down, and joined on
+      `wf_xrpc_server_stop` / `wf_xrpc_server_free` so teardown never hangs. Built
+      when `WOLFRAM_BUILD_SERVER=ON`. Tested by `test_xrpc_server_ws` (raw-client
+      handshake + accept verification, ordered binary frames, close termination,
+      clean teardown).
 
 ## Next planned work
 
@@ -222,9 +238,6 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Continue evaluating upstream C libraries for server-side infrastructure
   (event loop, config parsing).
-- Consider WebSocket subscription endpoints served from the XRPC server (e.g.
-  `com.atproto.sync.subscribeRepos` / `com.atproto.label.subscribeLabels`
-  relays), building on the SSE streaming transport.
 - Broaden generated typed-wrapper coverage for any remaining lexicon endpoints
   not yet wrapped at the agent level.
 
