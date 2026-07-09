@@ -172,6 +172,8 @@ src/agent/push_endpoint.c
     src/embed.c
     # Ozone moderation / labeler helper
     src/ozone/ozone.c
+    # Owned typed wrappers for trends / suggested users / thread v2
+    src/unspecced_trends_typed.c
     # Owned typed wrappers for the tools.ozone.* namespaces
     src/ozone_typed.c
     # Generic JSON round-trip / schema-subset validation
@@ -832,6 +834,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_unspecced_typed PRIVATE
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME unspecced_typed COMMAND test_unspecced_typed)
+
+    add_executable(test_unspecced_trends_typed test/test_unspecced_trends_typed.c)
+    target_link_libraries(test_unspecced_trends_typed PRIVATE wolfram)
+    target_include_directories(test_unspecced_trends_typed PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_unspecced_trends_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME unspecced_trends_typed COMMAND test_unspecced_trends_typed)
 
     add_executable(test_chat_typed test/test_chat_typed.c)
     target_link_libraries(test_chat_typed PRIVATE wolfram)
