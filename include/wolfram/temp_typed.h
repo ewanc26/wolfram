@@ -106,6 +106,58 @@ wf_status wf_temp_dereference_scope_parse(
     wf_temp_dereference_scope *out);
 void wf_temp_dereference_scope_free(wf_temp_dereference_scope *v);
 
+/* --- Write-side result structs (com.atproto.temp procedures) ------------- */
+
+/* Result of com.atproto.temp.addReservedHandle. The lexicon declares an empty
+ * output object, so `ok` is 1 on a successful parse. The `handle` field is an
+ * optional echo captured when the server includes one (it is not required by
+ * the lexicon and may be NULL). The caller owns `handle`. */
+typedef struct wf_temp_add_reserved_handle_result {
+    int ok;               /* 1 when the (empty) output parsed successfully */
+    char *handle;         /* optional echoed handle; owned, may be NULL */
+} wf_temp_add_reserved_handle_result;
+
+/* Result of com.atproto.temp.requestPhoneVerification. The lexicon declares no
+ * output, so `ok` is 1 on a successful (empty) parse. */
+typedef struct wf_temp_request_phone_verification_result {
+    int ok;               /* 1 when the empty output parsed successfully */
+} wf_temp_request_phone_verification_result;
+
+/* Result of com.atproto.temp.revokeAccountCredentials. The lexicon declares no
+ * output, so `ok` is 1 on a successful (empty) parse. */
+typedef struct wf_temp_revoke_account_credentials_result {
+    int ok;               /* 1 when the empty output parsed successfully */
+} wf_temp_revoke_account_credentials_result;
+
+/* --- Write-side parsers -------------------------------------------------- */
+
+/* parse JSON (expected empty object). `ok` is set to 1 on success; an optional
+ * echoed "handle" string is captured if present. Missing/invalid JSON =>
+ * WF_ERR_PARSE. Free with wf_temp_add_reserved_handle_result_free. */
+wf_status wf_temp_add_reserved_handle_parse(
+    const char *json, size_t json_len,
+    wf_temp_add_reserved_handle_result *out);
+void wf_temp_add_reserved_handle_result_free(
+    wf_temp_add_reserved_handle_result *v);
+
+/* parse JSON (expected empty object). `ok` is set to 1 on success. Missing/
+ * invalid JSON => WF_ERR_PARSE. Free with
+ * wf_temp_request_phone_verification_result_free. */
+wf_status wf_temp_request_phone_verification_parse(
+    const char *json, size_t json_len,
+    wf_temp_request_phone_verification_result *out);
+void wf_temp_request_phone_verification_result_free(
+    wf_temp_request_phone_verification_result *v);
+
+/* parse JSON (expected empty object). `ok` is set to 1 on success. Missing/
+ * invalid JSON => WF_ERR_PARSE. Free with
+ * wf_temp_revoke_account_credentials_result_free. */
+wf_status wf_temp_revoke_account_credentials_parse(
+    const char *json, size_t json_len,
+    wf_temp_revoke_account_credentials_result *out);
+void wf_temp_revoke_account_credentials_result_free(
+    wf_temp_revoke_account_credentials_result *v);
+
 /* --- Agent convenience wrappers ----------------------------------------- */
 
 /* Issue checkHandleAvailability and report only availability via out_available
@@ -163,8 +215,32 @@ wf_status wf_agent_add_reserved_handle(wf_agent *agent, const char *handle);
  * names it out_did for parity). Caller owns *out_did (free with free()).
  * Returns WF_ERR_INVALID_ARG on NULL/empty scope or out pointer. */
 wf_status wf_agent_dereference_scope(wf_agent *agent,
-                                     const char *scope,
-                                     char **out_did);
+                                      const char *scope,
+                                      char **out_did);
+
+/* Issue addReservedHandle (procedure, input: handle). *out is filled with the
+ * parsed result (ok=1 on success, optional echoed handle captured when present;
+ * caller frees via wf_temp_add_reserved_handle_result_free). Returns
+ * WF_ERR_INVALID_ARG on NULL/empty handle, NULL agent/out. */
+wf_status wf_agent_temp_add_reserved_handle_typed(
+    wf_agent *agent, const char *handle,
+    wf_temp_add_reserved_handle_result *out);
+
+/* Issue requestPhoneVerification (procedure, input: phoneNumber). *out is
+ * filled with the parsed result (ok=1 on success); caller frees via
+ * wf_temp_request_phone_verification_result_free. Returns WF_ERR_INVALID_ARG on
+ * NULL/empty phone_number, NULL agent/out. */
+wf_status wf_agent_temp_request_phone_verification_typed(
+    wf_agent *agent, const char *phone_number,
+    wf_temp_request_phone_verification_result *out);
+
+/* Issue revokeAccountCredentials (procedure, input: account at-identifier).
+ * *out is filled with the parsed result (ok=1 on success); caller frees via
+ * wf_temp_revoke_account_credentials_result_free. Returns WF_ERR_INVALID_ARG on
+ * NULL/empty account, NULL agent/out. */
+wf_status wf_agent_temp_revoke_account_credentials_typed(
+    wf_agent *agent, const char *account,
+    wf_temp_revoke_account_credentials_result *out);
 
 #ifdef __cplusplus
 }
