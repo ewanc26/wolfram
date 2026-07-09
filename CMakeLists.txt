@@ -144,6 +144,8 @@ src/agent/push_endpoint.c
     src/agent/moderation_apply.c
     src/agent/label_persist.c
     src/agent/identity_mgmt.c
+    # High-level BskyAgent convenience wrapper
+    src/bsky_agent.c
     # Rich text / facet detection
     src/richtext/richtext.c
     src/richtext/detection.c
@@ -384,6 +386,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     target_link_libraries(agent_feed_search PRIVATE wolfram)
     target_include_directories(agent_feed_search PRIVATE ${cjson_SOURCE_DIR})
     target_include_directories(agent_feed_search PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(bsky_agent_demo examples/bsky_agent_demo.c)
+    target_link_libraries(bsky_agent_demo PRIVATE wolfram)
+    target_include_directories(bsky_agent_demo PRIVATE ${cjson_SOURCE_DIR})
 
     add_executable(agent_graph examples/agent_graph.c)
     target_link_libraries(agent_graph PRIVATE wolfram)
@@ -873,6 +879,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_agent_moderation PRIVATE wolfram)
     target_include_directories(test_agent_moderation PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME agent_moderation COMMAND test_agent_moderation)
+
+    add_executable(test_bsky_agent test/test_bsky_agent.c)
+    target_link_libraries(test_bsky_agent PRIVATE wolfram)
+    target_include_directories(test_bsky_agent PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME bsky_agent COMMAND test_bsky_agent)
 
     add_test(NAME moderation_demo COMMAND moderation_demo)
 

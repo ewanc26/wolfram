@@ -38,5 +38,6 @@
 #include "wolfram/identity_typed.h"
 #include "wolfram/notification_v2_typed.h"
 #include "wolfram/ozone_typed.h"
+#include "wolfram/bsky_agent.h"
 
 #endif /* WOLFRAM_H */
