@@ -186,6 +186,18 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
 void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
                                       wf_rate_limiter *rl);
 
+/* Attach a per-route rate limiter. Requests to this exact method/nsid
+ * will be charged `rl` tokens (defaults to IP-based limiter if none set).
+ * Passing NULL removes that route's rate limiter.
+ *
+ * The route is identified by the exact method ("GET" or "POST") and the
+ * full URL path as it appears in the request (e.g. "/xrpc/io.example.ping").
+ */
+void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
+                                           const char *method,
+                                           const char *url,
+                                           wf_rate_limiter *rl);
+
 #ifdef __cplusplus
 }
 #endif

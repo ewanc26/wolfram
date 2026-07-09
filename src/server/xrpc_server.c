@@ -43,7 +43,7 @@ static int post_buf_append(post_buf *b, const char *data, size_t len) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Rate limiter                                                        */
+/* Per-route rate limiter support                                    */
 /* ------------------------------------------------------------------ */
 
 /** A single token-bucket entry keyed by an arbitrary string. */
@@ -53,6 +53,13 @@ typedef struct wf_rate_bucket {
     time_t                 last_refill;
     struct wf_rate_bucket *next;
 } wf_rate_bucket;
+
+/** A single route whose rate limiting configuration was attached */
+typedef struct wf_rate_limit_entry {
+    char *route_key;            /* "GET:/xrpc/io.example.ping" */
+    wf_rate_limiter *rl;       /* owned reference */
+    struct wf_rate_limit_entry *next;
+} wf_rate_limit_entry;
 
 struct wf_rate_limiter {
     unsigned int     points;          /* Max tokens (burst capacity) */
@@ -188,6 +195,67 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
     return WF_OK;
 }
 
+/* Free the per-route rate-limit entries */
+static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
+    wf_rate_limit_entry *cur = head;
+    while (cur) {
+        wf_rate_limit_entry *next = cur->next;
+        free(cur->route_key);
+        if (cur->rl) wf_rate_limiter_free(cur->rl);
+        free(cur);
+        cur = next;
+    }
+}
+
+/* Per-route rate limiter lookup */
+static wf_rate_limiter *wf_server_find_route_rate_limiter(wf_xrpc_server *server,
+                                                          const char *method,
+                                                          const char *url) {
+    wf_rate_limit_entry *entry = server->rate_limit_entries;
+    char route_key[256];
+
+    (void)snprintf(route_key, sizeof(route_key), "%s:%s", method, url);
+
+    while (entry) {
+        if (strcmp(entry->route_key, route_key) == 0) {
+            return entry->rl;
+        }
+        entry = entry->next;
+    }
+    return NULL;
+}
+
+/* Add a per-route rate limiter (method+url)
+   Transfers ownership of 'rl' to the server */
+wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
+                                           const char *method,
+                                           const char *url,
+                                           wf_rate_limiter *rl) {
+    wf_rate_limit_entry *entry;
+
+    if (!server || !method || !url) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!rl) {
+        return WF_OK;
+    }
+    entry = (wf_rate_limit_entry *)calloc(1, sizeof(*entry));
+    if (!entry) {
+        wf_rate_limiter_free(rl);
+        return WF_ERR_ALLOC;
+    }
+    entry->route_key = strdup(url);
+    if (!entry->route_key) {
+        free(entry);
+        wf_rate_limiter_free(rl);
+        return WF_ERR_ALLOC;
+    }
+    entry->rl = rl;
+    entry->next = server->rate_limit_entries;
+    server->rate_limit_entries = entry;
+    return WF_OK;
+}
+
 /* ------------------------------------------------------------------ */
 /* Route entry                                                         */
 /* ------------------------------------------------------------------ */
@@ -216,7 +284,8 @@ struct wf_xrpc_server {
     wf_route            *routes;
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
-    wf_rate_limiter     *rate_limiter;
+    wf_rate_limiter     *rate_limiter;        /* global IP-based limiter */
+    wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
 };
 
 /* ------------------------------------------------------------------ */
@@ -758,10 +827,54 @@ void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
     server->auth_ctx = ctx;
 }
 
-void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
-                                      wf_rate_limiter *rl) {
-    if (!server) {
-        return;
+static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
+    wf_rate_limit_entry *cur = head;
+    while (cur) {
+        wf_rate_limit_entry *next = cur->next;
+        free(cur->route_key);
+        if (cur->rl) wf_rate_limiter_free(cur->rl);
+        free(cur);
+        cur = next;
     }
-    server->rate_limiter = rl;
+}
+
+/* Add a per-route rate limiter (method+url)
+   Transfers ownership of 'rl' to the server */
+wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
+                                           const char *method,
+                                           const char *url,
+                                           wf_rate_limiter *rl) {
+    wf_rate_limit_entry *entry;
+
+    if (!server || !method || !url) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!rl) {
+        return WF_OK;
+    }
+    entry = (wf_rate_limit_entry *)calloc(1, sizeof(*entry));
+    if (!entry) {
+        wf_rate_limiter_free(rl);
+        return WF_ERR_ALLOC;
+    }
+    entry->route_key = strdup(url);
+    if (!entry->route_key) {
+        free(entry);
+        wf_rate_limiter_free(rl);
+        return WF_ERR_ALLOC;
+    }
+    entry->rl = rl;
+    entry->next = server->rate_limit_entries;
+    server->rate_limit_entries = entry;
+    return WF_OK;
+}
+
+void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
+                                           const char *method,
+                                           const char *url,
+                                           wf_rate_limiter *rl) {
+    if (!server) return;
+    if (wf_server_set_route_rate_limiter(server, method, url, rl) != WF_OK) {
+        if (rl) wf_rate_limiter_free(rl);
+    }
 }
