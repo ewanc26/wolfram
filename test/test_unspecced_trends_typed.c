@@ -209,8 +209,14 @@ static int test_invalid_args(void) {
     wf_unspecced_thread_v2 th = {0};
 
     CHECK(wf_agent_get_trends_typed(NULL, 10, &t) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_trends_typed((wf_agent *)1, 26, &t) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_typed(NULL, NULL, 10, &a) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_typed((wf_agent *)1, NULL, 51, &a) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_feeds_typed(NULL, 10, &g) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_feeds_typed((wf_agent *)1, 26, &g) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_post_thread_v2_typed(NULL, "at://x", 1, 6, 10, NULL, &th) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_post_thread_v2_typed((wf_agent *)1, NULL, 1, 6, 10, NULL, &th) ==
@@ -223,19 +229,31 @@ static int test_invalid_args(void) {
     /* Sibling suggested-user feeds reject NULL agent and NULL out. */
     CHECK(wf_agent_get_suggested_users_for_discover_typed(NULL, 10, &a) ==
           WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_discover_typed((wf_agent *)1, 51,
+                                                          &a) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_discover_typed((wf_agent *)1, 10, NULL) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_explore_typed(NULL, NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_explore_typed((wf_agent *)1, "art", 51,
+                                                         &a) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_explore_typed((wf_agent *)1, "art", 10,
                                                          NULL) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_see_more_typed(NULL, NULL, 10, &a) ==
           WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_see_more_typed((wf_agent *)1, "art", 51,
+                                                          &a) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_see_more_typed((wf_agent *)1, "art", 10,
                                                           NULL) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_onboarding_users_typed(NULL, NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_onboarding_users_typed((wf_agent *)1, NULL, 51,
+                                                        &a) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_onboarding_users_typed((wf_agent *)1, NULL, 10,
                                                         NULL) ==
