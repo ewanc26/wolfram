@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <time.h>
 #include <cJSON.h>
 
 /* ------------------------------------------------------------------ */
@@ -82,6 +84,27 @@ static char *dup_str(const char *s) {
     char *r = malloc(len + 1);
     if (r) memcpy(r, s, len + 1);
     return r;
+}
+
+/* Match the reference SDK's comparison against new Date().toISOString().
+ * Lexicon datetime values are RFC 3339 strings; the API emits canonical UTC
+ * timestamps, whose fixed-width representation sorts chronologically. */
+static int mute_word_has_expired(const char *expires_at) {
+    time_t now;
+    struct tm utc;
+    char now_iso[25];
+
+    if (!expires_at || !expires_at[0]) return 0;
+    now = time(NULL);
+#if defined(_WIN32)
+    if (gmtime_s(&utc, &now) != 0) return 0;
+#else
+    if (!gmtime_r(&now, &utc)) return 0;
+#endif
+    if (strftime(now_iso, sizeof(now_iso), "%Y-%m-%dT%H:%M:%S", &utc) == 0)
+        return 0;
+    snprintf(now_iso + 19, sizeof(now_iso) - 19, ".000Z");
+    return strcmp(expires_at, now_iso) < 0;
 }
 
 static int str_eq(const char *a, const char *b) {
@@ -1115,9 +1138,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         to_lower(muted_word);
         size_t mw_len = strlen(muted_word);
 
-        /* Check expiry (simplified: if expires_at is non-NULL and non-empty, skip) */
-        /* TODO: proper timestamp comparison */
-        if (mw->expires_at && mw->expires_at[0]) {
+        /* Expired mute words are ignored; future timed mutes remain active. */
+        if (mute_word_has_expired(mw->expires_at)) {
             free(muted_word);
             continue;
         }
