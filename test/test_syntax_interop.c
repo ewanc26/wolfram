@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SYNTAX_FIXTURE_DIR "/Volumes/Storage/Developer/Git/wolfram/test/fixtures/syntax"
+#ifndef SYNTAX_FIXTURE_DIR
+#define SYNTAX_FIXTURE_DIR "test/fixtures/syntax"
+#endif
 
 typedef int (*wf_fixture_validator)(const char *);
 
