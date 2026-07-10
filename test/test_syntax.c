@@ -57,6 +57,8 @@ static void test_handle_invalid(void) {
 static void test_at_identifier_valid(void) {
     WF_CHECK(wf_syntax_at_identifier_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur"));
     WF_CHECK(wf_syntax_at_identifier_is_valid("alice.bsky.social"));
+    WF_CHECK(!wf_syntax_at_identifier_is_valid("did:123:abc"));
+    WF_CHECK(!wf_syntax_at_identifier_is_valid("did:m123:val"));
 }
 
 static void test_at_identifier_invalid(void) {
