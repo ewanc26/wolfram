@@ -160,8 +160,33 @@ wf_status wf_repo_store_describe(wf_repo_store *store, char **out_json);
  * commit is authentic, 0 otherwise. `out_commit` may be NULL.
  */
 wf_status wf_repo_store_verify_head(wf_repo_store *store,
-                                    int *out_verified,
-                                    wf_commit *out_commit);
+                                     int *out_verified,
+                                     wf_commit *out_commit);
+
+/**
+ * List records in a collection (com.atproto.repo.listRecords).
+ *
+ * Enumerates the `records` index in ascending rkey order, skipping keys
+ * lexicographically after `cursor` (NULL for the start) and returning at
+ * most `limit` records. When more records remain, *out_json carries a
+ * `cursor` field set to the last returned rkey for the next page.
+ *
+ * On WF_OK, *out_json is a caller-owned JSON string of the shape
+ * {"records":[{"uri","cid","value"}], "cursor"?}. Free it with free().
+ */
+wf_status wf_repo_store_list_records(wf_repo_store *store,
+                                     const char *collection,
+                                     const char *cursor, int limit,
+                                     char **out_json);
+
+/**
+ * Return the current head commit's rev + CID
+ * (com.atproto.sync.getLatestCommit). Returns WF_ERR_NOT_FOUND when the
+ * repository is empty (no head commit yet). On WF_OK, *out_rev and
+ * *out_cid are caller-owned strings (free() them).
+ */
+wf_status wf_repo_store_get_head(wf_repo_store *store, char **out_rev,
+                                 char **out_cid);
 
 /* ------------------------------------------------------------------ */
 /* XRPC server integration                                             */
