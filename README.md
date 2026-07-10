@@ -18,9 +18,13 @@ block/list/listitem/starterpack/listblock create/update/delete), and
 higher-level endpoint examples — though it is not yet at full feature
 parity with the official SDKs.
 The optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER=ON`)
-supports route registration, auth middleware, a token-bucket rate limiter, and
-Server-Sent Events (SSE) streaming for subscription-style endpoints, and a
-feed-generator skeleton server helper (`feedgen_server.h`) is provided.
+supports route registration, auth middleware, a token-bucket rate limiter,
+Server-Sent Events (SSE) streaming, and WebSocket (RFC 6455) subscription
+endpoints for subscription-style feeds. A feed-generator skeleton server helper
+(`feedgen_server.h`) and a generic upstream→downstream WebSocket subscription
+relay (`relay_server.h`, forwarding raw frames from an upstream `ws(s)://`
+subscription such as `com.atproto.sync.subscribeRepos` or
+`com.atproto.label.subscribeLabels`) are provided.
 
 ## Documentation
 
