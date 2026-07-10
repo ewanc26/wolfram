@@ -351,6 +351,9 @@ wf_status wf_agent_get_timeline_typed(wf_agent *agent, int limit,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_response res = {0};
     wf_status status = wf_agent_get_timeline(agent, limit, cursor, &res);
@@ -371,6 +374,9 @@ wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_response res = {0};
     wf_status status = wf_agent_get_author_feed(agent, actor, limit, cursor,
@@ -389,6 +395,9 @@ wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
                                     int limit, const char *cursor,
                                     wf_agent_feed_list *out) {
     if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -694,6 +703,9 @@ wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
                                            const char *cursor,
                                            wf_agent_skeleton_list *out) {
     if (!agent || !feed_uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
 
