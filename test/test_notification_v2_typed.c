@@ -138,6 +138,8 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_list_activity_subscriptions(NULL, 0, NULL, NULL) ==
              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_list_activity_subscriptions((wf_agent *)1, 101, NULL,
+                                                  &list) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_put_activity_subscription(NULL, "{}", &put) ==
              WF_ERR_INVALID_ARG);

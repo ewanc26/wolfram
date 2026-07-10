@@ -137,9 +137,17 @@ int main(void) {
 
     /* ---- Agent wrapper NULL validation (no live session) ---- */
     wf_notification_list rl = {0};
+    wf_agent_notification_list arl = {0};
+    wf_response res = {0};
+    WF_CHECK(wf_agent_list_notifications((wf_agent *)1, 101, NULL, &res) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_list_notifications_rich_typed(NULL, 10, NULL, &rl) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_list_notifications_rich_typed(NULL, 10, NULL, NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_list_notifications_rich_typed((wf_agent *)1, 101, NULL,
+                                                    &rl) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_list_notifications_typed((wf_agent *)1, 101, NULL, &arl) ==
              WF_ERR_INVALID_ARG);
 
     int64_t cnt = 0;
