@@ -266,7 +266,27 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       `lexicon_typed.h` module: owning parser + `wf_agent_resolve_lexicon_typed`
       for `com.atproto.lexicon.resolveLexicon`. `chat_typed.h`: owning parser +
       agent wrappers for `chat.bsky.notification.getPreferences` / `putPreferences`.
-      All tested offline (parser round-trips + argument validation).
+       All tested offline (parser round-trips + argument validation).
+
+  56. Generic upstream→downstream WebSocket **subscription relay** for the XRPC
+      server (`relay_server.h`) — a protocol-agnostic raw-frame relay built on
+      the XRPC server's WS endpoints and the libcurl WebSocket client transport.
+      `wf_xrpc_server_register_relay(server, cfg)` registers a WS route (e.g.
+      `com.atproto.sync.subscribeRepos`) that, on a downstream connect, opens an
+      upstream `ws(s)://` connection and forwards each received message
+      byte-for-byte to the client until either side closes or errors, then closes
+      the downstream stream. Config (`wf_relay_config`) deep-copied on
+      registration and freed by `wf_relay_config_free`; the returned
+      `wf_relay_server` handle owns that copy and is freed by
+      `wf_relay_server_free` (after `wf_xrpc_server_free`). The forward loop runs
+      on a worker thread spawned by the server's upgrade handler, matching the
+      server's streaming contract; optional reconnect delay (bounded by the
+      downstream client staying connected). Built when `WOLFRAM_BUILD_SERVER=ON`.
+      Tested by `test_relay_server` (offline: forwards an in-process upstream's
+      ordered binary frames to a `wf_websocket` client, then a clean close; when
+      the linked libcurl lacks WS support the test still verifies registration,
+      the forward thread, and clean downstream teardown against an unreachable
+      upstream).
 
 ## Next planned work
 
