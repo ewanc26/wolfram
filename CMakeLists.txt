@@ -213,6 +213,8 @@ src/agent/push_endpoint.c
     # New utilities and embed support
     src/util.c
     src/blob.c
+    # Blob persistence + serving store (in-memory / file-backed).
+    src/blob/blob_store.c
     src/embed.c
     # Ozone moderation / labeler helper
     src/ozone/ozone.c
@@ -268,6 +270,8 @@ if(WOLFRAM_BUILD_SERVER)
     target_sources(wolfram PRIVATE src/server/xrpc_server.c)
     # JSON configuration loader for the XRPC server.
     target_sources(wolfram PRIVATE src/server/xrpc_server_config.c)
+    # Blob persistence/serving routes (uploadBlob + getBlob) on the XRPC server.
+    target_sources(wolfram PRIVATE src/server/blob_store_server.c)
     # Feed-generator skeleton server helper (builds on the XRPC server).
     target_sources(wolfram PRIVATE src/feedgen_server.c)
     # Generic upstream→downstream WebSocket subscription relay (builds on the
@@ -306,6 +310,11 @@ if(WOLFRAM_BUILD_SERVER)
         target_link_libraries(test_xrpc_server_config PRIVATE wolfram Threads::Threads)
         target_include_directories(test_xrpc_server_config PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
         add_test(NAME xrpc_server_config COMMAND test_xrpc_server_config)
+
+        add_executable(test_blob_store test/test_blob_store.c)
+        target_link_libraries(test_blob_store PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_blob_store PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME blob_store COMMAND test_blob_store)
 
         add_executable(test_feedgen_skeleton test/test_feedgen_skeleton.c)
         target_link_libraries(test_feedgen_skeleton PRIVATE wolfram)

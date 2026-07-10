@@ -36,15 +36,23 @@ static void wf_base32_encode(const unsigned char *in, size_t in_len,
  * Build a raw CIDv1 byte array from a SHA-256 digest.
  * cid_buf must be at least 36 bytes.
  * Returns the number of bytes written (always 36).
+ * `codec` is the multicodec: 0x71 (dag-cbor) for repository blocks,
+ * 0x55 (raw) for blobs.
  */
-static size_t wf_cid_from_hash(const unsigned char hash[32],
-                               unsigned char *cid_buf) {
+static size_t wf_cid_from_hash_codec(const unsigned char hash[32],
+                                     unsigned char codec,
+                                     unsigned char *cid_buf) {
     cid_buf[0] = 0x01;              /* CIDv1 */
-    cid_buf[1] = 0x71;              /* dag-cbor multicodec */
+    cid_buf[1] = codec;             /* multicodec */
     cid_buf[2] = 0x12;              /* sha2-256 multihash code */
-    cid_buf[3] = 0x20;              /* 32-byte digest length */
+    cid_buf[3] = 0x20;             /* 32-byte digest length */
     memcpy(cid_buf + 4, hash, 32);  /* the digest itself */
     return 36;
+}
+
+static size_t wf_cid_from_hash(const unsigned char hash[32],
+                                unsigned char *cid_buf) {
+    return wf_cid_from_hash_codec(hash, 0x71, cid_buf); /* dag-cbor */
 }
 
 char *wf_cid_to_string(const wf_cid *cid) {
@@ -61,7 +69,7 @@ char *wf_cid_to_string(const wf_cid *cid) {
 }
 
 wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
-                          wf_cid *out) {
+                           wf_cid *out) {
     if (!cbor || cbor_len == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -70,6 +78,19 @@ wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
     SHA256(cbor, cbor_len, hash);
 
     out->len = wf_cid_from_hash(hash, out->bytes);
+    return WF_OK;
+}
+
+wf_status wf_cid_of_bytes(const unsigned char *data, size_t data_len,
+                           wf_cid *out) {
+    if (!data || data_len == 0 || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(data, data_len, hash);
+
+    out->len = wf_cid_from_hash_codec(hash, 0x55, out->bytes); /* raw */
     return WF_OK;
 }
 
