@@ -18,6 +18,17 @@
 
 #include "_internal.h"
 
+/* Upstream app.bsky.feed.getAuthorFeed `filter` enum (lexicon-known values). */
+static int wf_feed_author_feed_filter_is_valid(const char *filter) {
+    static const char *const allowed[] = {
+        "posts_with_replies", "posts_no_replies", "posts_with_media",
+        "posts_and_author_threads", "posts_with_video", NULL};
+    for (size_t i = 0; allowed[i]; i++) {
+        if (strcmp(filter, allowed[i]) == 0) return 1;
+    }
+    return 0;
+}
+
 wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
                                  wf_response *out) {
     if (!agent || !out) {
@@ -80,6 +91,9 @@ wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
     if (!wf_syntax_at_identifier_is_valid(actor)) {
         return WF_ERR_INVALID_ARG;
     }
+    if (filter && filter[0] && !wf_feed_author_feed_filter_is_valid(filter)) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_xrpc_param params[4];
     size_t param_count = 0;
@@ -119,6 +133,8 @@ wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
     if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
     if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
+    if (filter && filter[0] && !wf_feed_author_feed_filter_is_valid(filter))
+        return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_author_feed_main_params params = {0};
     params.actor = actor;
     if (limit > 0) {
