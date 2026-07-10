@@ -361,6 +361,40 @@ static wf_status persist_new_blocks(wf_repo_store *s) {
     return WF_OK;
 }
 
+/* Maintain the `records` index used by listRecords. The index mirrors the
+ * live MST head: each (collection, rkey) maps to its current value + CID. */
+static wf_status index_upsert_record(wf_repo_store *s, const char *collection,
+                                     const char *rkey, const char *cid,
+                                     const char *value) {
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(s->db,
+            "INSERT OR REPLACE INTO records (collection, rkey, cid, value)"
+            " VALUES (?, ?, ?, ?);",
+            -1, &stmt, NULL) != SQLITE_OK)
+        return WF_ERR_INTERNAL;
+    sqlite3_bind_text(stmt, 1, collection, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, rkey, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 3, cid, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 4, value, -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return rc == SQLITE_DONE ? WF_OK : WF_ERR_INTERNAL;
+}
+
+static wf_status index_delete_record(wf_repo_store *s, const char *collection,
+                                     const char *rkey) {
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(s->db,
+            "DELETE FROM records WHERE collection = ? AND rkey = ?;",
+            -1, &stmt, NULL) != SQLITE_OK)
+        return WF_ERR_INTERNAL;
+    sqlite3_bind_text(stmt, 1, collection, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, rkey, -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return rc == SQLITE_DONE ? WF_OK : WF_ERR_INTERNAL;
+}
+
 static wf_status persist_head(wf_repo_store *s) {
     char *cidstr = s->head.len ? wf_cid_to_string(&s->head) : NULL;
     sqlite3_stmt *stmt = NULL;
@@ -467,7 +501,11 @@ wf_status wf_repo_store_open(const char *path, const char *did,
         "CREATE TABLE IF NOT EXISTS blocks ("
         "  cid TEXT PRIMARY KEY, data BLOB NOT NULL);"
         "CREATE TABLE IF NOT EXISTS head ("
-        "  id INTEGER PRIMARY KEY CHECK(id=0), cid TEXT);";
+        "  id INTEGER PRIMARY KEY CHECK(id=0), cid TEXT);"
+        "CREATE TABLE IF NOT EXISTS records ("
+        "  collection TEXT NOT NULL, rkey TEXT NOT NULL,"
+        "  cid TEXT NOT NULL, value TEXT NOT NULL,"
+        "  PRIMARY KEY (collection, rkey));";
     char *errmsg = NULL;
     if (sqlite3_exec(s->db, schema, NULL, NULL, &errmsg) != SQLITE_OK) {
         if (errmsg) sqlite3_free(errmsg);
@@ -621,6 +659,7 @@ wf_status wf_repo_store_create_record(wf_repo_store *s, const char *collection,
         return WF_ERR_ALLOC;
     }
     *out_cid = cidstr;
+    index_upsert_record(s, collection, rkey, cidstr, record_json);
     return WF_OK;
 }
 
@@ -674,6 +713,7 @@ wf_status wf_repo_store_put_record(wf_repo_store *s, const char *collection,
         return WF_ERR_ALLOC;
     }
     *out_cid = cidstr;
+    index_upsert_record(s, collection, rkey, cidstr, record_json);
     return WF_OK;
 }
 
@@ -694,9 +734,12 @@ wf_status wf_repo_store_delete_record(wf_repo_store *s, const char *collection,
 
     wf_cid out_commit = {{0}, 0};
     st = wf_repo_delete_record(&s->car, &s->head, s->did, collection, rkey,
-                               &s->key, &out_commit);
+                                &s->key, &out_commit);
     if (st != WF_OK) return st;
-    return commit_persist(s, &out_commit);
+    st = commit_persist(s, &out_commit);
+    if (st != WF_OK) return st;
+    index_delete_record(s, collection, rkey);
+    return WF_OK;
 }
 
 wf_status wf_repo_store_get_record(wf_repo_store *s, const char *collection,
@@ -1178,6 +1221,149 @@ static wf_status h_describe_repo(void *ctx, const wf_xrpc_request *req,
     return WF_OK;
 }
 
+/* ── listRecords (com.atproto.repo.listRecords) ──────────────────────── */
+
+wf_status wf_repo_store_list_records(wf_repo_store *s, const char *collection,
+                                     const char *cursor, int limit,
+                                     char **out_json) {
+    if (!s || !collection || !*collection || !out_json)
+        return WF_ERR_INVALID_ARG;
+    *out_json = NULL;
+    if (limit <= 0 || limit > 500) limit = 50;
+
+    sqlite3_stmt *stmt = NULL;
+    const char *sql =
+        "SELECT rkey, cid, value FROM records "
+        "WHERE collection = ? AND rkey > ? ORDER BY rkey ASC LIMIT ?;";
+    if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK)
+        return WF_ERR_INTERNAL;
+    sqlite3_bind_text(stmt, 1, collection, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, cursor ? cursor : "", -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 3, limit + 1); /* +1 to detect a next page */
+
+    cJSON *records = cJSON_CreateArray();
+    if (!records) { sqlite3_finalize(stmt); return WF_ERR_ALLOC; }
+    int count = 0;
+    const char *last_rkey = NULL;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        if (count >= limit) { /* over-fetch: there is a next page */
+            last_rkey = (const char *)sqlite3_column_text(stmt, 0);
+            break;
+        }
+        const char *rkey = (const char *)sqlite3_column_text(stmt, 0);
+        const char *cid = (const char *)sqlite3_column_text(stmt, 1);
+        const char *value = (const char *)sqlite3_column_text(stmt, 2);
+        last_rkey = rkey;
+        cJSON *rec = cJSON_CreateObject();
+        cJSON_AddStringToObject(rec, "uri",
+                                make_uri(s->did, collection, rkey));
+        cJSON_AddStringToObject(rec, "cid", cid ? cid : "");
+        cJSON *val = cJSON_Parse(value ? value : "{}");
+        if (val) cJSON_AddItemToObject(rec, "value", val);
+        cJSON_AddItemToArray(records, rec);
+        count++;
+    }
+    sqlite3_finalize(stmt);
+
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddItemToObject(out, "records", records);
+    if (last_rkey && count >= limit)
+        cJSON_AddStringToObject(out, "cursor", last_rkey);
+
+    char *js = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    if (!js) return WF_ERR_ALLOC;
+    *out_json = js;
+    return WF_OK;
+}
+
+/* ── getLatestCommit (com.atproto.sync.getLatestCommit) ───────────────── */
+
+wf_status wf_repo_store_get_head(wf_repo_store *s, char **out_rev,
+                                  char **out_cid) {
+    if (!s || !out_rev || !out_cid) return WF_ERR_INVALID_ARG;
+    *out_rev = NULL;
+    *out_cid = NULL;
+    if (s->head.len == 0) return WF_ERR_NOT_FOUND;
+
+    char *cid = wf_cid_to_string(&s->head);
+    char rev[64] = "";
+    wf_car_block *blk = wf_car_find_block(&s->car, &s->head);
+    if (blk) {
+        wf_commit cm;
+        if (wf_commit_parse(blk->data, blk->data_len, &cm) == WF_OK)
+            snprintf(rev, sizeof(rev), "%s", cm.rev);
+    }
+    if (!cid) return WF_ERR_ALLOC;
+    *out_cid = cid;
+    *out_rev = strdup(rev);
+    if (!*out_rev) { free(cid); return WF_ERR_ALLOC; }
+    return WF_OK;
+}
+
+/* ── Route handlers ──────────────────────────────────────────────────── */
+
+static wf_status h_list_records(void *ctx, const wf_xrpc_request *req,
+                                wf_xrpc_response *resp) {
+    wf_repo_store *s = (wf_repo_store *)ctx;
+    cJSON *p = req->params;
+    if (!p || !cJSON_IsObject(p)) {
+        wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
+                                    "query parameters required");
+        return WF_OK;
+    }
+    cJSON *collection = cJSON_GetObjectItemCaseSensitive(p, "collection");
+    if (!collection || !cJSON_IsString(collection) || !collection->valuestring ||
+        !*collection->valuestring) {
+        wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
+                                    "collection required");
+        return WF_OK;
+    }
+    cJSON *cursor = cJSON_GetObjectItemCaseSensitive(p, "cursor");
+    cJSON *limit = cJSON_GetObjectItemCaseSensitive(p, "limit");
+    int lim = (limit && cJSON_IsNumber(limit)) ? limit->valueint : 50;
+    const char *cur = (cursor && cJSON_IsString(cursor)) ? cursor->valuestring
+                                                         : NULL;
+    char *json = NULL;
+    wf_status st = wf_repo_store_list_records(s, collection->valuestring, cur,
+                                              lim, &json);
+    if (st != WF_OK) {
+        wf_xrpc_response_set_error(resp, 400, "ListRecordsFailed",
+                                    "failed to list records");
+        return WF_OK;
+    }
+    wf_xrpc_response_set_body(resp, json, strlen(json));
+    free(json);
+    return WF_OK;
+}
+
+static wf_status h_get_latest_commit(void *ctx, const wf_xrpc_request *req,
+                                     wf_xrpc_response *resp) {
+    (void)req;
+    wf_repo_store *s = (wf_repo_store *)ctx;
+    char *rev = NULL, *cid = NULL;
+    wf_status st = wf_repo_store_get_head(s, &rev, &cid);
+    if (st == WF_ERR_NOT_FOUND) {
+        wf_xrpc_response_set_error(resp, 400, "RepositoryNotFound",
+                                    "repository is empty");
+        return WF_OK;
+    } else if (st != WF_OK) {
+        wf_xrpc_response_set_error(resp, 500, "InternalError",
+                                    "failed to read head");
+        return WF_OK;
+    }
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddStringToObject(out, "cid", cid ? cid : "");
+    cJSON_AddStringToObject(out, "rev", rev ? rev : "");
+    char *js = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    free(rev); free(cid);
+    if (!js) return WF_ERR_ALLOC;
+    wf_xrpc_response_set_body(resp, js, strlen(js));
+    free(js);
+    return WF_OK;
+}
+
 wf_status wf_xrpc_server_register_pds_repo(wf_xrpc_server *server,
                                            wf_repo_store *store) {
     if (!server || !store) return WF_ERR_INVALID_ARG;
@@ -1199,6 +1385,12 @@ wf_status wf_xrpc_server_register_pds_repo(wf_xrpc_server *server,
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_query(server, "com.atproto.repo.describeRepo",
             h_describe_repo, store);
+    if (s != WF_OK) return s;
+    s = wf_xrpc_server_register_query(server, "com.atproto.repo.listRecords",
+            h_list_records, store);
+    if (s != WF_OK) return s;
+    s = wf_xrpc_server_register_query(server, "com.atproto.sync.getLatestCommit",
+            h_get_latest_commit, store);
     if (s != WF_OK) return s;
     return WF_OK;
 }

@@ -95,6 +95,36 @@ static int run_unit(void) {
     free(recj2);
     free(reccid2);
 
+    /* listRecords enumerates a collection via the records index. */
+    char *list_json = NULL;
+    s = wf_repo_store_list_records(store, "com.example.posts", NULL, 50,
+                                    &list_json);
+    WF_CHECK(s == WF_OK && list_json);
+    if (list_json) {
+        cJSON *lj = cJSON_Parse(list_json);
+        WF_CHECK(lj && cJSON_IsObject(lj));
+        cJSON *recs = lj ? cJSON_GetObjectItemCaseSensitive(lj, "records") : NULL;
+        WF_CHECK(recs && cJSON_IsArray(recs) && cJSON_GetArraySize(recs) == 1);
+        cJSON *first = recs ? cJSON_GetArrayItem(recs, 0) : NULL;
+        WF_CHECK(first && cJSON_IsObject(first));
+        WF_CHECK(first && cJSON_GetObjectItemCaseSensitive(first, "uri") &&
+                 strcmp(cJSON_GetObjectItemCaseSensitive(first, "uri")->valuestring,
+                        uri1) == 0);
+        WF_CHECK(first && cJSON_GetObjectItemCaseSensitive(first, "value") &&
+                 strstr(cJSON_PrintUnformatted(
+                            cJSON_GetObjectItemCaseSensitive(first, "value")),
+                        "hello") != NULL);
+        cJSON_Delete(lj);
+        free(list_json);
+    }
+
+    /* getLatestCommit returns the current head rev + cid. */
+    char *gc_rev = NULL, *gc_cid = NULL;
+    s = wf_repo_store_get_head(store, &gc_rev, &gc_cid);
+    WF_CHECK(s == WF_OK && gc_rev && *gc_rev && gc_cid && *gc_cid);
+    free(gc_rev);
+    free(gc_cid);
+
     /* deleteRecord removes the record (not found afterwards). */
     s = wf_repo_store_delete_record(store, "com.example.likes", rkey2);
     WF_CHECK(s == WF_OK);
