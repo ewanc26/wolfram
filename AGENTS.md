@@ -10,6 +10,7 @@ Agentic principles and technical context for the `wolfram` repository.
 4. **Ownership is explicit**: every heap-allocated output has a matching `_free` function documented next to it. No hidden allocations, no implicit ownership transfer.
 5. **Protocol parity**: cross-reference `bluesky-social/atproto` for wire formats (XRPC envelopes, DID documents, DAG-CBOR, MST) rather than inferring them.
 6. **Pure C runtime**: the SDK and generated clients are C11. Python is permitted only for optional development-time code generation and tests; it must never become a runtime dependency.
+7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/` with stub implementations that can be replaced with real backends before shipping.
 
 ## Code style
 
@@ -22,29 +23,25 @@ Agentic principles and technical context for the `wolfram` repository.
 
 ## Development workflow
 
-- Build: `cmake -S . -B build && cmake --build build`
-- Test: `ctest --test-dir build`
-- Lexicon tests: `python3 test/test_lexgen.py`
-- C++ wrapper: `cmake -S . -B build -DWOLFRAM_BUILD_CPP=ON && cmake --build build && ctest --test-dir build` (offline `wolfram-cpp-smoke`).
-- C# wrapper: `dotnet test dotnet/Wolfram.Interop.Tests/Wolfram.Interop.Tests.csproj` (requires a built `libwolfram` with `WOLFRAM_NATIVE_LIB` pointing at it; offline xUnit smoke).
-- Regenerate lexicons after editing `lexicons/**/*.json` or `tools/wf_lexgen.py`:
-  `python3 tools/wf_lexgen.py $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h`
-- Optional modules are gated by CMake options: `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server + SSE), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption of session credentials).
-- Companion-language bindings (C++ `wolfram-cpp`, C# `Wolfram.Interop`) are separate consumer layers that link `libwolfram`; the C11 core stays the single source of truth. Conventions: `docs/bindings-cpp-csharp.md`.
-- When picking this back up cold, read the `## Roadmap` section of README.md and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
-- Before changing protocol behavior, inspect `/Volumes/Storage/Developer/Local/atproto` and then verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
+- **Desktop builds**: `cmake -S . -B build && cmake --build build`
+- **Tests**: `ctest --test-dir build`
+- **Lexicon generation**: `python3 tools/wf_lexgen.py $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h`
+- **Optional modules**: gated by CMake options: `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption).
+- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64) are supported via `.devdeps/*.cmake` toolchain files and stub platform implementations in `src/platform/`. Use `DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads.
+- **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
+- **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
 ## Current state
 
 The SDK is broad and multi-layered; almost all of it is implemented and tested. Highlights:
 
 - `xrpc`: libcurl query/procedure calls, encoded scalar/repeated parameters, generic HTTP GET, bearer authentication, binary blob upload (incl. video), DPoP-bound OAuth client (`auth_client`). Tested.
-- `session` / `server`: PDS login, resume, refresh, logout, and full `com.atproto.server` account lifecycle (createAccount, app passwords, deactivate, email/account-delete requests, session refresh). The `server_typed` agent wrappers previously stubbed out the parameterless `com.atproto.server` procedures (`requestAccountDelete`, `requestEmailUpdate`, `requestEmailConfirmation`, `refreshSession`); those are now implemented (see lexgen note below). Tested.
-- `identity` / `identity_typed` / `plc`: did:plc, did:web, handle DNS TXT (c-ares/POSIX `libresolv`/well-known fallback), `com.atproto.identity` wrappers, and DID PLC operation build/sign/submit helpers. Tested.
+- `session` / `server`: PDS login, resume, refresh, logout, and full `com.atproto.server` account lifecycle. Tested.
+- `identity` / `identity_typed` / `plc`: did:plc, did:web, handle DNS TXT, `com.atproto.identity` wrappers, and DID PLC operation build/sign/submit helpers. Tested.
 - `crypto`: secp256k1 (libsecp256k1) + P-256 (OpenSSL), `did:key`/multikey verification. Tested.
 - `repo` / `record`: DAG-CBOR, CIDs, CAR, MST, signed v3 commits, record CRUD, diff verify/apply, operation inversion, schema-driven record encoding. Tested.
 - `sync` / `sync_typed` / `sync_subscribe` / `sync_verify`: CAR download, `com.atproto.sync.*` typed wrappers, firehose `subscribeRepos` WebSocket subscription with commit verification. Tested.
-- `agent` / `bsky_agent`: high-level BskyAgent bundling session + xrpc + identity + agent; posts, profile, social graph, feeds, preferences, push registration, notifications, blobs, video upload, and `app.bsky.graph` write wrappers (`graph_write.{c,h}`: mute/unmute thread + actor-list, block/list/listitem/starterpack/listblock create/update/delete) tested against an offline mock PDS. Tested.
+- `agent` / `bsky_agent`: high-level BskyAgent bundling session + xrpc + identity + agent; posts, profile, social graph, feeds, preferences, push registration, notifications, blobs, video upload, and `app.bsky.graph` write wrappers tested against an offline mock PDS. Tested.
 - `chat` / `chat_typed`: `chat.bsky.*` DM/group/actor/moderation write+query wrappers with chat-service endpoint resolution. Tested.
 - `ozone` / `ozone_typed`: full `tools.ozone.*` typed coverage (moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, set value). Tested.
 - `moderation`: offline decision engine (blur/alert/inform/filter) from labels, blocks, mutes, muted words, hidden posts. Tested.
@@ -53,16 +50,34 @@ The SDK is broad and multi-layered; almost all of it is implemented and tested. 
 - `jetstream`: filtered Jetstream WebSocket subscription with cursor reconnect/backoff and optional zstd. Tested.
 - `validate` / `json` / `syntax` / `richtext`: runtime lexicon validation, generic JSON canonicalize/validate, syntax validators, rich-text facets. Tested.
 - `store`: optional SQLite session + repo-mirror + persisted-label storage (`WOLFRAM_BUILD_STORE`; `WOLFRAM_BUILD_STORE_CRYPTO` adds libsodium at-rest encryption).
-- `xrpc_server`: optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER`). Route registration (query/procedure), **Server-Sent Events (SSE) streaming** for subscription-style endpoints (register an SSE route, push frames from a handler via `wf_xrpc_server_sse_send` / `wf_xrpc_server_sse_send_raw`, close with `wf_xrpc_server_sse_close`; implemented with `MHD_suspend_connection`/`MHD_resume_connection`), and **WebSocket (RFC 6455) subscription endpoints** (register a WS route; after the 101 upgrade handshake the handler pushes server→client binary frames via `wf_xrpc_server_ws_send` and ends the stream with `wf_xrpc_server_ws_close`; built on libmicrohttpd upgrades — `MHD_create_response_for_upgrade` + `MHD_ALLOW_UPGRADE` — with a per-connection worker thread that answers client ping with pong and honours client close). Per-route token-bucket rate limiting (`wf_rate_limiter`), auth middleware, CORS. Tested offline (round-trip, rate limiter, SSE streaming, WebSocket handshake + framing).
+- `xrpc_server`: optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER`). Route registration, **Server-Sent Events (SSE) streaming** for subscription-style endpoints, and **WebSocket (RFC 6455) subscription endpoints** with per-route token-bucket rate limiting, auth middleware, CORS. Tested offline.
 - `feedgen_server`: optional `libmicrohttpd`-backed feed-generator skeleton server helper (`WOLFRAM_BUILD_SERVER`) serving `app.bsky.feed.getFeedSkeleton` and `getFeedGenerator`. Tested.
-- `relay_server`: optional `libmicrohttpd`-backed generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`), built on the server's WS endpoints and the libcurl WebSocket client transport. `wf_xrpc_server_register_relay` registers a WS route (e.g. `com.atproto.sync.subscribeRepos`) that, on a downstream connect, opens an upstream `ws(s)://` connection and forwards each received message byte-for-byte until either side closes, then closes downstream. Protocol-agnostic (raw frames, no parsing) so it serves `subscribeRepos`, `subscribeLabels`, or any binary subscription. Config deep-copied and freed by `wf_relay_config_free`; the `wf_relay_server` handle owns the copy and is freed by `wf_relay_server_free` after `wf_xrpc_server_free`. Tested offline (`test_relay_server`).
+- `relay_server`: optional `libmicrohttpd`-backed generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`), built on the server's WS endpoints and the libcurl WebSocket client transport. `wf_xrpc_server_register_relay` registers a WS route (e.g. `com.atproto.sync.subscribeRepos`) that, on a downstream connect, opens an upstream `ws(s)://` connection and forwards each received message byte-for-byte until either side closes, then closes downstream. Protocol-agnostic (raw frames, no parsing) so it serves `subscribeRepos`, `subscribeLabels`, or any binary subscription. Config deep-copied and freed by `wf_relay_config_free`; the `wf_relay_server` handle owns the copy and is freed by `wf_relay_server_free` after `wf_xrpc_server_free`. Tested offline.
 - `video_typed`: owning parsers + agent wrappers for `app.bsky.video` (job status, upload limits, upload). Tested.
-- `actor_prefs_typed` / `actor_status_typed` / `notification_typed` / `notification_v2_typed` / `labeler_typed` / `embed_typed` / `feed_typed` / `feedgen_typed` / `graph_typed` / `list_typed` / `thread_typed` / `bookmark_typed` / `contact_typed` / `draft_typed` / `ageassurance_typed` / `temp_typed` / `admin_typed`: owned typed parsers/builders and agent wrappers across the remaining lexicon namespaces. `actor_status_typed` keeps honest stubs for `getActorStatus`/`getStatus`/`putStatus` because the `app.bsky.actor.status` lexicon defines `main` as a `record` (no query/procedure defs), so no generated transport call exists.
-- `lexicon` (`tools/wf_lexgen.py`): generates C declarations, recursive input encoders, endpoint wrappers, and owning output decoders. **Note (fixed):** the generator previously dropped the `_call`/`_call_auth` *definition* for query/procedure endpoints that have neither an `input` schema nor `parameters` (e.g. several parameterless `com.atproto.server` procedures), even though the header declared them. The generator now always emits the definition; regenerate `atproto_lex.{c,h}` after any lexgen change. Tested (`python3 test/test_lexgen.py`).
+- `actor_prefs_typed` / `actor_status_typed` / `notification_typed` / `notification_v2_typed` / `labeler_typed` / `embed_typed` / `feed_typed` / `feedgen_typed` / `graph_typed` / `list_typed` / `thread_typed` / `bookmark_typed` / `contact_typed` / `draft_typed` / `ageassurance_typed` / `temp_typed` / `admin_typed`: owned typed parsers/builders and agent wrappers across the remaining lexicon namespaces. `actor_status_typed` keeps honest stubs for `getActorStatus`/`getStatus`/`putStatus` because the `app.bsky.actor.status` lexicon defines `main` as a `record` (no query/procedure defs). Tested.
+- `lexicon` (`tools/wf_lexgen.py`): generates C declarations, recursive input encoders, endpoint wrappers, and owning output decoders. **Note (fixed):** the generator now always emits the definition for query/procedure endpoints that have neither an `input` schema nor `parameters`. Tested.
 - `cli`: `wolfram` command-line client (login/post/get/threads/notifications/labels/moderation/profile/timeline/follow/like/repost/search/mute/thread). Built by default.
 
 ## Next planned work
 
-- Exercise the gated live example test (`test_examples_live`) in CI with real credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
+- Exercise the gated live example test (`test_examples_live`) in CI with real credentials.
 - Continue evaluating upstream C libraries for server-side infrastructure (event loop, config parsing).
 - Broaden generated typed-wrapper coverage for any remaining lexicon endpoints not yet wrapped at the agent level.
+
+## Platform support
+
+Cross-compilation targets for Nintendo consoles and Windows:
+
+**Wii**: `.devdeps/wii.cmake`; client-only build, excludes OAuth, server modules, and desktop dependencies.
+
+**Wii U**: `.devdeps/wiiu.cmake`; client-only build.
+
+**3DS**: `.devdeps/3ds.cmake`; client-only build.
+
+**Windows**: `.devdeps/windows.cmake`; MinGW-w64 cross-compilation.
+
+**Linux ARM64**: `.devdeps/linux-aarch64.cmake`; AArch64 cross-compilation.
+
+Each target uses stub platform implementations in `src/platform/` (wii_platform.c, wiiu_platform.c, 3ds_platform.c, windows_platform.c) that return `WF_ERR_NOT_IMPLEMENTED`. Replace those with real backends before shipping.
+
+The desktop (x86_64) build includes the full suite of dependencies: libcurl, OpenSSL, pthreads, libmicrohttpd (if `WOLFRAM_BUILD_SERVER`), SQLite (if `WOLFRAM_BUILD_STORE`), libsodium (if `WOLFRAM_BUILD_STORE_CRYPTO`).

@@ -57,7 +57,11 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 `wolfram` is organized into small, layered modules — transport → identity →
 repo → agent. See [docs/modules.md](docs/modules.md) for the full status table.
 
-## Nintendo Wii
+## Nintendo Console Support
+
+Cross-compilation targets for Nintendo platforms are supported:
+
+### Wii
 
 A cross-compilation target for the Nintendo Wii (devkitPPC/libogc) is
 supported. The Wii build is **client-only** — server modules, OAuth flows,
@@ -74,11 +78,59 @@ cmake --build build-wii
 Requires [devkitPro](https://devkitpro.org/) with devkitPPC and libogc
 installed. The toolchain file is at `.devdeps/wii.cmake`.
 
-The transport and crypto layers use stub implementations that return
-`WF_ERR_NOT_IMPLEMENTED`. Before integrating with a Wii application,
-replace the stubs with lwIP + mbedTLS backends — see the `TODO` comments
-in `src/platform/wii_platform.c`, `src/transport/xrpc_wii.c`, and
-`src/crypto/crypto_wii.c`.
+### Wii U
+
+A cross-compilation target for the Nintendo Wii U (devkitPPC/wut) is
+supported.
+
+```sh
+cmake -S . -B build-wiiu \
+  -DCMAKE_TOOLCHAIN_FILE=.devdeps/wiiu.cmake \
+  -DWOLFRAM_BUILD_WIIU=ON \
+  -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-wiiu
+```
+
+Requires [devkitPro](https://devkitpro.org/) with devkitPPC and the wut SDK
+installed. The toolchain file is at `.devdeps/wiiu.cmake`.
+
+### 3DS
+
+A cross-compilation target for the Nintendo 3DS (devkitARM/libctru) is
+supported.
+
+```sh
+cmake -S . -B build-3ds \
+  -DCMAKE_TOOLCHAIN_FILE=.devdeps/3ds.cmake \
+  -DWOLFRAM_BUILD_3DS=ON \
+  -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-3ds
+```
+
+Requires [devkitPro](https://devkitpro.org/) with devkitARM and libctru
+installed. The toolchain file is at `.devdeps/3ds.cmake`.
+
+### Windows
+
+A cross-compilation target for Windows (MinGW-w64) is supported.
+
+```sh
+cmake -S . -B build-windows \
+  -DCMAKE_TOOLCHAIN_FILE=.devdeps/windows.cmake \
+  -DWOLFRAM_BUILD_WINDOWS=ON \
+  -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-windows
+```
+
+Requires MinGW-w64. The toolchain file is at `.devdeps/windows.cmake`.
+
+All four targets use stub implementations for transport and crypto that
+return `WF_ERR_NOT_IMPLEMENTED`. Before integrating with a console application,
+replace the stubs with platform-specific backends — see the `TODO` comments
+in the individual platform stub files (`*_platform.c`).
+
+For consoles (Wii, Wii U, 3DS), the builds are client-only — server modules,
+OAuth flows, and desktop dependencies (libcurl, OpenSSL, pthreads) are excluded.
 
 ## Contributing
 
