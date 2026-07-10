@@ -420,14 +420,30 @@ static wf_status mst_build_from_items(wf_car *car, unsigned layer,
                                       const mst_split_item *items, size_t len,
                                       wf_cid *out) {
     *out = (wf_cid){{0}, 0};
+    if (len == 0) return WF_OK;
+
     size_t leafcount = 0;
     for (size_t i = 0; i < len; i++)
         if (!items[i].is_tree) leafcount++;
-    if (leafcount == 0) return WF_OK;
+
+    /* A slice can legitimately be a single tree item (a node with only a left
+     * subtree and no leaf entries). Preserve that structure instead of
+     * collapsing it to an empty CID. */
+    if (leafcount == 0) {
+        if (len != 1 || !items[0].is_tree) return WF_ERR_PARSE;
+        wf_mst_node node;
+        wf_status st = wf_mst_node_build(layer, &items[0].cid, NULL, 0, &node);
+        if (st != WF_OK) return st;
+        st = wf_mst_node_finalize(&node, car);
+        if (st != WF_OK) { wf_mst_node_free(&node); return st; }
+        *out = node.cid;
+        wf_mst_node_free(&node);
+        return WF_OK;
+    }
 
     wf_cid left = {{0}, 0};
     size_t s = 0;
-    if (len > 0 && items[0].is_tree) { left = items[0].cid; s = 1; }
+    if (items[0].is_tree) { left = items[0].cid; s = 1; }
 
     wf_mst_entry *entries = calloc(leafcount, sizeof(wf_mst_entry));
     if (!entries) return WF_ERR_ALLOC;
@@ -569,23 +585,22 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
     if (!new_entries) return WF_ERR_ALLOC;
 
-    /* Same-layer insert where the predecessor entry owns a subtree the new
-     * key falls within must split that subtree around the key (atproto's
-     * splitAround + replaceWithSplit). The lower part stays as the predecessor
-     * entry's subtree; the new key becomes a direct leaf; the upper part
-     * becomes the new leaf's subtree. */
+    /* Same-layer insert where the preceding interleaved item is a tree must
+     * split that tree around the key (atproto's splitAround and
+     * replaceWithSplit). That tree can be either the node's leading `left`
+     * tree or a leaf's `subtree`. The lower part stays before the new leaf and
+     * the upper part becomes the new leaf's subtree. */
     wf_cid pred_subtree = {{0}, 0};
     wf_cid new_subtree = {{0}, 0};
-    if (idx > 0 && node->entries[idx - 1].subtree.len > 0) {
-        wf_status ss = mst_split_around(car, &node->entries[idx - 1].subtree,
-                                        key, key_len, &pred_subtree,
-                                        &new_subtree);
+    const wf_cid *preceding_tree = idx == 0
+        ? &node->left : &node->entries[idx - 1].subtree;
+    if (preceding_tree->len > 0) {
+        wf_status ss = mst_split_around(car, preceding_tree, key, key_len,
+                                        &pred_subtree, &new_subtree);
         if (ss != WF_OK) {
             free(new_entries);
             return ss;
         }
-    } else if (idx > 0) {
-        pred_subtree = node->entries[idx - 1].subtree;
     }
 
     for (size_t i = 0, j = 0; i < node->count; i++, j++) {
@@ -615,8 +630,9 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
         new_entries[idx].subtree = new_subtree;
     }
 
+    wf_cid new_left = idx == 0 ? pred_subtree : node->left;
     wf_mst_node new_node;
-    wf_status s = wf_mst_node_build(node->layer, &node->left,
+    wf_status s = wf_mst_node_build(node->layer, &new_left,
                                     new_entries, new_count, &new_node);
     free_entries(new_entries, new_count);
     free(new_entries);
@@ -729,125 +745,31 @@ static wf_status mst_add_at_higher_layer(wf_car *car,
                                          size_t key_len, const wf_cid *value,
                                          unsigned key_layer,
                                          wf_cid *new_cid) {
-    size_t idx = mst_find_ge(node, key, key_len);
-    size_t left_count = idx;
-    size_t right_count = node->count - idx;
+    wf_cid left = {{0}, 0};
+    wf_cid right = {{0}, 0};
+    wf_status s = mst_split_around(car, &node->cid, key, key_len, &left, &right);
+    if (s != WF_OK) return s;
 
-    wf_mst_entry *left_entries = NULL;
-    wf_mst_entry *right_entries = NULL;
+    s = mst_raise_subtree(car, &left, node->layer, key_layer);
+    if (s != WF_OK) return s;
+    s = mst_raise_subtree(car, &right, node->layer, key_layer);
+    if (s != WF_OK) return s;
 
-    if (left_count > 0) {
-        left_entries = calloc(left_count, sizeof(wf_mst_entry));
-        if (!left_entries) return WF_ERR_ALLOC;
-        for (size_t i = 0; i < left_count; i++) {
-            left_entries[i].key_len = node->entries[i].key_len;
-            left_entries[i].key = malloc(left_entries[i].key_len);
-            if (!left_entries[i].key) {
-                for (size_t j = 0; j < i; j++) free(left_entries[j].key);
-                free(left_entries);
-                free(right_entries);
-                return WF_ERR_ALLOC;
-            }
-            memcpy(left_entries[i].key, node->entries[i].key, left_entries[i].key_len);
-            left_entries[i].value = node->entries[i].value;
-            left_entries[i].subtree = node->entries[i].subtree;
-        }
-    }
-    if (right_count > 0) {
-        right_entries = calloc(right_count, sizeof(wf_mst_entry));
-        if (!right_entries) {
-            for (size_t i = 0; i < left_count; i++) free(left_entries[i].key);
-            free(left_entries);
-            return WF_ERR_ALLOC;
-        }
-        for (size_t i = 0; i < right_count; i++) {
-            right_entries[i].key_len = node->entries[idx + i].key_len;
-            right_entries[i].key = malloc(right_entries[i].key_len);
-            if (!right_entries[i].key) {
-                for (size_t j = 0; j < i; j++) free(right_entries[j].key);
-                for (size_t j = 0; j < left_count; j++) free(left_entries[j].key);
-                free(right_entries);
-                free(left_entries);
-                return WF_ERR_ALLOC;
-            }
-            memcpy(right_entries[i].key, node->entries[idx + i].key, right_entries[i].key_len);
-            right_entries[i].value = node->entries[idx + i].value;
-            right_entries[i].subtree = node->entries[idx + i].subtree;
-        }
-    }
-
-    wf_cid left_cid = {{0}, 0};
-    if (left_count > 0) {
-        wf_mst_node left_node;
-        wf_status st = wf_mst_node_build(node->layer, &node->left,
-                                         left_entries, left_count, &left_node);
-        free(left_entries);
-        left_entries = NULL;
-        if (st != WF_OK) {
-            if (right_entries) {
-                for (size_t i = 0; i < right_count; i++) free(right_entries[i].key);
-                free(right_entries);
-            }
-            return st;
-        }
-        st = wf_mst_node_finalize(&left_node, car);
-        if (st != WF_OK) {
-            wf_mst_node_free(&left_node);
-            if (right_entries) {
-                for (size_t i = 0; i < right_count; i++) free(right_entries[i].key);
-                free(right_entries);
-            }
-            return st;
-        }
-        left_cid = left_node.cid;
-        wf_mst_node_free(&left_node);
-        st = mst_raise_subtree(car, &left_cid, node->layer, key_layer);
-        if (st != WF_OK) {
-            if (right_entries) {
-                for (size_t i = 0; i < right_count; i++) free(right_entries[i].key);
-                free(right_entries);
-            }
-            return st;
-        }
-    }
-
-    wf_cid right_cid = {{0}, 0};
-    if (right_count > 0) {
-        wf_mst_node right_node;
-        wf_cid right_left = {{0}, 0};
-        wf_status st = wf_mst_node_build(node->layer, &right_left,
-                                         right_entries, right_count, &right_node);
-        free(right_entries);
-        right_entries = NULL;
-        if (st != WF_OK) return st;
-        st = wf_mst_node_finalize(&right_node, car);
-        if (st != WF_OK) { wf_mst_node_free(&right_node); return st; }
-        right_cid = right_node.cid;
-        wf_mst_node_free(&right_node);
-        st = mst_raise_subtree(car, &right_cid, node->layer, key_layer);
-        if (st != WF_OK) return st;
-    }
-
-    wf_mst_entry leaf_entry;
-    leaf_entry.key_len = key_len;
-    leaf_entry.value = *value;
-    leaf_entry.subtree = right_cid;
-    leaf_entry.key = malloc(key_len);
-    if (!leaf_entry.key) return WF_ERR_ALLOC;
-    memcpy(leaf_entry.key, key, key_len);
-
-    wf_mst_entry mid_entries[1];
-    mid_entries[0].key = leaf_entry.key;
-    mid_entries[0].key_len = leaf_entry.key_len;
-    mid_entries[0].value = leaf_entry.value;
-    mid_entries[0].subtree = leaf_entry.subtree;
+    wf_mst_entry mid_entry;
+    mid_entry.key = malloc(key_len);
+    if (!mid_entry.key) return WF_ERR_ALLOC;
+    memcpy(mid_entry.key, key, key_len);
+    mid_entry.key_len = key_len;
+    mid_entry.value = *value;
+    mid_entry.subtree = right;
 
     wf_mst_node root_node;
-    wf_status st = wf_mst_node_build(key_layer, &left_cid,
-                                     mid_entries, 1, &root_node);
-    if (st != WF_OK) { free(leaf_entry.key); return st; }
-    st = wf_mst_node_finalize(&root_node, car);
-    if (st != WF_OK) { wf_mst_node_free(&root_node); free(leaf_entry.key); return st; }
+    s = wf_mst_node_build(key_layer, &left, &mid_entry, 1, &root_node);
+    free(mid_entry.key);
+    if (s != WF_OK) return s;
+
+    s = wf_mst_node_finalize(&root_node, car);
+    if (s != WF_OK) { wf_mst_node_free(&root_node); return s; }
     *new_cid = root_node.cid;
     wf_mst_node_free(&root_node);
     return WF_OK;
@@ -1222,15 +1144,20 @@ wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
     if (!car || !root_cid || !key || key_len == 0 || !new_root)
         return WF_ERR_INVALID_ARG;
 
-    memset(new_root, 0, sizeof(*new_root));
-
-    if (root_cid->len == 0)
+    /* Preserve the input before touching the output so callers may thread a
+     * root in place by passing the same wf_cid for both arguments. */
+    if (root_cid->len == 0) {
+        memset(new_root, 0, sizeof(*new_root));
         return WF_ERR_NOT_FOUND;
+    }
+
+    wf_cid old_root = *root_cid;
+    memset(new_root, 0, sizeof(*new_root));
 
     unsigned key_layer = wf_mst_key_layer(key, key_len);
 
     wf_mst_node node;
-    wf_status s = mst_load_node(car, root_cid, &node);
+    wf_status s = mst_load_node(car, &old_root, &node);
     if (s != WF_OK) return s;
 
     s = mst_delete_recursive(car, &node, key, key_len, key_layer, new_root);
