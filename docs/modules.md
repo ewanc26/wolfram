@@ -23,7 +23,7 @@
 | `wolfram/xrpc_server.h`  | Implemented | Optional XRPC server (libmicrohttpd) — route registration, auth middleware, CORS, POST body accumulation, GET query-param parsing, token-bucket rate limiter (`wf_rate_limiter`) |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
-| `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (13K header, 74K source) |
+| `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (~15K-line header, ~82K-line source; all 312 query/procedure endpoints) |
 | `wolfram/moderation.h`    | Implemented | Moderation decision engine — blur/alert/inform/filter for accounts, profiles, posts, notifications, feed generators, and user lists from labels, blocks, mutes, hidden posts, and muted words |
 | `wolfram/store.h`         | Partial/Optional | SQLite-backed session + repo-mirror persistence + persisted-label storage for the moderation engine (OFF by default; build with `WOLFRAM_BUILD_STORE=ON`; optional `WOLFRAM_BUILD_STORE_CRYPTO=ON` adds libsodium at-rest encryption) |
 | `wolfram/threadgate_postgate.h` | Implemented | Threadgate / postgate record helpers — `wf_agent_create_threadgate`/`wf_agent_create_postgate` and `wf_agent_delete_record_by_uri` |
@@ -37,5 +37,20 @@
 | `wolfram/lexicon_typed.h` | Implemented | Owned parser + agent wrapper for `com.atproto.lexicon.resolveLexicon` (lexicon document fetch by NSID/version) |
 | `wolfram/identity_typed.h` | Implemented | Owned typed parsers + agent wrappers for `com.atproto.identity` (resolveHandle, resolveDid, updateHandle, getRecommendedDidCredentials, signPlcOperation, submitPlcOperation, resolveIdentity, refreshIdentity) plus a PLC handle-rotation convenience (`wf_agent_identity_rotate_handle`) |
 | `wolfram/notification_v2_typed.h` | Implemented | Owned typed parsers + agent wrappers for `app.bsky.notification` v2 preferences + activity subscriptions (`putPreferencesV2`, `listActivitySubscriptions`, `putActivitySubscription`) |
+| `wolfram/actor_status_typed.h` | Implemented | Owned typed wrappers for `app.bsky.actor.status` (stored record + `#statusView`; query/procedure ops are honest stubs — the lexicon defines only a `record`) |
+| `wolfram/video_typed.h`   | Implemented | Owned typed parsers + builders + agent wrappers for `app.bsky.video` (getJobStatus, getUploadLimits, uploadVideo) |
+| `wolfram/unspecced_typed.h` | Implemented | Owned typed parsers for `app.bsky.unspecced` query endpoints (trends, suggested users, thread v2, etc.) |
+| `wolfram/temp_typed.h`    | Implemented | Owned typed parsers + agent wrappers for `com.atproto.temp` account/signup helper flows |
+| `wolfram/admin_typed.h`   | Implemented | Owned typed parsers + agent wrappers for `com.atproto.admin` PDS/service administration |
+| `wolfram/contact_typed.h` | Implemented | Owned typed parsers + agent wrappers for `app.bsky.contact` (import / phone verification / match discovery) |
+| `wolfram/draft_typed.h`   | Implemented | Owned typed parser + agent wrappers for `app.bsky.draft` (post drafts) |
+| `wolfram/ageassurance_typed.h` | Implemented | Owned typed parsers + agent wrappers for `app.bsky.ageassurance` (age verification state) |
+| `wolfram/bookmark_typed.h` | Implemented | Owned typed parser + agent wrappers for `app.bsky.bookmark` (bookmarks) |
+| `wolfram/oauth/verify.h`  | Implemented | OAuth resource-server token verification (`wf_oauth_verify_bearer`/`_dpop`/`_request`) with DPoP replay cache and trusted-key set |
+| `wolfram/sync_publish.h`  | Implemented | Firehose event production — builds framed `{header}{body}` CBOR messages (`wf_sync_publish_event`/`_error`), the inverse of `sync_subscribe` |
+| `wolfram/feedgen_server.h` | Optional | libmicrohttpd feed-generator skeleton server serving `getFeedSkeleton`/`getFeedGenerator` (`WOLFRAM_BUILD_SERVER`) |
+| `wolfram/relay_server.h`  | Optional | libmicrohttpd generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`) |
+| `wolfram/blob_store.h`    | Optional | Self-contained blob persistence + serving (in-memory or file-backed); XRPC integration registers `uploadBlob`/`getBlob` (`WOLFRAM_BUILD_SERVER`; core store always built) |
+| `wolfram/platform.h`      | Implemented | Platform abstraction (init/shutdown, mutex, monotonic time). POSIX + Win32 implemented; Wii/Wii U/3DS ship honest `WF_ERR_NOT_IMPLEMENTED` stubs |
 | `examples/` | Implemented | Higher-level endpoint examples using generated clients (label query, PLC handle rotation, notification v2, admin search) |
-| `tools/wf_lexgen.py`      | Initial     | Lexicon JSON to typed C data-model declarations |
+| `tools/wf_lexgen.py`      | Implemented | Lexicon JSON → typed C declarations, recursive input encoders, endpoint wrappers, and owning output decoders (development-time only; generated output is checked in) |

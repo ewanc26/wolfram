@@ -6,11 +6,11 @@ Agentic principles and technical context for the `wolfram` repository.
 
 1. **Transport first**: only transport modules (`xrpc.c` and `websocket.c`) do real network I/O. Protocol modules consume those APIs.
 2. **No hand-rolled crypto or hashing**: wrap `libsecp256k1` and an established SHA-256 implementation rather than writing field arithmetic or digest logic from scratch.
-3. **Stubs are honest**: unimplemented functions return `WF_ERR_INVALID_ARG` and carry a `TODO` explaining what's missing and why — never a silent no-op or a fabricated success. When the missing piece becomes available (e.g. a generated lex transport call), replace the stub with a real implementation rather than leaving it.
+3. **Stubs are honest**: unimplemented functions return an error and carry a `TODO` explaining what's missing and why — never a silent no-op or a fabricated success. Unimplemented *backends/transports* (e.g. the Wii/Wii U/3DS platform stubs and `xrpc_wii.c`) return `WF_ERR_NOT_IMPLEMENTED`; unimplemented protocol functions with missing inputs return `WF_ERR_INVALID_ARG`. When the missing piece becomes available (e.g. a generated lex transport call), replace the stub with a real implementation rather than leaving it.
 4. **Ownership is explicit**: every heap-allocated output has a matching `_free` function documented next to it. No hidden allocations, no implicit ownership transfer.
 5. **Protocol parity**: cross-reference `bluesky-social/atproto` for wire formats (XRPC envelopes, DID documents, DAG-CBOR, MST) rather than inferring them.
 6. **Pure C runtime**: the SDK and generated clients are C11. Python is permitted only for optional development-time code generation and tests; it must never become a runtime dependency.
-7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/` with stub implementations that can be replaced with real backends before shipping.
+7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, Linux/AArch64, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/`. The Windows target is fully implemented against the Win32 API; the Wii/Wii U/3DS targets ship honest stub backends (`WF_ERR_NOT_IMPLEMENTED`) that must be replaced with real backends before shipping.
 
 ## Code style
 
@@ -26,8 +26,8 @@ Agentic principles and technical context for the `wolfram` repository.
 - **Desktop builds**: `cmake -S . -B build && cmake --build build`
 - **Tests**: `ctest --test-dir build`
 - **Lexicon generation**: `python3 tools/wf_lexgen.py $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h`
-- **Optional modules**: gated by CMake options: `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption).
-- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64) are supported via `.devdeps/*.cmake` toolchain files and stub platform implementations in `src/platform/`. Use `DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads.
+- **Optional modules**: gated by CMake options — `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption), `WOLFRAM_BUILD_TEST_HTTPD` (libmicrohttpd mock PDS for offline HTTP integration tests), `WOLFRAM_BUILD_IDN` (libidn2 internationalised-handle resolution), `WOLFRAM_BUILD_CPP` (C++ RAII wrapper `wolfram-cpp`). Platform/example/test flags: `WOLFRAM_BUILD_WII` / `_WIIU` / `_3DS` / `_WINDOWS`, `WOLFRAM_BUILD_EXAMPLES`, `WOLFRAM_BUILD_TESTS`.
+- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64) are supported via `.devdeps/*.cmake` toolchain files and stub platform implementations in `src/platform/`. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads.
 - **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
 - **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
@@ -36,7 +36,7 @@ Agentic principles and technical context for the `wolfram` repository.
 The SDK is broad and multi-layered; almost all of it is implemented and tested. Highlights:
 
 - `xrpc`: libcurl query/procedure calls, encoded scalar/repeated parameters, generic HTTP GET, bearer authentication, binary blob upload (incl. video), DPoP-bound OAuth client (`auth_client`). Tested.
-- `session` / `server`: PDS login, resume, refresh, logout, and full `com.atproto.server` account lifecycle (createAccount, app passwords, deactivate, email/account-delete requests, session refresh). The `server_typed` agent wrappers previously stubbed out the parameterless `com.atproto.server` procedures (`requestAccountDelete`, `requestEmailUpdate`, `requestEmailConfirmation`, `refreshSession`); those are now implemented (see lexgen note below). Tested.
+- `session` / `server`: PDS login, resume, refresh, logout, and full `com.atproto.server` account lifecycle (createAccount, app passwords, deactivate, email/account-delete requests, session refresh). The `server_typed` agent wrappers implement the parameterless `com.atproto.server` procedures (`requestAccountDelete`, `requestEmailUpdate`, `requestEmailConfirmation`, `refreshSession`). Tested.
 - `identity` / `identity_typed` / `plc`: did:plc, did:web, handle DNS TXT (c-ares/POSIX `libresolv`/well-known fallback), `com.atproto.identity` wrappers, and DID PLC operation build/sign/submit helpers. `wf_agent_identity_rotate_handle` now wires the full handle-rotation flow: it builds the rotation operation locally (validation gate) and, given the out-of-band `requestPlcOperationSignature` token, signs it server-side via `signPlcOperation` and submits it via `submitPlcOperation`. Tested.
 - `crypto`: secp256k1 (libsecp256k1) + P-256 (OpenSSL), `did:key`/multikey verification. Tested.
 - `repo` / `record`: DAG-CBOR, CIDs, CAR, MST, signed v3 commits, record CRUD, diff verify/apply, operation inversion, schema-driven record encoding. Tested.
@@ -57,7 +57,7 @@ The SDK is broad and multi-layered; almost all of it is implemented and tested. 
 - `blob_store`: self-contained blob persistence + serving so wolfram can act as a PDS for blobs (`WOLFRAM_BUILD_SERVER` for the server integration; core store always built). `wf_blob_store_*` (new/free/put/get/exists) with an in-memory mode and a file-backed mode (one file per blob named by CID + a `<cid>.mime` sidecar; re-open reloads). `wf_xrpc_server_register_blob_store` registers `com.atproto.repo.uploadBlob` (procedure) and `com.atproto.sync.getBlob` (query): upload computes the blob's raw multicodec (0x55) SHA-256 CID with `wf_cid_of_bytes`, stores it, and returns the TypedBlobRef; getBlob serves the raw bytes with the stored Content-Type. The XRPC server request/response structs carry a raw POST body and a custom response Content-Type for binary blobs. Tested offline (`test_blob_store`).
 - `video_typed`: owning parsers + agent wrappers for `app.bsky.video` (job status, upload limits, upload). Tested.
 - `actor_prefs_typed` / `actor_status_typed` / `notification_typed` / `notification_v2_typed` / `labeler_typed` / `embed_typed` / `feed_typed` / `feedgen_typed` / `graph_typed` / `list_typed` / `thread_typed` / `bookmark_typed` / `contact_typed` / `draft_typed` / `ageassurance_typed` / `temp_typed` / `admin_typed`: owned typed parsers/builders and agent wrappers across the remaining lexicon namespaces. `actor_status_typed` keeps honest stubs for `getActorStatus`/`getStatus`/`putStatus` because the `app.bsky.actor.status` lexicon defines `main` as a `record` (no query/procedure defs). Tested.
-- `lexicon` (`tools/wf_lexgen.py`): generates C declarations, recursive input encoders, endpoint wrappers, and owning output decoders. **Note (fixed):** the generator now always emits the definition for query/procedure endpoints that have neither an `input` schema nor `parameters`. Tested.
+- `lexicon` (`tools/wf_lexgen.py`): generates C declarations, recursive input encoders, endpoint wrappers, and owning output decoders. The generator always emits the definition for query/procedure endpoints that have neither an `input` schema nor `parameters`. Tested.
 - `cli`: `wolfram` command-line client (login/post/get/threads/notifications/labels/moderation/profile/timeline/follow/like/repost/search/mute/thread). Built by default.
 
 ## Next planned work
@@ -81,6 +81,6 @@ Cross-compilation targets for Nintendo consoles and Windows:
 
 **Linux ARM64**: `.devdeps/linux-aarch64.cmake`; AArch64 cross-compilation.
 
-Each target uses stub platform implementations in `src/platform/` (wii_platform.c, wiiu_platform.c, 3ds_platform.c, windows_platform.c) that return `WF_ERR_NOT_IMPLEMENTED`. Replace those with real backends before shipping.
+The Wii, Wii U, and 3DS targets use stub platform implementations in `src/platform/` (wii_platform.c, wiiu_platform.c, 3ds_platform.c) that return `WF_ERR_NOT_IMPLEMENTED`. The Windows target is fully implemented against the Win32 API (windows_platform.c). Replace the console stubs with real backends before shipping.
 
 The desktop (x86_64) build includes the full suite of dependencies: libcurl, OpenSSL, pthreads, libmicrohttpd (if `WOLFRAM_BUILD_SERVER`), SQLite (if `WOLFRAM_BUILD_STORE`), libsodium (if `WOLFRAM_BUILD_STORE_CRYPTO`).
