@@ -13,11 +13,14 @@
 
 #include "wolfram/identity.h"
 #include "wolfram/atproto_lex.h"
+#include "wolfram/crypto.h"
 #include "wolfram/plc.h"
+#include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/version.h"
 
 #include <cJSON.h>
+#include <curl/urlapi.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdatomic.h>
@@ -60,46 +63,447 @@ static char *wf_strndup(const char *s, size_t n) {
 static void wf_did_doc_init(wf_did_document *doc) {
     doc->did = NULL;
     doc->pds_endpoint = NULL;
+    doc->feedgen_endpoint = NULL;
     doc->signing_key = NULL;
     doc->notif_endpoint = NULL;
     doc->method = WF_DID_METHOD_UNKNOWN;
 }
 
+static int wf_did_item_id_matches(const char *did, const char *item_id,
+                                  const char *fragment) {
+    if (!did || !item_id || !fragment || fragment[0] != '#') return 0;
+    if (item_id[0] == '#') return strcmp(item_id, fragment) == 0;
+    size_t did_len = strlen(did);
+    return strncmp(item_id, did, did_len) == 0 &&
+           strcmp(item_id + did_len, fragment) == 0;
+}
+
+static int wf_did_uri_valid(const char *uri);
+static wf_status wf_did_service_endpoint_valid(cJSON *endpoint);
+static int wf_did_string_array_valid(cJSON *value);
+static int wf_did_did_array_valid(cJSON *value);
+static int wf_did_fragment_valid(const char *fragment);
+static int wf_did_service_id_valid(const char *id);
+static char *wf_did_service_canonical_id(const char *did, const char *id);
+static int wf_did_http_endpoint_valid(const char *endpoint);
+static wf_status wf_did_validate_context(cJSON *context);
+static wf_status wf_did_validate_controller(cJSON *controller);
+static wf_status wf_did_validate_also_known_as(cJSON *aka);
+static wf_status wf_did_validate_authentication(cJSON *authentication);
+static wf_status wf_did_validate_verification_method_item(cJSON *item);
+static wf_status wf_did_validate_verification_methods(cJSON *verification);
+
+static wf_status wf_did_validate_services(const char *did, cJSON *service) {
+    cJSON *item = NULL;
+    if (!cJSON_IsArray(service)) return WF_ERR_PARSE;
+    size_t count = (size_t)cJSON_GetArraySize(service);
+    char **keys = count ? calloc(count, sizeof(*keys)) : NULL;
+    size_t key_count = 0;
+    if (count && !keys) return WF_ERR_ALLOC;
+    cJSON_ArrayForEach(item, service) {
+        cJSON *service_id = cJSON_GetObjectItemCaseSensitive(item, "id");
+        cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
+        cJSON *endpoint = cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
+        if (!cJSON_IsString(service_id) || !service_id->valuestring ||
+            !wf_did_string_array_valid(type) ||
+            !wf_did_service_id_valid(service_id->valuestring)) {
+            goto parse_error;
+        }
+        {
+            char *key = wf_did_service_canonical_id(did, service_id->valuestring);
+            if (!key) {
+                free(keys);
+                return WF_ERR_ALLOC;
+            }
+            for (size_t i = 0; i < key_count; i++) {
+                if (keys[i] && strcmp(keys[i], key) == 0) {
+                    free(key);
+                    goto parse_error;
+                }
+            }
+            keys[key_count++] = key;
+        }
+        if (wf_did_service_endpoint_valid(endpoint) != WF_OK) {
+            goto parse_error;
+        }
+    }
+    for (size_t i = 0; i < key_count; i++) free(keys[i]);
+    free(keys);
+    return WF_OK;
+
+parse_error:
+    if (keys) {
+        for (size_t i = 0; i < key_count; i++) free(keys[i]);
+        free(keys);
+    }
+    return WF_ERR_PARSE;
+}
+
+static int wf_did_uri_valid(const char *uri) {
+    CURLU *parsed = NULL;
+    char *scheme = NULL;
+    int valid = 0;
+
+    if (!uri || !*uri) return 0;
+    parsed = curl_url();
+    if (!parsed) return 0;
+    if (curl_url_set(parsed, CURLUPART_URL, uri, CURLU_NON_SUPPORT_SCHEME) !=
+        CURLUE_OK) {
+        goto done;
+    }
+    if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
+        !scheme || !*scheme) {
+        goto done;
+    }
+    valid = 1;
+
+done:
+    curl_free(scheme);
+    curl_url_cleanup(parsed);
+    return valid;
+}
+
+static int wf_did_string_array_valid(cJSON *value) {
+    cJSON *item = NULL;
+    if (cJSON_IsString(value) && value->valuestring) return 1;
+    if (!cJSON_IsArray(value)) return 0;
+    cJSON_ArrayForEach(item, value) {
+        if (!cJSON_IsString(item) || !item->valuestring) return 0;
+    }
+    return 1;
+}
+
+static int wf_did_did_array_valid(cJSON *value) {
+    cJSON *item = NULL;
+    if (cJSON_IsString(value) && value->valuestring) {
+        return wf_syntax_did_is_valid(value->valuestring);
+    }
+    if (!cJSON_IsArray(value)) return 0;
+    cJSON_ArrayForEach(item, value) {
+        if (!cJSON_IsString(item) || !item->valuestring ||
+            !wf_syntax_did_is_valid(item->valuestring)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int wf_did_fragment_valid(const char *fragment) {
+    const unsigned char *p;
+    if (!fragment || fragment[0] == '\0') return 0;
+    for (p = (const unsigned char *)fragment; *p; p++) {
+        unsigned char c = *p;
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' ||
+            c == '~' || c == '!' || c == '$' || c == '&' || c == '\'' ||
+            c == '(' || c == ')' || c == '*' || c == '+' || c == ',' ||
+            c == ';' || c == '=' || c == ':' || c == '@' || c == '/' ||
+            c == '?') {
+            continue;
+        }
+        if (c == '%') {
+            if (!p[1] || !p[2]) return 0;
+            if (!((p[1] >= '0' && p[1] <= '9') ||
+                  (p[1] >= 'A' && p[1] <= 'F') ||
+                  (p[1] >= 'a' && p[1] <= 'f'))) {
+                return 0;
+            }
+            if (!((p[2] >= '0' && p[2] <= '9') ||
+                  (p[2] >= 'A' && p[2] <= 'F') ||
+                  (p[2] >= 'a' && p[2] <= 'f'))) {
+                return 0;
+            }
+            p += 2;
+            continue;
+        }
+        return 0;
+    }
+    return 1;
+}
+
+static int wf_did_service_id_valid(const char *id) {
+    const char *fragment;
+    size_t prefix_len;
+    if (!id || !*id) return 0;
+    if (id[0] == '#') {
+        return wf_did_fragment_valid(id + 1);
+    }
+    fragment = strchr(id, '#');
+    if (!fragment || fragment[1] == '\0') return 0;
+    if (strncmp(id, "did:", 4) == 0) {
+        prefix_len = (size_t)(fragment - id);
+        char *prefix = wf_strndup(id, prefix_len);
+        int ok = prefix && wf_syntax_did_is_valid(prefix) &&
+                 wf_did_fragment_valid(fragment + 1);
+        free(prefix);
+        return ok;
+    }
+    return wf_did_uri_valid(id) && wf_did_fragment_valid(fragment + 1);
+}
+
+static char *wf_did_service_canonical_id(const char *did, const char *id) {
+    size_t did_len, id_len;
+    char *out;
+    if (!did || !id) return NULL;
+    if (id[0] != '#') return wf_strdup(id);
+    did_len = strlen(did);
+    id_len = strlen(id);
+    out = malloc(did_len + id_len + 1);
+    if (!out) return NULL;
+    memcpy(out, did, did_len);
+    memcpy(out + did_len, id, id_len + 1);
+    return out;
+}
+
+static int wf_did_http_endpoint_valid(const char *endpoint) {
+    CURLU *parsed = NULL;
+    char *scheme = NULL;
+    char *host = NULL;
+    int valid = 0;
+
+    if (!endpoint || !*endpoint) return 0;
+    if (strncmp(endpoint, "http://", 7) != 0 &&
+        strncmp(endpoint, "https://", 8) != 0) {
+        return 0;
+    }
+
+    parsed = curl_url();
+    if (!parsed) return 0;
+    if (curl_url_set(parsed, CURLUPART_URL, endpoint, 0) != CURLUE_OK) goto done;
+    if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
+        !scheme || !*scheme) goto done;
+    if (strcmp(scheme, "http") != 0 && strcmp(scheme, "https") != 0) {
+        goto done;
+    }
+    if (curl_url_get(parsed, CURLUPART_HOST, &host, 0) != CURLUE_OK ||
+        !host || !*host) {
+        goto done;
+    }
+    valid = 1;
+
+done:
+    curl_free(scheme);
+    curl_free(host);
+    curl_url_cleanup(parsed);
+    return valid;
+}
+
+static wf_status wf_did_validate_context(cJSON *context) {
+    cJSON *item = NULL;
+    if (cJSON_IsString(context) && context->valuestring) {
+        return strcmp(context->valuestring, "https://www.w3.org/ns/did/v1") == 0
+            ? WF_OK : WF_ERR_PARSE;
+    }
+    if (!cJSON_IsArray(context) || !context->child) return WF_ERR_PARSE;
+    if (!cJSON_IsString(context->child) || !context->child->valuestring ||
+        strcmp(context->child->valuestring, "https://www.w3.org/ns/did/v1") != 0) {
+        return WF_ERR_PARSE;
+    }
+    cJSON_ArrayForEach(item, context) {
+        if (!cJSON_IsString(item) || !item->valuestring ||
+            !wf_did_uri_valid(item->valuestring)) {
+            return WF_ERR_PARSE;
+        }
+    }
+    return WF_OK;
+}
+
+static wf_status wf_did_validate_controller(cJSON *controller) {
+    return wf_did_did_array_valid(controller) ? WF_OK : WF_ERR_PARSE;
+}
+
+static wf_status wf_did_validate_also_known_as(cJSON *aka) {
+    cJSON *item = NULL;
+    if (!cJSON_IsArray(aka)) return WF_ERR_PARSE;
+    cJSON_ArrayForEach(item, aka) {
+        if (!cJSON_IsString(item) || !item->valuestring ||
+            !wf_did_uri_valid(item->valuestring)) {
+            return WF_ERR_PARSE;
+        }
+    }
+    return WF_OK;
+}
+
+static wf_status wf_did_validate_authentication(cJSON *authentication) {
+    cJSON *item = NULL;
+    if (!cJSON_IsArray(authentication)) return WF_ERR_PARSE;
+    cJSON_ArrayForEach(item, authentication) {
+        if (cJSON_IsString(item) && item->valuestring) {
+            if (!wf_did_service_id_valid(item->valuestring)) {
+                return WF_ERR_PARSE;
+            }
+        } else if (cJSON_IsObject(item)) {
+            wf_status status = wf_did_validate_verification_method_item(item);
+            if (status != WF_OK) return status;
+        } else {
+            return WF_ERR_PARSE;
+        }
+    }
+    return WF_OK;
+}
+
+static wf_status wf_did_validate_verification_method_item(cJSON *item) {
+    cJSON *key_id = cJSON_GetObjectItemCaseSensitive(item, "id");
+    cJSON *key_type = cJSON_GetObjectItemCaseSensitive(item, "type");
+    cJSON *controller = cJSON_GetObjectItemCaseSensitive(item, "controller");
+    cJSON *public_key = cJSON_GetObjectItemCaseSensitive(item,
+                                                         "publicKeyMultibase");
+    cJSON *public_key_jwk = cJSON_GetObjectItemCaseSensitive(item,
+                                                             "publicKeyJwk");
+    if (!cJSON_IsString(key_id) || !key_id->valuestring ||
+        !wf_did_service_id_valid(key_id->valuestring) ||
+        !cJSON_IsString(key_type) || !key_type->valuestring ||
+        key_type->valuestring[0] == '\0' ||
+        !wf_did_did_array_valid(controller)) {
+        return WF_ERR_PARSE;
+    }
+    if (public_key && (!cJSON_IsString(public_key) ||
+                       !public_key->valuestring)) {
+        return WF_ERR_PARSE;
+    }
+    if (public_key_jwk && !cJSON_IsObject(public_key_jwk)) {
+        return WF_ERR_PARSE;
+    }
+    return WF_OK;
+}
+
+static wf_status wf_did_validate_verification_methods(cJSON *verification) {
+    cJSON *item = NULL;
+    if (!cJSON_IsArray(verification)) return WF_ERR_PARSE;
+    cJSON_ArrayForEach(item, verification) {
+        wf_status status = wf_did_validate_verification_method_item(item);
+        if (status != WF_OK) return status;
+    }
+    return WF_OK;
+}
+
+static wf_status wf_did_service_endpoint_valid(cJSON *endpoint) {
+    if (cJSON_IsString(endpoint) && endpoint->valuestring) {
+        return wf_did_uri_valid(endpoint->valuestring)
+            ? WF_OK : WF_ERR_PARSE;
+    }
+    if (cJSON_IsObject(endpoint)) {
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, endpoint) {
+            if (!cJSON_IsString(item) || !item->valuestring ||
+                !wf_did_uri_valid(item->valuestring)) {
+                return WF_ERR_PARSE;
+            }
+        }
+        return WF_OK;
+    }
+    if (cJSON_IsArray(endpoint)) {
+        if (!endpoint->child) return WF_ERR_PARSE;
+        cJSON *item = NULL;
+        cJSON_ArrayForEach(item, endpoint) {
+            if (cJSON_IsString(item)) {
+                if (!wf_did_uri_valid(item->valuestring)) return WF_ERR_PARSE;
+            } else if (cJSON_IsObject(item)) {
+                cJSON *sub = NULL;
+                cJSON_ArrayForEach(sub, item) {
+                    if (!cJSON_IsString(sub) || !sub->valuestring ||
+                        !wf_did_uri_valid(sub->valuestring)) {
+                        return WF_ERR_PARSE;
+                    }
+                }
+            } else {
+                return WF_ERR_PARSE;
+            }
+        }
+        return WF_OK;
+    }
+    return WF_ERR_PARSE;
+}
+
 static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
     cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id");
+    cJSON *context = cJSON_GetObjectItemCaseSensitive(root, "@context");
+    cJSON *controller = cJSON_GetObjectItemCaseSensitive(root, "controller");
+    cJSON *aka = cJSON_GetObjectItemCaseSensitive(root, "alsoKnownAs");
+    cJSON *authentication = cJSON_GetObjectItemCaseSensitive(root, "authentication");
     if (!cJSON_IsString(id) || !id->valuestring) {
         return WF_ERR_PARSE;
     }
     doc->did = wf_strdup(id->valuestring);
     if (!doc->did) return WF_ERR_ALLOC;
 
+    if (context) {
+        wf_status context_status = wf_did_validate_context(context);
+        if (context_status != WF_OK) return context_status;
+    }
+    if (controller) {
+        wf_status controller_status = wf_did_validate_controller(controller);
+        if (controller_status != WF_OK) return controller_status;
+    }
+
     cJSON *service = cJSON_GetObjectItemCaseSensitive(root, "service");
-    if (cJSON_IsArray(service)) {
+    if (service) {
+        wf_status service_status = wf_did_validate_services(doc->did, service);
+        if (service_status != WF_OK) return service_status;
+        if (!cJSON_IsArray(service)) return WF_ERR_PARSE;
         cJSON *item = NULL;
         cJSON_ArrayForEach(item, service) {
+            cJSON *service_id = cJSON_GetObjectItemCaseSensitive(item, "id");
             cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
             cJSON *endpoint = cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
-            if (cJSON_IsString(type) && cJSON_IsString(endpoint) && endpoint->valuestring) {
-                if (strcmp(type->valuestring, "AtprotoPersonalDataServer") == 0 && !doc->pds_endpoint) {
-                    doc->pds_endpoint = wf_strdup(endpoint->valuestring);
-                } else if (strcmp(type->valuestring, "BskyNotificationService") == 0 && !doc->notif_endpoint) {
-                    doc->notif_endpoint = wf_strdup(endpoint->valuestring);
-                }
-                // Continue scanning to capture both if present.
+            if (!cJSON_IsString(type) || !cJSON_IsString(endpoint)) {
+                continue;
             }
+            if (strcmp(type->valuestring, "AtprotoPersonalDataServer") == 0 &&
+                wf_did_item_id_matches(doc->did, service_id->valuestring,
+                                       "#atproto_pds") &&
+                wf_did_http_endpoint_valid(endpoint->valuestring) &&
+                !doc->pds_endpoint) {
+                doc->pds_endpoint = wf_strdup(endpoint->valuestring);
+            } else if (strcmp(type->valuestring, "BskyFeedGenerator") == 0 &&
+                       wf_did_item_id_matches(doc->did,
+                                              service_id->valuestring,
+                                              "#bsky_fg") &&
+                       wf_did_http_endpoint_valid(endpoint->valuestring) &&
+                       !doc->feedgen_endpoint) {
+                doc->feedgen_endpoint = wf_strdup(endpoint->valuestring);
+            } else if (strcmp(type->valuestring, "BskyNotificationService") == 0 &&
+                       wf_did_item_id_matches(doc->did,
+                                              service_id->valuestring,
+                                              "#bsky_notif") &&
+                       wf_did_http_endpoint_valid(endpoint->valuestring) &&
+                       !doc->notif_endpoint) {
+                doc->notif_endpoint = wf_strdup(endpoint->valuestring);
+            }
+            // Continue scanning to capture both if present.
         }
     }
 
     cJSON *verification = cJSON_GetObjectItemCaseSensitive(root, "verificationMethod");
-    if (cJSON_IsArray(verification)) {
+    if (aka) {
+        wf_status aka_status = wf_did_validate_also_known_as(aka);
+        if (aka_status != WF_OK) return aka_status;
+    }
+    if (authentication) {
+        wf_status auth_status = wf_did_validate_authentication(authentication);
+        if (auth_status != WF_OK) return auth_status;
+    }
+    if (verification) {
+        wf_status verification_status =
+            wf_did_validate_verification_methods(verification);
+        if (verification_status != WF_OK) return verification_status;
+        if (!cJSON_IsArray(verification)) return WF_ERR_PARSE;
         cJSON *item = NULL;
         cJSON_ArrayForEach(item, verification) {
-            cJSON *controller = cJSON_GetObjectItemCaseSensitive(item, "controller");
+            cJSON *key_id = cJSON_GetObjectItemCaseSensitive(item, "id");
+            cJSON *key_type = cJSON_GetObjectItemCaseSensitive(item, "type");
             cJSON *public_key = cJSON_GetObjectItemCaseSensitive(item, "publicKeyMultibase");
-            if (cJSON_IsString(controller) && controller->valuestring && doc->did &&
-                strcmp(controller->valuestring, doc->did) == 0 &&
+            const char *id_value = cJSON_IsString(key_id) ? key_id->valuestring : NULL;
+            const char *fragment = id_value ? strrchr(id_value, '#') : NULL;
+            if (id_value &&
+                ((strcmp(id_value, "#atproto") == 0) ||
+                 (fragment && strcmp(fragment, "#atproto") == 0)) &&
+                cJSON_IsString(key_type) && key_type->valuestring &&
                 cJSON_IsString(public_key) && public_key->valuestring) {
-                doc->signing_key = wf_strdup(public_key->valuestring);
+                wf_status key_status = wf_didkey_from_verification_method(
+                    key_type->valuestring, public_key->valuestring,
+                    &doc->signing_key);
+                if (key_status == WF_ERR_ALLOC) return key_status;
                 break;
             }
         }
@@ -108,16 +512,10 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
     return WF_OK;
 }
 
-/* Build the `/.well-known/did.json` URL for a did:web per the W3C/atproto
- * spec (cf. packages/did/src/methods/web.ts). The MSID (text after
- * `did:web:`) is the host with optional path/port segments:
- *   - the first `:` separates the host from the path; an MSID that starts
- *     with `:` (empty host) is rejected.
- *   - `%3A` in the host is decoded to `:` (port encoding).
- *   - remaining segments become a URL path with `:` replaced by `/`
- *     (e.g. `did:web:example.com:user` -> `https://example.com/user/...`).
- *   - `http://` is used (instead of `https://`) when the host is exactly
- *     `localhost` or `localhost:<port>`.
+    /* Build the `/.well-known/did.json` URL for a did:web per the atproto
+ * identity resolver. Path components are not supported here; only the host
+ * and optional encoded port (`%3A`) are accepted. `http://` is used instead of
+ * `https://` when the host is exactly `localhost` or `localhost:<port>`.
  * Allocates `*out_url` on success. */
 static wf_status did_web_build_url(const char *did, char **out_url) {
     const char *msid = did + strlen("did:web:");
@@ -125,21 +523,19 @@ static wf_status did_web_build_url(const char *did, char **out_url) {
         return WF_ERR_INVALID_ARG;
     }
 
+    if (strchr(msid, ':') != NULL) return WF_ERR_INVALID_ARG;
+
     /* Copy the MSID; the host is everything up to the first ':'. */
     char *host = wf_strdup(msid);
     if (!host) return WF_ERR_ALLOC;
 
-    char *path_sep = strchr(host, ':');
-    if (path_sep) {
-        *path_sep = '\0';
-    }
-
-    /* Decode %3A -> : in the host (percent-encoded port). */
+    /* Decode %3A -> : in the host (percent-encoded port), matching upstream
+     * did:web URL construction. */
     {
         char *out = host;
         const char *p = host;
         while (*p) {
-            if (p[0] == '%' && p[1] == '3' && (p[2] == 'A' || p[2] == 'a')) {
+            if (p[0] == '%' && p[1] == '3' && p[2] == 'A') {
                 *out++ = ':';
                 p += 3;
             } else {
@@ -149,43 +545,43 @@ static wf_status did_web_build_url(const char *did, char **out_url) {
         *out = '\0';
     }
 
-    /* Remaining MSID segments (after the first ':') form a URL path with
-     * ':' replaced by '/'. */
-    char *path = NULL;
-    if (path_sep) {
-        const char *p = strchr(msid, ':');
-        size_t path_len = strlen(p);
-        path = malloc(path_len + 1);
-        if (!path) {
-            free(host);
-            return WF_ERR_ALLOC;
-        }
-        char *o = path;
-        for (const char *q = p; *q; q++) {
-            *o++ = (*q == ':' ? '/' : *q);
-        }
-        *o = '\0';
-    }
-
     const char *proto = "https";
     if (strncmp(host, "localhost", 9) == 0 &&
         (host[9] == '\0' || host[9] == ':')) {
         proto = "http";
     }
 
+    const char *suffix = "/.well-known/did.json";
     size_t url_len = strlen(proto) + strlen("://") + strlen(host) +
-                     strlen(path ? path : "") +
-                     strlen("/.well-known/did.json") + 1;
+                     strlen(suffix) + 1;
     char *url = malloc(url_len);
     if (!url) {
-        free(path);
         free(host);
         return WF_ERR_ALLOC;
     }
-    snprintf(url, url_len, "%s://%s%s/.well-known/did.json", proto, host,
-             path ? path : "");
+    snprintf(url, url_len, "%s://%s%s", proto, host, suffix);
 
-    free(path);
+    {
+        CURLU *parsed = curl_url();
+        char *scheme = NULL;
+        char *authority = NULL;
+        if (!parsed ||
+            curl_url_set(parsed, CURLUPART_URL, url, 0) != CURLUE_OK ||
+            curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
+            curl_url_get(parsed, CURLUPART_HOST, &authority, 0) != CURLUE_OK ||
+            !scheme || !*scheme || !authority || !*authority) {
+            curl_free(scheme);
+            curl_free(authority);
+            curl_url_cleanup(parsed);
+            free(host);
+            free(url);
+            return WF_ERR_INVALID_ARG;
+        }
+        curl_free(scheme);
+        curl_free(authority);
+        curl_url_cleanup(parsed);
+    }
+
     free(host);
     *out_url = url;
     return WF_OK;
@@ -254,56 +650,90 @@ wf_status wf_did_resolve(wf_xrpc_client *client, const char *did, wf_did_documen
 
     status = wf_did_doc_parse_json(out, root);
     cJSON_Delete(root);
+    if (status == WF_OK && (!out->did || strcmp(out->did, did) != 0)) {
+        wf_did_document_free(out);
+        return WF_ERR_PARSE;
+    }
     return status;
 }
 
-wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
-                                 const char *service_type, char **out_endpoint) {
-    if (!client || !did || !service_type || !out_endpoint) {
-        return WF_ERR_INVALID_ARG;
-    }
+wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
+                                        const char *did,
+                                        const char *service_id,
+                                        const char *service_type,
+                                        char **out_endpoint) {
+    if (!client || !did || !service_id || service_id[0] != '#' ||
+        !out_endpoint) return WF_ERR_INVALID_ARG;
     *out_endpoint = NULL;
 
     cJSON *root = NULL;
     wf_status status = did_fetch_document(client, did, &root);
-    if (status != WF_OK) {
-        return status;
+    if (status != WF_OK) return status;
+    cJSON *doc_id = cJSON_GetObjectItemCaseSensitive(root, "id");
+    if (!cJSON_IsString(doc_id) || !doc_id->valuestring ||
+        strcmp(doc_id->valuestring, did) != 0) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
     }
 
     wf_status result = WF_ERR_NOT_FOUND;
-    cJSON *service = cJSON_GetObjectItemCaseSensitive(root, "service");
-    if (cJSON_IsArray(service)) {
-        cJSON *item = NULL;
-        cJSON_ArrayForEach(item, service) {
-            cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
-            cJSON *endpoint =
-                cJSON_GetObjectItemCaseSensitive(item, "serviceEndpoint");
-            if (cJSON_IsString(type) && cJSON_IsString(endpoint) &&
-                endpoint->valuestring &&
-                strcmp(type->valuestring, service_type) == 0) {
-                *out_endpoint = wf_strdup(endpoint->valuestring);
-                if (!*out_endpoint) {
-                    result = WF_ERR_ALLOC;
-                } else {
-                    result = WF_OK;
-                }
-                break;
-            }
+    cJSON *services = cJSON_GetObjectItemCaseSensitive(root, "service");
+    wf_status service_status = wf_did_validate_services(did, services);
+    if (service_status != WF_OK) {
+        cJSON_Delete(root);
+        return service_status;
+    }
+    cJSON *item = NULL;
+    cJSON_ArrayForEach(item, services) {
+        cJSON *id = cJSON_GetObjectItemCaseSensitive(item, "id");
+        cJSON *type = cJSON_GetObjectItemCaseSensitive(item, "type");
+        cJSON *endpoint = cJSON_GetObjectItemCaseSensitive(item,
+                                                           "serviceEndpoint");
+        if (cJSON_IsString(id) && id->valuestring &&
+            wf_did_item_id_matches(did, id->valuestring, service_id) &&
+            (!service_type || (cJSON_IsString(type) && type->valuestring &&
+                               strcmp(type->valuestring, service_type) == 0)) &&
+            cJSON_IsString(endpoint)) {
+            if (!wf_did_http_endpoint_valid(endpoint->valuestring)) continue;
+            *out_endpoint = wf_strdup(endpoint->valuestring);
+            result = *out_endpoint ? WF_OK : WF_ERR_ALLOC;
+            break;
         }
     }
-
     cJSON_Delete(root);
     return result;
+}
+
+wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
+                                 const char *service_type, char **out_endpoint) {
+    const char *id = NULL;
+    if (!service_type) return WF_ERR_INVALID_ARG;
+    if (strcmp(service_type, "AtprotoPersonalDataServer") == 0)
+        id = "#atproto_pds";
+    else if (strcmp(service_type, "BskyNotificationService") == 0)
+        id = "#bsky_notif";
+    else if (strcmp(service_type, "BskyFeedGenerator") == 0)
+        id = "#bsky_fg";
+    else if (strcmp(service_type, "BskyChatService") == 0)
+        id = "#bsky_chat";
+    else if (strcmp(service_type, "AtprotoChatProxy") == 0)
+        id = "#atproto_chat_proxy";
+    else
+        return WF_ERR_NOT_FOUND;
+    return wf_did_resolve_service_by_id(client, did, id, service_type,
+                                         out_endpoint);
 }
 
 void wf_did_document_free(wf_did_document *doc) {
     if (!doc) return;
     free(doc->did);
     free(doc->pds_endpoint);
+    free(doc->feedgen_endpoint);
     free(doc->signing_key);
     free(doc->notif_endpoint);
     doc->did = NULL;
     doc->pds_endpoint = NULL;
+    doc->feedgen_endpoint = NULL;
     doc->signing_key = NULL;
     doc->notif_endpoint = NULL;
     doc->method = WF_DID_METHOD_UNKNOWN;
