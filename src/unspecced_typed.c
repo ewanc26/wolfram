@@ -856,6 +856,12 @@ wf_status wf_agent_get_trending_topics_typed(wf_agent *agent, const char *viewer
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 25) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
     wf_lex_app_bsky_unspecced_get_trending_topics_main_params params = {0};
     if (viewer && viewer[0]) {
         params.has_viewer = true;
@@ -884,6 +890,9 @@ wf_status wf_agent_get_tagged_suggestions_typed(wf_agent *agent,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (!agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
     wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_params params = {0};
     wf_response res = {0};
     wf_agent_sync_auth(agent);
@@ -905,6 +914,12 @@ wf_status wf_agent_get_suggestions_skeleton_typed(wf_agent *agent,
                                                   const char *relative_to_did,
                                                   wf_agent_suggestions_skeleton *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_params params = {0};
@@ -943,6 +958,9 @@ wf_status wf_agent_get_config_typed(wf_agent *agent,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (!agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =
@@ -959,6 +977,9 @@ wf_status wf_agent_get_config_typed(wf_agent *agent,
 wf_status wf_agent_get_age_assurance_state_typed(wf_agent *agent,
                                                  wf_agent_age_assurance_state *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_response res = {0};
@@ -978,6 +999,12 @@ wf_status wf_agent_get_age_assurance_state_typed(wf_agent *agent,
 wf_status wf_agent_get_onboarding_suggested_starter_packs_typed(
     wf_agent *agent, int limit, wf_agent_starter_pack_view_list *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 25) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_params params = {0};
@@ -1007,6 +1034,12 @@ wf_status wf_agent_get_suggested_starter_packs_typed(
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 25) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
     wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params params = {0};
     if (limit > 0) {
         params.has_limit = true;
@@ -1030,6 +1063,12 @@ wf_status wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(
     wf_agent *agent, const char *viewer, int limit,
     wf_agent_starter_pack_skeleton_list *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 25) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_params params = {0};
@@ -1060,6 +1099,12 @@ wf_status wf_agent_search_starter_packs_typed(
     wf_agent *agent, const char *q, const char *viewer, int limit,
     const char *cursor, wf_agent_search_starter_packs_list *out) {
     if (!agent || !out || !q || !q[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params params = {0};
