@@ -266,8 +266,8 @@ wf_status wf_agent_get_actor_prefs_typed(wf_agent *agent,
 wf_status wf_agent_put_actor_prefs_typed(wf_agent *agent,
                                          const wf_actor_preferences *prefs);
 
-/* app.bsky.actor.getSuggestions — actor profile views (+ cursor). Reuses
- * wf_agent_actor_list from actor_typed.h. */
+/* app.bsky.actor.getSuggestions — actor profile views (+ cursor, recId/recIdStr).
+ * Reuses wf_agent_actor_list from actor_typed.h. */
 wf_status wf_agent_get_suggestions_typed(wf_agent *agent, int limit,
                                          const char *cursor,
                                          wf_agent_actor_list *out);

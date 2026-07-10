@@ -30,6 +30,14 @@ static const char *k_search_json =
     "{\"did\":\"did:plc:ccc\",\"handle\":\"carol.bsky.social\"}],"
     "\"cursor\":\"c2\"}";
 
+/* getSuggestions -> "actors" array of profileView plus recommendation IDs */
+static const char *k_suggestions_json =
+    "{\"actors\":["
+    "{\"did\":\"did:plc:aaa\",\"handle\":\"alice.bsky.social\"}],"
+    "\"cursor\":\"c3\","
+    "\"recId\":123,"
+    "\"recIdStr\":\"123\"}";
+
 /* searchActorsTypeahead -> "actors" array of profileViewBasic (with viewer) */
 static const char *k_typeahead_json =
     "{\"actors\":["
@@ -84,6 +92,20 @@ int main(void) {
         WF_CHECK(out.actors[2].did &&
                  strcmp(out.actors[2].did, "did:plc:ccc") == 0);
         WF_CHECK(out.cursor && strcmp(out.cursor, "c2") == 0);
+        wf_agent_actor_list_free(&out);
+    }
+
+    /* ---- getSuggestions metadata survives parsing ---- */
+    {
+        wf_agent_actor_list out = {0};
+        wf_status s = wf_agent_parse_actor_search(k_suggestions_json,
+                                                  strlen(k_suggestions_json),
+                                                  &out);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(out.actor_count == 1);
+        WF_CHECK(out.has_rec_id == 1);
+        WF_CHECK(out.rec_id == 123);
+        WF_CHECK(out.rec_id_str && strcmp(out.rec_id_str, "123") == 0);
         wf_agent_actor_list_free(&out);
     }
 

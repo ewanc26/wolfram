@@ -1271,7 +1271,7 @@ wf_status wf_agent_put_actor_prefs_typed(wf_agent *agent,
 wf_status wf_agent_get_suggestions_typed(wf_agent *agent, int limit,
                                          const char *cursor,
                                          wf_agent_actor_list *out) {
-    if (!agent || !agent->client || !out) {
+    if (!agent || !agent->client || !out || limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
 
