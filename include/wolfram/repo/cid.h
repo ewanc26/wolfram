@@ -24,7 +24,14 @@ wf_status wf_cid_from_string(const char *str, wf_cid *out);
 
 /** Compute the CID of a DAG-CBOR-encoded block (CIDv1, dag-cbor, sha2-256). */
 wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
-                          wf_cid *out);
+                           wf_cid *out);
+
+/** Compute the CID of raw bytes (CIDv1, raw multicodec 0x55, sha2-256).
+ *  This is the content identifier used for blobs in the AT Protocol data
+ *  model (a blob reference's `ref` is a raw multicodec CID), not the
+ *  dag-cbor CID produced by wf_cid_of_block. */
+wf_status wf_cid_of_bytes(const unsigned char *data, size_t data_len,
+                           wf_cid *out);
 
 /** Check if two CIDs are equal. */
 int cid_equal(const wf_cid *a, const wf_cid *b);

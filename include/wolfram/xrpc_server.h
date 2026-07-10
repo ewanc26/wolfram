@@ -43,6 +43,13 @@ typedef struct wf_xrpc_request {
     const char *method;        /* "GET" or "POST" */
     const char *auth_header;   /* Raw Authorization header (may be NULL) */
     cJSON      *params;        /* Query params (GET) or body JSON (POST); may be NULL */
+    /* Raw request body (POST). For binary procedures such as blob uploads the
+     * body is the raw bytes, not JSON; handlers that need it read body /
+     * body_len directly. Valid only during the handler callback. */
+    const unsigned char *body;
+    size_t      body_len;
+    /* Request Content-Type header (may be NULL). Valid only during the handler. */
+    const char *content_type;
     void       *handler_ctx;   /* User context from route registration */
 } wf_xrpc_request;
 
@@ -53,10 +60,14 @@ typedef struct wf_xrpc_response {
     int     http_status;       /* HTTP status code (default 200) */
     char   *body;              /* Heap-allocated body (server frees it) */
     size_t  body_len;
+    /* Optional response Content-Type. When non-NULL the server emits this
+     * header instead of the default "application/json" (used to serve raw
+     * blobs). Owned by the handler; the server frees it after sending. */
+    char   *content_type;
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT { 200, NULL, 0 }
+#define WF_XRPC_RESPONSE_INIT { 200, NULL, 0, NULL }
 
 /** Set the response body (copies the string). */
 void wf_xrpc_response_set_body(wf_xrpc_response *resp,
@@ -70,8 +81,12 @@ void wf_xrpc_response_set_error(wf_xrpc_response *resp,
 
 /** Set a generic error body with the given HTTP status. */
 void wf_xrpc_response_set_error_body(wf_xrpc_response *resp,
-                                     int http_status,
-                                     const char *body, size_t body_len);
+                                      int http_status,
+                                      const char *body, size_t body_len);
+
+/** Set the response Content-Type (copies the string). Pass NULL to clear. */
+void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
+                                        const char *content_type);
 
 /* ------------------------------------------------------------------ */
 /* Handler callbacks                                                   */

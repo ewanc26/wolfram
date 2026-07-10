@@ -1,0 +1,79 @@
+#ifndef WOLFRAM_BLOB_STORE_H
+#define WOLFRAM_BLOB_STORE_H
+
+#include "wolfram/util.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * blob_store.h — a simple, self-contained blob store keyed by CID string.
+ *
+ * wolfram can act as a small PDS: it stores uploaded blobs and serves them
+ * back via com.atproto.repo.uploadBlob / com.atproto.sync.getBlob. The store
+ * is intentionally decoupled from the SQLite session/repo-mirror store so it
+ * can be used (and tested) independently.
+ *
+ * Two modes are supported:
+ *   - In-memory: pass NULL/"" for the path to wf_blob_store_new. Blobs live
+ *     only for the lifetime of the handle.
+ *   - File-backed: pass a directory path. Each blob is written as a file named
+ *     by its CID (safe base32 charset), with the MIME type in a sidecar
+ *     "<cid>.mime" file. Re-opening the same path reloads the blobs.
+ *
+ * Ownership: outputs from wf_blob_store_get (out_data, out_mime) are
+ * heap-allocated and freed with free() by the caller. The CID is the caller's
+ * string (e.g. the canonical raw multicodec CID from wf_cid_of_bytes).
+ */
+
+typedef struct wf_blob_store wf_blob_store;
+
+/**
+ * Create a blob store.
+ *
+ * @param path  Directory for file-backed storage, or NULL/"" for in-memory.
+ * @return Handle, or NULL on allocation/IO failure.
+ */
+wf_blob_store *wf_blob_store_new(const char *path);
+
+/** Free the store. File-backed blobs are left on disk (caller removes `path`). */
+void wf_blob_store_free(wf_blob_store *store);
+
+/**
+ * Store a blob under `cid`. `mime_type` is copied. `data`/`len` hold the raw
+ * blob bytes. Returns WF_OK, WF_ERR_INVALID_ARG on bad inputs, or
+ * WF_ERR_INTERNAL on file IO failure.
+ */
+wf_status wf_blob_store_put(wf_blob_store *store, const char *cid,
+                            const char *mime_type,
+                            const unsigned char *data, size_t len);
+
+/**
+ * Retrieve a blob. On WF_OK, out_data/out_len/out_mime are set to owned
+ * buffers (each freed with free()). Returns WF_ERR_NOT_FOUND if absent.
+ */
+wf_status wf_blob_store_get(wf_blob_store *store, const char *cid,
+                            unsigned char **out_data, size_t *out_len,
+                            char **out_mime);
+
+/** Return WF_OK if the blob exists, WF_ERR_NOT_FOUND otherwise. */
+wf_status wf_blob_store_exists(wf_blob_store *store, const char *cid);
+
+/*
+ * Server integration (requires WOLFRAM_BUILD_SERVER). Registers
+ * com.atproto.repo.uploadBlob (procedure) and com.atproto.sync.getBlob (query)
+ * on `server`, backed by `store`. The upload handler computes the blob's
+ * raw multicodec CID, stores it, and returns the TypedBlobRef; the get handler
+ * serves the raw bytes with the stored Content-Type. `store` must outlive the
+ * server registration.
+ */
+typedef struct wf_xrpc_server wf_xrpc_server;
+wf_status wf_xrpc_server_register_blob_store(wf_xrpc_server *server,
+                                             wf_blob_store *store);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* WOLFRAM_BLOB_STORE_H */
