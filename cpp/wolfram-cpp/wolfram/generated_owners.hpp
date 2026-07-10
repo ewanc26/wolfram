@@ -44,6 +44,7 @@
 #include <wolfram/oauth/state.h>
 #include <wolfram/ozone_moderation_ops_typed.h>
 #include <wolfram/ozone_typed.h>
+#include <wolfram/relay_server.h>
 #include <wolfram/repo/car.h>
 #include <wolfram/repo/diff.h>
 #include <wolfram/repo/mst.h>
@@ -135,6 +136,7 @@ using wf_chat_message_list_handle = unique_handle<wf_chat_message_list, wf_chat_
 using wf_chat_mod_convo_handle = unique_handle<wf_chat_mod_convo, wf_chat_mod_convo_free>;
 using wf_chat_mod_convo_list_handle = unique_handle<wf_chat_mod_convo_list, wf_chat_mod_convo_list_free>;
 using wf_chat_mod_event_handle = unique_handle<wf_chat_mod_event, wf_chat_mod_event_free>;
+using wf_chat_mod_frame_handle = unique_handle<wf_chat_mod_frame, wf_chat_mod_frame_free>;
 using wf_chat_notification_preferences_handle = unique_handle<wf_chat_notification_preferences, wf_chat_notification_preferences_free>;
 using wf_chat_ok_handle = unique_handle<wf_chat_ok, wf_chat_ok_free>;
 using wf_chat_request_join_handle = unique_handle<wf_chat_request_join, wf_chat_request_join_free>;
@@ -461,6 +463,8 @@ using wf_ozone_ops_sig_detail_list_handle = unique_handle<wf_ozone_ops_sig_detai
 using wf_ozone_subject_status_list_handle = unique_handle<wf_ozone_subject_status_list, wf_ozone_subject_status_list_free>;
 using wf_ozone_team_member_list_handle = unique_handle<wf_ozone_team_member_list, wf_ozone_team_member_list_free>;
 using wf_rate_limiter_handle = unique_handle<wf_rate_limiter, wf_rate_limiter_free>;
+using wf_relay_config_handle = unique_handle<wf_relay_config, wf_relay_config_free>;
+using wf_relay_server_handle = unique_handle<wf_relay_server, wf_relay_server_free>;
 using wf_repo_apply_writes_result_handle = unique_handle<wf_repo_apply_writes_result, wf_repo_apply_writes_result_free>;
 using wf_repo_description_handle = unique_handle<wf_repo_description, wf_repo_description_free>;
 using wf_repo_diff_handle = unique_handle<wf_repo_diff, wf_repo_diff_free>;
@@ -519,6 +523,7 @@ using wf_websocket_handle = unique_handle<wf_websocket, wf_websocket_free>;
 using wf_websocket_message_handle = unique_handle<wf_websocket_message, wf_websocket_message_free>;
 using wf_xrpc_client_handle = unique_handle<wf_xrpc_client, wf_xrpc_client_free>;
 using wf_xrpc_server_handle = unique_handle<wf_xrpc_server, wf_xrpc_server_free>;
+using wf_xrpc_server_config_handle = unique_handle<wf_xrpc_server_config, wf_xrpc_server_config_free>;
 
 } // namespace wolfram
 
