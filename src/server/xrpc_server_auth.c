@@ -201,11 +201,23 @@ static wf_status decode_jwt_claims(const char *token, char **out_iss,
     cJSON *root = NULL;
     cJSON *v;
     wf_status s;
+    size_t payload_len;
+    char *payload_seg = NULL;
 
     if (!d1 || !d2) {
         return WF_ERR_PARSE;
     }
-    s = wf_crypto_base64url_decode(d1 + 1, &pbuf, &plen);
+    /* wf_crypto_base64url_decode expects a NUL-terminated string, so copy just
+     * the payload segment (between the two dots) into a temporary buffer. */
+    payload_len = (size_t)(d2 - (d1 + 1));
+    payload_seg = malloc(payload_len + 1);
+    if (!payload_seg) {
+        return WF_ERR_ALLOC;
+    }
+    memcpy(payload_seg, d1 + 1, payload_len);
+    payload_seg[payload_len] = '\0';
+    s = wf_crypto_base64url_decode(payload_seg, &pbuf, &plen);
+    free(payload_seg);
     if (s != WF_OK) {
         return s;
     }
