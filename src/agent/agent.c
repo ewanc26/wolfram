@@ -2964,7 +2964,7 @@ wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle) {
     wf_lex_com_atproto_identity_update_handle_main_input input = { .handle = new_handle };
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status = wf_lex_com_atproto_identity_update_handle_main_call_auth(agent->client, &input, &res);
+    wf_status status = wf_lex_com_atproto_identity_update_handle_main_call(agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }

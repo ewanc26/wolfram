@@ -16,23 +16,31 @@ endif()
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
-find_package(CURL REQUIRED)
-find_package(OpenSSL REQUIRED)
-find_package(Threads REQUIRED)
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(SECP256K1 libsecp256k1)
-    pkg_check_modules(ZSTD libzstd)
-    pkg_check_modules(CARES libcares>=1.28)
+# Wii cross-compilation target. When ON, desktop-specific dependencies
+# (libcurl, OpenSSL, pthreads) are replaced with platform stubs.
+option(WOLFRAM_BUILD_WII "Build for Nintendo Wii (devkitPPC/libogc)" OFF)
+
+if(NOT WOLFRAM_BUILD_WII)
+    find_package(CURL REQUIRED)
+    find_package(OpenSSL REQUIRED)
+    find_package(Threads REQUIRED)
 endif()
-if(NOT ZSTD_FOUND)
-    find_path(ZSTD_INCLUDE_DIR NAMES zstd.h)
-    find_library(ZSTD_LIBRARY NAMES zstd)
-    if(ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY)
-        set(ZSTD_FOUND TRUE)
-        set(ZSTD_INCLUDE_DIRS ${ZSTD_INCLUDE_DIR})
-        set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
-        set(ZSTD_VERSION "system")
+if(NOT WOLFRAM_BUILD_WII)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(SECP256K1 libsecp256k1)
+        pkg_check_modules(ZSTD libzstd)
+        pkg_check_modules(CARES libcares>=1.28)
+    endif()
+    if(NOT ZSTD_FOUND)
+        find_path(ZSTD_INCLUDE_DIR NAMES zstd.h)
+        find_library(ZSTD_LIBRARY NAMES zstd)
+        if(ZSTD_INCLUDE_DIR AND ZSTD_LIBRARY)
+            set(ZSTD_FOUND TRUE)
+            set(ZSTD_INCLUDE_DIRS ${ZSTD_INCLUDE_DIR})
+            set(ZSTD_LIBRARIES ${ZSTD_LIBRARY})
+            set(ZSTD_VERSION "system")
+        endif()
     endif()
 endif()
 
@@ -63,12 +71,12 @@ set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(wolfram
     # Transport
-    src/transport/xrpc.c
-    src/transport/websocket.c
+    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
+    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/transport/websocket_wii.c,src/transport/websocket.c>
     # Identity
     src/identity/identity.c
     # Crypto
-    src/crypto/crypto.c
+    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
     # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
     src/repo/cbor.c
     src/repo/cid.c
@@ -83,18 +91,20 @@ add_library(wolfram
     src/repo/cbor_map_find.c
     # Session
     src/session/session.c
-    src/session/auth_client.c
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/session/auth_client.c>
     # OAuth (metadata, PKCE, DPoP, PAR, state, callback, flow)
-    src/session/oauth/util.c
-    src/session/oauth/meta.c
-    src/session/oauth/pkce.c
-    src/session/oauth/dpop.c
-    src/session/oauth/par.c
-    src/session/oauth/state.c
-    src/session/oauth/callback.c
-    src/session/oauth/flow.c
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:
+        src/session/oauth/util.c
+        src/session/oauth/meta.c
+        src/session/oauth/pkce.c
+        src/session/oauth/dpop.c
+        src/session/oauth/par.c
+        src/session/oauth/state.c
+        src/session/oauth/callback.c
+        src/session/oauth/flow.c
+    >
     # OAuth resource-server verification (Bearer + DPoP)
-    src/oauth/verify.c
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/oauth/verify.c>
     # Jetstream
     src/jetstream/jetstream.c
     # Label subscriptions
@@ -104,9 +114,9 @@ add_library(wolfram
     # Syntax validation
     src/syntax/syntax.c
     # TID generation clock
-    src/tid.c
+    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/platform/wii_tid.c,src/tid.c>
     # Lexicon validation
-    src/validate/validate.c
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/validate/validate.c>
     # High-level agent API
     src/agent/agent.c
     src/agent/post.c
@@ -148,7 +158,7 @@ add_library(wolfram
     src/agent/chat_typed.c
     src/admin_typed.c
     src/sync_typed.c
-    src/server_typed.c
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/server_typed.c>
     src/agent/lexicon_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
@@ -175,10 +185,10 @@ src/agent/push_endpoint.c
     src/verify.c
     # Generated lexicon endpoint wrappers
     src/atproto_lex.c
-    # Server account management
-    src/server/server.c
+    # Server account management (PDS server-side)
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/server/server.c>
     # Service-auth (service JWT) token issuance + verification
-    src/server/service_auth.c
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/server/service_auth.c>
     # DID PLC operation build / sign / submit helpers
     src/plc/plc.c
     # New utilities and embed support
@@ -198,6 +208,26 @@ src/agent/push_endpoint.c
     # Image dimension probing via vendored stb_image (header-only, third_party/)
     src/image.c
 )
+
+# Wii platform support
+if(WOLFRAM_BUILD_WII)
+    target_sources(wolfram PRIVATE
+        src/platform/wii_platform.c
+        src/openssl_compat.c
+    )
+    target_compile_definitions(wolfram PUBLIC WOLFRAM_WII)
+    # Make #include <openssl/sha.h> resolve to our shim headers
+    target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    # Wii: skip server, examples, tests (no curl/OpenSSL/pthreads)
+    set(WOLFRAM_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    set(WOLFRAM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(WOLFRAM_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON)")
+else()
+    target_sources(wolfram PRIVATE
+        src/platform/posix_platform.c
+    )
+endif()
 
 # XRPC server module (optional, requires libmicrohttpd)
 if(WOLFRAM_BUILD_SERVER)
@@ -265,7 +295,11 @@ target_include_directories(wolfram
         ${SECP256K1_INCLUDE_DIRS}
 )
 
-target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto Threads::Threads)
+if(NOT WOLFRAM_BUILD_WII)
+    target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto Threads::Threads)
+else()
+    target_link_libraries(wolfram PUBLIC cjson)
+endif()
 target_link_libraries(wolfram PRIVATE libcbor::libcbor)
 
 # stb_image.h (vendored, third_party/) emits warnings under -Wextra -Wpedantic.
@@ -290,13 +324,15 @@ else()
     message(STATUS "libzstd not found — Jetstream compression remains unavailable")
 endif()
 
-find_library(RESOLV_LIB NAMES resolv)
-if(NOT CARES_FOUND AND RESOLV_LIB)
-    target_link_libraries(wolfram PUBLIC ${RESOLV_LIB})
-    target_compile_definitions(wolfram PRIVATE HAVE_RESOLV)
-    message(STATUS "resolv found: ${RESOLV_LIB}")
-elseif(NOT CARES_FOUND)
-    message(STATUS "resolv not found — DNS TXT lookup will fall back to HTTPS well-known")
+if(NOT WOLFRAM_BUILD_WII)
+    find_library(RESOLV_LIB NAMES resolv)
+    if(NOT CARES_FOUND AND RESOLV_LIB)
+        target_link_libraries(wolfram PUBLIC ${RESOLV_LIB})
+        target_compile_definitions(wolfram PRIVATE HAVE_RESOLV)
+        message(STATUS "resolv found: ${RESOLV_LIB}")
+    elseif(NOT CARES_FOUND)
+        message(STATUS "resolv not found — DNS TXT lookup will fall back to HTTPS well-known")
+    endif()
 endif()
 
 # Optional libidn2 IDNA2008 / punycode handle resolution. Located here (after
@@ -324,7 +360,7 @@ if(WOLFRAM_BUILD_IDN)
     message(STATUS "libidn2 found (${IDN2_LIBRARIES}) — building IDNA/punycode handle resolution")
 endif()
 
-if(SECP256K1_FOUND)
+if(SECP256K1_FOUND AND NOT WOLFRAM_BUILD_WII)
     find_library(SECP256K1_LIB
         NAMES secp256k1
         HINTS ${SECP256K1_LIBRARY_DIRS}
@@ -431,10 +467,12 @@ endif()
 # Always built (not gated on WOLFRAM_BUILD_EXAMPLES) so the CLI is part of the
 # default build. The target is named wolfram_cli because the wolfram library
 # already owns the `wolfram` target name; OUTPUT_NAME keeps the binary `wolfram`.
-add_executable(wolfram_cli src/cli/main.c)
-target_link_libraries(wolfram_cli PRIVATE wolfram)
-target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
-set_target_properties(wolfram_cli PROPERTIES OUTPUT_NAME wolfram)
+if(NOT WOLFRAM_BUILD_WII)
+    add_executable(wolfram_cli src/cli/main.c)
+    target_link_libraries(wolfram_cli PRIVATE wolfram)
+    target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
+    set_target_properties(wolfram_cli PROPERTIES OUTPUT_NAME wolfram)
+endif()
 
 if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(describe_repo examples/describe_repo.c)
