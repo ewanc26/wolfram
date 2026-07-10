@@ -279,6 +279,30 @@ int main(void) {
         tok = NULL;
     }
 
+    /* --- Happy path with "DPoP" scheme (real atproto clients) --- */
+    {
+        char *dpop_auth = malloc(strlen(access_token) + 6);
+        sprintf(dpop_auth, "DPoP %s", access_token);
+        /* fresh proof with a unique jti to avoid the replay cache */
+        unsigned char digest2[32];
+        char *ath2;
+        SHA256((const unsigned char *)access_token, strlen(access_token), digest2);
+        ath2 = b64url(digest2, 32);
+        cJSON *jwk2 = cJSON_Parse(dp_jwk);
+        char *dpop_proof2 = make_dpop_proof(dp_ec, jwk2, "POST", uri, ath2,
+                                            "jti-happy-dpop", now);
+        free(ath2);
+        wf_status st = wf_oauth_verify_request(dpop_auth, dpop_proof2, "POST", uri,
+                                                keys, replay, &tok);
+        free(dpop_auth);
+        free(dpop_proof2);
+        WF_CHECK(st == WF_OK);
+        WF_CHECK(tok != NULL);
+        if (tok) WF_CHECK(tok->dpop_bound == 1);
+        wf_oauth_verified_token_free(tok);
+        tok = NULL;
+    }
+
     /* --- Negative: tampered DPoP proof signature --- */
     {
         char *bad = str_dup(dpop_proof);
