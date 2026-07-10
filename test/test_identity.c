@@ -503,6 +503,15 @@ int main(void) {
 
     g_did_doc =
         "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"did:plc:other#atproto\",\"controller\":\"did:plc:chatdid\","
+        "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.signing_key == NULL);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
         "{\"id\":\"#atproto\",\"controller\":[\"did:plc:chatdid\"],"
         "\"type\":\"Multikey\",\"publicKeyMultibase\":"
         "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
