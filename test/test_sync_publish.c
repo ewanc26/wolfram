@@ -36,6 +36,8 @@ static int event_equal(const wf_subscribe_event *a, const wf_subscribe_event *b)
             if (x->ops[i].has_prev != y->ops[i].has_prev) return 0;
             if (x->ops[i].has_prev && !cid_eq(&x->ops[i].prev, &y->ops[i].prev)) return 0;
         }
+        if (x->has_prev_data != y->has_prev_data) return 0;
+        if (x->has_prev_data && !cid_eq(&x->prev_data, &y->prev_data)) return 0;
         return 1;
     }
     case WF_SUBSCRIBE_EVENT_SYNC: {
@@ -158,6 +160,8 @@ static void test_commit(void) {
     snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2fke3oy29");
     snprintf(ev.data.commit.time, sizeof(ev.data.commit.time),
              "2024-01-02T03:04:05.000Z");
+    ev.data.commit.has_prev_data = 1;
+    ev.data.commit.prev_data = sample_cid(99);
 
     unsigned char blocks[12] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
                                 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c};
@@ -283,8 +287,33 @@ static void test_error(void) {
     free(buf);
 }
 
+/* Commit WITHOUT prevData: must encode with prevData omitted and still
+ * round-trips (the optional field defaults to absent). */
+static void test_commit_no_prev_data(void) {
+    wf_subscribe_event ev = {0};
+    ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+    ev.seq = 43;
+    ev.data.commit.seq = 43;
+    snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:noPrev");
+    ev.data.commit.commit_cid = sample_cid(2);
+    snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2c");
+    snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2fke3oy2b");
+    snprintf(ev.data.commit.time, sizeof(ev.data.commit.time),
+             "2024-01-02T03:04:06.000Z");
+    ev.data.commit.has_prev_data = 0;
+
+    unsigned char blocks[4] = {0xaa, 0xbb, 0xcc, 0xdd};
+    ev.data.commit.blocks = malloc(sizeof(blocks));
+    memcpy(ev.data.commit.blocks, blocks, sizeof(blocks));
+    ev.data.commit.blocks_len = sizeof(blocks);
+
+    roundtrip(&ev, 0);
+    free(ev.data.commit.blocks);
+}
+
 int main(void) {
     test_commit();
+    test_commit_no_prev_data();
     test_sync();
     test_identity();
     test_account();
