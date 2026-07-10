@@ -12,6 +12,7 @@ static void test_did_valid_extra(void) {
 
 static void test_did_invalid_extra(void) {
     WF_CHECK(!wf_syntax_did_is_valid("did:PLC:abc"));      /* method must be lowercase */
+    WF_CHECK(!wf_syntax_did_is_valid("did:w3c:abc"));       /* method must be letters only */
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc def"));
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc@"));   /* @ not allowed */
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc/def")); /* '/' not allowed */
@@ -106,11 +107,16 @@ static void test_tid_invalid_extra(void) {
 static void test_aturi_valid_extra(void) {
     wf_syntax_aturi parsed = {0};
     WF_CHECK(wf_syntax_aturi_parse(
-        "at://did:plc:abc/com.example.post/self#frag", &parsed));
+        "at://did:plc:abc/com.example.post/self#/frag", &parsed));
     WF_CHECK(parsed.authority && strcmp(parsed.authority, "did:plc:abc") == 0);
     WF_CHECK(parsed.collection && strcmp(parsed.collection, "com.example.post") == 0);
     WF_CHECK(parsed.record_key && strcmp(parsed.record_key, "self") == 0);
-    WF_CHECK(parsed.fragment && strcmp(parsed.fragment, "frag") == 0);
+    WF_CHECK(parsed.fragment && strcmp(parsed.fragment, "/frag") == 0);
+    wf_syntax_aturi_free(&parsed);
+
+    /* AT-URI fragment is a JSON pointer and must begin with '/'. */
+    WF_CHECK(!wf_syntax_aturi_parse(
+        "at://did:plc:abc/com.example.post/self#frag", &parsed));
     wf_syntax_aturi_free(&parsed);
 }
 
