@@ -290,7 +290,32 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       ordered binary frames to a `wf_websocket` client, then a clean close; when
       the linked libcurl lacks WS support the test still verifies registration,
       the forward thread, and clean downstream teardown against an unreachable
-      upstream).
+       upstream).
+
+  57. OAuth **resource-server** token verification (`oauth/verify.h`) — validates
+      incoming `Authorization: Bearer <access-token>` and `DPoP: <proof-jwt>`
+      headers the way an XRPC server (or any atproto resource server) must. Reuses
+      the existing P-256 / ES256, SHA-256, base64url and JWK primitives
+      (`wf_crypto_p256_verify`, `wf_crypto_p256_jwk_coords`, `wf_crypto_sha256`,
+      `wf_crypto_base64url_decode`/`_encode`, added to `crypto.h`/`crypto.c`) and
+      never hand-rolls crypto. Public API: `wf_oauth_trusted_keys` (container of
+      one or more trusted JWKs, with `_new`/`_add_jwk`/`_free`), `wf_oauth_verified_token`
+      (a verified principal with owned `sub`/`iss`/`aud`/`scope`/`dpop_jkt` and a
+      `dpop_bound` flag, freed by `wf_oauth_verified_token_free`),
+      `wf_oauth_dpop_replay_cache` (in-memory `jti` cache with `_new`/`_is_seen`/
+      `_mark_seen`/`_free` and optional per-entry TTL eviction), and the verify
+      entry points `wf_oauth_verify_bearer`, `wf_oauth_verify_dpop`, and the
+      request-level convenience `wf_oauth_verify_request` (parses `Bearer` +
+      `DPoP` headers, verifies both, checks the DPoP `ath` against
+      `SHA-256(access_token)`, and enforces `cnf.jkt` confirmation matching).
+      DPoP checks follow RFC 9449 + atproto: signature over the proof with its own
+      JWK, `typ "dpop+jwt"`, `alg ES256`, `htm`/`htu`/`jti`/`iat`/`exp`
+      validation, and `jti` replay rejection. An XRPC `wf_xrpc_auth_cb` can call
+      `wf_oauth_verify_request` with a `wf_xrpc_server`-supplied method/nsid and a
+      shared trusted-keys set + replay cache, returning 401 on any non-`WF_OK`.
+      Tested offline by `test_oauth_verify` (happy path + tampered signature,
+      expired token, wrong `htm`/`htu`, `ath` mismatch, reused `jti`, missing
+      proof `jwk`, non-ES256 `alg`, and Bearer-only / DPoP-only paths).
 
 ## Next planned work
 

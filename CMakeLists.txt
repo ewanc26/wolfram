@@ -93,6 +93,8 @@ add_library(wolfram
     src/session/oauth/state.c
     src/session/oauth/callback.c
     src/session/oauth/flow.c
+    # OAuth resource-server verification (Bearer + DPoP)
+    src/oauth/verify.c
     # Jetstream
     src/jetstream/jetstream.c
     # Label subscriptions
@@ -675,6 +677,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_oauth_refresh PRIVATE wolfram)
     target_include_directories(test_oauth_refresh PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME oauth_refresh COMMAND test_oauth_refresh)
+
+    add_executable(test_oauth_verify test/test_oauth_verify.c)
+    target_link_libraries(test_oauth_verify PRIVATE wolfram)
+    target_include_directories(test_oauth_verify PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME oauth_verify COMMAND test_oauth_verify)
 
     add_executable(test_syntax test/test_syntax.c)
     target_link_libraries(test_syntax PRIVATE wolfram)

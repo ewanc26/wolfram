@@ -67,8 +67,55 @@ wf_status wf_sign(const wf_signing_key *key,
  * secp256k1-pub (multicodec 0xe7 0x01) and p256-pub (0x80 0x24).
  */
 wf_status wf_verify(const char *public_key_multibase,
-                     const unsigned char *msg, size_t msg_len,
-                     const unsigned char *sig, size_t sig_len);
+                      const unsigned char *msg, size_t msg_len,
+                      const unsigned char *sig, size_t sig_len);
+
+/* ------------------------------------------------------------------ */
+/* Generic P-256 / hashing / base64url helpers                         */
+/*                                                                     */
+/* These are thin, honest wrappers around OpenSSL used by higher-level */
+/* protocol code (e.g. OAuth DPoP/Bearer verification) so the SDK never */
+/* hand-rolls field arithmetic, digest, or encoding logic.             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Compute the SHA-256 digest of `in` (`len` bytes), writing 32 bytes to `out`.
+ */
+wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
+                           unsigned char out[32]);
+
+/**
+ * Base64url-decode the NUL-terminated string `in` (RFC 4648, no padding
+ * required). On WF_OK, *out points to a heap-allocated buffer of *out_len
+ * bytes; the caller frees *out with free().
+ */
+wf_status wf_crypto_base64url_decode(const char *in,
+                                    unsigned char **out, size_t *out_len);
+
+/**
+ * Base64url-encode `in` (`len` bytes) without padding. On WF_OK, *out is a
+ * heap-allocated NUL-terminated string; the caller frees *out with free().
+ */
+wf_status wf_crypto_base64url_encode(const unsigned char *in, size_t len,
+                                     char **out);
+
+/**
+ * Verify an ES256 signature over `msg` (`msg_len` bytes) using the P-256
+ * public key with affine coordinates `x` and `y` (32 bytes each). `sig` is
+ * the raw 64-byte (r || s) ECDSA signature. Returns WF_OK on a valid
+ * signature, WF_ERR_PARSE on an invalid one.
+ */
+wf_status wf_crypto_p256_verify(const unsigned char x[32],
+                                const unsigned char y[32],
+                                const unsigned char *msg, size_t msg_len,
+                                const unsigned char *sig, size_t sig_len);
+
+/**
+ * Parse a public JWK ({"kty":"EC","crv":"P-256","x":"...","y":"..."}) and write
+ * its P-256 affine coordinates (32 bytes each) into `x` and `y`.
+ */
+wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
+                                    unsigned char x[32], unsigned char y[32]);
 
 #ifdef __cplusplus
 }

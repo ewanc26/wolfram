@@ -6,11 +6,14 @@
 #include "wolfram/crypto.h"
 
 #include <string.h>
+#include <ctype.h>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
+#include <openssl/evp.h>
 #include <openssl/obj_mac.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+#include <cJSON.h>
 
 static wf_status wf_p256_is_low_s(const BIGNUM *s, const EC_KEY *eckey) {
     const BIGNUM *order;
@@ -493,4 +496,204 @@ wf_status wf_verify(const char *public_key_multibase,
 #else
     return WF_ERR_INVALID_ARG;
 #endif
+}
+
+/* ------------------------------------------------------------------ */
+/* Generic P-256 / hashing / base64url helpers                         */
+/* ------------------------------------------------------------------ */
+
+wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
+                           unsigned char out[32]) {
+    if (!in || !out) return WF_ERR_INVALID_ARG;
+    SHA256(in, len, out);
+    return WF_OK;
+}
+
+wf_status wf_crypto_base64url_decode(const char *in,
+                                    unsigned char **out, size_t *out_len) {
+    size_t in_len, padded_len, padding, i;
+    char *padded = NULL;
+    unsigned char *decoded = NULL;
+    int result;
+    if (!in || !out || !out_len) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    *out_len = 0;
+    in_len = strlen(in);
+    if (in_len == 0) return WF_ERR_PARSE;
+    padded_len = ((in_len + 3) / 4) * 4;
+    padded = malloc(padded_len + 1);
+    decoded = malloc(padded_len + 1);
+    if (!padded || !decoded) {
+        free(padded);
+        free(decoded);
+        return WF_ERR_ALLOC;
+    }
+    for (i = 0; i < in_len; i++) {
+        char c = in[i];
+        if (c == '-') c = '+';
+        else if (c == '_') c = '/';
+        else if (!isalnum((unsigned char)c) && c != '+' && c != '/') {
+            free(padded);
+            free(decoded);
+            return WF_ERR_PARSE;
+        }
+        padded[i] = c;
+    }
+    for (; i < padded_len; i++) padded[i] = '=';
+    padded[padded_len] = '\0';
+    result = EVP_DecodeBlock(decoded, (const unsigned char *)padded,
+                             (int)padded_len);
+    padding = padded_len - in_len;
+    free(padded);
+    if (result < 0 || (size_t)result < padding) {
+        free(decoded);
+        return WF_ERR_PARSE;
+    }
+    *out_len = (size_t)result - padding;
+    *out = decoded;
+    return WF_OK;
+}
+
+wf_status wf_crypto_base64url_encode(const unsigned char *in, size_t len,
+                                     char **out) {
+    size_t padded_len;
+    char *padded = NULL, *b64 = NULL;
+    size_t i, out_len;
+    if (!in || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    if (len == 0) {
+        b64 = calloc(1, 1);
+        if (!b64) return WF_ERR_ALLOC;
+        *out = b64;
+        return WF_OK;
+    }
+    padded_len = ((len + 2) / 3) * 4;
+    padded = malloc(padded_len + 1);
+    if (!padded) return WF_ERR_ALLOC;
+    EVP_EncodeBlock((unsigned char *)padded, in, (int)len);
+    /* Translate standard base64 to base64url (no padding). */
+    for (i = 0; i < padded_len; i++) {
+        char c = padded[i];
+        if (c == '+') c = '-';
+        else if (c == '/') c = '_';
+        else if (c == '=') break;
+        padded[i] = c;
+    }
+    out_len = i;
+    b64 = malloc(out_len + 1);
+    if (!b64) {
+        free(padded);
+        return WF_ERR_ALLOC;
+    }
+    memcpy(b64, padded, out_len);
+    b64[out_len] = '\0';
+    free(padded);
+    *out = b64;
+    return WF_OK;
+}
+
+/* Verify a raw 64-byte (r||s) ES256 signature over a precomputed SHA-256
+ * `hash` using the P-256 public key at affine coordinates x, y. */
+static wf_status wf_p256_verify_hash(const unsigned char x[32],
+                                     const unsigned char y[32],
+                                     const unsigned char hash[32],
+                                     const unsigned char *sig, size_t sig_len) {
+    EC_KEY *eckey = NULL;
+    EC_POINT *point = NULL;
+    ECDSA_SIG *ecdsa_sig = NULL;
+    BIGNUM *r = NULL, *s = NULL;
+    unsigned char point_oct[65];
+    int ok;
+    wf_status status = WF_ERR_PARSE;
+
+    if (!x || !y || !hash || !sig || sig_len != 64) return WF_ERR_INVALID_ARG;
+    eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+    if (!eckey) return WF_ERR_ALLOC;
+    point = EC_POINT_new(EC_KEY_get0_group(eckey));
+    if (!point) goto done;
+    point_oct[0] = 0x04;
+    memcpy(point_oct + 1, x, 32);
+    memcpy(point_oct + 33, y, 32);
+    if (EC_POINT_oct2point(EC_KEY_get0_group(eckey), point, point_oct,
+                           sizeof(point_oct), NULL) != 1) {
+        goto done;
+    }
+    if (EC_KEY_set_public_key(eckey, point) != 1) goto done;
+
+    ecdsa_sig = ECDSA_SIG_new();
+    if (!ecdsa_sig) { status = WF_ERR_ALLOC; goto done; }
+    r = BN_bin2bn(sig, 32, NULL);
+    s = BN_bin2bn(sig + 32, 32, NULL);
+    if (!r || !s) { status = WF_ERR_ALLOC; goto done; }
+    if (wf_p256_is_low_s(s, eckey) != WF_OK) goto done;
+    ECDSA_SIG_set0(ecdsa_sig, r, s);
+    r = NULL;
+    s = NULL;
+
+    ok = ECDSA_do_verify(hash, 32, ecdsa_sig, eckey);
+    status = ok == 1 ? WF_OK : WF_ERR_PARSE;
+done:
+    BN_free(r);
+    BN_free(s);
+    ECDSA_SIG_free(ecdsa_sig);
+    EC_POINT_free(point);
+    EC_KEY_free(eckey);
+    return status;
+}
+
+wf_status wf_crypto_p256_verify(const unsigned char x[32],
+                                const unsigned char y[32],
+                                const unsigned char *msg, size_t msg_len,
+                                const unsigned char *sig, size_t sig_len) {
+    unsigned char hash[32];
+    if (!msg || msg_len == 0) return WF_ERR_INVALID_ARG;
+    SHA256(msg, msg_len, hash);
+    return wf_p256_verify_hash(x, y, hash, sig, sig_len);
+}
+
+wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
+                                    unsigned char x[32], unsigned char y[32]) {
+    cJSON *root = NULL, *item;
+    unsigned char *raw = NULL;
+    size_t raw_len = 0;
+    wf_status status;
+    if (!jwk_json || !x || !y) return WF_ERR_INVALID_ARG;
+    root = cJSON_Parse(jwk_json);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    item = cJSON_GetObjectItemCaseSensitive(root, "kty");
+    if (!cJSON_IsString(item) || strcmp(item->valuestring, "EC") != 0) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    item = cJSON_GetObjectItemCaseSensitive(root, "crv");
+    if (!cJSON_IsString(item) || strcmp(item->valuestring, "P-256") != 0) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    item = cJSON_GetObjectItemCaseSensitive(root, "x");
+    if (!cJSON_IsString(item)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    status = wf_crypto_base64url_decode(item->valuestring, &raw, &raw_len);
+    if (status != WF_OK || raw_len != 32) {
+        free(raw);
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    memcpy(x, raw, 32);
+    free(raw);
+    raw = NULL;
+    item = cJSON_GetObjectItemCaseSensitive(root, "y");
+    if (!cJSON_IsString(item)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    status = wf_crypto_base64url_decode(item->valuestring, &raw, &raw_len);
+    if (status != WF_OK || raw_len != 32) {
+        free(raw);
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    memcpy(y, raw, 32);
+    free(raw);
+    cJSON_Delete(root);
+    return WF_OK;
 }

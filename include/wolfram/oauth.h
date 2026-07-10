@@ -8,5 +8,6 @@
 #include "wolfram/oauth/state.h"
 #include "wolfram/oauth/callback.h"
 #include "wolfram/oauth/flow.h"
+#include "wolfram/oauth/verify.h"
 
 #endif /* WOLFRAM_OAUTH_H */
