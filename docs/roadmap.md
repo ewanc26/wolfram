@@ -390,6 +390,16 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       unavailable-key error, tampered-commit rejection, no-resolver honest
       error, and agent-wrapper resolver wiring with no network reached).
 
+  59. Cross-compilation / platform abstraction (`platform.h`, `src/platform/`,
+      `.devdeps/*.cmake`) — a thin platform layer (init/shutdown, mutex,
+      monotonic time) with POSIX (Linux/macOS) and Win32 backends fully
+      implemented, plus toolchain files and client-only build wiring for
+      Nintendo Wii/Wii U/3DS (devkitPro), Windows (MinGW-w64), and Linux/AArch64.
+      The console backends are honest stubs returning `WF_ERR_NOT_IMPLEMENTED`
+      (transport, crypto, and platform primitives) to be replaced with
+      device-specific implementations before shipping; see the `TODO` markers in
+      `src/platform/*_platform.c`.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
@@ -413,6 +423,10 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   `wf_agent_put_notification_preferences_v2_typed`); the v1 `putPreferences`
   `priorities` field is still not transmittable (generated lex input only
   carries `priority`) — see the TODO in `src/notification_prefs_typed.c`.
+- Replace the Nintendo Wii/Wii U/3DS platform, transport, and crypto stubs
+  (currently `WF_ERR_NOT_IMPLEMENTED`) with real devkitPro-backed
+  implementations — see the `TODO` markers in `src/platform/*_platform.c`,
+  `src/transport/*_wii.c`, and `src/crypto/crypto_wii.c`.
 
 ## Dependencies
 
