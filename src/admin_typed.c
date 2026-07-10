@@ -542,6 +542,9 @@ wf_status wf_agent_admin_search_accounts(wf_agent *agent, const char *query,
     if (!agent || !query || !query[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     wf_lex_com_atproto_admin_search_accounts_main_params params = {0};
     /* searchAccounts currently only supports email filtering in the lexicon. */
     params.has_email = true;
