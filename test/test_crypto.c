@@ -107,5 +107,63 @@ int main(void) {
         WF_CHECK(wf_verify("", (unsigned char*)"x", 1, NULL, 0) == WF_ERR_INVALID_ARG);
     }
 
+    /* did:key encode/decode round-trip (P-256 and secp256k1). */
+    {
+        wf_signing_key key;
+        unsigned char msg[] = "didkey roundtrip";
+        unsigned char sig[64];
+
+        for (int t = 0; t < 2; t++) {
+            key.type = t == 0 ? WF_KEY_TYPE_P256 : WF_KEY_TYPE_SECP256K1;
+            if (t == 0) {
+                key.bytes[31] = 1;
+            } else {
+                memset(key.bytes, 0, 32);
+                key.bytes[0] = 0x11;
+            }
+            char *didkey = NULL;
+            WF_CHECK(wf_signing_key_public_didkey(&key, &didkey) == WF_OK);
+            WF_CHECK(didkey && strncmp(didkey, "did:key:z", 9) == 0);
+
+            wf_key_type dtype;
+            unsigned char *draw = NULL;
+            size_t draw_len = 0;
+            WF_CHECK(wf_didkey_decode(didkey, &dtype, &draw, &draw_len) == WF_OK);
+            WF_CHECK(dtype == key.type);
+            WF_CHECK(draw_len == 33);
+
+            char *reenc = NULL;
+            WF_CHECK(wf_didkey_encode(dtype, draw, draw_len, &reenc) == WF_OK);
+            WF_CHECK(strcmp(reenc, didkey) == 0);
+
+            /* The decoded key must verify a signature made by the original. */
+            WF_CHECK(wf_sign(&key, msg, sizeof(msg) - 1, sig, sizeof(sig)) == WF_OK);
+            WF_CHECK(wf_verify(didkey, msg, sizeof(msg) - 1, sig, sizeof(sig)) == WF_OK);
+
+            char *vm = NULL;
+            WF_CHECK(wf_didkey_verification_method_id(didkey, &vm) == WF_OK);
+            size_t dklen = strlen(didkey);
+            WF_CHECK(strlen(vm) == dklen * 2 + 1 &&
+                     strncmp(vm, didkey, dklen) == 0 &&
+                     vm[dklen] == '#' &&
+                     strcmp(vm + dklen + 1, didkey) == 0);
+
+            free(didkey); free(draw); free(reenc); free(vm);
+        }
+    }
+
+    /* did:key decode rejects garbage; bare multikey form is accepted. */
+    {
+        wf_key_type dtype;
+        unsigned char *draw = NULL; size_t dlen = 0;
+        WF_CHECK(wf_didkey_decode("did:key:!!!", &dtype, &draw, &dlen) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_didkey_decode("not-a-did", &dtype, &draw, &dlen) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_didkey_decode(
+                     "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
+                     &dtype, &draw, &dlen) == WF_OK);
+        WF_CHECK(dtype == WF_KEY_TYPE_P256 && dlen == 33);
+        free(draw);
+    }
+
     WF_TEST_SUMMARY();
 }

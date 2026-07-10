@@ -201,6 +201,140 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     return WF_OK;
 }
 
+/* base58btc (multibase 'z') decoder — inverse of wf_b58_encode. */
+static wf_status wf_b58_decode(const char *str, size_t len,
+                               unsigned char **out, size_t *out_len) {
+    if (!str || !out || !out_len) return WF_ERR_INVALID_ARG;
+    *out = NULL; *out_len = 0;
+    if (len == 0) return WF_ERR_INVALID_ARG;
+
+    size_t zeros = 0;
+    while (zeros < len && str[zeros] == '1') zeros++;
+
+    /* Conservative upper bound: log_256(58) < 0.733 per input char. */
+    size_t buf_size = len * 733 / 1000 + 1;
+    unsigned char *buf = calloc(buf_size, 1);
+    if (!buf) return WF_ERR_ALLOC;
+
+    for (size_t i = zeros; i < len; i++) {
+        const char *p = strchr(wf_b58_alphabet, str[i]);
+        if (!p) { free(buf); return WF_ERR_INVALID_ARG; }
+        unsigned carry = (unsigned)(p - wf_b58_alphabet);
+        for (size_t j = buf_size; j-- > 0;) {
+            carry += (unsigned)buf[j] * 58u;
+            buf[j] = (unsigned char)(carry & 0xff);
+            carry >>= 8;
+        }
+    }
+
+    size_t start = 0;
+    while (start < buf_size && buf[start] == 0) start++;
+    size_t payload = buf_size - start;
+    unsigned char *result = malloc(zeros + payload ? zeros + payload : 1);
+    if (!result) { free(buf); return WF_ERR_ALLOC; }
+    size_t k = 0;
+    for (size_t i = 0; i < zeros; i++) result[k++] = 0;
+    for (size_t i = start; i < buf_size; i++) result[k++] = buf[i];
+    free(buf);
+
+    *out = result;
+    *out_len = zeros + payload;
+    return WF_OK;
+}
+
+/**
+ * Encode a raw compressed public key (33 bytes) of the given type into its
+ * `did:key:z...` multibase form. This is the inverse of wf_didkey_decode and
+ * complements wf_signing_key_public_didkey (which derives the key from a
+ * private scalar).
+ *
+ * On WF_OK, *out_didkey is heap-allocated and owned by the caller (free()).
+ */
+wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
+                           size_t raw_len, char **out_didkey) {
+    unsigned char prefixed[35];
+    if (!raw_pub || raw_len != 33 || !out_didkey)
+        return WF_ERR_INVALID_ARG;
+    *out_didkey = NULL;
+
+    if (type == WF_KEY_TYPE_P256) {
+        prefixed[0] = 0x80; prefixed[1] = 0x24;
+    } else if (type == WF_KEY_TYPE_SECP256K1) {
+        prefixed[0] = 0xe7; prefixed[1] = 0x01;
+    } else {
+        return WF_ERR_INVALID_ARG;
+    }
+    memcpy(prefixed + 2, raw_pub, 33);
+
+    char *b58 = wf_b58_encode(prefixed, sizeof(prefixed));
+    if (!b58) return WF_ERR_ALLOC;
+    char *didkey = malloc(strlen("did:key:z") + strlen(b58) + 1);
+    if (!didkey) { free(b58); return WF_ERR_ALLOC; }
+    sprintf(didkey, "did:key:z%s", b58);
+    free(b58);
+    *out_didkey = didkey;
+    return WF_OK;
+}
+
+/**
+ * Decode a `did:key:z...` or bare multikey `z...` string back into its key
+ * type and raw 33-byte compressed public point.
+ *
+ * On WF_OK, *out_raw is heap-allocated and owned by the caller (free()).
+ */
+wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
+                           unsigned char **out_raw, size_t *out_raw_len) {
+    if (!didkey || !out_type || !out_raw || !out_raw_len)
+        return WF_ERR_INVALID_ARG;
+    *out_type = WF_KEY_TYPE_UNKNOWN;
+    *out_raw = NULL; *out_raw_len = 0;
+
+    const char *payload = didkey;
+    if (strncmp(payload, "did:key:", 8) == 0) payload += 8;
+    else if (payload[0] == 'z') payload += 1; /* bare multikey form */
+    else return WF_ERR_INVALID_ARG;
+    if (payload[0] != 'z') return WF_ERR_INVALID_ARG;
+    payload += 1;
+
+    unsigned char *decoded = NULL;
+    size_t dlen = 0;
+    wf_status s = wf_b58_decode(payload, strlen(payload), &decoded, &dlen);
+    if (s != WF_OK) return s;
+    if (dlen != 35) { free(decoded); return WF_ERR_PARSE; }
+
+    wf_key_type type;
+    if (decoded[0] == 0x80 && decoded[1] == 0x24) type = WF_KEY_TYPE_P256;
+    else if (decoded[0] == 0xe7 && decoded[1] == 0x01) type = WF_KEY_TYPE_SECP256K1;
+    else { free(decoded); return WF_ERR_PARSE; }
+
+    unsigned char *raw = malloc(33);
+    if (!raw) { free(decoded); return WF_ERR_ALLOC; }
+    memcpy(raw, decoded + 2, 33);
+    free(decoded);
+
+    *out_type = type;
+    *out_raw = raw;
+    *out_raw_len = 33;
+    return WF_OK;
+}
+
+/**
+ * Compute the verification-method id for a did:key, which in the AT Protocol
+ * is `${did}#${did}` (the fragment equals the full DID). On WF_OK, *out_id is
+ * heap-allocated and owned by the caller (free()).
+ */
+wf_status wf_didkey_verification_method_id(const char *didkey, char **out_id) {
+    if (!didkey || !out_id) return WF_ERR_INVALID_ARG;
+    *out_id = NULL;
+    /* The verification-method id for a did:key is `${did}#${did}`. */
+    size_t did_len = strlen(didkey);
+    char *id = malloc(did_len * 2 + 2);
+    if (!id) return WF_ERR_ALLOC;
+    sprintf(id, "%s#%s", didkey, didkey);
+    *out_id = id;
+    return WF_OK;
+}
+
 wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
     if (!out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
