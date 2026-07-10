@@ -317,6 +317,29 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       expired token, wrong `htm`/`htu`, `ath` mismatch, reused `jti`, missing
       proof `jwk`, non-ES256 `alg`, and Bearer-only / DPoP-only paths).
 
+  57. Service-auth (service JWT) **token issuance** (`server.h`) — the PDS-side
+      complement of `com.atproto.server.getServiceAuth`. Where the SDK could
+      previously only *request* a service token from a PDS
+      (`wf_agent_get_service_auth_typed`) and extract the response's `token`
+      field (`wf_server_parse_auth_token`), a self-hosted PDS can now *mint* one
+      locally by signing a compact JWT with its own repo signing key.
+      `wf_server_create_service_auth(req, key, &token)` builds header
+      `{typ:"JWT", alg}` + payload `{iat, iss, aud, exp, [lxm], jti, [nuance]}`
+      and signs `base64url(header)"."base64url(payload)` with `wf_sign`
+      (P-256 → ES256, secp256k1 → ES256K; 64-byte compact low-S signature),
+      defaulting `exp` to `iat+60` and generating a fresh 16-byte hex `jti` per
+      call. `wf_server_verify_service_auth(token, didkey, now, &claims)` decodes
+      and validates the token: it checks the signature with `wf_verify` against
+      the issuer's `did:key` and rejects expired tokens, returning owned claims
+      (`wf_service_auth_claims_free`). The signing key is modelled as the
+      existing `wf_signing_key` (same representation the crypto layer uses) plus
+      the DID strings in `wf_service_auth_request`; no JOSE signing is
+      hand-rolled — crypto is delegated to `wf_sign`/`wf_verify`. Wire format
+      mirrors `@atproto/xrpc-server` `createServiceJwt`. Tested offline
+      (`test_service_auth`): field-level round-trip of iss/aud/exp/iat/jti/lxm/
+      nuance, wrong-key / tampered-payload / expired-token rejection, defaulted
+      `exp`, and jti uniqueness.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
@@ -325,6 +348,11 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   (event loop, config parsing).
 - Broaden generated typed-wrapper coverage for any remaining lexicon endpoints
   not yet wrapped at the agent level.
+- Service-auth *issuance* is now available (`wf_server_create_service_auth` /
+  `wf_server_verify_service_auth`, item 57). A natural follow-up is a
+  server-side `verifyJwt`-style auth middleware for the XRPC server that
+  resolves the issuer's signing key from its DID document (via `identity.h`)
+  and enforces `aud`/`lxm` binding on inbound service tokens.
 - `app.bsky.notification.putPreferencesV2` is now fully typed
   (`wf_notification_v2_preferences_build`/`_parse`/`_free` +
   `wf_agent_put_notification_preferences_v2_typed`); the v1 `putPreferences`

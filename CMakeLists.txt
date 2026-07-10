@@ -177,6 +177,8 @@ src/agent/push_endpoint.c
     src/atproto_lex.c
     # Server account management
     src/server/server.c
+    # Service-auth (service JWT) token issuance + verification
+    src/server/service_auth.c
     # DID PLC operation build / sign / submit helpers
     src/plc/plc.c
     # New utilities and embed support
@@ -1046,6 +1048,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_server_typed PRIVATE test ${cjson_SOURCE_DIR})
     target_compile_definitions(test_server_typed PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME server_typed COMMAND test_server_typed)
+
+    add_executable(test_service_auth test/test_service_auth.c)
+    target_link_libraries(test_service_auth PRIVATE wolfram)
+    target_include_directories(test_service_auth PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME service_auth COMMAND test_service_auth)
 
     add_executable(test_lexicon_typed test/test_lexicon_typed.c)
     target_link_libraries(test_lexicon_typed PRIVATE wolfram)
