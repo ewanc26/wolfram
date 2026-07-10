@@ -422,6 +422,34 @@ int main(void) {
         WF_CHECK(wf_cid_to_string(&empty) == NULL);
     }
 
+    /* wf_cid_from_string accepts raw (0x55) CIDs, used for blob refs */
+    {
+        unsigned char data[] = {0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04};
+        wf_cid raw = {{0}, 0};
+        WF_CHECK(wf_cid_of_bytes(data, sizeof(data), &raw) == WF_OK);
+        WF_CHECK(raw.bytes[0] == 0x01);   /* CIDv1 */
+        WF_CHECK(raw.bytes[1] == 0x55);   /* raw multicodec */
+        WF_CHECK(raw.bytes[2] == 0x12 && raw.bytes[3] == 0x20); /* sha2-256 */
+        char *str = wf_cid_to_string(&raw);
+        WF_CHECK(str != NULL);
+        wf_cid parsed = {{0}, 0};
+        WF_CHECK(wf_cid_from_string(str, &parsed) == WF_OK);
+        WF_CHECK(check_cid(&parsed, &raw));
+        free(str);
+
+        /* dag-cbor (0x71) CIDs still parse after the relaxation */
+        unsigned char cbor[] = {0xa1, 0x64, 't', 'e', 's', 't',
+                                0x64, 'r', 'o', 'o', 't'};
+        wf_cid dc = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(cbor, sizeof(cbor), &dc) == WF_OK);
+        char *dc_str = wf_cid_to_string(&dc);
+        WF_CHECK(dc_str != NULL);
+        wf_cid dc_parsed = {{0}, 0};
+        WF_CHECK(wf_cid_from_string(dc_str, &dc_parsed) == WF_OK);
+        WF_CHECK(check_cid(&dc_parsed, &dc));
+        free(dc_str);
+    }
+
     /* ── CAR parse ── */
 
     /* Build a CAR for {"test": "root"} and verify round-trip */
