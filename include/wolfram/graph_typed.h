@@ -26,8 +26,9 @@ extern "C" {
 /* A parsed list of actor profile views plus an optional cursor and
  * recommendation metadata. Defined here (see note above) and reused by
  * actor_typed.h for getProfiles / searchActors / getRepostedBy / follows /
- * followers. `rec_id`/`rec_id_str` are populated when the response includes
- * app.bsky.actor.getSuggestions metadata; other endpoints leave them zeroed. */
+ * followers. `rec_id` is populated from the numeric recId variant when
+ * present; `rec_id_str` carries recIdStr or the deprecated string recId
+ * variant when present. Other endpoints leave the fields zeroed. */
 typedef struct wf_agent_actor_list {
     wf_agent_profile_view *actors;
     size_t actor_count;

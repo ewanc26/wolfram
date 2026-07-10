@@ -173,12 +173,15 @@ static wf_status wf_actor_parse_actor_list(const char *json, size_t json_len,
         if (status == WF_OK) {
             cJSON *rec_id = cJSON_GetObjectItemCaseSensitive(root, "recId");
             if (rec_id) {
-                if (!cJSON_IsNumber(rec_id) ||
-                    rec_id->valuedouble != (double)rec_id->valueint) {
-                    status = WF_ERR_PARSE;
-                } else {
+                if (cJSON_IsNumber(rec_id) &&
+                    rec_id->valuedouble == (double)rec_id->valueint) {
                     out->has_rec_id = 1;
                     out->rec_id = (int64_t)rec_id->valuedouble;
+                } else if (cJSON_IsString(rec_id) && rec_id->valuestring) {
+                    status = wf_actor_set_string(&out->rec_id_str,
+                                                 rec_id->valuestring);
+                } else {
+                    status = WF_ERR_PARSE;
                 }
             }
         }
@@ -188,7 +191,7 @@ static wf_status wf_actor_parse_actor_list(const char *json, size_t json_len,
             if (rec_id_str) {
                 if (!cJSON_IsString(rec_id_str) || !rec_id_str->valuestring) {
                     status = WF_ERR_PARSE;
-                } else {
+                } else if (!out->rec_id_str) {
                     status = wf_actor_set_string(&out->rec_id_str,
                                                  rec_id_str->valuestring);
                 }
