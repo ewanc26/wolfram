@@ -144,6 +144,10 @@ int main(void) {
     WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 10, NULL, NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_author_feed_typed(agent, "did:plc:alice", 101, NULL,
                                             NULL, &wlist) == WF_ERR_INVALID_ARG);
+    /* filter must be one of the upstream enum values */
+    WF_CHECK(wf_agent_get_author_feed_typed(agent, "did:plc:alice", 10, NULL,
+                                            "not_a_real_filter", &wlist) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 101, NULL, &wlist) ==
              WF_ERR_INVALID_ARG);
 
