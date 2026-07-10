@@ -646,6 +646,9 @@ wf_status wf_agent_chat_list_convos(wf_agent *agent, int limit,
     size_t param_count = 0;
     char limit_buf[16];
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -725,6 +728,9 @@ wf_status wf_agent_chat_get_messages(wf_agent *agent, const char *convo_id,
     params[param_count].value = convo_id;
     param_count++;
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         char limit_buf[16];
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
@@ -1163,6 +1169,9 @@ wf_status wf_agent_chat_list_convo_requests(wf_agent *agent, int limit,
     size_t param_count = 0;
     char limit_buf[16];
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -1419,6 +1428,9 @@ wf_status wf_agent_chat_list_join_requests(wf_agent *agent,
     params[pc].name = "convoId";
     params[pc].value = convo_id;
     pc++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -1554,6 +1566,9 @@ wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
     params[pc].name = "convoId";
     params[pc].value = convo_id;
     pc++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -1721,6 +1736,9 @@ wf_status wf_agent_chat_mod_get_convo_members(wf_agent *agent,
     params[pc].name = "convoId";
     params[pc].value = convo_id;
     pc++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -1865,6 +1883,9 @@ wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
     size_t pc = 0;
     char limit_buf[16];
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
