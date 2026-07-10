@@ -628,6 +628,9 @@ wf_status wf_feedgen_get_actor_feeds_typed(wf_agent *agent, const char *actor,
 
     wf_feedgen_generator_list list = {0};
     wf_lex_app_bsky_feed_get_actor_feeds_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.actor = actor;
     if (limit > 0) {
         params.has_limit = true;
@@ -663,6 +666,9 @@ wf_status wf_feedgen_get_suggested_feeds_typed(wf_agent *agent, int limit,
 
     wf_feedgen_generator_list list = {0};
     wf_lex_app_bsky_feed_get_suggested_feeds_main_params params = {0};
+    if (limit < 0 || limit > 25) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
@@ -698,6 +704,9 @@ wf_status wf_feedgen_get_likes_typed(wf_agent *agent, const char *uri,
 
     wf_agent_like_list list = {0};
     wf_lex_app_bsky_feed_get_likes_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.uri = uri;
     if (cid && cid[0]) {
         params.has_cid = true;
@@ -738,6 +747,9 @@ wf_status wf_feedgen_get_reposted_by_typed(wf_agent *agent, const char *uri,
 
     wf_agent_actor_list list = {0};
     wf_lex_app_bsky_feed_get_reposted_by_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.uri = uri;
     if (cid && cid[0]) {
         params.has_cid = true;
@@ -777,6 +789,9 @@ wf_status wf_feedgen_get_quotes_typed(wf_agent *agent, const char *uri,
 
     wf_agent_feed_list list = {0};
     wf_lex_app_bsky_feed_get_quotes_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.uri = uri;
     if (limit > 0) {
         params.has_limit = true;
@@ -812,6 +827,9 @@ wf_status wf_feedgen_get_actor_likes_typed(wf_agent *agent, const char *actor,
 
     wf_agent_feed_list list = {0};
     wf_lex_app_bsky_feed_get_actor_likes_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.actor = actor;
     if (limit > 0) {
         params.has_limit = true;
@@ -847,6 +865,9 @@ wf_status wf_feedgen_get_list_feed_typed(wf_agent *agent, const char *list_uri,
 
     wf_agent_feed_list list = {0};
     wf_lex_app_bsky_feed_get_list_feed_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.list = list_uri;
     if (limit > 0) {
         params.has_limit = true;
@@ -882,6 +903,9 @@ wf_status wf_feedgen_search_posts_typed(wf_agent *agent, const char *query,
 
     wf_feedgen_search_result_list list = {0};
     wf_lex_app_bsky_feed_search_posts_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.q = query;
     if (limit > 0) {
         params.has_limit = true;
@@ -917,6 +941,9 @@ wf_status wf_feedgen_search_posts_v2_typed(wf_agent *agent, const char *query,
 
     wf_feedgen_search_result_list list = {0};
     wf_lex_app_bsky_feed_search_posts_v2_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.has_query = true;
     params.query = query;
     if (limit > 0) {
