@@ -467,6 +467,331 @@ static wf_status wf_notif_v2_build_prefs_v2_input(
     return WF_OK;
 }
 
+/* ---- Typed builder/parser for putPreferencesV2 (13 preference slots) ---- */
+
+static const char *wf_notif_v2_include_to_str(wf_notif_v2_include inc) {
+    switch (inc) {
+        case WF_NOTIF_V2_INCLUDE_ALL:
+            return "all";
+        case WF_NOTIF_V2_INCLUDE_FOLLOWS:
+            return "follows";
+        case WF_NOTIF_V2_INCLUDE_ACCEPTED:
+            return "accepted";
+        default:
+            return NULL;
+    }
+}
+
+/* Append a sub-object for one filterablePreference slot (include/list/push). */
+static void wf_notif_v2_add_filterable(cJSON *root, const char *key,
+                                       const wf_notif_v2_filterable_pref *p) {
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) {
+        return;
+    }
+    if (p->has_include) {
+        const char *s = wf_notif_v2_include_to_str(p->include);
+        if (s) {
+            cJSON_AddItemToObject(obj, "include", cJSON_CreateString(s));
+        }
+    }
+    if (p->has_list) {
+        cJSON_AddItemToObject(obj, "list", cJSON_CreateBool(p->list != 0));
+    }
+    if (p->has_push) {
+        cJSON_AddItemToObject(obj, "push", cJSON_CreateBool(p->push != 0));
+    }
+    cJSON_AddItemToObject(root, key, obj);
+}
+
+/* Append a sub-object for one plain preference slot (list/push). */
+static void wf_notif_v2_add_pref(cJSON *root, const char *key,
+                                 const wf_notif_v2_pref *p) {
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) {
+        return;
+    }
+    if (p->has_list) {
+        cJSON_AddItemToObject(obj, "list", cJSON_CreateBool(p->list != 0));
+    }
+    if (p->has_push) {
+        cJSON_AddItemToObject(obj, "push", cJSON_CreateBool(p->push != 0));
+    }
+    cJSON_AddItemToObject(root, key, obj);
+}
+
+/* Append a sub-object for the deprecated chatPreference slot (include/push). */
+static void wf_notif_v2_add_chat(cJSON *root, const char *key,
+                                 const wf_notif_v2_chat_pref *p) {
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) {
+        return;
+    }
+    if (p->has_include) {
+        const char *s = wf_notif_v2_include_to_str(p->include);
+        if (s) {
+            cJSON_AddItemToObject(obj, "include", cJSON_CreateString(s));
+        }
+    }
+    if (p->has_push) {
+        cJSON_AddItemToObject(obj, "push", cJSON_CreateBool(p->push != 0));
+    }
+    cJSON_AddItemToObject(root, key, obj);
+}
+
+wf_status wf_notification_v2_preferences_build(
+    const wf_notification_v2_preferences *prefs, char **out_json) {
+    if (!prefs || !out_json) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_json = NULL;
+
+    /* Validate every set `include` resolves to a legal wire string. */
+    if (prefs->has_chat && prefs->chat.has_include) {
+        if (!wf_notif_v2_include_to_str(prefs->chat.include)) {
+            return WF_ERR_INVALID_ARG;
+        }
+    }
+    if (prefs->has_follow && prefs->follow.has_include &&
+        !wf_notif_v2_include_to_str(prefs->follow.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_like && prefs->like.has_include &&
+        !wf_notif_v2_include_to_str(prefs->like.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_like_via_repost && prefs->like_via_repost.has_include &&
+        !wf_notif_v2_include_to_str(prefs->like_via_repost.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_mention && prefs->mention.has_include &&
+        !wf_notif_v2_include_to_str(prefs->mention.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_quote && prefs->quote.has_include &&
+        !wf_notif_v2_include_to_str(prefs->quote.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_reply && prefs->reply.has_include &&
+        !wf_notif_v2_include_to_str(prefs->reply.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_repost && prefs->repost.has_include &&
+        !wf_notif_v2_include_to_str(prefs->repost.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (prefs->has_repost_via_repost && prefs->repost_via_repost.has_include &&
+        !wf_notif_v2_include_to_str(prefs->repost_via_repost.include)) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) {
+        return WF_ERR_ALLOC;
+    }
+
+    if (prefs->has_chat) {
+        wf_notif_v2_add_chat(root, "chat", &prefs->chat);
+    }
+    if (prefs->has_follow) {
+        wf_notif_v2_add_filterable(root, "follow", &prefs->follow);
+    }
+    if (prefs->has_like) {
+        wf_notif_v2_add_filterable(root, "like", &prefs->like);
+    }
+    if (prefs->has_like_via_repost) {
+        wf_notif_v2_add_filterable(root, "likeViaRepost",
+                                   &prefs->like_via_repost);
+    }
+    if (prefs->has_mention) {
+        wf_notif_v2_add_filterable(root, "mention", &prefs->mention);
+    }
+    if (prefs->has_quote) {
+        wf_notif_v2_add_filterable(root, "quote", &prefs->quote);
+    }
+    if (prefs->has_reply) {
+        wf_notif_v2_add_filterable(root, "reply", &prefs->reply);
+    }
+    if (prefs->has_repost) {
+        wf_notif_v2_add_filterable(root, "repost", &prefs->repost);
+    }
+    if (prefs->has_repost_via_repost) {
+        wf_notif_v2_add_filterable(root, "repostViaRepost",
+                                   &prefs->repost_via_repost);
+    }
+    if (prefs->has_starterpack_joined) {
+        wf_notif_v2_add_pref(root, "starterpackJoined",
+                             &prefs->starterpack_joined);
+    }
+    if (prefs->has_subscribed_post) {
+        wf_notif_v2_add_pref(root, "subscribedPost", &prefs->subscribed_post);
+    }
+    if (prefs->has_unverified) {
+        wf_notif_v2_add_pref(root, "unverified", &prefs->unverified);
+    }
+    if (prefs->has_verified) {
+        wf_notif_v2_add_pref(root, "verified", &prefs->verified);
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) {
+        return WF_ERR_ALLOC;
+    }
+    *out_json = json;
+    return WF_OK;
+}
+
+/* Read one filterablePreference sub-object into `p` (all fields required). */
+static void wf_notif_v2_read_filterable(cJSON *o, wf_notif_v2_filterable_pref *p) {
+    cJSON *include = cJSON_GetObjectItemCaseSensitive(o, "include");
+    cJSON *list = cJSON_GetObjectItemCaseSensitive(o, "list");
+    cJSON *push = cJSON_GetObjectItemCaseSensitive(o, "push");
+    if (cJSON_IsString(include) && include->valuestring) {
+        p->has_include = 1;
+        if (strcmp(include->valuestring, "follows") == 0) {
+            p->include = WF_NOTIF_V2_INCLUDE_FOLLOWS;
+        } else if (strcmp(include->valuestring, "accepted") == 0) {
+            p->include = WF_NOTIF_V2_INCLUDE_ACCEPTED;
+        } else {
+            p->include = WF_NOTIF_V2_INCLUDE_ALL;
+        }
+    }
+    if (cJSON_IsBool(list)) {
+        p->has_list = 1;
+        p->list = cJSON_IsTrue(list);
+    }
+    if (cJSON_IsBool(push)) {
+        p->has_push = 1;
+        p->push = cJSON_IsTrue(push);
+    }
+}
+
+/* Read one plain preference sub-object into `p` (all fields required). */
+static void wf_notif_v2_read_pref(cJSON *o, wf_notif_v2_pref *p) {
+    cJSON *list = cJSON_GetObjectItemCaseSensitive(o, "list");
+    cJSON *push = cJSON_GetObjectItemCaseSensitive(o, "push");
+    if (cJSON_IsBool(list)) {
+        p->has_list = 1;
+        p->list = cJSON_IsTrue(list);
+    }
+    if (cJSON_IsBool(push)) {
+        p->has_push = 1;
+        p->push = cJSON_IsTrue(push);
+    }
+}
+
+/* Read the deprecated chatPreference sub-object into `p` (all fields required). */
+static void wf_notif_v2_read_chat(cJSON *o, wf_notif_v2_chat_pref *p) {
+    cJSON *include = cJSON_GetObjectItemCaseSensitive(o, "include");
+    cJSON *push = cJSON_GetObjectItemCaseSensitive(o, "push");
+    if (cJSON_IsString(include) && include->valuestring) {
+        p->has_include = 1;
+        if (strcmp(include->valuestring, "follows") == 0) {
+            p->include = WF_NOTIF_V2_INCLUDE_FOLLOWS;
+        } else if (strcmp(include->valuestring, "accepted") == 0) {
+            p->include = WF_NOTIF_V2_INCLUDE_ACCEPTED;
+        } else {
+            p->include = WF_NOTIF_V2_INCLUDE_ALL;
+        }
+    }
+    if (cJSON_IsBool(push)) {
+        p->has_push = 1;
+        p->push = cJSON_IsTrue(push);
+    }
+}
+
+wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
+                                               wf_notification_v2_preferences *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, len);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    /* Accept either a bare `#preferences` object or a wrapping output body
+     * `{ preferences: {...} }`. */
+    cJSON *prefs = cJSON_GetObjectItemCaseSensitive(root, "preferences");
+    if (cJSON_IsObject(prefs)) {
+        prefs = cJSON_DetachItemFromObject(root, "preferences");
+        cJSON_Delete(root);
+        root = prefs;
+    }
+
+    wf_notif_v2_chat_pref chat = {0};
+    wf_notif_v2_filterable_pref follow = {0}, like = {0}, like_via_repost = {0},
+                                mention = {0}, quote = {0}, reply = {0},
+                                repost = {0}, repost_via_repost = {0};
+    wf_notif_v2_pref starterpack_joined = {0}, subscribed_post = {0},
+                     unverified = {0}, verified = {0};
+
+    cJSON *o;
+#define READ_SLOT(field, name, reader)                                       \
+    do {                                                                     \
+        o = cJSON_GetObjectItemCaseSensitive(root, name);                    \
+        if (cJSON_IsObject(o)) {                                             \
+            reader(o, &field);                                               \
+        }                                                                    \
+    } while (0)
+
+    READ_SLOT(chat, "chat", wf_notif_v2_read_chat);
+    READ_SLOT(follow, "follow", wf_notif_v2_read_filterable);
+    READ_SLOT(like, "like", wf_notif_v2_read_filterable);
+    READ_SLOT(like_via_repost, "likeViaRepost", wf_notif_v2_read_filterable);
+    READ_SLOT(mention, "mention", wf_notif_v2_read_filterable);
+    READ_SLOT(quote, "quote", wf_notif_v2_read_filterable);
+    READ_SLOT(reply, "reply", wf_notif_v2_read_filterable);
+    READ_SLOT(repost, "repost", wf_notif_v2_read_filterable);
+    READ_SLOT(repost_via_repost, "repostViaRepost", wf_notif_v2_read_filterable);
+    READ_SLOT(starterpack_joined, "starterpackJoined", wf_notif_v2_read_pref);
+    READ_SLOT(subscribed_post, "subscribedPost", wf_notif_v2_read_pref);
+    READ_SLOT(unverified, "unverified", wf_notif_v2_read_pref);
+    READ_SLOT(verified, "verified", wf_notif_v2_read_pref);
+#undef READ_SLOT
+
+    out->has_chat = 1;
+    out->chat = chat;
+    out->has_follow = 1;
+    out->follow = follow;
+    out->has_like = 1;
+    out->like = like;
+    out->has_like_via_repost = 1;
+    out->like_via_repost = like_via_repost;
+    out->has_mention = 1;
+    out->mention = mention;
+    out->has_quote = 1;
+    out->quote = quote;
+    out->has_reply = 1;
+    out->reply = reply;
+    out->has_repost = 1;
+    out->repost = repost;
+    out->has_repost_via_repost = 1;
+    out->repost_via_repost = repost_via_repost;
+    out->has_starterpack_joined = 1;
+    out->starterpack_joined = starterpack_joined;
+    out->has_subscribed_post = 1;
+    out->subscribed_post = subscribed_post;
+    out->has_unverified = 1;
+    out->unverified = unverified;
+    out->has_verified = 1;
+    out->verified = verified;
+
+    cJSON_Delete(root);
+    return WF_OK;
+}
+
+void wf_notification_v2_preferences_free(wf_notification_v2_preferences *p) {
+    if (!p) {
+        return;
+    }
+    memset(p, 0, sizeof(*p));
+}
+
 /* ---- Agent convenience wrappers ---- */
 
 wf_status wf_agent_put_notification_preferences_v2(
@@ -514,6 +839,153 @@ wf_status wf_agent_put_notification_preferences_v2(
             *out = prefs;
         } else {
             wf_notif_v2_preferences_free(&prefs);
+        }
+    }
+
+    wf_response_free(&res);
+    return status;
+}
+
+/* Build the structured generated input from the owned typed prefs struct. The
+ * generated input borrows `include` string pointers from our static table, so
+ * no sub-struct string fields need freeing (only the sub-structs themselves). */
+static wf_status wf_notif_v2_prefs_to_lex_input(
+    const wf_notification_v2_preferences *p,
+    wf_lex_app_bsky_notification_put_preferences_v2_main_input *in) {
+    wf_status status = WF_OK;
+
+    if (p->has_chat) {
+        if (p->chat.has_include &&
+            !wf_notif_v2_include_to_str(p->chat.include)) {
+            return WF_ERR_INVALID_ARG;
+        }
+        wf_lex_app_bsky_notification_defs_chat_preference *c = calloc(1, sizeof(*c));
+        if (!c) {
+            return WF_ERR_ALLOC;
+        }
+        if (p->chat.has_include) {
+            c->include = wf_notif_v2_include_to_str(p->chat.include);
+        }
+        if (p->chat.has_push) {
+            c->push = p->chat.push != 0;
+        }
+        in->has_chat = true;
+        in->chat = c;
+    }
+#define FILL_FILTERABLE(slot, lexfield)                                      \
+    do {                                                                     \
+        if (p->has_##slot) {                                                 \
+            if (p->slot.has_include &&                                       \
+                !wf_notif_v2_include_to_str(p->slot.include)) {              \
+                return WF_ERR_INVALID_ARG;                                   \
+            }                                                                \
+            wf_lex_app_bsky_notification_defs_filterable_preference *f =     \
+                calloc(1, sizeof(*f));                                       \
+            if (!f) {                                                        \
+                return WF_ERR_ALLOC;                                         \
+            }                                                                \
+            if (p->slot.has_include) {                                       \
+                f->include = wf_notif_v2_include_to_str(p->slot.include);    \
+            }                                                                \
+            if (p->slot.has_list) {                                          \
+                f->list = p->slot.list != 0;                                 \
+            }                                                                \
+            if (p->slot.has_push) {                                          \
+                f->push = p->slot.push != 0;                                 \
+            }                                                                \
+            in->has_##slot = true;                                           \
+            in->lexfield = f;                                                \
+        }                                                                    \
+    } while (0)
+#define FILL_PREF(slot, lexfield)                                            \
+    do {                                                                     \
+        if (p->has_##slot) {                                                 \
+            wf_lex_app_bsky_notification_defs_preference *q =                \
+                calloc(1, sizeof(*q));                                       \
+            if (!q) {                                                        \
+                return WF_ERR_ALLOC;                                         \
+            }                                                                \
+            if (p->slot.has_list) {                                          \
+                q->list = p->slot.list != 0;                                 \
+            }                                                                \
+            if (p->slot.has_push) {                                          \
+                q->push = p->slot.push != 0;                                 \
+            }                                                                \
+            in->has_##slot = true;                                           \
+            in->lexfield = q;                                                \
+        }                                                                    \
+    } while (0)
+
+    FILL_FILTERABLE(follow, follow);
+    FILL_FILTERABLE(like, like);
+    FILL_FILTERABLE(like_via_repost, like_via_repost);
+    FILL_FILTERABLE(mention, mention);
+    FILL_FILTERABLE(quote, quote);
+    FILL_FILTERABLE(reply, reply);
+    FILL_FILTERABLE(repost, repost);
+    FILL_FILTERABLE(repost_via_repost, repost_via_repost);
+    FILL_PREF(starterpack_joined, starterpack_joined);
+    FILL_PREF(subscribed_post, subscribed_post);
+    FILL_PREF(unverified, unverified);
+    FILL_PREF(verified, verified);
+#undef FILL_FILTERABLE
+#undef FILL_PREF
+    return status;
+}
+
+static void wf_notif_v2_lex_input_free(
+    wf_lex_app_bsky_notification_put_preferences_v2_main_input *in) {
+    if (!in) {
+        return;
+    }
+    free((void *)in->chat);
+    free((void *)in->follow);
+    free((void *)in->like);
+    free((void *)in->like_via_repost);
+    free((void *)in->mention);
+    free((void *)in->quote);
+    free((void *)in->reply);
+    free((void *)in->repost);
+    free((void *)in->repost_via_repost);
+    free((void *)in->starterpack_joined);
+    free((void *)in->subscribed_post);
+    free((void *)in->unverified);
+    free((void *)in->verified);
+    memset(in, 0, sizeof(*in));
+}
+
+wf_status wf_agent_put_notification_preferences_v2_typed(
+    wf_agent *agent, const wf_notification_v2_preferences *prefs,
+    wf_notification_v2_preferences *out) {
+    if (!agent || !agent->client || !prefs) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_lex_app_bsky_notification_put_preferences_v2_main_input in = {0};
+    wf_status status = wf_notif_v2_prefs_to_lex_input(prefs, &in);
+    if (status != WF_OK) {
+        wf_notif_v2_lex_input_free(&in);
+        return status;
+    }
+
+    wf_response res = {0};
+    wf_agent_sync_auth(agent);
+    status = wf_lex_app_bsky_notification_put_preferences_v2_main_call(
+        agent->client, &in, &res);
+    wf_notif_v2_lex_input_free(&in);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    if (out) {
+        wf_notification_v2_preferences parsed = {0};
+        status = wf_notification_v2_preferences_parse(res.body, res.body_len,
+                                                      &parsed);
+        if (status == WF_OK) {
+            *out = parsed;
+        } else {
+            wf_notification_v2_preferences_free(&parsed);
         }
     }
 

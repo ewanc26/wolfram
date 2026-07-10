@@ -112,7 +112,11 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     (`wf_agent_identity_rotate_handle`) built on `plc.h`.
 36. Notification v2 + activity subscriptions (`notification_v2_typed.h`) — owned
     typed parsers + agent wrappers for `app.bsky.notification.putPreferencesV2`,
-    `listActivitySubscriptions`, and `putActivitySubscription`.
+    `listActivitySubscriptions`, and `putActivitySubscription`. The v2
+    preferences now have a dedicated typed builder/parser:
+    `wf_notification_v2_preferences_build` / `_parse` / `_free` over the 13-slot
+    `wf_notification_v2_preferences` struct (per `app.bsky.notification.defs#preferences`),
+    plus a typed agent wrapper `wf_agent_put_notification_preferences_v2_typed`.
 37. Higher-level endpoint examples (`examples/`) — self-contained programs
     exercising generated clients: label query, PLC handle rotation, notification
     v2, and admin account search.
@@ -296,6 +300,11 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   (event loop, config parsing).
 - Broaden generated typed-wrapper coverage for any remaining lexicon endpoints
   not yet wrapped at the agent level.
+- `app.bsky.notification.putPreferencesV2` is now fully typed
+  (`wf_notification_v2_preferences_build`/`_parse`/`_free` +
+  `wf_agent_put_notification_preferences_v2_typed`); the v1 `putPreferences`
+  `priorities` field is still not transmittable (generated lex input only
+  carries `priority`) — see the TODO in `src/notification_prefs_typed.c`.
 
 ## Dependencies
 

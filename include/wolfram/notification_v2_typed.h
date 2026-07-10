@@ -87,6 +87,112 @@ typedef struct wf_notif_v2_preferences {
     cJSON *preferences;  /* owned full preferences object; NULL if absent */
 } wf_notif_v2_preferences;
 
+/* ----------------------------------------------------------------------------
+ * Typed builder + parser for putPreferencesV2 (app.bsky.notification)
+ *
+ * The v2 preferences input/output carries 13 preference slots, each a small
+ * object. To let callers set only the fields they care about, every scalar is
+ * guarded by a `has_*` flag: a sub-object is omitted entirely unless its
+ * owning `has_<slot>` flag is set, and a scalar inside a sub-object is omitted
+ * unless its own `has_*` flag is set. The OUTPUT (`defs#preferences`) lists all
+ * 13 slots as `required`, so a parse of a real response populates every field.
+ *
+ * `include` is a closed enum: filterablePreference uses "all"/"follows" and the
+ * deprecated chatPreference uses "all"/"accepted". The same enum covers both
+ * since "all" is shared; setting an out-of-range value is an error for the
+ * builder.
+ * ------------------------------------------------------------------------- */
+
+typedef enum wf_notif_v2_include {
+    WF_NOTIF_V2_INCLUDE_UNSET = 0,
+    WF_NOTIF_V2_INCLUDE_ALL,
+    WF_NOTIF_V2_INCLUDE_FOLLOWS, /* filterablePreference */
+    WF_NOTIF_V2_INCLUDE_ACCEPTED /* chatPreference (deprecated) */
+} wf_notif_v2_include;
+
+/* A filterablePreference: { include?, list?, push? }. */
+typedef struct wf_notif_v2_filterable_pref {
+    int              has_include;
+    wf_notif_v2_include include; /* valid only when has_include != 0 */
+    int              has_list;
+    int              list;        /* boolean when has_list != 0 */
+    int              has_push;
+    int              push;        /* boolean when has_push != 0 */
+} wf_notif_v2_filterable_pref;
+
+/* A plain preference: { list?, push? }. */
+typedef struct wf_notif_v2_pref {
+    int has_list;
+    int list;  /* boolean when has_list != 0 */
+    int has_push;
+    int push;  /* boolean when has_push != 0 */
+} wf_notif_v2_pref;
+
+/* The deprecated chatPreference: { include?, push? }. */
+typedef struct wf_notif_v2_chat_pref {
+    int              has_include;
+    wf_notif_v2_include include; /* valid only when has_include != 0 */
+    int              has_push;
+    int              push;        /* boolean when has_push != 0 */
+} wf_notif_v2_chat_pref;
+
+/* All 13 v2 preference slots. A slot is emitted only when `has_<slot>` != 0. */
+typedef struct wf_notification_v2_preferences {
+    int                   has_chat;
+    wf_notif_v2_chat_pref chat;
+
+    int                        has_follow;
+    wf_notif_v2_filterable_pref follow;
+    int                        has_like;
+    wf_notif_v2_filterable_pref like;
+    int                        has_like_via_repost;
+    wf_notif_v2_filterable_pref like_via_repost;
+    int                        has_mention;
+    wf_notif_v2_filterable_pref mention;
+    int                        has_quote;
+    wf_notif_v2_filterable_pref quote;
+    int                        has_reply;
+    wf_notif_v2_filterable_pref reply;
+    int                        has_repost;
+    wf_notif_v2_filterable_pref repost;
+    int                        has_repost_via_repost;
+    wf_notif_v2_filterable_pref repost_via_repost;
+
+    int                   has_starterpack_joined;
+    wf_notif_v2_pref      starterpack_joined;
+    int                   has_subscribed_post;
+    wf_notif_v2_pref      subscribed_post;
+    int                   has_unverified;
+    wf_notif_v2_pref      unverified;
+    int                   has_verified;
+    wf_notif_v2_pref      verified;
+} wf_notification_v2_preferences;
+
+/*
+ * Serialize `prefs` into the exact putPreferencesV2 input JSON. Only the slots
+ * whose `has_<slot>` flag is set are emitted, and within a slot only the scalar
+ * fields whose `has_*` flag is set. `*out_json` is owned by the caller and must
+ * be released with free() (never NULL on success). Returns WF_ERR_INVALID_ARG
+ * if `prefs` or `out_json` is NULL, or WF_ERR_INVALID_ARG if a set `include`
+ * value is out of range. Returns WF_ERR_ALLOC on allocation failure.
+ */
+wf_status wf_notification_v2_preferences_build(
+    const wf_notification_v2_preferences *prefs, char **out_json);
+
+/*
+ * Parse a `#preferences` object (or a putPreferencesV2 output body
+ * `{ preferences: {...} }`) into the owned typed struct. All 13 slots are
+ * `required` on the wire, so a valid response populates every field; unknown
+ * fields are ignored. Returns WF_ERR_INVALID_ARG if `json` or `out` is NULL, or
+ * WF_ERR_PARSE if the document is not a JSON object / lacks a preferences
+ * object. On error `out` is left zeroed.
+ */
+wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
+                                               wf_notification_v2_preferences *out);
+
+/* Zero an owned typed preferences struct. Safe to call on a zeroed struct. */
+void wf_notification_v2_preferences_free(wf_notification_v2_preferences *p);
+
 /*
  * Parse a putActivitySubscription response body
  * (`{ subject?, activitySubscription? }`) into an owned result. On any error
@@ -136,6 +242,18 @@ wf_status wf_agent_put_notification_preferences_v2(
     wf_agent *agent, const char *preferences_json,
     const char *const *deleted_prefs, size_t deleted_count,
     wf_notif_v2_preferences *out);
+
+/*
+ * Set the authenticated account's v2 notification preferences from a typed
+ * struct (no hand-built JSON). `prefs` must be non-NULL. The input is built via
+ * wf_notification_v2_preferences_build and sent through the generated
+ * putPreferencesV2 call (after syncing auth). When `out` is non-NULL the
+ * response `#preferences` object is parsed into it (owned). Returns
+ * WF_ERR_INVALID_ARG if `agent` or `prefs` is NULL, or a transport/parse error.
+ */
+wf_status wf_agent_put_notification_preferences_v2_typed(
+    wf_agent *agent, const wf_notification_v2_preferences *prefs,
+    wf_notification_v2_preferences *out);
 
 /*
  * Enumerate the accounts the authenticated account is subscribed to for

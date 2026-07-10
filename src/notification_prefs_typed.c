@@ -116,7 +116,10 @@ wf_status wf_agent_put_notification_prefs(wf_agent *agent, int priority,
     input.priority = (priority != 0);
     /* TODO: the generated v1 lex input currently carries only `priority`;
      * `priorities_json` is validated above but cannot yet be transmitted
-     * until the generated lex schema gains a `priorities` field. */
+     * until the generated lex schema gains a `priorities` field. Typed v2
+     * preferences (the richer 13-slot model) are implemented separately in
+     * notification_v2_typed.c (wf_notification_v2_preferences_build/parse and
+     * wf_agent_put_notification_preferences_v2_typed). */
 
     wf_response res = {0};
     wf_agent_sync_auth(agent);
