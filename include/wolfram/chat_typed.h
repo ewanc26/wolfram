@@ -27,6 +27,8 @@
 
 #include "wolfram/agent.h"
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -884,15 +886,96 @@ wf_status wf_agent_parse_mod_event(const char *json, size_t json_len,
                                    wf_chat_mod_event *out);
 void wf_chat_mod_event_free(wf_chat_mod_event *e);
 
-/* chat.bsky.moderation.subscribeModEvents — honest stub.
+/* ── chat.bsky.moderation.subscribeModEvents (streaming subscription) ──── */
+
+#define WF_CHAT_MOD_EVENTS_NSID "chat.bsky.moderation.subscribeModEvents"
+
+/* A decoded subscribeModEvents frame.
  *
- * TODO: this is a streaming WebSocket subscription served by the chat service.
- * The typed chat layer currently only wraps request/response XRPC calls
- * (query/procedure), so a live subscription is not wired here. Callers
- * needing the event stream should use the raw chat client with the WebSocket
- * transport directly. Returns WF_ERR_INVALID_ARG (not implemented). */
+ * The atproto subscription wire format is framed DAG-CBOR (see
+ * bluesky-social/atproto packages/xrpc-server stream/frames.ts): each binary
+ * WebSocket message is a header map immediately followed by a body map,
+ * concatenated as two independent CBOR items. The header carries `op` (1 for a
+ * normal message, -1 for an error) and, for messages, `t` — the message union
+ * member tag (e.g. "#eventConvoFirstMessage"). The body's `$type` is stripped
+ * on the wire, so the union tag lives only in the header.
+ *
+ * For a message frame `event` holds the bounded identifying fields and
+ * `event.type` is filled from the header `t`; `seq` is the body `seq` field
+ * when present (0 otherwise). For an error frame `is_error` is set and
+ * `error`/`message` carry the owned error code and optional human message. */
+typedef struct wf_chat_mod_frame {
+    int is_error;             /* non-zero for an error frame (op == -1) */
+    int64_t seq;              /* body seq if present, else 0 */
+    wf_chat_mod_event event;  /* valid for a message frame (op == 1) */
+    char *error;              /* owned error code (error frame only) */
+    char *message;            /* owned error message (error frame, optional) */
+} wf_chat_mod_frame;
+
+/* Decode one framed DAG-CBOR subscribeModEvents message (header ++ body).
+ * On WF_OK `*out` is populated (free with wf_chat_mod_frame_free). A truncated,
+ * malformed, or non-map frame returns WF_ERR_PARSE with `*out` zeroed. */
+wf_status wf_chat_mod_frame_parse_cbor(const unsigned char *frame, size_t len,
+                                       wf_chat_mod_frame *out);
+
+/* Release any allocations owned by a decoded frame and zero it. */
+void wf_chat_mod_frame_free(wf_chat_mod_frame *frame);
+
+/* Build the subscribeModEvents WebSocket URL from a chat-service base URL
+ * (ws(s):// used as-is; http(s):// mapped to ws(s)://) plus an optional cursor
+ * string (appended as ?cursor=…). Caller owns `*out_url`. */
+wf_status wf_chat_mod_events_build_url(const char *service, const char *cursor,
+                                       char **out_url);
+
+/* Callback for each decoded moderation event (with its stream seq). */
+typedef void (*wf_chat_mod_event_cb)(const wf_chat_mod_event *event,
+                                     int64_t seq, void *userdata);
+/* Callback for transport / decode / server-error notifications. */
+typedef void (*wf_chat_mod_events_error_cb)(wf_status status,
+                                            const char *message, void *userdata);
+
+typedef struct wf_chat_mod_events_options {
+    const char *service;          /* absolute ws(s)/http(s) chat-service URL */
+    const char *cursor;           /* optional last-seen seq (string); NULL omits */
+    uint32_t reconnect_delay_ms;  /* 0 selects the default 3000ms backoff */
+    wf_chat_mod_event_cb on_event;
+    wf_chat_mod_events_error_cb on_error;
+    void *userdata;
+} wf_chat_mod_events_options;
+
+typedef struct wf_chat_mod_events_handle wf_chat_mod_events_handle;
+
+/* Subscribe to chat moderation events. Blocks until stopped, a fatal initial
+ * connection error occurs, or the service closes cleanly; reconnects with a
+ * capped exponential backoff and advances the cursor as events arrive. The
+ * live handle is published through `*out` for the duration of the loop so a
+ * callback (or another thread) may call wf_chat_mod_events_stop. */
+wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
+                                   wf_chat_mod_events_handle **out);
+
+/* Request that an active subscription loop stop as soon as possible. */
+void wf_chat_mod_events_stop(wf_chat_mod_events_handle *handle);
+
+/* chat.bsky.moderation.subscribeModEvents — live moderation event stream.
+ *
+ * Resolves the agent's chat-service endpoint (like the other chat wrappers),
+ * then drives a blocking WebSocket subscription built on the framed DAG-CBOR
+ * decoder above: `on_event` fires for each decoded moderation event (with its
+ * seq) and `on_error` for transport / decode / server errors. `cursor` is the
+ * optional last-seen seq string to backfill from (NULL listens for new events
+ * only). The call blocks until the stream closes cleanly or a fatal initial
+ * connection error occurs; callers needing external stop control or richer
+ * options should use wf_chat_mod_events_start directly.
+ *
+ * NOTE: this is a "private endpoint" that requires moderator authentication.
+ * The WebSocket transport (libcurl) does not yet forward bearer credentials on
+ * the upgrade request, so live use against the real chat service is currently
+ * limited to unauthenticated / test scenarios; see docs/roadmap.md. */
 wf_status wf_agent_chat_subscribe_mod_events_typed(wf_agent *agent,
-         const char *cursor);
+         const char *cursor,
+         wf_chat_mod_event_cb on_event,
+         wf_chat_mod_events_error_cb on_error,
+         void *userdata);
 
 #ifdef __cplusplus
 }

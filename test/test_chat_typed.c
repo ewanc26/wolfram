@@ -15,6 +15,12 @@
 #define WF_TEST_FIXTURE_DIR "test/fixtures"
 #endif
 
+/* No-op mod-event callback used only for the subscribeModEvents arg-guards. */
+static void test_mod_event_noop(const wf_chat_mod_event *event, int64_t seq,
+                                void *userdata) {
+    (void)event; (void)seq; (void)userdata;
+}
+
 static char *read_entire_file(const char *path, size_t *len_out) {
     FILE *fp = fopen(path, "rb");
     char *buf = NULL;
@@ -798,10 +804,13 @@ static void test_new_typed_wrappers_null_arg(void) {
     WF_CHECK(wf_agent_chat_export_account_data_typed((wf_agent *)1, NULL) ==
               WF_ERR_INVALID_ARG);
 
-    /* subscribeModEvents is an honest stub (streaming not wired). */
-    WF_CHECK(wf_agent_chat_subscribe_mod_events_typed(NULL, NULL) ==
+    /* subscribeModEvents is now a real subscription; validate arg-guards.
+     * NULL agent or NULL on_event both return WF_ERR_INVALID_ARG. */
+    WF_CHECK(wf_agent_chat_subscribe_mod_events_typed(
+                 NULL, NULL, test_mod_event_noop, NULL, NULL) ==
               WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_subscribe_mod_events_typed((wf_agent *)1, "cur") ==
+    WF_CHECK(wf_agent_chat_subscribe_mod_events_typed(
+                 (wf_agent *)1, "cur", NULL, NULL, NULL) ==
               WF_ERR_INVALID_ARG);
 }
 
