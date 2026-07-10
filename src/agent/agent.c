@@ -2633,6 +2633,9 @@ wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
     if (!agent || !query || !query[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_xrpc_param params[3];
     size_t param_count = 0;
@@ -2664,6 +2667,9 @@ wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
 wf_status wf_agent_search_actors_typeahead(wf_agent *agent, const char *query,
                                            int limit, wf_response *out) {
     if (!agent || !query || !query[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
     wf_xrpc_param params[2];

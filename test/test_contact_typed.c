@@ -155,6 +155,8 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_contact_matches_typed(NULL, 10, NULL, NULL) ==
              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_contact_matches_typed((wf_agent *)1, 101, NULL,
+                                                &matches) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_import_contacts(NULL, "tok", contacts, 1, &import) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_import_contacts(NULL, NULL, contacts, 1, &import) ==
