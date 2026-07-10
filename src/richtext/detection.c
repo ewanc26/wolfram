@@ -14,8 +14,11 @@ static int is_word_boundary(char c) {
 }
 
 static int is_scheme(const char *s, size_t len) {
-    return len > 8 && (s[0] == 'h' && s[1] == 't' && s[2] == 't' &&
-                       s[3] == 'p' && (s[4] == 's' ? s[5] == ':' : s[4] == ':'));
+    if (len < 8) return 0;
+    if (!(s[0] == 'h' && s[1] == 't' && s[2] == 't' && s[3] == 'p')) return 0;
+    size_t p = 4;
+    if (s[4] == 's') p = 5;
+    return s[p] == ':' && s[p + 1] == '/' && s[p + 2] == '/';
 }
 
 static int is_valid_mention_char(char c) {
@@ -206,10 +209,22 @@ static void detect_tags(const char *text, size_t text_len,
         memcpy(tag, text + tstart, tlen);
         tag[tlen] = '\0';
 
-        int has_letter = 0;
-        for (size_t j = 0; j < tlen; j++)
-            if (isalpha((unsigned char)tag[j])) { has_letter = 1; break; }
-        if (!has_letter) continue;
+        /* Tag must contain at least one non-digit, non-space, non-punctuation
+         * code point (matches upstream [^\d\s\p{P}…]+ requirement). */
+        int has_content = 0;
+        for (size_t j = 0; j < tlen; j++) {
+            unsigned char c = (unsigned char)tag[j];
+            if (c >= 0x80) { has_content = 1; break; }
+            if (isalpha((unsigned char)c)) { has_content = 1; break; }
+        }
+        if (!has_content) continue;
+
+        /* Strip trailing punctuation from both the stored tag and the range,
+         * matching upstream's TRAILING_PUNCTUATION_REGEX behaviour. */
+        size_t stripped = strip_trailing_punct(tag, tlen);
+        if (stripped == 0) continue;
+        tlen = stripped;
+        tend = tstart + tlen;
 
         size_t glen = wf_richtext_grapheme_len(tag, tlen);
         if (glen > 64) continue;
