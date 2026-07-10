@@ -45,6 +45,18 @@ static char *wf_strdup(const char *s) {
     return dup;
 }
 
+static char *wf_strndup(const char *s, size_t n) {
+    if (!s) return NULL;
+    size_t copy = 0;
+    while (copy < n && s[copy] != '\0') copy++;
+    char *dup = malloc(copy + 1);
+    if (dup) {
+        memcpy(dup, s, copy);
+        dup[copy] = '\0';
+    }
+    return dup;
+}
+
 static void wf_did_doc_init(wf_did_document *doc) {
     doc->did = NULL;
     doc->pds_endpoint = NULL;
@@ -96,6 +108,89 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
     return WF_OK;
 }
 
+/* Build the `/.well-known/did.json` URL for a did:web per the W3C/atproto
+ * spec (cf. packages/did/src/methods/web.ts). The MSID (text after
+ * `did:web:`) is the host with optional path/port segments:
+ *   - the first `:` separates the host from the path; an MSID that starts
+ *     with `:` (empty host) is rejected.
+ *   - `%3A` in the host is decoded to `:` (port encoding).
+ *   - remaining segments become a URL path with `:` replaced by `/`
+ *     (e.g. `did:web:example.com:user` -> `https://example.com/user/...`).
+ *   - `http://` is used (instead of `https://`) when the host is exactly
+ *     `localhost` or `localhost:<port>`.
+ * Allocates `*out_url` on success. */
+static wf_status did_web_build_url(const char *did, char **out_url) {
+    const char *msid = did + strlen("did:web:");
+    if (msid[0] == '\0' || msid[0] == ':') {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    /* Copy the MSID; the host is everything up to the first ':'. */
+    char *host = wf_strdup(msid);
+    if (!host) return WF_ERR_ALLOC;
+
+    char *path_sep = strchr(host, ':');
+    if (path_sep) {
+        *path_sep = '\0';
+    }
+
+    /* Decode %3A -> : in the host (percent-encoded port). */
+    {
+        char *out = host;
+        const char *p = host;
+        while (*p) {
+            if (p[0] == '%' && p[1] == '3' && (p[2] == 'A' || p[2] == 'a')) {
+                *out++ = ':';
+                p += 3;
+            } else {
+                *out++ = *p++;
+            }
+        }
+        *out = '\0';
+    }
+
+    /* Remaining MSID segments (after the first ':') form a URL path with
+     * ':' replaced by '/'. */
+    char *path = NULL;
+    if (path_sep) {
+        const char *p = strchr(msid, ':');
+        size_t path_len = strlen(p);
+        path = malloc(path_len + 1);
+        if (!path) {
+            free(host);
+            return WF_ERR_ALLOC;
+        }
+        char *o = path;
+        for (const char *q = p; *q; q++) {
+            *o++ = (*q == ':' ? '/' : *q);
+        }
+        *o = '\0';
+    }
+
+    const char *proto = "https";
+    if (strncmp(host, "localhost", 9) == 0 &&
+        (host[9] == '\0' || host[9] == ':')) {
+        proto = "http";
+    }
+
+    size_t url_len = strlen(proto) + strlen("://") + strlen(host) +
+                     strlen(path ? path : "") +
+                     strlen("/.well-known/did.json") + 1;
+    char *url = malloc(url_len);
+    if (!url) {
+        free(path);
+        free(host);
+        return WF_ERR_ALLOC;
+    }
+    snprintf(url, url_len, "%s://%s%s/.well-known/did.json", proto, host,
+             path ? path : "");
+
+    free(path);
+    free(host);
+    *out_url = url;
+    return WF_OK;
+}
+
 static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
                                      cJSON **out_root) {
     wf_did_method method = wf_did_method_of(did);
@@ -106,15 +201,10 @@ static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
         if (!url) return WF_ERR_ALLOC;
         snprintf(url, url_len, "https://plc.directory/%s", did);
     } else if (method == WF_DID_METHOD_WEB) {
-        const char *host = did + strlen("did:web:");
-        if (!host || host[0] == '\0') {
-            return WF_ERR_INVALID_ARG;
+        wf_status st = did_web_build_url(did, &url);
+        if (st != WF_OK) {
+            return st;
         }
-        size_t url_len = strlen("https://") + strlen(host) +
-                         strlen("/.well-known/did.json") + 1;
-        url = malloc(url_len);
-        if (!url) return WF_ERR_ALLOC;
-        snprintf(url, url_len, "https://%s/.well-known/did.json", host);
     } else {
         return WF_ERR_INVALID_ARG;
     }
@@ -466,17 +556,42 @@ static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client, const char
         return status;
     }
 
-    if (res.body_len == 0 || res.body[res.body_len - 1] != '\n') {
+    if (res.body_len == 0) {
         wf_response_free(&res);
         return WF_ERR_PARSE;
     }
 
-    char *did = wf_strdup(res.body);
+    /* Take the first line of the body (no trailing-newline required) and
+     * trim surrounding whitespace, matching atproto's
+     * `(await res.text()).split('\n')[0].trim()`. */
+    size_t line_len = res.body_len;
+    char *nl = memchr(res.body, '\n', res.body_len);
+    if (nl) line_len = (size_t)(nl - res.body);
+
+    char *did = wf_strndup(res.body, line_len);
     wf_response_free(&res);
     if (!did) return WF_ERR_ALLOC;
 
-    char *newline = strchr(did, '\n');
-    if (newline) *newline = '\0';
+    /* Trim leading and trailing ASCII whitespace (incl. trailing '\r'). */
+    char *start = did;
+    while (*start && (*start == ' ' || *start == '\t' || *start == '\r' ||
+                      *start == '\n' || *start == '\f' || *start == '\v')) {
+        start++;
+    }
+    size_t trim_len = strlen(start);
+    while (trim_len > 0) {
+        char c = start[trim_len - 1];
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' ||
+            c == '\v') {
+            trim_len--;
+        } else {
+            break;
+        }
+    }
+    if (start != did) {
+        memmove(did, start, trim_len + 1);
+    }
+    did[trim_len] = '\0';
 
     if (strncmp(did, "did:", 4) != 0) {
         free(did);

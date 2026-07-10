@@ -91,6 +91,76 @@ static wf_xrpc_client *test_client(void) {
     return wf_xrpc_client_new("https://example.com");
 }
 
+static char *test_strdup(const char *s) {
+    if (!s) return NULL;
+    size_t n = strlen(s) + 1;
+    char *b = malloc(n);
+    if (b) memcpy(b, s, n);
+    return b;
+}
+
+/* Records the URL the handler was called with (for asserting did:web URL
+ * construction) and returns the canned DID document. */
+static char *g_last_url = NULL;
+
+static wf_status did_doc_url_handler(void *userdata, const char *method,
+                                     const char *url, const char *content_type,
+                                     const char *body, size_t body_len,
+                                     const wf_http_header *headers,
+                                     size_t header_count, wf_response *out) {
+    (void)userdata;
+    (void)method;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+
+    free(g_last_url);
+    g_last_url = test_strdup(url);
+
+    size_t len = strlen(g_did_doc);
+    out->body = malloc(len + 1);
+    if (!out->body) {
+        return WF_ERR_ALLOC;
+    }
+    memcpy(out->body, g_did_doc, len + 1);
+    out->body_len = len;
+    out->status = 200;
+    return WF_OK;
+}
+
+/* Returns a configurable well-known atproto-did body (no trailing newline
+ * required) so the well-known handle fallback can be exercised offline. */
+static const char *g_well_known_body = NULL;
+static size_t g_well_known_len = 0;
+
+static wf_status well_known_handler(void *userdata, const char *method,
+                                    const char *url, const char *content_type,
+                                    const char *body, size_t body_len,
+                                    const wf_http_header *headers,
+                                    size_t header_count, wf_response *out) {
+    (void)userdata;
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+
+    size_t len = g_well_known_len;
+    out->body = malloc(len + 1);
+    if (!out->body) {
+        return WF_ERR_ALLOC;
+    }
+    memcpy(out->body, g_well_known_body, len);
+    out->body[len] = '\0';
+    out->body_len = len;
+    out->status = 200;
+    return WF_OK;
+}
+
 int main(void) {
     /* --- DID method sniffing --- */
     WF_CHECK(wf_did_method_of("did:plc:ofrbh253gwicbkc5nktqepol") == WF_DID_METHOD_PLC);
@@ -219,6 +289,72 @@ int main(void) {
 
     wf_xrpc_set_handler(client, NULL, NULL);
     free(doc_json);
+
+    /* --- did:web URL construction (FIX 1) --- */
+    {
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/did_doc_chat.json",
+                 WF_TEST_FIXTURE_DIR);
+        char *web_doc = read_entire_file(path, NULL);
+        WF_CHECK(web_doc != NULL);
+        g_did_doc = web_doc;
+        wf_xrpc_set_handler(client, did_doc_url_handler, NULL);
+
+        wf_did_document doc4 = {0};
+        WF_CHECK(wf_did_resolve(client, "did:web:example.com", &doc4) == WF_OK);
+        WF_CHECK(g_last_url != NULL &&
+                  strcmp(g_last_url, "https://example.com/.well-known/did.json") == 0);
+        wf_did_document_free(&doc4);
+
+        WF_CHECK(wf_did_resolve(client, "did:web:example.com:user", &doc4) == WF_OK);
+        WF_CHECK(g_last_url != NULL &&
+                  strcmp(g_last_url,
+                         "https://example.com/user/.well-known/did.json") == 0);
+        wf_did_document_free(&doc4);
+
+        WF_CHECK(wf_did_resolve(client, "did:web:localhost:foo", &doc4) == WF_OK);
+        WF_CHECK(g_last_url != NULL &&
+                  strcmp(g_last_url,
+                         "http://localhost/foo/.well-known/did.json") == 0);
+        wf_did_document_free(&doc4);
+
+        /* did:web with encoded port uses http for localhost. */
+        WF_CHECK(wf_did_resolve(client, "did:web:localhost%3A8080", &doc4) == WF_OK);
+        WF_CHECK(g_last_url != NULL &&
+                  strcmp(g_last_url,
+                         "http://localhost:8080/.well-known/did.json") == 0);
+        wf_did_document_free(&doc4);
+
+        /* Empty host (leading ':') is rejected before any fetch. */
+        WF_CHECK(wf_did_resolve(client, "did:web:", &doc4) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve(client, "did:web::example.com", &doc4) == WF_ERR_INVALID_ARG);
+
+    wf_xrpc_set_handler(client, NULL, NULL);
+    free(web_doc);
+    }
+
+    /* --- well-known atproto-did fallback accepts body without trailing
+     *     newline (FIX 2) --- */
+    {
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/did_doc_chat.json",
+                 WF_TEST_FIXTURE_DIR);
+        char *ignored = read_entire_file(path, NULL);
+        (void)ignored;
+        free(ignored);
+        (void)path;
+
+        g_well_known_body = "did:plc:abc";
+        g_well_known_len = strlen(g_well_known_body);
+        wf_xrpc_set_handler(client, well_known_handler, NULL);
+
+        char *hk_did = NULL;
+        WF_CHECK(wf_handle_resolve(client, "resolve.invalid", &hk_did) == WF_OK);
+        WF_CHECK(hk_did != NULL && strcmp(hk_did, "did:plc:abc") == 0);
+        free(hk_did);
+
+        wf_xrpc_set_handler(client, NULL, NULL);
+    }
 
     wf_xrpc_client_free(client);
     WF_TEST_SUMMARY();
