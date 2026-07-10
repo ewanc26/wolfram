@@ -294,7 +294,13 @@ void wf_notification_list_free(wf_notification_list *list) {
 wf_status wf_agent_list_notifications_rich_typed(wf_agent *agent, int limit,
                                                  const char *cursor,
                                                  wf_notification_list *out) {
-    if (!agent || !agent->client || !out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
 

@@ -1016,7 +1016,13 @@ wf_status wf_agent_put_notification_preferences_v2_typed(
 wf_status wf_agent_list_activity_subscriptions(
     wf_agent *agent, int limit, const char *cursor,
     wf_notif_v2_subscription_view_list *out) {
-    if (!agent || !agent->client || !out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
 
