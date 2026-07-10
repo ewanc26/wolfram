@@ -702,10 +702,16 @@ wf_status wf_oauth_verify_request(const char *authorization,
     *out = NULL;
 
     if (authorization && dpop_proof) {
-        /* Full Bearer + DPoP pair. */
-        if (strncasecmp(authorization, "Bearer ", 7) != 0)
+        /* Full DPoP-bound access token + proof. atproto clients carry the
+         * access token with the "DPoP" scheme (RFC 9449); accept "Bearer"
+         * too for compatibility. The token is the same in both cases. */
+        if (strncasecmp(authorization, "DPoP ", 5) == 0) {
+            token = authorization + 5;
+        } else if (strncasecmp(authorization, "Bearer ", 7) == 0) {
+            token = authorization + 7;
+        } else {
             return WF_ERR_INVALID_ARG;
-        token = authorization + 7;
+        }
         status = wf_oauth_verify_bearer(token, keys, &bearer);
         if (status != WF_OK) return status;
         status = wf_oauth_verify_dpop(dpop_proof, token, http_method,
