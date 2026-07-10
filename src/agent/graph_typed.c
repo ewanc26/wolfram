@@ -181,6 +181,9 @@ wf_status wf_agent_get_follows_typed(wf_agent *agent, const char *actor,
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_response res = {0};
     wf_status status = wf_agent_get_follows(agent, actor, limit, cursor, &res);
@@ -198,6 +201,9 @@ wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
                                         int limit, const char *cursor,
                                         wf_agent_actor_list *out) {
     if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
 
