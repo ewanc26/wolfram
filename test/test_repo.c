@@ -62,6 +62,15 @@ static int check_cid(const wf_cid *left, const wf_cid *right) {
            memcmp(left->bytes, right->bytes, left->len) == 0;
 }
 
+/* Count leaves visited during an MST walk. */
+static wf_status mst_walk_count_cb(void *ctx, const unsigned char *key,
+                                   size_t key_len, const wf_cid *value) {
+    (void)key; (void)key_len; (void)value;
+    size_t *c = ctx;
+    (*c)++;
+    return WF_OK;
+}
+
 int main(void) {
     /* ── unsigned integers ── */
     {
@@ -1275,6 +1284,135 @@ int main(void) {
         WF_CHECK(wf_mst_delete(&car, &root,
                                 (unsigned char*)"asdf", 4,
                                 NULL) == WF_ERR_INVALID_ARG);
+        wf_car_free(&car);
+    }
+
+    /* ── MST traversal helpers ── */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        const char *keys[] = {
+            "app.bsky.feed.post/aaa",
+            "app.bsky.feed.post/bbb",
+            "app.bsky.feed.post/ccc",
+            "app.bsky.graph.follow/xxx",
+            "app.bsky.graph.follow/yyy",
+            "chat.bsky.convo/zzz"
+        };
+        size_t nkeys = sizeof(keys) / sizeof(keys[0]);
+
+        wf_cid root = {{0}, 0};
+        wf_cid cur = root;
+        for (size_t i = 0; i < nkeys; i++) {
+            /* Use a real CIDv1 (dag-cbor/sha2-256) as the leaf value so the
+             * MST serializer emits a well-formed link. */
+            char blob[8];
+            snprintf(blob, sizeof(blob), "val%zu", i);
+            wf_cid val = {{0}, 0};
+            WF_CHECK(wf_cid_of_block((unsigned char *)blob, strlen(blob),
+                                     &val) == WF_OK);
+            wf_cid next;
+            memset(&next, 0, sizeof(next));
+            WF_CHECK(wf_mst_add(&car, &cur, (unsigned char *)keys[i],
+                                strlen(keys[i]), &val, &next) == WF_OK);
+            cur = next;
+        }
+
+        /* list: every leaf, in ascending key order */
+        wf_mst_leaf *leaves = NULL;
+        size_t n = 0;
+        WF_CHECK(wf_mst_list(&car, &cur, &leaves, &n) == WF_OK);
+        WF_CHECK(n == nkeys);
+        for (size_t i = 1; i < n; i++) {
+            size_t min = leaves[i - 1].key_len < leaves[i].key_len
+                         ? leaves[i - 1].key_len : leaves[i].key_len;
+            int cmp = memcmp(leaves[i - 1].key, leaves[i].key, min);
+            if (cmp == 0)
+                cmp = (int)leaves[i - 1].key_len - (int)leaves[i].key_len;
+            WF_CHECK(cmp < 0);
+        }
+        /* value CIDs round-trip through list() */
+        for (size_t i = 0; i < n; i++) {
+            char blob[8];
+            snprintf(blob, sizeof(blob), "val%zu", i);
+            wf_cid expected = {{0}, 0};
+            WF_CHECK(wf_cid_of_block((unsigned char *)blob, strlen(blob),
+                                     &expected) == WF_OK);
+            WF_CHECK(check_cid(&leaves[i].value, &expected));
+        }
+        wf_mst_leaf_list_free(leaves, n);
+
+        /* paths: only the feed.post collection */
+        wf_mst_leaf *feed = NULL;
+        size_t nf = 0;
+        const char *coll = "app.bsky.feed.post";
+        WF_CHECK(wf_mst_paths(&car, &cur, (unsigned char *)coll, strlen(coll),
+                              &feed, &nf) == WF_OK);
+        WF_CHECK(nf == 3);
+        for (size_t i = 0; i < nf; i++) {
+            size_t clen = strlen(coll);
+            WF_CHECK(feed[i].key_len > clen &&
+                     feed[i].key[clen] == '/' &&
+                     memcmp(feed[i].key, coll, clen) == 0);
+        }
+        wf_mst_leaf_list_free(feed, nf);
+
+        /* walk_from: starts at "app.bsky.feed.post/bbb" (inclusive) */
+        size_t walked = 0;
+        WF_CHECK(wf_mst_walk_from(&car, &cur,
+                                  (unsigned char *)"app.bsky.feed.post/bbb",
+                                  strlen("app.bsky.feed.post/bbb"),
+                                  mst_walk_count_cb, &walked) == WF_OK);
+        WF_CHECK(walked == 5); /* bbb, ccc, graph x2, chat */
+
+        /* walk_from: NULL lower bound walks everything */
+        size_t all = 0;
+        WF_CHECK(wf_mst_walk_from(&car, &cur, NULL, 0,
+                                  mst_walk_count_cb, &all) == WF_OK);
+        WF_CHECK(all == nkeys);
+
+        /* get_all_cids: every value CID plus node CIDs */
+        wf_cid *cids = NULL;
+        size_t nc = 0;
+        WF_CHECK(wf_mst_get_all_cids(&car, &cur, &cids, &nc) == WF_OK);
+        WF_CHECK(nc > nkeys);
+        for (size_t i = 0; i < nkeys; i++) {
+            char blob[8];
+            snprintf(blob, sizeof(blob), "val%zu", i);
+            wf_cid expected = {{0}, 0};
+            WF_CHECK(wf_cid_of_block((unsigned char *)blob, strlen(blob),
+                                     &expected) == WF_OK);
+            int found_val = 0;
+            for (size_t j = 0; j < nc; j++)
+                if (check_cid(&cids[j], &expected)) { found_val = 1; break; }
+            WF_CHECK(found_val);
+        }
+        wf_mst_cid_list_free(cids, nc);
+
+        /* get_covering_proof: feed.post collection range only */
+        wf_cid *proof = NULL;
+        size_t np = 0;
+        WF_CHECK(wf_mst_get_covering_proof(&car, &cur,
+                        (unsigned char *)"app.bsky.feed.post/",
+                        strlen("app.bsky.feed.post/"),
+                        (unsigned char *)"app.bsky.feed.post0",
+                        strlen("app.bsky.feed.post0"),
+                        &proof, &np) == WF_OK);
+        WF_CHECK(np > 0);
+        wf_mst_cid_list_free(proof, np);
+
+        /* empty tree: traversal yields nothing without error */
+        wf_cid empty_root = {{0}, 0};
+        wf_mst_leaf *e = NULL; size_t en = 0;
+        WF_CHECK(wf_mst_list(&car, &empty_root, &e, &en) == WF_OK);
+        WF_CHECK(en == 0);
+        wf_mst_leaf_list_free(e, en);
+        size_t ew = 0;
+        WF_CHECK(wf_mst_walk_from(&car, &empty_root, NULL, 0,
+                                  mst_walk_count_cb, &ew) == WF_OK);
+        WF_CHECK(ew == 0);
+
         wf_car_free(&car);
     }
 
