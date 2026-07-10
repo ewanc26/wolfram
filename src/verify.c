@@ -14,6 +14,104 @@
  * helper. These live in the agent's private internal header. */
 #include "agent/_internal.h"
 
+/* Process-wide DID-key resolver. NULL until wf_verify_set_key_resolver is
+ * called. Stored as plain global state: install once at startup before any
+ * verification runs. */
+static wf_verify_key_resolver g_resolver = NULL;
+static void *g_resolver_userdata = NULL;
+
+void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata)
+{
+    g_resolver = cb;
+    g_resolver_userdata = userdata;
+}
+
+/* Resolve `did`'s signing key strictly through the installed resolver. No
+ * network fallback: absence of a resolver is the honest "no capability"
+ * error. On WF_OK, *out_key is heap-allocated and owned by the caller. */
+static wf_status resolve_via_resolver(const char *did,
+                                      const char *key_id,
+                                      char **out_key)
+{
+    if (!out_key)
+        return WF_ERR_INVALID_ARG;
+    *out_key = NULL;
+
+    if (!did || did[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+
+    if (!g_resolver)
+        return WF_ERR_INVALID_ARG; /* honest: no resolver, no key source */
+
+    return g_resolver(did, key_id, g_resolver_userdata, out_key);
+}
+
+wf_status wf_verify_resolve_via_did(const char *did,
+                                    const char *key_id,
+                                    void *userdata,
+                                    char **out_key)
+{
+    (void)key_id;
+
+    wf_xrpc_client *client = (wf_xrpc_client *)userdata;
+    if (!did || did[0] == '\0' || !out_key)
+        return WF_ERR_INVALID_ARG;
+    if (!client)
+        return WF_ERR_INVALID_ARG;
+    *out_key = NULL;
+
+    wf_did_document doc;
+    memset(&doc, 0, sizeof(doc));
+    wf_status s = wf_did_resolve(client, did, &doc);
+    if (s != WF_OK)
+        return s;
+    if (!doc.signing_key) {
+        wf_did_document_free(&doc);
+        return WF_ERR_NOT_FOUND;
+    }
+
+    /* Steal the signing_key string out of the document so the caller owns
+     * it directly (wf_did_document_free would otherwise free it). */
+    *out_key = doc.signing_key;
+    doc.signing_key = NULL;
+    wf_did_document_free(&doc);
+    return WF_OK;
+}
+
+wf_status wf_verify_resolve_signing_key(const char *did,
+                                        const char *key_id,
+                                        wf_xrpc_client *client,
+                                        char **out_key)
+{
+    if (!out_key)
+        return WF_ERR_INVALID_ARG;
+    *out_key = NULL;
+
+    /* Prefer the injected resolver. */
+    wf_status s = resolve_via_resolver(did, key_id, out_key);
+    if (s != WF_ERR_INVALID_ARG)
+        return s;
+
+    /* No resolver installed: fall back to a live wf_did_resolve when a
+     * transport client is available. Without both, resolution is impossible. */
+    if (!client)
+        return WF_ERR_INVALID_ARG;
+
+    wf_did_document doc;
+    memset(&doc, 0, sizeof(doc));
+    s = wf_did_resolve(client, did, &doc);
+    if (s != WF_OK)
+        return s;
+    if (!doc.signing_key) {
+        wf_did_document_free(&doc);
+        return WF_ERR_NOT_FOUND;
+    }
+    *out_key = doc.signing_key;
+    doc.signing_key = NULL;
+    wf_did_document_free(&doc);
+    return WF_OK;
+}
+
 wf_status wf_verify_record_commit(const char *signing_key_multibase,
                                   const uint8_t *commit_cbor,
                                   size_t commit_len,
@@ -68,6 +166,33 @@ wf_status wf_verify_record_commit(const char *signing_key_multibase,
     return s;
 }
 
+wf_status wf_verify_record_commit_resolved(const char *did,
+                                           const uint8_t *commit_cbor,
+                                           size_t commit_len,
+                                           int *out_valid)
+{
+    if (!out_valid)
+        return WF_ERR_INVALID_ARG;
+    *out_valid = 0;
+
+    if (!did || did[0] == '\0' ||
+        !commit_cbor || commit_len == 0)
+        return WF_ERR_INVALID_ARG;
+
+    /* Fetch the DID's signing key from the injected resolver. With no
+     * resolver installed this returns an honest WF_ERR_INVALID_ARG — no
+     * fabricated key, no false pass. */
+    char *signing_key = NULL;
+    wf_status s = resolve_via_resolver(did, NULL, &signing_key);
+    if (s != WF_OK)
+        return s;
+
+    s = wf_verify_record_commit(signing_key, commit_cbor, commit_len, out_valid);
+
+    free(signing_key);
+    return s;
+}
+
 wf_status wf_agent_verify_record(wf_agent *agent,
                                  const char *did,
                                  const char *collection,
@@ -83,32 +208,17 @@ wf_status wf_agent_verify_record(wf_agent *agent,
         !rkey || rkey[0] == '\0')
         return WF_ERR_INVALID_ARG;
 
-    /* TODO: live resolution + fetch path. Enable by building with
-     * -DWF_TEST_LIVE and/or setting WF_TEST_LIVE=1 at runtime. Until then
-     * this returns WF_ERR_INVALID_ARG rather than a fabricated result. */
-#ifndef WF_TEST_LIVE
-    (void)agent;
-    (void)did;
-    (void)collection;
-    (void)rkey;
-    return WF_ERR_INVALID_ARG;
-#else
-    if (!getenv("WF_TEST_LIVE"))
-        return WF_ERR_INVALID_ARG;
-
-    wf_agent_sync_auth(agent);
-
-    wf_did_document doc;
-    memset(&doc, 0, sizeof(doc));
-    wf_status s = wf_did_resolve(agent->client, did, &doc);
+    /* Resolve the DID's signing key via the injected resolver. Without a
+     * resolver wolfram cannot fetch the key, so it returns an honest error
+     * rather than fabricating a signature check. */
+    char *signing_key = NULL;
+    wf_status s = resolve_via_resolver(did, NULL, &signing_key);
     if (s != WF_OK)
         return s;
-    if (!doc.signing_key) {
-        wf_did_document_free(&doc);
-        return WF_ERR_INVALID_ARG;
-    }
 
-    /* Confirm the record is retrievable. */
+    /* Confirm the record is retrievable and fetch its commit CAR. */
+    wf_agent_sync_auth(agent);
+
     wf_lex_com_atproto_repo_get_record_main_params rp = {0};
     rp.repo = did;
     rp.collection = collection;
@@ -117,7 +227,7 @@ wf_status wf_agent_verify_record(wf_agent *agent,
     s = wf_lex_com_atproto_repo_get_record_main_call(agent->client, &rp, &rec);
     wf_response_free(&rec);
     if (s != WF_OK) {
-        wf_did_document_free(&doc);
+        free(signing_key);
         return s;
     }
 
@@ -129,17 +239,16 @@ wf_status wf_agent_verify_record(wf_agent *agent,
     wf_response res = {0};
     s = wf_lex_com_atproto_sync_get_record_main_call(agent->client, &sp, &res);
     if (s != WF_OK) {
-        wf_did_document_free(&doc);
+        free(signing_key);
         return s;
     }
 
-    s = wf_verify_record_commit(doc.signing_key,
+    s = wf_verify_record_commit(signing_key,
                                 (const uint8_t *)res.body,
                                 res.body_len,
                                 out_valid);
 
     wf_response_free(&res);
-    wf_did_document_free(&doc);
+    free(signing_key);
     return s;
-#endif
 }

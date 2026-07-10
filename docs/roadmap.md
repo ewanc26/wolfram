@@ -338,7 +338,29 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       mirrors `@atproto/xrpc-server` `createServiceJwt`. Tested offline
       (`test_service_auth`): field-level round-trip of iss/aud/exp/iat/jti/lxm/
       nuance, wrong-key / tampered-payload / expired-token rejection, defaulted
-      `exp`, and jti uniqueness.
+      `exp`,   and jti uniqueness.
+
+  58. Injectable DID-key resolver for commit/label verification (`verify.h` /
+      `verify.c`). `wf_verify_record_commit` already verified a signed commit
+      CAR against a caller-supplied `did:key:z...` signing key; the
+      resolve-and-verify path (`wf_agent_verify_record`) previously stubbed the
+      live key-fetch behind `#ifndef WF_TEST_LIVE` and returned
+      `WF_ERR_INVALID_ARG`. It now takes an injectable resolver
+      (`wf_verify_key_resolver`, installed via `wf_verify_set_key_resolver`) so
+      verification can fetch the signing key for a DID/key-id WITHOUT a hard
+      network dependency. New `wf_verify_record_commit_resolved(did, car, len,
+      &valid)` uses the resolver to obtain the key, then delegates to the
+      existing `wf_repo_verify` core. The firehose commit verifier
+      (`wf_sync_verify_commit`, the commit/label stream path) now consults the
+      same resolver via `wf_verify_resolve_signing_key`, falling back to live
+      `wf_did_resolve` when no resolver is set. A built-in
+      `wf_verify_resolve_via_did` resolver (backed by `wf_did_resolve`) is
+      provided for production use. Honest default preserved: with no resolver
+      installed, the resolve-and-verify entry points return `WF_ERR_INVALID_ARG`
+      rather than fabricating a key — signatures are never accepted by default.
+      Tested offline by `test_verify_resolver` (happy path, wrong-key rejection,
+      unavailable-key error, tampered-commit rejection, no-resolver honest
+      error, and agent-wrapper resolver wiring with no network reached).
 
 ## Next planned work
 

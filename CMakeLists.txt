@@ -726,6 +726,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_verify_record PRIVATE ${cjson_SOURCE_DIR})
     add_test(NAME verify_record COMMAND test_verify_record)
 
+    add_executable(test_verify_resolver test/test_verify_resolver.c)
+    target_link_libraries(test_verify_resolver PRIVATE wolfram)
+    target_include_directories(test_verify_resolver PRIVATE test)
+    target_include_directories(test_verify_resolver PRIVATE ${cjson_SOURCE_DIR})
+    add_test(NAME verify_resolver COMMAND test_verify_resolver)
+
     add_executable(test_sync_subscribe test/test_sync_subscribe.c)
     target_link_libraries(test_sync_subscribe PRIVATE wolfram)
     target_include_directories(test_sync_subscribe PRIVATE test)
