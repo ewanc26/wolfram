@@ -42,6 +42,7 @@
 #include <wolfram/oauth/metadata.h>
 #include <wolfram/oauth/par.h>
 #include <wolfram/oauth/state.h>
+#include <wolfram/oauth/verify.h>
 #include <wolfram/ozone_moderation_ops_typed.h>
 #include <wolfram/ozone_typed.h>
 #include <wolfram/relay_server.h>
@@ -440,11 +441,14 @@ using wf_oauth_authorization_state_handle = unique_handle<wf_oauth_authorization
 using wf_oauth_callback_result_handle = unique_handle<wf_oauth_callback_result, wf_oauth_callback_result_free>;
 using wf_oauth_client_metadata_handle = unique_handle<wf_oauth_client_metadata, wf_oauth_client_metadata_free>;
 using wf_oauth_dpop_key_handle = unique_handle<wf_oauth_dpop_key, wf_oauth_dpop_key_free>;
+using wf_oauth_dpop_replay_cache_handle = unique_handle<wf_oauth_dpop_replay_cache, wf_oauth_dpop_replay_cache_free>;
 using wf_oauth_par_response_handle = unique_handle<wf_oauth_par_response, wf_oauth_par_response_free>;
 using wf_oauth_resource_metadata_handle = unique_handle<wf_oauth_resource_metadata, wf_oauth_resource_metadata_free>;
 using wf_oauth_server_metadata_handle = unique_handle<wf_oauth_server_metadata, wf_oauth_server_metadata_free>;
 using wf_oauth_session_state_handle = unique_handle<wf_oauth_session_state, wf_oauth_session_state_free>;
 using wf_oauth_token_response_handle = unique_handle<wf_oauth_token_response, wf_oauth_token_response_free>;
+using wf_oauth_trusted_keys_handle = unique_handle<wf_oauth_trusted_keys, wf_oauth_trusted_keys_free>;
+using wf_oauth_verified_token_handle = unique_handle<wf_oauth_verified_token, wf_oauth_verified_token_free>;
 using wf_ozone_ops_account_handle = unique_handle<wf_ozone_ops_account, wf_ozone_ops_account_free>;
 using wf_ozone_ops_account_list_handle = unique_handle<wf_ozone_ops_account_list, wf_ozone_ops_account_list_free>;
 using wf_ozone_ops_historical_stats_list_handle = unique_handle<wf_ozone_ops_historical_stats_list, wf_ozone_ops_historical_stats_list_free>;

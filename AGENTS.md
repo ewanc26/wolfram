@@ -49,7 +49,7 @@ The SDK is broad and multi-layered; almost all of it is implemented and tested. 
 - `ozone` / `ozone_typed`: full `tools.ozone.*` typed coverage (moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, set value). Tested.
 - `moderation`: offline decision engine (blur/alert/inform/filter) from labels, blocks, mutes, muted words, hidden posts. Tested.
 - `label` / `labeler_typed` / `unspecced` / `unspecced_typed`: label subscription, labeler service coverage, and full `app.bsky.unspecced` (trends, suggested users, thread v2, etc.). Tested.
-- `oauth`: discovery, PKCE S256, ES256 DPoP, PAR, callback validation, `private_key_jwt`, serializable sessions, `wf_auth_client` with DPoP nonce retry. Tested.
+- `oauth`: discovery, PKCE S256, ES256 DPoP, PAR, callback validation, `private_key_jwt`, serializable sessions, `wf_auth_client` with DPoP nonce retry, **and OAuth resource-server token verification** (`oauth/verify.h`: `wf_oauth_verify_bearer` / `wf_oauth_verify_dpop` / `wf_oauth_verify_request` over the `wf_crypto_*` P-256/JWK/SHA-256/base64url primitives, with a `wf_oauth_dpop_replay_cache` and `wf_oauth_trusted_keys`). Tested.
 - `jetstream`: filtered Jetstream WebSocket subscription with cursor reconnect/backoff and optional zstd. Tested.
 - `validate` / `json` / `syntax` / `richtext`: runtime lexicon validation, generic JSON canonicalize/validate, syntax validators, rich-text facets. Tested.
 - `store`: optional SQLite session + repo-mirror + persisted-label storage (`WOLFRAM_BUILD_STORE`; `WOLFRAM_BUILD_STORE_CRYPTO` adds libsodium at-rest encryption).
