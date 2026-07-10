@@ -1,3 +1,4 @@
+import json
 import subprocess
 import sys
 import tempfile
@@ -5,6 +6,9 @@ import unittest
 import os
 import shlex
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+from wf_lexgen import type_name
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +42,40 @@ class LexgenTests(unittest.TestCase):
 
     def test_output_is_deterministic(self):
         self.assertEqual(self.generate(FIXTURE), self.generate(FIXTURE))
+
+    def test_generated_client_covers_bundled_endpoint_lexicons(self):
+        header = (ROOT / "include" / "wolfram" / "atproto_lex.h").read_text(
+            encoding="utf-8")
+        subscriptions = set()
+        endpoint_count = 0
+        for path in (ROOT / "lexicons").rglob("*.json"):
+            document = json.loads(path.read_text(encoding="utf-8"))
+            for name, definition in document.get("defs", {}).items():
+                kind = definition.get("type")
+                if kind == "subscription":
+                    subscriptions.add(document["id"])
+                    continue
+                if kind not in ("query", "procedure"):
+                    continue
+                endpoint_count += 1
+                symbol = type_name(document["id"], name)
+                self.assertIn(f"wf_status {symbol}_call(", header)
+                self.assertIn(f"wf_status {symbol}_call_auth(", header)
+
+        self.assertEqual(endpoint_count, 312)
+        self.assertEqual(subscriptions, {
+            "chat.bsky.moderation.subscribeModEvents",
+            "com.atproto.label.subscribeLabels",
+            "com.atproto.sync.subscribeRepos",
+        })
+        subscription_apis = (
+            (ROOT / "include" / "wolfram" / "sync_subscribe.h").read_text() +
+            (ROOT / "include" / "wolfram" / "label.h").read_text() +
+            (ROOT / "include" / "wolfram" / "chat_typed.h").read_text())
+        self.assertIn("wf_subscribe_start(", subscription_apis)
+        self.assertIn("wf_label_subscribe_start(", subscription_apis)
+        self.assertIn("wf_agent_chat_subscribe_mod_events_typed(",
+                      subscription_apis)
 
     def test_generated_header_compiles_as_c11(self):
         with tempfile.TemporaryDirectory() as directory:

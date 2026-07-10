@@ -6,6 +6,11 @@ The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
 
+**Protocol parity:** The bundled Lexicon snapshot matches the 394 files in the
+upstream atproto repository. Generated C11 and OAuth-authenticated clients cover
+all 312 query/procedure endpoints, and dedicated streaming clients cover all
+three subscription endpoints. CI enforces this complete wire-level coverage.
+
 **Status:** Broad, multi-layer coverage is implemented and tested — transport
 (XRPC/WebSocket), identity (DID/handle + `com.atproto.identity` typed wrappers),
 repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/moderation), OAuth
