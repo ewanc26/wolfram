@@ -77,9 +77,21 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     (`wf_agent_upload_video`), job-status polling
     (`wf_agent_get_video_job_status`), and upload limits
     (`wf_agent_get_video_upload_limits`).
-31. Chat typed wrappers (`chat_typed.h`) — `chat.bsky.convo`/`group`/`actor`/
-    `moderation` write+query wrappers with chat-service endpoint resolution.
-    The full chat write surface is now implemented.
+ 31. Chat typed wrappers (`chat_typed.h`) — `chat.bsky.convo`/`group`/`actor`/
+     `moderation` write+query wrappers with chat-service endpoint resolution.
+     The full chat write surface is now implemented.
+ 48. Chat moderation event subscription (`chat_typed.h`) — real client-side
+     WebSocket subscription for `chat.bsky.moderation.subscribeModEvents`. Decodes
+     the atproto framed DAG-CBOR envelope (header map `{op, t}` ++ body map)
+     with libcbor, fills a `wf_chat_mod_event` (union tag from the header `t`),
+     advances a numeric cursor, and reconnects with capped exponential backoff.
+     API: `wf_chat_mod_frame_parse_cbor`, `wf_chat_mod_frame_free`,
+     `wf_chat_mod_events_build_url`, `wf_chat_mod_events_start` /
+     `wf_chat_mod_events_stop`, and the agent convenience wrapper
+     `wf_agent_chat_subscribe_mod_events_typed` (resolves the chat-service
+     endpoint from the agent session). Tested offline: decoder unit tests
+     (message/error/truncated/garbage) + an in-process `wf_xrpc_server` WS
+     round-trip that streams the framed CBOR bytes.
 32. Ozone moderation-service / labeler helper (`ozone.h`) — verify and emit
     labels, build service auth headers for the Ozone moderation service.
 33. Generated typed wrappers — owning parsers for embed/feed/feed-generator/
