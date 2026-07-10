@@ -291,9 +291,7 @@ wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
 
     const char *payload = didkey;
     if (strncmp(payload, "did:key:", 8) == 0) payload += 8;
-    else if (payload[0] == 'z') payload += 1; /* bare multikey form */
-    else return WF_ERR_INVALID_ARG;
-    if (payload[0] != 'z') return WF_ERR_INVALID_ARG;
+    if (payload[0] != 'z') return WF_ERR_INVALID_ARG; /* did:key: or bare multikey */
     payload += 1;
 
     unsigned char *decoded = NULL;
