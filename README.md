@@ -35,6 +35,16 @@ actor-list, block/list/listitem/starterpack/listblock create/update/delete),
 and higher-level endpoint examples. Wire-level coverage of the protocol is
 complete; the upstream *service backends* (PDS, AppView, Ozone, bsync) are out
 of scope, as described under **Scope** above.
+
+Beyond the client surface above, the SDK also ships streaming/infra modules —
+`jetstream` (filtered Jetstream subscription with cursor reconnect/backoff),
+`sync_publish` (firehose event production, the inverse of `sync_subscribe`),
+`blob_store` (blob persistence/serving), and `relay_server` / `feedgen_server`
+(libmicrohttpd helpers) — plus dedicated `*_typed` parser/wrapper families
+across every lexicon namespace (including honest `actor_status_typed` stubs
+where the lexicon defines only a `record`). OAuth additionally covers
+resource-server token verification. See [`AGENTS.md`](AGENTS.md) (Current state)
+for the full per-module status.
 The optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER=ON`)
 supports route registration, auth middleware, a token-bucket rate limiter,
 Server-Sent Events (SSE) streaming, and WebSocket (RFC 6455) subscription
@@ -75,9 +85,9 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 `wolfram` is organized into small, layered modules — transport → identity →
 repo → agent. See [docs/modules.md](docs/modules.md) for the full status table.
 
-## Nintendo Console Support
+## Cross-compilation Support
 
-Cross-compilation targets for Nintendo platforms are supported:
+Cross-compilation targets for Nintendo platforms and other architectures are supported:
 
 ### Wii
 
@@ -142,10 +152,28 @@ cmake --build build-windows
 
 Requires MinGW-w64. The toolchain file is at `.devdeps/windows.cmake`.
 
-All four targets use stub implementations for transport and crypto that
-return `WF_ERR_NOT_IMPLEMENTED`. Before integrating with a console application,
-replace the stubs with platform-specific backends — see the `TODO` comments
-in the individual platform stub files (`*_platform.c`).
+### Linux (ARM64)
+
+A cross-compilation target for Linux on AArch64 is supported (e.g. from
+x86_64 macOS/Linux to ARM64 Linux).
+
+```sh
+cmake -S . -B build-aarch64 \
+  -DCMAKE_TOOLCHAIN_FILE=.devdeps/linux-aarch64.cmake \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build-aarch64
+```
+
+The toolchain file is at `.devdeps/linux-aarch64.cmake`. Toolchains for
+additional architectures (`arm32.cmake`, `amd64.cmake`) are also provided
+under `.devdeps/`.
+
+For the Wii, Wii U, and 3DS targets, transport, crypto, and the platform
+abstraction (`src/platform/*_platform.c`) use stub implementations that return
+`WF_ERR_NOT_IMPLEMENTED`. The Windows target is fully implemented against the
+Win32 API. Before integrating a console application, replace the stubs with
+platform-specific backends — see the `TODO` comments in the individual platform
+stub files (`*_platform.c`).
 
 For consoles (Wii, Wii U, 3DS), the builds are client-only — server modules,
 OAuth flows, and desktop dependencies (libcurl, OpenSSL, pthreads) are excluded.
