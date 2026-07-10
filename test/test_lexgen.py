@@ -100,6 +100,55 @@ class LexgenTests(unittest.TestCase):
                  "-I", str(ROOT / "include"), str(source)], check=True,
             )
 
+    def test_union_array_cleanup_casts_away_borrowed_view_const(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            fixture = directory / "com.example.union-array.json"
+            header = directory / "generated.h"
+            source = directory / "generated.c"
+            fixture.write_text(json.dumps({
+                "lexicon": 1,
+                "id": "com.example.unionArray",
+                "defs": {
+                    "main": {
+                        "type": "query",
+                        "output": {
+                            "encoding": "application/json",
+                            "schema": {
+                                "type": "object",
+                                "required": ["items"],
+                                "properties": {
+                                    "items": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "union",
+                                            "refs": ["#entry"],
+                                            "closed": True,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "entry": {
+                        "type": "object",
+                        "required": ["value"],
+                        "properties": {"value": {"type": "string"}},
+                    },
+                },
+            }), encoding="utf-8")
+            subprocess.run([
+                sys.executable, str(GENERATOR), str(fixture),
+                "-o", str(header),
+                "--source-output", str(source),
+            ], check=True, capture_output=True, text=True)
+            generated = source.read_text(encoding="utf-8")
+            union_type = (
+                "wf_lex_com_example_union_array_main_output_items_item_union"
+            )
+            self.assertIn(
+                f"wf_lex_clear_{union_type}(({union_type} *)&(", generated)
+
     def test_inline_objects_are_dependency_safe_and_deterministic(self):
         header = self.generate(INLINE_FIXTURE)
         nested = "typedef struct wf_lex_com_example_inline_main_input_config_nested {"
