@@ -9,6 +9,7 @@
 #include "wolfram/xrpc.h"
 #include "wolfram/version.h"
 
+#include <cJSON.h>
 #include <curl/curl.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -509,6 +510,46 @@ void wf_response_free(wf_response *res) {
     res->body_len = 0;
     res->dpop_nonce = NULL;
     res->status = 0;
+}
+
+/* Copy a cJSON string member into a caller-owned buffer, or NULL if absent. */
+static char *xrpc_copy_str(const cJSON *obj, const char *key) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
+    if (!cJSON_IsString(item) || item->valuestring == NULL) return NULL;
+    size_t n = strlen(item->valuestring) + 1;
+    char *s = malloc(n);
+    if (s) memcpy(s, item->valuestring, n);
+    return s;
+}
+
+wf_status wf_xrpc_error(const wf_response *resp,
+                        char **out_error, char **out_message) {
+    if (out_error) *out_error = NULL;
+    if (out_message) *out_message = NULL;
+    if (!resp) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_ParseWithLength(resp->body ? resp->body : "",
+                                        resp->body_len);
+    if (!root) return WF_ERR_PARSE;
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_NOT_FOUND;
+    }
+
+    cJSON *err = cJSON_GetObjectItemCaseSensitive(root, "error");
+    if (!cJSON_IsString(err) || err->valuestring == NULL) {
+        cJSON_Delete(root);
+        return WF_ERR_NOT_FOUND;
+    }
+
+    char *e = xrpc_copy_str(root, "error");
+    char *m = xrpc_copy_str(root, "message");
+    if (!e) { free(m); cJSON_Delete(root); return WF_ERR_PARSE; }
+
+    if (out_error) *out_error = e; else free(e);
+    if (out_message) *out_message = m; else free(m);
+    cJSON_Delete(root);
+    return WF_OK;
 }
 
 wf_status wf_http_post(wf_xrpc_client *client, const char *url,

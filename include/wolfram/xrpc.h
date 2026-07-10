@@ -149,6 +149,24 @@ wf_status wf_xrpc_upload_blob(wf_xrpc_client *client,
 void wf_response_free(wf_response *res);
 
 /**
+ * Decode the atproto XRPC error envelope `{ "error": <str>, "message": <str> }`
+ * from a non-OK `wf_response` (i.e. one whose `status >= 400`, typically
+ * produced with `WF_ERR_HTTP`).
+ *
+ * On success returns WF_OK and, for each non-NULL `out_error`/`out_message`,
+ * sets it to a caller-owned string (free() it) copied from the envelope.
+ * Either field may be absent on the wire; a missing field yields a NULL out
+ * pointer without failing the call.
+ *
+ * Returns WF_ERR_NOT_FOUND if the body is not a JSON object or carries no
+ * `error` member (i.e. no envelope), and WF_ERR_PARSE if the envelope is
+ * present but malformed. Both `out_error` and `out_message` are left NULL on
+ * any non-WF_OK return. Safe to call regardless of `resp->status`.
+ */
+wf_status wf_xrpc_error(const wf_response *resp,
+                        char **out_error, char **out_message);
+
+/**
  * Perform a generic HTTP GET with extra headers.
  *
  * Uses the client's transport and auth settings. `url` must be a complete

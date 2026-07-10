@@ -629,6 +629,7 @@ wf_status wf_agent_admin_update_subject_status(wf_agent *agent, const char *did,
     }
     snprintf(subject_json, need,
              "{\"$type\":\"com.atproto.admin.defs#repoRef\",\"did\":\"%s\"}", did);
+    input.subject.kind = -1;
     input.subject.data = subject_json;
     input.subject.length = strlen(subject_json);
 

@@ -234,6 +234,12 @@ static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
     memcpy(c->time, tstr, tlen);
     c->time[tlen] = '\0';
 
+    /* prevData: optional cid-link to the previous commit's MST root (inductive
+     * firehose). Only populated when present on the wire. */
+    cbor_item_t *prev_data = map_find(body, "prevData");
+    if (prev_data && !cbor_is_null(prev_data) && !cbor_is_undef(prev_data))
+        c->has_prev_data = parse_cid_link(prev_data, &c->prev_data);
+
     return WF_OK;
 }
 
