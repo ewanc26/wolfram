@@ -87,3 +87,4 @@ at://did:plc:asdf123/com.atproto.feed.post/%%%
 # disallow dot / double-dot
 at://did:plc:asdf123/com.atproto.feed.post/.
 at://did:plc:asdf123/com.atproto.feed.post/..
+

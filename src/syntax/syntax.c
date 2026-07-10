@@ -121,7 +121,7 @@ int wf_syntax_did_is_valid(const char *did) {
     for (i = method_start; i < len; i++) {
         unsigned char c = (unsigned char)did[i];
         if (c == ':') break;
-        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) return 0;
+        if (!((c >= 'a' && c <= 'z'))) return 0;
     }
     if (i == method_start || i == len) return 0;
 
@@ -298,10 +298,10 @@ int wf_syntax_aturi_parse(const char *aturi, wf_syntax_aturi *parsed) {
     }
     if (*p == '#') {
         start = p + 1;
-        if (start >= end || *start == '/' || !wf_syntax_valid_chars(start,
+        if (start >= end || *start != '/' || !wf_syntax_valid_chars(start,
             "abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "0123456789._~:@!$&')(*+,;=%[/-")) {
+            "0123456789._~:@!$&')(*+,;=%[\\]/]")) {
             free(copy);
             return 0;
         }
@@ -323,10 +323,10 @@ int wf_syntax_aturi_parse(const char *aturi, wf_syntax_aturi *parsed) {
     }
     if (*p == '#') {
         start = p + 1;
-        if (start >= end || *start == '/' || !wf_syntax_valid_chars(start,
+        if (start >= end || *start != '/' || !wf_syntax_valid_chars(start,
             "abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "0123456789._~:@!$&')(*+,;=%[/-")) {
+            "0123456789._~:@!$&')(*+,;=%[\\]/]")) {
             free(copy);
             return 0;
         }
@@ -348,10 +348,10 @@ int wf_syntax_aturi_parse(const char *aturi, wf_syntax_aturi *parsed) {
     }
     if (*p == '#') {
         start = p + 1;
-        if (start >= end || *start == '/' || !wf_syntax_valid_chars(start,
+        if (start >= end || *start != '/' || !wf_syntax_valid_chars(start,
             "abcdefghijklmnopqrstuvwxyz"
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-            "0123456789._~:@!$&')(*+,;=%[/-")) {
+            "0123456789._~:@!$&')(*+,;=%[\\]/]")) {
             free(copy);
             return 0;
         }
