@@ -20,6 +20,20 @@
 static wf_verify_key_resolver g_resolver = NULL;
 static void *g_resolver_userdata = NULL;
 
+static int is_atproto_key_id(const char *did, const char *key_id)
+{
+    if (!key_id || key_id[0] == '\0')
+        return 1;
+    if (strcmp(key_id, "atproto") == 0 || strcmp(key_id, "#atproto") == 0)
+        return 1;
+    if (did) {
+        size_t did_len = strlen(did);
+        return strncmp(key_id, did, did_len) == 0 &&
+               strcmp(key_id + did_len, "#atproto") == 0;
+    }
+    return 0;
+}
+
 void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata)
 {
     g_resolver = cb;
@@ -51,14 +65,14 @@ wf_status wf_verify_resolve_via_did(const char *did,
                                     void *userdata,
                                     char **out_key)
 {
-    (void)key_id;
-
     wf_xrpc_client *client = (wf_xrpc_client *)userdata;
     if (!did || did[0] == '\0' || !out_key)
         return WF_ERR_INVALID_ARG;
     if (!client)
         return WF_ERR_INVALID_ARG;
     *out_key = NULL;
+    if (!is_atproto_key_id(did, key_id))
+        return WF_ERR_NOT_FOUND;
 
     wf_did_document doc;
     memset(&doc, 0, sizeof(doc));
@@ -96,6 +110,8 @@ wf_status wf_verify_resolve_signing_key(const char *did,
      * transport client is available. Without both, resolution is impossible. */
     if (!client)
         return WF_ERR_INVALID_ARG;
+    if (!is_atproto_key_id(did, key_id))
+        return WF_ERR_NOT_FOUND;
 
     wf_did_document doc;
     memset(&doc, 0, sizeof(doc));

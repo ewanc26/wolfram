@@ -122,9 +122,9 @@ void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata);
 /**
  * Convenience built-in resolver backed by wf_did_resolve (network transport).
  * Install it with wf_verify_set_key_resolver and pass your wf_xrpc_client* as
- * `userdata`; it resolves `did` and returns the document's signing key.
- * `key_id` is currently ignored (the document exposes a single signing key).
- * Returns WF_ERR_NOT_FOUND when the document carries no signing key.
+ * `userdata`; it resolves `did` and returns the document's canonical
+ * `#atproto` signing key. `key_id` may be NULL, "atproto", "#atproto", or the
+ * absolute `<did>#atproto`; any other key ID returns WF_ERR_NOT_FOUND.
  */
 wf_status wf_verify_resolve_via_did(const char *did,
                                     const char *key_id,
