@@ -168,22 +168,32 @@ wf_status wf_richtext_delete(wf_richtext *rt, uint32_t start, uint32_t end) {
     size_t write_idx = 0;
     for (size_t i = 0; i < rt->facet_count; i++) {
         wf_richtext_facet *f = &rt->facets[i];
+        /* scenario A (removal fully contains the facet): drop it */
         if (start <= f->byte_start && end >= f->byte_end) {
-            continue;
+            f->byte_start = 0;
+            f->byte_end = 0;
         }
-        if (start > f->byte_end) {
+        /* scenario B (removal entirely after the facet): noop */
+        else if (start > f->byte_end) {
+            /* keep offsets unchanged */
+        }
+        /* scenario C (removal partially after: truncate the end) */
+        else if (start > f->byte_start && start <= f->byte_end && end > f->byte_end) {
+            f->byte_end = start;
+        }
+        /* scenario D (removal entirely inside the facet): shrink the end */
+        else if (start >= f->byte_start && end <= f->byte_end) {
+            f->byte_end -= removed;
+        }
+        /* scenario E (removal partially before: move start, shrink end) */
+        else if (start < f->byte_start && end >= f->byte_start && end <= f->byte_end) {
+            f->byte_start = start;
+            f->byte_end -= removed;
+        }
+        /* scenario F (removal entirely before the facet): shift both down */
+        else if (end < f->byte_start) {
             f->byte_start -= removed;
             f->byte_end -= removed;
-        } else if (start <= f->byte_start && end <= f->byte_end && end > f->byte_start) {
-            f->byte_start = start;
-            f->byte_end -= removed;
-        } else if (start >= f->byte_start && end <= f->byte_end) {
-            f->byte_end -= removed;
-        } else if (start < f->byte_start && end >= f->byte_start && end <= f->byte_end) {
-            f->byte_start = start;
-            f->byte_end -= removed;
-        } else if (start > f->byte_start && start < f->byte_end && end > f->byte_end) {
-            f->byte_end = start;
         }
 
         if (f->byte_start < f->byte_end) {
