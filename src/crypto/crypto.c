@@ -316,6 +316,73 @@ wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
     return WF_OK;
 }
 
+wf_status wf_didkey_from_verification_method(
+    const char *verification_type, const char *public_key_multibase,
+    char **out_didkey) {
+    if (!verification_type || !public_key_multibase || !out_didkey)
+        return WF_ERR_INVALID_ARG;
+    *out_didkey = NULL;
+
+    if (strcmp(verification_type, "Multikey") == 0) {
+        wf_key_type type;
+        unsigned char *raw = NULL;
+        size_t raw_len = 0;
+        wf_status status = wf_didkey_decode(public_key_multibase, &type,
+                                            &raw, &raw_len);
+        if (status != WF_OK) {
+            free(raw);
+            return status;
+        }
+        status = wf_didkey_encode(type, raw, raw_len, out_didkey);
+        free(raw);
+        return status;
+    }
+
+    wf_key_type type;
+    if (strcmp(verification_type,
+               "EcdsaSecp256k1VerificationKey2019") == 0) {
+        type = WF_KEY_TYPE_SECP256K1;
+    } else if (strcmp(verification_type,
+                      "EcdsaSecp256r1VerificationKey2019") == 0) {
+        type = WF_KEY_TYPE_P256;
+    } else {
+        return WF_ERR_NOT_IMPLEMENTED;
+    }
+
+    const char *encoded = public_key_multibase;
+    if (encoded[0] != 'z') return WF_ERR_INVALID_ARG;
+    unsigned char *raw = NULL;
+    size_t raw_len = 0;
+    wf_status status = wf_b58_decode(encoded + 1, strlen(encoded + 1),
+                                     &raw, &raw_len);
+    unsigned char compressed[33];
+    const unsigned char *key_bytes = raw;
+    size_t key_len = raw_len;
+    EC_GROUP *group = NULL;
+    EC_POINT *point = NULL;
+    if (status == WF_OK && raw_len == 65) {
+        int nid = type == WF_KEY_TYPE_P256 ? NID_X9_62_prime256v1
+                                           : NID_secp256k1;
+        group = EC_GROUP_new_by_curve_name(nid);
+        point = group ? EC_POINT_new(group) : NULL;
+        if (!point || EC_POINT_oct2point(group, point, raw, raw_len, NULL) != 1 ||
+            EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
+                               compressed, sizeof(compressed), NULL) !=
+                sizeof(compressed)) {
+            status = WF_ERR_PARSE;
+        } else {
+            key_bytes = compressed;
+            key_len = sizeof(compressed);
+        }
+    }
+    if (status == WF_OK)
+        status = wf_didkey_encode(type, key_bytes, key_len, out_didkey);
+    EC_POINT_free(point);
+    EC_GROUP_free(group);
+    free(raw);
+    return status;
+}
+
 /**
  * Compute the verification-method id for a did:key, which in the AT Protocol
  * is `${did}#${did}` (the fragment equals the full DID). On WF_OK, *out_id is
