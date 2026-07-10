@@ -82,6 +82,9 @@ wf_status wf_agent_get_follows(wf_agent *agent, const char *actor,
     params[param_count].name = "actor";
     params[param_count].value = actor;
     param_count++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -114,6 +117,9 @@ wf_status wf_agent_get_followers(wf_agent *agent, const char *actor,
     params[param_count].name = "actor";
     params[param_count].value = actor;
     param_count++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -140,6 +146,9 @@ wf_status wf_agent_get_blocks(wf_agent *agent, int limit, const char *cursor,
     wf_xrpc_param params[2];
     size_t param_count = 0;
     char limit_buf[16];
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -166,6 +175,9 @@ wf_status wf_agent_get_mutes(wf_agent *agent, int limit, const char *cursor,
     wf_xrpc_param params[2];
     size_t param_count = 0;
     char limit_buf[16];
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -199,6 +211,9 @@ wf_status wf_agent_get_known_followers(wf_agent *agent, const char *actor,
     params[param_count].name = "actor";
     params[param_count].value = actor;
     param_count++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -266,6 +281,9 @@ wf_status wf_agent_get_list(wf_agent *agent, const char *list_uri,
     params[param_count].name = "list";
     params[param_count].value = list_uri;
     param_count++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -299,6 +317,9 @@ wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
     params[param_count].name = "actor";
     params[param_count].value = actor;
     param_count++;
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -350,6 +371,9 @@ wf_status wf_agent_get_actor_starter_packs(wf_agent *agent, const char *actor,
     params[param_count].value = actor;
     param_count++;
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -429,6 +453,9 @@ wf_status wf_agent_search_starter_packs(wf_agent *agent, const char *query,
     params[param_count].value = query;
     param_count++;
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -464,6 +491,9 @@ wf_status wf_agent_get_starter_packs_with_membership(wf_agent *agent,
     params[param_count].value = actor;
     param_count++;
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -548,6 +578,9 @@ wf_status wf_agent_get_list_blocks(wf_agent *agent, int limit,
     size_t param_count = 0;
     char limit_buf[16];
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;
@@ -576,6 +609,9 @@ wf_status wf_agent_get_list_mutes(wf_agent *agent, int limit,
     size_t param_count = 0;
     char limit_buf[16];
 
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf)))
             return WF_ERR_INVALID_ARG;

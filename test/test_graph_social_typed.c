@@ -448,6 +448,17 @@ int main(void) {
         wf_graph_starter_pack_membership_list_free(&spml);
     }
 
+    /* ---- query limit bounds must match upstream maximum (100) ---- */
+    {
+        wf_agent_actor_list al = {0};
+        wf_agent *sentinel = (wf_agent *)1;
+        WF_CHECK(wf_agent_get_follows_typed(sentinel, "did:plc:x", 101, NULL,
+                                            &al) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_followers_typed(sentinel, "did:plc:x", 101, NULL,
+                                              &al) == WF_ERR_INVALID_ARG);
+        wf_agent_actor_list_free(&al);
+    }
+
     wf_agent_free(agent);
     WF_TEST_SUMMARY();
     return 0; /* unreachable */
