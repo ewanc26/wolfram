@@ -166,5 +166,29 @@ int main(void) {
         free(draw);
     }
 
+    /* DID-document verification material normalization matches atproto's
+     * legacy secp256k1 and modern Multikey forms. */
+    {
+        const char *modern =
+            "zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF";
+        const char *legacy =
+            "zQYEBzXeuTM9UR3rfvNag6L3RNAs5pQZyYPsomTsgQhsxLdEgCrPTLgFna8yqCnxPpNT7DBk6Ym3dgPKNu86vt9GR";
+        char *didkey = NULL;
+        WF_CHECK(wf_didkey_from_verification_method(
+                     "Multikey", modern, &didkey) == WF_OK);
+        WF_CHECK(didkey &&
+                 strcmp(didkey,
+                        "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+        free(didkey);
+        didkey = NULL;
+        WF_CHECK(wf_didkey_from_verification_method(
+                     "EcdsaSecp256k1VerificationKey2019", legacy,
+                     &didkey) == WF_OK);
+        WF_CHECK(didkey &&
+                 strcmp(didkey,
+                        "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+        free(didkey);
+    }
+
     WF_TEST_SUMMARY();
 }

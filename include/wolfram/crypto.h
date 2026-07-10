@@ -68,6 +68,13 @@ wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
 wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
                            unsigned char **out_raw, size_t *out_raw_len);
 
+/* Normalize DID verificationMethod material into `did:key:z...` form.
+ * Supports Multikey and the legacy EcdsaSecp256k1/P256VerificationKey2019
+ * types used by atproto DID documents. The caller frees `*out_didkey`. */
+wf_status wf_didkey_from_verification_method(
+    const char *verification_type, const char *public_key_multibase,
+    char **out_didkey);
+
 /**
  * Compute the verification-method id for a did:key, `${did}#${did}`.
  * On WF_OK, *out_id is heap-allocated and owned by the caller (free()).
