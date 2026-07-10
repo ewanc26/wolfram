@@ -305,6 +305,89 @@ typedef struct wf_server_update_email_input {
 wf_status wf_server_update_email(wf_xrpc_client *client,
                                  const wf_server_update_email_input *input);
 
+/* ------------------------------------------------------------------ */
+/* Service-auth (service JWT) token issuance.                          */
+/*                                                                     */
+/* The counterpart to com.atproto.server.getServiceAuth: instead of    */
+/* *requesting* a signed token from a PDS, these helpers let a          */
+/* self-hosted PDS *mint* one locally by signing a compact JWT with its */
+/* own repo signing key. The resulting token authorizes calls to        */
+/* labeler / ozone / feedgen services (inter-service auth).             */
+/*                                                                      */
+/* Wire format mirrors @atproto/xrpc-server `createServiceJwt`:         */
+/*   header  { "typ": "JWT", "alg": <ES256|ES256K> }                    */
+/*   payload { iat, iss, aud, exp, [lxm], jti, [nuance] }               */
+/* signed (ES256 for P-256, ES256K for secp256k1) over                  */
+/* `base64url(header) "." base64url(payload)`; the 64-byte compact       */
+/* (r||s, low-S) signature is base64url-appended. See                    */
+/* /atproto/packages/xrpc-server/src/auth.ts.                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Input describing a service-auth token to mint. Only `iss` and `aud` are
+ * required; the remaining fields are optional. All strings are borrowed for
+ * the duration of the call (the caller keeps ownership).
+ */
+typedef struct wf_service_auth_request {
+    const char *iss;    /* required; issuer — the PDS/account DID */
+    const char *aud;    /* required; target service DID or `did#serviceId` */
+    int64_t     exp;    /* optional; expiry (unix seconds). 0 => iat + 60s */
+    const char *lxm;    /* optional; lexicon (XRPC) NSID to bind to; NULL to omit */
+    const char *nuance; /* optional; extra opaque claim; NULL to omit */
+} wf_service_auth_request;
+
+/**
+ * Mint a signed service-auth JWT.
+ *
+ * `key` is the PDS's repo signing key (P-256 => alg ES256, secp256k1 =>
+ * alg ES256K). `iat` is the current unix time; `exp` defaults to `iat + 60`
+ * when `req->exp` is <= 0. A fresh random `jti` (16 bytes, hex) is generated
+ * on every call so repeated tokens are unique.
+ *
+ * On WF_OK, *out_token is a heap-allocated NUL-terminated JWT string owned by
+ * the caller; release it with free(). On error *out_token is left NULL.
+ */
+wf_status wf_server_create_service_auth(const wf_service_auth_request *req,
+                                        const wf_signing_key *key,
+                                        char **out_token);
+
+/**
+ * Claims decoded from a verified service-auth JWT. Owned strings are heap
+ * allocated; free with wf_service_auth_claims_free. `lxm`/`nuance` are NULL
+ * when the corresponding claim is absent.
+ */
+typedef struct wf_service_auth_claims {
+    char   *alg;    /* JWT header "alg" */
+    char   *iss;    /* payload "iss" */
+    char   *aud;    /* payload "aud" */
+    int64_t exp;    /* payload "exp" (unix seconds) */
+    int64_t iat;    /* payload "iat" (unix seconds); 0 if absent */
+    char   *jti;    /* payload "jti"; NULL if absent */
+    char   *lxm;    /* payload "lxm"; NULL if absent */
+    char   *nuance; /* payload "nuance"; NULL if absent */
+} wf_service_auth_claims;
+
+/** Free a wf_service_auth_claims. Safe to call with NULL. */
+void wf_service_auth_claims_free(wf_service_auth_claims *claims);
+
+/**
+ * Verify and decode a service-auth JWT.
+ *
+ * `signing_key_didkey` is the issuer's public verification key as a
+ * `did:key:z...` (or bare multibase `z...`) string — i.e. the value returned
+ * by wf_signing_key_public_didkey for the minting key. The signature is
+ * validated with wf_verify (ES256 / ES256K, low-S), and the token is rejected
+ * when expired relative to `now_unix` (pass 0 to use the current wall clock).
+ *
+ * Returns WF_ERR_INVALID_ARG on NULL/misshaped input, WF_ERR_PARSE on a
+ * malformed JWT / expired token / bad signature, WF_ERR_ALLOC on OOM, and
+ * WF_OK on success (in which case *out is owned by the caller).
+ */
+wf_status wf_server_verify_service_auth(const char *token,
+                                        const char *signing_key_didkey,
+                                        int64_t now_unix,
+                                        wf_service_auth_claims *out);
+
 #ifdef __cplusplus
 }
 #endif

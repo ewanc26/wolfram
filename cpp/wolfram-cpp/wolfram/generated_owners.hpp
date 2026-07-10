@@ -488,6 +488,7 @@ using wf_server_email_update_request_handle = unique_handle<wf_server_email_upda
 using wf_server_invite_code_list_handle = unique_handle<wf_server_invite_code_list, wf_server_invite_code_list_free>;
 using wf_server_session_info_handle = unique_handle<wf_server_session_info, wf_server_session_info_free>;
 using wf_server_session_tokens_handle = unique_handle<wf_server_session_tokens, wf_server_session_tokens_free>;
+using wf_service_auth_claims_handle = unique_handle<wf_service_auth_claims, wf_service_auth_claims_free>;
 using wf_session_handle = unique_handle<wf_session, wf_session_free>;
 using wf_sync_blob_cid_list_handle = unique_handle<wf_sync_blob_cid_list, wf_sync_blob_cid_list_free>;
 using wf_sync_blob_list_handle = unique_handle<wf_sync_blob_list, wf_sync_blob_list_free>;

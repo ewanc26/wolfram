@@ -175,6 +175,8 @@ src/agent/push_endpoint.c
     src/atproto_lex.c
     # Server account management
     src/server/server.c
+    # Service-auth (service JWT) token issuance + verification
+    src/server/service_auth.c
     # DID PLC operation build / sign / submit helpers
     src/plc/plc.c
     # New utilities and embed support
