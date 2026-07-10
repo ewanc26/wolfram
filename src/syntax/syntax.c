@@ -29,6 +29,18 @@ static int wf_syntax_ascii_case_equal_n(const char *a, const char *b, size_t len
     return 1;
 }
 
+static int wf_syntax_did_regex_is_valid(const char *did) {
+    regex_t regex;
+    int ret;
+    if (!did || strlen(did) > 2048) return 0;
+    ret = regcomp(&regex, "^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$",
+                  REG_EXTENDED | REG_NOSUB);
+    if (ret != 0) return 0;
+    ret = regexec(&regex, did, 0, NULL, 0);
+    regfree(&regex);
+    return ret == 0;
+}
+
 static int wf_syntax_subtag_is_alpha(const char *s, size_t len) {
     size_t i;
     if (len < 1) return 0;
@@ -173,7 +185,7 @@ wf_status wf_syntax_handle_validate(const char *handle) {
 
 int wf_syntax_at_identifier_is_valid(const char *id) {
     if (!id) return 0;
-    if (strncmp(id, "did:", 4) == 0) return wf_syntax_did_is_valid(id);
+    if (strncmp(id, "did:", 4) == 0) return wf_syntax_did_regex_is_valid(id);
     return wf_syntax_handle_is_valid(id);
 }
 
