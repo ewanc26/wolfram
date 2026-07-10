@@ -367,6 +367,189 @@ static void free_entries(wf_mst_entry *entries, size_t count) {
         free(entries[i].key);
 }
 
+/*
+ * Interleaved view of an MST node used by mst_split_around, matching atproto's
+ * getEntries(): a leading TREE (the node's `l`), then for each leaf a LEAF
+ * optionally followed by a TREE (the leaf's `t` subtree).
+ */
+typedef struct {
+    int is_tree;
+    wf_cid cid;            /* tree cid, when is_tree */
+    const unsigned char *key; /* leaf key (borrowed from the source node) */
+    size_t key_len;
+    wf_cid value;          /* leaf value */
+    wf_cid subtree;        /* leaf subtree */
+} mst_split_item;
+
+static size_t mst_collect_items(const wf_mst_node *node,
+                                mst_split_item **out) {
+    size_t n = 0;
+    if (node->left.len > 0) n++;
+    for (size_t i = 0; i < node->count; i++) {
+        n++;
+        if (node->entries[i].subtree.len > 0) n++;
+    }
+    mst_split_item *items = calloc(n ? n : 1, sizeof(mst_split_item));
+    if (!items) return 0;
+    size_t k = 0;
+    if (node->left.len > 0) {
+        items[k].is_tree = 1;
+        items[k].cid = node->left;
+        k++;
+    }
+    for (size_t i = 0; i < node->count; i++) {
+        items[k].is_tree = 0;
+        items[k].key = node->entries[i].key;
+        items[k].key_len = node->entries[i].key_len;
+        items[k].value = node->entries[i].value;
+        items[k].subtree = node->entries[i].subtree;
+        k++;
+        if (node->entries[i].subtree.len > 0) {
+            items[k].is_tree = 1;
+            items[k].cid = node->entries[i].subtree;
+            k++;
+        }
+    }
+    *out = items;
+    return n;
+}
+
+/* Build an MST node (at `layer`) from an interleaved item slice. Returns an
+ * empty CID when the slice has no leaves (a null subtree). */
+static wf_status mst_build_from_items(wf_car *car, unsigned layer,
+                                      const mst_split_item *items, size_t len,
+                                      wf_cid *out) {
+    *out = (wf_cid){{0}, 0};
+    size_t leafcount = 0;
+    for (size_t i = 0; i < len; i++)
+        if (!items[i].is_tree) leafcount++;
+    if (leafcount == 0) return WF_OK;
+
+    wf_cid left = {{0}, 0};
+    size_t s = 0;
+    if (len > 0 && items[0].is_tree) { left = items[0].cid; s = 1; }
+
+    wf_mst_entry *entries = calloc(leafcount, sizeof(wf_mst_entry));
+    if (!entries) return WF_ERR_ALLOC;
+    size_t e = 0;
+    for (size_t i = s; i < len; i++) {
+        if (items[i].is_tree) continue;
+        entries[e].key = malloc(items[i].key_len);
+        if (!entries[e].key) {
+            for (size_t j = 0; j < e; j++) free(entries[j].key);
+            free(entries);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(entries[e].key, items[i].key, items[i].key_len);
+        entries[e].key_len = items[i].key_len;
+        entries[e].value = items[i].value;
+        if (i + 1 < len && items[i + 1].is_tree)
+            entries[e].subtree = items[i + 1].cid;
+        e++;
+    }
+
+    wf_mst_node node;
+    wf_status st = wf_mst_node_build(layer, &left, entries, leafcount, &node);
+    free_entries(entries, leafcount);
+    free(entries);
+    if (st != WF_OK) return st;
+    st = wf_mst_node_finalize(&node, car);
+    if (st != WF_OK) { wf_mst_node_free(&node); return st; }
+    *out = node.cid;
+    wf_mst_node_free(&node);
+    return WF_OK;
+}
+
+/*
+ * Faithful port of atproto's MST.splitAround: recursively split a subtree node
+ * around `key`, returning the lower part (every key < key) and the upper part
+ * (every key > key). Each may be an empty CID when that side has no keys.
+ */
+static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
+                                  const unsigned char *key, size_t key_len,
+                                  wf_cid *out_left, wf_cid *out_right) {
+    *out_left = (wf_cid){{0}, 0};
+    *out_right = (wf_cid){{0}, 0};
+
+    wf_mst_node node;
+    wf_status s = mst_load_node(car, subtree_cid, &node);
+    if (s != WF_OK) return s;
+    unsigned layer = node.layer;
+
+    mst_split_item *items = NULL;
+    size_t n = mst_collect_items(&node, &items);
+    if (n == 0) { wf_mst_node_free(&node); return WF_OK; }
+
+    size_t index = n;
+    for (size_t i = 0; i < n; i++) {
+        if (!items[i].is_tree &&
+            wf_mst_key_cmp(key, key_len, items[i].key, items[i].key_len) <= 0) {
+            index = i;
+            break;
+        }
+    }
+
+    wf_cid left = {{0}, 0};
+    wf_cid right = {{0}, 0};
+    s = mst_build_from_items(car, layer, items, index, &left);
+    if (s == WF_OK)
+        s = mst_build_from_items(car, layer, items + index, n - index, &right);
+
+    if (s == WF_OK && index > 0 && items[index - 1].is_tree) {
+        wf_cid tree_cid = items[index - 1].cid;
+        wf_cid base_left = {{0}, 0};
+        s = mst_build_from_items(car, layer, items, index - 1, &base_left);
+        if (s == WF_OK) {
+            wf_cid sl = {{0}, 0}, sr = {{0}, 0};
+            s = mst_split_around(car, &tree_cid, key, key_len, &sl, &sr);
+            if (s == WF_OK) {
+                if (sl.len > 0) {
+                    mst_split_item *comb = calloc((index - 1) + 1,
+                                                  sizeof(mst_split_item));
+                    if (!comb) s = WF_ERR_ALLOC;
+                    else {
+                        for (size_t i = 0; i < index - 1; i++)
+                            comb[i] = items[i];
+                        comb[index - 1].is_tree = 1;
+                        comb[index - 1].cid = sl;
+                        wf_cid rebuilt = {{0}, 0};
+                        s = mst_build_from_items(car, layer, comb, index,
+                                                 &rebuilt);
+                        if (s == WF_OK) left = rebuilt;
+                        free(comb);
+                    }
+                } else {
+                    left = base_left;
+                }
+                if (s == WF_OK && sr.len > 0) {
+                    mst_split_item *comb = calloc((n - index) + 1,
+                                                  sizeof(mst_split_item));
+                    if (!comb) s = WF_ERR_ALLOC;
+                    else {
+                        comb[0].is_tree = 1;
+                        comb[0].cid = sr;
+                        for (size_t i = 0; i < n - index; i++)
+                            comb[1 + i] = items[index + i];
+                        wf_cid rebuilt = {{0}, 0};
+                        s = mst_build_from_items(car, layer, comb,
+                                                 (n - index) + 1, &rebuilt);
+                        if (s == WF_OK) right = rebuilt;
+                        free(comb);
+                    }
+                }
+            }
+        }
+    }
+
+    free(items);
+    wf_mst_node_free(&node);
+    if (s != WF_OK) return s;
+
+    *out_left = (left.len > 0) ? left : (wf_cid){{0}, 0};
+    *out_right = (right.len > 0) ? right : (wf_cid){{0}, 0};
+    return WF_OK;
+}
+
 static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
                                   const unsigned char *key, size_t key_len,
                                   const wf_cid *value, wf_cid *new_cid) {
@@ -386,6 +569,25 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
     if (!new_entries) return WF_ERR_ALLOC;
 
+    /* Same-layer insert where the predecessor entry owns a subtree the new
+     * key falls within must split that subtree around the key (atproto's
+     * splitAround + replaceWithSplit). The lower part stays as the predecessor
+     * entry's subtree; the new key becomes a direct leaf; the upper part
+     * becomes the new leaf's subtree. */
+    wf_cid pred_subtree = {{0}, 0};
+    wf_cid new_subtree = {{0}, 0};
+    if (idx > 0 && node->entries[idx - 1].subtree.len > 0) {
+        wf_status ss = mst_split_around(car, &node->entries[idx - 1].subtree,
+                                        key, key_len, &pred_subtree,
+                                        &new_subtree);
+        if (ss != WF_OK) {
+            free(new_entries);
+            return ss;
+        }
+    } else if (idx > 0) {
+        pred_subtree = node->entries[idx - 1].subtree;
+    }
+
     for (size_t i = 0, j = 0; i < node->count; i++, j++) {
         if (j == idx) {
             new_entries[j].key = malloc(key_len);
@@ -393,6 +595,7 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
             memcpy(new_entries[j].key, key, key_len);
             new_entries[j].key_len = key_len;
             new_entries[j].value = *value;
+            new_entries[j].subtree = new_subtree;
             j++;
         }
         new_entries[j].key = malloc(node->entries[i].key_len);
@@ -400,7 +603,8 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
         memcpy(new_entries[j].key, node->entries[i].key, node->entries[i].key_len);
         new_entries[j].key_len = node->entries[i].key_len;
         new_entries[j].value = node->entries[i].value;
-        new_entries[j].subtree = node->entries[i].subtree;
+        new_entries[j].subtree = (idx > 0 && i + 1 == idx)
+            ? pred_subtree : node->entries[i].subtree;
     }
     if (idx == node->count) {
         new_entries[idx].key = malloc(key_len);
@@ -408,6 +612,7 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
         memcpy(new_entries[idx].key, key, key_len);
         new_entries[idx].key_len = key_len;
         new_entries[idx].value = *value;
+        new_entries[idx].subtree = new_subtree;
     }
 
     wf_mst_node new_node;
