@@ -262,6 +262,12 @@ wf_status wf_agent_list_notifications_typed(wf_agent *agent, int limit,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_response res = {0};
     wf_status status = wf_agent_list_notifications(agent, limit, cursor, &res);
@@ -317,6 +323,12 @@ wf_status wf_agent_get_unread_count_typed(wf_agent *agent, int *out_count) {
 wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
                                        wf_response *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
 
