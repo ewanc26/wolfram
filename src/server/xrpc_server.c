@@ -1016,14 +1016,23 @@ void wf_xrpc_response_set_error(wf_xrpc_response *resp,
 }
 
 void wf_xrpc_response_set_error_body(wf_xrpc_response *resp,
-                                     int http_status,
-                                     const char *body, size_t body_len) {
+                                      int http_status,
+                                      const char *body, size_t body_len) {
     if (!resp) {
         return;
     }
     free(resp->body);
     resp->http_status = http_status;
     wf_xrpc_response_set_body(resp, body, body_len);
+}
+
+void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
+                                        const char *content_type) {
+    if (!resp) {
+        return;
+    }
+    free(resp->content_type);
+    resp->content_type = content_type ? strdup(content_type) : NULL;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1144,6 +1153,8 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     char *nsid = NULL;
     cJSON *params = NULL;
     const char *auth_header;
+    post_buf *raw_pb = NULL;   /* Kept alive past parsing so handlers can read
+                                  the raw POST body (e.g. blob uploads). */
 
     /* CORS preflight (OPTIONS) — handled directly, no route lookup. */
     if (strcmp(method, "OPTIONS") == 0) {
@@ -1195,8 +1206,9 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
         if (!params) {
             params = cJSON_Parse("{}");
         }
-        free(pb->data);
-        free(pb);
+        /* Keep the raw body buffer alive so handlers (e.g. blob uploads) can
+         * read req->body / req->body_len. Freed in cleanup. */
+        raw_pb = pb;
         *con_cls = NULL;
         kind = WF_ROUTE_PROCEDURE;
         goto process;
@@ -1298,6 +1310,13 @@ process:
     req.auth_header = auth_header;
     req.params = params;
     req.handler_ctx = route->ctx;
+    /* Raw POST body (kept alive in raw_pb) + request Content-Type. */
+    if (raw_pb) {
+        req.body = (const unsigned char *)raw_pb->data;
+        req.body_len = raw_pb->len;
+    }
+    req.content_type =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
 
     if (route->is_ws) {
         enum MHD_Result wsr = wf_server_ws_handshake(server, route, conn, nsid);
@@ -1339,6 +1358,9 @@ send:
 
     if (route && route->is_sse) {
         MHD_add_response_header(mhd_resp, "Content-Type", "text/event-stream");
+    } else if (resp.content_type) {
+        /* Handler requested a custom Content-Type (e.g. raw blob bytes). */
+        MHD_add_response_header(mhd_resp, "Content-Type", resp.content_type);
     } else {
         MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
     }
@@ -1415,6 +1437,11 @@ cleanup:
         cJSON_Delete(params);
     }
     free(resp.body); /* safe: NULL if already transferred */
+    free(resp.content_type);
+    if (raw_pb) {
+        free(raw_pb->data);
+        free(raw_pb);
+    }
     return ret;
 }
 

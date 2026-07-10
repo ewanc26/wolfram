@@ -173,14 +173,32 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     round-trip test against `wf_xrpc_client`, rate limiter unit tests, and
      a server rate-limit integration test.
 
-48. Feed-generator skeleton server helper (`feedgen_server.h`) — high-level
-    helper built on the XRPC server that serves `app.bsky.feed.getFeedSkeleton`
-    (delegated to a caller-supplied callback returning skeleton post AT-URIs)
-    and `app.bsky.feed.getFeedGenerator` (synthesised from a config struct of
-    display name, description, DID, and optional avatar/CID). Deep-copied
-    config with `wf_feedgen_server_config_free`, `wf_feedgen_server_new`/`start`/
-    `stop`/`free`, and an offline round-trip test against `wf_xrpc_client`.
-    Built when `WOLFRAM_BUILD_SERVER=ON`. Tested.
+ 48. Feed-generator skeleton server helper (`feedgen_server.h`) — high-level
+     helper built on the XRPC server that serves `app.bsky.feed.getFeedSkeleton`
+     (delegated to a caller-supplied callback returning skeleton post AT-URIs)
+     and `app.bsky.feed.getFeedGenerator` (synthesised from a config struct of
+     display name, description, DID, and optional avatar/CID). Deep-copied
+     config with `wf_feedgen_server_config_free`, `wf_feedgen_server_new`/`start`/
+     `stop`/`free`, and an offline round-trip test against `wf_xrpc_client`.
+     Built when `WOLFRAM_BUILD_SERVER=ON`. Tested.
+
+ 58. Blob persistence + serving for a self-hosted PDS (`blob_store.h` /
+     `blob_store.c`, `src/server/blob_store_server.c`) — a self-contained blob
+     store keyed by CID string, with an in-memory mode and a file-backed mode
+     (one file per blob named by its CID, plus a `<cid>.mime` sidecar; re-opening
+     the same directory reloads blobs). `wf_blob_store_*` (new/free/put/get/
+     exists) with owned retrieval (freed via `free()`). Server integration
+     `wf_xrpc_server_register_blob_store` registers `com.atproto.repo.uploadBlob`
+     (procedure) and `com.atproto.sync.getBlob` (query) on a `wf_xrpc_server`: the
+     upload handler computes the blob's raw multicodec (0x55) SHA-256 CID with
+     `wf_cid_of_bytes`, stores it, and returns the TypedBlobRef; getBlob serves
+     the raw bytes with the stored Content-Type. The XRPC server request/response
+     structs were extended to carry a raw POST body and a custom response
+     Content-Type so binary blobs can be served directly. Built (for the server
+     integration) when `WOLFRAM_BUILD_SERVER=ON`; the core store is always built.
+     Tested offline (`test_blob_store.c`): unit put/get/exists, file-backed
+     persistence across re-open, and a full server round-trip via a raw HTTP
+     client asserting returned CID and round-tripped bytes + Content-Type.
 
  49. Server-Sent Events (SSE) streaming for the XRPC server — real streaming via
     libmicrohttpd `MHD_suspend_connection` / `MHD_resume_connection`. An SSE
@@ -353,6 +371,11 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   server-side `verifyJwt`-style auth middleware for the XRPC server that
   resolves the issuer's signing key from its DID document (via `identity.h`)
   and enforces `aud`/`lxm` binding on inbound service tokens.
+- The blob store (item 58) is a minimal, correct foundation. Follow-ups include
+  wiring it into the full PDS write path (tracking blobs against records so
+  untethered blobs can be garbage-collected), optional at-rest encryption of
+  stored bytes (analogous to `WOLFRAM_BUILD_STORE_CRYPTO`), and size/type
+  limits enforced at `uploadBlob` per the lexicon.
 - `app.bsky.notification.putPreferencesV2` is now fully typed
   (`wf_notification_v2_preferences_build`/`_parse`/`_free` +
   `wf_agent_put_notification_preferences_v2_typed`); the v1 `putPreferences`
