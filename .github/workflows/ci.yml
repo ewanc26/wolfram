@@ -17,7 +17,7 @@ jobs:
     name: default build + ctest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -46,7 +46,7 @@ jobs:
     name: full-features build + ctest + lexgen
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -91,7 +91,7 @@ jobs:
     name: C# interop (gated on dotnet)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install system dependencies
         run: |
@@ -108,7 +108,7 @@ jobs:
       - name: Set up .NET SDK
         id: dotnet
         continue-on-error: true
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
