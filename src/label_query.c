@@ -45,6 +45,9 @@ wf_status wf_label_query_labels(wf_xrpc_client *client,
     if (!client || !uris || uri_count == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 250) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_lex_com_atproto_label_query_labels_main_params params;
     memset(&params, 0, sizeof(params));
