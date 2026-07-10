@@ -761,6 +761,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_car_interop PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME car_interop COMMAND test_car_interop)
 
+    add_executable(test_dagcbor_interop test/test_dagcbor_interop.c)
+    target_link_libraries(test_dagcbor_interop PRIVATE wolfram)
+    target_include_directories(test_dagcbor_interop PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_dagcbor_interop PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME dagcbor_interop COMMAND test_dagcbor_interop)
+
     add_executable(test_mst_interop test/test_mst_interop.c)
     target_link_libraries(test_mst_interop PRIVATE wolfram)
     target_include_directories(test_mst_interop PRIVATE test ${cjson_SOURCE_DIR})

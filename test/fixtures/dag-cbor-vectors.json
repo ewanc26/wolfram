@@ -1,0 +1,123 @@
+[
+ {
+  "name": "basic",
+  "json": {
+   "string": "abc",
+   "unicode": "a~öñ©⽘☎𓋓😀👨‍👩‍👧‍👧",
+   "integer": 123,
+   "bool": true,
+   "null": null,
+   "array": [
+    "abc",
+    "def",
+    "ghi"
+   ],
+   "object": {
+    "string": "abc",
+    "number": 123,
+    "bool": true,
+    "arr": [
+     "abc",
+     "def",
+     "ghi"
+    ]
+   }
+  },
+  "cbor": "a764626f6f6cf5646e756c6cf665617272617983636162636364656663676869666f626a656374a4636172728363616263636465666367686964626f6f6cf5666e756d626572187b66737472696e676361626366737472696e676361626367696e7465676572187b67756e69636f6465782f617ec3b6c3b1c2a9e2bd98e2988ef0938b93f09f9880f09f91a8e2808df09f91a9e2808df09f91a7e2808df09f91a7",
+  "cid": "bafyreiclp443lavogvhj3d2ob2cxbfuscni2k5jk7bebjzg7khl3esabwq"
+ },
+ {
+  "name": "ipld",
+  "json": {
+   "a": {
+    "$link": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"
+   },
+   "b": {
+    "$bytes": "nFERjvLLiw9qm45JrqH9QTzyC2Lu1Xb4ne6+sBrCzI0"
+   },
+   "c": {
+    "$type": "blob",
+    "ref": {
+     "$link": "bafkreiccldh766hwcnuxnf2wh6jgzepf2nlu2lvcllt63eww5p6chi4ity"
+    },
+    "mimeType": "image/jpeg",
+    "size": 10000
+   }
+  },
+  "cbor": "a36161d82a5825000171122065062a5a5a00fc16d73c6944237ccbc15b1c4a7234489336891d091741a239d0616258209c51118ef2cb8b0f6a9b8e49aea1fd413cf20b62eed576f89deebeb01ac2cc8d6163a463726566d82a582500015512204258cfff78f613697697563f926c91e5d3574d2ea25ae7ed92d6ebfc23a3889e6473697a6519271065247479706564626c6f62686d696d65547970656a696d6167652f6a706567",
+  "cid": "bafyreihldkhcwijkde7gx4rpkkuw7pl6lbyu5gieunyc7ihactn5bkd2nm"
+ },
+ {
+  "name": "ipldArray",
+  "json": [
+   {
+    "$link": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"
+   },
+   {
+    "$link": "bafyreigoxt64qghytzkr6ik7qvtzc7lyytiq5xbbrokbxjows2wp7vmo6q"
+   },
+   {
+    "$link": "bafyreiaizynclnqiolq7byfpjjtgqzn4sfrsgn7z2hhf6bo4utdwkin7ke"
+   },
+   {
+    "$link": "bafyreifd4w4tcr5tluxz7osjtnofffvtsmgdqcfrfi6evjde4pl27lrjpy"
+   }
+  ],
+  "cbor": "84d82a5825000171122065062a5a5a00fc16d73c6944237ccbc15b1c4a7234489336891d091741a239d0d82a58250001711220cebcfdc818f89e551f215f8567917d78c4d10edc218b941ba5d696acffd58ef4d82a5825000171122008ce1a25b60872e1f0e0af4a666865bc91632337f9d1ce5f05dca4c76521bf51d82a58250001711220a3e5b93147b35d2f9fba499b5c5296b3930c3808b12a3c4aa464e3d7afae297e",
+  "cid": "bafyreiaj3udmqlqrcbjxjayzuxwp64gt64olcbjfrkldzoqponpru6gq4m"
+ },
+ {
+  "name": "ipldNested",
+  "json": {
+   "a": {
+    "b": [
+     {
+      "d": [
+       {
+        "$link": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"
+       },
+       {
+        "$link": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"
+       }
+      ],
+      "e": [
+       {
+        "$bytes": "nFERjvLLiw9qm45JrqH9QTzyC2Lu1Xb4ne6+sBrCzI0"
+       },
+       {
+        "$bytes": "iE+sPoHobU9tSIqGI+309LLCcWQIRmEXwxcoDt19tas"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "cbor": "a16161a1616281a2616482d82a5825000171122065062a5a5a00fc16d73c6944237ccbc15b1c4a7234489336891d091741a239d0d82a5825000171122065062a5a5a00fc16d73c6944237ccbc15b1c4a7234489336891d091741a239d061658258209c51118ef2cb8b0f6a9b8e49aea1fd413cf20b62eed576f89deebeb01ac2cc8d5820884fac3e81e86d4f6d488a8623edf4f4b2c2716408466117c317280edd7db5ab",
+  "cid": "bafyreid3imdulnhgeytpf6uk7zahjvrsqlofkmm5b5ub2maw4kqus6jp4i"
+ },
+ {
+  "name": "poorlyFormatted",
+  "json": {
+   "a": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a",
+   "b": "nFERjvLLiw9qm45JrqH9QTzyC2Lu1Xb4ne6+sBrCzI0",
+   "c": {
+    "$link": "bafyreigoxt64qghytzkr6ik7qvtzc7lyytiq5xbbrokbxjows2wp7vmo6q",
+    "another": "bad value"
+   },
+   "d": {
+    "$bytes": "nFERjvLLiw9qm45JrqH9QTzyC2Lu1Xb4ne6+sBrCzI0",
+    "another": "bad value"
+   },
+   "e": {
+    "/": "bafyreigoxt64qghytzkr6ik7qvtzc7lyytiq5xbbrokbxjows2wp7vmo6q"
+   },
+   "f": {
+    "/": {
+     "bytes": "nFERjvLLiw9qm45JrqH9QTzyC2Lu1Xb4ne6+sBrCzI0"
+    }
+   }
+  },
+  "cbor": "a66161783b626166797265696466617976667577716137716c6e6f70646a697172787a7336626c6d6f65753472756a636a746e63693562656c756469727a32616162782b6e4645526a764c4c697739716d34354a7271483951547a7943324c75315862346e65362b734272437a49306163a265246c696e6b783b62616679726569676f7874363471676879747a6b7236696b377176747a63376c797974697135786262726f6b62786a6f777332777037766d6f367167616e6f74686572696261642076616c75656164a266246279746573782b6e4645526a764c4c697739716d34354a7271483951547a7943324c75315862346e65362b734272437a493067616e6f74686572696261642076616c75656165a1612f783b62616679726569676f7874363471676879747a6b7236696b377176747a63376c797974697135786262726f6b62786a6f777332777037766d6f36716166a1612fa1656279746573782b6e4645526a764c4c697739716d34354a7271483951547a7943324c75315862346e65362b734272437a4930",
+  "cid": "bafyreico7wgbbfe6dpfsuednrtrlh6t2yjl6xq5rf32gl3pgwhwxk77cn4"
+ }
+]
