@@ -777,11 +777,35 @@ wf_status wf_agent_admin_disable_account_invites(wf_agent *agent) {
 
 wf_status wf_agent_admin_disable_invite_codes(wf_agent *agent,
                                               const char *cursor) {
-    if (!agent) {
+    if (!agent || cursor) {
         return WF_ERR_INVALID_ARG;
     }
-    (void)cursor; /* disableInviteCodes has no cursor param in the lexicon */
+    return wf_agent_admin_disable_invite_codes_typed(agent, NULL, 0, NULL, 0);
+}
+
+wf_status wf_agent_admin_disable_invite_codes_typed(
+    wf_agent *agent, const char *const *codes, size_t code_count,
+    const char *const *accounts, size_t account_count) {
+    if (!agent || !agent->client || (code_count && !codes) ||
+        (account_count && !accounts)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    for (size_t i = 0; i < code_count; ++i)
+        if (!codes[i]) return WF_ERR_INVALID_ARG;
+    for (size_t i = 0; i < account_count; ++i)
+        if (!accounts[i]) return WF_ERR_INVALID_ARG;
+
     wf_lex_com_atproto_admin_disable_invite_codes_main_input input = {0};
+    if (codes) {
+        input.has_codes = true;
+        input.codes.items = codes;
+        input.codes.count = code_count;
+    }
+    if (accounts) {
+        input.has_accounts = true;
+        input.accounts.items = accounts;
+        input.accounts.count = account_count;
+    }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =

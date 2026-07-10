@@ -231,9 +231,9 @@ void wf_notif_v2_preferences_free(wf_notif_v2_preferences *p);
  *
  * `preferences_json` is the full putPreferencesV2 input object as a raw JSON
  * string (e.g. `{"like":{"include":"all","list":true,"push":false}}`). It is
- * mapped onto the structured generated input. `deleted_prefs`/`deleted_count`
- * are reserved for API parity; the current lexicon has no deletedPrefs field,
- * so a non-zero `deleted_count` yields WF_ERR_INVALID_ARG. `out` is optional;
+ * mapped onto the structured generated input. The current lexicon has no
+ * deletedPrefs field, so `deleted_prefs` must be NULL and `deleted_count` zero;
+ * unsupported input yields WF_ERR_INVALID_ARG. `out` is optional;
  * when non-NULL the response `preferences` object is detached into it (owned).
  * Returns WF_ERR_INVALID_ARG if `agent` or `preferences_json` is NULL/empty, or
  * WF_ERR_PARSE if `preferences_json` is not a JSON object.

@@ -177,21 +177,31 @@ wf_status wf_agent_check_signup_queue(wf_agent *agent,
                                       int *out_closed,
                                       char **out_place);
 
-/* Issue fetchLabels against the authenticated labeler. `did_pointers`/`count`
- * are accepted for parity but the current lexicon has no DID selector, so they
- * are currently unused. On success *out_labels is an owned cJSON array (free with
- * cJSON_Delete). Returns WF_ERR_INVALID_ARG on NULL out pointer. */
+/* Legacy fetchLabels wrapper. The lexicon has no DID selector, so
+ * `did_pointers` must be NULL and `count` zero; unsupported selector input is
+ * rejected rather than discarded. Uses endpoint defaults for since/limit. */
 wf_status wf_agent_fetch_labels(wf_agent *agent,
                                 const char *const *did_pointers,
                                 size_t count,
                                 cJSON **out_labels);
 
-/* Issue requestPhoneVerification. `code` is accepted for parity but the
- * lexicon input is `phoneNumber` only, so `code` is currently unused. Returns
- * WF_ERR_INVALID_ARG on NULL/empty phone_number. */
+/* Exact deprecated fetchLabels query. `has_since` controls the optional
+ * integer cursor; `limit == 0` omits the parameter, otherwise it must be
+ * within the lexicon range 1..250. `*out_labels` is owned by the caller and
+ * freed with cJSON_Delete. */
+wf_status wf_agent_fetch_labels_query(wf_agent *agent,
+                                      int has_since, int64_t since,
+                                      int limit, cJSON **out_labels);
+
+/* Legacy requestPhoneVerification wrapper. The input has only phoneNumber, so
+ * `code` must be NULL; non-NULL input is rejected rather than discarded. */
 wf_status wf_agent_request_phone_verification(wf_agent *agent,
                                              const char *phone_number,
                                              const char *code);
+
+/* Exact requestPhoneVerification procedure carrying only phoneNumber. */
+wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
+                                                     const char *phone_number);
 
 /* Issue revokeAccountCredentials. The atproto lexicon requires an `account`
  * (at-identifier) input that this helper's signature does not carry, so this is

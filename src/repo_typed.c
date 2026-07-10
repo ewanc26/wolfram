@@ -808,7 +808,7 @@ wf_status wf_agent_apply_writes_typed(wf_agent *agent, const char *writes_json,
 
     wf_status status = WF_OK;
     wf_lex_com_atproto_repo_apply_writes_main_input input = {0};
-    wf_lex_json *writes = NULL;
+    wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union *writes = NULL;
 
     cJSON *repo = cJSON_GetObjectItemCaseSensitive(root, "repo");
     cJSON *validate = cJSON_GetObjectItemCaseSensitive(root, "validate");
@@ -836,7 +836,7 @@ wf_status wf_agent_apply_writes_typed(wf_agent *agent, const char *writes_json,
     if (status == WF_OK && cJSON_IsArray(arr)) {
         size_t n = (size_t)cJSON_GetArraySize(arr);
         if (n > 0) {
-            writes = (wf_lex_json *)calloc(n, sizeof(*writes));
+            writes = calloc(n, sizeof(*writes));
             if (!writes) {
                 status = WF_ERR_ALLOC;
             }

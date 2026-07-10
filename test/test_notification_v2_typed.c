@@ -127,6 +127,10 @@ int main(void) {
                  NULL, NULL, NULL, 0, &prefs) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_put_notification_preferences_v2(
                  NULL, "{}", deleted, 1, &prefs) == WF_ERR_INVALID_ARG);
+    static int sentinel;
+    WF_CHECK(wf_agent_put_notification_preferences_v2(
+                 (wf_agent *)&sentinel, "{}", deleted, 0, &prefs) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_put_notification_preferences_v2(
                  NULL, "{}", NULL, 0, NULL) == WF_ERR_INVALID_ARG);
 

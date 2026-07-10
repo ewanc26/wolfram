@@ -10,20 +10,17 @@
 #include <stdio.h>
 #include <string.h>
 
-/* A representative createReport output record: a moderation report with a
- * uri, cid, and an arbitrary `value` subtree. */
+/* Current createReport output envelope. */
 static const char *k_report_json =
     "{"
-    "\"uri\":\"at://did:plc:reporter/com.atproto.moderation.createReport/abc123\","
-    "\"cid\":\"bafyreigh2xyz\","
-    "\"value\":{"
     "\"id\":42,"
     "\"reasonType\":\"com.atproto.moderation.defs#reasonSpam\","
-    "\"subject\":{\"uri\":\"at://did:plc:spam/app.bsky.feed.post/xyz\","
+    "\"reason\":\"spam context\","
+    "\"subject\":{\"$type\":\"com.atproto.repo.strongRef\","
+    "\"uri\":\"at://did:plc:spam/app.bsky.feed.post/xyz\","
     "\"cid\":\"bafyreiabc\"},"
     "\"reportedBy\":\"did:plc:reporter\","
     "\"createdAt\":\"2024-01-01T00:00:00Z\""
-    "}"
     "}";
 
 int main(void) {
@@ -33,26 +30,16 @@ int main(void) {
         wf_status s = wf_moderation_report_record_parse(k_report_json,
                                                  strlen(k_report_json), &r);
         WF_CHECK(s == WF_OK);
-        WF_CHECK(r.uri != NULL);
-        WF_CHECK(r.cid != NULL);
-        WF_CHECK(r.value != NULL);
-        if (r.uri) {
-            WF_CHECK(strcmp(r.uri,
-                            "at://did:plc:reporter/com.atproto.moderation."
-                            "createReport/abc123") == 0);
-        }
-        if (r.cid) {
-            WF_CHECK(strcmp(r.cid, "bafyreigh2xyz") == 0);
-        }
-        if (r.value) {
-            cJSON *id = cJSON_GetObjectItemCaseSensitive(r.value, "id");
-            WF_CHECK(cJSON_IsNumber(id) && id->valueint == 42);
-            cJSON *rt =
-                cJSON_GetObjectItemCaseSensitive(r.value, "reasonType");
-            WF_CHECK(cJSON_IsString(rt) && rt->valuestring &&
-                     strcmp(rt->valuestring,
-                            "com.atproto.moderation.defs#reasonSpam") == 0);
-        }
+        WF_CHECK(r.id == 42);
+        WF_CHECK(r.reason_type &&
+                 strcmp(r.reason_type,
+                        "com.atproto.moderation.defs#reasonSpam") == 0);
+        WF_CHECK(r.reason && strcmp(r.reason, "spam context") == 0);
+        WF_CHECK(r.subject != NULL);
+        WF_CHECK(r.reported_by &&
+                 strcmp(r.reported_by, "did:plc:reporter") == 0);
+        WF_CHECK(r.created_at &&
+                 strcmp(r.created_at, "2024-01-01T00:00:00Z") == 0);
         wf_moderation_report_record_free(&r);
         /* double-free is safe */
         wf_moderation_report_record_free(&r);
@@ -73,7 +60,7 @@ int main(void) {
         wf_moderation_report_record r = {0};
         WF_CHECK(wf_moderation_report_record_parse("{not json", 8, &r) ==
                  WF_ERR_PARSE);
-        WF_CHECK(r.uri == NULL && r.cid == NULL && r.value == NULL);
+        WF_CHECK(r.reason_type == NULL && r.subject == NULL);
     }
 
     /* ---- wrapper argument validation (returns before any network use) ---- */
@@ -102,6 +89,17 @@ int main(void) {
         WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL,
                                  "com.atproto.moderation.defs#reasonSpam",
                                  NULL, NULL) == WF_ERR_INVALID_ARG);
+
+        /* Strong refs require CID; obsolete reason_subject_uri is rejected. */
+        WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL,
+                                 "com.atproto.moderation.defs#reasonSpam",
+                                 NULL, &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_report((wf_agent *)1, "did:plc:x", NULL,
+                                 "com.atproto.moderation.defs#reasonSpam",
+                                 "at://ignored", &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_report_typed(NULL, "did:plc:x", NULL, NULL,
+                                       "reason", NULL, NULL, NULL, &out) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();

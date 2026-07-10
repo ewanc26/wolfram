@@ -213,6 +213,10 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_disable_invite_codes(NULL, NULL) ==
                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_admin_disable_invite_codes((wf_agent *)1, "cursor") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_admin_disable_invite_codes_typed(
+                     NULL, NULL, 0, NULL, 0) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_send_email(NULL, "did:plc:aaa", "hi", NULL,
                                            NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_send_email((wf_agent *)1, NULL, "hi", NULL,

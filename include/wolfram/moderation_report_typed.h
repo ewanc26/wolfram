@@ -3,7 +3,7 @@
  * com.atproto.moderation.createReport (user-facing content/account reporting).
  *
  * Mirrors the conventions of actor_typed.h / chat_typed.h: owned strings,
- * an owned cJSON `value` subtree detached from the record, a matching
+ * an owned cJSON `subject` subtree, a matching
  * `_free`, and full cleanup on the first parse error. The agent wrapper
  * performs auth via the agent's primary XRPC client and hands the response
  * body to wf_moderation_report_record_parse.
@@ -24,19 +24,14 @@
 extern "C" {
 #endif
 
-/* A parsed com.atproto.moderation report record, viewed as a stored record
- * (mirrors the older createReport wire shape). `uri`/`cid` are heap-owned
- * strings (free with wf_moderation_report_record_free); `value` is an owned
- * cJSON subtree detached from the record (also freed by
- * wf_moderation_report_record_free).
- *
- * NOTE: this is intentionally distinct from the `wf_moderation_report_record` type in
- * moderation_actions.h, which exposes the current createReport output envelope
- * (id / reason / subject_uri). This record view keeps the verbatim record. */
+/* Owned current createReport output envelope. */
 typedef struct wf_moderation_report_record {
-    char *uri;
-    char *cid;
-    cJSON *value; /* owned record subtree */
+    int64_t id;
+    char *reason_type;
+    char *reason;
+    cJSON *subject;
+    char *reported_by;
+    char *created_at;
 } wf_moderation_report_record;
 
 /* Parse a com.atproto.moderation report record from `json` (length `len`).
@@ -51,11 +46,9 @@ void wf_moderation_report_record_free(wf_moderation_report_record *r);
 
 /* Submit a moderation report on behalf of the logged-in agent.
  *
- * `subject_uri` is the AT-URI of the reported record (or account); when
- * `subject_cid` is non-NULL/non-empty it is included (strongRef form
- * {uri, cid}), otherwise the subject is sent as {uri}. `reason_type` is the
- * reason type token (e.g. "com.atproto.moderation.defs#reasonSpam"). The
- * response body is parsed into `out`.
+ * Legacy convenience wrapper. `subject_uri` is either a DID (repoRef) or an
+ * AT URI (strongRef, requiring `subject_cid`). `reason_subject_uri` has no
+ * wire field and must be NULL.
  *
  * Returns WF_ERR_INVALID_ARG if `agent`, `subject_uri`, or `reason_type` is
  * NULL or empty. */
@@ -63,6 +56,19 @@ wf_status wf_agent_report(wf_agent *agent, const char *subject_uri,
                           const char *subject_cid, const char *reason_type,
                           const char *reason_subject_uri,
                           wf_moderation_report_record *out);
+
+/* Exact createReport wrapper. Supply exactly one subject form: subject_did,
+ * or subject_uri plus subject_cid. Optional mod_tool_meta_json requires a
+ * non-empty mod_tool_name and must encode one JSON value. */
+wf_status wf_agent_report_typed(wf_agent *agent,
+                                const char *subject_did,
+                                const char *subject_uri,
+                                const char *subject_cid,
+                                const char *reason_type,
+                                const char *reason,
+                                const char *mod_tool_name,
+                                const char *mod_tool_meta_json,
+                                wf_moderation_report_record *out);
 
 #ifdef __cplusplus
 }
