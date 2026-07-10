@@ -721,7 +721,8 @@ wf_status wf_agent_refresh_identity(wf_agent *agent, const char *identifier) {
 }
 
 wf_status wf_agent_identity_rotate_handle(wf_agent *agent,
-                                          const char *new_handle) {
+                                          const char *new_handle,
+                                          const char *token) {
     if (!agent || !agent->client || !new_handle || !new_handle[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -735,11 +736,14 @@ wf_status wf_agent_identity_rotate_handle(wf_agent *agent,
         return status;
     }
 
-    /* Step 2: build the handle-rotation PLC operation. The new alsoKnownAs is
-     * the at:// form of the new handle; the rest is copied from the
-     * recommended credentials. `prev` is left NULL because the current
-     * operation CID must be resolved from the PLC directory first (it is not
-     * available on the agent). */
+    /* Step 2: build the handle-rotation PLC operation locally. The new
+     * alsoKnownAs is the at:// form of the new handle; the rest is copied from
+     * the recommended credentials. This is the canonical operation diff the PDS
+     * re-assembles and (with the token below) signs and submits. `prev` is left
+     * NULL because the account's current operation CID must be resolved from
+     * the PLC directory by the PDS, which owns it. The local build is a
+     * validation gate: if the credentials + new handle do not form a valid
+     * plc_operation we fail honestly before any network I/O. */
     char *aka = (char *)malloc(strlen(new_handle) + 6);
     if (!aka) {
         wf_identity_recommended_credentials_free(&creds);
@@ -758,19 +762,46 @@ wf_status wf_agent_identity_rotate_handle(wf_agent *agent,
 
     char *op_json = NULL;
     status = wf_plc_operation_build(&update, &op_json);
-    free(aka);
-    wf_identity_recommended_credentials_free(&creds);
-    if (status == WF_OK) {
-        wf_plc_operation_free(op_json);
+    if (status != WF_OK) {
+        free(aka);
+        wf_identity_recommended_credentials_free(&creds);
+        return status;
+    }
+    wf_plc_operation_free(op_json);
+
+    /* Step 3: the PDS signs the operation on the account's behalf via
+     * signPlcOperation. That endpoint requires a one-time token emailed to the
+     * account after a requestPlcOperationSignature call. The token is delivered
+     * out-of-band (by email) and cannot be read here, so the caller must supply
+     * it. If it is missing, trigger the email so the caller can retrieve it,
+     * then return an honest error rather than fabricating success. */
+    if (!token || !token[0]) {
+        const char *did = wf_agent_get_did(agent);
+        if (did && did[0]) {
+            (void)wf_agent_request_plc_operation_signature_typed(agent, did);
+        }
+        free(aka);
+        wf_identity_recommended_credentials_free(&creds);
+        return WF_ERR_INVALID_ARG;
     }
 
-    /* Step 3: requestPlcOperationSignature emails a token to the account's
-     * address. The token is delivered out-of-band and cannot be read here.
-     * Step 4: wf_plc_operation_sign requires the account's private signing key,
-     * which the agent does not hold. Step 5: submitPlcOperation needs the
-     * signed operation plus the current PLC operation CID as `prev`.
-     * TODO: completing the rotation requires the out-of-band signature token
-     * and the account's private signing key, neither of which is available
-     * here, so we cannot finish the flow honestly. */
-    return WF_ERR_INVALID_ARG;
+    /* Step 4: sign the operation server-side with the supplied token, then
+     * submit the resulting signed operation to submitPlcOperation. Signing is
+     * delegated to the PDS (signPlcOperation) because the agent holds no
+     * private signing key; the caller-supplied token authorizes that sign. */
+    wf_identity_signed_operation signed_op = {0};
+    status = wf_agent_sign_plc_operation_typed(
+        agent, token,
+        (const char *const *)creds.rotation_keys, creds.rotation_key_count,
+        aka_items, update.also_known_as_count,
+        creds.verification_methods_json, creds.services_json,
+        &signed_op);
+    if (status == WF_OK) {
+        status = wf_agent_submit_plc_operation_typed(
+            agent, signed_op.operation_json);
+    }
+    wf_identity_signed_operation_free(&signed_op);
+    free(aka);
+    wf_identity_recommended_credentials_free(&creds);
+    return status;
 }

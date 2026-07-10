@@ -6,11 +6,15 @@
  */
 
 #include "wolfram/identity_typed.h"
+#include "wolfram/plc.h"
+#include "wolfram/crypto.h"
 #include "test.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <cJSON.h>
 
 /* com.atproto.identity.resolveHandle output. */
 static const char *kResolveHandleJson =
@@ -228,10 +232,90 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_refresh_identity(NULL, "id") == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_refresh_identity(NULL, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_identity_rotate_handle(NULL, "h") ==
+    WF_CHECK(wf_agent_identity_rotate_handle(NULL, "h", "tok") ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_identity_rotate_handle(NULL, NULL) ==
+    WF_CHECK(wf_agent_identity_rotate_handle(NULL, NULL, "tok") ==
              WF_ERR_INVALID_ARG);
+    /* Missing out-of-band token returns an honest error (no crash). */
+    WF_CHECK(wf_agent_identity_rotate_handle(NULL, "h", NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_identity_rotate_handle(NULL, "h", "") ==
+             WF_ERR_INVALID_ARG);
+
+    /* ---- Offline handle-rotation build + sign (no network). Exercises the
+       same wf_plc_operation_build input path used inside
+       wf_agent_identity_rotate_handle, then signs locally with a real key and
+       verifies the signature, proving the produced plc_operation is well-formed
+       and signed. (The live function delegates signing to the PDS via
+       signPlcOperation; this offline check validates the build and the
+       signature primitive it feeds.) ---- */
+    {
+        const char *rotation_keys[] = {"did:key:zRotationKey"};
+        const char *aka[1];
+        char aka_buf[256];
+        snprintf(aka_buf, sizeof(aka_buf), "at://%s", "new.example.com");
+        aka[0] = aka_buf;
+        wf_plc_operation_update rot = {
+            .rotation_keys = rotation_keys,
+            .rotation_keys_count = 1,
+            .verification_methods_json = "{\"atproto\":\"did:key:zVerifyKey\"}",
+            .services_json = "{\"atproto_pds\":\"https://pds.example.com\"}",
+            .also_known_as = aka,
+            .also_known_as_count = 1,
+        };
+        char *op_json = NULL;
+        wf_status bstatus = wf_plc_operation_build(&rot, &op_json);
+        WF_CHECK(bstatus == WF_OK);
+        WF_CHECK(op_json != NULL);
+        if (op_json) {
+            cJSON *op = cJSON_Parse(op_json);
+            int ok_type = 0, ok_rkeys = 0, ok_aka = 0, ok_unsigned = 0;
+            WF_CHECK(op != NULL);
+            if (op) {
+                const cJSON *type =
+                    cJSON_GetObjectItemCaseSensitive(op, "type");
+                ok_type = type && cJSON_IsString(type) &&
+                          strcmp(type->valuestring, "plc_operation") == 0;
+                const cJSON *rkeys =
+                    cJSON_GetObjectItemCaseSensitive(op, "rotationKeys");
+                ok_rkeys = rkeys && cJSON_IsArray(rkeys) &&
+                           cJSON_GetArraySize(rkeys) == 1;
+                const cJSON *aka_arr =
+                    cJSON_GetObjectItemCaseSensitive(op, "alsoKnownAs");
+                ok_aka = aka_arr && cJSON_IsArray(aka_arr) &&
+                         aka_arr->child && cJSON_IsString(aka_arr->child) &&
+                         strcmp(aka_arr->child->valuestring,
+                                "at://new.example.com") == 0;
+                ok_unsigned =
+                    cJSON_GetObjectItemCaseSensitive(op, "sig") == NULL;
+                cJSON_Delete(op);
+            }
+            WF_CHECK(ok_type);
+            WF_CHECK(ok_rkeys);
+            WF_CHECK(ok_aka);
+            WF_CHECK(ok_unsigned);
+            /* Sign locally + verify to prove the op is signable. */
+            wf_signing_key key;
+            wf_status gstatus = wf_signing_key_generate(WF_KEY_TYPE_P256, &key);
+            WF_CHECK(gstatus == WF_OK);
+            if (gstatus == WF_OK) {
+                char *signed_json = NULL;
+                wf_status sstatus =
+                    wf_plc_operation_sign(op_json, &key, &signed_json);
+                WF_CHECK(sstatus == WF_OK);
+                WF_CHECK(signed_json != NULL);
+                if (signed_json) {
+                    char *signer = NULL;
+                    wf_status vstatus =
+                        wf_plc_operation_verify(signed_json, &signer);
+                    WF_CHECK(vstatus == WF_OK);
+                    free(signer);
+                }
+                wf_plc_operation_free(signed_json);
+            }
+        }
+        wf_plc_operation_free(op_json);
+    }
 
     printf("identity_typed: all checks passed\n");
     return 0;
