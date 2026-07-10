@@ -1,6 +1,8 @@
 #include "wolfram/sync_verify.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/verify.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 wf_status wf_sync_verify_commit(const wf_subscribe_commit *commit,
@@ -23,32 +25,27 @@ wf_status wf_sync_verify_commit(const wf_subscribe_commit *commit,
     wf_status s = wf_car_parse(commit->blocks, commit->blocks_len, &car);
     if (s != WF_OK) return s;
 
-    /* Resolve the repo DID to get the signing key */
-    wf_did_document doc;
-    memset(&doc, 0, sizeof(doc));
-    s = wf_did_resolve(client, commit->did, &doc);
+    /* Resolve the repo DID to get the signing key. Prefer the injectable
+     * resolver (wf_verify_set_key_resolver); without one, fall back to a live
+     * wf_did_resolve over the transport client so existing behavior is kept. */
+    char *signing_key = NULL;
+    s = wf_verify_resolve_signing_key(commit->did, NULL, client, &signing_key);
     if (s != WF_OK) {
         wf_car_free(&car);
         return s;
-    }
-
-    if (!doc.signing_key) {
-        wf_did_document_free(&doc);
-        wf_car_free(&car);
-        return WF_ERR_INVALID_ARG;
     }
 
     /* Verify the CAR using the DID's signing key */
     wf_repo_verify_options opts;
     memset(&opts, 0, sizeof(opts));
     opts.expected_did = commit->did;
-    opts.signing_key = doc.signing_key;
+    opts.signing_key = signing_key;
 
     s = wf_repo_verify(&car, &opts, out_commit);
     if (s == WF_OK)
         *out_verified = 1;
 
-    wf_did_document_free(&doc);
+    free(signing_key);
     wf_car_free(&car);
     return s;
 }
