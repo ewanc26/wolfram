@@ -375,6 +375,9 @@ wf_status wf_agent_get_trends_typed(wf_agent *agent, int limit,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 25) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
@@ -404,6 +407,9 @@ wf_status wf_agent_get_suggested_users_typed(wf_agent *agent,
                                              const char *category_or_null,
                                              int limit, wf_agent_actor_list *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 50) {
         return WF_ERR_INVALID_ARG;
     }
     if (!agent->client) {
@@ -440,6 +446,9 @@ wf_status wf_agent_get_suggested_users_for_discover_typed(
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 50) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
@@ -471,6 +480,9 @@ wf_status wf_agent_get_suggested_users_for_explore_typed(
     wf_agent *agent, const char *category_or_null, int limit,
     wf_agent_actor_list *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 50) {
         return WF_ERR_INVALID_ARG;
     }
     if (!agent->client) {
@@ -510,6 +522,9 @@ wf_status wf_agent_get_suggested_users_for_see_more_typed(
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 50) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
@@ -547,6 +562,9 @@ wf_status wf_agent_get_suggested_onboarding_users_typed(
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 50) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
@@ -581,6 +599,9 @@ wf_status wf_agent_get_suggested_onboarding_users_typed(
 wf_status wf_agent_get_suggested_feeds_typed(wf_agent *agent, int limit,
                                              wf_agent_generator_view_list *out) {
     if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 25) {
         return WF_ERR_INVALID_ARG;
     }
     if (!agent->client) {
