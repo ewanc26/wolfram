@@ -268,6 +268,14 @@ int main(void) {
     WF_CHECK(ep != NULL && strcmp(ep, "https://chat.example.com") == 0);
     free(ep);
 
+    wf_did_document doc3 = {0};
+
+    /* The resolved DID document also exposes the feed-generator endpoint. */
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.feedgen_endpoint != NULL &&
+             strcmp(doc3.feedgen_endpoint, "https://feed.example.com") == 0);
+    wf_did_document_free(&doc3);
+
     /* Resolves the AtprotoChatProxy endpoint. */
     ep = NULL;
     WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
@@ -281,10 +289,236 @@ int main(void) {
                                     "DoesNotExist", &ep) == WF_ERR_NOT_FOUND);
     WF_CHECK(ep == NULL);
 
+    /* Matching type alone is insufficient: select the canonical service ID,
+     * accepting its absolute form. */
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#attacker\",\"type\":\"BskyChatService\","
+        "\"serviceEndpoint\":\"https://evil.example\"},"
+        "{\"id\":\"did:plc:chatdid#bsky_chat\","
+        "\"type\":\"BskyChatService\","
+        "\"serviceEndpoint\":\"https://chat.good.example\"}]}";
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "BskyChatService", &ep) == WF_OK);
+    WF_CHECK(ep && strcmp(ep, "https://chat.good.example") == 0);
+    free(ep);
+    ep = NULL;
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\","
+        "\"serviceEndpoint\":\"file:///etc/passwd\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.pds_endpoint == NULL);
+    wf_did_document_free(&doc3);
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "AtprotoPersonalDataServer", &ep) ==
+             WF_ERR_NOT_FOUND);
+    WF_CHECK(ep == NULL);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#bsky_chat\",\"type\":\"BskyChatService\","
+        "\"serviceEndpoint\":\"https://chat.good.example\"},"
+        "{\"id\":\"did:plc:chatdid#bsky_chat\",\"type\":\"BskyChatService\","
+        "\"serviceEndpoint\":\"https://chat.bad.example\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+    WF_CHECK(wf_did_resolve_service(client, "did:plc:chatdid",
+                                    "BskyChatService", &ep) ==
+             WF_ERR_PARSE);
+    WF_CHECK(ep == NULL);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\","
+        "\"serviceEndpoint\":{\"uri\":\"https://pds.good.example\"}}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.pds_endpoint == NULL);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"did:plc:other#custom\",\"type\":\"BskyChatService\","
+        "\"serviceEndpoint\":\"https://chat.good.example\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.pds_endpoint == NULL);
+    WF_CHECK(doc3.feedgen_endpoint == NULL);
+    WF_CHECK(doc3.notif_endpoint == NULL);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"@context\":\"https://www.w3.org/ns/did/v1\"}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"@context\":["
+        "\"https://www.w3.org/ns/did/v1\",\"https://example.com/context\"],"
+        "\"controller\":[\"did:plc:chatdid\"]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"@context\":\"https://example.com/context\"}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"@context\":["
+        "\"https://example.com/context\",\"https://www.w3.org/ns/did/v1\"]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"controller\":\"not-a-did\"}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#bad fragment\",\"type\":\"BskyChatService\","
+        "\"serviceEndpoint\":\"https://chat.good.example\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"#bad fragment\",\"controller\":\"did:plc:chatdid\","
+        "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"#atproto\",\"controller\":\"did:plc:chatdid\","
+        "\"type\":\"\",\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\","
+        "\"serviceEndpoint\":{\"uri\":\"not-a-url\"}}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\","
+        "\"serviceEndpoint\":[[{\"uri\":\"https://pds.good.example\"}]]}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":{\"id\":\"#atproto_pds\","
+        "\"type\":\"AtprotoPersonalDataServer\",\"serviceEndpoint\":"
+        "\"https://pds.good.example\"}}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"alsoKnownAs\":["
+        "\"at://good.example\",\"at://another.example\"]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_OK);
+    WF_CHECK(doc3.did && strcmp(doc3.did, "did:plc:chatdid") == 0);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"alsoKnownAs\":["
+        "\"at://good.example\",\"not-a-url\"]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"authentication\":["
+        "\"#atproto\",{\"id\":\"did:plc:chatdid#atproto\","
+        "\"controller\":\"did:plc:chatdid\",\"type\":\"Multikey\","
+        "\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.signing_key == NULL);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"authentication\":["
+        "\"did:plc:chatdid#atproto\"]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.signing_key == NULL);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"authentication\":["
+        "\"#bad fragment\"]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"#atproto\",\"type\":\"Multikey\","
+        "\"publicKeyMultibase\":\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"service\":["
+        "{\"id\":\"#atproto_pds\",\"type\":[\"AtprotoPersonalDataServer\"],"
+        "\"serviceEndpoint\":\"https://pds.good.example\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.pds_endpoint == NULL);
+    wf_did_document_free(&doc3);
+
+    g_did_doc = "{\"id\":\"did:plc:other\"}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) ==
+             WF_ERR_PARSE);
+    WF_CHECK(wf_did_resolve_service_by_id(
+                 client, "did:plc:chatdid", "#bsky_chat", NULL, &ep) ==
+             WF_ERR_PARSE);
+
     /* Regression: the refactored wf_did_resolve still parses the document. */
-    wf_did_document doc3 = {0};
+    g_did_doc = doc_json;
     WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
     WF_CHECK(doc3.did != NULL && strcmp(doc3.did, "did:plc:chatdid") == 0);
+    wf_did_document_free(&doc3);
+
+    /* Repository signing material is specifically verification method
+     * #atproto, never merely the first key controlled by the DID. */
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"#unrelated\",\"controller\":\"did:plc:chatdid\","
+        "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"},"
+        "{\"id\":\"did:plc:chatdid#atproto\","
+        "\"controller\":\"did:plc:chatdid\",\"type\":\"Multikey\","
+        "\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.signing_key &&
+             strcmp(doc3.signing_key,
+                    "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"#atproto\",\"controller\":[\"did:plc:chatdid\"],"
+        "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.signing_key &&
+             strcmp(doc3.signing_key,
+                    "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+    wf_did_document_free(&doc3);
+
+    g_did_doc =
+        "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+        "{\"id\":\"#unrelated\",\"controller\":\"did:plc:chatdid\","
+        "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+        "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+    WF_CHECK(wf_did_resolve(client, "did:plc:chatdid", &doc3) == WF_OK);
+    WF_CHECK(doc3.signing_key == NULL);
     wf_did_document_free(&doc3);
 
     wf_xrpc_set_handler(client, NULL, NULL);
@@ -301,29 +535,37 @@ int main(void) {
         wf_xrpc_set_handler(client, did_doc_url_handler, NULL);
 
         wf_did_document doc4 = {0};
+        g_did_doc = "{\"id\":\"did:web:example.com\"}";
         WF_CHECK(wf_did_resolve(client, "did:web:example.com", &doc4) == WF_OK);
         WF_CHECK(g_last_url != NULL &&
                   strcmp(g_last_url, "https://example.com/.well-known/did.json") == 0);
         wf_did_document_free(&doc4);
 
-        WF_CHECK(wf_did_resolve(client, "did:web:example.com:user", &doc4) == WF_OK);
-        WF_CHECK(g_last_url != NULL &&
-                  strcmp(g_last_url,
-                         "https://example.com/user/.well-known/did.json") == 0);
-        wf_did_document_free(&doc4);
-
-        WF_CHECK(wf_did_resolve(client, "did:web:localhost:foo", &doc4) == WF_OK);
-        WF_CHECK(g_last_url != NULL &&
-                  strcmp(g_last_url,
-                         "http://localhost/foo/.well-known/did.json") == 0);
-        wf_did_document_free(&doc4);
-
         /* did:web with encoded port uses http for localhost. */
+        g_did_doc = "{\"id\":\"did:web:localhost%3A8080\"}";
         WF_CHECK(wf_did_resolve(client, "did:web:localhost%3A8080", &doc4) == WF_OK);
         WF_CHECK(g_last_url != NULL &&
                   strcmp(g_last_url,
                          "http://localhost:8080/.well-known/did.json") == 0);
         wf_did_document_free(&doc4);
+
+        WF_CHECK(wf_did_resolve(client, "did:web:example.com:path", &doc4) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve(client, "did:web:localhost:foo", &doc4) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve(client, "did:web:example.com:", &doc4) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve(client, "did:web:exam%3Aple.com%3A8080", &doc4) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve(client, "did:web:example.com%3a8080", &doc4) ==
+                 WF_ERR_INVALID_ARG);
+
+        g_did_doc =
+            "{\"id\":\"did:web:example.com\",\"service\":["
+            "{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\","
+            "\"serviceEndpoint\":\"https://example.com:bad\"}]}";
+        WF_CHECK(wf_did_resolve(client, "did:web:example.com", &doc4) ==
+                 WF_ERR_PARSE);
 
         /* Empty host (leading ':') is rejected before any fetch. */
         WF_CHECK(wf_did_resolve(client, "did:web:", &doc4) == WF_ERR_INVALID_ARG);
