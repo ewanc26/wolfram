@@ -653,8 +653,10 @@ static void wf_notif_v2_read_filterable(cJSON *o, wf_notif_v2_filterable_pref *p
             p->include = WF_NOTIF_V2_INCLUDE_FOLLOWS;
         } else if (strcmp(include->valuestring, "accepted") == 0) {
             p->include = WF_NOTIF_V2_INCLUDE_ACCEPTED;
-        } else {
+        } else if (strcmp(include->valuestring, "all") == 0) {
             p->include = WF_NOTIF_V2_INCLUDE_ALL;
+        } else {
+            p->include = WF_NOTIF_V2_INCLUDE_UNSET;
         }
     }
     if (cJSON_IsBool(list)) {
@@ -687,12 +689,12 @@ static void wf_notif_v2_read_chat(cJSON *o, wf_notif_v2_chat_pref *p) {
     cJSON *push = cJSON_GetObjectItemCaseSensitive(o, "push");
     if (cJSON_IsString(include) && include->valuestring) {
         p->has_include = 1;
-        if (strcmp(include->valuestring, "follows") == 0) {
-            p->include = WF_NOTIF_V2_INCLUDE_FOLLOWS;
-        } else if (strcmp(include->valuestring, "accepted") == 0) {
+        if (strcmp(include->valuestring, "accepted") == 0) {
             p->include = WF_NOTIF_V2_INCLUDE_ACCEPTED;
-        } else {
+        } else if (strcmp(include->valuestring, "all") == 0) {
             p->include = WF_NOTIF_V2_INCLUDE_ALL;
+        } else {
+            p->include = WF_NOTIF_V2_INCLUDE_UNSET;
         }
     }
     if (cJSON_IsBool(push)) {
@@ -734,9 +736,8 @@ wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
 #define READ_SLOT(field, name, reader)                                       \
     do {                                                                     \
         o = cJSON_GetObjectItemCaseSensitive(root, name);                    \
-        if (cJSON_IsObject(o)) {                                             \
-            reader(o, &field);                                               \
-        }                                                                    \
+        if (!cJSON_IsObject(o)) goto invalid;                                \
+        reader(o, &field);                                                   \
     } while (0)
 
     READ_SLOT(chat, "chat", wf_notif_v2_read_chat);
@@ -753,6 +754,22 @@ wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
     READ_SLOT(unverified, "unverified", wf_notif_v2_read_pref);
     READ_SLOT(verified, "verified", wf_notif_v2_read_pref);
 #undef READ_SLOT
+
+    if (!chat.has_include || !chat.has_push ||
+        !follow.has_include || !follow.has_list || !follow.has_push ||
+        !like.has_include || !like.has_list || !like.has_push ||
+        !like_via_repost.has_include || !like_via_repost.has_list ||
+        !like_via_repost.has_push || !mention.has_include ||
+        !mention.has_list || !mention.has_push || !quote.has_include ||
+        !quote.has_list || !quote.has_push || !reply.has_include ||
+        !reply.has_list || !reply.has_push || !repost.has_include ||
+        !repost.has_list || !repost.has_push ||
+        !repost_via_repost.has_include || !repost_via_repost.has_list ||
+        !repost_via_repost.has_push || !starterpack_joined.has_list ||
+        !starterpack_joined.has_push || !subscribed_post.has_list ||
+        !subscribed_post.has_push || !unverified.has_list ||
+        !unverified.has_push || !verified.has_list || !verified.has_push)
+        goto invalid;
 
     out->has_chat = 1;
     out->chat = chat;
@@ -783,6 +800,11 @@ wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
 
     cJSON_Delete(root);
     return WF_OK;
+
+invalid:
+    cJSON_Delete(root);
+    memset(out, 0, sizeof(*out));
+    return WF_ERR_PARSE;
 }
 
 void wf_notification_v2_preferences_free(wf_notification_v2_preferences *p) {
@@ -798,16 +820,14 @@ wf_status wf_agent_put_notification_preferences_v2(
     wf_agent *agent, const char *preferences_json,
     const char *const *deleted_prefs, size_t deleted_count,
     wf_notif_v2_preferences *out) {
+    if (deleted_prefs || deleted_count != 0) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (!agent || !agent->client || !preferences_json || !preferences_json[0]) {
         return WF_ERR_INVALID_ARG;
     }
     /* The current lexicon (app.bsky.notification.putPreferencesV2) has no
      * deletedPrefs field; reject non-zero counts rather than silently drop. */
-    (void)deleted_prefs;
-    if (deleted_count != 0) {
-        return WF_ERR_INVALID_ARG;
-    }
-
     cJSON *root = cJSON_Parse(preferences_json);
     if (!root || !cJSON_IsObject(root)) {
         cJSON_Delete(root);

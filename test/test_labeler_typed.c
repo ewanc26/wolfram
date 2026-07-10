@@ -318,9 +318,11 @@ int main(void) {
     WF_CHECK(wf_agent_get_labeler_services(NULL, dids, 1, true, NULL) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_fetch_labels_typed(NULL, "did:plc:labeler000000000000000000",
-                                   &t) == WF_ERR_INVALID_ARG);
+                                         &t) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_fetch_labels_typed(NULL, NULL, &t) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_fetch_labels_typed(NULL, "did:plc:x", NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_fetch_labels_list(NULL, 0, 0, 50, &t) ==
              WF_ERR_INVALID_ARG);
 
     printf("labeler_typed: all checks passed\n");

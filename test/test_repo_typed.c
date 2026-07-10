@@ -7,6 +7,7 @@
  */
 
 #include "wolfram/repo_typed.h"
+#include "wolfram/atproto_lex.h"
 #include "test.h"
 
 #include <cJSON.h>
@@ -297,6 +298,45 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_apply_writes_typed(NULL, "{}", NULL) ==
                  WF_ERR_INVALID_ARG);
+    }
+
+    /* ---- Generated applyWrites union array encoding. Multiple entries are
+       important: the union element is larger than wf_lex_json, so allocating
+       this array as generic JSON would make the encoder stride out of bounds
+       after the first write. ---- */
+    {
+        static const char create[] =
+            "{\"$type\":\"com.atproto.repo.applyWrites#create\","
+            "\"collection\":\"app.bsky.feed.post\",\"value\":{\"text\":\"one\"}}";
+        static const char delete_[] =
+            "{\"$type\":\"com.atproto.repo.applyWrites#delete\","
+            "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"two\"}";
+        wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union
+            writes[2] = {0};
+        writes[0].kind = -1;
+        writes[0].data = create;
+        writes[0].length = strlen(create);
+        writes[1].kind = -1;
+        writes[1].data = delete_;
+        writes[1].length = strlen(delete_);
+
+        wf_lex_com_atproto_repo_apply_writes_main_input input = {0};
+        input.repo = "did:plc:alice";
+        input.writes.items = writes;
+        input.writes.count = 2;
+
+        char *json = NULL;
+        WF_CHECK(wf_lex_com_atproto_repo_apply_writes_main_input_encode_json(
+                     &input, &json) == WF_OK);
+        cJSON *root = cJSON_Parse(json);
+        cJSON *encoded = cJSON_GetObjectItemCaseSensitive(root, "writes");
+        WF_CHECK(cJSON_IsArray(encoded));
+        WF_CHECK(cJSON_GetArraySize(encoded) == 2);
+        WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(
+                            cJSON_GetArrayItem(encoded, 1), "$type")->valuestring,
+                        "com.atproto.repo.applyWrites#delete") == 0);
+        cJSON_Delete(root);
+        wf_lex_com_atproto_repo_apply_writes_main_json_free(json);
     }
 
     /* ---- createRecord / putRecord result parser ---- */

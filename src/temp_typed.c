@@ -462,13 +462,30 @@ wf_status wf_agent_fetch_labels(wf_agent *agent,
                                 const char *const *did_pointers,
                                 size_t count,
                                 cJSON **out_labels) {
-    (void)did_pointers;
-    (void)count;
+    if (did_pointers || count != 0) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_agent_fetch_labels_query(agent, 0, 0, 0, out_labels);
+}
+
+wf_status wf_agent_fetch_labels_query(wf_agent *agent,
+                                      int has_since, int64_t since,
+                                      int limit, cJSON **out_labels) {
     if (!agent || !agent->client || !out_labels) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_labels = NULL;
+    if (limit < 0 || limit > 250) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_lex_com_atproto_temp_fetch_labels_main_params params = {0};
+    params.has_since = (has_since != 0);
+    params.since = since;
+    if (limit != 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status = wf_lex_com_atproto_temp_fetch_labels_main_call(
@@ -492,7 +509,14 @@ wf_status wf_agent_fetch_labels(wf_agent *agent,
 wf_status wf_agent_request_phone_verification(wf_agent *agent,
                                              const char *phone_number,
                                              const char *code) {
-    (void)code;
+    if (code) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_agent_request_phone_verification_typed(agent, phone_number);
+}
+
+wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
+                                                     const char *phone_number) {
     if (!agent || !agent->client || !phone_number || !phone_number[0]) {
         return WF_ERR_INVALID_ARG;
     }

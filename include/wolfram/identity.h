@@ -27,7 +27,8 @@ typedef enum wf_did_method {
 typedef struct wf_did_document {
     char *did;              /* e.g. "did:plc:ofrbh253gwicbkc5nktqepol" */
     char *pds_endpoint;     /* service endpoint for AtprotoPersonalDataServer */
-    char *signing_key;      /* multibase-encoded verification key, if present */
+    char *feedgen_endpoint; /* service endpoint for BskyFeedGenerator */
+    char *signing_key;      /* normalized did:key signing key, if present */
     char *notif_endpoint;   /* BskyNotificationService endpoint, if present */
     wf_did_method method;
 } wf_did_document;
@@ -57,13 +58,21 @@ wf_status wf_did_resolve(wf_xrpc_client *client,
                           wf_did_document *out);
 
 /**
- * Resolve a DID's service endpoint of the given service `type`
- * (e.g. "BskyChatService" or "AtprotoChatProxy"). On WF_OK, *out_endpoint is
- * a heap-allocated serviceEndpoint string (caller frees). Returns
- * WF_ERR_NOT_FOUND when the DID document has no matching service.
+ * Resolve a known atproto service by its canonical ID and expected type.
+ * Unknown service types return WF_ERR_NOT_FOUND; use the by-ID API below for
+ * extensions.
  */
 wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
                                  const char *service_type, char **out_endpoint);
+
+/* Resolve a service by canonical fragment (for example "#atproto_pds").
+ * `service_type` optionally enforces an exact type. Relative and absolute IDs
+ * in the DID document are accepted. Only valid HTTP(S) endpoints are returned. */
+wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
+                                        const char *did,
+                                        const char *service_id,
+                                        const char *service_type,
+                                        char **out_endpoint);
 
 /** Release the owned strings inside a wf_did_document. */
 void wf_did_document_free(wf_did_document *doc);

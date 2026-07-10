@@ -2,6 +2,11 @@
   "id": "did:plc:chatdid",
   "service": [
     {
+      "id": "#bsky_fg",
+      "type": "BskyFeedGenerator",
+      "serviceEndpoint": "https://feed.example.com"
+    },
+    {
       "id": "#bsky_chat",
       "type": "BskyChatService",
       "serviceEndpoint": "https://chat.example.com"

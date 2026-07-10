@@ -167,10 +167,28 @@ int main(void) {
         cJSON *labels = NULL;
         WF_CHECK(wf_agent_fetch_labels(NULL, NULL, 0, &labels) ==
                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_fetch_labels_query(NULL, 0, 0, 50, &labels) ==
+                 WF_ERR_INVALID_ARG);
+
+        static int sentinel;
+        wf_agent *fake = (wf_agent *)&sentinel;
+        const char *dids[] = {"did:plc:alice"};
+        WF_CHECK(wf_agent_fetch_labels(fake, dids, 1, &labels) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_fetch_labels(fake, dids, 0, &labels) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_fetch_labels_query(fake, 0, 0, -1, &labels) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_fetch_labels_query(fake, 0, 0, 251, &labels) ==
+                 WF_ERR_INVALID_ARG);
 
         WF_CHECK(wf_agent_request_phone_verification(NULL, "123", NULL) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_request_phone_verification(NULL, "", NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_request_phone_verification(fake, "123", "code") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_request_phone_verification_typed(NULL, "123") ==
                  WF_ERR_INVALID_ARG);
 
         WF_CHECK(wf_agent_add_reserved_handle(NULL, "h") ==
