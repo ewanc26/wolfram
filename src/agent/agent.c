@@ -1061,6 +1061,10 @@ wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
 
     cJSON *value = cJSON_Parse(record_json);
     if (!value) return WF_ERR_PARSE;
+    if (!cJSON_IsObject(value)) {
+        cJSON_Delete(value);
+        return WF_ERR_INVALID_ARG;
+    }
 
     cJSON *root = cJSON_CreateObject();
     if (!root) {
