@@ -146,6 +146,13 @@ wf_status wf_repo_create_record(wf_car *car,
     wf_status s = wf_cid_of_block(record_cbor, record_cbor_len, out_record);
     if (s != WF_OK) return s;
 
+    /* Content-addressed store: skip appending if a block with this record
+     * CID already exists (reused across writes); wf_repo_verify rejects CARs
+     * with duplicate CIDs. */
+    if (wf_car_find_block(car, out_record)) {
+        return WF_OK;
+    }
+
     {
         wf_car_block *new_blocks = realloc(car->blocks,
             (car->block_count + 1) * sizeof(wf_car_block));
@@ -293,17 +300,19 @@ wf_status wf_repo_update_record(wf_car *car,
     free(mst_key);
     if (s != WF_OK) return s;
 
-    wf_car_block *blocks = realloc(car->blocks,
-        (car->block_count + 1) * sizeof(*blocks));
-    if (!blocks) return WF_ERR_ALLOC;
-    car->blocks = blocks;
-    wf_car_block *record_block = &car->blocks[car->block_count];
-    record_block->cid = *out_record;
-    record_block->data = malloc(record_cbor_len);
-    if (!record_block->data) return WF_ERR_ALLOC;
-    memcpy(record_block->data, record_cbor, record_cbor_len);
-    record_block->data_len = record_cbor_len;
-    car->block_count++;
+    if (!wf_car_find_block(car, out_record)) {
+        wf_car_block *blocks = realloc(car->blocks,
+            (car->block_count + 1) * sizeof(*blocks));
+        if (!blocks) return WF_ERR_ALLOC;
+        car->blocks = blocks;
+        wf_car_block *record_block = &car->blocks[car->block_count];
+        record_block->cid = *out_record;
+        record_block->data = malloc(record_cbor_len);
+        if (!record_block->data) return WF_ERR_ALLOC;
+        memcpy(record_block->data, record_cbor, record_cbor_len);
+        record_block->data_len = record_cbor_len;
+        car->block_count++;
+    }
 
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
