@@ -16,16 +16,35 @@ endif()
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
-# Wii cross-compilation target. When ON, desktop-specific dependencies
-# (libcurl, OpenSSL, pthreads) are replaced with platform stubs.
+# Console/embedded cross-compilation targets. When any is ON, desktop-specific
+# dependencies (libcurl, OpenSSL, pthreads) are replaced with platform stubs.
 option(WOLFRAM_BUILD_WII "Build for Nintendo Wii (devkitPPC/libogc)" OFF)
+option(WOLFRAM_BUILD_WIIU "Build for Nintendo Wii U (devkitPPC/wut)" OFF)
+option(WOLFRAM_BUILD_3DS "Build for Nintendo 3DS (devkitARM/libctru)" OFF)
 
-if(NOT WOLFRAM_BUILD_WII)
+# Windows cross-compilation (MinGW-w64). Uses Win32 APIs instead of POSIX.
+option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)" OFF)
+
+# Derived: true for any embedded/console target
+if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_WIIU OR WOLFRAM_BUILD_3DS)
+    set(WOLFRAM_BUILD_EMBEDDED ON)
+else()
+    set(WOLFRAM_BUILD_EMBEDDED OFF)
+endif()
+
+# Derived: true for any non-POSIX target (embedded or Windows)
+if(WOLFRAM_BUILD_EMBEDDED OR WOLFRAM_BUILD_WINDOWS)
+    set(WOLFRAM_BUILD_NON_POSIX ON)
+else()
+    set(WOLFRAM_BUILD_NON_POSIX OFF)
+endif()
+
+if(NOT WOLFRAM_BUILD_NON_POSIX)
     find_package(CURL REQUIRED)
     find_package(OpenSSL REQUIRED)
     find_package(Threads REQUIRED)
 endif()
-if(NOT WOLFRAM_BUILD_WII)
+if(NOT WOLFRAM_BUILD_EMBEDDED)
     find_package(PkgConfig QUIET)
     if(PkgConfig_FOUND)
         pkg_check_modules(SECP256K1 libsecp256k1)
@@ -71,12 +90,12 @@ set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(wolfram
     # Transport
-    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
-    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/transport/websocket_wii.c,src/transport/websocket.c>
+    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
+    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/transport/websocket_wii.c,src/transport/websocket.c>
     # Identity
     src/identity/identity.c
     # Crypto
-    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
+    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
     # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
     src/repo/cbor.c
     src/repo/cid.c
@@ -91,9 +110,9 @@ add_library(wolfram
     src/repo/cbor_map_find.c
     # Session
     src/session/session.c
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/session/auth_client.c>
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/session/auth_client.c>
     # OAuth (metadata, PKCE, DPoP, PAR, state, callback, flow)
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:
         src/session/oauth/util.c
         src/session/oauth/meta.c
         src/session/oauth/pkce.c
@@ -104,7 +123,7 @@ add_library(wolfram
         src/session/oauth/flow.c
     >
     # OAuth resource-server verification (Bearer + DPoP)
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/oauth/verify.c>
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/oauth/verify.c>
     # Jetstream
     src/jetstream/jetstream.c
     # Label subscriptions
@@ -114,9 +133,9 @@ add_library(wolfram
     # Syntax validation
     src/syntax/syntax.c
     # TID generation clock
-    $<IF:$<BOOL:${WOLFRAM_BUILD_WII}>,src/platform/wii_tid.c,src/tid.c>
+    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/platform/wii_tid.c,src/tid.c>
     # Lexicon validation
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/validate/validate.c>
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/validate/validate.c>
     # High-level agent API
     src/agent/agent.c
     src/agent/post.c
@@ -158,7 +177,7 @@ add_library(wolfram
     src/agent/chat_typed.c
     src/admin_typed.c
     src/sync_typed.c
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/server_typed.c>
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/server_typed.c>
     src/agent/lexicon_typed.c
     src/agent/threadgate_postgate.c
     src/agent/moderation_actions.c
@@ -186,9 +205,9 @@ src/agent/push_endpoint.c
     # Generated lexicon endpoint wrappers
     src/atproto_lex.c
     # Server account management (PDS server-side)
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/server/server.c>
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/server/server.c>
     # Service-auth (service JWT) token issuance + verification
-    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_WII}>>:src/server/service_auth.c>
+    $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/server/service_auth.c>
     # DID PLC operation build / sign / submit helpers
     src/plc/plc.c
     # New utilities and embed support
@@ -209,24 +228,36 @@ src/agent/push_endpoint.c
     src/image.c
 )
 
-# Wii platform support
+# Embedded/console platform support
 if(WOLFRAM_BUILD_WII)
-    target_sources(wolfram PRIVATE
-        src/platform/wii_platform.c
-        src/openssl_compat.c
-    )
+    target_sources(wolfram PRIVATE src/platform/wii_platform.c src/openssl_compat.c)
     target_compile_definitions(wolfram PUBLIC WOLFRAM_WII)
-    # Make #include <openssl/sha.h> resolve to our shim headers
     target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    # Wii: skip server, examples, tests (no curl/OpenSSL/pthreads)
+    message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON)")
+elseif(WOLFRAM_BUILD_WIIU)
+    target_sources(wolfram PRIVATE src/platform/wiiu_platform.c src/openssl_compat.c)
+    target_compile_definitions(wolfram PUBLIC WOLFRAM_WIIU)
+    target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    message(STATUS "Building for Nintendo Wii U (WOLFRAM_BUILD_WIIU=ON)")
+elseif(WOLFRAM_BUILD_3DS)
+    target_sources(wolfram PRIVATE src/platform/3ds_platform.c src/openssl_compat.c)
+    target_compile_definitions(wolfram PUBLIC WOLFRAM_3DS)
+    target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    message(STATUS "Building for Nintendo 3DS (WOLFRAM_BUILD_3DS=ON)")
+elseif(WOLFRAM_BUILD_WINDOWS)
+    target_sources(wolfram PRIVATE src/platform/windows_platform.c)
+    target_compile_definitions(wolfram PUBLIC WOLFRAM_WINDOWS)
+    target_link_libraries(wolfram PUBLIC ws2_32 bcrypt)
+    message(STATUS "Building for Windows (WOLFRAM_BUILD_WINDOWS=ON)")
+else()
+    target_sources(wolfram PRIVATE src/platform/posix_platform.c)
+endif()
+
+if(WOLFRAM_BUILD_EMBEDDED)
+    # Embedded targets: skip server, examples, tests (no curl/OpenSSL/pthreads)
     set(WOLFRAM_BUILD_SERVER OFF CACHE BOOL "" FORCE)
     set(WOLFRAM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(WOLFRAM_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON)")
-else()
-    target_sources(wolfram PRIVATE
-        src/platform/posix_platform.c
-    )
 endif()
 
 # XRPC server module (optional, requires libmicrohttpd)
@@ -295,7 +326,7 @@ target_include_directories(wolfram
         ${SECP256K1_INCLUDE_DIRS}
 )
 
-if(NOT WOLFRAM_BUILD_WII)
+if(NOT WOLFRAM_BUILD_EMBEDDED)
     target_link_libraries(wolfram PUBLIC CURL::libcurl cjson OpenSSL::Crypto Threads::Threads)
 else()
     target_link_libraries(wolfram PUBLIC cjson)
@@ -467,7 +498,7 @@ endif()
 # Always built (not gated on WOLFRAM_BUILD_EXAMPLES) so the CLI is part of the
 # default build. The target is named wolfram_cli because the wolfram library
 # already owns the `wolfram` target name; OUTPUT_NAME keeps the binary `wolfram`.
-if(NOT WOLFRAM_BUILD_WII)
+if(NOT WOLFRAM_BUILD_EMBEDDED)
     add_executable(wolfram_cli src/cli/main.c)
     target_link_libraries(wolfram_cli PRIVATE wolfram)
     target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
