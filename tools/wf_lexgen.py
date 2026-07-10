@@ -59,6 +59,7 @@ class Generator:
         self.docs = sorted(docs, key=lambda doc: doc["id"])
         self.guard = guard
         self._objects: dict[str, tuple[str, dict[str, Any]]] | None = None
+        self._unions: dict[str, tuple[str, dict[str, Any]]] | None = None
 
     def resolve_ref(self, nsid: str, ref: str) -> tuple[str, dict[str, Any]] | None:
         document_id, fragment = (nsid, ref[1:]) if ref.startswith("#") else (
@@ -109,14 +110,140 @@ class Generator:
         if kind == "object":
             name = f"{owner}_{snake(field)}"
             return name, False
-        # Unions and unknown values retain their encoded JSON representation.
-        if kind in ("union", "unknown"):
+        # Closed/open unions decode into a generated typed struct keyed by the
+        # owner+field name (see collect_unions / emit_union_struct). The struct
+        # retains the raw JSON for re-encoding and open-union fallback.
+        if kind == "union":
+            return self.union_name(owner, field), False
+        # Unknown (free-form) values remain opaque JSON.
+        if kind == "unknown":
             return "wf_lex_json", False
         if kind == "array":
             item_type, _ = self.c_type(nsid, owner, field + "_item",
                                        schema.get("items", {"type": "unknown"}))
             return f"WF_LEX_ARRAY({item_type})", False
         return "wf_lex_json", False
+
+    def union_name(self, owner: str, field: str) -> str:
+        return f"{owner}_{snake(field)}_union"
+
+    def collect_unions(self) -> dict[str, tuple[str, dict[str, Any]]]:
+        """Register every union field (direct, array element, or reached
+        through a ref to an array/union) as a typed struct, keyed by the same
+        owner+field name the field's C type uses."""
+        if self._unions is not None:
+            return self._unions
+        self._unions = {}
+        catalog = self.object_catalog()
+
+        def walk(nsid: str, owner: str, schema: dict[str, Any], path: str) -> None:
+            kind = schema.get("type")
+            if kind == "union":
+                self._unions[self.union_name(owner, path)] = (nsid, schema)
+            elif kind == "array":
+                walk(nsid, owner, schema.get("items", {"type": "unknown"}),
+                     path + "_item")
+            elif kind == "object":
+                for wire_name, prop in schema.get("properties", {}).items():
+                    walk(nsid, owner, prop, self.field_name(schema, wire_name))
+            elif kind == "ref":
+                resolved = self.resolve_ref(nsid, schema["ref"])
+                if not resolved:
+                    return
+                target_nsid, target = resolved
+                if target.get("type") == "object":
+                    # Borrowed pointer; its nested unions are walked via catalog.
+                    return
+                walked = {"type": "string"} if target.get("type") == "token" else target
+                walk(target_nsid, owner, walked, path)
+
+        for name, (nsid, schema) in catalog.items():
+            walk(nsid, name, schema, "")
+        return self._unions
+
+    def union_members(self, nsid: str,
+                      schema: dict[str, Any]) -> list[tuple[int, str, str, str]]:
+        """Return (index, full_$type, c_type, member_name) for each resolvable
+        object member of the union. Non-object refs (external/knownValues) are
+        skipped; the raw JSON fallback covers them."""
+        members: list[tuple[int, str, str, str]] = []
+        seen: set[str] = set()
+        for i, ref in enumerate(schema.get("refs", [])):
+            resolved = self.resolve_ref(nsid, ref)
+            if not resolved or resolved[1].get("type") != "object":
+                continue
+            full = ref if not ref.startswith("#") else nsid + ref
+            frag = ref.split("#", 1)[1] if "#" in ref else ref.rsplit(".", 1)[-1]
+            mname = snake(frag)
+            if mname in seen:
+                mname = f"{mname}_{i}"
+            seen.add(mname)
+            members.append((i, full, ref_type(nsid, ref), mname))
+        return members
+
+    def emit_union_struct(self, name: str, nsid: str,
+                          schema: dict[str, Any]) -> list[str]:
+        lines = [f"typedef struct {name} {{",
+                 "    int kind;",
+                 "    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding",
+                 "     * and open-union/unknown $type fallback. */",
+                 "    const char *data;",
+                 "    size_t length;",
+                 "    union {"]
+        members = self.union_members(nsid, schema)
+        if members:
+            for _idx, _full, ctype, mname in members:
+                lines.append(f"        const {ctype} *{mname};")
+        else:
+            lines.append("        unsigned char _unused;")
+        lines += ["    } value;", f"}} {name};", ""]
+        return lines
+
+    def emit_union_decoder(self, name: str, nsid: str,
+                           schema: dict[str, Any]) -> list[str]:
+        lines = [
+            f"static wf_status wf_lex_decode_{name}(cJSON *node, {name} *value) {{",
+            "    if (!node || !value) return WF_ERR_INVALID_ARG;",
+            "    memset(value, 0, sizeof(*value));",
+            "    value->kind = -1;",
+            "    char *raw = cJSON_PrintUnformatted(node);",
+            "    if (!raw) return WF_ERR_ALLOC;",
+            "    value->data = raw; value->length = strlen(raw);",
+            '    cJSON *type = cJSON_GetObjectItemCaseSensitive(node, "$type");',
+            "    const char *t = (type && cJSON_IsString(type)) ? type->valuestring : NULL;",
+            "    if (t) {",
+        ]
+        for idx, full, ctype, mname in self.union_members(nsid, schema):
+            lines.append(f'        if (strcmp(t, "{full}") == 0) {{')
+            lines.append(f"            value->kind = {idx};")
+            lines.append(f"            {ctype} *m = calloc(1, sizeof(*m));")
+            lines.append(f"            if (!m) {{ wf_lex_clear_{name}(value); return WF_ERR_ALLOC; }}")
+            lines.append(f"            wf_status status = wf_lex_decode_{ctype}(node, m);")
+            lines.append(f"            if (status != WF_OK) {{")
+            lines.append(f"                free(m); value->kind = -1;")
+            lines.append(f"            }} else {{")
+            lines.append(f"                value->value.{mname} = m;")
+            lines.append(f"            }}")
+            lines.append("        }")
+        lines += ["    }", "    return WF_OK;", "}", ""]
+        return lines
+
+    def emit_union_clear(self, name: str, nsid: str,
+                         schema: dict[str, Any]) -> list[str]:
+        lines = [f"static void wf_lex_clear_{name}({name} *value) {{",
+                 "    if (!value) return;",
+                 "    free((void *)value->data);",
+                 "    switch (value->kind) {"]
+        for idx, _full, ctype, mname in self.union_members(nsid, schema):
+            lines.append(f"    case {idx}:")
+            lines.append(f"        if (value->value.{mname}) {{")
+            lines.append(f"            wf_lex_clear_{ctype}(({ctype} *)value->value.{mname});")
+            lines.append(f"            free((void *)value->value.{mname});")
+            lines.append("        }")
+            lines.append("        break;")
+        lines += ["    default: break;", "    }",
+                   "    memset(value, 0, sizeof(*value));", "}", ""]
+        return lines
 
     def json_input_type(self, nsid: str, base: str,
                         schema: dict[str, Any]) -> str | None:
@@ -312,11 +439,18 @@ class Generator:
 
         # Forward declarations allow refs to definitions emitted later.
         objects = self.object_catalog()
-        declarations = set(objects) | self.referenced_types()
+        unions = self.collect_unions()
+        declarations = set(objects) | self.referenced_types() | set(unions)
         for name in sorted(declarations):
             out.append(f"typedef struct {name} {name};")
         if declarations:
             out.append("")
+        # Union structs only contain pointers to object members plus a raw JSON
+        # view, so they never need a complete object definition; emit them
+        # first so object structs that embed a union value see a complete type.
+        for name in sorted(unions):
+            nsid, schema = unions[name]
+            out.extend(self.emit_union_struct(name, nsid, schema))
         for name, (nsid, schema) in objects.items():
             out.extend(self.emit_object(nsid, name, schema))
             out.append("")
@@ -386,7 +520,13 @@ class Generator:
             expr = f"cJSON_CreateNumber((double){target})"
         elif kind == "boolean":
             expr = f"cJSON_CreateBool({target})"
-        elif kind in ("unknown", "union"):
+        elif kind == "union":
+            # Re-emit the retained raw JSON (see emit_union_struct).
+            lines.append(f"{indent}if (!{target}.data) goto invalid;")
+            lines.append(f'{indent}{result} = cJSON_ParseWithLength({target}.data, {target}.length);')
+            lines.append(f"{indent}if (!{result}) goto invalid;")
+            expr = None
+        elif kind == "unknown":
             lines.append(f"{indent}if (!{target}.data) goto invalid;")
             lines.append(f'{indent}{result} = cJSON_ParseWithLength({target}.data, {target}.length);')
             lines.append(f"{indent}if (!{result}) goto invalid;")
@@ -484,8 +624,8 @@ class Generator:
         return lines
 
     def emit_decode_value(self, lines: list[str], nsid: str, owner: str,
-                          schema: dict[str, Any], target: str,
-                          source: str, indent: str) -> None:
+                           schema: dict[str, Any], target: str,
+                           source: str, indent: str, field: str = "") -> None:
         kind = schema.get("type")
         if kind == "string":
             lines.append(f"{indent}if (!cJSON_IsString({source})) {{ status = WF_ERR_INVALID_ARG; goto cleanup; }}")
@@ -496,7 +636,11 @@ class Generator:
         elif kind == "boolean":
             lines.append(f"{indent}if (!cJSON_IsBool({source})) {{ status = WF_ERR_INVALID_ARG; goto cleanup; }}")
             lines.append(f"{indent}{target} = cJSON_IsTrue({source});")
-        elif kind in ("unknown", "union"):
+        elif kind == "union":
+            name = self.union_name(owner, field)
+            lines.append(f"{indent}status = wf_lex_decode_{name}({source}, &({target}));")
+            lines.append(f"{indent}if (status != WF_OK) goto cleanup;")
+        elif kind == "unknown":
             lines.append(f"{indent}status = wf_lex_json_copy({source}, &{target});")
             lines.append(f"{indent}if (status != WF_OK) goto cleanup;")
         elif kind == "bytes":
@@ -523,7 +667,7 @@ class Generator:
                 if target_schema.get("type") == "token":
                     target_schema = {"type": "string"}
                 self.emit_decode_value(lines, target_nsid, owner, target_schema,
-                                       target, source, indent)
+                                       target, source, indent, field)
             elif ref not in self.object_catalog():
                 raise ValueError(f"cannot decode unresolved ref {schema['ref']} in {owner}")
             else:
@@ -534,7 +678,8 @@ class Generator:
         elif kind == "array":
             item_schema = schema.get("items", {"type": "unknown"})
             array_field = target.rsplit("->", 1)[-1].split(".")[-1]
-            item_type, _ = self.c_type(nsid, owner, array_field + "_item", item_schema)
+            item_field = array_field + "_item"
+            item_type, _ = self.c_type(nsid, owner, item_field, item_schema)
             lines.append(f"{indent}if (!cJSON_IsArray({source})) {{ status = WF_ERR_INVALID_ARG; goto cleanup; }}")
             lines.append(f"{indent}{target}.count = (size_t)cJSON_GetArraySize({source});")
             lines.append(f"{indent}if ({target}.count) {{")
@@ -547,19 +692,22 @@ class Generator:
                 lines.append(f"{indent}        status = wf_lex_decode_{item_type}(element, &items[i]);")
                 lines.append(f"{indent}        if (status != WF_OK) goto cleanup;")
             else:
-                self.emit_decode_value(lines, nsid, owner, item_schema, "items[i]", "element", indent + "        ")
+                self.emit_decode_value(lines, nsid, owner, item_schema, "items[i]",
+                                       "element", indent + "        ", item_field)
             lines.append(f"{indent}    }}")
             lines.append(f"{indent}}}")
         else:
             raise ValueError(f"JSON decoding is not supported for {owner} ({kind})")
 
     def emit_clear_value(self, lines: list[str], nsid: str, owner: str,
-                         schema: dict[str, Any], target: str,
-                         indent: str) -> None:
+                          schema: dict[str, Any], target: str,
+                          indent: str, field: str = "") -> None:
         kind = schema.get("type")
         if kind == "string":
             lines.append(f"{indent}free((void *){target});")
-        elif kind in ("unknown", "union"):
+        elif kind == "union":
+            lines.append(f"{indent}wf_lex_clear_{self.union_name(owner, field)}(&({target}));")
+        elif kind == "unknown":
             lines.append(f"{indent}free((void *){target}.data);")
         elif kind == "bytes":
             lines.append(f"{indent}free((void *){target}.data);")
@@ -582,18 +730,20 @@ class Generator:
                 if target_schema.get("type") == "token":
                     target_schema = {"type": "string"}
                 self.emit_clear_value(lines, target_nsid, owner, target_schema,
-                                      target, indent)
+                                       target, indent, field)
             else:
                 lines.append(f"{indent}if ({target}) {{ wf_lex_clear_{ref}(({ref} *){target}); free((void *){target}); }}")
         elif kind == "array":
             item = schema.get("items", {"type": "unknown"})
             array_field = target.rsplit("->", 1)[-1].split(".")[-1]
-            item_type, _ = self.c_type(nsid, owner, array_field + "_item", item)
+            item_field = array_field + "_item"
+            item_type, _ = self.c_type(nsid, owner, item_field, item)
             lines.append(f"{indent}for (size_t i = 0; i < {target}.count; ++i) {{")
             if item.get("type") == "object":
                 lines.append(f"{indent}    wf_lex_clear_{item_type}(({item_type} *)&{target}.items[i]);")
             else:
-                self.emit_clear_value(lines, nsid, owner, item, f"{target}.items[i]", indent + "    ")
+                self.emit_clear_value(lines, nsid, owner, item, f"{target}.items[i]",
+                                      indent + "    ", item_field)
             lines.append(f"{indent}}}")
             lines.append(f"{indent}free((void *){target}.items);")
 
@@ -603,7 +753,8 @@ class Generator:
                  "    if (!value) return;"]
         for wire_name, prop in schema.get("properties", {}).items():
             self.emit_clear_value(lines, nsid, name, prop,
-                                  f"value->{self.field_name(schema, wire_name)}", "    ")
+                                  f"value->{self.field_name(schema, wire_name)}", "    ",
+                                  self.field_name(schema, wire_name))
         lines += ["    memset(value, 0, sizeof(*value));", "}", "",
                   f"static wf_status wf_lex_decode_{name}(cJSON *node, {name} *value) {{",
                   "    wf_status status = WF_OK;",
@@ -619,7 +770,7 @@ class Generator:
                 lines.append("        if (member) {")
                 lines.append(f"            value->has_{field} = true;")
             indent = "            " if wire_name not in required else "        "
-            self.emit_decode_value(lines, nsid, name, prop, f"value->{field}", "member", indent)
+            self.emit_decode_value(lines, nsid, name, prop, f"value->{field}", "member", indent, field)
             if wire_name not in required:
                 lines.append("        }")
             lines.append("    }")
@@ -735,18 +886,27 @@ class Generator:
         ]
         catalog = self.object_catalog()
         encoders = self.encoder_objects()
+        unions = self.collect_unions()
         for name in encoders:
             out.append(f"static WF_LEX_UNUSED wf_status wf_lex_encode_{name}(const {name} *value, cJSON **out);")
         for name in sorted(catalog):
             out.append(f"static WF_LEX_UNUSED void wf_lex_clear_{name}({name} *value);")
             out.append(f"static WF_LEX_UNUSED wf_status wf_lex_decode_{name}(cJSON *node, {name} *value);")
-        if catalog:
+        for name in sorted(unions):
+            nsid, schema = unions[name]
+            out.append(f"static WF_LEX_UNUSED void wf_lex_clear_{name}({name} *value);")
+            out.append(f"static WF_LEX_UNUSED wf_status wf_lex_decode_{name}(cJSON *node, {name} *value);")
+        if catalog or unions:
             out.append("")
         for name, (object_nsid, object_schema) in encoders.items():
             out.extend(self.emit_object_encoder(object_nsid, name, object_schema))
         for name in sorted(catalog):
             object_nsid, object_schema = catalog[name]
             out.extend(self.emit_object_decoder(object_nsid, name, object_schema))
+        for name in sorted(unions):
+            nsid, schema = unions[name]
+            out.extend(self.emit_union_decoder(name, nsid, schema))
+            out.extend(self.emit_union_clear(name, nsid, schema))
         for doc in self.docs:
             nsid = doc["id"]
             for def_name, definition in doc.get("defs", {}).items():
