@@ -103,6 +103,10 @@ wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
     if (!record) {
         return WF_ERR_PARSE;
     }
+    if (!cJSON_IsObject(record)) {
+        cJSON_Delete(record);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_status status = wf_agent_create_record_internal(agent, collection, record, out);
     if (status != WF_OK) {
         cJSON_Delete(record);
