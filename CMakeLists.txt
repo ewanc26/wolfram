@@ -821,6 +821,8 @@ if(WOLFRAM_BUILD_TESTS)
     add_executable(test_syntax_interop test/test_syntax_interop.c)
     target_link_libraries(test_syntax_interop PRIVATE wolfram)
     target_include_directories(test_syntax_interop PRIVATE test)
+    target_compile_definitions(test_syntax_interop
+                               PRIVATE SYNTAX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/syntax")
     add_test(NAME syntax_interop COMMAND test_syntax_interop)
 
     add_executable(test_richtext test/test_richtext.c)
