@@ -267,6 +267,9 @@ wf_status wf_agent_get_bookmarks_typed(wf_agent *agent, int limit,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_lex_app_bsky_bookmark_get_bookmarks_main_params params = {0};
     if (limit > 0) {

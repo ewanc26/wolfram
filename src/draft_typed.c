@@ -605,6 +605,9 @@ wf_status wf_agent_get_drafts_typed(wf_agent *agent, int limit,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     memset(out, 0, sizeof(*out));
 
     wf_lex_app_bsky_draft_get_drafts_main_params params = {0};

@@ -287,7 +287,13 @@ void wf_contact_sync_status_free(wf_contact_sync_status *out) {
 wf_status wf_agent_get_contact_matches_typed(wf_agent *agent, int limit,
                                              const char *cursor,
                                              wf_contact_match_list *out) {
-    if (!agent || !agent->client || !out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
 

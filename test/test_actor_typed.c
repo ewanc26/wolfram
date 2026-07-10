@@ -239,6 +239,13 @@ int main(void) {
         WF_CHECK(wf_agent_get_reposted_by_typed(NULL, "at://x", 10, NULL,
                                                 &out1) == WF_ERR_INVALID_ARG);
 
+        /* limit must not exceed upstream maximum (100) */
+        WF_CHECK(wf_agent_search_actors_typed((wf_agent *)1, "q", 101, NULL,
+                                              &out1) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_actors_typeahead_typed((wf_agent *)1, "q", 101,
+                                                       &out2) ==
+                 WF_ERR_INVALID_ARG);
+
         /* reset/freed lists free safely */
         wf_agent_actor_list_free(&out1);
         wf_agent_profile_view_basic_list_free(&out2);
