@@ -1152,7 +1152,7 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     enum MHD_Result ret;
     struct MHD_Response *mhd_resp;
     wf_xrpc_response resp = WF_XRPC_RESPONSE_INIT;
-    wf_xrpc_request req;
+    wf_xrpc_request req = {0};
     wf_route_kind kind;
     wf_route *route;
     char *nsid = NULL;
