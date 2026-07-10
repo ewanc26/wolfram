@@ -154,7 +154,7 @@ wf_status wf_agent_get_timeline_paged(wf_agent *agent, int limit, int max_pages,
         char *next_cursor = feed.cursor;
         feed.cursor = NULL; /* transfer ownership out of the list */
 
-        status = on_page(agent, cursor, &feed, ud);
+        status = on_page(agent, &feed, cursor, ud);
         wf_agent_feed_list_free(&feed);
 
         free(cursor);
@@ -214,7 +214,7 @@ wf_status wf_agent_get_author_feed_paged(wf_agent *agent, const char *actor,
         char *next_cursor = feed.cursor;
         feed.cursor = NULL;
 
-        status = on_page(agent, cursor, &feed, ud);
+        status = on_page(agent, &feed, cursor, ud);
         wf_agent_feed_list_free(&feed);
 
         free(cursor);
@@ -273,7 +273,7 @@ wf_status wf_agent_list_notifications_paged(wf_agent *agent, int limit,
         char *next_cursor = list.cursor;
         list.cursor = NULL;
 
-        status = on_page(agent, cursor, &list, ud);
+        status = on_page(agent, &list, cursor, ud);
         wf_agent_notification_list_free(&list);
 
         free(cursor);
@@ -338,7 +338,7 @@ wf_status wf_agent_list_records_paged(wf_agent *agent, const char *collection,
             return status;
         }
 
-        status = on_page(agent, cursor, &resp, ud);
+        status = on_page(agent, &resp, cursor, ud);
         wf_response_free(&resp);
 
         free(cursor);

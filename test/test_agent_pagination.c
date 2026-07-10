@@ -210,6 +210,44 @@ static void test_page_invalid_args(void) {
 
 /* --- typed paged wrappers: link + contract ----------------------------- */
 
+/* Keep concrete callbacks for every public typed signature. Besides serving
+ * as API examples, these make argument-order regressions visible to builds
+ * that promote incompatible pointer diagnostics to errors. */
+static wf_status timeline_page_cb(wf_agent *agent,
+                                  const wf_agent_feed_list *feed,
+                                  const char *cursor, void *ud) {
+    (void)agent;
+    (void)feed;
+    (void)cursor;
+    (void)ud;
+    return WF_OK;
+}
+
+static wf_status author_feed_page_cb(wf_agent *agent,
+                                     const wf_agent_feed_list *feed,
+                                     const char *cursor, void *ud) {
+    return timeline_page_cb(agent, feed, cursor, ud);
+}
+
+static wf_status notifications_page_cb(
+    wf_agent *agent, const wf_agent_notification_list *list,
+    const char *cursor, void *ud) {
+    (void)agent;
+    (void)list;
+    (void)cursor;
+    (void)ud;
+    return WF_OK;
+}
+
+static wf_status records_page_cb(wf_agent *agent, const wf_response *resp,
+                                 const char *cursor, void *ud) {
+    (void)agent;
+    (void)resp;
+    (void)cursor;
+    (void)ud;
+    return WF_OK;
+}
+
 static void test_typed_invalid_args(void) {
     /* NULL agent (or missing required arg) must yield WF_ERR_INVALID_ARG,
      * which also proves the symbols link against the library. */
@@ -224,10 +262,23 @@ static void test_typed_invalid_args(void) {
     /* Missing required string arg. */
     wf_agent *agent = wf_agent_new("https://example.invalid");
     assert(agent);
-    assert(wf_agent_get_author_feed_paged(agent, NULL, 10, 0, NULL, NULL, NULL)
+    assert(wf_agent_get_timeline_paged(agent, 10, 0, NULL, NULL, NULL)
            == WF_ERR_INVALID_ARG);
-    assert(wf_agent_list_records_paged(agent, NULL, 10, 0, NULL, NULL, NULL)
+    assert(wf_agent_list_notifications_paged(agent, 10, 0, NULL, NULL, NULL)
            == WF_ERR_INVALID_ARG);
+    assert(wf_agent_get_author_feed_paged(agent, NULL, 10, 0,
+                                          author_feed_page_cb, NULL, NULL)
+           == WF_ERR_INVALID_ARG);
+    assert(wf_agent_list_records_paged(agent, NULL, 10, 0,
+                                       records_page_cb, NULL, NULL)
+           == WF_ERR_INVALID_ARG);
+
+    /* Force each callback type through the compiler's compatibility checks. */
+    wf_agent_timeline_page_cb timeline_cb = timeline_page_cb;
+    wf_agent_author_feed_page_cb author_cb = author_feed_page_cb;
+    wf_agent_notifications_page_cb notification_cb = notifications_page_cb;
+    wf_agent_records_page_cb record_cb = records_page_cb;
+    assert(timeline_cb && author_cb && notification_cb && record_cb);
     wf_agent_free(agent);
 }
 
