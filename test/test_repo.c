@@ -492,9 +492,9 @@ int main(void) {
         memset(&parsed, 0, sizeof(parsed));
         WF_CHECK(wf_car_parse(car, cp, &parsed) == WF_OK);
         WF_CHECK(parsed.root_count == 1);
-        WF_CHECK(memcmp(&parsed.roots[0], &block_cid, sizeof(wf_cid)) == 0);
+        WF_CHECK(cid_equal(&parsed.roots[0], &block_cid));
         WF_CHECK(parsed.block_count == 1);
-        WF_CHECK(memcmp(&parsed.blocks[0].cid, &block_cid, sizeof(wf_cid)) == 0);
+        WF_CHECK(cid_equal(&parsed.blocks[0].cid, &block_cid));
         WF_CHECK(parsed.blocks[0].data_len == sizeof(block_data));
         WF_CHECK(memcmp(parsed.blocks[0].data, block_data,
                         sizeof(block_data)) == 0);
