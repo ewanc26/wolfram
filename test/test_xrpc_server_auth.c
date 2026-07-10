@@ -166,15 +166,7 @@ static int run_test(void) {
         }
     }
 
-    char hdr[1024];
-    #define SET_AUTH(tok)                                                    \
-        do {                                                                 \
-            if ((tok))                                                       \
-                snprintf(hdr, sizeof(hdr), "Bearer %s", (tok));              \
-            else                                                             \
-                hdr[0] = '\0';                                               \
-            wf_xrpc_client_set_auth(client, hdr[0] ? hdr : NULL);            \
-        } while (0)
+    #define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
 
     /* ---- 1. Protected route WITH a valid token → 200, subject propagated ---- */
     {

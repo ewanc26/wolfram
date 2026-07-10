@@ -189,7 +189,7 @@ static int run_test(void) {
 
     /* Test 2: Auth header echo */
     {
-        wf_xrpc_client_set_auth(client, "Bearer test-token");
+        wf_xrpc_client_set_auth(client, "test-token");
         wf_response_free(&res);
         wf_status s = wf_xrpc_query(client, "io.example.auth", NULL, &res);
         wf_xrpc_client_set_auth(client, NULL);
