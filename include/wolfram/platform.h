@@ -6,7 +6,7 @@
  * (Linux/macOS) and embedded targets (Nintendo Wii via devkitPPC/libogc).
  *
  * On desktop, these map to POSIX APIs. On Wii, they map to libogc primitives.
- * The public API is identical across platforms.
+ * On Windows, they map to Win32 APIs. The public API is identical across platforms.
  */
 
 #ifndef WOLFRAM_PLATFORM_H
@@ -23,8 +23,21 @@ extern "C" {
 
 /* ── Platform detection ──────────────────────────────────────────────── */
 
-#if defined(__WII__)
+/*
+ * Platform macros are set via target_compile_definitions in CMakeLists.txt:
+ *   WOLFRAM_WII, WOLFRAM_WIIU, WOLFRAM_3DS, WOLFRAM_WINDOWS
+ *
+ * Compiler-provided macros (__APPLE__, __linux__) are used as fallbacks.
+ */
+
+#if defined(WOLFRAM_WII)
   #define WOLFRAM_PLATFORM_WII 1
+#elif defined(WOLFRAM_WIIU)
+  #define WOLFRAM_PLATFORM_WIIU 1
+#elif defined(WOLFRAM_3DS)
+  #define WOLFRAM_PLATFORM_3DS 1
+#elif defined(WOLFRAM_WINDOWS) || defined(_WIN32)
+  #define WOLFRAM_PLATFORM_WINDOWS 1
 #elif defined(__APPLE__)
   #define WOLFRAM_PLATFORM_MACOS 1
   #define WOLFRAM_PLATFORM_POSIX 1
