@@ -38,12 +38,26 @@ typedef struct wf_xrpc_server wf_xrpc_server;
 /* ------------------------------------------------------------------ */
 /* Request context — valid only during the handler callback           */
 /* ------------------------------------------------------------------ */
+/** Kind of principal an auth middleware resolved for a request. */
+typedef enum {
+    WF_XRPC_PRINCIPAL_NONE = 0,
+    WF_XRPC_PRINCIPAL_SERVICE,  /* app.bsky service JWT (iss = service DID) */
+    WF_XRPC_PRINCIPAL_USER,     /* OAuth/OIDC access token (sub = user DID) */
+} wf_xrpc_principal_kind;
+
 typedef struct wf_xrpc_request {
     const char *nsid;          /* Parsed XRPC NSID from URL path */
     const char *method;        /* "GET" or "POST" */
     const char *auth_header;   /* Raw Authorization header (may be NULL) */
     cJSON      *params;        /* Query params (GET) or body JSON (POST); may be NULL */
     void       *handler_ctx;   /* User context from route registration */
+    /* The following two fields are populated by an auth middleware (e.g.
+     * wf_xrpc_server_set_auth_middleware) and are valid only for the duration
+     * of the handler callback. `authed_subject` is server-owned and freed after
+     * the handler returns; NULL when no principal was authenticated. */
+    char       *authed_subject;       /* resolved DID (iss for service tokens,
+                                         sub for user tokens) */
+    wf_xrpc_principal_kind authed_principal_kind; /* kind of `authed_subject` */
 } wf_xrpc_request;
 
 /* ------------------------------------------------------------------ */
@@ -155,8 +169,11 @@ typedef wf_status (*wf_xrpc_ws_handler)(void *ctx,
 /* ------------------------------------------------------------------ */
 
 /** If set, called before each handler. Return WF_OK to proceed;
- *  anything else sends 401. */
-typedef wf_status (*wf_xrpc_auth_cb)(const wf_xrpc_request *req, void *ctx);
+ *  anything else sends 401. The callback may populate `req->authed_subject`
+ *  (a heap string it owns) and `req->authed_principal_kind` so the handler can
+ *  read the authenticated principal. The server takes ownership of
+ *  `authed_subject` and frees it after the handler returns. */
+typedef wf_status (*wf_xrpc_auth_cb)(wf_xrpc_request *req, void *ctx);
 
 /* ------------------------------------------------------------------ */
 /* Server lifecycle                                                    */
@@ -274,7 +291,19 @@ wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code);
 /* ------------------------------------------------------------------ */
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
-                                       wf_xrpc_auth_cb cb, void *ctx);
+                                        wf_xrpc_auth_cb cb, void *ctx);
+
+/**
+ * Like wf_xrpc_server_set_auth_callback, but also records an owned middleware
+ * context (`mw_ctx`) that the server frees via `mw_free` in wf_xrpc_server_free.
+ * Installing a different auth callback (via wf_xrpc_server_set_auth_callback)
+ * releases any previously recorded middleware context. Used by
+ * wf_xrpc_server_set_auth_middleware; not generally needed by callers.
+ */
+void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
+                                            wf_xrpc_auth_cb cb, void *ctx,
+                                            void *mw_ctx,
+                                            void (*mw_free)(void *));
 
 /* ------------------------------------------------------------------ */
 /* Rate limiter (optional, per-server-mount or per-route)              */

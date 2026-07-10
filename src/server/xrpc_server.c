@@ -235,6 +235,11 @@ struct wf_xrpc_server {
     wf_route            *routes;
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
+    /* Owned context installed by wf_xrpc_server_set_auth_middleware; the
+     * server frees it (via auth_mw_free) in wf_xrpc_server_free. Cleared when
+     * an external auth callback replaces the middleware. */
+    void                *auth_mw_ctx;
+    void               (*auth_mw_free)(void *);
     wf_rate_limiter     *rate_limiter;        /* global IP-based limiter */
     wf_rate_limiter     *rate_limiter_owned;  /* non-NULL => server frees it */
     wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
@@ -1275,7 +1280,9 @@ process:
 
     /* Auth callback */
     auth_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
-                                               "Authorization");
+                                                "Authorization");
+    char *authed_subject = NULL;
+    wf_xrpc_principal_kind authed_kind = WF_XRPC_PRINCIPAL_NONE;
     if (server->auth_cb) {
         wf_xrpc_request auth_req;
         memset(&auth_req, 0, sizeof(auth_req));
@@ -1289,6 +1296,11 @@ process:
                                         "Authentication required");
             goto send;
         }
+        /* The auth callback may have authenticated a principal; capture its
+         * subject (server takes ownership from here). */
+        authed_subject = auth_req.authed_subject;
+        auth_req.authed_subject = NULL;
+        authed_kind = auth_req.authed_principal_kind;
     }
 
     /* Build request and call handler */
@@ -1298,6 +1310,10 @@ process:
     req.auth_header = auth_header;
     req.params = params;
     req.handler_ctx = route->ctx;
+    /* Carry the authenticated principal (if any) established above.
+     * `authed_subject` is server-owned and freed in cleanup. */
+    req.authed_subject = authed_subject;
+    req.authed_principal_kind = authed_kind;
 
     if (route->is_ws) {
         enum MHD_Result wsr = wf_server_ws_handshake(server, route, conn, nsid);
@@ -1415,6 +1431,7 @@ cleanup:
         cJSON_Delete(params);
     }
     free(resp.body); /* safe: NULL if already transferred */
+    free(req.authed_subject); /* server-owned; NULL when no principal */
     return ret;
 }
 
@@ -1584,6 +1601,9 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     if (server->rate_limiter_owned) {
         wf_rate_limiter_free(server->rate_limiter_owned);
     }
+    if (server->auth_mw_ctx && server->auth_mw_free) {
+        server->auth_mw_free(server->auth_mw_ctx);
+    }
     free(server);
 }
 
@@ -1688,12 +1708,36 @@ void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
 }
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
-                                       wf_xrpc_auth_cb cb, void *ctx) {
+                                        wf_xrpc_auth_cb cb, void *ctx) {
     if (!server) {
         return;
     }
+    /* Installing an external auth callback supersedes any middleware that was
+     * previously attached; release its owned context. */
+    if (server->auth_mw_ctx && server->auth_mw_free) {
+        server->auth_mw_free(server->auth_mw_ctx);
+    }
+    server->auth_mw_ctx = NULL;
+    server->auth_mw_free = NULL;
     server->auth_cb = cb;
     server->auth_ctx = ctx;
+}
+
+void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
+                                            wf_xrpc_auth_cb cb, void *ctx,
+                                            void *mw_ctx,
+                                            void (*mw_free)(void *)) {
+    if (!server) {
+        return;
+    }
+    /* Release any previously attached middleware context first. */
+    if (server->auth_mw_ctx && server->auth_mw_free) {
+        server->auth_mw_free(server->auth_mw_ctx);
+    }
+    server->auth_cb = cb;
+    server->auth_ctx = ctx;
+    server->auth_mw_ctx = mw_ctx;
+    server->auth_mw_free = mw_free;
 }
 
 static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
