@@ -494,10 +494,8 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
             cJSON *key_type = cJSON_GetObjectItemCaseSensitive(item, "type");
             cJSON *public_key = cJSON_GetObjectItemCaseSensitive(item, "publicKeyMultibase");
             const char *id_value = cJSON_IsString(key_id) ? key_id->valuestring : NULL;
-            const char *fragment = id_value ? strrchr(id_value, '#') : NULL;
             if (id_value &&
-                ((strcmp(id_value, "#atproto") == 0) ||
-                 (fragment && strcmp(fragment, "#atproto") == 0)) &&
+                wf_did_item_id_matches(doc->did, id_value, "#atproto") &&
                 cJSON_IsString(key_type) && key_type->valuestring &&
                 cJSON_IsString(public_key) && public_key->valuestring) {
                 wf_status key_status = wf_didkey_from_verification_method(
