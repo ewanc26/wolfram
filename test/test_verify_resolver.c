@@ -260,11 +260,31 @@ static void test_agent_wrapper_consults_resolver(void)
     free(didkey);
 }
 
+static void test_builtin_resolver_rejects_non_atproto_key_id(void)
+{
+    wf_xrpc_client *client = wf_xrpc_client_new("https://example.invalid");
+    char *key = (char *)0x1;
+    WF_CHECK(client != NULL);
+    if (client) {
+        WF_CHECK(wf_verify_resolve_via_did(
+                     "did:plc:alice", "#unrelated", client, &key) ==
+                 WF_ERR_NOT_FOUND);
+        WF_CHECK(key == NULL);
+        key = (char *)0x1;
+        WF_CHECK(wf_verify_resolve_signing_key(
+                     "did:plc:alice", "did:plc:alice#unrelated", client,
+                     &key) == WF_ERR_NOT_FOUND);
+        WF_CHECK(key == NULL);
+        wf_xrpc_client_free(client);
+    }
+}
+
 int main(void)
 {
     test_resolved_happy_wrong_unavailable();
     test_resolved_tampered();
     test_no_resolver_honest_error();
     test_agent_wrapper_consults_resolver();
+    test_builtin_resolver_rejects_non_atproto_key_id();
     WF_TEST_SUMMARY();
 }
