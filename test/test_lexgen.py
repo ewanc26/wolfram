@@ -122,6 +122,7 @@ int main(void) {
                             "-o", str(executable)], check=True)
             env = os.environ.copy()
             env["DYLD_LIBRARY_PATH"] = str(cjson_lib)
+            env["LD_LIBRARY_PATH"] = str(cjson_lib)
             subprocess.run([str(executable)], check=True, env=env)
 
     def test_referenced_inputs_and_all_json_value_kinds_run(self):
@@ -189,6 +190,7 @@ int main(void) {
                             "-o", str(executable)], check=True)
             env = os.environ.copy()
             env["DYLD_LIBRARY_PATH"] = str(cjson_lib)
+            env["LD_LIBRARY_PATH"] = str(cjson_lib)
             subprocess.run([str(executable)], check=True, env=env)
 
     def test_generates_json_codec_and_transport_wrapper(self):
@@ -296,6 +298,7 @@ int main(void) {
             ], check=True)
             env = os.environ.copy()
             env["DYLD_LIBRARY_PATH"] = str(cjson_lib)
+            env["LD_LIBRARY_PATH"] = str(cjson_lib)
             subprocess.run([str(executable)], check=True, env=env)
 
     def test_generated_codec_and_wrapper_run(self):
@@ -372,6 +375,7 @@ int main(void) {
             ], check=True)
             env = os.environ.copy()
             env["DYLD_LIBRARY_PATH"] = str(cjson_lib)
+            env["LD_LIBRARY_PATH"] = str(cjson_lib)
             subprocess.run([str(executable)], check=True, env=env)
 
 
