@@ -240,7 +240,12 @@ static int run_server(void) {
             commit && cJSON_IsObject(commit));
     const char *uri_str = uri ? uri->valuestring : "";
     const char *sl = strrchr(uri_str, '/');
-    const char *rk = sl ? sl + 1 : "";
+    char rk_buf[32];
+    const char *rk = "";
+    if (sl && sl[1]) {
+        snprintf(rk_buf, sizeof(rk_buf), "%s", sl + 1);
+        rk = rk_buf;
+    }
     cJSON_Delete(root);
     wf_response_free(&res);
 
@@ -250,7 +255,7 @@ static int run_server(void) {
         {"rkey", (char *)rk},
     };
     s = wf_xrpc_query_params(client, "com.atproto.repo.getRecord", params,
-                             2, &res);
+                              2, &res);
     WF_CHECK(s == WF_OK && res.status == 200);
     root = cJSON_ParseWithLength(res.body, res.body_len);
     cJSON *val = root ? cJSON_GetObjectItemCaseSensitive(root, "value") : NULL;

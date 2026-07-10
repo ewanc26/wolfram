@@ -530,7 +530,7 @@ wf_status wf_repo_store_open(const char *path, const char *did,
         if (!did || !*did) { free_store(s); return WF_ERR_INVALID_ARG; }
 
         wf_signing_key key;
-        if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK) {
+        if (wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) != WF_OK) {
             free_store(s);
             return WF_ERR_INTERNAL;
         }
