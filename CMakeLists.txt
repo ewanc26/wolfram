@@ -755,6 +755,12 @@ if(WOLFRAM_BUILD_TESTS)
     endif()
     add_test(NAME crypto_interop COMMAND test_crypto_interop)
 
+    add_executable(test_car_interop test/test_car_interop.c)
+    target_link_libraries(test_car_interop PRIVATE wolfram)
+    target_include_directories(test_car_interop PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(test_car_interop PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
+    add_test(NAME car_interop COMMAND test_car_interop)
+
     add_executable(test_session test/test_session.c)
     target_link_libraries(test_session PRIVATE wolfram)
     target_include_directories(test_session PRIVATE test)
