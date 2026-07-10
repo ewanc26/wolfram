@@ -162,6 +162,8 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_bookmarks_typed((wf_agent *)dummy_agent, 0, NULL,
                                           NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_bookmarks_typed((wf_agent *)dummy_agent, 101, NULL,
+                                          &list) == WF_ERR_INVALID_ARG);
 
     /* ── _typed write wrappers: NULL / invalid args rejected ── */
     wf_bookmark_create_result tcr = {0};

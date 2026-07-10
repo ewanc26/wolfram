@@ -109,6 +109,8 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_drafts_typed(agent_dummy, 10, NULL, NULL) ==
                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_drafts_typed(agent_dummy, 101, NULL, &out2) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_draft_list_free(&out);
         wf_draft_list_free(&out2);
