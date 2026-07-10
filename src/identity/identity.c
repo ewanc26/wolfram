@@ -45,6 +45,18 @@ static char *wf_strdup(const char *s) {
     return dup;
 }
 
+static char *wf_strndup(const char *s, size_t n) {
+    if (!s) return NULL;
+    size_t copy = 0;
+    while (copy < n && s[copy] != '\0') copy++;
+    char *dup = malloc(copy + 1);
+    if (dup) {
+        memcpy(dup, s, copy);
+        dup[copy] = '\0';
+    }
+    return dup;
+}
+
 static void wf_did_doc_init(wf_did_document *doc) {
     doc->did = NULL;
     doc->pds_endpoint = NULL;
@@ -544,17 +556,42 @@ static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client, const char
         return status;
     }
 
-    if (res.body_len == 0 || res.body[res.body_len - 1] != '\n') {
+    if (res.body_len == 0) {
         wf_response_free(&res);
         return WF_ERR_PARSE;
     }
 
-    char *did = wf_strdup(res.body);
+    /* Take the first line of the body (no trailing-newline required) and
+     * trim surrounding whitespace, matching atproto's
+     * `(await res.text()).split('\n')[0].trim()`. */
+    size_t line_len = res.body_len;
+    char *nl = memchr(res.body, '\n', res.body_len);
+    if (nl) line_len = (size_t)(nl - res.body);
+
+    char *did = wf_strndup(res.body, line_len);
     wf_response_free(&res);
     if (!did) return WF_ERR_ALLOC;
 
-    char *newline = strchr(did, '\n');
-    if (newline) *newline = '\0';
+    /* Trim leading and trailing ASCII whitespace (incl. trailing '\r'). */
+    char *start = did;
+    while (*start && (*start == ' ' || *start == '\t' || *start == '\r' ||
+                      *start == '\n' || *start == '\f' || *start == '\v')) {
+        start++;
+    }
+    size_t trim_len = strlen(start);
+    while (trim_len > 0) {
+        char c = start[trim_len - 1];
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' ||
+            c == '\v') {
+            trim_len--;
+        } else {
+            break;
+        }
+    }
+    if (start != did) {
+        memmove(did, start, trim_len + 1);
+    }
+    did[trim_len] = '\0';
 
     if (strncmp(did, "did:", 4) != 0) {
         free(did);
