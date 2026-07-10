@@ -205,6 +205,9 @@ if(WOLFRAM_BUILD_SERVER)
     target_sources(wolfram PRIVATE src/server/xrpc_server_config.c)
     # Feed-generator skeleton server helper (builds on the XRPC server).
     target_sources(wolfram PRIVATE src/feedgen_server.c)
+    # Generic upstream→downstream WebSocket subscription relay (builds on the
+    # XRPC server and the always-built WebSocket client transport).
+    target_sources(wolfram PRIVATE src/server/relay_server.c)
     target_include_directories(wolfram PRIVATE ${MICROHTTPD_INCLUDE_DIR})
     target_link_libraries(wolfram PUBLIC ${MICROHTTPD_LIBRARY} Threads::Threads)
 
@@ -223,6 +226,11 @@ if(WOLFRAM_BUILD_SERVER)
         target_link_libraries(test_xrpc_server_ws PRIVATE wolfram Threads::Threads)
         target_include_directories(test_xrpc_server_ws PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME xrpc_server_ws COMMAND test_xrpc_server_ws)
+
+        add_executable(test_relay_server test/test_relay_server.c)
+        target_link_libraries(test_relay_server PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_relay_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME relay_server COMMAND test_relay_server)
 
         add_executable(test_xrpc_server_config test/test_xrpc_server_config.c)
         target_link_libraries(test_xrpc_server_config PRIVATE wolfram Threads::Threads)
