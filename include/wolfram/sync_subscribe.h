@@ -39,6 +39,8 @@ typedef struct wf_subscribe_commit {
     wf_subscribe_repo_op *ops;
     size_t ops_count;
     char time[64];
+    wf_cid prev_data;   /* inductive-firehose prev MST root CID (prevData), optional */
+    int has_prev_data;
 } wf_subscribe_commit;
 
 typedef struct wf_subscribe_sync {

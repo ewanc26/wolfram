@@ -93,7 +93,12 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
 /* ── body builders (inverse of the parse_* functions in sync_subscribe.c) ── */
 
 static cbor_item_t *build_commit_body(const wf_subscribe_commit *c) {
-    cbor_item_t *m = cbor_new_definite_map(8);
+    /* Fixed keys: seq, repo, commit, rev, blocks, ops, time (7). `since` and
+     * `prevData` are optional, so size the map precisely. */
+    size_t n = 7;
+    if (c->since[0] != '\0') n++;
+    if (c->has_prev_data) n++;
+    cbor_item_t *m = cbor_new_definite_map(n);
     map_put(m, "seq", int_item(c->seq));
     map_put(m, "repo", cbor_build_string(c->did));
     map_put(m, "commit", cid_link_item(&c->commit_cid));
@@ -106,6 +111,8 @@ static cbor_item_t *build_commit_body(const wf_subscribe_commit *c) {
                                   c->blocks_len));
     map_put(m, "ops", build_ops(c->ops, c->ops_count));
     map_put(m, "time", cbor_build_string(c->time));
+    if (c->has_prev_data)
+        map_put(m, "prevData", cid_link_item(&c->prev_data));
     return m;
 }
 

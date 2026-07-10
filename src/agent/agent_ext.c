@@ -29,7 +29,8 @@ wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_r
     wf_lex_app_bsky_actor_put_preferences_main_input input = {0};
     
     if (count) {
-        wf_lex_json *items = calloc(count, sizeof(*items));
+        wf_lex_app_bsky_actor_put_preferences_main_input_preferences_item_union *items =
+            calloc(count, sizeof(*items));
         if (!items) {
             cJSON_Delete(root);
             return WF_ERR_ALLOC;
@@ -52,6 +53,7 @@ wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_r
                 cJSON_Delete(root);
                 return WF_ERR_ALLOC;
             }
+            items[i].kind = -1;
             items[i].data = elem_json;
             items[i].length = strlen(elem_json);
         }

@@ -158,6 +158,7 @@ wf_status wf_agent_report(wf_agent *agent, const char *subject_uri,
     wf_lex_com_atproto_moderation_create_report_main_input input;
     memset(&input, 0, sizeof(input));
     input.reason_type = reason_type;
+    input.subject.kind = -1;
     input.subject.data = subject_json;
     input.subject.length = strlen(subject_json);
 
