@@ -701,6 +701,9 @@ wf_status wf_agent_list_records_typed(wf_agent *agent, const char *repo,
         !collection[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_repo_record_list list = {0};
     wf_lex_com_atproto_repo_list_records_main_params params = {0};
@@ -763,6 +766,9 @@ wf_status wf_agent_list_missing_blobs_typed(wf_agent *agent, int limit,
                                             const char *cursor,
                                             wf_repo_missing_blob_list *out) {
     if (!agent || !agent->client || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 1000) {
         return WF_ERR_INVALID_ARG;
     }
 
