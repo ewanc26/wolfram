@@ -15,6 +15,8 @@ static void test_did_invalid_extra(void) {
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc def"));
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc@"));   /* @ not allowed */
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc/def")); /* '/' not allowed */
+    WF_CHECK(!wf_syntax_did_is_valid("did:method:abc%2"));  /* incomplete pct-encoding */
+    WF_CHECK(!wf_syntax_did_is_valid("did:method:abc%G1")); /* invalid hex */
     WF_CHECK(!wf_syntax_did_is_valid("did:"));
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc "));   /* trailing space */
 }
@@ -39,6 +41,9 @@ static void test_handle_invalid_extra(void) {
 /* ── at-identifier ── */
 static void test_at_identifier_valid_extra(void) {
     WF_CHECK(wf_syntax_at_identifier_is_valid("did:web:example.com"));
+    WF_CHECK(wf_syntax_at_identifier_is_valid("did:web:example.com:path"));
+    WF_CHECK(wf_syntax_at_identifier_is_valid("did:web:localhost%3A1234"));
+    WF_CHECK(wf_syntax_at_identifier_is_valid("did:web:example.com%3A8080"));
     WF_CHECK(wf_syntax_at_identifier_is_valid("Example.com"));
     WF_CHECK(wf_syntax_at_identifier_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur"));
 }

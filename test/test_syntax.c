@@ -11,7 +11,8 @@ static void test_did_valid(void) {
     WF_CHECK(wf_syntax_did_is_valid("did:plc:ewvi7nxzyq6n7qoy7fe2v4ji"));
     WF_CHECK(wf_syntax_did_is_valid("did:example:123"));
     WF_CHECK(wf_syntax_did_is_valid("did:method:abc.def_ghi%FF"));
-    WF_CHECK(wf_syntax_did_is_valid("did:method:a_b.c-d:e%f"));
+    WF_CHECK(wf_syntax_did_is_valid("did:123:abc"));
+    WF_CHECK(wf_syntax_did_is_valid("did:m123:val"));
 }
 
 static void test_did_invalid(void) {
@@ -20,7 +21,7 @@ static void test_did_invalid(void) {
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc:"));
     WF_CHECK(!wf_syntax_did_is_valid("did:method:abc%"));
     WF_CHECK(!wf_syntax_did_is_valid("DID:method:abc"));
-    WF_CHECK(!wf_syntax_did_is_valid("did:123:abc"));
+    WF_CHECK(!wf_syntax_did_is_valid("did:method:a_b.c-d:e%f"));
     WF_CHECK(!wf_syntax_did_is_valid(""));
     WF_CHECK(!wf_syntax_did_is_valid(NULL));
     WF_CHECK(!wf_syntax_did_is_valid("not-a-did"));
