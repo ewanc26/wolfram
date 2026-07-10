@@ -307,6 +307,16 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
     wf_status s = wf_cid_of_block(cbor, cbor_len, &cid);
     if (s != WF_OK) { free(cbor); return s; }
 
+    /* Content-addressed store: if a block with this CID already exists in the
+     * CAR (e.g. a shared MST subtree reused across writes), reuse it rather
+     * than appending a duplicate. A CAR with two blocks sharing a CID is
+     * malformed and rejected by wf_repo_verify. */
+    if (wf_car_find_block(car, &cid)) {
+        free(cbor);
+        node->cid = cid;
+        return WF_OK;
+    }
+
     wf_car_block *new_blocks = realloc(car->blocks,
         (car->block_count + 1) * sizeof(wf_car_block));
     if (!new_blocks) { free(cbor); return WF_ERR_ALLOC; }
