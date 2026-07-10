@@ -57,6 +57,29 @@ cmake -S . -B build && cmake --build build && ctest --test-dir build
 `wolfram` is organized into small, layered modules — transport → identity →
 repo → agent. See [docs/modules.md](docs/modules.md) for the full status table.
 
+## Nintendo Wii
+
+A cross-compilation target for the Nintendo Wii (devkitPPC/libogc) is
+supported. The Wii build is **client-only** — server modules, OAuth flows,
+and desktop dependencies (libcurl, OpenSSL, pthreads) are excluded.
+
+```sh
+cmake -S . -B build-wii \
+  -DCMAKE_TOOLCHAIN_FILE=.devdeps/wii.cmake \
+  -DWOLFRAM_BUILD_WII=ON \
+  -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-wii
+```
+
+Requires [devkitPro](https://devkitpro.org/) with devkitPPC and libogc
+installed. The toolchain file is at `.devdeps/wii.cmake`.
+
+The transport and crypto layers use stub implementations that return
+`WF_ERR_NOT_IMPLEMENTED`. Before integrating with a Wii application,
+replace the stubs with lwIP + mbedTLS backends — see the `TODO` comments
+in `src/platform/wii_platform.c`, `src/transport/xrpc_wii.c`, and
+`src/crypto/crypto_wii.c`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
