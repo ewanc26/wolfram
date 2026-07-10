@@ -8475,11 +8475,11 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_actor_defs_post_interaction_settings_pref(wf_lex_app_bsky_actor_defs_post_interaction_settings_pref *value) {
     if (!value) return;
     for (size_t i = 0; i < value->threadgate_allow_rules.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_actor_defs_post_interaction_settings_pref_threadgate_allow_rules_item_union(&(value->threadgate_allow_rules.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_actor_defs_post_interaction_settings_pref_threadgate_allow_rules_item_union((wf_lex_app_bsky_actor_defs_post_interaction_settings_pref_threadgate_allow_rules_item_union *)&(value->threadgate_allow_rules.items[i]));
     }
     free((void *)value->threadgate_allow_rules.items);
     for (size_t i = 0; i < value->postgate_embedding_rules.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_actor_defs_post_interaction_settings_pref_postgate_embedding_rules_item_union(&(value->postgate_embedding_rules.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_actor_defs_post_interaction_settings_pref_postgate_embedding_rules_item_union((wf_lex_app_bsky_actor_defs_post_interaction_settings_pref_postgate_embedding_rules_item_union *)&(value->postgate_embedding_rules.items[i]));
     }
     free((void *)value->postgate_embedding_rules.items);
     memset(value, 0, sizeof(*value));
@@ -9771,7 +9771,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_actor_get_preferences_main_output(wf_lex_app_bsky_actor_get_preferences_main_output *value) {
     if (!value) return;
     for (size_t i = 0; i < value->preferences.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_actor_get_preferences_main_output_preferences_item_union(&(value->preferences.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_actor_get_preferences_main_output_preferences_item_union((wf_lex_app_bsky_actor_get_preferences_main_output_preferences_item_union *)&(value->preferences.items[i]));
     }
     free((void *)value->preferences.items);
     memset(value, 0, sizeof(*value));
@@ -10126,7 +10126,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_actor_put_preferences_main_input(wf_lex_app_bsky_actor_put_preferences_main_input *value) {
     if (!value) return;
     for (size_t i = 0; i < value->preferences.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_actor_put_preferences_main_input_preferences_item_union(&(value->preferences.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_actor_put_preferences_main_input_preferences_item_union((wf_lex_app_bsky_actor_put_preferences_main_input_preferences_item_union *)&(value->preferences.items[i]));
     }
     free((void *)value->preferences.items);
     memset(value, 0, sizeof(*value));
@@ -10478,7 +10478,7 @@ static void wf_lex_clear_wf_lex_app_bsky_ageassurance_defs_config_region(wf_lex_
     }
     free((void *)value->additional_verification_methods.items);
     for (size_t i = 0; i < value->rules.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_ageassurance_defs_config_region_rules_item_union(&(value->rules.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_ageassurance_defs_config_region_rules_item_union((wf_lex_app_bsky_ageassurance_defs_config_region_rules_item_union *)&(value->rules.items[i]));
     }
     free((void *)value->rules.items);
     memset(value, 0, sizeof(*value));
@@ -11729,11 +11729,11 @@ static void wf_lex_clear_wf_lex_app_bsky_draft_defs_draft(wf_lex_app_bsky_draft_
     }
     free((void *)value->langs.items);
     for (size_t i = 0; i < value->postgate_embedding_rules.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_postgate_embedding_rules_item_union(&(value->postgate_embedding_rules.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_postgate_embedding_rules_item_union((wf_lex_app_bsky_draft_defs_draft_postgate_embedding_rules_item_union *)&(value->postgate_embedding_rules.items[i]));
     }
     free((void *)value->postgate_embedding_rules.items);
     for (size_t i = 0; i < value->threadgate_allow.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_threadgate_allow_item_union(&(value->threadgate_allow.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_threadgate_allow_item_union((wf_lex_app_bsky_draft_defs_draft_threadgate_allow_item_union *)&(value->threadgate_allow.items[i]));
     }
     free((void *)value->threadgate_allow.items);
     memset(value, 0, sizeof(*value));
@@ -11897,7 +11897,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_embed_gallery(wf_lex_app_bsky_draft_defs_draft_embed_gallery *value) {
     if (!value) return;
     for (size_t i = 0; i < value->items.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_embed_gallery_items_item_union(&(value->items.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_draft_defs_draft_embed_gallery_items_item_union((wf_lex_app_bsky_draft_defs_draft_embed_gallery_items_item_union *)&(value->items.items[i]));
     }
     free((void *)value->items.items);
     memset(value, 0, sizeof(*value));
@@ -12912,7 +12912,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_embed_gallery_main(wf_lex_app_bsky_embed_gallery_main *value) {
     if (!value) return;
     for (size_t i = 0; i < value->items.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_embed_gallery_main_items_item_union(&(value->items.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_embed_gallery_main_items_item_union((wf_lex_app_bsky_embed_gallery_main_items_item_union *)&(value->items.items[i]));
     }
     free((void *)value->items.items);
     memset(value, 0, sizeof(*value));
@@ -12947,7 +12947,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_embed_gallery_view(wf_lex_app_bsky_embed_gallery_view *value) {
     if (!value) return;
     for (size_t i = 0; i < value->items.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_embed_gallery_view_items_item_union(&(value->items.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_embed_gallery_view_items_item_union((wf_lex_app_bsky_embed_gallery_view_items_item_union *)&(value->items.items[i]));
     }
     free((void *)value->items.items);
     memset(value, 0, sizeof(*value));
@@ -13462,7 +13462,7 @@ static void wf_lex_clear_wf_lex_app_bsky_embed_record_view_record(wf_lex_app_bsk
     }
     free((void *)value->labels.items);
     for (size_t i = 0; i < value->embeds.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_embed_record_view_record_embeds_item_union(&(value->embeds.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_embed_record_view_record_embeds_item_union((wf_lex_app_bsky_embed_record_view_record_embeds_item_union *)&(value->embeds.items[i]));
     }
     free((void *)value->embeds.items);
     free((void *)value->indexed_at);
@@ -14601,7 +14601,7 @@ static void wf_lex_clear_wf_lex_app_bsky_feed_defs_thread_view_post(wf_lex_app_b
     if (value->post) { wf_lex_clear_wf_lex_app_bsky_feed_defs_post_view((wf_lex_app_bsky_feed_defs_post_view *)value->post); free((void *)value->post); }
     wf_lex_clear_wf_lex_app_bsky_feed_defs_thread_view_post_parent_union(&(value->parent));
     for (size_t i = 0; i < value->replies.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_feed_defs_thread_view_post_replies_item_union(&(value->replies.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_feed_defs_thread_view_post_replies_item_union((wf_lex_app_bsky_feed_defs_thread_view_post_replies_item_union *)&(value->replies.items[i]));
     }
     free((void *)value->replies.items);
     if (value->thread_context) { wf_lex_clear_wf_lex_app_bsky_feed_defs_thread_context((wf_lex_app_bsky_feed_defs_thread_context *)value->thread_context); free((void *)value->thread_context); }
@@ -16723,7 +16723,7 @@ static void wf_lex_clear_wf_lex_app_bsky_feed_postgate_main(wf_lex_app_bsky_feed
     }
     free((void *)value->detached_embedding_uris.items);
     for (size_t i = 0; i < value->embedding_rules.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_feed_postgate_main_embedding_rules_item_union(&(value->embedding_rules.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_feed_postgate_main_embedding_rules_item_union((wf_lex_app_bsky_feed_postgate_main_embedding_rules_item_union *)&(value->embedding_rules.items[i]));
     }
     free((void *)value->embedding_rules.items);
     memset(value, 0, sizeof(*value));
@@ -17689,7 +17689,7 @@ static void wf_lex_clear_wf_lex_app_bsky_feed_threadgate_main(wf_lex_app_bsky_fe
     if (!value) return;
     free((void *)value->post);
     for (size_t i = 0; i < value->allow.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_feed_threadgate_main_allow_item_union(&(value->allow.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_feed_threadgate_main_allow_item_union((wf_lex_app_bsky_feed_threadgate_main_allow_item_union *)&(value->allow.items[i]));
     }
     free((void *)value->allow.items);
     free((void *)value->created_at);
@@ -19580,7 +19580,7 @@ static void wf_lex_clear_wf_lex_app_bsky_graph_get_relationships_main_output(wf_
     if (!value) return;
     free((void *)value->actor);
     for (size_t i = 0; i < value->relationships.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_graph_get_relationships_main_output_relationships_item_union(&(value->relationships.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_graph_get_relationships_main_output_relationships_item_union((wf_lex_app_bsky_graph_get_relationships_main_output_relationships_item_union *)&(value->relationships.items[i]));
     }
     free((void *)value->relationships.items);
     memset(value, 0, sizeof(*value));
@@ -20894,7 +20894,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_labeler_get_services_main_output(wf_lex_app_bsky_labeler_get_services_main_output *value) {
     if (!value) return;
     for (size_t i = 0; i < value->views.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_labeler_get_services_main_output_views_item_union(&(value->views.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_labeler_get_services_main_output_views_item_union((wf_lex_app_bsky_labeler_get_services_main_output_views_item_union *)&(value->views.items[i]));
     }
     free((void *)value->views.items);
     memset(value, 0, sizeof(*value));
@@ -22252,7 +22252,7 @@ static void wf_lex_clear_wf_lex_app_bsky_richtext_facet_main(wf_lex_app_bsky_ric
     if (!value) return;
     if (value->index) { wf_lex_clear_wf_lex_app_bsky_richtext_facet_byte_slice((wf_lex_app_bsky_richtext_facet_byte_slice *)value->index); free((void *)value->index); }
     for (size_t i = 0; i < value->features.count; ++i) {
-        wf_lex_clear_wf_lex_app_bsky_richtext_facet_main_features_item_union(&(value->features.items[i]));
+        wf_lex_clear_wf_lex_app_bsky_richtext_facet_main_features_item_union((wf_lex_app_bsky_richtext_facet_main_features_item_union *)&(value->features.items[i]));
     }
     free((void *)value->features.items);
     memset(value, 0, sizeof(*value));
@@ -28677,7 +28677,7 @@ static void wf_lex_clear_wf_lex_chat_bsky_convo_get_log_main_output(wf_lex_chat_
     if (!value) return;
     free((void *)value->cursor);
     for (size_t i = 0; i < value->logs.count; ++i) {
-        wf_lex_clear_wf_lex_chat_bsky_convo_get_log_main_output_logs_item_union(&(value->logs.items[i]));
+        wf_lex_clear_wf_lex_chat_bsky_convo_get_log_main_output_logs_item_union((wf_lex_chat_bsky_convo_get_log_main_output_logs_item_union *)&(value->logs.items[i]));
     }
     free((void *)value->logs.items);
     memset(value, 0, sizeof(*value));
@@ -28747,7 +28747,7 @@ static void wf_lex_clear_wf_lex_chat_bsky_convo_get_messages_main_output(wf_lex_
     if (!value) return;
     free((void *)value->cursor);
     for (size_t i = 0; i < value->messages.count; ++i) {
-        wf_lex_clear_wf_lex_chat_bsky_convo_get_messages_main_output_messages_item_union(&(value->messages.items[i]));
+        wf_lex_clear_wf_lex_chat_bsky_convo_get_messages_main_output_messages_item_union((wf_lex_chat_bsky_convo_get_messages_main_output_messages_item_union *)&(value->messages.items[i]));
     }
     free((void *)value->messages.items);
     for (size_t i = 0; i < value->related_profiles.count; ++i) {
@@ -28958,7 +28958,7 @@ static void wf_lex_clear_wf_lex_chat_bsky_convo_list_convo_requests_main_output(
     if (!value) return;
     free((void *)value->cursor);
     for (size_t i = 0; i < value->requests.count; ++i) {
-        wf_lex_clear_wf_lex_chat_bsky_convo_list_convo_requests_main_output_requests_item_union(&(value->requests.items[i]));
+        wf_lex_clear_wf_lex_chat_bsky_convo_list_convo_requests_main_output_requests_item_union((wf_lex_chat_bsky_convo_list_convo_requests_main_output_requests_item_union *)&(value->requests.items[i]));
     }
     free((void *)value->requests.items);
     memset(value, 0, sizeof(*value));
@@ -30498,7 +30498,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_chat_bsky_group_get_join_link_previews_main_output(wf_lex_chat_bsky_group_get_join_link_previews_main_output *value) {
     if (!value) return;
     for (size_t i = 0; i < value->join_link_previews.count; ++i) {
-        wf_lex_clear_wf_lex_chat_bsky_group_get_join_link_previews_main_output_join_link_previews_item_union(&(value->join_link_previews.items[i]));
+        wf_lex_clear_wf_lex_chat_bsky_group_get_join_link_previews_main_output_join_link_previews_item_union((wf_lex_chat_bsky_group_get_join_link_previews_main_output_join_link_previews_item_union *)&(value->join_link_previews.items[i]));
     }
     free((void *)value->join_link_previews.items);
     memset(value, 0, sizeof(*value));
@@ -31405,7 +31405,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_chat_bsky_moderation_get_message_context_main_output(wf_lex_chat_bsky_moderation_get_message_context_main_output *value) {
     if (!value) return;
     for (size_t i = 0; i < value->messages.count; ++i) {
-        wf_lex_clear_wf_lex_chat_bsky_moderation_get_message_context_main_output_messages_item_union(&(value->messages.items[i]));
+        wf_lex_clear_wf_lex_chat_bsky_moderation_get_message_context_main_output_messages_item_union((wf_lex_chat_bsky_moderation_get_message_context_main_output_messages_item_union *)&(value->messages.items[i]));
     }
     free((void *)value->messages.items);
     memset(value, 0, sizeof(*value));
@@ -34984,7 +34984,7 @@ static void wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_input(wf_lex_
     if (!value) return;
     free((void *)value->repo);
     for (size_t i = 0; i < value->writes.count; ++i) {
-        wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union(&(value->writes.items[i]));
+        wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union((wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union *)&(value->writes.items[i]));
     }
     free((void *)value->writes.items);
     free((void *)value->swap_commit);
@@ -35045,7 +35045,7 @@ static void wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_output(wf_lex
     if (!value) return;
     if (value->commit) { wf_lex_clear_wf_lex_com_atproto_repo_defs_commit_meta((wf_lex_com_atproto_repo_defs_commit_meta *)value->commit); free((void *)value->commit); }
     for (size_t i = 0; i < value->results.count; ++i) {
-        wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_output_results_item_union(&(value->results.items[i]));
+        wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_output_results_item_union((wf_lex_com_atproto_repo_apply_writes_main_output_results_item_union *)&(value->results.items[i]));
     }
     free((void *)value->results.items);
     memset(value, 0, sizeof(*value));
@@ -44038,7 +44038,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_tools_ozone_moderation_get_records_main_output(wf_lex_tools_ozone_moderation_get_records_main_output *value) {
     if (!value) return;
     for (size_t i = 0; i < value->records.count; ++i) {
-        wf_lex_clear_wf_lex_tools_ozone_moderation_get_records_main_output_records_item_union(&(value->records.items[i]));
+        wf_lex_clear_wf_lex_tools_ozone_moderation_get_records_main_output_records_item_union((wf_lex_tools_ozone_moderation_get_records_main_output_records_item_union *)&(value->records.items[i]));
     }
     free((void *)value->records.items);
     memset(value, 0, sizeof(*value));
@@ -44205,7 +44205,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_tools_ozone_moderation_get_repos_main_output(wf_lex_tools_ozone_moderation_get_repos_main_output *value) {
     if (!value) return;
     for (size_t i = 0; i < value->repos.count; ++i) {
-        wf_lex_clear_wf_lex_tools_ozone_moderation_get_repos_main_output_repos_item_union(&(value->repos.items[i]));
+        wf_lex_clear_wf_lex_tools_ozone_moderation_get_repos_main_output_repos_item_union((wf_lex_tools_ozone_moderation_get_repos_main_output_repos_item_union *)&(value->repos.items[i]));
     }
     free((void *)value->repos.items);
     memset(value, 0, sizeof(*value));
