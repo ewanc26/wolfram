@@ -26,6 +26,7 @@ jobs:
             build-essential \
             cmake \
             pkg-config \
+            libcurl4-openssl-dev \
             libssl-dev \
             libsecp256k1-dev \
             python3
@@ -54,6 +55,7 @@ jobs:
             build-essential \
             cmake \
             pkg-config \
+            libcurl4-openssl-dev \
             libssl-dev \
             libsecp256k1-dev \
             libsodium-dev \
@@ -98,6 +100,7 @@ jobs:
             build-essential \
             cmake \
             pkg-config \
+            libcurl4-openssl-dev \
             libssl-dev \
             libsecp256k1-dev \
             python3
