@@ -257,8 +257,25 @@ static int test_mute_word_matching(void) {
                                       "spam here", NULL, 0, NULL, 1) == WF_OK);
     MOD_CHECK(match_count == 0);
 
-    free(words[0].value);
+    /* Timed mute words remain active until their RFC 3339 expiry. */
     free(words[0].actor_target);
+    words[0].actor_target = NULL;
+    words[0].expires_at = strdup("2999-01-01T00:00:00.000Z");
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
+                                      words, 1,
+                                      "spam here", NULL, 0, NULL, 0) == WF_OK);
+    MOD_CHECK(match_count == 1);
+    wf_mod_mute_word_matches_free(matches, match_count);
+
+    free(words[0].expires_at);
+    words[0].expires_at = strdup("2000-01-01T00:00:00.000Z");
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
+                                      words, 1,
+                                      "spam here", NULL, 0, NULL, 0) == WF_OK);
+    MOD_CHECK(match_count == 0);
+
+    free(words[0].value);
+    free(words[0].expires_at);
     free(words[1].value);
 
     return 0;
