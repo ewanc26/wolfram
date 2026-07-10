@@ -109,7 +109,12 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     wrappers for `com.atproto.identity` (resolveHandle, resolveDid, updateHandle,
     getRecommendedDidCredentials, signPlcOperation, submitPlcOperation,
     resolveIdentity, refreshIdentity) and a PLC handle-rotation convenience
-    (`wf_agent_identity_rotate_handle`) built on `plc.h`.
+    (`wf_agent_identity_rotate_handle`) built on `plc.h`. The convenience now
+    wires the full rotation flow: it builds the rotation operation locally as a
+    validation gate, then (given the out-of-band `requestPlcOperationSignature`
+    token) signs it server-side via `signPlcOperation` and submits it via
+    `submitPlcOperation`. With a missing token it triggers the email and returns
+    an honest `WF_ERR_INVALID_ARG`.
 36. Notification v2 + activity subscriptions (`notification_v2_typed.h`) — owned
     typed parsers + agent wrappers for `app.bsky.notification.putPreferencesV2`,
     `listActivitySubscriptions`, and `putActivitySubscription`. The v2
