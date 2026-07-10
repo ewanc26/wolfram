@@ -510,6 +510,9 @@ wf_status wf_agent_list_repos_typed(wf_agent *agent, int limit,
 
     wf_sync_repo_ref_list list = {0};
     wf_lex_com_atproto_sync_list_repos_main_params params = {0};
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
@@ -544,6 +547,9 @@ wf_status wf_agent_list_repos_by_collection_typed(
 
     wf_sync_repo_by_collection_list list = {0};
     wf_lex_com_atproto_sync_list_repos_by_collection_main_params params = {0};
+    if (limit < 0 || limit > 2000) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.collection = collection;
     if (limit > 0) {
         params.has_limit = true;
@@ -580,6 +586,9 @@ wf_status wf_agent_list_blobs_typed(wf_agent *agent, const char *did,
 
     wf_sync_blob_cid_list list = {0};
     wf_lex_com_atproto_sync_list_blobs_main_params params = {0};
+    if (limit < 0 || limit > 1000) {
+        return WF_ERR_INVALID_ARG;
+    }
     params.did = did;
     if (since && since[0]) {
         params.has_since = true;
@@ -619,6 +628,9 @@ wf_status wf_agent_list_hosts_typed(wf_agent *agent, int limit,
 
     wf_sync_host_list list = {0};
     wf_lex_com_atproto_sync_list_hosts_main_params params = {0};
+    if (limit < 0 || limit > 1000) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
