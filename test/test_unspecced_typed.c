@@ -243,15 +243,23 @@ int main(void) {
         /* agent wrapper NULL validation */
         WF_CHECK(wf_agent_get_trending_topics_typed(NULL, NULL, 0, &tt) ==
                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_trending_topics_typed((wf_agent *)1, NULL, 26,
+                                                     &tt) == WF_ERR_INVALID_ARG);
         wf_agent_tagged_suggestions ts2 = {0};
         WF_CHECK(wf_agent_get_tagged_suggestions_typed(NULL, &ts2) ==
                  WF_ERR_INVALID_ARG);
         wf_agent_unspecced_config cfg2 = {0};
         WF_CHECK(wf_agent_get_config_typed(NULL, &cfg2) == WF_ERR_INVALID_ARG);
+        wf_agent_suggestions_skeleton skel = {0};
+        WF_CHECK(wf_agent_get_suggestions_skeleton_typed((wf_agent *)1, NULL, 101,
+                                                         NULL, NULL, &skel) ==
+                 WF_ERR_INVALID_ARG);
         wf_agent_search_starter_packs_list sp = {0};
         WF_CHECK(wf_agent_search_starter_packs_typed(NULL, NULL, NULL, 0, NULL,
                                                      &sp) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, NULL, NULL, 0,
+                                                     NULL, &sp) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, "q", NULL, 101,
                                                      NULL, &sp) == WF_ERR_INVALID_ARG);
 
         /* getSuggestedStarterPacks reuses the onboarding starter-pack parser and
@@ -262,6 +270,10 @@ int main(void) {
         WF_CHECK(wf_agent_get_suggested_starter_packs_typed((wf_agent *)1, 0,
                                                             NULL) ==
                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_onboarding_suggested_starter_packs_typed(
+                     (wf_agent *)1, 26, &ssp) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(
+                     (wf_agent *)1, NULL, 26, NULL) == WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();
