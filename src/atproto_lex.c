@@ -24,7 +24,7 @@ static WF_LEX_UNUSED char *wf_lex_strdup(const char *source) {
 static WF_LEX_UNUSED bool wf_lex_json_integer(cJSON *item, int64_t *out) {
     if (!cJSON_IsNumber(item) || !isfinite(item->valuedouble) ||
         item->valuedouble < -9007199254740991.0 || item->valuedouble > 9007199254740991.0 ||
-        trunc(item->valuedouble) != item->valuedouble) return false;
+        (double)(int64_t)item->valuedouble != item->valuedouble) return false;
     *out = (int64_t)item->valuedouble; return true;
 }
 
@@ -56738,7 +56738,7 @@ static wf_status wf_lex_decode_wf_lex_com_atproto_repo_apply_writes_main_input_w
             if (status != WF_OK) {
                 free(m); value->kind = -1;
             } else {
-                value->value.delete = m;
+                value->value.delete_ = m;
             }
         }
     }
@@ -56762,9 +56762,9 @@ static void wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_main_input_writes_
         }
         break;
     case 2:
-        if (value->value.delete) {
-            wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_delete((wf_lex_com_atproto_repo_apply_writes_delete *)value->value.delete);
-            free((void *)value->value.delete);
+        if (value->value.delete_) {
+            wf_lex_clear_wf_lex_com_atproto_repo_apply_writes_delete((wf_lex_com_atproto_repo_apply_writes_delete *)value->value.delete_);
+            free((void *)value->value.delete_);
         }
         break;
     default: break;

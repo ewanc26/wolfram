@@ -25,6 +25,19 @@ C_KEYWORDS = {
     "_Noreturn", "_Static_assert", "_Thread_local",
 }
 
+CPP_KEYWORDS = {
+    "alignas", "alignof", "and", "and_eq", "asm", "bitand", "bitor",
+    "bool", "catch", "char8_t", "char16_t", "char32_t", "class",
+    "compl", "concept", "consteval", "constexpr", "constinit", "const_cast",
+    "co_await", "co_return", "co_yield", "decltype", "delete", "dynamic_cast",
+    "explicit", "export", "false", "friend", "mutable", "namespace", "new",
+    "noexcept", "not", "not_eq", "nullptr", "operator", "or", "or_eq",
+    "private", "protected", "public", "reflexpr", "reinterpret_cast",
+    "requires", "static_assert", "static_cast", "synchronized", "template",
+    "this", "thread_local", "throw", "true", "try", "typeid", "typename",
+    "using", "virtual", "wchar_t", "xor", "xor_eq",
+}
+
 
 def snake(value: str) -> str:
     value = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
@@ -34,6 +47,12 @@ def snake(value: str) -> str:
     if value[0].isdigit() or value in C_KEYWORDS or keyword.iskeyword(value):
         value += "_"
     return value
+
+
+def member_name(value: str) -> str:
+    """Return an identifier safe as a struct/union member in C and C++."""
+    value = snake(value)
+    return value + "_" if value in CPP_KEYWORDS else value
 
 
 def type_name(nsid: str, suffix: str) -> str:
@@ -76,9 +95,9 @@ class Generator:
 
     @staticmethod
     def field_name(schema: dict[str, Any], wire_name: str) -> str:
-        base = snake(wire_name)
+        base = member_name(wire_name)
         required = set(schema.get("required", []))
-        presence = {"has_" + snake(name) for name in schema.get("properties", {})
+        presence = {"has_" + member_name(name) for name in schema.get("properties", {})
                     if name not in required}
         return base + "_value" if base in presence else base
 
@@ -174,7 +193,7 @@ class Generator:
                 continue
             full = ref if not ref.startswith("#") else nsid + ref
             frag = ref.split("#", 1)[1] if "#" in ref else ref.rsplit(".", 1)[-1]
-            mname = snake(frag)
+            mname = member_name(frag)
             if mname in seen:
                 mname = f"{mname}_{i}"
             seen.add(mname)
@@ -798,7 +817,7 @@ class Generator:
             "static WF_LEX_UNUSED bool wf_lex_json_integer(cJSON *item, int64_t *out) {",
             "    if (!cJSON_IsNumber(item) || !isfinite(item->valuedouble) ||",
             "        item->valuedouble < -9007199254740991.0 || item->valuedouble > 9007199254740991.0 ||",
-            "        trunc(item->valuedouble) != item->valuedouble) return false;",
+            "        (double)(int64_t)item->valuedouble != item->valuedouble) return false;",
             "    *out = (int64_t)item->valuedouble; return true;", "}", "",
             "static WF_LEX_UNUSED wf_status wf_lex_json_copy(cJSON *item, wf_lex_json *out) {",
             "    char *json = cJSON_PrintUnformatted(item); if (!json) return WF_ERR_ALLOC;",

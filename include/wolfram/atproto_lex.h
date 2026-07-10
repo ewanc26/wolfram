@@ -3460,7 +3460,7 @@ typedef struct wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union
     union {
         const wf_lex_com_atproto_repo_apply_writes_create *create;
         const wf_lex_com_atproto_repo_apply_writes_update *update;
-        const wf_lex_com_atproto_repo_apply_writes_delete *delete;
+        const wf_lex_com_atproto_repo_apply_writes_delete *delete_;
     } value;
 } wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union;
 
