@@ -1,27 +1,40 @@
 # wolfram
 
-A C SDK for the AT Protocol.
+A C SDK for the AT Protocol — a client-side, wire-level implementation of the
+protocol, not a port of the upstream `atproto` service backends.
 
 The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
+
+**Scope.** Wolfram is a faithful C port of the AT Protocol's *protocol/SDK
+layer* — the client and wire-format packages of the upstream TypeScript
+repository (`@atproto/api`, `xrpc`, `identity`, `repo`, `crypto`, `syntax`,
+`oauth`, `lex`, `lexicon`, `did`, `ws-client`). It does **not** port the
+upstream *server-side service backends* (`pds`, `bsky` AppView, `ozone`,
+`bsync`), which are application servers (databases, business logic, hosting)
+rather than protocol SDK code. The optional `WOLFRAM_BUILD_SERVER` component is
+a generic XRPC server *framework* (routing, auth, SSE, WebSocket, relay, blob
+store) you can build a service on top of — it is not itself a PDS, AppView, or
+Ozone implementation.
 
 **Protocol parity:** The bundled Lexicon snapshot matches the 394 files in the
 upstream atproto repository. Generated C11 and OAuth-authenticated clients cover
 all 312 query/procedure endpoints, and dedicated streaming clients cover all
 three subscription endpoints. CI enforces this complete wire-level coverage.
 
-**Status:** Broad, multi-layer coverage is implemented and tested — transport
-(XRPC/WebSocket), identity (DID/handle + `com.atproto.identity` typed wrappers),
-repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/moderation), OAuth
- (DPoP/PAR), sync (firehose + Jetstream), moderation, DID PLC ops, rich text,
-syntax/validate/json, labeler service coverage, `app.bsky.video` typed wrappers
-(job status / upload limits / upload), notification v2 + activity
-subscriptions, optional SQLite store persistence, app.bsky.graph write
-wrappers (`wf_agent_graph_*`: mute/unmute thread + actor-list,
-block/list/listitem/starterpack/listblock create/update/delete), and
-higher-level endpoint examples — though it is not yet at full feature
-parity with the official SDKs.
+**Status:** Broad, multi-layer *client* coverage is implemented and tested —
+transport (XRPC/WebSocket), identity (DID/handle + `com.atproto.identity`
+typed wrappers), repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/
+moderation), OAuth (DPoP/PAR), sync (firehose + Jetstream), moderation, DID PLC
+ops, rich text, syntax/validate/json, labeler service coverage,
+`app.bsky.video` typed wrappers (job status / upload limits / upload),
+notification v2 + activity subscriptions, optional SQLite store persistence,
+app.bsky.graph write wrappers (`wf_agent_graph_*`: mute/unmute thread +
+actor-list, block/list/listitem/starterpack/listblock create/update/delete),
+and higher-level endpoint examples. Wire-level coverage of the protocol is
+complete; the upstream *service backends* (PDS, AppView, Ozone, bsync) are out
+of scope, as described under **Scope** above.
 The optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER=ON`)
 supports route registration, auth middleware, a token-bucket rate limiter,
 Server-Sent Events (SSE) streaming, and WebSocket (RFC 6455) subscription
