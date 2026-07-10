@@ -993,6 +993,11 @@ if(WOLFRAM_BUILD_TESTS)
         WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
     add_test(NAME notification_v2_typed COMMAND test_notification_v2_typed)
 
+    add_executable(test_notification_v2_prefs_typed test/test_notification_v2_prefs.c)
+    target_link_libraries(test_notification_v2_prefs_typed PRIVATE wolfram)
+    target_include_directories(test_notification_v2_prefs_typed PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME notification_v2_prefs_typed COMMAND test_notification_v2_prefs_typed)
+
     add_executable(test_notification_typed test/test_notification_typed.c)
     target_link_libraries(test_notification_typed PRIVATE wolfram)
     target_include_directories(test_notification_typed PRIVATE test ${cjson_SOURCE_DIR})
