@@ -132,7 +132,7 @@ wf_status wf_cid_from_string(const char *str, wf_cid *out) {
     if (!wf_base32_decode(str + 1, strlen(str + 1), bytes, &len))
         return WF_ERR_INVALID_ARG;
     if (len != 36) return WF_ERR_INVALID_ARG;
-    if (bytes[0] != 0x01 || bytes[1] != 0x71 ||
+    if (bytes[0] != 0x01 || (bytes[1] != 0x71 && bytes[1] != 0x55) ||
         bytes[2] != 0x12 || bytes[3] != 0x20)
         return WF_ERR_INVALID_ARG;
 
