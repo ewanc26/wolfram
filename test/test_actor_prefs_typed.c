@@ -214,6 +214,8 @@ int main(void) {
         wf_actor_preferences p = {0};
         wf_actor_declaration d = {0};
         wf_agent_actor_list actors = {0};
+        wf_agent *agent = wf_agent_new("https://example.invalid");
+        wf_response res = {0};
 
         WF_CHECK(wf_agent_get_actor_prefs_typed(NULL, &p) ==
                  WF_ERR_INVALID_ARG);
@@ -221,8 +223,19 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_suggestions_typed(NULL, 10, NULL, &actors) ==
                  WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggestions_typed(agent, -1, NULL, &actors) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggestions_typed(agent, 101, NULL, &actors) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggestions(agent, -1, NULL, &res) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggestions(agent, 101, NULL,
+                                          &res) ==
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_declare_actor_typed(NULL, &d) ==
                  WF_ERR_INVALID_ARG);
+        wf_response_free(&res);
+        wf_agent_free(agent);
         /* a non-NULL opaque agent pointer is rejected because its client is
          * required; we only pass NULL here as the struct is opaque to callers.
          * The wrappers validate agent/required args before any network use. */

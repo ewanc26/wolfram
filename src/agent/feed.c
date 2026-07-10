@@ -716,6 +716,7 @@ wf_status wf_agent_get_suggested_follows_by_actor_lex(wf_agent *agent, const cha
 wf_status wf_agent_get_suggestions(wf_agent *agent, int limit,
                                     const char *cursor, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[2];
