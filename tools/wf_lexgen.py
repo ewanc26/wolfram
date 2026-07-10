@@ -725,7 +725,13 @@ class Generator:
         if kind == "string":
             lines.append(f"{indent}free((void *){target});")
         elif kind == "union":
-            lines.append(f"{indent}wf_lex_clear_{self.union_name(owner, field)}(&({target}));")
+            union_type = self.union_name(owner, field)
+            if target.endswith("items[i]"):
+                lines.append(
+                    f"{indent}wf_lex_clear_{union_type}(({union_type} *)&({target}));"
+                )
+            else:
+                lines.append(f"{indent}wf_lex_clear_{union_type}(&({target}));")
         elif kind == "unknown":
             lines.append(f"{indent}free((void *){target}.data);")
         elif kind == "bytes":
