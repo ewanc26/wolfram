@@ -11,6 +11,7 @@
 #include <wolfram/atproto_lex.h>
 #include <wolfram/auth_client.h>
 #include <wolfram/blob.h>
+#include <wolfram/blob_store.h>
 #include <wolfram/bookmark_typed.h>
 #include <wolfram/bsky_agent.h>
 #include <wolfram/chat_typed.h>
@@ -45,10 +46,12 @@
 #include <wolfram/oauth/verify.h>
 #include <wolfram/ozone_moderation_ops_typed.h>
 #include <wolfram/ozone_typed.h>
+#include <wolfram/platform.h>
 #include <wolfram/relay_server.h>
 #include <wolfram/repo/car.h>
 #include <wolfram/repo/diff.h>
 #include <wolfram/repo/mst.h>
+#include <wolfram/repo_store.h>
 #include <wolfram/repo_typed.h>
 #include <wolfram/richtext.h>
 #include <wolfram/server.h>
@@ -56,6 +59,7 @@
 #include <wolfram/session.h>
 #include <wolfram/sync.h>
 #include <wolfram/sync_list_typed.h>
+#include <wolfram/sync_subscribe.h>
 #include <wolfram/sync_typed.h>
 #include <wolfram/syntax.h>
 #include <wolfram/temp_typed.h>
@@ -67,6 +71,7 @@
 #include <wolfram/websocket.h>
 #include <wolfram/xrpc.h>
 #include <wolfram/xrpc_server.h>
+#include <wolfram/xrpc_server_auth.h>
 
 #include "wolfram/unique_handle.hpp"
 
@@ -115,6 +120,7 @@ using wf_agent_thread_handle = unique_handle<wf_agent_thread, wf_agent_thread_fr
 using wf_agent_trending_topics_handle = unique_handle<wf_agent_trending_topics, wf_agent_trending_topics_free>;
 using wf_agent_unspecced_config_handle = unique_handle<wf_agent_unspecced_config, wf_agent_unspecced_config_free>;
 using wf_auth_client_handle = unique_handle<wf_auth_client, wf_auth_client_free>;
+using wf_blob_store_handle = unique_handle<wf_blob_store, wf_blob_store_free>;
 using wf_bookmark_create_result_handle = unique_handle<wf_bookmark_create_result, wf_bookmark_create_result_free>;
 using wf_bookmark_delete_result_handle = unique_handle<wf_bookmark_delete_result, wf_bookmark_delete_result_free>;
 using wf_bookmark_list_handle = unique_handle<wf_bookmark_list, wf_bookmark_list_free>;
@@ -467,6 +473,7 @@ using wf_ozone_ops_report_view_handle = unique_handle<wf_ozone_ops_report_view, 
 using wf_ozone_ops_sig_detail_list_handle = unique_handle<wf_ozone_ops_sig_detail_list, wf_ozone_ops_sig_detail_list_free>;
 using wf_ozone_subject_status_list_handle = unique_handle<wf_ozone_subject_status_list, wf_ozone_subject_status_list_free>;
 using wf_ozone_team_member_list_handle = unique_handle<wf_ozone_team_member_list, wf_ozone_team_member_list_free>;
+using wf_platform_mutex_handle = unique_handle<wf_platform_mutex, wf_platform_mutex_free>;
 using wf_rate_limiter_handle = unique_handle<wf_rate_limiter, wf_rate_limiter_free>;
 using wf_relay_config_handle = unique_handle<wf_relay_config, wf_relay_config_free>;
 using wf_relay_server_handle = unique_handle<wf_relay_server, wf_relay_server_free>;
@@ -476,6 +483,7 @@ using wf_repo_diff_handle = unique_handle<wf_repo_diff, wf_repo_diff_free>;
 using wf_repo_missing_blob_list_handle = unique_handle<wf_repo_missing_blob_list, wf_repo_missing_blob_list_free>;
 using wf_repo_record_handle = unique_handle<wf_repo_record, wf_repo_record_free>;
 using wf_repo_record_list_handle = unique_handle<wf_repo_record_list, wf_repo_record_list_free>;
+using wf_repo_store_handle = unique_handle<wf_repo_store, wf_repo_store_free>;
 using wf_repo_upload_blob_result_handle = unique_handle<wf_repo_upload_blob_result, wf_repo_upload_blob_result_free>;
 using wf_repo_write_record_result_handle = unique_handle<wf_repo_write_record_result, wf_repo_write_record_result_free>;
 using wf_repo_writes_builder_handle = unique_handle<wf_repo_writes_builder, wf_repo_writes_builder_free>;
@@ -494,6 +502,7 @@ using wf_server_session_info_handle = unique_handle<wf_server_session_info, wf_s
 using wf_server_session_tokens_handle = unique_handle<wf_server_session_tokens, wf_server_session_tokens_free>;
 using wf_service_auth_claims_handle = unique_handle<wf_service_auth_claims, wf_service_auth_claims_free>;
 using wf_session_handle = unique_handle<wf_session, wf_session_free>;
+using wf_subscribe_event_handle = unique_handle<wf_subscribe_event, wf_subscribe_event_free>;
 using wf_sync_blob_cid_list_handle = unique_handle<wf_sync_blob_cid_list, wf_sync_blob_cid_list_free>;
 using wf_sync_blob_list_handle = unique_handle<wf_sync_blob_list, wf_sync_blob_list_free>;
 using wf_sync_block_list_handle = unique_handle<wf_sync_block_list, wf_sync_block_list_free>;
@@ -529,6 +538,7 @@ using wf_websocket_handle = unique_handle<wf_websocket, wf_websocket_free>;
 using wf_websocket_message_handle = unique_handle<wf_websocket_message, wf_websocket_message_free>;
 using wf_xrpc_client_handle = unique_handle<wf_xrpc_client, wf_xrpc_client_free>;
 using wf_xrpc_server_handle = unique_handle<wf_xrpc_server, wf_xrpc_server_free>;
+using wf_xrpc_server_auth_config_handle = unique_handle<wf_xrpc_server_auth_config, wf_xrpc_server_auth_config_free>;
 using wf_xrpc_server_config_handle = unique_handle<wf_xrpc_server_config, wf_xrpc_server_config_free>;
 
 } // namespace wolfram
