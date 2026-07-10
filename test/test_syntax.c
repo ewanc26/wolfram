@@ -92,6 +92,9 @@ static void test_nsid_invalid(void) {
     WF_CHECK(!wf_syntax_nsid_is_valid("com.example.foo!"));
     WF_CHECK(!wf_syntax_nsid_is_valid("com.example.1"));
     WF_CHECK(!wf_syntax_nsid_is_valid("com.example.foo-bar"));
+    /* middle segment may not start with a hyphen (upstream rejects it) */
+    WF_CHECK(!wf_syntax_nsid_is_valid("com.-example.foo"));
+    WF_CHECK(!wf_syntax_nsid_is_valid("org.bsky.-app.foo"));
 }
 
 /* ── Record key ──────────────────────────────────────────────────────── */

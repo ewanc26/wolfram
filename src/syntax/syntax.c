@@ -223,6 +223,7 @@ int wf_syntax_nsid_is_valid(const char *nsid) {
                 if (!isalnum((unsigned char)seg_start[i])) return 0;
             }
         } else {
+            if (seg_start[0] == '-') return 0;
             for (size_t i = 0; i < seg_len; i++) {
                 if (!isalnum((unsigned char)seg_start[i]) && seg_start[i] != '-') return 0;
             }
