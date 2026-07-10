@@ -48,7 +48,31 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out);
  * WF_ERR_INVALID_ARG.
  */
 wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
-                                       char **out_didkey);
+                                        char **out_didkey);
+
+/**
+ * Encode a raw compressed public key (33 bytes) of the given type into its
+ * `did:key:z...` multibase form. Inverse of wf_didkey_decode; complements
+ * wf_signing_key_public_didkey (which derives the key from a private scalar).
+ *
+ * On WF_OK, *out_didkey is heap-allocated and owned by the caller (free()).
+ */
+wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
+                           size_t raw_len, char **out_didkey);
+
+/**
+ * Decode a `did:key:z...` or bare multikey `z...` string into its key type and
+ * raw 33-byte compressed public point. On WF_OK, *out_raw is heap-allocated
+ * and owned by the caller (free()).
+ */
+wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
+                           unsigned char **out_raw, size_t *out_raw_len);
+
+/**
+ * Compute the verification-method id for a did:key, `${did}#${did}`.
+ * On WF_OK, *out_id is heap-allocated and owned by the caller (free()).
+ */
+wf_status wf_didkey_verification_method_id(const char *didkey, char **out_id);
 
 /**
  * Sign a message (typically the SHA-256 digest of a DAG-CBOR block)
