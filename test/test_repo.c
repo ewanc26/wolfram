@@ -62,6 +62,22 @@ static int check_cid(const wf_cid *left, const wf_cid *right) {
            memcmp(left->bytes, right->bytes, left->len) == 0;
 }
 
+/* Generate an 8-byte key whose MST layer equals `layer` (test helper). */
+static int find_key_with_layer(unsigned layer, unsigned long long salt,
+                               unsigned char *out) {
+    unsigned long long s = salt ? salt : 1;
+    for (int attempt = 0; attempt < 5000000; attempt++) {
+        unsigned char k[8];
+        memcpy(k, &s, 8);
+        if (wf_mst_key_layer(k, 8) == layer) {
+            memcpy(out, k, 8);
+            return 1;
+        }
+        s = s * 6364136223846793005ULL + 1442695040888963407ULL;
+    }
+    return 0;
+}
+
 /* Count leaves visited during an MST walk. */
 static wf_status mst_walk_count_cb(void *ctx, const unsigned char *key,
                                    size_t key_len, const wf_cid *value) {
@@ -404,6 +420,34 @@ int main(void) {
     {
         wf_cid empty = {{0}, 0};
         WF_CHECK(wf_cid_to_string(&empty) == NULL);
+    }
+
+    /* wf_cid_from_string accepts raw (0x55) CIDs, used for blob refs */
+    {
+        unsigned char data[] = {0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04};
+        wf_cid raw = {{0}, 0};
+        WF_CHECK(wf_cid_of_bytes(data, sizeof(data), &raw) == WF_OK);
+        WF_CHECK(raw.bytes[0] == 0x01);   /* CIDv1 */
+        WF_CHECK(raw.bytes[1] == 0x55);   /* raw multicodec */
+        WF_CHECK(raw.bytes[2] == 0x12 && raw.bytes[3] == 0x20); /* sha2-256 */
+        char *str = wf_cid_to_string(&raw);
+        WF_CHECK(str != NULL);
+        wf_cid parsed = {{0}, 0};
+        WF_CHECK(wf_cid_from_string(str, &parsed) == WF_OK);
+        WF_CHECK(check_cid(&parsed, &raw));
+        free(str);
+
+        /* dag-cbor (0x71) CIDs still parse after the relaxation */
+        unsigned char cbor[] = {0xa1, 0x64, 't', 'e', 's', 't',
+                                0x64, 'r', 'o', 'o', 't'};
+        wf_cid dc = {{0}, 0};
+        WF_CHECK(wf_cid_of_block(cbor, sizeof(cbor), &dc) == WF_OK);
+        char *dc_str = wf_cid_to_string(&dc);
+        WF_CHECK(dc_str != NULL);
+        wf_cid dc_parsed = {{0}, 0};
+        WF_CHECK(wf_cid_from_string(dc_str, &dc_parsed) == WF_OK);
+        WF_CHECK(check_cid(&dc_parsed, &dc));
+        free(dc_str);
     }
 
     /* ── CAR parse ── */
@@ -2114,6 +2158,209 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_repo_operations_invert(NULL, 0, NULL) ==
                  WF_ERR_INVALID_ARG);
+    }
+
+    /* ── MST same-layer insert must split a preceding subtree (FIX 1) ── */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        /* Find keys with the layers needed to construct a gap subtree:
+         *   P (layer 2), R (layer 2), Q (layer 1), with P < R < Q bytes.
+         * Add P, then Q (lower layer -> lives in P's subtree), then R
+         * (same layer, lands inside P's subtree range). R must split P's
+         * subtree around R; without the fix Q becomes unreachable. */
+        unsigned char pool1[80][8];
+        unsigned char pool2[80][8];
+        int n1 = 0, n2 = 0;
+        unsigned long long salt = 1;
+        while ((n1 < 80 || n2 < 80) && salt < 400000) {
+            unsigned char k[8];
+            memcpy(k, &salt, 8);
+            unsigned L = wf_mst_key_layer(k, 8);
+            if (L == 1 && n1 < 80) memcpy(pool1[n1++], k, 8);
+            else if (L == 2 && n2 < 80) memcpy(pool2[n2++], k, 8);
+            salt++;
+        }
+        WF_CHECK(n1 > 0 && n2 > 1);
+
+        unsigned char P[8], R[8], Q[8];
+        int found = 0;
+        for (int i = 0; i < n2 && !found; i++)
+            for (int j = 0; j < n2 && !found; j++)
+                for (int k = 0; k < n1 && !found; k++)
+                    if (memcmp(pool2[i], pool2[j], 8) < 0 &&
+                        memcmp(pool2[j], pool1[k], 8) < 0) {
+                        memcpy(P, pool2[i], 8);
+                        memcpy(R, pool2[j], 8);
+                        memcpy(Q, pool1[k], 8);
+                        found = 1;
+                    }
+        WF_CHECK(found);
+
+        wf_cid valP = {{0}, 0}, valR = {{0}, 0}, valQ = {{0}, 0};
+        WF_CHECK(wf_cid_of_bytes(P, 8, &valP) == WF_OK);
+        WF_CHECK(wf_cid_of_bytes(R, 8, &valR) == WF_OK);
+        WF_CHECK(wf_cid_of_bytes(Q, 8, &valQ) == WF_OK);
+
+        wf_cid root = {{0}, 0}, cur = root, next;
+        memset(&next, 0, sizeof(next));
+        WF_CHECK(wf_mst_add(&car, &cur, P, 8, &valP, &next) == WF_OK); cur = next;
+        WF_CHECK(wf_mst_add(&car, &cur, Q, 8, &valQ, &next) == WF_OK); cur = next;
+        WF_CHECK(wf_mst_add(&car, &cur, R, 8, &valR, &next) == WF_OK); cur = next;
+
+        wf_cid f = {{0}, 0};
+        WF_CHECK(wf_mst_find(&car, &cur, P, 8, &f) == WF_OK && check_cid(&f, &valP));
+        WF_CHECK(wf_mst_find(&car, &cur, R, 8, &f) == WF_OK && check_cid(&f, &valR));
+        /* The key nested inside P's (now split) subtree must remain reachable. */
+        WF_CHECK(wf_mst_find(&car, &cur, Q, 8, &f) == WF_OK && check_cid(&f, &valQ));
+
+        /* Internal consistency: every value CID is reachable via get_all_cids
+         * and the full tree lists exactly the inserted leaves in order. */
+        wf_mst_leaf *leaves = NULL;
+        size_t nl = 0;
+        WF_CHECK(wf_mst_list(&car, &cur, &leaves, &nl) == WF_OK);
+        WF_CHECK(nl == 3);
+        wf_cid *cids = NULL;
+        size_t nc = 0;
+        WF_CHECK(wf_mst_get_all_cids(&car, &cur, &cids, &nc) == WF_OK);
+        WF_CHECK(nc >= 3);
+        int sawP = 0, sawR = 0, sawQ = 0;
+        for (size_t i = 0; i < nc; i++) {
+            if (check_cid(&cids[i], &valP)) sawP = 1;
+            if (check_cid(&cids[i], &valR)) sawR = 1;
+            if (check_cid(&cids[i], &valQ)) sawQ = 1;
+        }
+        WF_CHECK(sawP && sawR && sawQ);
+        wf_mst_leaf_list_free(leaves, nl);
+        wf_mst_cid_list_free(cids, nc);
+        wf_car_free(&car);
+    }
+
+    /* Multiple same-layer-into-subtree-owning-gap inserts (FIX 1 at scale).
+     * Build layer-2 anchors, then in each gap insert a layer-1 key (lower
+     * layer -> becomes a subtree) followed by a layer-2 key (same layer ->
+     * must split that subtree around it). Only the lower-layer and same-layer
+     * paths are exercised, so this isolates the FIX 1 split logic. */
+    {
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char p1[200][8];
+        unsigned char p2[200][8];
+        int n1 = 0, n2 = 0;
+        unsigned long long salt = 1;
+        while ((n1 < 200 || n2 < 200) && salt < 800000) {
+            unsigned char k[8];
+            memcpy(k, &salt, 8);
+            unsigned L = wf_mst_key_layer(k, 8);
+            if (L == 1 && n1 < 200) memcpy(p1[n1++], k, 8);
+            else if (L == 2 && n2 < 200) memcpy(p2[n2++], k, 8);
+            salt++;
+        }
+        WF_CHECK(n1 > 0 && n2 > 3);
+
+        /* 4 sorted layer-2 anchors */
+        unsigned char anchors[4][8];
+        int ai = 0;
+        for (int i = 0; i < n2 && ai < 4; i++) {
+            int dup = 0;
+            for (int j = 0; j < ai; j++)
+                if (memcmp(anchors[j], p2[i], 8) == 0) dup = 1;
+            if (!dup) memcpy(anchors[ai++], p2[i], 8);
+        }
+        /* keep anchors sorted */
+        for (int a = 0; a < 3; a++)
+            for (int b = a + 1; b < 4; b++)
+                if (memcmp(anchors[a], anchors[b], 8) > 0) {
+                    unsigned char t[8]; memcpy(t, anchors[a], 8);
+                    memcpy(anchors[a], anchors[b], 8);
+                    memcpy(anchors[b], t, 8);
+                }
+        WF_CHECK(memcmp(anchors[0], anchors[1], 8) < 0 &&
+                 memcmp(anchors[1], anchors[2], 8) < 0 &&
+                 memcmp(anchors[2], anchors[3], 8) < 0);
+
+        /* For each of the 3 gaps, pick a layer-1 key (q) and a layer-2 key
+         * (r) with anchors[i] < q < r < anchors[i+1]. */
+        unsigned char q[3][8], r[3][8];
+        int gaps = 0;
+        for (int g = 0; g < 3; g++) {
+            int got = 0;
+            for (int i = 0; i < n1 && !got; i++) {
+                if (memcmp(anchors[g], p1[i], 8) >= 0) continue;
+                for (int j = 0; j < n2 && !got; j++) {
+                    if (memcmp(p1[i], p2[j], 8) < 0 &&
+                        memcmp(p2[j], anchors[g + 1], 8) < 0) {
+                        memcpy(q[g], p1[i], 8);
+                        memcpy(r[g], p2[j], 8);
+                        got = 1;
+                    }
+                }
+            }
+            if (got) gaps++;
+        }
+        WF_CHECK(gaps == 3);
+
+        /* total keys: 4 anchors + 3 q + 3 r = 10 */
+        unsigned char allk[10][8];
+        wf_cid allv[10];
+        int n = 0;
+        for (int i = 0; i < 4; i++) { memcpy(allk[n], anchors[i], 8); n++; }
+        for (int i = 0; i < 3; i++) { memcpy(allk[n], q[i], 8); n++; }
+        for (int i = 0; i < 3; i++) { memcpy(allk[n], r[i], 8); n++; }
+        for (int i = 0; i < n; i++)
+            WF_CHECK(wf_cid_of_bytes(allk[i], 8, &allv[i]) == WF_OK);
+
+        wf_cid root = {{0}, 0}, cur = root, next;
+        memset(&next, 0, sizeof(next));
+        /* anchors first (same layer), then each gap's (q, r) */
+        for (int i = 0; i < 4; i++) {
+            WF_CHECK(wf_mst_add(&car, &cur, anchors[i], 8, &allv[i],
+                                &next) == WF_OK);
+            cur = next;
+        }
+        for (int g = 0; g < 3; g++) {
+            WF_CHECK(wf_mst_add(&car, &cur, q[g], 8,
+                                &allv[4 + g], &next) == WF_OK);
+            cur = next;
+            WF_CHECK(wf_mst_add(&car, &cur, r[g], 8,
+                                &allv[7 + g], &next) == WF_OK);
+            cur = next;
+        }
+
+        for (int i = 0; i < n; i++) {
+            wf_cid f = {{0}, 0};
+            WF_CHECK(wf_mst_find(&car, &cur, allk[i], 8, &f) == WF_OK &&
+                    check_cid(&f, &allv[i]));
+        }
+
+        wf_mst_leaf *leaves = NULL;
+        size_t nl = 0;
+        WF_CHECK(wf_mst_list(&car, &cur, &leaves, &nl) == WF_OK);
+        WF_CHECK(nl == (size_t)n);
+        for (size_t i = 1; i < nl; i++) {
+            size_t min = leaves[i - 1].key_len < leaves[i].key_len
+                         ? leaves[i - 1].key_len : leaves[i].key_len;
+            int cmp = memcmp(leaves[i - 1].key, leaves[i].key, min);
+            if (cmp == 0)
+                cmp = (int)leaves[i - 1].key_len - (int)leaves[i].key_len;
+            WF_CHECK(cmp < 0);
+        }
+        wf_mst_leaf_list_free(leaves, nl);
+
+        wf_cid *cids = NULL;
+        size_t nc = 0;
+        WF_CHECK(wf_mst_get_all_cids(&car, &cur, &cids, &nc) == WF_OK);
+        WF_CHECK(nc >= (size_t)n);
+        for (int i = 0; i < n; i++) {
+            int saw = 0;
+            for (size_t j = 0; j < nc; j++)
+                if (check_cid(&cids[j], &allv[i])) { saw = 1; break; }
+            WF_CHECK(saw);
+        }
+        wf_mst_cid_list_free(cids, nc);
+        wf_car_free(&car);
     }
 
     WF_TEST_SUMMARY();
