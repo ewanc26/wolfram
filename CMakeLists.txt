@@ -169,6 +169,8 @@ src/agent/push_endpoint.c
     src/richtext/detection.c
     # Firehose subscribeRepos subscription
     src/sync/sync_subscribe.c
+    # Firehose subscription event frame production (builder)
+    src/sync/sync_publish.c
     # Firehose commit verification
     src/sync/sync_verify.c
     # End-to-end record commit signature verification
@@ -731,6 +733,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_sync_subscribe PRIVATE test)
     add_test(NAME sync_subscribe COMMAND test_sync_subscribe)
     set_tests_properties(sync_subscribe PROPERTIES TIMEOUT 30)
+
+    add_executable(test_sync_publish test/test_sync_publish.c)
+    target_link_libraries(test_sync_publish PRIVATE wolfram libcbor::libcbor)
+    target_include_directories(test_sync_publish PRIVATE test
+        $<TARGET_PROPERTY:libcbor::libcbor,INTERFACE_INCLUDE_DIRECTORIES>)
+    add_test(NAME sync_publish COMMAND test_sync_publish)
 
     add_executable(test_blob test/test_blob.c)
     target_link_libraries(test_blob PRIVATE wolfram)

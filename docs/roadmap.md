@@ -44,8 +44,13 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 20. Blob upload — binary POST to `xrpc/{nsid}` with custom Content-Type,
     authenticated via session or DPoP (`wf_xrpc_upload_blob`,
     `wf_auth_client_upload_blob`).
-21. Label subscription — `com.atproto.label.subscribeLabels` WebSocket stream
-    with JSON frame parsing, cursor reconnect, and backoff.
+ 21. Label subscription — `com.atproto.label.subscribeLabels` WebSocket stream
+     with JSON frame parsing, cursor reconnect, and backoff.
+ 22. Firehose event production — `sync_publish` builds the framed CBOR event
+     messages a relay/PDS streams over WebSocket: a header map `{op, t}`
+     immediately followed by the body map, covering `commit`/`sync`/`identity`/
+     `account`/`info` and `op:-1` error frames. Exact inverse of the
+     `sync_subscribe` decoder; round-trip tested by `test_sync_publish`.
 22. Repo diff tests — comprehensive tests for `wf_repo_diff_apply` and
     `wf_repo_operations_invert`.
 23. Lexicon validation — runtime object/record validation against lexicon
