@@ -133,6 +133,30 @@ static void test_tag_fullwidth(void) {
     wf_richtext_free(&rt);
 }
 
+static void test_tag_trailing_punct(void) {
+    /* trailing punctuation must be stripped from both the tag and the range */
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "this is #foo. end") == WF_OK);
+    WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
+    WF_CHECK(rt.facet_count == 1);
+    WF_CHECK(rt.facets[0].features[0].type == WF_RICHTEXT_FEATURE_TAG);
+    WF_CHECK(rt.facets[0].byte_start == 8);   /* at '#' */
+    WF_CHECK(rt.facets[0].byte_end == 12);    /* excludes the '.' */
+    WF_CHECK(strcmp(rt.facets[0].features[0].tag, "foo") == 0);
+    wf_richtext_free(&rt);
+}
+
+static void test_tag_non_latin(void) {
+    /* non-Latin tag bodies must be accepted (was ASCII-letter-only before) */
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "hello #\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e world") == WF_OK);
+    WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
+    WF_CHECK(rt.facet_count == 1);
+    WF_CHECK(rt.facets[0].features[0].type == WF_RICHTEXT_FEATURE_TAG);
+    WF_CHECK(strcmp(rt.facets[0].features[0].tag, "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e") == 0);
+    wf_richtext_free(&rt);
+}
+
 /* ── cashtag detection ── */
 static void test_cashtag(void) {
     wf_richtext rt;
@@ -237,6 +261,32 @@ static void test_delete_null_checks(void) {
     wf_richtext_free(&rt);
 }
 
+static void test_delete_facet_before(void) {
+    /* deletion entirely before a facet must shift its offsets down */
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "pre @bsky.social") == WF_OK);
+    WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
+    WF_CHECK(rt.facet_count == 1);
+    WF_CHECK(wf_richtext_delete(&rt, 0, 4) == WF_OK); /* drop "pre " */
+    WF_CHECK(rt.facet_count == 1);
+    WF_CHECK(rt.facets[0].byte_start == 0);
+    WF_CHECK(rt.facets[0].byte_end == 12);
+    wf_richtext_free(&rt);
+}
+
+static void test_delete_facet_after(void) {
+    /* deletion entirely after a facet must leave it unchanged */
+    wf_richtext rt;
+    WF_CHECK(wf_richtext_init(&rt, "@bsky.social rest") == WF_OK);
+    WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
+    WF_CHECK(rt.facet_count == 1);
+    WF_CHECK(wf_richtext_delete(&rt, 13, 17) == WF_OK); /* drop "rest" */
+    WF_CHECK(rt.facet_count == 1);
+    WF_CHECK(rt.facets[0].byte_start == 0);
+    WF_CHECK(rt.facets[0].byte_end == 12);
+    wf_richtext_free(&rt);
+}
+
 /* ── sanitization ── */
 static void test_sanitize_newlines(void) {
     wf_richtext rt;
@@ -293,6 +343,8 @@ int main(void) {
     test_link_bare_domain();
     test_tag_hash();
     test_tag_fullwidth();
+    test_tag_trailing_punct();
+    test_tag_non_latin();
     test_cashtag();
     test_segment_no_facets();
     test_segment_with_facets();
@@ -301,6 +353,8 @@ int main(void) {
     test_delete_middle();
     test_delete_removes_facet();
     test_delete_null_checks();
+    test_delete_facet_before();
+    test_delete_facet_after();
     test_sanitize_newlines();
     test_sanitize_carriage_returns();
     test_sanitize_newlines_with_zero_width();
