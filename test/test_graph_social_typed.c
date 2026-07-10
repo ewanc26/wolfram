@@ -451,12 +451,33 @@ int main(void) {
     /* ---- query limit bounds must match upstream maximum (100) ---- */
     {
         wf_agent_actor_list al = {0};
+        wf_graph_list_view_list gv = {0};
+        wf_graph_starter_pack_view_list spl = {0};
+        wf_graph_list_membership_list lml = {0};
+        wf_graph_starter_pack_membership_list spml = {0};
         wf_agent *sentinel = (wf_agent *)1;
         WF_CHECK(wf_agent_get_follows_typed(sentinel, "did:plc:x", 101, NULL,
                                             &al) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_followers_typed(sentinel, "did:plc:x", 101, NULL,
                                               &al) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_list_mutes_typed(sentinel, 101, NULL, &gv) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_list_blocks_typed(sentinel, 101, NULL, &gv) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_actor_starter_packs_typed(sentinel, "did:plc:x",
+                                                        101, NULL, &spl) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_lists_with_membership_typed(sentinel, "did:plc:x",
+                                                          101, NULL, &lml) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_starter_packs_with_membership_typed(
+                     sentinel, "did:plc:x", 101, NULL, &spml) ==
+                 WF_ERR_INVALID_ARG);
         wf_agent_actor_list_free(&al);
+        wf_graph_list_view_list_free(&gv);
+        wf_graph_starter_pack_view_list_free(&spl);
+        wf_graph_list_membership_list_free(&lml);
+        wf_graph_starter_pack_membership_list_free(&spml);
     }
 
     wf_agent_free(agent);

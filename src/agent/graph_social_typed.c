@@ -900,7 +900,13 @@ static void wf_graph_fill_limit_cursor(int *limit, const char *cursor,
 wf_status wf_agent_get_list_mutes_typed(wf_agent *agent, int limit,
                                         const char *cursor,
                                         wf_graph_list_view_list *out) {
-    if (!agent || !agent->client || !out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_graph_get_list_mutes_main_params params = {0};
@@ -916,7 +922,13 @@ wf_status wf_agent_get_list_mutes_typed(wf_agent *agent, int limit,
 wf_status wf_agent_get_list_blocks_typed(wf_agent *agent, int limit,
                                          const char *cursor,
                                          wf_graph_list_view_list *out) {
-    if (!agent || !agent->client || !out) {
+    if (!agent || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_graph_get_list_blocks_main_params params = {0};
@@ -992,7 +1004,13 @@ wf_status wf_agent_get_actor_starter_packs_typed(wf_agent *agent,
                                                  const char *actor, int limit,
                                                  const char *cursor,
                                                  wf_graph_starter_pack_view_list *out) {
-    if (!agent || !agent->client || !actor || !actor[0] || !out) {
+    if (!agent || !actor || !actor[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     wf_lex_app_bsky_graph_get_actor_starter_packs_main_params params = {0};
@@ -1042,7 +1060,13 @@ wf_status wf_agent_get_starter_pack_typed(wf_agent *agent,
 wf_status wf_agent_get_lists_with_membership_typed(
     wf_agent *agent, const char *actor, int limit, const char *cursor,
     wf_graph_list_membership_list *out) {
-    if (!agent || !agent->client || !actor || !actor[0] || !out) {
+    if (!agent || !actor || !actor[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     if (!wf_syntax_at_identifier_is_valid(actor)) {
@@ -1069,7 +1093,13 @@ wf_status wf_agent_get_lists_with_membership_typed(
 wf_status wf_agent_get_starter_packs_with_membership_typed(
     wf_agent *agent, const char *actor, int limit, const char *cursor,
     wf_graph_starter_pack_membership_list *out) {
-    if (!agent || !agent->client || !actor || !actor[0] || !out) {
+    if (!agent || !actor || !actor[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
     if (!wf_syntax_at_identifier_is_valid(actor)) {
