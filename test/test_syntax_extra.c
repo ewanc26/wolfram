@@ -52,6 +52,8 @@ static void test_at_identifier_invalid_extra(void) {
     WF_CHECK(!wf_syntax_at_identifier_is_valid("did:method:abc def"));
     WF_CHECK(!wf_syntax_at_identifier_is_valid("Example.com."));
     WF_CHECK(!wf_syntax_at_identifier_is_valid("did:web:"));
+    WF_CHECK(!wf_syntax_at_identifier_is_valid("did:123:abc"));
+    WF_CHECK(!wf_syntax_at_identifier_is_valid("did:m123:val"));
 }
 
 /* ── NSID ── */
@@ -117,6 +119,8 @@ static void test_aturi_invalid_extra(void) {
     WF_CHECK(!wf_syntax_aturi_parse("at://did:plc:abc/com.example.post/extra/too", &parsed));
     wf_syntax_aturi_free(&parsed);
     WF_CHECK(!wf_syntax_aturi_parse("at://alice.bsky.social/bad_nsid/self", &parsed));
+    wf_syntax_aturi_free(&parsed);
+    WF_CHECK(!wf_syntax_aturi_parse("at://did:123:abc/com.example.post/self", &parsed));
     wf_syntax_aturi_free(&parsed);
     WF_CHECK(!wf_syntax_aturi_parse("at://did:plc:abc//self", &parsed));
     wf_syntax_aturi_free(&parsed);
