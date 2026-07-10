@@ -23,6 +23,9 @@ wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_xrpc_param params[3];
     size_t param_count = 0;
@@ -50,6 +53,7 @@ wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
 wf_status wf_agent_get_timeline_lex(wf_agent *agent, int limit, const char *cursor,
                                      wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_timeline_main_params params = {0};
     if (limit > 0) {
         params.has_limit = true;
@@ -67,6 +71,9 @@ wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
                                     int limit, const char *cursor, const char *filter,
                                     wf_response *out) {
     if (!agent || !actor || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -111,6 +118,7 @@ wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
                                          wf_response *out) {
     if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_author_feed_main_params params = {0};
     params.actor = actor;
     if (limit > 0) {
@@ -210,6 +218,9 @@ wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
     if (!agent || !query || !query[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_xrpc_param params[9];
     size_t param_count = 0;
@@ -270,6 +281,7 @@ wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
                                   const char *author, const char *lang,
                                   wf_response *out) {
     if (!agent || !query || !query[0] || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_search_posts_main_params params = {0};
     params.q = query;
     if (limit > 0) {
@@ -308,6 +320,9 @@ wf_status wf_agent_get_actor_likes(wf_agent *agent, const char *actor,
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
     if (!wf_syntax_at_identifier_is_valid(actor)) {
         return WF_ERR_INVALID_ARG;
     }
@@ -343,6 +358,9 @@ wf_status wf_agent_get_likes(wf_agent *agent, const char *uri,
                              int limit, const char *cursor,
                              wf_response *out) {
     if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -387,6 +405,7 @@ wf_status wf_agent_get_likes_lex(wf_agent *agent, const char *uri,
     wf_syntax_aturi parsed = {0};
     if (!wf_syntax_aturi_parse(uri, &parsed)) return WF_ERR_PARSE;
     wf_syntax_aturi_free(&parsed);
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
 
     wf_lex_app_bsky_feed_get_likes_main_params params = {0};
     params.uri = uri;
@@ -412,6 +431,7 @@ wf_status wf_agent_get_quotes_lex(wf_agent *agent, const char *uri,
     wf_syntax_aturi parsed = {0};
     if (!wf_syntax_aturi_parse(uri, &parsed)) return WF_ERR_PARSE;
     wf_syntax_aturi_free(&parsed);
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_quotes_main_params params = {0};
     params.uri = uri;
     if (limit > 0) {
@@ -433,6 +453,7 @@ wf_status wf_agent_get_list_feed_lex(wf_agent *agent, const char *list_uri,
     wf_syntax_aturi parsed = {0};
     if (!wf_syntax_aturi_parse(list_uri, &parsed)) return WF_ERR_PARSE;
     wf_syntax_aturi_free(&parsed);
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_list_feed_main_params params = {0};
     params.list = list_uri;
     if (limit > 0) {
@@ -451,6 +472,7 @@ wf_status wf_agent_get_feed_lex(wf_agent *agent, const char *feed_uri,
                                 int limit, const char *cursor,
                                 wf_response *out) {
     if (!agent || !feed_uri || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_feed_main_params params = {0};
     params.feed = feed_uri;
     if (limit > 0) {
@@ -475,6 +497,7 @@ wf_status wf_agent_get_actor_feeds_lex(wf_agent *agent, const char *actor,
                                         wf_response *out) {
     if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_get_actor_feeds_main_params params = {0};
     params.actor = actor;
     if (limit > 0) {
@@ -493,6 +516,9 @@ wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri,
                                    int limit, const char *cursor,
                                    wf_response *out) {
     if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
         return WF_ERR_INVALID_ARG;
     }
     wf_syntax_aturi parsed = {0};
@@ -528,6 +554,7 @@ wf_status wf_agent_get_quotes(wf_agent *agent, const char *uri,
                              int limit, const char *cursor,
                              wf_response *out) {
     if (!agent || !uri || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_syntax_aturi parsed = {0};
     if (!wf_syntax_aturi_parse(uri, &parsed)) return WF_ERR_PARSE;
     wf_syntax_aturi_free(&parsed);
@@ -558,6 +585,7 @@ wf_status wf_agent_get_list_feed(wf_agent *agent, const char *list_uri,
                                 int limit, const char *cursor,
                                 wf_response *out) {
     if (!agent || !list_uri || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_xrpc_param params[3];
     size_t param_count = 0;
     char limit_buf[16];
@@ -585,6 +613,7 @@ wf_status wf_agent_get_feed(wf_agent *agent, const char *feed_uri,
                             int limit, const char *cursor,
                             wf_response *out) {
     if (!agent || !feed_uri || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_xrpc_param params[3];
     size_t param_count = 0;
     char limit_buf[16];
@@ -614,6 +643,7 @@ wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
     if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(actor))
         return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_xrpc_param params[3];
     size_t param_count = 0;
     char limit_buf[16];
@@ -749,6 +779,7 @@ wf_status wf_agent_get_feed_skeleton(wf_agent *agent,
                                       wf_response *out)
 {
     if (!agent || !feed || !out) return WF_ERR_INVALID_ARG;
+    if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
 
     wf_syntax_aturi parsed = {0};
     if (!wf_syntax_aturi_parse(feed, &parsed)) return WF_ERR_PARSE;

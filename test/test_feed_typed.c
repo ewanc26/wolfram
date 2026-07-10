@@ -138,9 +138,14 @@ int main(void) {
     wf_agent_feed_list wlist = {0};
     WF_CHECK(wf_agent_get_timeline_typed(NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_timeline_typed(agent, 10, NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_timeline_typed(agent, 101, NULL, &wlist) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_author_feed_typed(agent, NULL, 10, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_quotes_typed(agent, NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 10, NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_author_feed_typed(agent, "did:plc:alice", 101, NULL,
+                                            NULL, &wlist) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 101, NULL, &wlist) ==
+             WF_ERR_INVALID_ARG);
 
     /* quotes body uses the "posts" key (same feedViewPost shape as feed). */
     {
@@ -162,6 +167,14 @@ int main(void) {
         }
     }
     wf_agent_free(agent);
+
+    /* feed skeleton limit bounds */
+    {
+        wf_agent_skeleton_list slist = {0};
+        wf_agent *sentinel = (wf_agent *)1;
+        WF_CHECK(wf_agent_get_feed_skeleton_typed(sentinel, "at://x", 101, NULL,
+                                                 &slist) == WF_ERR_INVALID_ARG);
+    }
 
     /* getPosts: bare array of postView under "posts". */
     {
