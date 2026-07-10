@@ -105,6 +105,19 @@ typedef struct wf_subscribe_handle wf_subscribe_handle;
 wf_status wf_subscribe_start(const wf_subscribe_options *opts, wf_subscribe_handle **out);
 void wf_subscribe_stop(wf_subscribe_handle *handle);
 
+/* Decode a single framed subscription message (the exact output of
+ * `wf_sync_publish_event` / `wf_sync_publish_error`): a CBOR header map
+ * `{ "op": ..., "t": ... }` immediately followed by the CBOR body map.
+ *
+ * On success `*out` is initialised to an owned event; free any heap members
+ * via `wf_subscribe_event_free` (or a manual clear) when done.
+ * @return WF_OK on success, WF_ERR_PARSE if the framing or body is invalid. */
+wf_status wf_subscribe_decode_frame(const unsigned char *data, size_t len,
+                                    wf_subscribe_event *out);
+
+/* Free heap-allocated members of a decoded event (does not free `ev` itself). */
+void wf_subscribe_event_free(wf_subscribe_event *ev);
+
 #ifdef __cplusplus
 }
 #endif

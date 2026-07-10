@@ -525,15 +525,15 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
         s = WF_ERR_PARSE;
 
         if (t_str && t_len > 0) {
-            if (t_len == 6 && memcmp(t_str, "#commit", 7) == 0)
+            if (t_len == 7 && memcmp(t_str, "#commit", 7) == 0)
                 s = parse_commit(body, &ev);
-            else if (t_len == 4 && memcmp(t_str, "#sync", 5) == 0)
+            else if (t_len == 5 && memcmp(t_str, "#sync", 5) == 0)
                 s = parse_sync(body, &ev);
-            else if (t_len == 8 && memcmp(t_str, "#identity", 9) == 0)
+            else if (t_len == 9 && memcmp(t_str, "#identity", 9) == 0)
                 s = parse_identity(body, &ev);
-            else if (t_len == 7 && memcmp(t_str, "#account", 8) == 0)
+            else if (t_len == 8 && memcmp(t_str, "#account", 8) == 0)
                 s = parse_account(body, &ev);
-            else if (t_len == 4 && memcmp(t_str, "#info", 5) == 0)
+            else if (t_len == 5 && memcmp(t_str, "#info", 5) == 0)
                 s = parse_info(body, &ev);
         }
 
@@ -600,4 +600,56 @@ wf_status wf_subscribe_start(const wf_subscribe_options *opts,
 void wf_subscribe_stop(wf_subscribe_handle *handle) {
     if (!handle) return;
     handle->stopped = 1;
+}
+
+void wf_subscribe_event_free(wf_subscribe_event *ev) {
+    if (!ev) return;
+    event_free(ev);
+}
+
+wf_status wf_subscribe_decode_frame(const unsigned char *data, size_t len,
+                                    wf_subscribe_event *out) {
+    if (!data || !out || len == 0) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    struct cbor_load_result lr = {0};
+    cbor_item_t *header = cbor_load(data, len, &lr);
+    if (!header || lr.error.code != CBOR_ERR_NONE || lr.read >= len) {
+        cbor_decref(&header);
+        return WF_ERR_PARSE;
+    }
+
+    cbor_item_t *body = cbor_load(data + lr.read, len - lr.read, &lr);
+    if (!body || lr.error.code != CBOR_ERR_NONE) {
+        cbor_decref(&header);
+        cbor_decref(&body);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status s = WF_ERR_PARSE;
+    cbor_item_t *op_item = map_find(header, "op");
+    int64_t op_val = 0;
+    if (op_item && item_int(op_item, &op_val) && op_val < 0) {
+        s = parse_error_body(body, out);
+    } else {
+        cbor_item_t *t_item = map_find(header, "t");
+        size_t t_len = 0;
+        const char *t_str = t_item ? item_string(t_item, &t_len) : NULL;
+        if (t_str && t_len > 0) {
+            if (t_len == 7 && memcmp(t_str, "#commit", 7) == 0)
+                s = parse_commit(body, out);
+            else if (t_len == 5 && memcmp(t_str, "#sync", 5) == 0)
+                s = parse_sync(body, out);
+            else if (t_len == 9 && memcmp(t_str, "#identity", 9) == 0)
+                s = parse_identity(body, out);
+            else if (t_len == 8 && memcmp(t_str, "#account", 8) == 0)
+                s = parse_account(body, out);
+            else if (t_len == 5 && memcmp(t_str, "#info", 5) == 0)
+                s = parse_info(body, out);
+        }
+    }
+
+    cbor_decref(&header);
+    cbor_decref(&body);
+    return s;
 }

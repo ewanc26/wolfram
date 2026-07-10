@@ -41,7 +41,8 @@ The SDK is broad and multi-layered; almost all of it is implemented and tested. 
 - `crypto`: secp256k1 (libsecp256k1) + P-256 (OpenSSL), `did:key`/multikey verification. Tested.
 - `repo` / `record`: DAG-CBOR, CIDs, CAR, MST, signed v3 commits, record CRUD, diff verify/apply, operation inversion, schema-driven record encoding. Tested.
 - `sync` / `sync_typed` / `sync_subscribe` / `sync_verify`: CAR download, `com.atproto.sync.*` typed wrappers, firehose `subscribeRepos` WebSocket subscription with commit verification. Tested.
-- `agent` / `bsky_agent`: high-level BskyAgent bundling session + xrpc + identity + agent; posts, profile, social graph, feeds, preferences, push registration, notifications, blobs, video upload, and `app.bsky.graph` write wrappers tested against an offline mock PDS. Tested.
+- `sync_publish`: firehose event production — builds the framed `{header}{body}` CBOR messages a relay/PDS streams over WebSocket (`wf_sync_publish_event` / `wf_sync_publish_error`), the exact inverse of the `sync_subscribe` decoder, covering `commit`/`sync`/`identity`/`account`/`info` and `op:-1` error frames. Round-trip tested by `test_sync_publish`. Tested.
+- `agent` / `bsky_agent`: high-level BskyAgent bundling session + xrpc + identity + agent; posts, profile, social graph, feeds, preferences, push registration, notifications, blobs, video upload, and `app.bsky.graph` write wrappers (`graph_write.{c,h}`: mute/unmute thread + actor-list, block/list/listitem/starterpack/listblock create/update/delete) tested against an offline mock PDS. Tested.
 - `chat` / `chat_typed`: `chat.bsky.*` DM/group/actor/moderation write+query wrappers with chat-service endpoint resolution. Tested.
 - `ozone` / `ozone_typed`: full `tools.ozone.*` typed coverage (moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, set value). Tested.
 - `moderation`: offline decision engine (blur/alert/inform/filter) from labels, blocks, mutes, muted words, hidden posts. Tested.
@@ -64,6 +65,7 @@ The SDK is broad and multi-layered; almost all of it is implemented and tested. 
 - Exercise the gated live example test (`test_examples_live`) in CI with real credentials.
 - Continue evaluating upstream C libraries for server-side infrastructure (event loop, config parsing).
 - Broaden generated typed-wrapper coverage for any remaining lexicon endpoints not yet wrapped at the agent level.
+- Optionally add a server-side end-to-end test that emits a built `sync_publish` frame over a `subscribeRepos`-style WebSocket route and decodes it back with the `sync_subscribe` client, and extend `sync_publish` to the `subscribeLabels` `#labels` event.
 
 ## Platform support
 
