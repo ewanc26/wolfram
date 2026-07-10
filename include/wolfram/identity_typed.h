@@ -10,10 +10,15 @@
  * agent's primary XRPC client, then parse the body into the owned struct.
  *
  * The high-level `wf_agent_identity_rotate_handle` orchestrates the PLC
- * handle-rotation flow using plc.h (`wf_plc_*`). It is an honest stub: it
- * returns WF_ERR_INVALID_ARG with a TODO when a step cannot be completed
- * without out-of-band material (the emailed signature token and the account's
- * private signing key), never fabricating success.
+ * handle-rotation flow using plc.h (`wf_plc_*`) and the server-side
+ * com.atproto.identity sign/submit procedures. It builds the rotation
+ * operation locally (validation gate), then signs it via signPlcOperation and
+ * submits it via submitPlcOperation. Signing is delegated to the PDS because
+ * the agent holds no private signing key; the one-time `token` (delivered
+ * out-of-band by email after a requestPlcOperationSignature call) authorizes
+ * that sign and must be supplied by the caller. With a NULL/empty `token` the
+ * function triggers requestPlcOperationSignature (emailing the token) and
+ * returns an honest WF_ERR_INVALID_ARG rather than fabricating success.
  */
 
 #ifndef WOLFRAM_IDENTITY_TYPED_H
@@ -180,12 +185,22 @@ wf_status wf_agent_resolve_identity(wf_agent *agent, const char *identifier,
 /* Re-resolve an identity (procedure). `identifier` is a handle or DID. */
 wf_status wf_agent_refresh_identity(wf_agent *agent, const char *identifier);
 
-/* High-level handle rotation: fetch recommended credentials, build the
- * handle-rotation PLC operation, then (per the honest-stub contract) return
- * WF_ERR_INVALID_ARG with a TODO because the remaining steps need the
- * out-of-band signature token and the account's private signing key. */
+/* High-level handle rotation. Fetches the account's recommended DID
+ * credentials, builds the handle-rotation PLC operation (validating it
+ * locally), then signs it server-side via signPlcOperation and submits it via
+ * submitPlcOperation.
+ *
+ * `token` is the one-time signature token delivered out-of-band by email after
+ * a com.atproto.identity.requestPlcOperationSignature call. It must be supplied
+ * by the caller: the function cannot read it. When `token` is NULL or empty the
+ * function first calls requestPlcOperationSignature (emailing the token) and
+ * returns WF_ERR_INVALID_ARG honestly instead of fabricating a signature.
+ *
+ * On WF_OK the rotation has been submitted to the PDS. Ownership: arguments are
+ * borrowed; the function performs no heap output of its own. */
 wf_status wf_agent_identity_rotate_handle(wf_agent *agent,
-                                          const char *new_handle);
+                                          const char *new_handle,
+                                          const char *token);
 
 #ifdef __cplusplus
 }
