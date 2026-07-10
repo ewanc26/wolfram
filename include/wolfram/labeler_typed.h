@@ -199,14 +199,18 @@ wf_status wf_agent_get_labeler_services(wf_agent *agent, const char *const *dids
                                         size_t did_count, bool detailed,
                                         wf_labeler_service_list *out);
 
-/* com.atproto.temp.fetchLabels. NOTE: the generated lex wrapper exposes only
- * `since`/`limit` parameters (no per-DID filter or cursor); `did` is accepted
- * for API symmetry with the labeler-namespace wrappers and validated for
- * non-NULL but otherwise unused. The canonical wf_agent_fetch_labels (returning
- * a raw cJSON array) lives in temp_typed.h; this typed variant returns an owned
- * structured label list. */
+/* Legacy com.atproto.temp.fetchLabels helper. The endpoint has no DID filter,
+ * so this obsolete signature cannot honor `did` and returns
+ * WF_ERR_INVALID_ARG rather than silently ignoring it. */
 wf_status wf_agent_fetch_labels_typed(wf_agent *agent, const char *did,
                                       wf_labeler_temp_label_list *out);
+
+/* Exact typed fetchLabels query. `has_since` controls the optional integer
+ * cursor; `limit == 0` omits the parameter, otherwise the lexicon requires
+ * 1..250. The returned list is freed with wf_labeler_temp_label_list_free. */
+wf_status wf_agent_fetch_labels_list(wf_agent *agent,
+                                     int has_since, int64_t since, int limit,
+                                     wf_labeler_temp_label_list *out);
 
 #ifdef __cplusplus
 }

@@ -4,20 +4,18 @@
  * notification settings).
  *
  * Wire format (authoritative, app.bsky.notification):
- *   putPreferences input : { priority?: boolean,
- *                            priorities?: { [key: string]: boolean } }
- *   getPreferences output: { priority: boolean,
- *                            priorities?: { [key: string]: boolean } }
+ *   putPreferences input : { priority: boolean }
+ *   getPreferences output: { preferences: defs#preferences }
  *
- * Every owning output has a matching `_free`. `priorities` is an owned cJSON
- * object (string keys -> bool values), detached from the parsed document and
- * released by `wf_notification_prefs_free`.
+ * `defs#preferences` is the same 13-slot object returned by
+ * putPreferencesV2, so this module reuses its typed representation.
  */
 
 #ifndef WOLFRAM_NOTIFICATION_PREFS_TYPED_H
 #define WOLFRAM_NOTIFICATION_PREFS_TYPED_H
 
 #include "wolfram/agent.h"
+#include "wolfram/notification_v2_typed.h"
 
 #include <cJSON.h>
 #include <stddef.h>
@@ -26,17 +24,13 @@
 extern "C" {
 #endif
 
-/* Owned per-user notification preferences. */
-typedef struct wf_notification_prefs {
-    int    priority;     /* boolean value when has_priority != 0 */
-    int    has_priority; /* 1 if `priority` was present in the source JSON */
-    cJSON *priorities;   /* owned map of string -> bool; NULL if absent */
-} wf_notification_prefs;
+/* Owned per-user notification preferences (`defs#preferences`). */
+typedef wf_notification_v2_preferences wf_notification_prefs;
 
 /*
- * Parse a getPreferences output body (`{ priority?, priorities? }`) into an
- * owned wf_notification_prefs. On any error `out` is left zeroed and any
- * partially-detached `priorities` is released.
+ * Parse a getPreferences output body (`{ preferences: {...} }`) or a bare
+ * `defs#preferences` object into an owned wf_notification_prefs. On error
+ * `out` is left zeroed.
  */
 wf_status wf_notification_prefs_parse(const char *json, size_t len,
                                       wf_notification_prefs *out);
@@ -54,13 +48,16 @@ wf_status wf_agent_get_notification_prefs(wf_agent *agent,
 /*
  * Update the authenticated account's notification preferences.
  *
- * `priority` is the global priority toggle. `priorities_json` is an optional
- * JSON object literal such as `{"like": true}` (or NULL). A non-NULL
- * `priorities_json` that is not a valid JSON object yields WF_ERR_INVALID_ARG.
- * `agent` must be non-NULL (WF_ERR_INVALID_ARG otherwise).
+ * `priority` is the global priority toggle. The upstream v1 lexicon has no
+ * `priorities` property; `priorities_json` is retained for source compatibility
+ * and must be NULL. A non-NULL value returns WF_ERR_INVALID_ARG rather than
+ * silently discarding caller input. Prefer wf_agent_put_notification_priority.
  */
 wf_status wf_agent_put_notification_prefs(wf_agent *agent, int priority,
                                           const char *priorities_json);
+
+/* Update the v1 global priority toggle using the exact `{priority}` schema. */
+wf_status wf_agent_put_notification_priority(wf_agent *agent, int priority);
 
 #ifdef __cplusplus
 }

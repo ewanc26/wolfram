@@ -56,8 +56,8 @@ static wf_status fake_handler(void *ud, const char *method, const char *url,
     /* DID resolution (did:plc). */
     if (strstr(url, "plc.directory")) {
         static const char did[] =
-            "{\"id\":\"did:plc:alice\",\"service\":[{\"type\":"
-            "\"AtprotoPersonalDataServer\",\"serviceEndpoint\":"
+            "{\"id\":\"did:plc:alice\",\"service\":[{\"id\":\"#atproto_pds\","
+            "\"type\":\"AtprotoPersonalDataServer\",\"serviceEndpoint\":"
             "\"https://pds.example\"}]}";
         out->status = 200;
         out->body = strdup(did);

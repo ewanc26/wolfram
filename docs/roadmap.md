@@ -418,11 +418,10 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   untethered blobs can be garbage-collected), optional at-rest encryption of
   stored bytes (analogous to `WOLFRAM_BUILD_STORE_CRYPTO`), and size/type
   limits enforced at `uploadBlob` per the lexicon.
-- `app.bsky.notification.putPreferencesV2` is now fully typed
-  (`wf_notification_v2_preferences_build`/`_parse`/`_free` +
-  `wf_agent_put_notification_preferences_v2_typed`); the v1 `putPreferences`
-  `priorities` field is still not transmittable (generated lex input only
-  carries `priority`) — see the TODO in `src/notification_prefs_typed.c`.
+- `app.bsky.notification.putPreferencesV2` and `getPreferences` share the
+  fully typed 13-slot `defs#preferences` representation. The legacy v1
+  `putPreferences` endpoint carries only its required `priority` boolean;
+  `wf_agent_put_notification_priority` transmits that exact schema.
 - Replace the Nintendo Wii/Wii U/3DS platform, transport, and crypto stubs
   (currently `WF_ERR_NOT_IMPLEMENTED`) with real devkitPro-backed
   implementations — see the `TODO` markers in `src/platform/*_platform.c`,

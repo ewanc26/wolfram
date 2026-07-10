@@ -926,15 +926,27 @@ wf_status wf_agent_get_labeler_services(wf_agent *agent, const char *const *dids
 
 wf_status wf_agent_fetch_labels_typed(wf_agent *agent, const char *did,
                                        wf_labeler_temp_label_list *out) {
-    if (!agent || !agent->client || !did || !did[0] || !out) {
+    (void)agent;
+    (void)did;
+    (void)out;
+    return WF_ERR_INVALID_ARG;
+}
+
+wf_status wf_agent_fetch_labels_list(wf_agent *agent,
+                                     int has_since, int64_t since, int limit,
+                                     wf_labeler_temp_label_list *out) {
+    if (!agent || !agent->client || !out || limit < 0 || limit > 250) {
         return WF_ERR_INVALID_ARG;
     }
-    (void)did; /* com.atproto.temp.fetchLabels exposes only since/limit params. */
 
     wf_labeler_temp_label_list list = {0};
     wf_lex_com_atproto_temp_fetch_labels_main_params params = {0};
-    params.has_limit = true;
-    params.limit = 50;
+    params.has_since = (has_since != 0);
+    params.since = since;
+    if (limit != 0) {
+        params.has_limit = true;
+        params.limit = limit;
+    }
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};

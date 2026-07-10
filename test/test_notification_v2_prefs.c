@@ -199,6 +199,15 @@ int main(void) {
     wf_notification_v2_preferences bad_parse = {0};
     WF_CHECK(wf_notification_v2_preferences_parse(
                  "not json", 8, &bad_parse) == WF_ERR_PARSE);
+    static const char *missing_slots =
+        "{\"chat\":{\"include\":\"all\",\"push\":true}}";
+    WF_CHECK(wf_notification_v2_preferences_parse(
+                 missing_slots, strlen(missing_slots), &bad_parse) ==
+             WF_ERR_PARSE);
+    static const char *empty_envelope = "{\"preferences\":{}}";
+    WF_CHECK(wf_notification_v2_preferences_parse(
+                 empty_envelope, strlen(empty_envelope), &bad_parse) ==
+             WF_ERR_PARSE);
     WF_CHECK(wf_notification_v2_preferences_parse(NULL, 0, &bad_parse) ==
              WF_ERR_INVALID_ARG);
     wf_notification_v2_preferences_free(&bad_parse);

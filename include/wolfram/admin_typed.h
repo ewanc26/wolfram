@@ -162,10 +162,15 @@ wf_status wf_agent_admin_update_account_signing_key(wf_agent *agent,
 wf_status wf_agent_admin_delete_account(wf_agent *agent, const char *did);
 wf_status wf_agent_admin_enable_account_invites(wf_agent *agent);
 wf_status wf_agent_admin_disable_account_invites(wf_agent *agent);
-/* disableInviteCodes has no cursor parameter in the lexicon; the `cursor`
- * argument is accepted for API symmetry and currently unused. */
+/* Legacy disableInviteCodes wrapper. `cursor` has no wire field and must be
+ * NULL. Prefer wf_agent_admin_disable_invite_codes_typed. */
 wf_status wf_agent_admin_disable_invite_codes(wf_agent *agent,
                                               const char *cursor);
+/* Exact disableInviteCodes input. Both arrays are optional, but a non-zero
+ * count requires a non-NULL array whose entries are all non-NULL. */
+wf_status wf_agent_admin_disable_invite_codes_typed(
+    wf_agent *agent, const char *const *codes, size_t code_count,
+    const char *const *accounts, size_t account_count);
 wf_status wf_agent_admin_send_email(wf_agent *agent, const char *recipient_did,
                                     const char *content, const char *subject,
                                     const char *sender_did);

@@ -48,11 +48,11 @@ static void wf_moderation_report_record_reset(wf_moderation_report_record *r) {
     if (!r) {
         return;
     }
-    free(r->uri);
-    free(r->cid);
-    if (r->value) {
-        cJSON_Delete(r->value);
-    }
+    free(r->reason_type);
+    free(r->reason);
+    cJSON_Delete(r->subject);
+    free(r->reported_by);
+    free(r->created_at);
     memset(r, 0, sizeof(*r));
 }
 
@@ -70,25 +70,35 @@ wf_status wf_moderation_report_record_parse(const char *json, size_t len,
     }
 
     wf_status status = WF_OK;
-    cJSON *uri = cJSON_GetObjectItemCaseSensitive(root, "uri");
-    if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_moderation_report_record_set_string(&out->uri, uri->valuestring);
-    }
-
-    if (status == WF_OK) {
-        cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
-        if (cJSON_IsString(cid) && cid->valuestring) {
-            status =
-                wf_moderation_report_record_set_string(&out->cid, cid->valuestring);
+    cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id");
+    cJSON *reason_type = cJSON_GetObjectItemCaseSensitive(root, "reasonType");
+    cJSON *reason = cJSON_GetObjectItemCaseSensitive(root, "reason");
+    cJSON *subject = cJSON_GetObjectItemCaseSensitive(root, "subject");
+    cJSON *reported_by = cJSON_GetObjectItemCaseSensitive(root, "reportedBy");
+    cJSON *created_at = cJSON_GetObjectItemCaseSensitive(root, "createdAt");
+    if (!cJSON_IsNumber(id) || id->valuedouble != (double)id->valueint ||
+        !cJSON_IsString(reason_type) || !reason_type->valuestring ||
+        !cJSON_IsObject(subject) || !cJSON_IsString(reported_by) ||
+        !reported_by->valuestring || !cJSON_IsString(created_at) ||
+        !created_at->valuestring || (reason && !cJSON_IsString(reason))) {
+        status = WF_ERR_PARSE;
+    } else {
+        out->id = (int64_t)id->valuedouble;
+        status = wf_moderation_report_record_set_string(
+            &out->reason_type, reason_type->valuestring);
+        if (status == WF_OK && reason)
+            status = wf_moderation_report_record_set_string(
+                &out->reason, reason->valuestring);
+        if (status == WF_OK) {
+            out->subject = cJSON_Duplicate(subject, true);
+            if (!out->subject) status = WF_ERR_ALLOC;
         }
-    }
-
-    if (status == WF_OK) {
-        /* Detach the arbitrary record subtree verbatim and take ownership. */
-        cJSON *value = cJSON_DetachItemFromObject(root, "value");
-        if (value) {
-            out->value = value;
-        }
+        if (status == WF_OK)
+            status = wf_moderation_report_record_set_string(
+                &out->reported_by, reported_by->valuestring);
+        if (status == WF_OK)
+            status = wf_moderation_report_record_set_string(
+                &out->created_at, created_at->valuestring);
     }
 
     cJSON_Delete(root);
@@ -100,50 +110,62 @@ wf_status wf_moderation_report_record_parse(const char *json, size_t len,
 }
 
 void wf_moderation_report_record_free(wf_moderation_report_record *r) {
-    if (!r) {
-        return;
-    }
-    free(r->uri);
-    free(r->cid);
-    if (r->value) {
-        cJSON_Delete(r->value);
-    }
-    memset(r, 0, sizeof(*r));
+    wf_moderation_report_record_reset(r);
 }
 
 wf_status wf_agent_report(wf_agent *agent, const char *subject_uri,
                           const char *subject_cid, const char *reason_type,
                           const char *reason_subject_uri,
                           wf_moderation_report_record *out) {
-    if (!agent || !subject_uri || !*subject_uri || !reason_type ||
-        !*reason_type) {
+    if (!subject_uri || !subject_uri[0] || reason_subject_uri) {
         return WF_ERR_INVALID_ARG;
     }
-    if (!out) {
-        return WF_ERR_INVALID_ARG;
-    }
+    if (strncmp(subject_uri, "did:", 4) == 0)
+        return wf_agent_report_typed(agent, subject_uri, NULL, NULL,
+                                     reason_type, NULL, NULL, NULL, out);
+    return wf_agent_report_typed(agent, NULL, subject_uri, subject_cid,
+                                 reason_type, NULL, NULL, NULL, out);
+}
 
+wf_status wf_agent_report_typed(wf_agent *agent,
+                                const char *subject_did,
+                                const char *subject_uri,
+                                const char *subject_cid,
+                                const char *reason_type,
+                                const char *reason,
+                                const char *mod_tool_name,
+                                const char *mod_tool_meta_json,
+                                wf_moderation_report_record *out) {
+    int repo_subject = subject_did && subject_did[0];
+    int record_subject = subject_uri && subject_uri[0] &&
+                         subject_cid && subject_cid[0];
+    if (!agent || !out || !reason_type || !reason_type[0] ||
+        repo_subject == record_subject ||
+        (subject_uri && subject_uri[0] && !record_subject) ||
+        (subject_cid && subject_cid[0] && !record_subject) ||
+        (reason && strlen(reason) > 20000) ||
+        (mod_tool_meta_json && (!mod_tool_name || !mod_tool_name[0]))) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (!agent->client) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
-
-    /* The current com.atproto.moderation.createReport lexicon carries the
-     * reason as a flat `reasonType` token plus an optional free-text `reason`
-     * and a union `subject`; there is no nested reason subject, so the
-     * historical `reason_subject_uri` argument has no wire slot here. */
-    (void)reason_subject_uri;
 
     wf_agent_sync_auth(agent);
 
-    /* Build the subject union member (strongRef: {uri, cid?}) as a JSON blob,
-     * mirroring the lexicon input encoder. */
     cJSON *subject = cJSON_CreateObject();
     if (!subject) {
         return WF_ERR_ALLOC;
     }
-    if (!cJSON_AddStringToObject(subject, "uri", subject_uri)) {
+    const char *subject_type = repo_subject
+        ? "com.atproto.admin.defs#repoRef"
+        : "com.atproto.repo.strongRef";
+    if (!cJSON_AddStringToObject(subject, "$type", subject_type) ||
+        !cJSON_AddStringToObject(subject, repo_subject ? "did" : "uri",
+                                 repo_subject ? subject_did : subject_uri)) {
         cJSON_Delete(subject);
         return WF_ERR_ALLOC;
     }
-    if (subject_cid && *subject_cid) {
+    if (record_subject) {
         if (!cJSON_AddStringToObject(subject, "cid", subject_cid)) {
             cJSON_Delete(subject);
             return WF_ERR_ALLOC;
@@ -158,9 +180,32 @@ wf_status wf_agent_report(wf_agent *agent, const char *subject_uri,
     wf_lex_com_atproto_moderation_create_report_main_input input;
     memset(&input, 0, sizeof(input));
     input.reason_type = reason_type;
+    if (reason) {
+        input.has_reason = true;
+        input.reason = reason;
+    }
     input.subject.kind = -1;
     input.subject.data = subject_json;
     input.subject.length = strlen(subject_json);
+
+    wf_lex_com_atproto_moderation_create_report_mod_tool mod_tool = {0};
+    if (mod_tool_name && mod_tool_name[0]) {
+        input.has_mod_tool = true;
+        mod_tool.name = mod_tool_name;
+        if (mod_tool_meta_json) {
+            cJSON *meta = cJSON_Parse(mod_tool_meta_json);
+            if (!meta) {
+                wf_lex_com_atproto_moderation_create_report_main_json_free(
+                    subject_json);
+                return WF_ERR_PARSE;
+            }
+            cJSON_Delete(meta);
+            mod_tool.has_meta = true;
+            mod_tool.meta.data = mod_tool_meta_json;
+            mod_tool.meta.length = strlen(mod_tool_meta_json);
+        }
+        input.mod_tool = &mod_tool;
+    }
 
     wf_response res = {0};
     wf_status status =
