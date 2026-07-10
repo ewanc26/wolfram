@@ -99,16 +99,50 @@ static int wf_syntax_language_is_grandfathered(const char *language) {
 /* ── DID ─────────────────────────────────────────────────────────────── */
 
 int wf_syntax_did_is_valid(const char *did) {
-    regex_t regex;
-    int ret;
-    if (!did || strlen(did) > 2048) return 0;
-    ret = regcomp(&regex,
-        "^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$",
-        REG_EXTENDED | REG_NOSUB);
-    if (ret != 0) return 0;
-    ret = regexec(&regex, did, 0, NULL, 0);
-    regfree(&regex);
-    return ret == 0;
+    size_t len, i, method_start, msid_start;
+    if (!did) return 0;
+    len = strlen(did);
+    if (len == 0 || len > 2048) return 0;
+    if (strncmp(did, "did:", 4) != 0) return 0;
+
+    method_start = 4;
+    for (i = method_start; i < len; i++) {
+        unsigned char c = (unsigned char)did[i];
+        if (c == ':') break;
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) return 0;
+    }
+    if (i == method_start || i == len) return 0;
+
+    msid_start = i + 1;
+    if (msid_start >= len) return 0;
+    for (i = msid_start; i < len; i++) {
+        unsigned char c = (unsigned char)did[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_') {
+            continue;
+        }
+        if (c == ':') {
+            if (i == len - 1) return 0;
+            continue;
+        }
+        if (c == '%') {
+            if (i + 2 >= len) return 0;
+            c = (unsigned char)did[i + 1];
+            if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') ||
+                  (c >= 'a' && c <= 'f'))) {
+                return 0;
+            }
+            c = (unsigned char)did[i + 2];
+            if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') ||
+                  (c >= 'a' && c <= 'f'))) {
+                return 0;
+            }
+            i += 2;
+            continue;
+        }
+        return 0;
+    }
+    return 1;
 }
 
 wf_status wf_syntax_did_validate(const char *did) {
