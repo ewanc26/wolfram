@@ -28,7 +28,7 @@ wf_status wf_platform_init(void) {
      *   3. Initialise SSL/TLS context (mbedTLS)
      *   4. Mount SD card (fatMountSimple)
      */
-    return WF_OK;
+    return WF_ERR_NOT_IMPLEMENTED;
 }
 
 void wf_platform_shutdown(void) {
@@ -72,7 +72,8 @@ void wf_platform_shutdown(void) {
 struct wf_platform_mutex { int dummy; };
 
 wf_platform_mutex *wf_platform_mutex_new(void) {
-    return calloc(1, sizeof(wf_platform_mutex));
+    /* Stub: no real backend yet — signal failure honestly. */
+    return NULL;
 }
 
 void wf_platform_mutex_lock(wf_platform_mutex *m) {
