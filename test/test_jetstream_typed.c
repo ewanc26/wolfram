@@ -7,86 +7,86 @@
 int main(void) {
     {
         const char json[] =
-            "{\"did\":\"did:plc:repo\",\"time_us\":1725516666833633,"
-            "\"kind\":\"commit\",\"commit\":{"
-            "\"seq\":123,\"tooBig\":false,"
-            "\"blocks\":\"mF4CAgI\","
-            "\"repo\":\"did:plc:repo\",\"rev\":\"3-abc\",\"since\":null,"
-            "\"time\":\"2024-09-05T10:11:06.833Z\","
-            "\"ops\":["
-            "{\"action\":\"create\",\"path\":\"app.bsky.feed.post/aa1\","
-            "\"cid\":\"bafycid1\",\"prev\":null,"
-            "\"value\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"hi\"}},"
-            "{\"action\":\"update\",\"path\":\"app.bsky.graph.follow/bb2\","
-            "\"cid\":\"bafycid2\",\"prev\":\"bafyprev2\","
-            "\"value\":{\"$type\":\"app.bsky.graph.follow\"}}"
-            "]}}";
+            "{\"did\":\"did:plc:abc\",\"time_us\":1700000000000000,"
+            "\"seq\":123,\"kind\":\"commit\",\"commit\":{"
+            "\"operation\":\"create\","
+            "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"abc\","
+            "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"hello world\"},"
+            "\"cid\":\"bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu\","
+            "\"rev\":\"3loabcmyt2sld\"}}";
         wf_jetstream_event_typed ev = {0};
         WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
                  == WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_COMMIT);
-        WF_CHECK(ev.did && strcmp(ev.did, "did:plc:repo") == 0);
-        WF_CHECK(ev.commit.seq && strcmp(ev.commit.seq, "123") == 0);
-        WF_CHECK(ev.commit.repo && strcmp(ev.commit.repo, "did:plc:repo") == 0);
-        WF_CHECK(ev.commit.did && strcmp(ev.commit.did, "did:plc:repo") == 0);
-        WF_CHECK(ev.commit.repo_rev &&
-                 strcmp(ev.commit.repo_rev, "3-abc") == 0);
-        WF_CHECK(ev.commit.too_big == 0);
-        WF_CHECK(ev.commit.blocks && strcmp(ev.commit.blocks, "mF4CAgI") == 0);
-        WF_CHECK(ev.commit.time &&
-                 strcmp(ev.commit.time, "2024-09-05T10:11:06.833Z") == 0);
-        WF_CHECK(ev.commit.op_count == 2);
-        WF_CHECK(ev.commit.ops[0].action &&
-                 strcmp(ev.commit.ops[0].action, "create") == 0);
-        WF_CHECK(ev.commit.ops[0].path &&
-                 strcmp(ev.commit.ops[0].path, "app.bsky.feed.post/aa1") == 0);
-        WF_CHECK(ev.commit.ops[0].cid &&
-                 strcmp(ev.commit.ops[0].cid, "bafycid1") == 0);
-        WF_CHECK(ev.commit.ops[0].prev == NULL);
-        WF_CHECK(ev.commit.ops[0].has_value &&
-                 cJSON_IsObject(ev.commit.ops[0].value));
-        WF_CHECK(ev.commit.ops[1].action &&
-                 strcmp(ev.commit.ops[1].action, "update") == 0);
-        WF_CHECK(ev.commit.ops[1].prev &&
-                 strcmp(ev.commit.ops[1].prev, "bafyprev2") == 0);
-        WF_CHECK(ev.commit.ops[1].has_value);
+        WF_CHECK(ev.did && strcmp(ev.did, "did:plc:abc") == 0);
+        WF_CHECK(ev.seq == 123);
+        WF_CHECK(ev.time_us == 1700000000000000);
+        WF_CHECK(ev.commit.operation == WF_JETSTREAM_COMMIT_CREATE);
+        WF_CHECK(ev.commit.collection &&
+                 strcmp(ev.commit.collection, "app.bsky.feed.post") == 0);
+        WF_CHECK(ev.commit.rkey && strcmp(ev.commit.rkey, "abc") == 0);
+        WF_CHECK(ev.commit.has_record &&
+                 cJSON_IsObject(ev.commit.record));
+        WF_CHECK(ev.commit.cid &&
+                 strcmp(ev.commit.cid,
+                        "bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu") == 0);
+        WF_CHECK(ev.commit.rev &&
+                 strcmp(ev.commit.rev, "3loabcmyt2sld") == 0);
         wf_jetstream_event_typed_free(&ev);
-        WF_CHECK(ev.did == NULL && ev.commit.ops == NULL);
+        WF_CHECK(ev.did == NULL && ev.commit.record == NULL);
     }
 
     {
         const char json[] =
-            "{\"did\":\"did:plc:ident\",\"time_us\":1725516666833633,"
-            "\"kind\":\"identity\",\"identity\":{"
-            "\"seq\":7,\"did\":\"did:plc:ident\","
-            "\"time\":\"2024-09-05T10:11:06.833Z\","
-            "\"handle\":\"alice.bsky.social\"}}";
+            "{\"did\":\"did:plc:abc\",\"time_us\":1700000000000001,"
+            "\"seq\":124,\"kind\":\"commit\",\"commit\":{"
+            "\"operation\":\"delete\","
+            "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"abc\","
+            "\"cid\":\"bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu\","
+            "\"rev\":\"3loabcmyt2sle\"}}";
+        wf_jetstream_event_typed ev = {0};
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
+                 == WF_OK);
+        WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_COMMIT);
+        WF_CHECK(ev.commit.operation == WF_JETSTREAM_COMMIT_DELETE);
+        WF_CHECK(ev.commit.collection &&
+                 strcmp(ev.commit.collection, "app.bsky.feed.post") == 0);
+        WF_CHECK(ev.commit.rkey && strcmp(ev.commit.rkey, "abc") == 0);
+        WF_CHECK(ev.commit.has_record == 0 && ev.commit.record == NULL);
+        WF_CHECK(ev.commit.cid != NULL);
+        wf_jetstream_event_typed_free(&ev);
+    }
+
+    {
+        const char json[] =
+            "{\"did\":\"did:plc:ident\",\"time_us\":1700000000000000,"
+            "\"seq\":7,\"kind\":\"identity\","
+            "\"identity\":{\"handle\":\"alice.bsky.social\","
+            "\"did\":\"did:plc:ident\",\"seq\":7,"
+            "\"time\":\"2023-11-14T12:00:00Z\",\"prev\":\"\"}}";
         wf_jetstream_event_typed ev = {0};
         WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
                  == WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_IDENTITY);
-        WF_CHECK(ev.identity.seq && strcmp(ev.identity.seq, "7") == 0);
-        WF_CHECK(ev.identity.did &&
-                 strcmp(ev.identity.did, "did:plc:ident") == 0);
+        WF_CHECK(ev.did && strcmp(ev.did, "did:plc:ident") == 0);
+        WF_CHECK(ev.seq == 7);
         WF_CHECK(ev.identity.handle &&
                  strcmp(ev.identity.handle, "alice.bsky.social") == 0);
-        WF_CHECK(ev.identity.time &&
-                 strcmp(ev.identity.time, "2024-09-05T10:11:06.833Z") == 0);
         wf_jetstream_event_typed_free(&ev);
     }
 
     {
         const char json[] =
-            "{\"did\":\"did:plc:acct\",\"time_us\":1725516666833633,"
-            "\"kind\":\"account\",\"account\":{"
-            "\"seq\":9,\"did\":\"did:plc:acct\","
-            "\"time\":\"2024-09-05T10:11:06.833Z\","
-            "\"active\":true,\"status\":null}}";
+            "{\"did\":\"did:plc:acct\",\"time_us\":1700000000000000,"
+            "\"seq\":9,\"kind\":\"account\","
+            "\"account\":{\"active\":true,\"did\":\"did:plc:acct\",\"seq\":9,"
+            "\"time\":\"2023-11-14T12:00:00Z\",\"status\":null}}";
         wf_jetstream_event_typed ev = {0};
         WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
                  == WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_ACCOUNT);
-        WF_CHECK(ev.account.seq && strcmp(ev.account.seq, "9") == 0);
+        WF_CHECK(ev.did && strcmp(ev.did, "did:plc:acct") == 0);
+        WF_CHECK(ev.seq == 9);
         WF_CHECK(ev.account.active == 1);
         WF_CHECK(ev.account.status == NULL);
         wf_jetstream_event_typed_free(&ev);
@@ -94,8 +94,8 @@ int main(void) {
 
     {
         const char json[] =
-            "{\"did\":\"did:plc:fork\",\"time_us\":1725516666833633,"
-            "\"kind\":\"fork\",\"fork\":{"
+            "{\"did\":\"did:plc:fork\",\"time_us\":1700000000000000,"
+            "\"seq\":42,\"kind\":\"fork\",\"fork\":{"
             "\"seq\":42,\"did\":\"did:plc:fork\","
             "\"time\":\"2024-09-05T10:11:06.833Z\","
             "\"rev\":\"3-fork\",\"tooBig\":false}}";
@@ -112,7 +112,7 @@ int main(void) {
     }
 
     {
-        const char json[] = "{\"did\":123,\"time_us\":1,\"kind\":\"commit\"}";
+        const char json[] = "{\"did\":123,\"time_us\":1,\"seq\":1,\"kind\":\"commit\"}";
         wf_jetstream_event_typed ev = {0};
         WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
                  == WF_ERR_PARSE);

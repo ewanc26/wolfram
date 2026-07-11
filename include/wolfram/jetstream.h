@@ -62,47 +62,39 @@ typedef struct wf_jetstream_event {
     size_t json_len;
 } wf_jetstream_event;
 
-/**
- * One repo mutation operation inside a commit payload. `cid`/`prev` may be
- * NULL (e.g. deletion has no `cid`). `value` is the owned record JSON for
- * create/update events; `has_value` distinguishes "present" from "absent".
- * The owning `wf_jetstream_event_typed_free` deletes `value`.
- */
-typedef struct wf_jetstream_op {
-    char *action; /* "create" | "update" | "delete" */
-    char *path;   /* "collection/rkey" */
-    char *cid;    /* nullable */
-    char *prev;   /* nullable */
-    cJSON *value; /* owned; only for create/update */
-    int has_value;
-} wf_jetstream_op;
+/** Commit operation as emitted by Jetstream's flattened JSON `commit` payload. */
+typedef enum wf_jetstream_commit_op {
+    WF_JETSTREAM_COMMIT_UNKNOWN = 0,
+    WF_JETSTREAM_COMMIT_CREATE,
+    WF_JETSTREAM_COMMIT_UPDATE,
+    WF_JETSTREAM_COMMIT_DELETE,
+} wf_jetstream_commit_op;
 
-/** Owned, typed commit payload. `ops` is owned; `blocks` is owned base64 text. */
+/**
+ * Owned, typed commit payload. Jetstream sends a flattened JSON commit (not
+ * the firehose CAR shape): `operation` is create/update/delete, `collection`/
+ * `rkey` identify the record, `record` is the owned record JSON object (NULL
+ * for deletes; `has_record` distinguishes "present" from "absent"), and `cid`/
+ * `rev` are the record CID and repo revision TID. `seq`/`did`/`time_us` live on
+ * the event envelope, not here.
+ */
 typedef struct wf_jetstream_commit {
-    char *seq;         /* decimal stream sequence as text */
-    char *did;
-    char *time;
-    char *repo;
-    char *repo_rev;
-    int too_big;
-    char *blocks;      /* base64 CAR; owned */
-    wf_jetstream_op *ops;
-    size_t op_count;
+    wf_jetstream_commit_op operation;
+    char *collection; /* NSID */
+    char *rkey;
+    cJSON *record;    /* owned; nullable (delete) */
+    int has_record;
+    char *cid;        /* nullable */
+    char *rev;        /* nullable (repo revision TID) */
 } wf_jetstream_commit;
 
-/** Owned, typed identity payload. */
+/** Owned, typed identity payload. `handle` is the only required field. */
 typedef struct wf_jetstream_identity {
-    char *seq;
-    char *did;
-    char *time;
     char *handle;
 } wf_jetstream_identity;
 
 /** Owned, typed account payload. `status` is nullable. */
 typedef struct wf_jetstream_account {
-    char *seq;
-    char *did;
-    char *time;
     int active;
     char *status; /* nullable */
 } wf_jetstream_account;
@@ -122,13 +114,16 @@ typedef struct wf_jetstream_sync {
 } wf_jetstream_sync;
 
 /**
- * Owned, typed event: the envelope `kind`/`did` plus the typed payload of the
+ * Owned, typed event: the envelope `kind`/`did`/`seq`/`time_us` plus the typed
+ * payload of the
  * matching union member. On WF_OK, `*out` is owned by the caller and freed
  * with `wf_jetstream_event_typed_free`; on error it is left reset (no leaks).
  */
 typedef struct wf_jetstream_event_typed {
     wf_jetstream_event_kind kind;
     char *did;
+    int64_t seq;    /* envelope sequence; NOT the payload seq */
+    int64_t time_us; /* envelope microsecond timestamp */
     wf_jetstream_commit commit;
     wf_jetstream_identity identity;
     wf_jetstream_account account;
