@@ -19,6 +19,32 @@ INLINE_FIXTURE = ROOT / "test" / "fixtures" / "lexicons" / "com.example.inline.j
 REFS_FIXTURE = ROOT / "test" / "fixtures" / "lexicons" / "com.example.refs.json"
 
 
+def openssl_flags():
+    """Return compiler/linker flags from pkg-config or the CMake cache."""
+    pkg_config = subprocess.run(
+        ["pkg-config", "--cflags", "--libs", "openssl"],
+        capture_output=True, text=True,
+    )
+    if pkg_config.returncode == 0:
+        return shlex.split(pkg_config.stdout)
+
+    cache = ROOT / "build" / "CMakeCache.txt"
+    if cache.exists():
+        values = {}
+        for line in cache.read_text(encoding="utf-8").splitlines():
+            if line.startswith(("OPENSSL_INCLUDE_DIR:",
+                                "OPENSSL_CRYPTO_LIBRARY:")):
+                key, value = line.split("=", 1)
+                values[key.split(":", 1)[0]] = value
+        include = values.get("OPENSSL_INCLUDE_DIR")
+        crypto = values.get("OPENSSL_CRYPTO_LIBRARY")
+        if include and crypto:
+            return [f"-I{include}", crypto]
+
+    raise RuntimeError(
+        "OpenSSL compiler flags unavailable from pkg-config or CMake cache")
+
+
 class LexgenTests(unittest.TestCase):
     def generate(self, *inputs: Path) -> str:
         result = subprocess.run(
@@ -199,9 +225,7 @@ int main(void) {
     return 0;
 }
 ''', encoding="utf-8")
-            openssl = shlex.split(subprocess.run(
-                ["pkg-config", "--cflags", "--libs", "openssl"], check=True,
-                capture_output=True, text=True).stdout)
+            openssl = openssl_flags()
             subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
                             "-I", str(directory), "-I", str(ROOT / "include"),
                             "-I", str(cjson_include), str(generated), str(check),
@@ -267,9 +291,7 @@ int main(void) {
     return 0;
 }
 ''', encoding="utf-8")
-            openssl = shlex.split(subprocess.run(
-                ["pkg-config", "--cflags", "--libs", "openssl"], check=True,
-                capture_output=True, text=True).stdout)
+            openssl = openssl_flags()
             subprocess.run(["cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
                             "-I", str(directory), "-I", str(ROOT / "include"),
                             "-I", str(cjson_include), str(generated), str(check),
@@ -373,10 +395,7 @@ int main(void) {
     return 0;
 }
 ''', encoding="utf-8")
-            openssl = shlex.split(subprocess.run(
-                ["pkg-config", "--cflags", "--libs", "openssl"],
-                check=True, capture_output=True, text=True,
-            ).stdout)
+            openssl = openssl_flags()
             subprocess.run([
                 "cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
                 "-I", str(directory), "-I", str(ROOT / "include"),
@@ -450,10 +469,7 @@ int main(void) {
     return 0;
 }
 ''', encoding="utf-8")
-            openssl = shlex.split(subprocess.run(
-                ["pkg-config", "--cflags", "--libs", "openssl"],
-                check=True, capture_output=True, text=True,
-            ).stdout)
+            openssl = openssl_flags()
             subprocess.run([
                 "cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
                 "-I", str(directory), "-I", str(ROOT / "include"),
