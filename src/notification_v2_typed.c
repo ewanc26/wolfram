@@ -651,12 +651,13 @@ static void wf_notif_v2_read_filterable(cJSON *o, wf_notif_v2_filterable_pref *p
         p->has_include = 1;
         if (strcmp(include->valuestring, "follows") == 0) {
             p->include = WF_NOTIF_V2_INCLUDE_FOLLOWS;
-        } else if (strcmp(include->valuestring, "accepted") == 0) {
-            p->include = WF_NOTIF_V2_INCLUDE_ACCEPTED;
         } else if (strcmp(include->valuestring, "all") == 0) {
             p->include = WF_NOTIF_V2_INCLUDE_ALL;
         } else {
-            p->include = WF_NOTIF_V2_INCLUDE_UNSET;
+            /* filterablePreference.knownValues are only ["all","follows"]:
+             * map any other value (e.g. the chat-only "accepted") to "all"
+             * rather than emitting an out-of-range include. */
+            p->include = WF_NOTIF_V2_INCLUDE_ALL;
         }
     }
     if (cJSON_IsBool(list)) {
