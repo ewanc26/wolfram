@@ -58,7 +58,7 @@ The SDK is broad and multi-layered; almost all of it is implemented and tested. 
 - `video_typed`: owning parsers + agent wrappers for `app.bsky.video` (job status, upload limits, upload). Tested.
 - `actor_prefs_typed` / `actor_status_typed` / `notification_typed` / `notification_v2_typed` / `labeler_typed` / `embed_typed` / `feed_typed` / `feedgen_typed` / `graph_typed` / `list_typed` / `thread_typed` / `bookmark_typed` / `contact_typed` / `draft_typed` / `ageassurance_typed` / `temp_typed` / `admin_typed`: owned typed parsers/builders and agent wrappers across the remaining lexicon namespaces. `actor_status_typed` keeps honest stubs for `getActorStatus`/`getStatus`/`putStatus` because the `app.bsky.actor.status` lexicon defines `main` as a `record` (no query/procedure defs). Tested.
 - `lexicon` (`tools/wf_lexgen.py`): generates C declarations, recursive input encoders, endpoint wrappers, and owning output decoders. The generator always emits the definition for query/procedure endpoints that have neither an `input` schema nor `parameters`. Tested.
-- `cli`: `wolfram` command-line client (login/post/get/threads/notifications/labels/moderation/profile/timeline/follow/like/repost/search/mute/thread). Built by default.
+- `cli`: `wolfram` command-line client (login/post/get/threads/notifications/labels/moderation/profile/timeline/follow/like/repost/search/mute/thread, plus `oauth-login`/`oauth-callback`, `block`/`unblock`, `notifications update-seen`, `repo put-record`/`delete-record`/`list-records`/`describe`, `feed get`/`author`, `moderation report`; global `--json` flag for raw JSON output). Built by default.
 
 ## Next planned work
 

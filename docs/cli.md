@@ -36,15 +36,24 @@ wolfram unrepost       <service> <handle> <password> <repost-at-uri>
 wolfram timeline       <service> <handle> <password> [pages]
 wolfram get-post       <service> <at-uri>
 wolfram get-record     <service> <handle> <password> <collection> <rkey>
+wolfram repo put-record    <service> <handle> <password> --collection <nsid> --rkey <rkey> --json <record|file>
+wolfram repo delete-record <service> <handle> <password> --collection <nsid> --rkey <rkey>
+wolfram repo list-records  <service> <handle> <password> --collection <nsid> [--limit N] [--cursor C]
+wolfram repo describe      <service> <handle> <password> --repo <did-or-handle>
 wolfram profile        <service> <actor>
 wolfram search         <service> <handle> <password> <query> [limit]
 wolfram thread         <service> <handle> <password> <at-uri> [depth]
+wolfram feed get    <service> <handle> <password> --feed <generator-uri> [--limit N] [--cursor C]
+wolfram feed author <service> <handle> <password> --actor <handle-or-did> [--limit N] [--cursor C]
 wolfram notifications  <service> <handle> <password> [limit]
+wolfram notifications update-seen [--seen-at <iso>] <service> <handle> <password>
 
 wolfram follow         <service> <handle> <password> <actor>
 wolfram unfollow       <service> <handle> <password> <actor>
 wolfram mute           <service> <handle> <password> <actor>
 wolfram unmute         <service> <handle> <password> <actor>
+wolfram block          <service> <handle> <password> <actor>
+wolfram unblock        <service> <handle> <password> <actor>
 
 wolfram follows        <service> <actor> [limit]
 wolfram followers      <service> <actor> [limit]
@@ -56,7 +65,8 @@ wolfram lists          <service> <actor> [limit]
 wolfram resolve        <service> <handle-or-did>
 wolfram labels subscribe <service> [--cursor N] [--seconds N]
 wolfram moderation     <service> <actor> [labeler-did]
-wolfram oauth-login    <service> <handle> [client-id] [redirect-uri]
+wolfram oauth-login    <service> <handle> [client-id] [redirect-uri] [--state-file <path>]
+wolfram oauth-callback <service> --url <redirect> --state <state> [--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] [--session <path>]
 
 wolfram video upload   <service> <handle> <password> <file.mp4>
 wolfram video status   <service> <handle> <password> <job-id>
@@ -108,7 +118,34 @@ wolfram video status   <service> <handle> <password> <job-id>
 - `moderation` — runs the moderation decision engine on an actor's profile
   (`wf_agent_moderate_profile` + `wf_mod_decision_ui`).
 - `oauth-login` — drives the OAuth/PAR/DPoP discovery and authorization-begin
-  flow, printing the authorization URL and flow state.
+  flow, printing the authorization URL and flow state. The pending state is
+  written to `--state-file` (default `~/.wolfram_oauth_state.json`) so it can be
+  completed by `oauth-callback`.
+- `oauth-callback` — completes the OAuth flow. Reads the pending state file,
+  re-discovers the authorization server, parses the redirect URL (`--url`,
+  carrying `?code=…&state=…`), performs the token exchange via
+  `wf_oauth_authorization_complete`, and writes the resulting session to
+  `--session` (default `~/.wolfram_session.json`). Run this after visiting the
+  URL printed by `oauth-login`. No local HTTP server is started.
+- `block` / `unblock` — block or unblock an actor (`wf_agent_block` /
+  `wf_agent_unblock`); `unblock` resolves the existing block URI and deletes
+  it. Require login.
+- `notifications update-seen` — mark notifications as seen via
+  `wf_agent_update_seen_typed`; pass `--seen-at <iso>` to set a specific
+  timestamp, otherwise the current time is used.
+- `repo put-record` / `delete-record` / `list-records` / `describe` — raw repo
+  operations through the agent: write/delete a record by `<collection> <rkey>`
+  (`--json` accepts an inline JSON object or a file path), list records of a
+  collection (with `--limit`/`--cursor`), and fetch `describeRepo` for an
+  account (`--repo <did-or-handle>`). Require login.
+- `feed get` / `feed author` — fetch a custom feed by generator URI
+  (`wf_agent_get_feed_typed`) or an actor's author feed (`--actor`, via
+  `wf_agent_get_author_feed_typed`), both with `--limit`/`--cursor`. Require
+  login.
+- `moderation report` — submit a moderation report via `wf_agent_report_typed`
+  for `--subject <uri>` (an `at://` record URI, or pass `--cid` for a blob),
+  with `--reason` (or `--reason-type`, an NSID such as
+  `com.atproto.moderation.defs#reason-spam`). Require login.
 - `video upload` — reads `<file.mp4>` and uploads it via `wf_agent_upload_video`,
   printing the resulting blob CID, MIME type, and size.
 - `video status` — polls a video processing job by `job-id` via
@@ -119,3 +156,11 @@ All commands that hit the authenticated user's data (`post`, `timeline`,
 etc.) take `<service> <handle> <password>` first. Read-only queries of other
 actors (`get-post`, `profile`, `follows`, `followers`, `list`, `lists`,
 `resolve`) take only `<service>` plus the actor/URI argument.
+
+## Machine-readable output
+
+Pass the global `--json` flag (before the subcommand) to print the raw JSON
+response body instead of the human-readable text for list/get commands
+(`timeline`, `notifications`, `thread`, `profile`, `feed get`/`author`, `repo
+list-records`/`describe`, and others). This is useful for piping into
+`jq` or other tooling.
