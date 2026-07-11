@@ -162,16 +162,17 @@ wf_status wf_agent_repost(wf_agent *agent, const char *post_uri, const char *pos
 wf_status wf_agent_delete_repost(wf_agent *agent, const char *repost_uri);
 
 /* Feed queries — return raw JSON in `out`; caller frees with wf_response_free. */
-wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor, wf_response *out);
+wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
+                                const char *algorithm, wf_response *out);
 wf_status wf_agent_get_timeline_lex(wf_agent *agent, int limit, const char *cursor, wf_response *out);
 wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
                                     int limit, const char *cursor, const char *filter,
-                                    wf_response *out);
+                                    bool include_pins, wf_response *out);
 wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
                                         int limit, const char *cursor, const char *filter,
                                         wf_response *out);
 wf_status wf_agent_get_post_thread(wf_agent *agent, const char *uri, int depth,
-                                   wf_response *out);
+                                   int parent_height, wf_response *out);
 wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t uri_count,
                              wf_response *out);
 wf_status wf_agent_search_posts(wf_agent *agent, const char *query,

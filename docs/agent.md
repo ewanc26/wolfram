@@ -188,18 +188,18 @@ All of these return **raw JSON** in a `wf_response`; free with
 ```c
 // Home timeline.
 wf_response tl = {0};
-wf_agent_get_timeline(agent, 50, NULL, &tl);  // needs network
+wf_agent_get_timeline(agent, 50, NULL, NULL, &tl);  // needs network
 /* tl.body is the JSON; tl.body_len its length */
 wf_response_free(&tl);
 
 // A specific author's feed.
 wf_response af = {0};
-wf_agent_get_author_feed(agent, "alice.example.com", 50, NULL, NULL, &af); // needs network
+wf_agent_get_author_feed(agent, "alice.example.com", 50, NULL, NULL, false, &af); // needs network
 wf_response_free(&af);
 
 // Post thread.
 wf_response th = {0};
-wf_agent_get_post_thread(agent, "at://did:plc:abc/app.bsky.feed.post/xyz", 6, &th); // needs network
+wf_agent_get_post_thread(agent, "at://did:plc:abc/app.bsky.feed.post/xyz", 6, 80, &th); // needs network
 wf_response_free(&th);
 
 // Fetch several posts at once by AT-URI.
