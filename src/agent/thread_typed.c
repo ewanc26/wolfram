@@ -296,6 +296,13 @@ wf_status wf_agent_parse_thread(const char *json, size_t json_len,
     st = wf_agent_thread_parse_node(thread, WF_AGENT_THREAD_MAX_DEPTH,
                                     &out->root);
     if (st == WF_OK) {
+        /* Capture the optional top-level threadgate view (#threadgateView) as
+         * an owned raw cJSON subtree; a full parse is heavy and unnecessary. */
+        cJSON *threadgate = cJSON_GetObjectItemCaseSensitive(root, "threadgate");
+        if (cJSON_IsObject(threadgate)) {
+            out->threadgate = cJSON_DetachItemFromObject(root, "threadgate");
+        }
+
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
             st = wf_agent_thread_set_string(&out->cursor, cursor->valuestring);
@@ -305,6 +312,9 @@ wf_status wf_agent_parse_thread(const char *json, size_t json_len,
     if (st != WF_OK) {
         wf_agent_thread_node_reset(&out->root);
         free(out->cursor);
+        if (out->threadgate) {
+            cJSON_Delete(out->threadgate);
+        }
         memset(out, 0, sizeof(*out));
     }
 
@@ -318,6 +328,9 @@ void wf_agent_thread_free(wf_agent_thread *thread) {
     }
     wf_agent_thread_node_reset(&thread->root);
     free(thread->cursor);
+    if (thread->threadgate) {
+        cJSON_Delete(thread->threadgate);
+    }
     memset(thread, 0, sizeof(*thread));
 }
 
@@ -329,7 +342,7 @@ wf_status wf_agent_get_post_thread_typed(wf_agent *agent, const char *uri,
     }
 
     wf_response res = {0};
-    wf_status st = wf_agent_get_post_thread(agent, uri, depth, &res);
+    wf_status st = wf_agent_get_post_thread(agent, uri, depth, 0, &res);
     if (st != WF_OK) {
         wf_response_free(&res);
         return st;
