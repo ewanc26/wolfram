@@ -80,6 +80,7 @@ static int run_test(void) {
     wf_response res = {0};
     char *good_token = NULL;
     char *wrong_aud_token = NULL;
+    char *fragment_aud_token = NULL;
     char *expired_token = NULL;
     char *missing_lxm_token = NULL;
     char *tampered_token = NULL;
@@ -168,6 +169,23 @@ static int run_test(void) {
     }
 
     {
+        size_t aud_len = strlen(server_did) + strlen("#other-service") + 1;
+        char *fragment_aud = malloc(aud_len);
+        WF_CHECK(fragment_aud != NULL);
+        if (fragment_aud) {
+            snprintf(fragment_aud, aud_len, "%s#other-service", server_did);
+            wf_service_auth_request req = {0};
+            req.iss = issuer_didkey;
+            req.aud = fragment_aud;
+            req.lxm = protected_nsid;
+            WF_CHECK(wf_server_create_service_auth(&req, &key,
+                                                   &fragment_aud_token) ==
+                     WF_OK);
+        }
+        free(fragment_aud);
+    }
+
+    {
         wf_service_auth_request req = {0};
         req.iss = issuer_didkey;
         req.aud = server_did;
@@ -252,7 +270,16 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* ---- 4. Protected route WITH expired token → 401 ---- */
+    /* ---- 4. Protected route WITH a different audience fragment → 401 ---- */
+    {
+        SET_AUTH(fragment_aud_token);
+        wf_response_free(&res);
+        wf_xrpc_query(client, protected_nsid, NULL, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+    }
+
+    /* ---- 5. Protected route WITH expired token → 401 ---- */
     {
         SET_AUTH(expired_token);
         wf_response_free(&res);
@@ -261,7 +288,7 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* ---- 5. Protected route WITH tampered-signature token → 401 ---- */
+    /* ---- 6. Protected route WITH tampered-signature token → 401 ---- */
     {
         SET_AUTH(tampered_token);
         wf_response_free(&res);
@@ -270,7 +297,7 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* ---- 6. Protected route WITH no lxm claim → 401 ---- */
+    /* ---- 7. Protected route WITH no lxm claim → 401 ---- */
     {
         SET_AUTH(missing_lxm_token);
         wf_response_free(&res);
@@ -279,7 +306,7 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* ---- 7. Public route WITHOUT a token → 200 ---- */
+    /* ---- 8. Public route WITHOUT a token → 200 ---- */
     {
         SET_AUTH(NULL);
         wf_response_free(&res);
@@ -300,6 +327,7 @@ cleanup_keys:
     free(server_did);
     free(good_token);
     free(wrong_aud_token);
+    free(fragment_aud_token);
     free(expired_token);
     free(missing_lxm_token);
     free(tampered_token);
