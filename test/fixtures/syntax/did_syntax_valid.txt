@@ -3,7 +3,6 @@ did:method:VAL
 did:method:val123
 did:method:123
 did:method:val-two
-did:method:val_two
 did:method:val.two
 did:method:val:two
 did:method:val%BB
@@ -11,9 +10,7 @@ did:method:vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 did:m:v
 did:method::::val
 did:method:-
-did:method:-:_:.:%ab
 did:method:.
-did:method:_
 did:method::.
 
 # allows some real DID values

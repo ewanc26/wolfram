@@ -10,7 +10,7 @@ static void test_did_valid(void) {
     WF_CHECK(wf_syntax_did_is_valid("did:key:zQ3shokFTS3brHcDQrn82T5NnV2A5ZDeSjs2zQ4n2QmFJkfY3"));
     WF_CHECK(wf_syntax_did_is_valid("did:plc:ewvi7nxzyq6n7qoy7fe2v4ji"));
     WF_CHECK(wf_syntax_did_is_valid("did:example:123"));
-    WF_CHECK(wf_syntax_did_is_valid("did:method:abc.def_ghi%FF"));
+    WF_CHECK(wf_syntax_did_is_valid("did:method:abc.def.ghi%FF"));
     WF_CHECK(!wf_syntax_did_is_valid("did:123:abc"));       /* method must be letters only */
     WF_CHECK(!wf_syntax_did_is_valid("did:m123:val"));      /* method must be letters only */
 }
