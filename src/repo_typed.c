@@ -996,7 +996,13 @@ wf_status wf_repo_parse_upload_blob_result(const char *json, size_t json_len,
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
-    cJSON *cid = cJSON_GetObjectItemCaseSensitive(blob, "cid");
+    /* A real PDS returns {"$type":"blob","ref":{"$link":"<cid>"},...}; read
+     * the CID from ref.$link rather than the legacy top-level blob.cid. */
+    cJSON *ref = cJSON_GetObjectItemCaseSensitive(blob, "ref");
+    cJSON *cid = NULL;
+    if (ref && cJSON_IsObject(ref)) {
+        cid = cJSON_GetObjectItemCaseSensitive(ref, "$link");
+    }
     cJSON *mime = cJSON_GetObjectItemCaseSensitive(blob, "mimeType");
     cJSON *size = cJSON_GetObjectItemCaseSensitive(blob, "size");
     if (cJSON_IsString(cid) && cid->valuestring) {

@@ -5,6 +5,7 @@
 #include "wolfram/repo/mst.h"
 #include "wolfram/repo/diff.h"
 #include "wolfram/repo/record.h"
+#include "wolfram/tid.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,7 +196,7 @@ wf_status wf_repo_create_record(wf_car *car,
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
     char rev[64];
-    snprintf(rev, sizeof(rev), "3z%08x", (unsigned)time(NULL));
+    wf_tid_now(rev);
     s = wf_commit_create(did, rev, &new_mst_root,
                          (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
                          key, car, &commit);
@@ -317,7 +318,7 @@ wf_status wf_repo_update_record(wf_car *car,
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
     char rev[64];
-    snprintf(rev, sizeof(rev), "3z%08x", (unsigned)time(NULL));
+    wf_tid_now(rev);
     s = wf_commit_create(did, rev, &new_mst_root, prev_commit, key, car,
                          &commit);
     if (s != WF_OK) return s;
@@ -377,7 +378,7 @@ wf_status wf_repo_delete_record(wf_car *car,
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
     char rev[64];
-    snprintf(rev, sizeof(rev), "3z%08x", (unsigned)time(NULL));
+    wf_tid_now(rev);
     s = wf_commit_create(did, rev, &new_mst_root,
                          (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
                          key, car, &commit);

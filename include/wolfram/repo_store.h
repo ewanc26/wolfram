@@ -78,11 +78,19 @@ const char *wf_repo_store_handle(const wf_repo_store *store);
  *
  * On WF_OK, *out_uri ("at://<did>/<collection>/<rkey>") and *out_cid
  * (record CID, base32) are caller-owned strings (free() them).
+ *
+ * When `swap_commit_or_null` is non-NULL it must equal the current repo
+ * head commit CID (a compare-and-swap guard); a mismatch fails the
+ * write (mirrors atproto's InvalidSwap). NULL means "no guard".
+ *
+ * The supplied `rkey_or_null` (if any) is validated against atproto's
+ * record-key rules, and a present `$type` must equal `collection`.
  */
 wf_status wf_repo_store_create_record(wf_repo_store *store,
                                       const char *collection,
                                       const char *rkey_or_null,
                                       const char *record_json,
+                                      const char *swap_commit_or_null,
                                       char **out_uri, char **out_cid);
 
 /**
@@ -90,20 +98,36 @@ wf_status wf_repo_store_create_record(wf_repo_store *store,
  *
  * If a record with `rkey` already exists it is updated in place;
  * otherwise a new record is created. Outputs mirror createRecord.
+ *
+ * `swap_commit_or_null` / `swap_record_or_null` are compare-and-swap
+ * guards (mirroring atproto's InvalidSwap): `swap_commit` must equal the
+ * current repo head and `swap_record` must equal the existing record CID.
+ * A NULL guard means "no guard". The `rkey` is validated against atproto's
+ * record-key rules and a present `$type` must equal `collection`.
  */
 wf_status wf_repo_store_put_record(wf_repo_store *store,
                                    const char *collection,
                                    const char *rkey,
                                    const char *record_json,
+                                   const char *swap_commit_or_null,
+                                   const char *swap_record_or_null,
                                    char **out_uri, char **out_cid);
 
 /**
  * Delete a record (deleteRecord). Returns WF_ERR_NOT_FOUND when the
  * repo is empty or the record does not exist.
+ *
+ * `swap_commit_or_null` / `swap_record_or_null` are compare-and-swap
+ * guards (mirroring atproto's InvalidSwap): `swap_commit` must equal the
+ * current repo head and `swap_record` must equal the existing record CID.
+ * A NULL guard means "no guard". The `rkey` is validated against
+ * atproto's record-key rules.
  */
 wf_status wf_repo_store_delete_record(wf_repo_store *store,
                                       const char *collection,
-                                      const char *rkey);
+                                      const char *rkey,
+                                      const char *swap_commit_or_null,
+                                      const char *swap_record_or_null);
 
 /**
  * Fetch a record (getRecord).
@@ -133,18 +157,25 @@ wf_status wf_repo_store_get_record(wf_repo_store *store,
  * final head commit is reported as the overall commit. On WF_OK,
  * *out_commit_cid / *out_commit_rev describe that commit and
  * *out_results_json is a JSON array of per-op results
- * ({uri, cid} for create/update; empty object for delete).
+ * ({uri, cid, validationStatus:"unknown"} for create/update; empty
+ * object for delete).
+ *
+ * `swap_commit_or_null` is a compare-and-swap guard on the repo head
+ * (mirroring atproto's InvalidSwap); a mismatch fails the whole batch.
+ * NULL means "no guard".
  *
  * All three outputs are caller-owned strings (free() them).
  *
- * Limitation: each write emits its own signed commit rather than a
- * single batched commit; the returned commit is the final head.
+ * Limitations: each write emits its own signed commit rather than a
+ * single batched commit (the returned commit is the final head), and
+ * the batch is capped at 200 writes (mirroring atproto's limit).
  */
 wf_status wf_repo_store_apply_writes(wf_repo_store *store,
-                                     const char *writes_json,
-                                     char **out_commit_cid,
-                                     char **out_commit_rev,
-                                     char **out_results_json);
+                                      const char *writes_json,
+                                      const char *swap_commit_or_null,
+                                      char **out_commit_cid,
+                                      char **out_commit_rev,
+                                      char **out_results_json);
 
 /**
  * Produce the describeRepo payload (did, handle, version, collections,
@@ -166,17 +197,23 @@ wf_status wf_repo_store_verify_head(wf_repo_store *store,
 /**
  * List records in a collection (com.atproto.repo.listRecords).
  *
- * Enumerates the `records` index in ascending rkey order, skipping keys
- * lexicographically after `cursor` (NULL for the start) and returning at
- * most `limit` records. When more records remain, *out_json carries a
- * `cursor` field set to the last returned rkey for the next page.
+ * Enumerates the `records` index. By default records are returned in
+ * ascending rkey order, skipping keys lexicographically after `cursor`
+ * (NULL for the start). When `reverse` is set, records are returned in
+ * descending rkey order (the first page is the tail of the collection);
+ * in that mode `cursor` selects keys lexicographically *before* it. At
+ * most `limit` records are returned (capped at the lexicon max of 100;
+ * default 50). When more records remain, *out_json carries a `cursor`
+ * field set to the last returned rkey for the next page.
  *
  * On WF_OK, *out_json is a caller-owned JSON string of the shape
  * {"records":[{"uri","cid","value"}], "cursor"?}. Free it with free().
  */
 wf_status wf_repo_store_list_records(wf_repo_store *store,
                                      const char *collection,
-                                     const char *cursor, int limit,
+                                     const char *cursor,
+                                     bool reverse,
+                                     int limit,
                                      char **out_json);
 
 /**
