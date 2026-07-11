@@ -159,6 +159,15 @@ wf_status wf_verify(const char *public_key_multibase,
     return WF_ERR_NOT_IMPLEMENTED;
 }
 
+wf_status wf_verify_allow_malleable(const char *public_key_multibase,
+                                    const unsigned char *msg, size_t msg_len,
+                                    const unsigned char *sig, size_t sig_len) {
+    (void)public_key_multibase; (void)msg; (void)msg_len;
+    (void)sig; (void)sig_len;
+    /* TODO: implement with the same device crypto backend as wf_verify. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
 wf_status wf_crypto_p256_verify(const unsigned char x[32],
                                 const unsigned char y[32],
                                 const unsigned char *msg, size_t msg_len,

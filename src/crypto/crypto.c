@@ -549,9 +549,10 @@ wf_status wf_sign(const wf_signing_key *key,
     return WF_ERR_INVALID_ARG;
 }
 
-wf_status wf_verify(const char *public_key_multibase,
-                     const unsigned char *msg, size_t msg_len,
-                     const unsigned char *sig, size_t sig_len) {
+static wf_status wf_verify_internal(const char *public_key_multibase,
+                                    const unsigned char *msg, size_t msg_len,
+                                    const unsigned char *sig, size_t sig_len,
+                                    int allow_malleable) {
     if (!public_key_multibase || !msg || msg_len == 0 ||
         !sig || sig_len == 0) {
         return WF_ERR_INVALID_ARG;
@@ -647,7 +648,7 @@ wf_status wf_verify(const char *public_key_multibase,
         }
         ECDSA_SIG_set0(ecdsa_sig, r, s);
 
-        if (wf_p256_is_low_s(s, eckey) != WF_OK) {
+        if (!allow_malleable && wf_p256_is_low_s(s, eckey) != WF_OK) {
             ECDSA_SIG_free(ecdsa_sig);
             EC_KEY_free(eckey);
             return WF_ERR_PARSE;
@@ -683,7 +684,9 @@ wf_status wf_verify(const char *public_key_multibase,
             secp256k1_context_destroy(ctx);
             return WF_ERR_PARSE;
         }
-        if (secp256k1_ecdsa_signature_normalize(ctx, &normalized_sig, &ecdsa_sig)) {
+        if (secp256k1_ecdsa_signature_normalize(ctx, &normalized_sig,
+                                               &ecdsa_sig) &&
+            !allow_malleable) {
             secp256k1_context_destroy(ctx);
             return WF_ERR_PARSE;
         }
@@ -695,6 +698,20 @@ wf_status wf_verify(const char *public_key_multibase,
 #else
     return WF_ERR_INVALID_ARG;
 #endif
+}
+
+wf_status wf_verify(const char *public_key_multibase,
+                    const unsigned char *msg, size_t msg_len,
+                    const unsigned char *sig, size_t sig_len) {
+    return wf_verify_internal(public_key_multibase, msg, msg_len, sig, sig_len,
+                              0);
+}
+
+wf_status wf_verify_allow_malleable(const char *public_key_multibase,
+                                    const unsigned char *msg, size_t msg_len,
+                                    const unsigned char *sig, size_t sig_len) {
+    return wf_verify_internal(public_key_multibase, msg, msg_len, sig, sig_len,
+                              1);
 }
 
 /* ------------------------------------------------------------------ */
