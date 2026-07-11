@@ -236,7 +236,10 @@ src/agent/push_endpoint.c
 if(WOLFRAM_BUILD_WII)
     target_sources(wolfram PRIVATE src/platform/wii_platform.c src/openssl_compat.c)
     target_compile_definitions(wolfram PUBLIC WOLFRAM_WII)
-    target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                               ${LIBOGC}/include)
+    target_link_directories(wolfram PUBLIC ${LIBOGC}/lib/wii)
+    target_link_libraries(wolfram PUBLIC ogc)
     message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON)")
 elseif(WOLFRAM_BUILD_WIIU)
     target_sources(wolfram PRIVATE src/platform/wiiu_platform.c src/openssl_compat.c)

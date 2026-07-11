@@ -58,12 +58,6 @@ static uint64_t wf_tid_last_ts = 0;
 static uint32_t wf_tid_clock = 0;
 static int wf_tid_initialized = 0;
 
-/*
- * TODO: When wii_platform.c implements wf_platform_time_micros() with
- * libogc's gettime()/ticks_to_microsecs(), this will produce real
- * microsecond timestamps. Currently returns 0 (stub), so TIDs will
- * sort by clockid only.
- */
 static uint64_t wf_tid_now_micros(void) {
     return wf_platform_time_micros();
 }
