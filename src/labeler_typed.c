@@ -244,7 +244,7 @@ static wf_status wf_labeler_parse_label_value_def(cJSON *obj,
                     break;
                 }
                 status = wf_labeler_parse_label_value_def_locale(lo,
-                                                                &d->locales[i]);
+                                                                 &d->locales[i]);
                 if (status != WF_OK) {
                     wf_labeler_label_value_def_locale_reset(&d->locales[i]);
                 }
@@ -258,6 +258,17 @@ static wf_status wf_labeler_parse_label_value_def(cJSON *obj,
                 free(d->locales);
                 d->locales = NULL;
             }
+        }
+    }
+    if (status == WF_OK && !d->has_default_setting) {
+        /* defs#labelValueDefinition.defaultSetting defaults to "warn" when the
+         * field is absent on the wire; apply the spec default so consumers
+         * always receive a concrete value. */
+        d->default_setting = wf_labeler_strdup("warn");
+        if (!d->default_setting) {
+            status = WF_ERR_ALLOC;
+        } else {
+            d->has_default_setting = true;
         }
     }
     return status;
