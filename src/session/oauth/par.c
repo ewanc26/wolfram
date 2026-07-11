@@ -236,6 +236,7 @@ wf_status wf_oauth_par_with_auth(
     ADD("redirect_uri", r->redirect_uri);
     ADD("scope", r->scope); ADD("state", r->state); ADD("code_challenge", r->code_challenge);
     ADD("code_challenge_method", "S256"); ADD("response_type", "code");
+    ADD("response_mode", "query");
     if (r->login_hint) ADD("login_hint", r->login_hint);
     if (s == WF_OK) s = wf_oauth_form_encode(p, n, &form);
     if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
