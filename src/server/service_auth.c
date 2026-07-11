@@ -30,6 +30,7 @@
 
 #include "wolfram/server.h"
 #include "wolfram/crypto.h"
+#include "wolfram/syntax.h"
 
 #include <cJSON.h>
 #include <openssl/rand.h>
@@ -171,6 +172,28 @@ static const char *wf_sa_jwt_alg(wf_key_type type) {
         default:
             return NULL;
     }
+}
+
+/* Upstream verifyJwt accepts an issuer DID with one optional, nonempty service
+ * fragment. The DID portion itself still follows the shared atproto syntax. */
+static int wf_sa_issuer_is_valid(const char *issuer) {
+    const char *fragment;
+    char *did;
+    size_t did_len;
+    int valid;
+
+    if (!issuer) return 0;
+    fragment = strchr(issuer, '#');
+    if (!fragment) return wf_syntax_did_is_valid(issuer);
+    if (fragment[1] == '\0' || strchr(fragment + 1, '#')) return 0;
+    did_len = (size_t)(fragment - issuer);
+    did = malloc(did_len + 1);
+    if (!did) return 0;
+    memcpy(did, issuer, did_len);
+    did[did_len] = '\0';
+    valid = wf_syntax_did_is_valid(did);
+    free(did);
+    return valid;
 }
 
 /* ── issuance ─────────────────────────────────────────────────────── */
@@ -419,7 +442,8 @@ wf_status wf_server_verify_service_auth(const char *token,
     nuance = cJSON_GetObjectItemCaseSensitive(payload, "nuance");
 
     if (!cJSON_IsString(iss) || !iss->valuestring || !cJSON_IsString(aud) ||
-        !aud->valuestring || !cJSON_IsNumber(exp)) {
+        !aud->valuestring || !cJSON_IsNumber(exp) ||
+        !wf_sa_issuer_is_valid(iss->valuestring)) {
         goto done;
     }
 
