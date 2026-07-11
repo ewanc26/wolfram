@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    s = wf_agent_get_post_thread(agent, uri, 0, &res);
+    s = wf_agent_get_post_thread(agent, uri, 0, 0, &res);
     if (s != WF_OK && s != WF_ERR_HTTP) {
         fprintf(stderr, "getPostThread failed: %d\n", (int)s);
         wf_response_free(&res);

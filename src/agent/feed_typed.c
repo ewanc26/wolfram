@@ -356,7 +356,7 @@ wf_status wf_agent_get_timeline_typed(wf_agent *agent, int limit,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_timeline(agent, limit, cursor, &res);
+    wf_status status = wf_agent_get_timeline(agent, limit, cursor, NULL, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -380,7 +380,7 @@ wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
 
     wf_response res = {0};
     wf_status status = wf_agent_get_author_feed(agent, actor, limit, cursor,
-                                                filter, &res);
+                                                filter, false, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;

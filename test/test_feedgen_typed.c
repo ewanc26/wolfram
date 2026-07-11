@@ -135,20 +135,26 @@ int main(void) {
         free(json);
     }
 
-    /* ---- feed fixture (feedView list) ---- */
+    /* ---- feed fixture (feedViewPost list) ---- */
     json = load_fixture("feed.json", &len);
     WF_CHECK(json != NULL);
     if (json) {
         s = wf_agent_parse_feed_views(json, len, &views);
         WF_CHECK(s == WF_OK);
-        WF_CHECK(views.feed_count == 2);
+        WF_CHECK(views.item_count == 2);
         WF_CHECK(views.cursor != NULL);
         WF_CHECK(strcmp(views.cursor, "cursor-for-feed-views") == 0);
-        if (views.feed_count == 2) {
-            WF_CHECK(strcmp(views.feeds[0].display_name, "Tech Feed") == 0);
-            WF_CHECK(strcmp(views.feeds[0].did, "did:plc:gen") == 0);
-            WF_CHECK(strcmp(views.feeds[1].display_name, "Sports Feed") == 0);
-            WF_CHECK(views.feeds[1].avatar != NULL);
+        if (views.item_count == 2) {
+            WF_CHECK(views.items[0].post.uri != NULL);
+            WF_CHECK(strcmp(views.items[0].post.uri,
+                "at://did:plc:alice/app.bsky.feed.post/aaa111") == 0);
+            WF_CHECK(views.items[0].post.author.did != NULL);
+            WF_CHECK(strcmp(views.items[0].post.author.did, "did:plc:alice") == 0);
+            WF_CHECK(views.items[0].post.record != NULL);
+            WF_CHECK(views.items[1].post.author.handle != NULL);
+            WF_CHECK(strcmp(views.items[1].post.author.handle,
+                "bob.bsky.social") == 0);
+            WF_CHECK(views.items[1].reason != NULL);
         }
         wf_agent_feed_view_list_free(&views);
         free(json);

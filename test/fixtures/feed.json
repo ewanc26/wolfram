@@ -1,22 +1,46 @@
 {
   "feed": [
     {
-      "uri": "at://did:plc:gen/app.bsky.feed.generator/feed1",
-      "cid": "bafyreibbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "did": "did:plc:gen",
-      "displayName": "Tech Feed",
-      "description": "A feed about technology.",
-      "avatar": "https://cdn.bsky.app/img/feed/tech",
-      "indexedAt": "2024-06-01T08:00:00.000Z"
+      "post": {
+        "uri": "at://did:plc:alice/app.bsky.feed.post/aaa111",
+        "cid": "bafyreibbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "author": {
+          "did": "did:plc:alice",
+          "handle": "alice.bsky.social",
+          "displayName": "Alice"
+        },
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "text": "First post in the custom feed.",
+          "createdAt": "2024-06-01T08:00:00.000Z"
+        },
+        "indexedAt": "2024-06-01T08:00:01.000Z"
+      }
     },
     {
-      "uri": "at://did:plc:gen/app.bsky.feed.generator/feed2",
-      "cid": "bafyrei11111111111111111111111111111111111111111111111111111111",
-      "did": "did:plc:gen",
-      "displayName": "Sports Feed",
-      "description": "A feed about sports.",
-      "avatar": "https://cdn.bsky.app/img/feed/sports",
-      "indexedAt": "2024-06-02T08:00:00.000Z"
+      "post": {
+        "uri": "at://did:plc:bob/app.bsky.feed.post/bbb222",
+        "cid": "bafyrei11111111111111111111111111111111111111111111111111111111",
+        "author": {
+          "did": "did:plc:bob",
+          "handle": "bob.bsky.social",
+          "displayName": "Bob"
+        },
+        "record": {
+          "$type": "app.bsky.feed.post",
+          "text": "Second post, reposted into the feed.",
+          "createdAt": "2024-06-02T08:00:00.000Z"
+        },
+        "indexedAt": "2024-06-02T08:00:01.000Z"
+      },
+      "reason": {
+        "$type": "app.bsky.feed.defs#reasonRepost",
+        "by": {
+          "did": "did:plc:carol",
+          "handle": "carol.bsky.social"
+        },
+        "indexedAt": "2024-06-02T09:00:00.000Z"
+      }
     }
   ],
   "cursor": "cursor-for-feed-views"
