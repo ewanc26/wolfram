@@ -49,6 +49,7 @@ typedef struct wf_xrpc_request {
     const char *nsid;          /* Parsed XRPC NSID from URL path */
     const char *method;        /* "GET" or "POST" */
     const char *auth_header;   /* Raw Authorization header (may be NULL) */
+    const char *dpop_header;   /* Raw DPoP proof header (may be NULL) */
     cJSON      *params;        /* Query params (GET) or body JSON (POST); may be NULL */
     /* Raw request body (POST). For binary procedures such as blob uploads the
      * body is the raw bytes, not JSON; handlers that need it read body /

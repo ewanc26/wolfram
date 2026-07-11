@@ -68,6 +68,9 @@ static wf_status test_auth_handler(void *ctx, const wf_xrpc_request *req,
         return WF_ERR_ALLOC;
     }
     cJSON_AddStringToObject(obj, "auth", req->auth_header);
+    if (req->dpop_header) {
+        cJSON_AddStringToObject(obj, "dpop", req->dpop_header);
+    }
     json = cJSON_PrintUnformatted(obj);
     cJSON_Delete(obj);
     if (!json) {
@@ -189,10 +192,14 @@ static int run_test(void) {
 
     /* Test 2: Auth header echo */
     {
-        wf_xrpc_client_set_auth(client, "test-token");
+        char url[160];
+        wf_http_header headers[] = {
+            {"Authorization", "Bearer test-token"},
+            {"DPoP", "test-proof"},
+        };
+        snprintf(url, sizeof(url), "%s/xrpc/io.example.auth", base_url);
         wf_response_free(&res);
-        wf_status s = wf_xrpc_query(client, "io.example.auth", NULL, &res);
-        wf_xrpc_client_set_auth(client, NULL);
+        wf_status s = wf_http_get_with_headers(client, url, headers, 2, &res);
         if (s != WF_OK) {
             fprintf(stderr, "FAIL: query auth (status=%d)\n", (int)s);
             failures++;
@@ -206,9 +213,15 @@ static int run_test(void) {
                 failures++;
             } else {
                 cJSON *auth = cJSON_GetObjectItemCaseSensitive(root, "auth");
+                cJSON *dpop = cJSON_GetObjectItemCaseSensitive(root, "dpop");
                 if (!auth || !cJSON_IsString(auth) || !strstr(auth->valuestring, "test-token")) {
                     fprintf(stderr, "FAIL: auth mismatch: %s\n",
                             auth && auth->valuestring ? auth->valuestring : "NULL");
+                    failures++;
+                }
+                if (!dpop || !cJSON_IsString(dpop) ||
+                    strcmp(dpop->valuestring, "test-proof") != 0) {
+                    fprintf(stderr, "FAIL: DPoP header mismatch\n");
                     failures++;
                 }
                 cJSON_Delete(root);
@@ -246,15 +259,15 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* Test 4: Missing handler returns 404 */
+    /* Test 4: Unregistered NSID returns 501 MethodNotImplemented (atproto spec) */
     {
         wf_response_free(&res);
         wf_status s = wf_xrpc_query(client, "io.example.missing", NULL, &res);
         if (s != WF_ERR_HTTP) {
             fprintf(stderr, "FAIL: missing expected WF_ERR_HTTP, got %d\n", (int)s);
             failures++;
-        } else if (res.status != 404) {
-            fprintf(stderr, "FAIL: missing expected 404, got %ld\n", res.status);
+        } else if (res.status != 501) {
+            fprintf(stderr, "FAIL: missing expected 501, got %ld\n", res.status);
             failures++;
         }
         wf_response_free(&res);
