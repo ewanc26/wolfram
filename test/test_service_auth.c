@@ -16,6 +16,44 @@
 #include <string.h>
 #include <time.h>
 
+static char *resign_with_header(const char *token, const char *header_json,
+                                const wf_signing_key *key) {
+    const char *dot1 = strchr(token, '.');
+    const char *dot2 = dot1 ? strchr(dot1 + 1, '.') : NULL;
+    char *header_b64 = NULL, *sig_b64 = NULL, *signing_input = NULL;
+    char *forged = NULL;
+    unsigned char sig[64];
+    size_t payload_len, signing_len, forged_len;
+
+    if (!dot1 || !dot2 ||
+        wf_crypto_base64url_encode((const unsigned char *)header_json,
+                                   strlen(header_json), &header_b64) != WF_OK) {
+        return NULL;
+    }
+    payload_len = (size_t)(dot2 - (dot1 + 1));
+    signing_len = strlen(header_b64) + 1 + payload_len;
+    signing_input = malloc(signing_len + 1);
+    if (!signing_input) goto done;
+    snprintf(signing_input, signing_len + 1, "%s.%.*s", header_b64,
+             (int)payload_len, dot1 + 1);
+    if (wf_sign(key, (const unsigned char *)signing_input, signing_len,
+                sig, sizeof(sig)) != WF_OK ||
+        wf_crypto_base64url_encode(sig, sizeof(sig), &sig_b64) != WF_OK) {
+        goto done;
+    }
+    forged_len = signing_len + 1 + strlen(sig_b64);
+    forged = malloc(forged_len + 1);
+    if (forged) {
+        snprintf(forged, forged_len + 1, "%s.%s", signing_input, sig_b64);
+    }
+
+done:
+    free(header_b64);
+    free(sig_b64);
+    free(signing_input);
+    return forged;
+}
+
 int main(void) {
     /* ---- 1. Generate a P-256 signing key + its did:key ---- */
     wf_signing_key key = {0};
@@ -157,6 +195,25 @@ int main(void) {
         WF_CHECK(claims.exp == claims.iat + 60);
         WF_CHECK(claims.jti && strlen(claims.jti) == 32);
         wf_service_auth_claims_free(&claims);
+        free(token);
+    }
+
+    /* ---- 4b. Negative: JWT alg must match the signing-key curve ---- */
+    {
+        wf_service_auth_request req = {0};
+        req.iss = iss;
+        req.aud = aud;
+        char *token = NULL;
+        WF_CHECK(wf_server_create_service_auth(&req, &key, &token) == WF_OK);
+        char *forged = resign_with_header(
+            token, "{\"typ\":\"JWT\",\"alg\":\"ES256K\"}", &key);
+        WF_CHECK(forged != NULL);
+
+        wf_service_auth_claims claims = {0};
+        WF_CHECK(wf_server_verify_service_auth(forged, didkey, 0, &claims) ==
+                 WF_ERR_PARSE);
+        wf_service_auth_claims_free(&claims);
+        free(forged);
         free(token);
     }
 

@@ -362,6 +362,9 @@ wf_status wf_server_verify_service_auth(const char *token,
     size_t sig_len = 0;
     wf_service_auth_claims claims = {0};
     cJSON *alg, *iss, *aud, *exp, *iat, *jti, *lxm, *nuance;
+    wf_key_type signing_key_type;
+    unsigned char *signing_key_raw = NULL;
+    size_t signing_key_raw_len = 0;
     int64_t now;
     wf_status status = WF_ERR_PARSE;
 
@@ -395,6 +398,15 @@ wf_status wf_server_verify_service_auth(const char *token,
 
     alg = cJSON_GetObjectItemCaseSensitive(header, "alg");
     if (!cJSON_IsString(alg) || !alg->valuestring) {
+        goto done;
+    }
+    if (wf_didkey_decode(signing_key_didkey, &signing_key_type,
+                         &signing_key_raw, &signing_key_raw_len) != WF_OK ||
+        signing_key_raw_len != 33 ||
+        ((signing_key_type == WF_KEY_TYPE_P256 &&
+          strcmp(alg->valuestring, "ES256") != 0) ||
+         (signing_key_type == WF_KEY_TYPE_SECP256K1 &&
+          strcmp(alg->valuestring, "ES256K") != 0))) {
         goto done;
     }
 
@@ -460,5 +472,6 @@ done:
     cJSON_Delete(header);
     cJSON_Delete(payload);
     free(sig);
+    free(signing_key_raw);
     return status;
 }
