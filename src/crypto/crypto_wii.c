@@ -15,17 +15,11 @@
 /* ── SHA-256 (mbedTLS) ──────────────────────────────────────────────── */
 
 /*
- * TODO: Implement using mbedTLS:
- *   #include <mbedtls/sha256.h>
- *
- *   wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
- *                               unsigned char out[32]) {
- *       if (!in || !out) return WF_ERR_INVALID_ARG;
- *       mbedtls_sha256(in, len, out, 0);
- *       return WF_OK;
- *   }
+ * TODO: Implement using mbedTLS once the Wii port provides a trustworthy
+ * entropy source for the shared crypto/TLS backend. The digest operation
+ * itself does not consume entropy, but shipping a partial backend would make
+ * the transport appear usable when TLS cannot be seeded securely.
  */
-
 wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
                            unsigned char out[32]) {
     (void)in; (void)len; (void)out;
@@ -38,7 +32,7 @@ wf_status wf_crypto_base64url_decode(const char *in,
                                      unsigned char **out, size_t *out_len) {
     static const char b64tbl[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    size_t in_len, padded_len, padding, i;
+    size_t in_len, padded_len, padding = 0, i;
     unsigned char *decoded = NULL;
     if (!in || !out || !out_len) return WF_ERR_INVALID_ARG;
     *out = NULL;
