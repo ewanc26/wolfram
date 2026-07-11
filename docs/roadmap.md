@@ -395,10 +395,10 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       monotonic time) with POSIX (Linux/macOS) and Win32 backends fully
       implemented, plus toolchain files and client-only build wiring for
       Nintendo Wii/Wii U/3DS (devkitPro), Windows (MinGW-w64), and Linux/AArch64.
-      The console backends are honest stubs returning `WF_ERR_NOT_IMPLEMENTED`
-      (transport, crypto, and platform primitives) to be replaced with
-      device-specific implementations before shipping; see the `TODO` markers in
-      `src/platform/*_platform.c`.
+      The Wii platform primitives now use libogc (`net_init`, LWP mutexes, and
+      the timebase clock), while Wii HTTPS/WebSocket and crypto remain honest
+      stubs. Wii U/3DS platform, transport, and crypto backends remain honest
+      `WF_ERR_NOT_IMPLEMENTED` stubs.
 
 ## Next planned work
 
@@ -422,10 +422,11 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   fully typed 13-slot `defs#preferences` representation. The legacy v1
   `putPreferences` endpoint carries only its required `priority` boolean;
   `wf_agent_put_notification_priority` transmits that exact schema.
-- Replace the Nintendo Wii/Wii U/3DS platform, transport, and crypto stubs
-  (currently `WF_ERR_NOT_IMPLEMENTED`) with real devkitPro-backed
-  implementations — see the `TODO` markers in `src/platform/*_platform.c`,
-  `src/transport/*_wii.c`, and `src/crypto/crypto_wii.c`.
+- Finish the Nintendo Wii HTTPS/WebSocket and crypto backends, including a
+  trustworthy entropy source and CA validation. Replace the Wii U/3DS platform,
+  transport, and crypto stubs with real device backends. See the `TODO` markers
+  in `src/platform/*_platform.c`, `src/transport/*_wii.c`, and
+  `src/crypto/crypto_wii.c`.
 
 ## Dependencies
 
