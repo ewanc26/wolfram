@@ -342,8 +342,8 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
         }
     }
     if (service_status == WF_OK) {
-        if (cfg->require_aud && cfg->server_did && aud &&
-            !aud_matches(aud, cfg->server_did)) {
+        if (cfg->require_aud && cfg->server_did &&
+            (!claims.aud || strcmp(claims.aud, cfg->server_did) != 0)) {
             goto done;
         }
         /* Match verifyJwt: when an lxm is required, the claim must be present
