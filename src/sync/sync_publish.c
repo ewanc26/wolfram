@@ -93,23 +93,37 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
 /* ── body builders (inverse of the parse_* functions in sync_subscribe.c) ── */
 
 static cbor_item_t *build_commit_body(const wf_subscribe_commit *c) {
-    /* Fixed keys: seq, repo, commit, rev, blocks, ops, time (7). `since` and
-     * `prevData` are optional, so size the map precisely. */
-    size_t n = 7;
-    if (c->since[0] != '\0') n++;
+    /* Required #commit keys per com.atproto.sync.subscribeRepos and the
+     * reference PDS producer (packages/pds/src/sequencer/events.ts):
+     *   seq, rebase, tooBig, repo, commit, rev, since, blocks, ops, blobs,
+     *   time (11). `rebase`/`tooBig` have lexicon default `false` but strict
+     *   validators (@atproto/lex, @atproto/repo verifyDiff) still expect the
+     *   keys emitted; `since` is nullable but its key must ALWAYS be present
+     *   (null at genesis); `blobs` is always emitted (empty array when none).
+     * `prevData` (inductive firehose) remains optional. */
+    size_t n = 11;
     if (c->has_prev_data) n++;
     cbor_item_t *m = cbor_new_definite_map(n);
+    /* NOTE: `seq` must be assigned monotonically by the caller — wolfram has
+     * no internal sequencer, so the caller owns monotonic seq assignment. */
     map_put(m, "seq", int_item(c->seq));
+    map_put(m, "rebase", cbor_build_bool(false));
+    map_put(m, "tooBig", cbor_build_bool(false));
     map_put(m, "repo", cbor_build_string(c->did));
     map_put(m, "commit", cid_link_item(&c->commit_cid));
     map_put(m, "rev", cbor_build_string(c->rev));
+    /* `since` is required+nullable: always emit the key, null at genesis. */
     if (c->since[0] != '\0')
         map_put(m, "since", cbor_build_string(c->since));
+    else
+        map_put(m, "since", cbor_new_null());
     map_put(m, "blocks",
             cbor_build_bytestring(c->blocks ? c->blocks
                                             : (const unsigned char *)"",
                                   c->blocks_len));
     map_put(m, "ops", build_ops(c->ops, c->ops_count));
+    /* `blobs` is always present: empty CID-link array when there are none. */
+    map_put(m, "blobs", cbor_new_definite_array(0));
     map_put(m, "time", cbor_build_string(c->time));
     if (c->has_prev_data)
         map_put(m, "prevData", cid_link_item(&c->prev_data));
