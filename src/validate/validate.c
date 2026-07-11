@@ -141,12 +141,179 @@ static int wf_is_json_integer(const cJSON *item, int64_t *out) {
     return 1;
 }
 
-static size_t wf_utf8_codepoint_count(const char *s) {
+/* --- Grapheme cluster counting (UAX #29, pragmatic subset) ---------------
+ *
+ * atproto measures minGraphemes/maxGraphemes in Unicode GRAPHEME CLUSTERS
+ * (UAX #29), not UTF-8 code points. A single user-perceived character can be
+ * several code points (combining marks, ZWJ sequences, skin tones, flags).
+ *
+ * This implementation is a self-contained UAX #29 state machine that handles
+ * the cases real AT Protocol records actually hit:
+ *   (a) combining / non-spacing marks (Mn/Me) attach to the preceding base;
+ *   (b) ZWJ (U+200D) joins emoji + emoji, emoji + skin-tone, family sequences;
+ *   (c) emoji modifier bases + emoji modifiers (U+1F3FB..U+1F3FF);
+ *   (d) regional indicator pairs (U+1F1E6..U+1F1FF, two make one flag);
+ *   (e) CR/LF and control characters break clusters.
+ *
+ * Known divergence: the Extend table below covers the common combining-mark
+ * blocks rather than the full Unicode Grapheme_Extend list, and Hangul
+ * syllable composition (GB6/7/8) and Prepend (GB9b) are not modelled. These
+ * are rare in AT Protocol record text; the trade-off keeps the validator
+ * dependency-free and correct for the common cases. */
+
+static int wf_utf8_decode(const unsigned char **pp, const unsigned char *end) {
+    const unsigned char *p = *pp;
+    unsigned int cp;
+    if (p >= end) return -1;
+    if (p[0] < 0x80) {
+        cp = p[0];
+        *pp = p + 1;
+        return (int)cp;
+    }
+    if ((p[0] & 0xE0u) == 0xC0u && p + 1 < end) {
+        cp = ((unsigned)(p[0] & 0x1Fu) << 6) | (unsigned)(p[1] & 0x3Fu);
+        *pp = p + 2;
+        return (int)cp;
+    }
+    if ((p[0] & 0xF0u) == 0xE0u && p + 2 < end) {
+        cp = ((unsigned)(p[0] & 0x0Fu) << 12) | ((unsigned)(p[1] & 0x3Fu) << 6) | (unsigned)(p[2] & 0x3Fu);
+        *pp = p + 3;
+        return (int)cp;
+    }
+    if ((p[0] & 0xF8u) == 0xF0u && p + 3 < end) {
+        cp = ((unsigned)(p[0] & 0x07u) << 18) | ((unsigned)(p[1] & 0x3Fu) << 12) |
+             ((unsigned)(p[2] & 0x3Fu) << 6) | (unsigned)(p[3] & 0x3Fu);
+        *pp = p + 4;
+        return (int)cp;
+    }
+    /* Invalid lead byte: skip it so we make forward progress. */
+    *pp = p + 1;
+    return -1;
+}
+
+static int wf_in_ranges(int cp, const unsigned long *ranges, size_t n) {
+    size_t i;
+    for (i = 0; i < n; i += 2) {
+        if (cp >= (int)ranges[i] && cp <= (int)ranges[i + 1]) return 1;
+    }
+    return 0;
+}
+
+/* Common Grapheme_Extend / combining-mark code point ranges (lo, hi). */
+static const unsigned long wf_grapheme_extend[] = {
+    0x0300u, 0x036Fu, 0x0483u, 0x0489u, 0x0591u, 0x05BDu, 0x0610u, 0x061Au,
+    0x064Bu, 0x065Fu, 0x0670u, 0x0670u, 0x06D6u, 0x06DCu, 0x06DFu, 0x06E4u,
+    0x06E7u, 0x06E8u, 0x06EAu, 0x06EDu, 0x0711u, 0x0711u, 0x0730u, 0x074Au,
+    0x07A6u, 0x07B0u, 0x07EBu, 0x07F3u, 0x0816u, 0x0819u, 0x081Bu, 0x0823u,
+    0x0825u, 0x0827u, 0x0829u, 0x082Du, 0x0859u, 0x085Bu, 0x08E3u, 0x0903u,
+    0x093Au, 0x093Cu, 0x093Eu, 0x094Fu, 0x0951u, 0x0957u, 0x0962u, 0x0963u,
+    0x0981u, 0x0983u, 0x09BCu, 0x09BCu, 0x09BEu, 0x09C4u, 0x09C7u, 0x09C8u,
+    0x09CBu, 0x09CDu, 0x09D7u, 0x09D7u, 0x09E2u, 0x09E3u, 0x0A01u, 0x0A03u,
+    0x0A3Cu, 0x0A3Cu, 0x0A3Eu, 0x0A42u, 0x0A47u, 0x0A48u, 0x0A4Bu, 0x0A4Du,
+    0x0A70u, 0x0A71u, 0x0A81u, 0x0A83u, 0x0ABCu, 0x0ABCu, 0x0ABEu, 0x0AC5u,
+    0x0AC7u, 0x0AC9u, 0x0ACBu, 0x0ACDu, 0x0AE2u, 0x0AE3u, 0x0B01u, 0x0B03u,
+    0x0B3Cu, 0x0B3Cu, 0x0B3Eu, 0x0B43u, 0x0B47u, 0x0B48u, 0x0B4Bu, 0x0B4Du,
+    0x0B56u, 0x0B57u, 0x0BBEu, 0x0BC2u, 0x0BC6u, 0x0BC8u, 0x0BCAu, 0x0BCDu,
+    0x0BD7u, 0x0BD7u, 0x0C01u, 0x0C03u, 0x0C3Eu, 0x0C44u, 0x0C46u, 0x0C48u,
+    0x0C4Au, 0x0C4Du, 0x0C55u, 0x0C56u, 0x0C82u, 0x0C83u, 0x0CBEu, 0x0CC4u,
+    0x0CC8u, 0x0CCDu, 0x0CD5u, 0x0CD6u, 0x0D02u, 0x0D03u, 0x0D3Eu, 0x0D43u,
+    0x0D46u, 0x0D48u, 0x0D4Au, 0x0D4Du, 0x0D57u, 0x0D57u, 0x0D82u, 0x0D83u,
+    0x0DCAu, 0x0DCAu, 0x0DCFu, 0x0DD4u, 0x0DD6u, 0x0DD6u, 0x0DD8u, 0x0DDFu,
+    0x0E31u, 0x0E31u, 0x0E34u, 0x0E3Au, 0x0E47u, 0x0E4Eu, 0x0EB1u, 0x0EB1u,
+    0x0EB4u, 0x0EB9u, 0x0EBBu, 0x0EBCu, 0x0EC8u, 0x0ECDu, 0x0F18u, 0x0F19u,
+    0x0F35u, 0x0F35u, 0x0F37u, 0x0F37u, 0x0F39u, 0x0F39u, 0x0F3Eu, 0x0F3Fu,
+    0x0F71u, 0x0F84u, 0x0F86u, 0x0F87u, 0x0F8Du, 0x0F97u, 0x0F99u, 0x0FBCu,
+    0x0FC6u, 0x0FC6u, 0x102Bu, 0x103Eu, 0x1056u, 0x1059u, 0x105Eu, 0x1060u,
+    0x1062u, 0x1064u, 0x1067u, 0x106Du, 0x1071u, 0x1074u, 0x1082u, 0x108Du,
+    0x108Fu, 0x108Fu, 0x109Au, 0x109Du, 0x135Du, 0x135Fu, 0x1712u, 0x1714u,
+    0x1732u, 0x1734u, 0x1752u, 0x1753u, 0x1772u, 0x1773u, 0x17B4u, 0x17B6u,
+    0x17B7u, 0x17BDu, 0x17C6u, 0x17C6u, 0x17C9u, 0x17D3u, 0x17DDu, 0x17DDu,
+    0x180Bu, 0x180Du, 0x1885u, 0x1886u, 0x18A9u, 0x18A9u, 0x1920u, 0x192Bu,
+    0x1930u, 0x193Bu, 0x1A17u, 0x1A1Bu, 0x1A55u, 0x1A5Eu, 0x1A60u, 0x1A7Cu,
+    0x1A7Fu, 0x1A7Fu, 0x1AB0u, 0x1ACEu, 0x1B00u, 0x1B03u, 0x1B34u, 0x1B34u,
+    0x1B36u, 0x1B3Au, 0x1B42u, 0x1B42u, 0x1B6Bu, 0x1B73u, 0x1B80u, 0x1B82u,
+    0x1BA1u, 0x1BADu, 0x1BE6u, 0x1BFAu, 0x1C24u, 0x1C37u, 0x1CD0u, 0x1CD2u,
+    0x1CD4u, 0x1CE8u, 0x1CEDu, 0x1CEDu, 0x1CF2u, 0x1CF4u, 0x1CF8u, 0x1CF9u,
+    0x1DC0u, 0x1DFFu, 0x20D0u, 0x20F0u, 0x2CEFu, 0x2CF1u, 0x2D7Fu, 0x2D7Fu,
+    0x2DE0u, 0x2DFFu, 0x302Au, 0x302Fu, 0x3099u, 0x309Au, 0xA66Fu, 0xA672u,
+    0xA674u, 0xA67Du, 0xA69Eu, 0xA69Fu, 0xA6F0u, 0xA6F1u, 0xA802u, 0xA802u,
+    0xA806u, 0xA806u, 0xA80Bu, 0xA80Bu, 0xA823u, 0xA827u, 0xA880u, 0xA881u,
+    0xA8B4u, 0xA8C5u, 0xA8E0u, 0xA8F1u, 0xA926u, 0xA92Du, 0xA947u, 0xA953u,
+    0xA980u, 0xA983u, 0xA9B3u, 0xA9C0u, 0xAA29u, 0xAA36u, 0xAA43u, 0xAA43u,
+    0xAA4Cu, 0xAA4Du, 0xAA7Bu, 0xAA7Bu, 0xAAB0u, 0xAAB0u, 0xAAB2u, 0xAAB4u,
+    0xAAB7u, 0xAAB8u, 0xAABEu, 0xAABFu, 0xAAC1u, 0xAAC1u, 0xAAECu, 0xAAEDu,
+    0xAAF2u, 0xAAF3u, 0xFB1Eu, 0xFB1Eu, 0xFE00u, 0xFE0Fu, 0xFE20u, 0xFE2Fu,
+    0xFF9Eu, 0xFF9Fu,
+};
+
+static int wf_is_grapheme_extend(int cp) {
+    return wf_in_ranges(cp, wf_grapheme_extend,
+                        sizeof(wf_grapheme_extend) / sizeof(wf_grapheme_extend[0]));
+}
+
+static int wf_is_control(int cp) {
+    return (cp >= 0 && cp <= 0x1F) || cp == 0x7F;
+}
+
+static int wf_is_ri(int cp) {
+    return cp >= 0x1F1E6 && cp <= 0x1F1FF;
+}
+
+static int wf_is_emoji(int cp) {
+    return (cp >= 0x1F000 && cp <= 0x1FAFF) ||
+           (cp >= 0x2600 && cp <= 0x27BF) ||
+           cp == 0x2764 || cp == 0x2B00;
+}
+
+static int wf_is_emoji_modifier(int cp) {
+    return cp >= 0x1F3FB && cp <= 0x1F3FF;
+}
+
+static size_t wf_utf8_grapheme_count(const char *s) {
+    const unsigned char *p, *end;
+    int cp, prev1 = 0, prev2 = 0;
     size_t count = 0;
-    const unsigned char *p;
+    int ri_pending = 0;
+
     if (!s) return 0;
-    for (p = (const unsigned char *)s; *p; p++) {
-        if ((*p & 0xC0u) != 0x80u) count++;
+    p = (const unsigned char *)s;
+    end = p + strlen(s);
+
+    while ((cp = wf_utf8_decode(&p, end)) >= 0) {
+        int break_before;
+
+        if (count == 0) {
+            break_before = 1;
+        } else if (prev1 == 0x0Du && cp == 0x0Au) {
+            break_before = 0;                                   /* GB3: CR x LF */
+        } else if (wf_is_control(prev1)) {
+            break_before = 1;                                   /* GB4/GB5     */
+        } else if (wf_is_grapheme_extend(cp) || cp == 0x200Du) {
+            break_before = 0;                                   /* GB9: x Extend/ZWJ */
+        } else if (prev1 == 0x200Du && wf_is_emoji(prev2) &&
+                   (wf_is_emoji(cp) || wf_is_emoji_modifier(cp))) {
+            break_before = 0;                                   /* GB11: ZWJ sequence */
+        } else if (wf_is_emoji(prev1) && wf_is_emoji_modifier(cp)) {
+            break_before = 0;                                   /* GB9c: skin tone */
+        } else if (wf_is_ri(prev1) && wf_is_ri(cp)) {
+            break_before = ri_pending ? 0 : 1;                  /* GB12/GB13: flag pairs */
+        } else {
+            break_before = 1;
+        }
+
+        if (break_before) {
+            count++;
+            ri_pending = wf_is_ri(cp) ? 1 : 0;
+        } else if (wf_is_ri(prev1) && wf_is_ri(cp)) {
+            ri_pending = 0;
+        } else if (wf_is_ri(cp)) {
+            ri_pending = 1;
+        } else {
+            ri_pending = 0;
+        }
+
+        prev2 = prev1;
+        prev1 = cp;
     }
     return count;
 }
@@ -590,7 +757,7 @@ static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
         return WF_ERR_INVALID_ARG;
     }
 
-    graphemes = wf_utf8_codepoint_count(value->valuestring);
+    graphemes = wf_utf8_grapheme_count(value->valuestring);
     if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minGraphemes"), NULL) &&
         graphemes < (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minGraphemes")->valuedouble) {
         wf_ctx_error(ctx, path, "must not be shorter than %lld graphemes",
@@ -710,22 +877,30 @@ static wf_status wf_validate_boolean_schema(wf_validation_ctx *ctx,
 }
 
 static wf_status wf_validate_unknown_schema(wf_validation_ctx *ctx,
-                                           const cJSON *schema,
-                                           const cJSON *value,
-                                           const char *path) {
+                                            const cJSON *schema,
+                                            const cJSON *value,
+                                            const char *path) {
     (void)ctx;
     (void)schema;
-    (void)value;
-    (void)path;
+    /* atproto (primitives.ts `unknown`): the value must be present and must be
+     * an object (non-null). In JSON terms that means an object or an array;
+     * JSON null, numbers, strings and booleans are rejected. */
+    if (value == NULL || (!cJSON_IsObject(value) && !cJSON_IsArray(value))) {
+        wf_ctx_simple(ctx, path, "must be an object");
+        return WF_ERR_INVALID_ARG;
+    }
     return WF_OK;
 }
 
 static wf_status wf_validate_bytes_schema(wf_validation_ctx *ctx,
-                                         const cJSON *schema,
-                                         const cJSON *value,
-                                         const char *path) {
+                                          const cJSON *schema,
+                                          const cJSON *value,
+                                          const char *path) {
     const cJSON *bytes;
+    const cJSON *min_len_item;
+    const cJSON *max_len_item;
     char *subpath;
+    size_t decoded_len = 0;
 
     (void)schema;
     if (!cJSON_IsObject(value)) {
@@ -740,7 +915,32 @@ static wf_status wf_validate_bytes_schema(wf_validation_ctx *ctx,
         free(subpath);
         return WF_ERR_INVALID_ARG;
     }
+
+    /* base64 string length -> decoded byte length. */
+    {
+        size_t len = strlen(bytes->valuestring);
+        size_t pad = 0;
+        if (len > 0 && bytes->valuestring[len - 1] == '=') pad++;
+        if (len > 1 && bytes->valuestring[len - 2] == '=') pad++;
+        if (len >= pad) decoded_len = (len / 4) * 3 - pad;
+    }
     free(subpath);
+
+    min_len_item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength");
+    if (wf_is_json_integer(min_len_item, NULL) &&
+        decoded_len < (size_t)min_len_item->valuedouble) {
+        wf_ctx_error(ctx, path, "must not be smaller than %lld bytes",
+                     (long long)min_len_item->valuedouble);
+        return WF_ERR_INVALID_ARG;
+    }
+    max_len_item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength");
+    if (wf_is_json_integer(max_len_item, NULL) &&
+        decoded_len > (size_t)max_len_item->valuedouble) {
+        wf_ctx_error(ctx, path, "must not be larger than %lld bytes",
+                     (long long)max_len_item->valuedouble);
+        return WF_ERR_INVALID_ARG;
+    }
+
     return WF_OK;
 }
 
@@ -954,10 +1154,8 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
             return WF_OK;
         }
 
-        /* Allow a simple CID reference only when no blob constraints need checking. */
-        if (!has_constraints && wf_validate_cid_link_schema(ctx, schema, value, path) == WF_OK) {
-            return WF_OK;
-        }
+        /* atproto requires a BlobRef object ($type:"blob", ref, mimeType,
+         * size). A bare cid-link ({"$link":...}) is NOT a valid blob value. */
         if (has_constraints) {
             wf_ctx_simple(ctx, path, "must be a full blob object to validate size or MIME type constraints");
         } else {
