@@ -249,6 +249,31 @@ int main(void) {
         free(token);
     }
 
+    /* ---- 4d. OAuth/refresh/DPoP JWT types are not service tokens ---- */
+    {
+        const char *prohibited_types[] = {"at+jwt", "refresh+jwt", "dpop+jwt"};
+        wf_service_auth_request req = {0};
+        req.iss = iss;
+        req.aud = aud;
+        char *token = NULL;
+        WF_CHECK(wf_server_create_service_auth(&req, &key, &token) == WF_OK);
+        for (size_t i = 0;
+             i < sizeof(prohibited_types) / sizeof(*prohibited_types); i++) {
+            char header[64];
+            snprintf(header, sizeof(header),
+                     "{\"typ\":\"%s\",\"alg\":\"ES256\"}",
+                     prohibited_types[i]);
+            char *forged = resign_with_header(token, header, &key);
+            WF_CHECK(forged != NULL);
+            wf_service_auth_claims claims = {0};
+            WF_CHECK(wf_server_verify_service_auth(forged, didkey, 0, &claims) ==
+                     WF_ERR_PARSE);
+            wf_service_auth_claims_free(&claims);
+            free(forged);
+        }
+        free(token);
+    }
+
     /* ---- 5. Uniqueness: two tokens have distinct jti ---- */
     {
         wf_service_auth_request req = {0};
