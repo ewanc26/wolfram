@@ -161,6 +161,7 @@ static void wf_agent_session_data_reset(wf_session_data *data) {
     free(data->did);
     free(data->email);
     free(data->status);
+    free(data->pds_url);
     memset(data, 0, sizeof(*data));
     data->email_confirmed = -1;
     data->email_auth_factor = -1;
@@ -193,6 +194,9 @@ static wf_status wf_agent_session_data_copy(wf_session_data *dst, const wf_sessi
     if (status == WF_OK) {
         status = wf_agent_set_string(&dst->status, src->status);
     }
+    if (status == WF_OK) {
+        status = wf_agent_set_string(&dst->pds_url, src->pds_url);
+    }
 
     if (status == WF_OK) {
         dst->email_confirmed = src->email_confirmed;
@@ -212,6 +216,36 @@ static void wf_agent_sync_auth(wf_agent *agent) {
 
     wf_xrpc_client_set_auth(agent->client,
                             wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
+}
+
+/* Route the agent's PDS client at the session's discovered PDS endpoint (from
+ * the DID document), so data-plane XRPC calls hit the account's real PDS rather
+ * than the login/entryway host. No-op when no PDS was discovered. */
+static void wf_agent_apply_session_pds(wf_agent *agent) {
+    if (!agent || !agent->client || !agent->session) {
+        return;
+    }
+    const char *pds = agent->session->data.pds_url;
+    if (pds && pds[0]) {
+        wf_xrpc_client_set_base_url(agent->client, pds);
+    }
+}
+
+/* Transport refresh hook: on an expired/invalid access token the transport
+ * calls this to refresh the session and re-install the new access JWT (and any
+ * re-pointed PDS) before retrying the original request exactly once. */
+static wf_status wf_agent_refresh_cb(void *userdata) {
+    wf_agent *agent = userdata;
+    if (!agent || !agent->session || !wf_session_has_session(agent->session)) {
+        return WF_ERR_STATE;
+    }
+
+    wf_status status = wf_session_refresh(agent->session);
+    if (status == WF_OK) {
+        wf_xrpc_client_set_auth(agent->client, agent->session->data.access_jwt);
+        wf_agent_apply_session_pds(agent);
+    }
+    return status;
 }
 
 static int wf_agent_make_rfc3339_timestamp(char *buf, size_t buf_len) {
@@ -899,6 +933,10 @@ wf_agent *wf_agent_new(const char *service_url) {
         return NULL;
     }
 
+    /* Enable one transparent refresh+retry on the data-plane client when an
+     * access token expires mid-request. */
+    wf_xrpc_client_set_refresh_handler(agent->client, wf_agent_refresh_cb, agent);
+
     return agent;
 }
 
@@ -935,6 +973,7 @@ wf_status wf_agent_login(wf_agent *agent, const char *identifier, const char *pa
     }
 
     wf_agent_sync_auth(agent);
+    wf_agent_apply_session_pds(agent);
     return WF_OK;
 }
 
@@ -945,6 +984,7 @@ wf_status wf_agent_resume(wf_agent *agent, const wf_session_data *data) {
 
     wf_status status = wf_session_resume(agent->session, data);
     wf_agent_sync_auth(agent);
+    wf_agent_apply_session_pds(agent);
     return status;
 }
 

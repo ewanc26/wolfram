@@ -12,6 +12,7 @@
 
 #include "wolfram/session.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/identity.h"
 
 #include <cJSON.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@ static void wf_session_data_free(wf_session_data *data) {
     free(data->did);
     free(data->email);
     free(data->status);
+    free(data->pds_url);
     memset(data, 0, sizeof(*data));
     data->email_confirmed = -1;
     data->email_auth_factor = -1;
@@ -62,12 +64,14 @@ static wf_status wf_session_data_copy(wf_session_data *dst,
     dst->did = wf_strdup(src->did);
     dst->email = wf_strdup(src->email);
     dst->status = wf_strdup(src->status);
+    dst->pds_url = wf_strdup(src->pds_url);
     dst->email_confirmed = src->email_confirmed;
     dst->email_auth_factor = src->email_auth_factor;
     dst->active = src->active;
 
     if (!dst->access_jwt || !dst->refresh_jwt || !dst->handle || !dst->did ||
-        (src->email && !dst->email) || (src->status && !dst->status)) {
+        (src->email && !dst->email) || (src->status && !dst->status) ||
+        (src->pds_url && !dst->pds_url)) {
         wf_session_data_free(dst);
         return WF_ERR_ALLOC;
     }
@@ -135,6 +139,28 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json, 
     if ((cJSON_IsString(email) && !data->email) ||
         (cJSON_IsString(status_obj) && !data->status)) {
         status = WF_ERR_ALLOC;
+        goto done;
+    }
+
+    /* Discover the account's PDS from the embedded DID document, if present.
+     * The endpoint is the didDoc service entry with id "#atproto_pds". A
+     * missing or unparseable didDoc is non-fatal — we simply keep whatever
+     * service URL the session was created against (backward compatible). */
+    cJSON *did_doc = cJSON_GetObjectItemCaseSensitive(root, "didDoc");
+    if (cJSON_IsObject(did_doc)) {
+        char *did_doc_json = cJSON_PrintUnformatted(did_doc);
+        if (did_doc_json) {
+            wf_did_document doc = {0};
+            if (wf_did_document_parse(did_doc_json, strlen(did_doc_json),
+                                      &doc) == WF_OK &&
+                doc.pds_endpoint) {
+                free(data->pds_url);
+                data->pds_url = wf_strdup(doc.pds_endpoint);
+                if (!data->pds_url) status = WF_ERR_ALLOC;
+            }
+            wf_did_document_free(&doc);
+            free(did_doc_json);
+        }
     }
 
 done:
@@ -219,6 +245,36 @@ static wf_status wf_session_data_update_from_get(wf_session_data *data,
 
 /* ── public API ───────────────────────────────────────────── */
 
+/* Re-point the session's XRPC client at the PDS discovered from the didDoc so
+ * that subsequent calls go to the account's real PDS rather than the login
+ * host. A no-op when no PDS was discovered. */
+static void wf_session_apply_pds(wf_session *session) {
+    if (!session || !session->data.pds_url || !session->data.pds_url[0]) {
+        return;
+    }
+    /* Best effort: on failure the client keeps its previous base URL. */
+    wf_xrpc_client_set_base_url(session->client, session->data.pds_url);
+}
+
+/* Classify a failed session XRPC call: auth errors (expired/invalid/failed
+ * credentials) should clear the session, while transient network/transport
+ * errors should keep it. */
+static int wf_session_is_auth_error(wf_status status, const wf_response *res) {
+    if (status == WF_OK) return 0;
+    if (res && res->status == 401) return 1;
+
+    char *err = NULL;
+    if (res && wf_xrpc_error(res, &err, NULL) == WF_OK && err) {
+        int match = strcmp(err, "ExpiredToken") == 0 ||
+                    strcmp(err, "InvalidToken") == 0 ||
+                    strcmp(err, "AuthFailed") == 0;
+        free(err);
+        return match;
+    }
+    free(err);
+    return 0;
+}
+
 wf_session *wf_session_new(const char *service_base_url) {
     wf_session *session = calloc(1, sizeof(*session));
     if (!session) return NULL;
@@ -244,6 +300,13 @@ void wf_session_free(wf_session *session) {
 wf_status wf_session_login(wf_session *session,
                             const char *identifier,
                             const char *password) {
+    return wf_session_login_with_opts(session, identifier, password, NULL);
+}
+
+wf_status wf_session_login_with_opts(wf_session *session,
+                                     const char *identifier,
+                                     const char *password,
+                                     const wf_session_login_opts *opts) {
     if (!session || !identifier || !password) {
         return WF_ERR_INVALID_ARG;
     }
@@ -254,7 +317,8 @@ wf_status wf_session_login(wf_session *session,
     wf_xrpc_client_set_auth(session->client, NULL);
     session->has_session = 0;
 
-    /* Build JSON body: {"identifier":"...","password":"..."} */
+    /* Build JSON body: {"identifier":"...","password":"...",
+     * ["authFactorToken":"...", "allowTakendown":true]} */
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
 
@@ -262,6 +326,20 @@ wf_status wf_session_login(wf_session *session,
         !cJSON_AddStringToObject(body, "password", password)) {
         cJSON_Delete(body);
         return WF_ERR_ALLOC;
+    }
+
+    if (opts && opts->auth_factor_token && opts->auth_factor_token[0]) {
+        if (!cJSON_AddStringToObject(body, "authFactorToken",
+                                     opts->auth_factor_token)) {
+            cJSON_Delete(body);
+            return WF_ERR_ALLOC;
+        }
+    }
+    if (opts && opts->allow_takendown) {
+        if (!cJSON_AddBoolToObject(body, "allowTakendown", 1)) {
+            cJSON_Delete(body);
+            return WF_ERR_ALLOC;
+        }
     }
 
     char *json_str = cJSON_PrintUnformatted(body);
@@ -292,6 +370,9 @@ wf_status wf_session_login(wf_session *session,
     wf_xrpc_client_set_auth(session->client, session->data.access_jwt);
     session->has_session = 1;
 
+    /* Route subsequent calls at the account's discovered PDS. */
+    wf_session_apply_pds(session);
+
     return WF_OK;
 }
 
@@ -306,6 +387,10 @@ wf_status wf_session_resume(wf_session *session, const wf_session_data *data) {
     session->data = copy;
     session->has_session = 1;
     wf_xrpc_client_set_auth(session->client, session->data.access_jwt);
+
+    /* If the persisted data already carries a PDS endpoint, route at it before
+     * validating the credentials. */
+    wf_session_apply_pds(session);
 
     /* Match the reference client's semantics: install first, then validate
      * persisted credentials by forcing a token refresh. */
@@ -326,8 +411,18 @@ wf_status wf_session_refresh(wf_session *session) {
                                           NULL, &res);
 
     if (status != WF_OK) {
-        /* Restore access JWT if we still have it */
-        wf_xrpc_client_set_auth(session->client, session->data.access_jwt);
+        if (wf_session_is_auth_error(status, &res)) {
+            /* Credentials are no longer valid: drop the session entirely, as
+             * the reference client does on ExpiredToken/InvalidToken. */
+            wf_session_data_free(&session->data);
+            wf_session_data_init(&session->data);
+            wf_xrpc_client_set_auth(session->client, NULL);
+            session->has_session = 0;
+        } else {
+            /* Transient/network error: keep the session and restore the
+             * access JWT so later calls can retry. */
+            wf_xrpc_client_set_auth(session->client, session->data.access_jwt);
+        }
         wf_response_free(&res);
         return status;
     }
@@ -357,6 +452,9 @@ wf_status wf_session_refresh(wf_session *session) {
     if (!new_data.email && session->data.email) {
         new_data.email = wf_strdup(session->data.email);
     }
+    if (!new_data.pds_url && session->data.pds_url) {
+        new_data.pds_url = wf_strdup(session->data.pds_url);
+    }
     if (new_data.email_confirmed == -1) {
         new_data.email_confirmed = session->data.email_confirmed;
     }
@@ -373,6 +471,9 @@ wf_status wf_session_refresh(wf_session *session) {
 
     /* Set the new access JWT on the client */
     wf_xrpc_client_set_auth(session->client, session->data.access_jwt);
+
+    /* Keep routing at the account's PDS (may have been refreshed above). */
+    wf_session_apply_pds(session);
 
     return WF_OK;
 }

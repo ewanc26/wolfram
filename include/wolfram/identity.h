@@ -74,6 +74,20 @@ wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
                                         const char *service_type,
                                         char **out_endpoint);
 
+/**
+ * Parse a DID document from its JSON representation.
+ *
+ * Useful for a DID document embedded in another response (for example the
+ * `didDoc` field returned by com.atproto.server.createSession /
+ * refreshSession), where no network fetch is needed. The same field subset as
+ * wf_did_resolve is extracted (pds_endpoint, feedgen_endpoint, signing_key,
+ * notif_endpoint) and `method` is inferred from the document's `id`.
+ *
+ * On WF_OK, `out` is populated and must be released with wf_did_document_free.
+ */
+wf_status wf_did_document_parse(const char *json, size_t json_len,
+                                wf_did_document *out);
+
 /** Release the owned strings inside a wf_did_document. */
 void wf_did_document_free(wf_did_document *doc);
 

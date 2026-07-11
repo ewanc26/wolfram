@@ -21,6 +21,9 @@ struct wf_xrpc_client {
     char *auth_header; /* "Authorization: Bearer <jwt>", or NULL */
     wf_xrpc_handler_fn handler; /* NULL in production; test seam */
     void *handler_userdata;
+    wf_xrpc_refresh_fn refresh_cb; /* NULL unless auto-refresh is enabled */
+    void *refresh_userdata;
+    int refreshing; /* re-entrancy guard while a refresh is in flight */
 };
 
 /* curl write callback: append incoming bytes to a growable buffer. */
@@ -136,6 +139,27 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     if (client->auth_header) {
         snprintf(client->auth_header, needed, "Authorization: Bearer %s", access_jwt);
     }
+}
+
+wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
+                                      const char *service_base_url) {
+    if (!client || !service_base_url || service_base_url[0] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    char *normalised = wf_normalise_base(service_base_url);
+    if (!normalised) return WF_ERR_ALLOC;
+
+    free(client->base_url);
+    client->base_url = normalised;
+    return WF_OK;
+}
+
+void wf_xrpc_client_set_refresh_handler(wf_xrpc_client *client,
+                                        wf_xrpc_refresh_fn fn, void *userdata) {
+    if (!client) return;
+    client->refresh_cb = fn;
+    client->refresh_userdata = userdata;
 }
 
 /* Convert a curl header list into an array of wf_http_header (owned copies). */
@@ -262,6 +286,53 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     return status;
 }
 
+/* Detect an expired/invalid access token in a completed response: either an
+ * HTTP 401, or an XRPC error envelope of "ExpiredToken"/"InvalidToken". */
+static int wf_xrpc_response_is_expired(const wf_response *out) {
+    if (!out) return 0;
+    if (out->status == 401) return 1;
+
+    char *err = NULL;
+    if (wf_xrpc_error(out, &err, NULL) == WF_OK && err) {
+        int match = strcmp(err, "ExpiredToken") == 0 ||
+                    strcmp(err, "InvalidToken") == 0;
+        free(err);
+        return match;
+    }
+    free(err);
+    return 0;
+}
+
+/* Build the request headers (auth + optional content-type) for one attempt. */
+static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
+                                       const char *content_type,
+                                       struct curl_slist **out_headers) {
+    struct curl_slist *headers = NULL;
+
+    if (client->auth_header) {
+        headers = curl_slist_append(headers, client->auth_header);
+    }
+    if (is_post) {
+        size_t header_len = strlen("Content-Type: ") + strlen(content_type) + 1;
+        char *header = malloc(header_len);
+        if (!header) {
+            curl_slist_free_all(headers);
+            return WF_ERR_ALLOC;
+        }
+        snprintf(header, header_len, "Content-Type: %s", content_type);
+        struct curl_slist *grown = curl_slist_append(headers, header);
+        free(header);
+        if (!grown) {
+            curl_slist_free_all(headers);
+            return WF_ERR_ALLOC;
+        }
+        headers = grown;
+    }
+
+    *out_headers = headers;
+    return WF_OK;
+}
+
 /* Shared request path for both query (GET) and POST variants. */
 static wf_status wf_xrpc_request(wf_xrpc_client *client,
                                  const char *nsid,
@@ -276,49 +347,57 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
         return WF_ERR_INVALID_ARG;
     }
 
-    /* Build "<base>/xrpc/<nsid>[?query]" */
-    size_t url_cap = strlen(client->base_url) + strlen("/xrpc/") + strlen(nsid) + 1
-                     + (query_string ? strlen(query_string) + 1 : 0);
-    char *url = malloc(url_cap);
-    if (!url) {
-        return WF_ERR_ALLOC;
-    }
-
-    if (query_string && query_string[0] != '\0') {
-        snprintf(url, url_cap, "%s/xrpc/%s?%s", client->base_url, nsid, query_string);
-    } else {
-        snprintf(url, url_cap, "%s/xrpc/%s", client->base_url, nsid);
-    }
-
-    struct curl_slist *headers = NULL;
+    /* Whether this call went out authenticated — only such calls are eligible
+     * for a refresh+retry on an expired token. */
+    int had_auth = client->auth_header != NULL;
     wf_status status = WF_OK;
+    char *url = NULL;
 
-    if (client->auth_header) {
-        headers = curl_slist_append(headers, client->auth_header);
-    }
-    if (is_post) {
-        size_t header_len = strlen("Content-Type: ") + strlen(content_type) + 1;
-        char *header = malloc(header_len);
-        if (!header) {
-            status = WF_ERR_ALLOC;
-        } else {
-            snprintf(header, header_len, "Content-Type: %s", content_type);
-            headers = curl_slist_append(headers, header);
-            free(header);
-            if (!headers) {
-                status = WF_ERR_ALLOC;
-            }
+    for (int attempt = 0; ; attempt++) {
+        /* Rebuild the URL each attempt: a refresh may re-point the client at a
+         * newly discovered PDS base URL. */
+        free(url);
+        size_t url_cap = strlen(client->base_url) + strlen("/xrpc/") +
+                         strlen(nsid) + 1 +
+                         (query_string ? strlen(query_string) + 1 : 0);
+        url = malloc(url_cap);
+        if (!url) {
+            return WF_ERR_ALLOC;
         }
-    }
+        if (query_string && query_string[0] != '\0') {
+            snprintf(url, url_cap, "%s/xrpc/%s?%s", client->base_url, nsid,
+                     query_string);
+        } else {
+            snprintf(url, url_cap, "%s/xrpc/%s", client->base_url, nsid);
+        }
 
-    if (status == WF_OK) {
+        struct curl_slist *headers = NULL;
+        status = wf_xrpc_build_headers(client, is_post, content_type, &headers);
+        if (status != WF_OK) {
+            break;
+        }
+
         status = wf_xrpc_perform(client, is_post ? "POST" : "GET", url,
                                  content_type, body, body_len, headers, out);
-    } else {
-        curl_slist_free_all(headers);
-    }
-    free(url);
 
+        /* Retry at most once, and only when an authenticated request came back
+         * with an expired/invalid token and a refresh path is available. The
+         * re-entrancy guard prevents a refresh call (which itself issues XRPC)
+         * from recursively triggering another refresh. */
+        if (attempt == 0 && had_auth && client->refresh_cb &&
+            !client->refreshing && wf_xrpc_response_is_expired(out)) {
+            client->refreshing = 1;
+            wf_status refreshed = client->refresh_cb(client->refresh_userdata);
+            client->refreshing = 0;
+            if (refreshed == WF_OK) {
+                wf_response_free(out);
+                continue; /* re-issue once with the refreshed credentials */
+            }
+        }
+        break;
+    }
+
+    free(url);
     return status;
 }
 

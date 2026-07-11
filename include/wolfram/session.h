@@ -29,6 +29,7 @@ typedef struct wf_session_data {
     int    email_auth_factor; /* -1 if unknown */
     int    active;          /* -1 if unknown */
     char  *status;          /* NULL if not returned */
+    char  *pds_url;         /* PDS endpoint from didDoc#atproto_pds, or NULL */
 } wf_session_data;
 
 /** A session manager. Owns its XRPC client. */
@@ -57,6 +58,27 @@ void wf_session_free(wf_session *session);
 wf_status wf_session_login(wf_session *session,
                             const char *identifier,
                             const char *password);
+
+/**
+ * Optional fields for com.atproto.server.createSession beyond the
+ * identifier/password pair.
+ */
+typedef struct wf_session_login_opts {
+    /** Two-factor `authFactorToken`. NULL or empty omits the field. */
+    const char *auth_factor_token;
+    /** Include `allowTakendown: true` when non-zero (0 omits the field). */
+    int allow_takendown;
+} wf_session_login_opts;
+
+/**
+ * Log in like wf_session_login, additionally sending the optional
+ * createSession input fields carried by `opts` (may be NULL, which behaves
+ * exactly like wf_session_login).
+ */
+wf_status wf_session_login_with_opts(wf_session *session,
+                                     const char *identifier,
+                                     const char *password,
+                                     const wf_session_login_opts *opts);
 
 /**
  * Resume previously persisted credentials, then immediately refresh them.
