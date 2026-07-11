@@ -15,17 +15,11 @@
 /* ── SHA-256 (mbedTLS) ──────────────────────────────────────────────── */
 
 /*
- * TODO: Implement using mbedTLS:
- *   #include <mbedtls/sha256.h>
- *
- *   wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
- *                               unsigned char out[32]) {
- *       if (!in || !out) return WF_ERR_INVALID_ARG;
- *       mbedtls_sha256(in, len, out, 0);
- *       return WF_OK;
- *   }
+ * TODO: Implement using mbedTLS once the Wii port provides a trustworthy
+ * entropy source for the shared crypto/TLS backend. The digest operation
+ * itself does not consume entropy, but shipping a partial backend would make
+ * the transport appear usable when TLS cannot be seeded securely.
  */
-
 wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
                            unsigned char out[32]) {
     (void)in; (void)len; (void)out;
@@ -38,7 +32,7 @@ wf_status wf_crypto_base64url_decode(const char *in,
                                      unsigned char **out, size_t *out_len) {
     static const char b64tbl[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    size_t in_len, padded_len, padding, i;
+    size_t in_len, padded_len, padding = 0, i;
     unsigned char *decoded = NULL;
     if (!in || !out || !out_len) return WF_ERR_INVALID_ARG;
     *out = NULL;
@@ -179,5 +173,40 @@ wf_status wf_crypto_p256_verify(const unsigned char x[32],
 wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
                                     unsigned char x[32], unsigned char y[32]) {
     (void)jwk_json; (void)x; (void)y;
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
+                           size_t raw_len, char **out_didkey) {
+    (void)type; (void)raw_pub; (void)raw_len;
+    if (out_didkey) *out_didkey = NULL;
+    /* TODO: Share the desktop base58btc codec without pulling in OpenSSL. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
+                           unsigned char **out_raw, size_t *out_raw_len) {
+    (void)didkey;
+    if (out_type) *out_type = WF_KEY_TYPE_UNKNOWN;
+    if (out_raw) *out_raw = NULL;
+    if (out_raw_len) *out_raw_len = 0;
+    /* TODO: Share the desktop base58btc codec without pulling in OpenSSL. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_from_verification_method(
+    const char *verification_type, const char *public_key_multibase,
+    char **out_didkey) {
+    (void)verification_type; (void)public_key_multibase;
+    if (out_didkey) *out_didkey = NULL;
+    /* TODO: Normalize verification keys after the shared base58btc codec is
+     * available on embedded targets. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_verification_method_id(const char *didkey, char **out_id) {
+    (void)didkey;
+    if (out_id) *out_id = NULL;
+    /* TODO: Enable with the rest of the embedded did:key backend. */
     return WF_ERR_NOT_IMPLEMENTED;
 }

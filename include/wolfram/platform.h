@@ -54,7 +54,8 @@ extern "C" {
  * One-time platform initialisation.
  *
  * Desktop: no-op (returns WF_OK).
- * Wii: will initialise net_init(), VIDEO_Init(), etc.
+ * Wii: initialises libogc networking. Video and filesystems remain owned by
+ * the application.
  */
 wf_status wf_platform_init(void);
 

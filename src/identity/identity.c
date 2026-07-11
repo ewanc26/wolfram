@@ -20,7 +20,7 @@
 #include "wolfram/version.h"
 
 #include <cJSON.h>
-#include <curl/urlapi.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdatomic.h>
@@ -140,27 +140,21 @@ parse_error:
 }
 
 static int wf_did_uri_valid(const char *uri) {
-    CURLU *parsed = NULL;
-    char *scheme = NULL;
-    int valid = 0;
+    const unsigned char *p = (const unsigned char *)uri;
 
-    if (!uri || !*uri) return 0;
-    parsed = curl_url();
-    if (!parsed) return 0;
-    if (curl_url_set(parsed, CURLUPART_URL, uri, CURLU_NON_SUPPORT_SCHEME) !=
-        CURLUE_OK) {
-        goto done;
+    if (!p || !isalpha(*p)) return 0;
+    for (p++; *p && *p != ':'; p++) {
+        if (!isalnum(*p) && *p != '+' && *p != '-' && *p != '.') return 0;
     }
-    if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
-        !scheme || !*scheme) {
-        goto done;
+    if (*p++ != ':' || !*p) return 0;
+    for (; *p; p++) {
+        if (*p <= 0x20 || *p == 0x7f) return 0;
+        if (*p == '%') {
+            if (!isxdigit(p[1]) || !isxdigit(p[2])) return 0;
+            p += 2;
+        }
     }
-    valid = 1;
-
-done:
-    curl_free(scheme);
-    curl_url_cleanup(parsed);
-    return valid;
+    return 1;
 }
 
 static int wf_did_string_array_valid(cJSON *value) {
@@ -256,36 +250,54 @@ static char *wf_did_service_canonical_id(const char *did, const char *id) {
 }
 
 static int wf_did_http_endpoint_valid(const char *endpoint) {
-    CURLU *parsed = NULL;
-    char *scheme = NULL;
-    char *host = NULL;
-    int valid = 0;
+    const char *authority;
+    const char *authority_end;
+    const char *host_end;
+    const char *port = NULL;
 
     if (!endpoint || !*endpoint) return 0;
-    if (strncmp(endpoint, "http://", 7) != 0 &&
-        strncmp(endpoint, "https://", 8) != 0) {
+    if (strncmp(endpoint, "http://", 7) == 0) authority = endpoint + 7;
+    else if (strncmp(endpoint, "https://", 8) == 0) authority = endpoint + 8;
+    else return 0;
+    authority_end = authority + strcspn(authority, "/?#");
+    if (authority == authority_end || memchr(authority, '@',
+                                              (size_t)(authority_end - authority)))
         return 0;
-    }
 
-    parsed = curl_url();
-    if (!parsed) return 0;
-    if (curl_url_set(parsed, CURLUPART_URL, endpoint, 0) != CURLUE_OK) goto done;
-    if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
-        !scheme || !*scheme) goto done;
-    if (strcmp(scheme, "http") != 0 && strcmp(scheme, "https") != 0) {
-        goto done;
+    if (*authority == '[') {
+        host_end = memchr(authority + 1, ']',
+                          (size_t)(authority_end - authority - 1));
+        if (!host_end || host_end == authority + 1) return 0;
+        host_end++;
+        if (host_end < authority_end) {
+            if (*host_end != ':') return 0;
+            port = host_end + 1;
+        }
+    } else {
+        const char *p;
+        host_end = authority_end;
+        for (p = authority; p < authority_end; p++) {
+            if (*p <= 0x20 || *p == 0x7f || *p == '[' || *p == ']') return 0;
+            if (*p == ':') {
+                if (port) return 0;
+                host_end = p;
+                port = p + 1;
+            }
+        }
+        if (host_end == authority) return 0;
     }
-    if (curl_url_get(parsed, CURLUPART_HOST, &host, 0) != CURLUE_OK ||
-        !host || !*host) {
-        goto done;
+    if (port) {
+        const char *p;
+        unsigned long number = 0;
+        if (port == authority_end) return 0;
+        for (p = port; p < authority_end; p++) {
+            if (!isdigit((unsigned char)*p)) return 0;
+            number = number * 10 + (unsigned long)(*p - '0');
+            if (number > 65535) return 0;
+        }
+        if (number == 0) return 0;
     }
-    valid = 1;
-
-done:
-    curl_free(scheme);
-    curl_free(host);
-    curl_url_cleanup(parsed);
-    return valid;
+    return wf_did_uri_valid(endpoint);
 }
 
 static wf_status wf_did_validate_context(cJSON *context) {
@@ -379,7 +391,12 @@ static wf_status wf_did_validate_verification_methods(cJSON *verification) {
 
 static wf_status wf_did_service_endpoint_valid(cJSON *endpoint) {
     if (cJSON_IsString(endpoint) && endpoint->valuestring) {
-        return wf_did_uri_valid(endpoint->valuestring)
+        const char *value = endpoint->valuestring;
+        int valid = strncmp(value, "http://", 7) == 0 ||
+                    strncmp(value, "https://", 8) == 0
+                  ? wf_did_http_endpoint_valid(value)
+                  : wf_did_uri_valid(value);
+        return valid
             ? WF_OK : WF_ERR_PARSE;
     }
     if (cJSON_IsObject(endpoint)) {
@@ -517,11 +534,16 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
  * Allocates `*out_url` on success. */
 static wf_status did_web_build_url(const char *did, char **out_url) {
     const char *msid = did + strlen("did:web:");
+    const char *escape;
     if (msid[0] == '\0' || msid[0] == ':') {
         return WF_ERR_INVALID_ARG;
     }
 
     if (strchr(msid, ':') != NULL) return WF_ERR_INVALID_ARG;
+    for (escape = strchr(msid, '%'); escape; escape = strchr(escape + 3, '%')) {
+        if (!escape[1] || !escape[2] || escape[1] != '3' || escape[2] != 'A')
+            return WF_ERR_INVALID_ARG;
+    }
 
     /* Copy the MSID; the host is everything up to the first ':'. */
     char *host = wf_strdup(msid);
@@ -559,25 +581,10 @@ static wf_status did_web_build_url(const char *did, char **out_url) {
     }
     snprintf(url, url_len, "%s://%s%s", proto, host, suffix);
 
-    {
-        CURLU *parsed = curl_url();
-        char *scheme = NULL;
-        char *authority = NULL;
-        if (!parsed ||
-            curl_url_set(parsed, CURLUPART_URL, url, 0) != CURLUE_OK ||
-            curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
-            curl_url_get(parsed, CURLUPART_HOST, &authority, 0) != CURLUE_OK ||
-            !scheme || !*scheme || !authority || !*authority) {
-            curl_free(scheme);
-            curl_free(authority);
-            curl_url_cleanup(parsed);
-            free(host);
-            free(url);
-            return WF_ERR_INVALID_ARG;
-        }
-        curl_free(scheme);
-        curl_free(authority);
-        curl_url_cleanup(parsed);
+    if (!wf_did_http_endpoint_valid(url)) {
+        free(host);
+        free(url);
+        return WF_ERR_INVALID_ARG;
     }
 
     free(host);

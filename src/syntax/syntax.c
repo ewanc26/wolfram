@@ -1,7 +1,5 @@
 #include "wolfram/syntax.h"
 #include <ctype.h>
-#include <sys/types.h>
-#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -27,18 +25,6 @@ static int wf_syntax_ascii_case_equal_n(const char *a, const char *b, size_t len
         if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i])) return 0;
     }
     return 1;
-}
-
-static int wf_syntax_did_regex_is_valid(const char *did) {
-    regex_t regex;
-    int ret;
-    if (!did || strlen(did) > 2048) return 0;
-    ret = regcomp(&regex, "^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$",
-                  REG_EXTENDED | REG_NOSUB);
-    if (ret != 0) return 0;
-    ret = regexec(&regex, did, 0, NULL, 0);
-    regfree(&regex);
-    return ret == 0;
 }
 
 static int wf_syntax_subtag_is_alpha(const char *s, size_t len) {
@@ -164,17 +150,28 @@ wf_status wf_syntax_did_validate(const char *did) {
 /* ── Handle ──────────────────────────────────────────────────────────── */
 
 int wf_syntax_handle_is_valid(const char *handle) {
-    regex_t regex;
-    int ret;
-    if (!handle || strlen(handle) > 253) return 0;
-    ret = regcomp(&regex,
-        "^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+"
-        "[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$",
-        REG_EXTENDED | REG_NOSUB);
-    if (ret != 0) return 0;
-    ret = regexec(&regex, handle, 0, NULL, 0);
-    regfree(&regex);
-    return ret == 0;
+    const char *label;
+    const char *p;
+    int labels = 0;
+    if (!handle || !handle[0] || strlen(handle) > 253) return 0;
+    label = handle;
+    for (p = handle; ; p++) {
+        if (*p == '.' || *p == '\0') {
+            size_t length = (size_t)(p - label);
+            size_t i;
+            if (length < 1 || length > 63 || label[0] == '-' ||
+                label[length - 1] == '-') return 0;
+            for (i = 0; i < length; i++) {
+                if (!isalnum((unsigned char)label[i]) && label[i] != '-') return 0;
+            }
+            labels++;
+            if (*p == '\0') {
+                if (labels < 2 || !isalpha((unsigned char)label[0])) return 0;
+                return 1;
+            }
+            label = p + 1;
+        }
+    }
 }
 
 wf_status wf_syntax_handle_validate(const char *handle) {
@@ -185,7 +182,7 @@ wf_status wf_syntax_handle_validate(const char *handle) {
 
 int wf_syntax_at_identifier_is_valid(const char *id) {
     if (!id) return 0;
-    if (strncmp(id, "did:", 4) == 0) return wf_syntax_did_regex_is_valid(id);
+    if (strncmp(id, "did:", 4) == 0) return wf_syntax_did_is_valid(id);
     return wf_syntax_handle_is_valid(id);
 }
 
