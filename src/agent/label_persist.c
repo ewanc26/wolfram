@@ -66,8 +66,9 @@ wf_status wf_agent_persist_label(wf_agent *agent, const wf_mod_label *label) {
     wf_store *store = wf_agent_get_store(agent);
     if (!store) return WF_OK;
 
-    return wf_store_save_label(store, label->uri, NULL, label->val,
-                               label->src, label->cts);
+    return wf_store_save_label(store, label->uri, label->cid, label->val,
+                                label->src, label->cts, label->neg,
+                                label->has_cid, label->ver, label->exp);
 }
 
 wf_status wf_agent_load_labels_from_store(wf_agent *agent) {

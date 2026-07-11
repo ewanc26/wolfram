@@ -25,6 +25,7 @@ static void fill_session_data(wf_session *s) {
     s->data.email_auth_factor = 0;
     s->data.active = 1;
     s->data.status = strdup("active");
+    s->data.pds_url = strdup("https://pds.example.com");
     s->has_session = 1;
 }
 
@@ -56,6 +57,8 @@ static void test_session_roundtrip(void) {
     WF_CHECK(none->data.email_confirmed == saved->data.email_confirmed);
     WF_CHECK(none->data.email_auth_factor == saved->data.email_auth_factor);
     WF_CHECK(none->data.active == saved->data.active);
+    WF_CHECK(none->data.pds_url && saved->data.pds_url &&
+             strcmp(none->data.pds_url, saved->data.pds_url) == 0);
     WF_CHECK(none->has_session == 1);
 
     wf_session_free(none);

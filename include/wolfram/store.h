@@ -167,16 +167,22 @@ void wf_store_mirror_cids_free(wf_cid *cids);
 /**
  * Persist a moderation label.
  *
- * The label is keyed by the tuple (uri, val, src); a label already stored for
- * that tuple is overwritten (INSERT OR REPLACE), so re-saving an updated
- * version of the same label is a no-op-merge. `cid` may be NULL (e.g. for
- * account/profile labels that carry no content CID); `cts` may also be NULL.
+ * The label is keyed by the tuple (uri, cid, val, src, neg); a label already
+ * stored for that tuple is overwritten (INSERT OR REPLACE), so re-saving an
+ * updated version of the same label is a no-op-merge. Because `neg` is part of
+ * the key, a negation (revocation) label is stored as a SEPARATE row from its
+ * positive counterpart, so a positive/negation pair round-trips intact and the
+ * moderation engine can honor atproto negation semantics on reload. `cid` may
+ * be NULL (e.g. for account/profile labels that carry no content CID); pass
+ * `has_cid` non-zero only when `cid` is meaningful. `cts` and `exp` may also be
+ * NULL; `ver` is the optional label schema version (0 if absent).
  *
  * Returns WF_ERR_INVALID_ARG when any of `uri`, `val`, or `src` is missing.
  */
 wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
                               const char *val, const char *src,
-                              const char *cts);
+                              const char *cts, int neg, int has_cid,
+                              int ver, const char *exp);
 
 /**
  * Load all persisted labels for `uri`.
