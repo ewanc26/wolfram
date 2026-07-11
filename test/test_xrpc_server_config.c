@@ -328,12 +328,12 @@ static int test_round_trip(void) {
         wf_response_free(&res);
     }
 
-    /* Unknown NSID still 404s (rate limiter does not block this request). */
+    /* Unknown NSID returns 501 MethodNotImplemented (rate limiter does not block this request). */
     {
         wf_response_free(&res);
         s = wf_xrpc_query(client, "io.example.config.missing", NULL, &res);
-        if (s != WF_ERR_HTTP || res.status != 404) {
-            fprintf(stderr, "FAIL: config missing expected 404, got %d/%ld\n",
+        if (s != WF_ERR_HTTP || res.status != 501) {
+            fprintf(stderr, "FAIL: config missing expected 501, got %d/%ld\n",
                     (int)s, res.status);
             failures++;
         }
