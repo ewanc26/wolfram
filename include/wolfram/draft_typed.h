@@ -27,12 +27,15 @@ extern "C" {
 #endif
 
 /* A single post draft. `uri` is the draft's at-uri (or TID-wrapped id),
- * `created_at` the draft timestamp, `text` the primary post text, `langs` an
- * owned array of BCP-47 language tags, and `record` the full owned record
+ * `created_at` the draft timestamp, `updated_at` the last-update timestamp
+ * (required in the #draftView wire shape), `text` the primary post text, `langs`
+ * an owned array of BCP-47 language tags, and `record` the full owned record
  * subtree (detached from the parsed document). */
 typedef struct wf_draft {
     char *uri;
     char *created_at;
+    char *updated_at;
+    bool has_updated_at;
     char *text;
     char **langs;
     size_t lang_count;

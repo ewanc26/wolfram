@@ -48,6 +48,7 @@ static void wf_draft_reset(wf_draft *d) {
     }
     free(d->uri);
     free(d->created_at);
+    free(d->updated_at);
     free(d->text);
     if (d->langs) {
         for (size_t i = 0; i < d->lang_count; ++i) {
@@ -155,6 +156,12 @@ static wf_status wf_draft_parse_one(cJSON *item, wf_draft *out) {
     cJSON *created = cJSON_GetObjectItemCaseSensitive(item, "createdAt");
     if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
         status = wf_draft_set_string(&out->created_at, created->valuestring);
+    }
+
+    cJSON *updated = cJSON_GetObjectItemCaseSensitive(item, "updatedAt");
+    if (status == WF_OK && cJSON_IsString(updated) && updated->valuestring) {
+        out->has_updated_at = true;
+        status = wf_draft_set_string(&out->updated_at, updated->valuestring);
     }
 
     cJSON *rec = wf_draft_get(item, "value", "draft");
