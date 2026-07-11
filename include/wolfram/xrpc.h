@@ -94,6 +94,36 @@ void wf_xrpc_client_free(wf_xrpc_client *client);
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 
 /**
+ * Re-point the client at a new service/PDS base URL (e.g. after discovering
+ * the account's PDS from its DID document). A trailing slash is stripped.
+ * Existing auth state is preserved. Returns WF_ERR_INVALID_ARG for a NULL/empty
+ * URL and WF_ERR_ALLOC on allocation failure (the old URL is kept on failure).
+ */
+wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
+                                      const char *service_base_url);
+
+/**
+ * Refresh callback used for transparent auth retry.
+ *
+ * Invoked by the transport when an authenticated request is rejected with an
+ * expired/invalid access token (HTTP 401, or an XRPC error body of
+ * "ExpiredToken"/"InvalidToken"). The callback must attempt to obtain a fresh
+ * access token and install it on the client (via wf_xrpc_client_set_auth),
+ * returning WF_OK on success. On WF_OK the transport re-issues the original
+ * request exactly once with the refreshed credentials.
+ */
+typedef wf_status (*wf_xrpc_refresh_fn)(void *userdata);
+
+/**
+ * Install a refresh handler that enables one automatic refresh+retry on an
+ * expired/invalid token. Pass NULL for `fn` to disable. The transport guards
+ * against re-entrancy, so the callback may itself issue requests (typically on
+ * a different client) without triggering a nested refresh.
+ */
+void wf_xrpc_client_set_refresh_handler(wf_xrpc_client *client,
+                                        wf_xrpc_refresh_fn fn, void *userdata);
+
+/**
  * Issue an `xrpc/{nsid}` GET (query).
  *
  * `query_string` is the already-encoded query component (without the

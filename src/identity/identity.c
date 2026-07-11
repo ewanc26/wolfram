@@ -655,6 +655,26 @@ wf_status wf_did_resolve(wf_xrpc_client *client, const char *did, wf_did_documen
     return status;
 }
 
+wf_status wf_did_document_parse(const char *json, size_t json_len,
+                                wf_did_document *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+
+    wf_did_doc_init(out);
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) return WF_ERR_PARSE;
+
+    wf_status status = wf_did_doc_parse_json(out, root);
+    cJSON_Delete(root);
+    if (status != WF_OK) {
+        wf_did_document_free(out);
+        return status;
+    }
+
+    out->method = wf_did_method_of(out->did);
+    return WF_OK;
+}
+
 wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
                                         const char *did,
                                         const char *service_id,

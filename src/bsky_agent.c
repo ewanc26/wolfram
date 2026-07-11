@@ -58,7 +58,15 @@ wf_status wf_bsky_agent_login_session(wf_bsky_agent *b,
     }
 
     if (!b->agent) {
-        b->agent = wf_agent_new(WF_BSKY_AGENT_DEFAULT_SERVICE);
+        /* Prefer the account's own PDS (discovered from its DID document and
+         * carried in the persisted session data) over the hardcoded default,
+         * so a resumed session on a self-hosted PDS is bound to the right host.
+         * When no PDS is known yet, fall back to the default entryway; the
+         * subsequent refresh will re-point the agent once the didDoc arrives. */
+        const char *service = (data->pds_url && data->pds_url[0])
+                                  ? data->pds_url
+                                  : WF_BSKY_AGENT_DEFAULT_SERVICE;
+        b->agent = wf_agent_new(service);
         if (!b->agent) {
             return WF_ERR_ALLOC;
         }
