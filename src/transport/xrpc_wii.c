@@ -8,6 +8,7 @@
 #include "wolfram/xrpc.h"
 #include "wolfram/version.h"
 
+#include <cJSON.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,9 @@ struct wf_xrpc_client {
     char *auth_header;
     wf_xrpc_handler_fn handler;
     void *handler_userdata;
+    wf_xrpc_refresh_fn refresh_cb;
+    void *refresh_userdata;
+    int refreshing;
 };
 
 /* Strip a trailing slash, if any, so we can join paths predictably. */
@@ -68,6 +72,25 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     }
 }
 
+wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
+                                      const char *service_base_url) {
+    char *normalised;
+    if (!client || !service_base_url || !service_base_url[0])
+        return WF_ERR_INVALID_ARG;
+    normalised = wf_normalise_base(service_base_url);
+    if (!normalised) return WF_ERR_ALLOC;
+    free(client->base_url);
+    client->base_url = normalised;
+    return WF_OK;
+}
+
+void wf_xrpc_client_set_refresh_handler(wf_xrpc_client *client,
+                                        wf_xrpc_refresh_fn fn, void *userdata) {
+    if (!client) return;
+    client->refresh_cb = fn;
+    client->refresh_userdata = userdata;
+}
+
 char *wf_xrpc_get_base_url(wf_xrpc_client *client) {
     if (!client || !client->base_url) return NULL;
     return strdup(client->base_url);
@@ -81,6 +104,44 @@ void wf_response_free(wf_response *res) {
     res->body_len = 0;
     res->dpop_nonce = NULL;
     res->status = 0;
+}
+
+static char *wf_xrpc_copy_string(const cJSON *root, const char *name) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, name);
+    size_t length;
+    char *copy;
+    if (!cJSON_IsString(item) || !item->valuestring) return NULL;
+    length = strlen(item->valuestring);
+    copy = malloc(length + 1);
+    if (copy) memcpy(copy, item->valuestring, length + 1);
+    return copy;
+}
+
+wf_status wf_xrpc_error(const wf_response *resp,
+                        char **out_error, char **out_message) {
+    cJSON *root;
+    char *error;
+    char *message;
+    if (out_error) *out_error = NULL;
+    if (out_message) *out_message = NULL;
+    if (!resp) return WF_ERR_INVALID_ARG;
+    root = cJSON_ParseWithLength(resp->body ? resp->body : "", resp->body_len);
+    if (!root) return WF_ERR_PARSE;
+    if (!cJSON_IsObject(root) ||
+        !cJSON_IsString(cJSON_GetObjectItemCaseSensitive(root, "error"))) {
+        cJSON_Delete(root);
+        return WF_ERR_NOT_FOUND;
+    }
+    error = wf_xrpc_copy_string(root, "error");
+    message = wf_xrpc_copy_string(root, "message");
+    cJSON_Delete(root);
+    if (!error) {
+        free(message);
+        return WF_ERR_PARSE;
+    }
+    if (out_error) *out_error = error; else free(error);
+    if (out_message) *out_message = message; else free(message);
+    return WF_OK;
 }
 
 /* ── Stubs ──────────────────────────────────────────────────────────── */

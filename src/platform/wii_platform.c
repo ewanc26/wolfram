@@ -1,111 +1,67 @@
 /**
  * wii_platform.c — Nintendo Wii platform implementation (libogc stubs).
  *
- * Maps platform abstractions to libogc primitives. Currently contains
- * stub implementations; TODO comments indicate what needs to be filled
- * in when the Wii integration is built out.
+ * Maps platform abstractions to libogc primitives. Video and filesystem
+ * setup remain application concerns; Wolfram owns only networking, locking,
+ * and its monotonic clock.
  *
  * Build with devkitPPC: powerpc-eabi-gcc, linked against libogc.
  */
 
 #include "wolfram/platform.h"
 
+#include <network.h>
+#include <ogc/lwp_watchdog.h>
+#include <ogc/mutex.h>
 #include <stdlib.h>
-#include <string.h>
-
-/* TODO: #include <ogc/lwp.h>   — for LWP mutex */
-/* TODO: #include <ogc/lwp_mutex.h> */
-/* TODO: #include <ogc/video.h>  — for VIDEO_Init */
-/* TODO: #include <network.h>    — for net_init */
 
 /* ── Init / shutdown ────────────────────────────────────────────────── */
 
+static int wf_network_initialized = 0;
+
 wf_status wf_platform_init(void) {
-    /*
-     * TODO: Implement when building the Wii integration:
-     *   1. VIDEO_Init()
-     *   2. net_init() — lwIP TCP/IP stack
-     *   3. Initialise SSL/TLS context (mbedTLS)
-     *   4. Mount SD card (fatMountSimple)
-     */
-    return WF_ERR_NOT_IMPLEMENTED;
+    if (wf_network_initialized) return WF_OK;
+    if (net_init() < 0) return WF_ERR_NETWORK;
+    wf_network_initialized = 1;
+    return WF_OK;
 }
 
 void wf_platform_shutdown(void) {
-    /*
-     * TODO: Implement when building the Wii integration:
-     *   1. net_shutdown()
-     *   2. fatUnmount("sd:")
-     */
+    if (!wf_network_initialized) return;
+    net_deinit();
+    wf_network_initialized = 0;
 }
 
 /* ── Mutex ──────────────────────────────────────────────────────────── */
 
-/*
- * TODO: Replace with lwp_mutex from libogc:
- *   #include <ogc/lwp_mutex.h>
- *
- *   struct wf_platform_mutex { mutex_t mtx; };
- *
- *   wf_platform_mutex *wf_platform_mutex_new(void) {
- *       wf_platform_mutex *m = calloc(1, sizeof(*m));
- *       if (!m) return NULL;
- *       LWP_MutexInit(&m->mtx, false);
- *       return m;
- *   }
- *
- *   void wf_platform_mutex_lock(wf_platform_mutex *m) {
- *       if (m) LWP_MutexLock(m->mtx);
- *   }
- *
- *   void wf_platform_mutex_unlock(wf_platform_mutex *m) {
- *       if (m) LWP_MutexUnlock(m->mtx);
- *   }
- *
- *   void wf_platform_mutex_free(wf_platform_mutex *m) {
- *       if (!m) return;
- *       LWP_MutexDestroy(m->mtx);
- *       free(m);
- *   }
- */
-
-struct wf_platform_mutex { int dummy; };
+struct wf_platform_mutex { mutex_t handle; };
 
 wf_platform_mutex *wf_platform_mutex_new(void) {
-    /* Stub: no real backend yet — signal failure honestly. */
-    return NULL;
+    wf_platform_mutex *mutex = calloc(1, sizeof(*mutex));
+    if (!mutex) return NULL;
+    if (LWP_MutexInit(&mutex->handle, false) < 0) {
+        free(mutex);
+        return NULL;
+    }
+    return mutex;
 }
 
 void wf_platform_mutex_lock(wf_platform_mutex *m) {
-    (void)m;
+    if (m) LWP_MutexLock(m->handle);
 }
 
 void wf_platform_mutex_unlock(wf_platform_mutex *m) {
-    (void)m;
+    if (m) LWP_MutexUnlock(m->handle);
 }
 
 void wf_platform_mutex_free(wf_platform_mutex *m) {
+    if (!m) return;
+    LWP_MutexDestroy(m->handle);
     free(m);
 }
 
 /* ── Time ───────────────────────────────────────────────────────────── */
 
-/*
- * TODO: Replace with libogc timer:
- *   #include <ogc/lwp_watchdog.h>
- *
- *   uint64_t wf_platform_time_micros(void) {
- *       // gettime() returns TB ticks; ticks_to_microsecs() converts
- *       return ticks_to_microsecs(gettime());
- *   }
- *
- * The Wii's Timebase (TB) counter runs at 162.5 MHz on NTSC (144 MHz PAL)
- * and provides monotonically increasing ticks. ticks_to_microsecs()
- * from libogc handles the conversion.
- */
-
 uint64_t wf_platform_time_micros(void) {
-    /* Stub: return 0. TID generation will not produce unique values
-     * until this is implemented. */
-    return 0;
+    return ticks_to_microsecs(gettime());
 }
