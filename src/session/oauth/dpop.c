@@ -249,18 +249,39 @@ static wf_status wf_oauth_es256_sign(const wf_oauth_dpop_key *key,
     unsigned char digest[SHA256_DIGEST_LENGTH];
     ECDSA_SIG *sig;
     const BIGNUM *r, *s;
+    const EC_GROUP *group;
+    BIGNUM *order = NULL, *half_order = NULL, *normalized_s = NULL;
+    wf_status status = WF_ERR_PARSE;
     if (!key || !key->ec || !input || !signature) return WF_ERR_INVALID_ARG;
     SHA256(input, input_len, digest);
     sig = ECDSA_do_sign(digest, sizeof(digest), key->ec);
     if (!sig) return WF_ERR_PARSE;
     ECDSA_SIG_get0(sig, &r, &s);
-    if (BN_bn2binpad(r, signature, 32) != 32 ||
-        BN_bn2binpad(s, signature + 32, 32) != 32) {
-        ECDSA_SIG_free(sig);
-        return WF_ERR_PARSE;
+    group = EC_KEY_get0_group(key->ec);
+    order = BN_new();
+    if (!group || !order || EC_GROUP_get_order(group, order, NULL) != 1) {
+        status = WF_ERR_ALLOC;
+        goto done;
     }
+    half_order = BN_dup(order);
+    normalized_s = BN_dup(s);
+    if (!half_order || !normalized_s) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    if (BN_rshift1(half_order, half_order) != 1) goto done;
+    if (BN_cmp(normalized_s, half_order) > 0 &&
+        BN_sub(normalized_s, order, normalized_s) != 1) goto done;
+    if (BN_bn2binpad(r, signature, 32) != 32 ||
+        BN_bn2binpad(normalized_s, signature + 32, 32) != 32) goto done;
+    status = WF_OK;
+
+done:
+    BN_free(order);
+    BN_free(half_order);
+    BN_free(normalized_s);
     ECDSA_SIG_free(sig);
-    return WF_OK;
+    return status;
 }
 
 wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
