@@ -15,7 +15,13 @@
 #include "wolfram/xrpc_server_auth.h"
 #include "wolfram/server.h"
 #include "wolfram/crypto.h"
+#include "wolfram/oauth/dpop.h"
+#include "wolfram/oauth/verify.h"
 #include "test.h"
+
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/obj_mac.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -70,6 +76,82 @@ static wf_status rotating_resolver(const char *did, char **out_didkey,
     return *out_didkey ? WF_OK : WF_ERR_ALLOC;
 }
 
+static char *oauth_access_jwk(const wf_signing_key *key) {
+    char *didkey = NULL, *x_b64 = NULL, *y_b64 = NULL, *json = NULL;
+    unsigned char *raw = NULL, x[32], y[32];
+    size_t raw_len = 0;
+    wf_key_type type;
+    EC_GROUP *group = NULL;
+    EC_POINT *point = NULL;
+    BIGNUM *bx = NULL, *by = NULL;
+
+    if (wf_signing_key_public_didkey(key, &didkey) != WF_OK ||
+        wf_didkey_decode(didkey, &type, &raw, &raw_len) != WF_OK ||
+        type != WF_KEY_TYPE_P256 || raw_len != 33) goto done;
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    point = group ? EC_POINT_new(group) : NULL;
+    bx = BN_new();
+    by = BN_new();
+    if (!group || !point || !bx || !by ||
+        EC_POINT_oct2point(group, point, raw, raw_len, NULL) != 1 ||
+        EC_POINT_get_affine_coordinates(group, point, bx, by, NULL) != 1 ||
+        BN_bn2binpad(bx, x, sizeof(x)) != (int)sizeof(x) ||
+        BN_bn2binpad(by, y, sizeof(y)) != (int)sizeof(y) ||
+        wf_crypto_base64url_encode(x, sizeof(x), &x_b64) != WF_OK ||
+        wf_crypto_base64url_encode(y, sizeof(y), &y_b64) != WF_OK) goto done;
+    size_t n = strlen(x_b64) + strlen(y_b64) + 64;
+    json = malloc(n);
+    if (json) snprintf(json, n,
+        "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"%s\",\"y\":\"%s\"}",
+        x_b64, y_b64);
+
+done:
+    free(didkey); free(raw); free(x_b64); free(y_b64);
+    BN_free(bx); BN_free(by); EC_POINT_free(point); EC_GROUP_free(group);
+    return json;
+}
+
+static char *oauth_access_token(const wf_signing_key *key, const char *sub,
+                                const char *aud, const char *jkt) {
+    cJSON *header = cJSON_CreateObject(), *payload = cJSON_CreateObject();
+    cJSON *cnf = cJSON_CreateObject();
+    char *hj = NULL, *pj = NULL, *hb = NULL, *pb = NULL, *input = NULL;
+    char *sb = NULL, *jwt = NULL;
+    unsigned char sig[64];
+    int64_t now = (int64_t)time(NULL);
+    if (!header || !payload || !cnf) goto done;
+    cJSON_AddStringToObject(header, "alg", "ES256");
+    cJSON_AddStringToObject(payload, "iss", "https://issuer.example.com");
+    cJSON_AddStringToObject(payload, "sub", sub);
+    cJSON_AddStringToObject(payload, "aud", aud);
+    cJSON_AddNumberToObject(payload, "iat", (double)now);
+    cJSON_AddNumberToObject(payload, "exp", (double)(now + 3600));
+    cJSON_AddStringToObject(cnf, "jkt", jkt);
+    cJSON_AddItemToObject(payload, "cnf", cnf);
+    cnf = NULL;
+    hj = cJSON_PrintUnformatted(header);
+    pj = cJSON_PrintUnformatted(payload);
+    if (!hj || !pj ||
+        wf_crypto_base64url_encode((unsigned char *)hj, strlen(hj), &hb) != WF_OK ||
+        wf_crypto_base64url_encode((unsigned char *)pj, strlen(pj), &pb) != WF_OK)
+        goto done;
+    size_t input_len = strlen(hb) + strlen(pb) + 2;
+    input = malloc(input_len);
+    if (!input) goto done;
+    snprintf(input, input_len, "%s.%s", hb, pb);
+    if (wf_sign(key, (unsigned char *)input, strlen(input), sig, sizeof(sig)) !=
+            WF_OK ||
+        wf_crypto_base64url_encode(sig, sizeof(sig), &sb) != WF_OK) goto done;
+    size_t jwt_len = strlen(input) + strlen(sb) + 2;
+    jwt = malloc(jwt_len);
+    if (jwt) snprintf(jwt, jwt_len, "%s.%s", input, sb);
+
+done:
+    cJSON_Delete(header); cJSON_Delete(payload); cJSON_Delete(cnf);
+    free(hj); free(pj); free(hb); free(pb); free(input); free(sb);
+    return jwt;
+}
+
 /* ------------------------------------------------------------------ */
 /* Test                                                                */
 /* ------------------------------------------------------------------ */
@@ -84,6 +166,13 @@ static int run_test(void) {
     char *expired_token = NULL;
     char *missing_lxm_token = NULL;
     char *tampered_token = NULL;
+    char *oauth_jwk = NULL;
+    char *oauth_token = NULL;
+    char *oauth_proof = NULL;
+    char *oauth_auth = NULL;
+    wf_oauth_dpop_key *dpop_key = NULL;
+    wf_oauth_trusted_keys *trusted_keys = NULL;
+    wf_oauth_dpop_replay_cache *replay_cache = NULL;
     int failures = 0;
 
     const char *protected_nsid = "app.bsky.feed.getFeedSkeleton";
@@ -121,27 +210,60 @@ static int run_test(void) {
     }
     uint16_t port = wf_xrpc_server_port(server);
     WF_CHECK(port != 0);
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
 
     WF_CHECK(wf_xrpc_server_register_query(server, protected_nsid,
                                            protected_handler, NULL) == WF_OK);
     WF_CHECK(wf_xrpc_server_register_query(server, public_nsid,
                                            public_handler, NULL) == WF_OK);
 
+    /* ---- Build a DPoP-bound OAuth access token + proof ---- */
+    wf_signing_key oauth_key = {0};
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &oauth_key) == WF_OK);
+    oauth_jwk = oauth_access_jwk(&oauth_key);
+    WF_CHECK(oauth_jwk != NULL);
+    WF_CHECK(wf_oauth_trusted_keys_new(&trusted_keys) == WF_OK);
+    WF_CHECK(wf_oauth_trusted_keys_add_jwk(trusted_keys, oauth_jwk) == WF_OK);
+    WF_CHECK(wf_oauth_dpop_replay_cache_new(&replay_cache) == WF_OK);
+    WF_CHECK(wf_oauth_dpop_key_generate(&dpop_key) == WF_OK);
+    char dpop_jkt[44] = {0};
+    WF_CHECK(wf_oauth_dpop_key_thumbprint(dpop_key, dpop_jkt) == WF_OK);
+    oauth_token = oauth_access_token(&oauth_key, "did:plc:oauth-user",
+                                     server_did, dpop_jkt);
+    WF_CHECK(oauth_token != NULL);
+    char protected_url[192];
+    snprintf(protected_url, sizeof(protected_url), "%s/xrpc/%s", base_url,
+             protected_nsid);
+    wf_oauth_dpop_proof_options proof_opts = {
+        "GET", protected_url, NULL, oauth_token, "middleware-proof-1", 0
+    };
+    WF_CHECK(wf_oauth_dpop_proof_create(dpop_key, &proof_opts, &oauth_proof) ==
+             WF_OK);
+    oauth_auth = malloc(strlen(oauth_token) + 6);
+    WF_CHECK(oauth_auth != NULL);
+    if (oauth_auth) snprintf(oauth_auth, strlen(oauth_token) + 6, "DPoP %s",
+                             oauth_token);
+
     /* ---- Configure + attach the middleware ---- */
     wf_xrpc_server_auth_config *cfg = NULL;
     WF_CHECK(wf_xrpc_server_auth_config_new(&cfg) == WF_OK);
     WF_CHECK(wf_xrpc_server_auth_config_set_server_did(cfg, server_did) ==
              WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_origin(cfg, base_url) ==
+             WF_OK);
     WF_CHECK(wf_xrpc_server_auth_config_protect(cfg, protected_nsid) == WF_OK);
     WF_CHECK(wf_xrpc_server_auth_config_set_resolver(cfg, rotating_resolver,
                                                      &resolver) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_trusted_keys(cfg, trusted_keys) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_replay_cache(cfg, replay_cache) ==
+             WF_OK);
     WF_CHECK(wf_xrpc_server_set_auth_middleware(server, cfg) == WF_OK);
     wf_xrpc_server_auth_config_free(cfg);
     cfg = NULL;
 
     /* ---- Client ---- */
-    char base_url[64];
-    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
     client = wf_xrpc_client_new(base_url);
     WF_CHECK(client != NULL);
     if (!client) {
@@ -316,6 +438,31 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
+    /* ---- 9. DPoP-bound OAuth token → user principal; replay → 401 ---- */
+    {
+        wf_http_header headers[] = {
+            {"Authorization", oauth_auth}, {"DPoP", oauth_proof}
+        };
+        wf_response_free(&res);
+        wf_status s = wf_http_get_with_headers(client, protected_url, headers,
+                                               2, &res);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(res.status == 200);
+        cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+        cJSON *sub = root ? cJSON_GetObjectItemCaseSensitive(root, "subject") : NULL;
+        cJSON *kind = root ? cJSON_GetObjectItemCaseSensitive(root, "kind") : NULL;
+        WF_CHECK(sub && cJSON_IsString(sub) &&
+                 strcmp(sub->valuestring, "did:plc:oauth-user") == 0);
+        WF_CHECK(kind && cJSON_IsNumber(kind) &&
+                 (int)kind->valuedouble == (int)WF_XRPC_PRINCIPAL_USER);
+        cJSON_Delete(root);
+        wf_response_free(&res);
+
+        wf_http_get_with_headers(client, protected_url, headers, 2, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+    }
+
     #undef SET_AUTH
 
 cleanup_server:
@@ -331,6 +478,13 @@ cleanup_keys:
     free(expired_token);
     free(missing_lxm_token);
     free(tampered_token);
+    free(oauth_jwk);
+    free(oauth_token);
+    free(oauth_proof);
+    free(oauth_auth);
+    wf_oauth_dpop_key_free(dpop_key);
+    wf_oauth_trusted_keys_free(trusted_keys);
+    wf_oauth_dpop_replay_cache_free(replay_cache);
 
     if (failures == 0) {
         printf("PASS: XRPC server auth middleware\n");

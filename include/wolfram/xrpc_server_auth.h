@@ -14,9 +14,9 @@
  *     time, so the caller may free the config immediately afterwards.
  *   - The authenticated principal (req->authed_subject) is set on the request
  *     by the middleware and owned/freed by the server after the handler runs.
- *   - resolver / trusted_keys pointers inside the config are borrowed; the
- *     caller retains ownership of any wf_xrpc_client / wf_oauth_trusted_keys
- *     referenced there and must keep them alive for the server's lifetime.
+ *   - resolver / trusted_keys / replay_cache pointers inside the config are
+ *     borrowed; the caller retains ownership of referenced objects and must
+ *     keep them alive for the server's lifetime.
  */
 
 #ifndef WOLFRAM_XRPC_SERVER_AUTH_H
@@ -58,6 +58,7 @@ typedef wf_status (*wf_xrpc_server_auth_resolve_fn)(const char *did,
 
 typedef struct wf_xrpc_server_auth_config {
     char *server_did;          /* owned; this server's DID, used for `aud` checks */
+    char *server_origin;       /* owned external origin, used for DPoP `htu` */
     char **protected_nsids;    /* owned array of NSID prefixes requiring auth */
     size_t protected_nsid_count;
     int    require_aud;        /* non-zero => enforce token `aud` == server_did */
@@ -68,18 +69,25 @@ typedef struct wf_xrpc_server_auth_config {
     void *resolver_ctx;        /* ctx for an injected resolver (borrowed) */
     struct wf_oauth_trusted_keys *trusted_keys; /* optional; OAuth access-token
                                          verification keys (borrowed, may be NULL) */
+    struct wf_oauth_dpop_replay_cache *replay_cache; /* optional, borrowed */
 } wf_xrpc_server_auth_config;
 
 /** Create an empty config (all fields zeroed, require_aud/require_lxm on). */
 wf_status wf_xrpc_server_auth_config_new(wf_xrpc_server_auth_config **out);
 
 /** Free a config produced by wf_xrpc_server_auth_config_new. NULL-safe.
- *  Borrowed pointers (resolver_client, trusted_keys) are NOT freed. */
+ *  Borrowed pointers (resolver_client, trusted_keys, replay_cache) are not
+ *  freed. */
 void wf_xrpc_server_auth_config_free(wf_xrpc_server_auth_config *cfg);
 
 /** Set the server's own DID (copied). Used to validate service-token `aud`. */
 wf_status wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *cfg,
                                                     const char *server_did);
+
+/** Set the external HTTPS origin used to reconstruct DPoP `htu` values
+ *  (for example `https://api.example.com`). The value is copied. */
+wf_status wf_xrpc_server_auth_config_set_server_origin(
+    wf_xrpc_server_auth_config *cfg, const char *server_origin);
 
 /** Mark an NSID prefix as protected (requires a valid token). Copied.
  *  A request NSID matches when it equals the prefix or begins with
@@ -112,6 +120,11 @@ wf_status wf_xrpc_server_auth_config_set_resolver_client(
  *  (borrowed, may be NULL). */
 wf_status wf_xrpc_server_auth_config_set_trusted_keys(
     wf_xrpc_server_auth_config *cfg, struct wf_oauth_trusted_keys *keys);
+
+/** Set an optional shared DPoP replay cache (borrowed). */
+wf_status wf_xrpc_server_auth_config_set_replay_cache(
+    wf_xrpc_server_auth_config *cfg,
+    struct wf_oauth_dpop_replay_cache *replay_cache);
 
 /* ------------------------------------------------------------------ */
 /* Middleware attachment                                               */

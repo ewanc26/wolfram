@@ -21,6 +21,7 @@
 #include "wolfram/server.h"
 
 #include <cJSON.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -59,11 +60,12 @@ void wf_xrpc_server_auth_config_free(wf_xrpc_server_auth_config *cfg) {
         return;
     }
     free(cfg->server_did);
+    free(cfg->server_origin);
     for (size_t i = 0; i < cfg->protected_nsid_count; i++) {
         free(cfg->protected_nsids[i]);
     }
     free(cfg->protected_nsids);
-    /* resolver_client, resolver_ctx and trusted_keys are borrowed: not freed. */
+    /* Resolver, OAuth key, and replay-cache objects are borrowed. */
     free(cfg);
 }
 
@@ -79,6 +81,25 @@ wf_status wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *
     }
     free(cfg->server_did);
     cfg->server_did = copy;
+    return WF_OK;
+}
+
+wf_status wf_xrpc_server_auth_config_set_server_origin(
+    wf_xrpc_server_auth_config *cfg, const char *server_origin) {
+    char *copy;
+    if (!cfg) return WF_ERR_INVALID_ARG;
+    copy = server_origin ? strdup(server_origin) : NULL;
+    if (server_origin && !copy) return WF_ERR_ALLOC;
+    if (copy) {
+        size_t len = strlen(copy);
+        while (len > 0 && copy[len - 1] == '/') copy[--len] = '\0';
+        if (len == 0) {
+            free(copy);
+            return WF_ERR_INVALID_ARG;
+        }
+    }
+    free(cfg->server_origin);
+    cfg->server_origin = copy;
     return WF_OK;
 }
 
@@ -152,6 +173,14 @@ wf_status wf_xrpc_server_auth_config_set_trusted_keys(
     return WF_OK;
 }
 
+wf_status wf_xrpc_server_auth_config_set_replay_cache(
+    wf_xrpc_server_auth_config *cfg,
+    struct wf_oauth_dpop_replay_cache *replay_cache) {
+    if (!cfg) return WF_ERR_INVALID_ARG;
+    cfg->replay_cache = replay_cache;
+    return WF_OK;
+}
+
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
@@ -177,12 +206,13 @@ static int nsid_protected(const wf_xrpc_server_auth_config *cfg,
 }
 
 /* Extract the token following a "Bearer " scheme (case-insensitive). */
-static char *parse_bearer(const char *authz) {
+static char *parse_access_token(const char *authz) {
     if (!authz) {
         return NULL;
     }
-    if (strncasecmp(authz, "Bearer ", 7) == 0) {
-        const char *t = authz + 7;
+    if (strncasecmp(authz, "Bearer ", 7) == 0 ||
+        strncasecmp(authz, "DPoP ", 5) == 0) {
+        const char *t = authz + (strncasecmp(authz, "Bearer ", 7) == 0 ? 7 : 5);
         while (*t == ' ') {
             t++;
         }
@@ -300,6 +330,7 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
 
     char *token = NULL;
     char *iss = NULL, *aud = NULL, *lxm = NULL, *didkey = NULL;
+    char *http_uri = NULL;
     wf_service_auth_claims claims = {0};
     wf_status service_status;
     wf_status rc = WF_ERR_INVALID_ARG;
@@ -313,19 +344,19 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
     if (!req->auth_header) {
         goto done;
     }
-    token = parse_bearer(req->auth_header);
+    token = parse_access_token(req->auth_header);
     if (!token) {
         goto done;
     }
 
     /* 3. Learn the issuer (unverified) so we can resolve its key. */
     if (decode_jwt_claims(token, &iss, &aud, &lxm) != WF_OK) {
-        goto done;
+        goto oauth;
     }
 
     /* 4. Resolve the issuer's verification key. */
     if (resolve(iss, &didkey, rctx) != WF_OK) {
-        goto done;
+        goto oauth;
     }
 
     /* 5. Try app.bsky service JWT. On signature failure, resolve once more so
@@ -360,17 +391,25 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
     }
 
     /* 6. Fall back to OAuth access-token (user) verification when keys are
-     *    configured. wf_oauth_verify_request honours a DPoP proof when one is
-     *    supplied (the server currently surfaces only the Authorization header
-     *    on the request, so DPoP is NULL here). */
+     * configured. DPoP proofs are bound to the reconstructed external XRPC URL
+     * and checked against the optional shared replay cache. */
+oauth:
     if (cfg->trusted_keys) {
         wf_oauth_verified_token *vt = NULL;
-        if (wf_oauth_verify_request(req->auth_header, NULL, req->method,
-                                    NULL, cfg->trusted_keys, NULL, &vt) ==
+        if (req->dpop_header && cfg->server_origin && req->nsid) {
+            size_t n = strlen(cfg->server_origin) + strlen("/xrpc/") +
+                       strlen(req->nsid) + 1;
+            http_uri = malloc(n);
+            if (!http_uri) goto done;
+            snprintf(http_uri, n, "%s/xrpc/%s", cfg->server_origin, req->nsid);
+        }
+        if (wf_oauth_verify_request(req->auth_header, req->dpop_header,
+                                    req->method, http_uri, cfg->trusted_keys,
+                                    cfg->replay_cache, &vt) ==
                 WF_OK &&
             vt->sub) {
-            if (cfg->require_aud && cfg->server_did && vt->aud &&
-                !aud_matches(vt->aud, cfg->server_did)) {
+            if (cfg->require_aud && cfg->server_did &&
+                (!vt->aud || !aud_matches(vt->aud, cfg->server_did))) {
                 wf_oauth_verified_token_free(vt);
                 goto done;
             }
@@ -391,6 +430,7 @@ done:
     free(aud);
     free(lxm);
     free(didkey);
+    free(http_uri);
     wf_service_auth_claims_free(&claims);
     return rc;
 }
@@ -405,11 +445,12 @@ static void mw_ctx_free(void *p) {
         return;
     }
     free(m->cfg.server_did);
+    free(m->cfg.server_origin);
     for (size_t i = 0; i < m->cfg.protected_nsid_count; i++) {
         free(m->cfg.protected_nsids[i]);
     }
     free(m->cfg.protected_nsids);
-    /* resolver_client, resolver_ctx and trusted_keys are borrowed: not freed. */
+    /* Resolver, OAuth key, and replay-cache objects are borrowed. */
     free(m);
 }
 
@@ -424,6 +465,10 @@ static wf_status mw_ctx_init(mw_ctx *m, const wf_xrpc_server_auth_config *src) {
         if (!m->cfg.server_did) {
             return WF_ERR_ALLOC;
         }
+    }
+    if (src->server_origin) {
+        m->cfg.server_origin = strdup(src->server_origin);
+        if (!m->cfg.server_origin) return WF_ERR_ALLOC;
     }
     if (src->protected_nsid_count) {
         m->cfg.protected_nsids =
@@ -447,6 +492,7 @@ static wf_status mw_ctx_init(mw_ctx *m, const wf_xrpc_server_auth_config *src) {
     m->cfg.resolver = src->resolver;
     m->cfg.resolver_ctx = src->resolver_ctx;
     m->cfg.trusted_keys = src->trusted_keys;
+    m->cfg.replay_cache = src->replay_cache;
     return WF_OK;
 }
 
