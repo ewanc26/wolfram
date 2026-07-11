@@ -111,10 +111,27 @@ wf_status wf_agent_contact_send_notification(wf_agent *agent, const char *did);
 wf_status wf_agent_contact_start_phone_verification(wf_agent *agent,
                                                     const char *phone_number);
 
+/**
+ * Owned result of app.bsky.contact.verifyPhone. `token` is the single-use JWT
+ * import token (defs#main output `token`) consumed by app.bsky.contact.importContacts.
+ */
+typedef struct wf_contact_verify_phone_result {
+    char *token;   /* owned JWT import token; NULL when absent */
+    bool has_token;
+} wf_contact_verify_phone_result;
+
+/** Parse a raw app.bsky.contact.verifyPhone JSON body into an owned result. */
+wf_status wf_contact_parse_verify_phone(const char *json, size_t json_len,
+                                        wf_contact_verify_phone_result *out);
+
+/** Free a verifyPhone result and its owned token string. */
+void wf_contact_verify_phone_result_free(wf_contact_verify_phone_result *out);
+
 /** app.bsky.contact.verifyPhone — verify `code` for `phone`, mint an import token. */
 wf_status wf_agent_contact_verify_phone(wf_agent *agent,
-                                        const char *phone_number,
-                                        const char *code);
+                                         const char *phone_number,
+                                         const char *code,
+                                         wf_contact_verify_phone_result *out);
 
 /** app.bsky.contact.dismissMatch — permanently dismiss the match for `did`. */
 wf_status wf_agent_contact_dismiss_match(wf_agent *agent, const char *did);

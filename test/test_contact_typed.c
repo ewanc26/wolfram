@@ -172,10 +172,10 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_contact_start_phone_verification(NULL, NULL) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_contact_verify_phone(NULL, "+12125550123", "123456") ==
-             WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_contact_verify_phone(NULL, "+12125550123", NULL) ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_contact_verify_phone(NULL, "+12125550123", "123456",
+                                            NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_contact_verify_phone(NULL, "+12125550123", NULL,
+                                            NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_contact_dismiss_match(NULL, "did:plc:x") ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_contact_dismiss_match(NULL, NULL) == WF_ERR_INVALID_ARG);
