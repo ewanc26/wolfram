@@ -340,16 +340,16 @@ static int test_server_roundtrip(void) {
             cJSON *blob = cJSON_GetObjectItemCaseSensitive(root, "blob");
             cJSON *ref = blob ? cJSON_GetObjectItemCaseSensitive(blob, "ref")
                               : NULL;
-            cJSON *slash = ref ? cJSON_GetObjectItemCaseSensitive(ref, "/")
-                               : NULL;
+            cJSON *link = ref ? cJSON_GetObjectItemCaseSensitive(ref, "$link")
+                              : NULL;
             cJSON *mm = blob ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType")
                              : NULL;
-            if (!cJSON_IsString(slash) || !slash->valuestring ||
+            if (!cJSON_IsString(link) || !link->valuestring ||
                 !cJSON_IsString(mm)) {
                 fprintf(stderr, "FAIL: upload response shape\n");
                 fail = 1;
             } else {
-                cid = strdup(slash->valuestring);
+                cid = strdup(link->valuestring);
                 resp_mime = strdup(mm->valuestring);
             }
             cJSON_Delete(root);

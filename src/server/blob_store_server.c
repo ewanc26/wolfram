@@ -5,7 +5,7 @@
  * Routes:
  *   com.atproto.repo.uploadBlob (procedure): the request body IS the raw blob
  *     bytes with a Content-Type; the handler computes the raw multicodec CID,
- *     stores it, and returns { blob: { $type, mimeType, ref: {"/": cid}, size } }.
+ *     stores it, and returns { blob: { $type, mimeType, ref: {"$link": cid}, size } }.
  *   com.atproto.sync.getBlob (query): reads `did` (ignored) and `cid` params,
  *     looks the blob up, and returns the raw bytes with the stored Content-Type.
  *
@@ -92,8 +92,8 @@ static wf_status blob_upload_handler(void *ctx, const wf_xrpc_request *req,
         return WF_OK;
     }
     snprintf(json, strlen(cid_str) + strlen(esc_mime) + 128,
-             "{\"blob\":{\"$type\":\"blob\",\"mimeType\":\"%s\","
-             "\"ref\":{\"/\":\"%s\"},\"size\":%zu}}",
+              "{\"blob\":{\"$type\":\"blob\",\"mimeType\":\"%s\","
+              "\"ref\":{\"$link\":\"%s\"},\"size\":%zu}}",
              esc_mime, cid_str, req->body_len);
 
     wf_xrpc_response_set_body(resp, json, strlen(json));
