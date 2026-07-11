@@ -421,11 +421,51 @@ wf_status wf_agent_contact_start_phone_verification(wf_agent *agent,
     return status;
 }
 
+wf_status wf_contact_parse_verify_phone(const char *json, size_t json_len,
+                                         wf_contact_verify_phone_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *tok = cJSON_GetObjectItemCaseSensitive(root, "token");
+    if (cJSON_IsString(tok) && tok->valuestring) {
+        out->has_token = true;
+        status = wf_contact_set_string(&out->token, tok->valuestring);
+    }
+
+    if (status != WF_OK) {
+        free(out->token);
+        memset(out, 0, sizeof(*out));
+    }
+
+    cJSON_Delete(root);
+    return status;
+}
+
+void wf_contact_verify_phone_result_free(wf_contact_verify_phone_result *out) {
+    if (!out) {
+        return;
+    }
+    free(out->token);
+    memset(out, 0, sizeof(*out));
+}
+
 wf_status wf_agent_contact_verify_phone(wf_agent *agent,
-                                        const char *phone_number,
-                                        const char *code) {
+                                         const char *phone_number,
+                                         const char *code,
+                                         wf_contact_verify_phone_result *out) {
     if (!agent || !agent->client || !phone_number || !code) {
         return WF_ERR_INVALID_ARG;
+    }
+    if (out) {
+        memset(out, 0, sizeof(*out));
     }
 
     wf_lex_app_bsky_contact_verify_phone_main_input input = {0};
@@ -436,6 +476,9 @@ wf_status wf_agent_contact_verify_phone(wf_agent *agent,
     wf_response res = {0};
     wf_status status = wf_lex_app_bsky_contact_verify_phone_main_call(
         agent->client, &input, &res);
+    if (status == WF_OK && out) {
+        status = wf_contact_parse_verify_phone(res.body, res.body_len, out);
+    }
     wf_response_free(&res);
     return status;
 }
