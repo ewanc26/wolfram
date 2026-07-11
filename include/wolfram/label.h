@@ -71,6 +71,15 @@ typedef struct wf_label_subscribe_options {
     wf_label_info_cb on_info;
     wf_label_error_cb on_error;
     void *userdata;
+    /* Optional client used to resolve the labeler's `src` DID document when
+     * `verify_signatures` is set. Owned by the caller; may be NULL. */
+    wf_xrpc_client *verify_client;
+    /* When non-zero, each ingested label's signature is verified against the
+     * labeler's signing key (resolved from its DID document). Failures are
+     * reported through `on_error` but the label is still dispatched — the
+     * verification is non-fatal and the caller decides how to react. Default
+     * 0 (off) so existing behavior is preserved. */
+    int verify_signatures;
 } wf_label_subscribe_options;
 
 typedef struct wf_label_subscribe_handle wf_label_subscribe_handle;
@@ -125,6 +134,41 @@ wf_status wf_label_get_labels(wf_xrpc_client *client,
                               const char *uri,
                               const char *const *sources, size_t source_count,
                               wf_response *out);
+
+/* ── signature verification ───────────────────────────────────────────── */
+
+/**
+ * Verify a label's cryptographic signature per the com.atproto.label spec.
+ *
+ * The reference constructs the label from its schema fields (excluding `sig`,
+ * including `ver`, never `$type`), DRISL-canonical DAG-CBOR encodes it, SHA-256
+ * hashes those bytes, and signs the digest with the labeler's signing key
+ * (the DID document `#atproto` verification method — the same key used for
+ * repository commits). This function reproduces that construction, resolves
+ * the labeler's `src` DID via `client`, and verifies `sig` (base64url-decoded
+ * from the parsed label) against the resolved key.
+ *
+ * Returns WF_OK when the signature is valid. Returns WF_ERR_INVALID_ARG when
+ * the label lacks `sig` or a required field; WF_ERR_NOT_FOUND when the labeler
+ * publishes no signing key; WF_ERR_PARSE when the signature does not verify;
+ * or a network/transport error if DID resolution fails. The function never
+ * fabricates success — an unverifiable label is reported as a failure.
+ *
+ * The caller decides how to treat a failed verification; this function is
+ * purely advisory. Requires a network-capable `client`.
+ */
+wf_status wf_label_verify_signature(wf_xrpc_client *client,
+                                    const wf_label *label);
+
+/**
+ * Verify a label's signature against an already-known labeler signing key
+ * (`did:key:z...` form, e.g. resolved out-of-band or from a cached DID
+ * document). Does not perform any network resolution. Same return semantics
+ * as wf_label_verify_signature. Useful for offline/batch verification and for
+ * tests where the labeler key is supplied directly.
+ */
+wf_status wf_label_verify_signature_with_key(const char *signing_key_didkey,
+                                             const wf_label *label);
 
 #ifdef __cplusplus
 }
