@@ -384,7 +384,7 @@ wf_status wf_server_verify_service_auth(const char *token,
     unsigned char *sig = NULL;
     size_t sig_len = 0;
     wf_service_auth_claims claims = {0};
-    cJSON *alg, *iss, *aud, *exp, *iat, *jti, *lxm, *nuance;
+    cJSON *typ, *alg, *iss, *aud, *exp, *iat, *jti, *lxm, *nuance;
     wf_key_type signing_key_type;
     unsigned char *signing_key_raw = NULL;
     size_t signing_key_raw_len = 0;
@@ -419,6 +419,13 @@ wf_status wf_server_verify_service_auth(const char *token,
         goto done;
     }
 
+    typ = cJSON_GetObjectItemCaseSensitive(header, "typ");
+    if (cJSON_IsString(typ) && typ->valuestring &&
+        (strcmp(typ->valuestring, "at+jwt") == 0 ||
+         strcmp(typ->valuestring, "refresh+jwt") == 0 ||
+         strcmp(typ->valuestring, "dpop+jwt") == 0)) {
+        goto done;
+    }
     alg = cJSON_GetObjectItemCaseSensitive(header, "alg");
     if (!cJSON_IsString(alg) || !alg->valuestring) {
         goto done;
