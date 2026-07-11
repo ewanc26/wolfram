@@ -69,7 +69,11 @@ static wf_status store_init_schema(sqlite3 *db) {
         "  val TEXT NOT NULL,"
         "  src TEXT NOT NULL,"
         "  cts TEXT,"
-        "  PRIMARY KEY (uri, val, src)"
+        "  neg INTEGER NOT NULL DEFAULT 0,"
+        "  has_cid INTEGER NOT NULL DEFAULT 0,"
+        "  ver INTEGER,"
+        "  exp TEXT,"
+        "  PRIMARY KEY (uri, cid, val, src, neg)"
         ");";
 #else
     ddl =
@@ -83,7 +87,8 @@ static wf_status store_init_schema(sqlite3 *db) {
         "  email_confirmed INTEGER NOT NULL DEFAULT -1,"
         "  email_auth_factor INTEGER NOT NULL DEFAULT -1,"
         "  active INTEGER NOT NULL DEFAULT -1,"
-        "  status TEXT"
+        "  status TEXT,"
+        "  pds_url TEXT"
         ");"
         "CREATE TABLE IF NOT EXISTS mirror_head ("
         "  did TEXT PRIMARY KEY,"
@@ -101,7 +106,11 @@ static wf_status store_init_schema(sqlite3 *db) {
         "  val TEXT NOT NULL,"
         "  src TEXT NOT NULL,"
         "  cts TEXT,"
-        "  PRIMARY KEY (uri, val, src)"
+        "  neg INTEGER NOT NULL DEFAULT 0,"
+        "  has_cid INTEGER NOT NULL DEFAULT 0,"
+        "  ver INTEGER,"
+        "  exp TEXT,"
+        "  PRIMARY KEY (uri, cid, val, src, neg)"
         ");";
 #endif
 
@@ -110,6 +119,28 @@ static wf_status store_init_schema(sqlite3 *db) {
         if (err) sqlite3_free(err);
         return WF_ERR_INVALID_ARG;
     }
+
+    /* Forward-migrate pre-existing tables that predate the added columns.
+     * CREATE TABLE IF NOT EXISTS above leaves such tables untouched, so add
+     * the columns explicitly. Ignore the error when a column is already
+     * present (fresh databases already have them). The labels columns exist
+     * in both the encrypted and plaintext store layouts; the session pds_url
+     * column exists only in the plaintext layout. */
+    static const char *migrations[] = {
+        "ALTER TABLE labels ADD COLUMN neg INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE labels ADD COLUMN has_cid INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE labels ADD COLUMN ver INTEGER",
+        "ALTER TABLE labels ADD COLUMN exp TEXT",
+#ifndef WOLFRAM_BUILD_STORE_CRYPTO
+        "ALTER TABLE session ADD COLUMN pds_url TEXT",
+#endif
+    };
+    for (size_t i = 0; i < sizeof(migrations) / sizeof(migrations[0]); i++) {
+        char *aerr = NULL;
+        sqlite3_exec(db, migrations[i], NULL, NULL, &aerr);
+        if (aerr) sqlite3_free(aerr);
+    }
+
     return WF_OK;
 }
 
@@ -181,11 +212,11 @@ static uint32_t get_u32(const uint8_t *p) {
  * as 4-byte little-endian values. The caller owns the returned buffer. */
 static uint8_t *session_serialize(const wf_session *sess, size_t *out_len) {
     const wf_session_data *d = &sess->data;
-    const char *strs[6] = { d->access_jwt, d->refresh_jwt, d->handle,
-                            d->did, d->email, d->status };
+    const char *strs[7] = { d->access_jwt, d->refresh_jwt, d->handle,
+                            d->did, d->email, d->status, d->pds_url };
 
     size_t total = 0;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         total += 1;
         if (strs[i]) total += 4 + strlen(strs[i]);
     }
@@ -195,7 +226,7 @@ static uint8_t *session_serialize(const wf_session *sess, size_t *out_len) {
     if (!buf) return NULL;
 
     uint8_t *p = buf;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         if (strs[i]) {
             size_t len = strlen(strs[i]);
             *p++ = 1;
@@ -225,7 +256,7 @@ static wf_session *session_deserialize(const uint8_t *buf, size_t len) {
     const uint8_t *p = buf;
     size_t rem = len;
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         if (rem < 1) goto fail;
         uint8_t present = *p++;
         rem -= 1;
@@ -246,6 +277,7 @@ static wf_session *session_deserialize(const uint8_t *buf, size_t len) {
             case 3: d->did = copy; break;
             case 4: d->email = copy; break;
             case 5: d->status = copy; break;
+            case 6: d->pds_url = copy; break;
         }
     }
 
@@ -451,6 +483,7 @@ static wf_session *session_copy_for_load(const wf_session *src) {
     DUP(did);
     DUP(email);
     DUP(status);
+    DUP(pds_url);
 #undef DUP
 
     d->email_confirmed = src->data.email_confirmed;
@@ -469,8 +502,8 @@ wf_status wf_store_save_session(wf_store *s, const wf_session *sess) {
     static const char *sql =
         "INSERT OR REPLACE INTO session"
         " (id, access_jwt, refresh_jwt, handle, did, email,"
-        "  email_confirmed, email_auth_factor, active, status)"
-        " VALUES (1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)";
+        "  email_confirmed, email_auth_factor, active, status, pds_url)"
+        " VALUES (1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)";
 
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
@@ -487,6 +520,7 @@ wf_status wf_store_save_session(wf_store *s, const wf_session *sess) {
     if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 8, sess->data.email_auth_factor);
     if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 9, sess->data.active);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 10, sess->data.status);
+    if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 11, sess->data.pds_url);
 
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
@@ -504,7 +538,7 @@ wf_status wf_store_load_session(wf_store *s, wf_session **out) {
 
     static const char *sql =
         "SELECT access_jwt, refresh_jwt, handle, did, email,"
-        "       email_confirmed, email_auth_factor, active, status"
+        "       email_confirmed, email_auth_factor, active, status, pds_url"
         " FROM session WHERE id = 1";
 
     sqlite3_stmt *stmt = NULL;
@@ -525,6 +559,7 @@ wf_status wf_store_load_session(wf_store *s, wf_session **out) {
         probe.data.email_auth_factor = sqlite3_column_int(stmt, 6);
         probe.data.active = sqlite3_column_int(stmt, 7);
         probe.data.status = (char *)sqlite3_column_text(stmt, 8);
+        probe.data.pds_url = (char *)sqlite3_column_text(stmt, 9);
         probe.has_session = 1;
 
         wf_session *loaded = session_copy_for_load(&probe);
@@ -730,13 +765,19 @@ wf_status wf_store_load_mirror_block(wf_store *s, const char *did,
 
 wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
                               const char *val, const char *src,
-                              const char *cts) {
+                              const char *cts, int neg, int has_cid,
+                              int ver, const char *exp) {
     if (!s || !uri || !val || !src) return WF_ERR_INVALID_ARG;
 
-    /* Keyed by (uri, val, src); re-saving the same tuple overwrites it. */
+    /* Keyed by (uri, cid, val, src, neg); re-saving the same tuple overwrites
+     * it. Because `neg` is part of the key, a negation (revocation) label is a
+     * SEPARATE row from its positive counterpart, so a positive/negation pair
+     * round-trips intact and the moderation engine can honor atproto negation
+     * semantics on reload. */
     static const char *sql =
-        "INSERT OR REPLACE INTO labels (uri, cid, val, src, cts)"
-        " VALUES (?1, ?2, ?3, ?4, ?5)";
+        "INSERT OR REPLACE INTO labels"
+        " (uri, cid, val, src, cts, neg, has_cid, ver, exp)"
+        " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)";
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         return WF_ERR_INVALID_ARG;
@@ -747,6 +788,10 @@ wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
     if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 3, val, -1, SQLITE_TRANSIENT);
     if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 4, src, -1, SQLITE_TRANSIENT);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 5, cts);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 6, neg ? 1 : 0);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 7, has_cid ? 1 : 0);
+    if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 8, ver);
+    if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 9, exp);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         return WF_ERR_INVALID_ARG;
@@ -763,7 +808,9 @@ wf_status wf_store_load_labels(wf_store *s, const char *uri,
     if (!s || !uri || !out || !out_count) return WF_ERR_INVALID_ARG;
 
     static const char *sql =
-        "SELECT src, uri, val, cts FROM labels WHERE uri = ?1";
+        "SELECT src, uri, val, cts, COALESCE(neg, 0), COALESCE(has_cid, 0),"
+        "       cid, COALESCE(ver, 0), exp"
+        " FROM labels WHERE uri = ?1";
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         return WF_ERR_INVALID_ARG;
@@ -792,6 +839,19 @@ wf_status wf_store_load_labels(wf_store *s, const char *uri,
         const char *cts = (const char *)sqlite3_column_text(stmt, 3);
         l->cts = cts ? strdup(cts) : NULL;
         if (!l->src || !l->uri || !l->val) { st = WF_ERR_ALLOC; break; }
+
+        /* Negation / cid-scope / version / expiry. COALESCE keeps pre-existing
+         * databases (which lack these columns) loading as plain positive labels. */
+        l->neg = sqlite3_column_int(stmt, 4) != 0;
+        int has_cid = sqlite3_column_int(stmt, 5);
+        const char *cid = (const char *)sqlite3_column_text(stmt, 6);
+        if (has_cid && cid) {
+            l->cid = strdup(cid);
+            l->has_cid = 1;
+        }
+        l->ver = sqlite3_column_int(stmt, 7);
+        const char *exp = (const char *)sqlite3_column_text(stmt, 8);
+        l->exp = exp ? strdup(exp) : NULL;
         count++;
     }
     sqlite3_finalize(stmt);

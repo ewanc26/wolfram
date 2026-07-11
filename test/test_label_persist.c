@@ -58,9 +58,9 @@ int main(void) {
 
     /* ── 1. save + load round-trip, plus overwrite ── */
     WF_CHECK(wf_store_save_label(store, DID, NULL, "porn", LABELER,
-                                 "2020-01-01T00:00:00Z") == WF_OK);
+                                  "2020-01-01T00:00:00Z", 0, 0, 0, NULL) == WF_OK);
     WF_CHECK(wf_store_save_label(store, POST, "bafypost", "porn", LABELER,
-                                 "2020-01-01T00:00:00Z") == WF_OK);
+                                  "2020-01-01T00:00:00Z", 0, 1, 0, NULL) == WF_OK);
 
     wf_mod_label *acc_labels = NULL;
     size_t acc_n = 0;
@@ -71,22 +71,41 @@ int main(void) {
     WF_CHECK(strcmp(acc_labels[0].val, "porn") == 0);
     WF_CHECK(strcmp(acc_labels[0].src, LABELER) == 0);
     WF_CHECK(acc_labels[0].cts && strcmp(acc_labels[0].cts,
-                                         "2020-01-01T00:00:00Z") == 0);
+                                          "2020-01-01T00:00:00Z") == 0);
+    /* A positive label reloads as a positive (neg==0) and not a revocation. */
+    WF_CHECK(acc_labels[0].neg == 0);
 
     /* Overwrite the (uri,val,src) tuple with a new cts. */
     WF_CHECK(wf_store_save_label(store, DID, NULL, "porn", LABELER,
-                                 "2021-02-02T00:00:00Z") == WF_OK);
+                                  "2021-02-02T00:00:00Z", 0, 0, 0, NULL) == WF_OK);
     wf_mod_labels_free(acc_labels, acc_n);
     WF_CHECK(wf_store_load_labels(store, DID, &acc_labels, &acc_n) == WF_OK);
     WF_CHECK(acc_n == 1);
     WF_CHECK(acc_labels[0].cts && strcmp(acc_labels[0].cts,
-                                         "2021-02-02T00:00:00Z") == 0);
+                                          "2021-02-02T00:00:00Z") == 0);
 
     wf_mod_label *post_labels = NULL;
     size_t post_n = 0;
     WF_CHECK(wf_store_load_labels(store, POST, &post_labels, &post_n) == WF_OK);
     WF_CHECK(post_n == 1);
     WF_CHECK(strcmp(post_labels[0].val, "porn") == 0);
+    /* cid / has_cid must round-trip, not be dropped. */
+    WF_CHECK(post_labels[0].has_cid == 1);
+    WF_CHECK(post_labels[0].cid && strcmp(post_labels[0].cid, "bafypost") == 0);
+
+    /* ── 1b. a negation (revocation) is a SEPARATE row and reloads as neg=1 ── */
+    WF_CHECK(wf_store_save_label(store, DID, NULL, "porn", LABELER,
+                                  "2021-03-03T00:00:00Z", 1, 0, 0, NULL) == WF_OK);
+    wf_mod_labels_free(post_labels, post_n);
+    WF_CHECK(wf_store_load_labels(store, DID, &post_labels, &post_n) == WF_OK);
+    /* Positive (neg=0) and negation (neg=1) both present — distinct rows. */
+    WF_CHECK(post_n == 2);
+    int saw_pos = 0, saw_neg = 0;
+    for (size_t i = 0; i < post_n; i++) {
+        if (post_labels[i].neg) saw_neg = 1; else saw_pos = 1;
+    }
+    WF_CHECK(saw_pos);
+    WF_CHECK(saw_neg);
 
     /* ── 2. persisted labels drive moderation decisions ── */
     wf_mod_opts opts = build_opts();

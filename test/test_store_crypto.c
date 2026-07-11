@@ -43,6 +43,7 @@ static void fill_session_data(wf_session *s) {
     s->data.email_auth_factor = 0;
     s->data.active = 1;
     s->data.status = strdup("active");
+    s->data.pds_url = strdup("https://pds.example.com");
     s->has_session = 1;
 }
 
@@ -65,6 +66,8 @@ static void assert_session_eq(const wf_session *a, const wf_session *b) {
     WF_CHECK(a->data.email_confirmed == b->data.email_confirmed);
     WF_CHECK(a->data.email_auth_factor == b->data.email_auth_factor);
     WF_CHECK(a->data.active == b->data.active);
+    WF_CHECK(a->data.pds_url && b->data.pds_url &&
+             strcmp(a->data.pds_url, b->data.pds_url) == 0);
     WF_CHECK(a->has_session == 1);
 }
 
