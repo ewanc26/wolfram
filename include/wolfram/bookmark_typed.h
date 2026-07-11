@@ -28,10 +28,14 @@ extern "C" {
 
 /* A single bookmarked record view (app.bsky.bookmark.defs#bookmarkView).
  * `uri` is the at-uri of the bookmarked record (subject), `created_at` the
- * optional creation timestamp echoed by the server. */
+ * optional creation timestamp echoed by the server, and `item` the rendered
+ * view of the bookmarked record (a union of app.bsky.feed.defs#blockedPost,
+ * #notFoundPost, or #postView), kept as an owned detached cJSON subtree so the
+ * parser stays bounded regardless of the view shape. */
 typedef struct wf_bookmark {
     char *uri;          /* at-uri of the bookmarked record; NULL when absent */
     char *created_at;   /* RFC 3339 datetime; NULL when absent */
+    cJSON *item;        /* owned #bookmarkView.item view; NULL when absent */
 } wf_bookmark;
 
 /* The parsed getBookmarks response. */

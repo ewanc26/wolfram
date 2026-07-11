@@ -46,6 +46,9 @@ static void wf_bookmark_reset(wf_bookmark *b) {
     }
     free(b->uri);
     free(b->created_at);
+    if (b->item) {
+        cJSON_Delete(b->item);
+    }
     memset(b, 0, sizeof(*b));
 }
 
@@ -116,6 +119,15 @@ wf_status wf_bookmark_parse_list(const char *json, size_t len,
             if (cJSON_IsString(created_at) && created_at->valuestring) {
                 status = wf_bookmark_set_string(&b->created_at,
                                                 created_at->valuestring);
+            }
+        }
+        if (status == WF_OK) {
+            /* defs#bookmarkView.item is REQUIRED — a union of
+             * blockedPost/notFoundPost/postView. Kept as an owned detached
+             * subtree so the parser stays bounded. */
+            cJSON *item = cJSON_DetachItemFromObject(obj, "item");
+            if (item) {
+                b->item = item;
             }
         }
 
