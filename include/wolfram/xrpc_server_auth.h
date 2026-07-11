@@ -44,7 +44,9 @@ extern "C" {
  * The built-in default resolver handles `did:key:` locally (no network) and,
  * for other methods, defers to an optional wf_xrpc_client supplied via the
  * config (wf_did_resolve). Callers may inject a custom resolver to avoid the
- * network entirely or to use a cached directory.
+ * network entirely or to use a cached directory. The middleware may call the
+ * resolver a second time after signature verification fails, allowing the
+ * callback to refresh a stale cached signing key after issuer key rotation.
  */
 typedef wf_status (*wf_xrpc_server_auth_resolve_fn)(const char *did,
                                                     char **out_didkey,

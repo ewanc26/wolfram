@@ -301,6 +301,7 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
     char *token = NULL;
     char *iss = NULL, *aud = NULL, *lxm = NULL, *didkey = NULL;
     wf_service_auth_claims claims = {0};
+    wf_status service_status;
     wf_status rc = WF_ERR_INVALID_ARG;
 
     /* 1. Unprotected route → allow. */
@@ -327,8 +328,20 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
         goto done;
     }
 
-    /* 5. Try app.bsky service JWT: verify signature + expiry. */
-    if (wf_server_verify_service_auth(token, didkey, 0, &claims) == WF_OK) {
+    /* 5. Try app.bsky service JWT. On signature failure, resolve once more so
+     * a recently rotated signing key can replace a stale cached value, matching
+     * upstream verifyJwt's force-refresh retry. */
+    service_status = wf_server_verify_service_auth(token, didkey, 0, &claims);
+    if (service_status != WF_OK) {
+        free(didkey);
+        didkey = NULL;
+        wf_service_auth_claims_free(&claims);
+        if (resolve(iss, &didkey, rctx) == WF_OK) {
+            service_status = wf_server_verify_service_auth(token, didkey, 0,
+                                                           &claims);
+        }
+    }
+    if (service_status == WF_OK) {
         if (cfg->require_aud && cfg->server_did && aud &&
             !aud_matches(aud, cfg->server_did)) {
             goto done;
