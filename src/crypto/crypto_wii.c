@@ -175,3 +175,38 @@ wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
     (void)jwk_json; (void)x; (void)y;
     return WF_ERR_NOT_IMPLEMENTED;
 }
+
+wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
+                           size_t raw_len, char **out_didkey) {
+    (void)type; (void)raw_pub; (void)raw_len;
+    if (out_didkey) *out_didkey = NULL;
+    /* TODO: Share the desktop base58btc codec without pulling in OpenSSL. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
+                           unsigned char **out_raw, size_t *out_raw_len) {
+    (void)didkey;
+    if (out_type) *out_type = WF_KEY_TYPE_UNKNOWN;
+    if (out_raw) *out_raw = NULL;
+    if (out_raw_len) *out_raw_len = 0;
+    /* TODO: Share the desktop base58btc codec without pulling in OpenSSL. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_from_verification_method(
+    const char *verification_type, const char *public_key_multibase,
+    char **out_didkey) {
+    (void)verification_type; (void)public_key_multibase;
+    if (out_didkey) *out_didkey = NULL;
+    /* TODO: Normalize verification keys after the shared base58btc codec is
+     * available on embedded targets. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
+
+wf_status wf_didkey_verification_method_id(const char *didkey, char **out_id) {
+    (void)didkey;
+    if (out_id) *out_id = NULL;
+    /* TODO: Enable with the rest of the embedded did:key backend. */
+    return WF_ERR_NOT_IMPLEMENTED;
+}
