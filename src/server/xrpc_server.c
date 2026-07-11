@@ -262,11 +262,11 @@ static void wf_server_apply_cors(wf_xrpc_server *server,
     origin = server->cors_origin ? server->cors_origin : "*";
     MHD_add_response_header(resp, "Access-Control-Allow-Origin", origin);
     MHD_add_response_header(resp, "Access-Control-Allow-Headers",
-                             "Authorization, Content-Type");
+                             "Authorization, Content-Type, DPoP");
     MHD_add_response_header(resp, "Access-Control-Allow-Methods",
                              "GET, POST, OPTIONS");
     MHD_add_response_header(resp, "Access-Control-Expose-Headers",
-                             "Content-Type");
+                             "Content-Type, Retry-After");
 }
 
 /* ------------------------------------------------------------------ */
@@ -1158,6 +1158,7 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     char *nsid = NULL;
     cJSON *params = NULL;
     const char *auth_header;
+    const char *dpop_header;
     post_buf *raw_pb = NULL;   /* Kept alive past parsing so handlers can read
                                   the raw POST body (e.g. blob uploads). */
 
@@ -1231,11 +1232,23 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
 
 process:
 
-    /* Look up route */
+    /* Look up route. Distinguish a wrong HTTP method (the NSID is registered
+     * but for the opposite kind) from an entirely unregistered NSID, so we emit
+     * the canonical XRPC error names and status codes. */
     route = wf_server_find_route(server, nsid, kind);
     if (!route) {
-        wf_xrpc_response_set_error(&resp, 404, "MethodNotFound",
-                                    "No handler registered for this NSID");
+        wf_route_kind other = (kind == WF_ROUTE_QUERY)
+                                  ? WF_ROUTE_PROCEDURE
+                                  : WF_ROUTE_QUERY;
+        if (wf_server_find_route(server, nsid, other)) {
+            wf_xrpc_response_set_error(
+                &resp, 400, "InvalidRequest",
+                "Incorrect HTTP method for this endpoint");
+        } else {
+            wf_xrpc_response_set_error(
+                &resp, 501, "MethodNotImplemented",
+                "No handler registered for this NSID");
+        }
         goto send;
     }
 
@@ -1281,6 +1294,7 @@ process:
                     MHD_add_response_header(mhd_rl, "Content-Type",
                                              "application/json");
                     MHD_add_response_header(mhd_rl, "Retry-After", ra_str);
+                    wf_server_apply_cors(server, mhd_rl);
                     MHD_queue_response(conn, 429, mhd_rl);
                     MHD_destroy_response(mhd_rl);
                 }
@@ -1293,6 +1307,7 @@ process:
     /* Auth callback */
     auth_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
                                                 "Authorization");
+    dpop_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
     char *authed_subject = NULL;
     wf_xrpc_principal_kind authed_kind = WF_XRPC_PRINCIPAL_NONE;
     if (server->auth_cb) {
@@ -1301,6 +1316,7 @@ process:
         auth_req.nsid = nsid;
         auth_req.method = method;
         auth_req.auth_header = auth_header;
+        auth_req.dpop_header = dpop_header;
         auth_req.params = params;
         auth_req.handler_ctx = route->ctx;
         if (server->auth_cb(&auth_req, server->auth_ctx) != WF_OK) {
@@ -1320,6 +1336,7 @@ process:
     req.nsid = nsid;
     req.method = method;
     req.auth_header = auth_header;
+    req.dpop_header = dpop_header;
     req.params = params;
     req.handler_ctx = route->ctx;
     /* Raw POST body (kept alive in raw_pb) + request Content-Type. */
@@ -1394,7 +1411,7 @@ sse_stream:
 
         stream = wf_sse_stream_new(server, conn, nsid);
         if (!stream) {
-            wf_xrpc_response_set_error(&resp, 500, "InternalError",
+            wf_xrpc_response_set_error(&resp, 500, "InternalServerError",
                                        "Failed to allocate SSE stream");
             goto send;
         }
@@ -1423,7 +1440,7 @@ sse_stream:
             }
             pthread_mutex_unlock(&server->sse_mutex);
             wf_sse_stream_free(stream);
-            wf_xrpc_response_set_error(&resp, 500, "InternalError",
+            wf_xrpc_response_set_error(&resp, 500, "InternalServerError",
                                        "Failed to create SSE response");
             goto send;
         }
@@ -1436,9 +1453,9 @@ sse_stream:
         MHD_add_response_header(mhd_resp_sse, "Access-Control-Allow-Origin",
                                 "*");
         MHD_add_response_header(mhd_resp_sse, "Access-Control-Allow-Headers",
-                                "Authorization, Content-Type");
+                                "Authorization, Content-Type, DPoP");
         MHD_add_response_header(mhd_resp_sse, "Access-Control-Expose-Headers",
-                                "Content-Type");
+                                "Content-Type, Retry-After");
 
         ret = MHD_queue_response(conn, MHD_HTTP_OK, mhd_resp_sse);
         MHD_destroy_response(mhd_resp_sse);
