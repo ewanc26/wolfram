@@ -53,7 +53,7 @@ static int run_unit(void) {
     s = wf_repo_store_create_record(
         store, "com.example.posts", NULL,
         "{\"$type\":\"com.example.posts\",\"text\":\"hello\"}",
-        &uri1, &cid1);
+        NULL, &uri1, &cid1);
     WF_CHECK(s == WF_OK && uri1 && cid1);
     const char *rkey1 = strrchr(uri1, '/') + 1;
     WF_CHECK(strcmp(uri1, "at://did:plc:testpds/com.example.posts/") != 0);
@@ -74,7 +74,7 @@ static int run_unit(void) {
     s = wf_repo_store_create_record(
         store, "com.example.likes", NULL,
         "{\"$type\":\"com.example.likes\",\"subject\":\"at://x\"}",
-        &uri2, &cid2);
+        NULL, &uri2, &cid2);
     WF_CHECK(s == WF_OK && uri2 && cid2);
     const char *rkey2 = strrchr(uri2, '/') + 1;
 
@@ -83,7 +83,7 @@ static int run_unit(void) {
     s = wf_repo_store_put_record(
         store, "com.example.likes", rkey2,
         "{\"$type\":\"com.example.likes\",\"subject\":\"at://y\",\"extra\":5}",
-        &uri3, &cid3);
+        NULL, NULL, &uri3, &cid3);
     WF_CHECK(s == WF_OK && uri3 && cid3);
     WF_CHECK(strcmp(cid3, cid2) != 0);
     WF_CHECK(strcmp(strrchr(uri3, '/') + 1, rkey2) == 0);
@@ -97,8 +97,8 @@ static int run_unit(void) {
 
     /* listRecords enumerates a collection via the records index. */
     char *list_json = NULL;
-    s = wf_repo_store_list_records(store, "com.example.posts", NULL, 50,
-                                    &list_json);
+    s = wf_repo_store_list_records(store, "com.example.posts", NULL, false,
+                                    50, &list_json);
     WF_CHECK(s == WF_OK && list_json);
     if (list_json) {
         cJSON *lj = cJSON_Parse(list_json);
@@ -126,12 +126,14 @@ static int run_unit(void) {
     free(gc_cid);
 
     /* deleteRecord removes the record (not found afterwards). */
-    s = wf_repo_store_delete_record(store, "com.example.likes", rkey2);
+    s = wf_repo_store_delete_record(store, "com.example.likes", rkey2,
+                                  NULL, NULL);
     WF_CHECK(s == WF_OK);
     s = wf_repo_store_get_record(store, "com.example.likes", rkey2,
                                  &recj, &reccid);
     WF_CHECK(s == WF_ERR_NOT_FOUND);
-    s = wf_repo_store_delete_record(store, "com.example.likes", "nope");
+    s = wf_repo_store_delete_record(store, "com.example.likes", "nope",
+                                  NULL, NULL);
     WF_CHECK(s == WF_ERR_NOT_FOUND);
 
     /* applyWrites: create (new rkey) + update rkey1 + delete rkey1. */
@@ -148,7 +150,7 @@ static int run_unit(void) {
              "\"collection\":\"com.example.posts\",\"rkey\":\"%s\"}"
              "]", rkey1, rkey1);
     char *ccid = NULL, *crev = NULL, *cres = NULL;
-    s = wf_repo_store_apply_writes(store, writes, &ccid, &crev, &cres);
+    s = wf_repo_store_apply_writes(store, writes, NULL, &ccid, &crev, &cres);
     WF_CHECK(s == WF_OK && ccid && crev && cres);
     WF_CHECK(strlen(crev) > 0);
     cJSON *resarr = cJSON_Parse(cres);

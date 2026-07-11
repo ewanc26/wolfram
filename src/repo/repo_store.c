@@ -24,6 +24,8 @@
 #include "wolfram/repo/car.h"
 #include "wolfram/repo/record.h"
 #include "wolfram/repo/diff.h"
+#include "wolfram/repo/mst.h"
+#include "wolfram/syntax.h"
 #include "wolfram/tid.h"
 #include "wolfram/xrpc_server.h"
 #include "wolfram/crypto.h"
@@ -333,6 +335,117 @@ static wf_status get_record_cbor(wf_repo_store *s, const char *collection,
                               out_len, out_record_cid);
 }
 
+/* Forward declaration (defined in the Persistence section below). */
+static wf_status index_upsert_record(wf_repo_store *s, const char *collection,
+                                      const char *rkey, const char *cid,
+                                      const char *value);
+
+/* Current head commit CID as a base32 string ("" when repo is empty). */
+static char *head_cid_string(wf_repo_store *s) {
+    return s->head.len ? wf_cid_to_string(&s->head) : strdup("");
+}
+
+/* Compare a requested compare-and-swap CID (may be NULL/empty) against
+ * the current value (a base32 string). Returns WF_OK when they match or
+ * when no swap was requested; otherwise WF_ERR_INVALID_ARG (atproto
+ * returns InvalidSwap — TODO: surface the specific XRPC error here).
+ * The error is intentionally generic: the HTTP handler maps it to a
+ * 400 InvalidSwap-equivalent response. */
+static wf_status check_swap(const char *requested, const char *current) {
+    if (!requested || !*requested) return WF_OK;
+    if (!current || strcmp(requested, current) != 0)
+        return WF_ERR_INVALID_ARG;
+    return WF_OK;
+}
+
+/* If the record JSON carries a $type, it must equal `collection`.
+ * A missing $type is allowed (a real PDS would stamp it). Returns 1
+ * when the constraint is satisfied. */
+static int record_type_matches(const char *record_json,
+                               const char *collection) {
+    cJSON *root = cJSON_Parse(record_json);
+    if (!root) return 1;
+    cJSON *t = cJSON_GetObjectItemCaseSensitive(root, "$type");
+    int ok = (t && cJSON_IsString(t)) ? (strcmp(t->valuestring, collection) == 0) : 1;
+    cJSON_Delete(root);
+    return ok;
+}
+
+/* Decode a record block (by CID) into canonical record JSON, or NULL. */
+static char *decode_record_json(wf_repo_store *s, const wf_cid *record_cid) {
+    wf_car_block *blk = wf_car_find_block(&s->car, record_cid);
+    if (!blk) return NULL;
+    wf_cbor_item *item = wf_cbor_parse(blk->data, blk->data_len);
+    if (!item) return NULL;
+    cJSON *j = cbor_to_json(item);
+    wf_cbor_free(item);
+    if (!j) return NULL;
+    char *js = cJSON_PrintUnformatted(j);
+    cJSON_Delete(j);
+    return js;
+}
+
+/* Rebuild the `records` index from the current head commit's MST, so
+ * listRecords stays consistent after an importRepo. */
+static wf_status reindex_collect(wf_repo_store *s, const wf_cid *node_cid) {
+    if (node_cid->len == 0) return WF_OK;
+    wf_car_block *b = wf_car_find_block(&s->car, node_cid);
+    if (!b) return WF_OK;
+    wf_mst_node node;
+    memset(&node, 0, sizeof(node));
+    wf_status st = wf_mst_node_parse(b->data, b->data_len, node_cid, &node);
+    if (st != WF_OK) return st;
+    if (node.left.len) {
+        st = reindex_collect(s, &node.left);
+        if (st != WF_OK) { wf_mst_node_free(&node); return st; }
+    }
+    for (size_t i = 0; i < node.count; i++) {
+        if (node.entries[i].subtree.len == 0) {
+            unsigned char *k = node.entries[i].key;
+            size_t kl = node.entries[i].key_len;
+            unsigned char *slash = memchr(k, '/', kl);
+            if (slash) {
+                size_t clen = (size_t)(slash - k);
+                size_t rlen = kl - clen - 1;
+                char *coll = malloc(clen + 1);
+                char *rk = malloc(rlen + 1);
+                if (coll && rk) {
+                    memcpy(coll, k, clen); coll[clen] = '\0';
+                    memcpy(rk, slash + 1, rlen); rk[rlen] = '\0';
+                    char *cidstr = wf_cid_to_string(&node.entries[i].value);
+                    if (cidstr) {
+                        char *js = decode_record_json(s, &node.entries[i].value);
+                        if (js) {
+                            index_upsert_record(s, coll, rk, cidstr, js);
+                            free(js);
+                        }
+                        free(cidstr);
+                    }
+                }
+                free(coll);
+                free(rk);
+            }
+        } else {
+            st = reindex_collect(s, &node.entries[i].subtree);
+            if (st != WF_OK) { wf_mst_node_free(&node); return st; }
+        }
+    }
+    wf_mst_node_free(&node);
+    return WF_OK;
+}
+
+static wf_status reindex_all(wf_repo_store *s) {
+    sqlite3_exec(s->db, "DELETE FROM records;", NULL, NULL, NULL);
+    if (s->head.len == 0) return WF_OK;
+    wf_car_block *b = wf_car_find_block(&s->car, &s->head);
+    if (!b) return WF_OK;
+    wf_commit cm;
+    memset(&cm, 0, sizeof(cm));
+    wf_status st = wf_commit_parse(b->data, b->data_len, &cm);
+    if (st != WF_OK) return st;
+    return reindex_collect(s, &cm.data);
+}
+
 /* ------------------------------------------------------------------ */
 /* Persistence                                                         */
 /* ------------------------------------------------------------------ */
@@ -621,6 +734,7 @@ const char *wf_repo_store_handle(const wf_repo_store *store) {
 wf_status wf_repo_store_create_record(wf_repo_store *s, const char *collection,
                                       const char *rkey_or_null,
                                       const char *record_json,
+                                      const char *swap_commit_or_null,
                                       char **out_uri, char **out_cid) {
     if (!s || !collection || !*collection || !record_json || !out_uri ||
         !out_cid)
@@ -628,23 +742,35 @@ wf_status wf_repo_store_create_record(wf_repo_store *s, const char *collection,
     *out_uri = NULL;
     *out_cid = NULL;
 
+    /* (c) record-key validation (atproto charset/length rules). */
     char rkey_buf[16];
     const char *rkey = rkey_or_null;
     if (!rkey || !*rkey) {
         if (wf_tid_now(rkey_buf) != WF_OK) return WF_ERR_INVALID_ARG;
         rkey = rkey_buf;
+    } else if (!wf_syntax_record_key_is_valid(rkey)) {
+        return WF_ERR_INVALID_ARG; /* TODO: atproto returns InvalidRecordKey */
     }
-    if (strchr(rkey, '/')) return WF_ERR_INVALID_ARG;
+
+    /* (b) $type, when present, must equal the target collection. */
+    if (!record_type_matches(record_json, collection))
+        return WF_ERR_INVALID_ARG; /* TODO: atproto returns InvalidRecord */
+
+    /* (a) CAS: swapCommit must match the current repo head (if supplied). */
+    char *head = head_cid_string(s);
+    wf_status st = check_swap(swap_commit_or_null, head);
+    free(head);
+    if (st != WF_OK) return st;
 
     unsigned char *cbor = NULL;
     size_t cbor_len = 0;
-    wf_status st = encode_record_json(record_json, &cbor, &cbor_len);
+    st = encode_record_json(record_json, &cbor, &cbor_len);
     if (st != WF_OK) return st;
 
     wf_cid out_commit = {{0}, 0}, out_record = {{0}, 0};
     const wf_cid *prev = s->head.len ? &s->head : NULL;
     st = wf_repo_create_record(&s->car, prev, s->did, collection, rkey, cbor,
-                               cbor_len, &s->key, &out_commit, &out_record);
+                                cbor_len, &s->key, &out_commit, &out_record);
     free(cbor);
     if (st != WF_OK) return st;
 
@@ -664,24 +790,46 @@ wf_status wf_repo_store_create_record(wf_repo_store *s, const char *collection,
 }
 
 wf_status wf_repo_store_put_record(wf_repo_store *s, const char *collection,
-                                   const char *rkey, const char *record_json,
-                                   char **out_uri, char **out_cid) {
+                                    const char *rkey, const char *record_json,
+                                    const char *swap_commit_or_null,
+                                    const char *swap_record_or_null,
+                                    char **out_uri, char **out_cid) {
     if (!s || !collection || !*collection || !rkey || !*rkey ||
         !record_json || !out_uri || !out_cid)
         return WF_ERR_INVALID_ARG;
     *out_uri = NULL;
     *out_cid = NULL;
-    if (strchr(rkey, '/')) return WF_ERR_INVALID_ARG;
+
+    /* (c) record-key validation (atproto charset/length rules). */
+    if (!wf_syntax_record_key_is_valid(rkey))
+        return WF_ERR_INVALID_ARG; /* TODO: atproto returns InvalidRecordKey */
+
+    /* (b) $type, when present, must equal the target collection. */
+    if (!record_type_matches(record_json, collection))
+        return WF_ERR_INVALID_ARG; /* TODO: atproto returns InvalidRecord */
 
     /* Detect whether the record already exists. */
     unsigned char *existing = NULL;
     size_t ex_len = 0;
     wf_cid ex_cid;
     wf_status st = get_record_cbor(s, collection, rkey, &existing, &ex_len,
-                                   &ex_cid);
+                                    &ex_cid);
     int exists = (st == WF_OK);
     free(existing);
     if (st != WF_OK && st != WF_ERR_NOT_FOUND) return st;
+
+    /* (a) CAS: swapCommit against head; swapRecord against current record. */
+    char *head = head_cid_string(s);
+    st = check_swap(swap_commit_or_null, head);
+    free(head);
+    if (st != WF_OK) return st;
+    if (swap_record_or_null && *swap_record_or_null) {
+        if (!exists) return WF_ERR_INVALID_ARG; /* TODO: atproto InvalidSwap */
+        char *cur = wf_cid_to_string(&ex_cid);
+        st = check_swap(swap_record_or_null, cur);
+        free(cur);
+        if (st != WF_OK) return st;
+    }
 
     wf_cid out_commit = {{0}, 0}, out_record = {{0}, 0};
     unsigned char *cbor = NULL;
@@ -691,13 +839,13 @@ wf_status wf_repo_store_put_record(wf_repo_store *s, const char *collection,
 
     if (exists) {
         st = wf_repo_update_record(&s->car, &s->head, s->did, collection,
-                                   rkey, cbor, cbor_len, &s->key, &out_commit,
-                                   &out_record);
+                                    rkey, cbor, cbor_len, &s->key, &out_commit,
+                                    &out_record);
     } else {
         const wf_cid *prev = s->head.len ? &s->head : NULL;
         st = wf_repo_create_record(&s->car, prev, s->did, collection, rkey,
-                                   cbor, cbor_len, &s->key, &out_commit,
-                                   &out_record);
+                                    cbor, cbor_len, &s->key, &out_commit,
+                                    &out_record);
     }
     free(cbor);
     if (st != WF_OK) return st;
@@ -718,23 +866,40 @@ wf_status wf_repo_store_put_record(wf_repo_store *s, const char *collection,
 }
 
 wf_status wf_repo_store_delete_record(wf_repo_store *s, const char *collection,
-                                      const char *rkey) {
+                                       const char *rkey,
+                                       const char *swap_commit_or_null,
+                                       const char *swap_record_or_null) {
     if (!s || !collection || !*collection || !rkey || !*rkey)
         return WF_ERR_INVALID_ARG;
-    if (strchr(rkey, '/')) return WF_ERR_INVALID_ARG;
+
+    /* (c) record-key validation (atproto charset/length rules). */
+    if (!wf_syntax_record_key_is_valid(rkey))
+        return WF_ERR_INVALID_ARG; /* TODO: atproto returns InvalidRecordKey */
     if (s->head.len == 0) return WF_ERR_NOT_FOUND;
 
     unsigned char *existing = NULL;
     size_t ex_len = 0;
     wf_cid ex_cid;
     wf_status st = get_record_cbor(s, collection, rkey, &existing, &ex_len,
-                                   &ex_cid);
+                                    &ex_cid);
     free(existing);
     if (st != WF_OK) return st;
 
+    /* (a) CAS: swapCommit against head; swapRecord against current record. */
+    char *head = head_cid_string(s);
+    st = check_swap(swap_commit_or_null, head);
+    free(head);
+    if (st != WF_OK) return st;
+    if (swap_record_or_null && *swap_record_or_null) {
+        char *cur = wf_cid_to_string(&ex_cid);
+        st = check_swap(swap_record_or_null, cur);
+        free(cur);
+        if (st != WF_OK) return st;
+    }
+
     wf_cid out_commit = {{0}, 0};
     st = wf_repo_delete_record(&s->car, &s->head, s->did, collection, rkey,
-                                &s->key, &out_commit);
+                                 &s->key, &out_commit);
     if (st != WF_OK) return st;
     st = commit_persist(s, &out_commit);
     if (st != WF_OK) return st;
@@ -778,9 +943,10 @@ wf_status wf_repo_store_get_record(wf_repo_store *s, const char *collection,
 }
 
 wf_status wf_repo_store_apply_writes(wf_repo_store *s, const char *writes_json,
-                                     char **out_commit_cid,
-                                     char **out_commit_rev,
-                                     char **out_results_json) {
+                                      const char *swap_commit_or_null,
+                                      char **out_commit_cid,
+                                      char **out_commit_rev,
+                                      char **out_results_json) {
     if (!s || !writes_json || !out_commit_cid || !out_commit_rev ||
         !out_results_json)
         return WF_ERR_INVALID_ARG;
@@ -794,10 +960,22 @@ wf_status wf_repo_store_apply_writes(wf_repo_store *s, const char *writes_json,
         return WF_ERR_INVALID_ARG;
     }
 
+    /* (a) CAS: swapCommit must match the current repo head (if supplied). */
+    char *head = head_cid_string(s);
+    wf_status st = check_swap(swap_commit_or_null, head);
+    free(head);
+    if (st != WF_OK) { cJSON_Delete(root); return st; }
+
+    /* (g) cap batch size at 200 writes (mirrors atproto's limit). */
+    if (cJSON_GetArraySize(root) > 200) {
+        cJSON_Delete(root);
+        return WF_ERR_INVALID_ARG; /* TODO: atproto returns TooManyWrites */
+    }
+
     cJSON *results = cJSON_CreateArray();
     if (!results) { cJSON_Delete(root); return WF_ERR_ALLOC; }
 
-    wf_status st = WF_OK;
+    st = WF_OK;
     const cJSON *op;
     cJSON_ArrayForEach(op, root) {
         if (!cJSON_IsObject(op)) { st = WF_ERR_INVALID_ARG; break; }
@@ -815,22 +993,26 @@ wf_status wf_repo_store_apply_writes(wf_repo_store *s, const char *writes_json,
                 st = WF_ERR_INVALID_ARG;
                 break;
             }
+            /* (c) record-key validation when a caller-supplied rkey given. */
+            const char *rkey = (rk && cJSON_IsString(rk) && rk->valuestring[0])
+                                  ? rk->valuestring : NULL;
+            if (rkey && !wf_syntax_record_key_is_valid(rkey)) {
+                st = WF_ERR_INVALID_ARG; /* TODO: InvalidRecordKey */
+                break;
+            }
             char *rec_json = cJSON_PrintUnformatted(val);
             if (!rec_json) { st = WF_ERR_ALLOC; break; }
             char *uri = NULL, *cid = NULL;
             if (strcmp(t, "com.atproto.repo.applyWrites#create") == 0) {
-                const char *rkey = (rk && cJSON_IsString(rk) &&
-                                    rk->valuestring[0]) ? rk->valuestring
-                                                        : NULL;
                 st = wf_repo_store_create_record(s, coll->valuestring, rkey,
-                                                rec_json, &uri, &cid);
+                                                 rec_json, NULL, &uri, &cid);
             } else {
-                if (!rk || !cJSON_IsString(rk) || !rk->valuestring[0]) {
+                if (!rkey) {
                     st = WF_ERR_INVALID_ARG;
                 } else {
-                    st = wf_repo_store_put_record(s, coll->valuestring,
-                                                  rk->valuestring, rec_json,
-                                                  &uri, &cid);
+                    st = wf_repo_store_put_record(s, coll->valuestring, rkey,
+                                                   rec_json, NULL, NULL, &uri,
+                                                   &cid);
                 }
             }
             free(rec_json);
@@ -838,6 +1020,10 @@ wf_status wf_repo_store_apply_writes(wf_repo_store *s, const char *writes_json,
             cJSON *r = cJSON_CreateObject();
             cJSON_AddStringToObject(r, "uri", uri ? uri : "");
             cJSON_AddStringToObject(r, "cid", cid ? cid : "");
+            /* (d)/(g) per-op validationStatus; wolfram does no lexicon
+             * validation, so it reports "unknown" (matching atproto's
+             * behaviour for an unrecognised $type). */
+            cJSON_AddStringToObject(r, "validationStatus", "unknown");
             cJSON_AddItemToArray(results, r);
             free(uri);
             free(cid);
@@ -847,8 +1033,12 @@ wf_status wf_repo_store_apply_writes(wf_repo_store *s, const char *writes_json,
                 st = WF_ERR_INVALID_ARG;
                 break;
             }
+            if (!wf_syntax_record_key_is_valid(rk->valuestring)) {
+                st = WF_ERR_INVALID_ARG; /* TODO: InvalidRecordKey */
+                break;
+            }
             st = wf_repo_store_delete_record(s, coll->valuestring,
-                                            rk->valuestring);
+                                             rk->valuestring, NULL, NULL);
             if (st != WF_OK) break;
             cJSON_AddItemToArray(results, cJSON_CreateObject());
         } else {
@@ -1004,28 +1194,34 @@ static wf_status h_create_record(void *ctx, const wf_xrpc_request *req,
     cJSON *collection = cJSON_GetObjectItemCaseSensitive(body, "collection");
     cJSON *rkey = cJSON_GetObjectItemCaseSensitive(body, "rkey");
     cJSON *record = cJSON_GetObjectItemCaseSensitive(body, "record");
+    cJSON *swap = cJSON_GetObjectItemCaseSensitive(body, "swapCommit");
     if (!collection || !cJSON_IsString(collection) || !record) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
-                                   "collection and record required");
+                                    "collection and record required");
         return WF_OK;
     }
     char *rec_json = cJSON_PrintUnformatted(record);
     if (!rec_json) return WF_ERR_ALLOC;
 
     const char *rk = (rkey && cJSON_IsString(rkey)) ? rkey->valuestring : NULL;
+    const char *swap_str = (swap && cJSON_IsString(swap)) ? swap->valuestring
+                                                         : NULL;
     char *uri = NULL, *cid = NULL;
     wf_status st = wf_repo_store_create_record(s, collection->valuestring, rk,
-                                              rec_json, &uri, &cid);
+                                              rec_json, swap_str, &uri, &cid);
     free(rec_json);
     if (st != WF_OK) {
+        /* CAS / validation failures surface as InvalidSwap-equivalent 400s. */
         wf_xrpc_response_set_error(resp, 400, "CreationFailed",
-                                   "record creation failed");
+                                    "record creation failed");
         return WF_OK;
     }
 
     cJSON *out = cJSON_CreateObject();
     cJSON_AddStringToObject(out, "uri", uri ? uri : "");
     cJSON_AddStringToObject(out, "cid", cid ? cid : "");
+    /* (d) wolfram performs no lexicon validation, so report "unknown". */
+    cJSON_AddStringToObject(out, "validationStatus", "unknown");
     add_commit_meta(s, out);
     char *js = cJSON_PrintUnformatted(out);
     cJSON_Delete(out);
@@ -1049,29 +1245,37 @@ static wf_status h_put_record(void *ctx, const wf_xrpc_request *req,
     cJSON *collection = cJSON_GetObjectItemCaseSensitive(body, "collection");
     cJSON *rkey = cJSON_GetObjectItemCaseSensitive(body, "rkey");
     cJSON *record = cJSON_GetObjectItemCaseSensitive(body, "record");
+    cJSON *swap = cJSON_GetObjectItemCaseSensitive(body, "swapCommit");
+    cJSON *swapRec = cJSON_GetObjectItemCaseSensitive(body, "swapRecord");
     if (!collection || !cJSON_IsString(collection) || !rkey ||
         !cJSON_IsString(rkey) || !record) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
-                                   "collection, rkey and record required");
+                                    "collection, rkey and record required");
         return WF_OK;
     }
     char *rec_json = cJSON_PrintUnformatted(record);
     if (!rec_json) return WF_ERR_ALLOC;
 
+    const char *swap_str = (swap && cJSON_IsString(swap)) ? swap->valuestring
+                                                         : NULL;
+    const char *swaprec_str = (swapRec && cJSON_IsString(swapRec))
+                                  ? swapRec->valuestring : NULL;
     char *uri = NULL, *cid = NULL;
     wf_status st = wf_repo_store_put_record(s, collection->valuestring,
                                            rkey->valuestring, rec_json,
-                                           &uri, &cid);
+                                           swap_str, swaprec_str, &uri, &cid);
     free(rec_json);
     if (st != WF_OK) {
         wf_xrpc_response_set_error(resp, 400, "PutFailed",
-                                   "record put failed");
+                                    "record put failed");
         return WF_OK;
     }
 
     cJSON *out = cJSON_CreateObject();
     cJSON_AddStringToObject(out, "uri", uri ? uri : "");
     cJSON_AddStringToObject(out, "cid", cid ? cid : "");
+    /* (d) wolfram performs no lexicon validation, so report "unknown". */
+    cJSON_AddStringToObject(out, "validationStatus", "unknown");
     add_commit_meta(s, out);
     char *js = cJSON_PrintUnformatted(out);
     cJSON_Delete(out);
@@ -1094,14 +1298,21 @@ static wf_status h_delete_record(void *ctx, const wf_xrpc_request *req,
     }
     cJSON *collection = cJSON_GetObjectItemCaseSensitive(body, "collection");
     cJSON *rkey = cJSON_GetObjectItemCaseSensitive(body, "rkey");
+    cJSON *swap = cJSON_GetObjectItemCaseSensitive(body, "swapCommit");
+    cJSON *swapRec = cJSON_GetObjectItemCaseSensitive(body, "swapRecord");
     if (!collection || !cJSON_IsString(collection) || !rkey ||
         !cJSON_IsString(rkey)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
-                                   "collection and rkey required");
+                                    "collection and rkey required");
         return WF_OK;
     }
+    const char *swap_str = (swap && cJSON_IsString(swap)) ? swap->valuestring
+                                                         : NULL;
+    const char *swaprec_str = (swapRec && cJSON_IsString(swapRec))
+                                  ? swapRec->valuestring : NULL;
     wf_status st = wf_repo_store_delete_record(s, collection->valuestring,
-                                              rkey->valuestring);
+                                              rkey->valuestring, swap_str,
+                                              swaprec_str);
     if (st != WF_OK) {
         wf_xrpc_response_set_error(resp, 404, "RecordNotFound",
                                    "record could not be deleted");
@@ -1169,17 +1380,20 @@ static wf_status h_apply_writes(void *ctx, const wf_xrpc_request *req,
         return WF_OK;
     }
     cJSON *writes = cJSON_GetObjectItemCaseSensitive(body, "writes");
+    cJSON *swap = cJSON_GetObjectItemCaseSensitive(body, "swapCommit");
     if (!writes || !cJSON_IsArray(writes)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
-                                   "writes array required");
+                                    "writes array required");
         return WF_OK;
     }
+    const char *swap_str = (swap && cJSON_IsString(swap)) ? swap->valuestring
+                                                         : NULL;
     char *writes_json = cJSON_PrintUnformatted(writes);
     if (!writes_json) return WF_ERR_ALLOC;
 
     char *cid = NULL, *rev = NULL, *results = NULL;
-    wf_status st = wf_repo_store_apply_writes(s, writes_json, &cid, &rev,
-                                              &results);
+    wf_status st = wf_repo_store_apply_writes(s, writes_json, swap_str, &cid,
+                                              &rev, &results);
     free(writes_json);
     if (st != WF_OK) {
         wf_xrpc_response_set_error(resp, 400, "ApplyFailed",
@@ -1224,29 +1438,53 @@ static wf_status h_describe_repo(void *ctx, const wf_xrpc_request *req,
 /* ── listRecords (com.atproto.repo.listRecords) ──────────────────────── */
 
 wf_status wf_repo_store_list_records(wf_repo_store *s, const char *collection,
-                                     const char *cursor, int limit,
-                                     char **out_json) {
+                                      const char *cursor, bool reverse,
+                                      int limit, char **out_json) {
     if (!s || !collection || !*collection || !out_json)
         return WF_ERR_INVALID_ARG;
     *out_json = NULL;
-    if (limit <= 0 || limit > 500) limit = 50;
+    if (limit <= 0 || limit > 100) limit = 50;  /* lexicon max is 100 */
+
+    const char *cursor_str = cursor && *cursor ? cursor : NULL;
+
+    /* (e) ascending by default; descending when `reverse`. */
+    char sql[256];
+    if (reverse) {
+        if (cursor_str)
+            snprintf(sql, sizeof(sql),
+                "SELECT rkey, cid, value FROM records "
+                "WHERE collection = ? AND rkey < ? ORDER BY rkey DESC LIMIT ?;");
+        else
+            snprintf(sql, sizeof(sql),
+                "SELECT rkey, cid, value FROM records "
+                "WHERE collection = ? ORDER BY rkey DESC LIMIT ?;");
+    } else {
+        if (cursor_str)
+            snprintf(sql, sizeof(sql),
+                "SELECT rkey, cid, value FROM records "
+                "WHERE collection = ? AND rkey > ? ORDER BY rkey ASC LIMIT ?;");
+        else
+            snprintf(sql, sizeof(sql),
+                "SELECT rkey, cid, value FROM records "
+                "WHERE collection = ? ORDER BY rkey ASC LIMIT ?;");
+    }
 
     sqlite3_stmt *stmt = NULL;
-    const char *sql =
-        "SELECT rkey, cid, value FROM records "
-        "WHERE collection = ? AND rkey > ? ORDER BY rkey ASC LIMIT ?;";
     if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK)
         return WF_ERR_INTERNAL;
     sqlite3_bind_text(stmt, 1, collection, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(stmt, 2, cursor ? cursor : "", -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 3, limit + 1); /* +1 to detect a next page */
+    if (cursor_str)
+        sqlite3_bind_text(stmt, 2, cursor_str, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, cursor_str ? 3 : 2, limit + 1); /* +1 to detect a next page */
 
     cJSON *records = cJSON_CreateArray();
     if (!records) { sqlite3_finalize(stmt); return WF_ERR_ALLOC; }
     int count = 0;
+    int has_more = 0;
     const char *last_rkey = NULL;
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         if (count >= limit) { /* over-fetch: there is a next page */
+            has_more = 1;
             last_rkey = (const char *)sqlite3_column_text(stmt, 0);
             break;
         }
@@ -1256,7 +1494,7 @@ wf_status wf_repo_store_list_records(wf_repo_store *s, const char *collection,
         last_rkey = rkey;
         cJSON *rec = cJSON_CreateObject();
         cJSON_AddStringToObject(rec, "uri",
-                                make_uri(s->did, collection, rkey));
+                                 make_uri(s->did, collection, rkey));
         cJSON_AddStringToObject(rec, "cid", cid ? cid : "");
         cJSON *val = cJSON_Parse(value ? value : "{}");
         if (val) cJSON_AddItemToObject(rec, "value", val);
@@ -1267,7 +1505,7 @@ wf_status wf_repo_store_list_records(wf_repo_store *s, const char *collection,
 
     cJSON *out = cJSON_CreateObject();
     cJSON_AddItemToObject(out, "records", records);
-    if (last_rkey && count >= limit)
+    if (has_more && last_rkey)
         cJSON_AddStringToObject(out, "cursor", last_rkey);
 
     char *js = cJSON_PrintUnformatted(out);
@@ -1321,12 +1559,14 @@ static wf_status h_list_records(void *ctx, const wf_xrpc_request *req,
     }
     cJSON *cursor = cJSON_GetObjectItemCaseSensitive(p, "cursor");
     cJSON *limit = cJSON_GetObjectItemCaseSensitive(p, "limit");
+    cJSON *reverse = cJSON_GetObjectItemCaseSensitive(p, "reverse");
     int lim = (limit && cJSON_IsNumber(limit)) ? limit->valueint : 50;
+    int rev = (reverse && cJSON_IsTrue(reverse)) ? 1 : 0;
     const char *cur = (cursor && cJSON_IsString(cursor)) ? cursor->valuestring
-                                                         : NULL;
+                                                          : NULL;
     char *json = NULL;
     wf_status st = wf_repo_store_list_records(s, collection->valuestring, cur,
-                                              lim, &json);
+                                              rev, lim, &json);
     if (st != WF_OK) {
         wf_xrpc_response_set_error(resp, 400, "ListRecordsFailed",
                                     "failed to list records");
@@ -1364,6 +1604,77 @@ static wf_status h_get_latest_commit(void *ctx, const wf_xrpc_request *req,
     return WF_OK;
 }
 
+/* ── importRepo (com.atproto.repo.importRepo) ──────────────────────
+ * Accept a CAR POST body, verify it as a full repo with the store's
+ * signing key (wf_repo_import reuses the SDK commit/MST verification),
+ * merge its blocks into the store, make its root the new head, and
+ * rebuild the records index. */
+
+static wf_status h_import_repo(void *ctx, const wf_xrpc_request *req,
+                               wf_xrpc_response *resp) {
+    wf_repo_store *s = (wf_repo_store *)ctx;
+    if (!req->body || req->body_len == 0) {
+        wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
+                                    "CAR body required");
+        return WF_OK;
+    }
+
+    wf_repo_verify_options opts = { s->did, s->signing_key_didkey, NULL };
+    wf_car imported;
+    wf_commit commit;
+    wf_status st = wf_repo_import(req->body, req->body_len, &opts,
+                                   &imported, &commit);
+    if (st != WF_OK) {
+        /* A bad/unverifiable CAR fails the import rather than corrupting
+         * the existing repo (atproto returns InvalidCAR). */
+        wf_xrpc_response_set_error(resp, 400, "InvalidCAR",
+                                    "imported CAR failed verification");
+        return WF_OK;
+    }
+
+    /* Merge blocks that aren't already present into the store's CAR. */
+    for (size_t i = 0; i < imported.block_count; i++) {
+        if (wf_car_find_block(&s->car, &imported.blocks[i].cid))
+            continue;
+        wf_car_block *nb = realloc(s->car.blocks,
+            (s->car.block_count + 1) * sizeof(*nb));
+        if (!nb) { wf_car_free(&imported); return WF_ERR_ALLOC; }
+        s->car.blocks = nb;
+        wf_car_block *blk = &s->car.blocks[s->car.block_count];
+        blk->cid = imported.blocks[i].cid;
+        blk->data_len = imported.blocks[i].data_len;
+        blk->data = blk->data_len ? malloc(blk->data_len) : NULL;
+        if (blk->data_len && !blk->data) {
+            wf_car_free(&imported);
+            return WF_ERR_ALLOC;
+        }
+        if (blk->data_len)
+            memcpy(blk->data, imported.blocks[i].data, blk->data_len);
+        s->car.block_count++;
+    }
+    wf_cid new_head = imported.roots[0];
+    wf_car_free(&imported);
+
+    st = commit_persist(s, &new_head);
+    if (st != WF_OK) {
+        wf_xrpc_response_set_error(resp, 500, "InternalError",
+                                    "failed to persist imported repo");
+        return WF_OK;
+    }
+    /* Rebuild the records index so listRecords reflects the imported repo.
+     * Index rebuild failures are best-effort: persistence already
+     * succeeded, but callers should re-list to recover. */
+    reindex_all(s);
+
+    cJSON *out = cJSON_CreateObject();
+    char *js = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    if (!js) return WF_ERR_ALLOC;
+    wf_xrpc_response_set_body(resp, js, strlen(js));
+    free(js);
+    return WF_OK;
+}
+
 wf_status wf_xrpc_server_register_pds_repo(wf_xrpc_server *server,
                                            wf_repo_store *store) {
     if (!server || !store) return WF_ERR_INVALID_ARG;
@@ -1391,6 +1702,11 @@ wf_status wf_xrpc_server_register_pds_repo(wf_xrpc_server *server,
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_query(server, "com.atproto.sync.getLatestCommit",
             h_get_latest_commit, store);
+    if (s != WF_OK) return s;
+    /* importRepo (CAR POST body) — see h_import_repo. uploadBlob is
+     * registered separately by wf_xrpc_server_register_blob_store. */
+    s = wf_xrpc_server_register_procedure(server,
+            "com.atproto.repo.importRepo", h_import_repo, store);
     if (s != WF_OK) return s;
     return WF_OK;
 }
