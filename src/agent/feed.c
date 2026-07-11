@@ -30,7 +30,7 @@ static int wf_feed_author_feed_filter_is_valid(const char *filter) {
 }
 
 wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
-                                 wf_response *out) {
+                                 const char *algorithm, wf_response *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -42,6 +42,11 @@ wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
     size_t param_count = 0;
     char limit_buf[16];
 
+    if (algorithm && algorithm[0]) {
+        params[param_count].name = "algorithm";
+        params[param_count].value = algorithm;
+        param_count++;
+    }
     if (limit > 0) {
         if (!wf_agent_int_to_str(limit, limit_buf, sizeof(limit_buf))) {
             return WF_ERR_INVALID_ARG;
@@ -80,7 +85,7 @@ wf_status wf_agent_get_timeline_lex(wf_agent *agent, int limit, const char *curs
 
 wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
                                     int limit, const char *cursor, const char *filter,
-                                    wf_response *out) {
+                                    bool include_pins, wf_response *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -95,7 +100,7 @@ wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
         return WF_ERR_INVALID_ARG;
     }
 
-    wf_xrpc_param params[4];
+    wf_xrpc_param params[5];
     size_t param_count = 0;
     char limit_buf[16];
 
@@ -119,6 +124,11 @@ wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
     if (cursor && cursor[0]) {
         params[param_count].name = "cursor";
         params[param_count].value = cursor;
+        param_count++;
+    }
+    if (include_pins) {
+        params[param_count].name = "includePins";
+        params[param_count].value = "true";
         param_count++;
     }
 
@@ -154,8 +164,14 @@ wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
 }
 
 wf_status wf_agent_get_post_thread(wf_agent *agent, const char *uri, int depth,
-                                   wf_response *out) {
+                                   int parent_height, wf_response *out) {
     if (!agent || !uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (depth < 0 || depth > 1000) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (parent_height < 0 || parent_height > 1000) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -165,20 +181,32 @@ wf_status wf_agent_get_post_thread(wf_agent *agent, const char *uri, int depth,
     }
     wf_syntax_aturi_free(&parsed);
 
-    wf_xrpc_param params[2];
+    wf_xrpc_param params[3];
     size_t param_count = 0;
     char depth_buf[16];
+    char parent_buf[16];
 
     params[param_count].name = "uri";
     params[param_count].value = uri;
     param_count++;
 
+    /* atproto default depth is 6; only send when explicitly requested (>0). */
     if (depth > 0) {
         if (!wf_agent_int_to_str(depth, depth_buf, sizeof(depth_buf))) {
             return WF_ERR_INVALID_ARG;
         }
         params[param_count].name = "depth";
         params[param_count].value = depth_buf;
+        param_count++;
+    }
+
+    /* atproto default parentHeight is 80; only send when explicitly requested. */
+    if (parent_height > 0) {
+        if (!wf_agent_int_to_str(parent_height, parent_buf, sizeof(parent_buf))) {
+            return WF_ERR_INVALID_ARG;
+        }
+        params[param_count].name = "parentHeight";
+        params[param_count].value = parent_buf;
         param_count++;
     }
 

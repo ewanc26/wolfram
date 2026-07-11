@@ -274,7 +274,7 @@ Feed and graph endpoints return **raw JSON** in a `wf_response`; free it with
 
 ```c
 wf_response res = {0};
-wf_status s = wf_agent_get_timeline(agent, 50, NULL, &res);
+wf_status s = wf_agent_get_timeline(agent, 50, NULL, NULL /* algorithm */, &res);
 if (s == WF_OK) {
     /* res.body is a NUL-terminated JSON string, res.body_len its length */
     printf("timeline: %s\n", res.body);
@@ -283,7 +283,7 @@ wf_response_free(&res);
 
 /* Get a full post thread */
 wf_response thread = {0};
-s = wf_agent_get_post_thread(agent, post_uri, 6 /* depth */, &thread);
+s = wf_agent_get_post_thread(agent, post_uri, 6 /* depth */, 80 /* parentHeight */, &thread);
 if (s == WF_OK) {
     printf("thread: %s\n", thread.body);
 }

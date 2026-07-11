@@ -78,32 +78,6 @@ static void wf_fg_generator_list_reset(wf_agent_generator_view_list *list) {
     memset(list, 0, sizeof(*list));
 }
 
-static void wf_fg_feed_view_reset(wf_agent_feed_view *f) {
-    if (!f) {
-        return;
-    }
-    free(f->uri);
-    free(f->cid);
-    free(f->did);
-    free(f->display_name);
-    free(f->description);
-    free(f->avatar);
-    free(f->indexed_at);
-    memset(f, 0, sizeof(*f));
-}
-
-static void wf_fg_feed_view_list_reset(wf_agent_feed_view_list *list) {
-    if (!list) {
-        return;
-    }
-    for (size_t i = 0; i < list->feed_count; ++i) {
-        wf_fg_feed_view_reset(&list->feeds[i]);
-    }
-    free(list->feeds);
-    free(list->cursor);
-    memset(list, 0, sizeof(*list));
-}
-
 /* Parse a `likeCount`-style integer, tracking presence. */
 static wf_status wf_fg_parse_int(cJSON *num, int *dst, int *has) {
     if (cJSON_IsNumber(num)) {
@@ -140,6 +114,60 @@ static wf_status wf_fg_parse_creator(wf_agent_profile_view *creator, cJSON *obj)
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
         status = wf_fg_set_string(&creator->avatar, avatar->valuestring);
+    }
+    return status;
+}
+
+/* Parse a single generatorView object into an owned wf_agent_generator_view.
+ * On error `g` is reset. Shared by the list parser and the single-view
+ * getFeedGenerator parser. */
+static wf_status wf_fg_parse_generator_view(cJSON *obj,
+                                            wf_agent_generator_view *g) {
+    wf_status status = WF_OK;
+    if (!cJSON_IsObject(obj)) {
+        return WF_ERR_PARSE;
+    }
+
+    cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
+    cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
+    cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
+    cJSON *creator = cJSON_GetObjectItemCaseSensitive(obj, "creator");
+    cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
+    cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
+    cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
+    cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
+    cJSON *like = cJSON_GetObjectItemCaseSensitive(obj, "likeCount");
+
+    if (cJSON_IsString(uri) && uri->valuestring) {
+        status = wf_fg_set_string(&g->uri, uri->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
+        status = wf_fg_set_string(&g->cid, cid->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(did) && did->valuestring) {
+        status = wf_fg_set_string(&g->did, did->valuestring);
+    }
+    if (status == WF_OK) {
+        status = wf_fg_parse_creator(&g->creator, creator);
+    }
+    if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
+        status = wf_fg_set_string(&g->display_name, name->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
+        status = wf_fg_set_string(&g->description, desc->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
+        status = wf_fg_set_string(&g->avatar, avatar->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
+        status = wf_fg_set_string(&g->indexed_at, indexed->valuestring);
+    }
+    if (status == WF_OK) {
+        status = wf_fg_parse_int(like, &g->like_count, &g->has_like_count);
+    }
+
+    if (status != WF_OK) {
+        wf_fg_generator_view_reset(g);
     }
     return status;
 }
@@ -181,48 +209,7 @@ wf_status wf_agent_parse_generators(const char *json, size_t json_len,
             status = WF_ERR_PARSE;
             break;
         }
-
-        cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
-        cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
-        cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
-        cJSON *creator = cJSON_GetObjectItemCaseSensitive(obj, "creator");
-        cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
-        cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
-        cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
-        cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
-        cJSON *like = cJSON_GetObjectItemCaseSensitive(obj, "likeCount");
-
-        if (cJSON_IsString(uri) && uri->valuestring) {
-            status = wf_fg_set_string(&g->uri, uri->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-            status = wf_fg_set_string(&g->cid, cid->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(did) && did->valuestring) {
-            status = wf_fg_set_string(&g->did, did->valuestring);
-        }
-        if (status == WF_OK) {
-            status = wf_fg_parse_creator(&g->creator, creator);
-        }
-        if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-            status = wf_fg_set_string(&g->display_name, name->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-            status = wf_fg_set_string(&g->description, desc->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-            status = wf_fg_set_string(&g->avatar, avatar->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-            status = wf_fg_set_string(&g->indexed_at, indexed->valuestring);
-        }
-        if (status == WF_OK) {
-            status = wf_fg_parse_int(like, &g->like_count, &g->has_like_count);
-        }
-
-        if (status != WF_OK) {
-            wf_fg_generator_view_reset(g);
-        }
+        status = wf_fg_parse_generator_view(obj, g);
     }
 
     if (status == WF_OK) {
@@ -251,8 +238,8 @@ void wf_agent_generator_view_list_free(wf_agent_generator_view_list *list) {
     wf_fg_generator_list_reset(list);
 }
 
-wf_status wf_agent_parse_feed_views(const char *json, size_t json_len,
-                                    wf_agent_feed_view_list *out) {
+wf_status wf_agent_parse_feed_generator(const char *json, size_t json_len,
+                                        wf_agent_generator_detail *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -265,80 +252,25 @@ wf_status wf_agent_parse_feed_views(const char *json, size_t json_len,
     }
 
     wf_status status = WF_OK;
-    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "feed");
-    if (!cJSON_IsArray(arr)) {
+    cJSON *view = cJSON_GetObjectItemCaseSensitive(root, "view");
+    cJSON *is_online = cJSON_GetObjectItemCaseSensitive(root, "isOnline");
+    cJSON *is_valid = cJSON_GetObjectItemCaseSensitive(root, "isValid");
+
+    if (!cJSON_IsObject(view)) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
 
-    size_t count = (size_t)cJSON_GetArraySize(arr);
-    wf_agent_feed_view *items = NULL;
-    if (count > 0) {
-        items = (wf_agent_feed_view *)calloc(count, sizeof(*items));
-        if (!items) {
-            cJSON_Delete(root);
-            return WF_ERR_ALLOC;
-        }
-    }
-
-    for (size_t i = 0; i < count && status == WF_OK; ++i) {
-        wf_agent_feed_view *f = &items[i];
-        cJSON *obj = cJSON_GetArrayItem(arr, (int)i);
-        if (!cJSON_IsObject(obj)) {
-            status = WF_ERR_PARSE;
-            break;
-        }
-
-        cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
-        cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
-        cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
-        cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
-        cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
-        cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
-        cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
-
-        if (cJSON_IsString(uri) && uri->valuestring) {
-            status = wf_fg_set_string(&f->uri, uri->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-            status = wf_fg_set_string(&f->cid, cid->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(did) && did->valuestring) {
-            status = wf_fg_set_string(&f->did, did->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-            status = wf_fg_set_string(&f->display_name, name->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-            status = wf_fg_set_string(&f->description, desc->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-            status = wf_fg_set_string(&f->avatar, avatar->valuestring);
-        }
-        if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-            status = wf_fg_set_string(&f->indexed_at, indexed->valuestring);
-        }
-
-        if (status != WF_OK) {
-            wf_fg_feed_view_reset(f);
-        }
-    }
-
+    status = wf_fg_parse_generator_view(view, &out->view);
     if (status == WF_OK) {
-        out->feeds = items;
-        out->feed_count = count;
-
-        cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
-        if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_fg_set_string(&out->cursor, cursor->valuestring);
+        if (cJSON_IsBool(is_online)) {
+            out->is_online = cJSON_IsTrue(is_online) ? 1 : 0;
         }
-    }
-
-    if (status != WF_OK) {
-        for (size_t i = 0; i < count; ++i) {
-            wf_fg_feed_view_reset(&items[i]);
+        if (cJSON_IsBool(is_valid)) {
+            out->is_valid = cJSON_IsTrue(is_valid) ? 1 : 0;
         }
-        free(items);
+    } else {
+        wf_fg_generator_view_reset(&out->view);
         memset(out, 0, sizeof(*out));
     }
 
@@ -346,8 +278,23 @@ wf_status wf_agent_parse_feed_views(const char *json, size_t json_len,
     return status;
 }
 
+void wf_agent_generator_detail_free(wf_agent_generator_detail *out) {
+    if (!out) {
+        return;
+    }
+    wf_fg_generator_view_reset(&out->view);
+    memset(out, 0, sizeof(*out));
+}
+
+/* getFeed returns feedViewPost items — the SAME shape used by getTimeline /
+ * getAuthorFeed — so delegate to the shared feedViewPost parser. */
+wf_status wf_agent_parse_feed_views(const char *json, size_t json_len,
+                                    wf_agent_feed_view_list *out) {
+    return wf_agent_parse_feed(json, json_len, out);
+}
+
 void wf_agent_feed_view_list_free(wf_agent_feed_view_list *list) {
-    wf_fg_feed_view_list_reset(list);
+    wf_agent_feed_list_free(list);
 }
 
 /* ---- Typed high-level wrappers -------------------------------------------- */
@@ -385,7 +332,29 @@ wf_status wf_agent_get_feed_typed(wf_agent *agent, const char *feed_uri,
         return status;
     }
 
-    status = wf_agent_parse_feed_views(res.body, res.body_len, out);
+    /* getFeed returns a `feed` array of feedViewPost — the SAME shape as
+     * getTimeline / getAuthorFeed — so reuse the shared feedViewPost parser. */
+    status = wf_agent_parse_feed(res.body, res.body_len, out);
+    wf_response_free(&res);
+    return status;
+}
+
+wf_status wf_agent_get_feed_generator_typed(wf_agent *agent,
+                                            const char *feed_uri,
+                                            wf_agent_generator_detail *out) {
+    if (!agent || !feed_uri || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_get_feed_generator(agent, feed_uri, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    /* getFeedGenerator returns {view: generatorView, isOnline, isValid}. */
+    status = wf_agent_parse_feed_generator(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
