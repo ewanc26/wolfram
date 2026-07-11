@@ -55,10 +55,13 @@ struct wf_agent_thread_node {
     size_t replies_count;
 };
 
-/* Top-level parsed response: the root node plus an optional cursor. */
+/* Top-level parsed response: the root node plus an optional cursor and the
+ * optional top-level threadgate view (app.bsky.feed.defs#threadgateView:
+ * uri/cid/record/lists) kept as an owned raw cJSON subtree (NULL when absent). */
 typedef struct wf_agent_thread {
     wf_agent_thread_node root;
     char *cursor;
+    cJSON *threadgate;   /* owned #threadgateView subtree; NULL when absent */
 } wf_agent_thread;
 
 /*
