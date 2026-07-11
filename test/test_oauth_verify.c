@@ -11,6 +11,7 @@
 #include "test.h"
 #include "wolfram/oauth/verify.h"
 #include "wolfram/oauth/dpop.h"
+#include "wolfram/crypto.h"
 
 #include <cJSON.h>
 #include <openssl/bn.h>
@@ -57,6 +58,28 @@ static char *b64url(const unsigned char *in, size_t len) {
     out[n] = '\0';
     free(p);
     return out;
+}
+
+static int jwt_signature_is_low_s(const char *jwt) {
+    const char *dot = strrchr(jwt, '.');
+    unsigned char *raw = NULL;
+    size_t raw_len = 0;
+    EC_GROUP *group = NULL;
+    BIGNUM *order = NULL, *half = NULL, *s = NULL;
+    int low = 0;
+    if (!dot || wf_crypto_base64url_decode(dot + 1, &raw, &raw_len) != WF_OK ||
+        raw_len != 64) goto done;
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    order = BN_new();
+    s = BN_bin2bn(raw + 32, 32, NULL);
+    if (!group || !order || !s || EC_GROUP_get_order(group, order, NULL) != 1)
+        goto done;
+    half = BN_dup(order);
+    if (!half || BN_rshift1(half, half) != 1) goto done;
+    low = BN_cmp(s, half) <= 0;
+done:
+    free(raw); BN_free(order); BN_free(half); BN_free(s); EC_GROUP_free(group);
+    return low;
 }
 
 /* Sign `signing_input` with `ec`, producing a base64url raw (r||s) signature.
@@ -257,6 +280,19 @@ int main(void) {
         free(ath);
     }
     WF_CHECK(access_token && dpop_proof);
+
+    /* The SDK's own proof signer must always emit the canonical low-S form
+     * required by its strict verifier, independent of OpenSSL's random form. */
+    {
+        wf_oauth_dpop_proof_options options = {
+            "POST", uri, NULL, access_token, "sdk-low-s-proof", now
+        };
+        char *sdk_proof = NULL;
+        WF_CHECK(wf_oauth_dpop_proof_create(dp_key, &options, &sdk_proof) ==
+                 WF_OK);
+        WF_CHECK(sdk_proof && jwt_signature_is_low_s(sdk_proof));
+        free(sdk_proof);
+    }
     auth_hdr = malloc(strlen(access_token) + 8);
     sprintf(auth_hdr, "Bearer %s", access_token);
 
