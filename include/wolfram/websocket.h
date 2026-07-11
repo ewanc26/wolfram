@@ -47,7 +47,16 @@ wf_status wf_websocket_receive(wf_websocket *socket,
 
 /** Send one text message; retry the same payload after WF_ERR_WOULD_BLOCK. */
 wf_status wf_websocket_send_text(wf_websocket *socket,
-                                 const char *text, size_t text_len);
+                                  const char *text, size_t text_len);
+
+/**
+ * Send a zero-length WebSocket PING control frame for connection keepalive.
+ * libcurl performs the opcode/framing and the peer's PONG is auto-handled by
+ * libcurl; this call only emits the ping. Returns WF_ERR_INVALID_ARG when
+ * built against libcurl without its WebSocket API, or WF_ERR_WOULD_BLOCK when
+ * the socket is not writable yet (retry later).
+ */
+wf_status wf_websocket_send_ping(wf_websocket *socket);
 
 /** Release message payload ownership and zero the structure. */
 void wf_websocket_message_free(wf_websocket_message *message);

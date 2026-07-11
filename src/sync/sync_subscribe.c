@@ -16,8 +16,12 @@ struct wf_subscribe_handle {
     char *service_copy;
     int64_t cursor;
     uint32_t retry_delay_ms;
+    uint64_t last_ping_ms;     /* last keepalive ping sent (ms) */
     volatile int stopped;
 };
+
+/* Default idle interval between client keepalive pings when the option is 0. */
+#define WF_SUBSCRIBE_DEFAULT_PING_INTERVAL_MS 30000
 
 static char *wf_strdup(const char *s) {
     size_t n = strlen(s) + 1;
@@ -434,17 +438,53 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
                                  ? (uint32_t)handle->opts.reconnect_delay_ms : 3000;
     uint32_t max_delay = handle->opts.max_retry_seconds > 0
                              ? (uint32_t)handle->opts.max_retry_seconds * 1000 : 64000;
+    uint32_t ping_interval = handle->opts.ping_interval_ms > 0
+                                 ? handle->opts.ping_interval_ms
+                                 : WF_SUBSCRIBE_DEFAULT_PING_INTERVAL_MS;
 
     handle->retry_delay_ms = initial_delay;
 
-    wf_status conn_status = handle_connect(handle);
-    if (conn_status != WF_OK) return conn_status;
-
     while (!handle->stopped) {
+        /* (Re)connect only when we have no live socket. A healthy connection
+         * is reused across loop iterations; a dropped one is re-established
+         * here with exponential backoff (the reference always retries
+         * connection errors, including the very first connect). */
+        if (!handle->socket) {
+            wf_status conn_status = handle_connect(handle);
+            if (conn_status != WF_OK) {
+                if (handle->opts.on_error)
+                    handle->opts.on_error(conn_status, "websocket connect failed",
+                                          handle->opts.userdata);
+
+                uint64_t now = wf_now_ms();
+                uint64_t wait = now + handle->retry_delay_ms;
+                while (!handle->stopped) {
+                    uint64_t remaining = wait > wf_now_ms() ? wait - wf_now_ms() : 0;
+                    if (remaining == 0) break;
+                    struct timespec ts = {(long)(remaining / 1000),
+                                         (long)(remaining % 1000) * 1000000L};
+                    nanosleep(&ts, NULL);
+                }
+                if (handle->stopped) break;
+
+                if (handle->retry_delay_ms < max_delay) {
+                    uint64_t doubled = (uint64_t)handle->retry_delay_ms * 2;
+                    handle->retry_delay_ms = doubled > max_delay
+                                                 ? max_delay : (uint32_t)doubled;
+                }
+                continue;
+            }
+
+            handle->retry_delay_ms = initial_delay;
+            handle->last_ping_ms = wf_now_ms();
+        }
+
         wf_websocket_message msg = {0};
         wf_status s = wf_websocket_receive(handle->socket, &msg);
 
-        if (s == WF_ERR_NETWORK || s == WF_ERR_WOULD_BLOCK) {
+        if (s == WF_ERR_NETWORK) {
+            /* Transport dropped mid-stream: close, report, and let the
+             * top-of-loop reconnect (with backoff) resume from the cursor. */
             wf_websocket_message_free(&msg);
             handle_close(handle);
             if (handle->opts.on_error)
@@ -462,16 +502,25 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
             }
             if (handle->stopped) break;
 
-            conn_status = handle_connect(handle);
-            if (conn_status != WF_OK) {
-                if (handle->retry_delay_ms < max_delay) {
-                    uint64_t doubled = (uint64_t)handle->retry_delay_ms * 2;
-                    handle->retry_delay_ms = doubled > max_delay
-                                                 ? max_delay : (uint32_t)doubled;
-                }
-                continue;
+            continue;
+        }
+
+        if (s == WF_ERR_WOULD_BLOCK) {
+            /* Socket is healthy but has no frame yet. Emit a keepalive ping
+             * when the idle window elapses so idle TCP/proxy connections are
+             * not reaped, then briefly poll again. (Missed-pong termination
+             * is intentionally NOT implemented here: libcurl auto-handles
+             * PING/PONG control frames and does not surface PONG to the
+             * application receive path, and this file must not alter the
+             * transport framing in websocket.c.) */
+            wf_websocket_message_free(&msg);
+            uint64_t now = wf_now_ms();
+            if (ping_interval > 0 && now - handle->last_ping_ms >= ping_interval) {
+                wf_websocket_send_ping(handle->socket);
+                handle->last_ping_ms = now;
             }
-            handle->retry_delay_ms = initial_delay;
+            struct timespec ts = {0, 20000000L}; /* 20ms */
+            nanosleep(&ts, NULL);
             continue;
         }
 
@@ -548,6 +597,9 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
         wf_websocket_message_free(&msg);
 
         if (s == WF_OK) {
+            /* Any received frame counts as activity for the keepalive timer. */
+            handle->last_ping_ms = wf_now_ms();
+
             if (ev.type == WF_SUBSCRIBE_EVENT_COMMIT ||
                 ev.type == WF_SUBSCRIBE_EVENT_SYNC ||
                 ev.type == WF_SUBSCRIBE_EVENT_IDENTITY ||
@@ -556,10 +608,16 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
                     handle->cursor = ev.seq;
             }
 
-            if (ev.type == WF_SUBSCRIBE_EVENT_INFO &&
-                strcmp(ev.data.info.name, "OutdatedCursor") == 0) {
-                handle->cursor = 0;
-                handle_close(handle);
+            if (ev.type == WF_SUBSCRIBE_EVENT_INFO) {
+                /* Benign control frames: FutureCursor, FutureBlocks, etc. are
+                 * informational and must not tear down the subscription. For
+                 * OutdatedCursor the server has already reset to the earliest
+                 * available cursor, so we reset our local cursor to 0 and keep
+                 * draining on the SAME connection (the reference keeps the
+                 * socket open and replays from the start on the next reconnect).
+                 * We never close the socket on an info frame. */
+                if (strcmp(ev.data.info.name, "OutdatedCursor") == 0)
+                    handle->cursor = 0;
             }
 
             if (handle->opts.on_event)
