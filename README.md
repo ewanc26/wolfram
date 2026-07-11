@@ -168,12 +168,12 @@ The toolchain file is at `.devdeps/linux-aarch64.cmake`. Toolchains for
 additional architectures (`arm32.cmake`, `amd64.cmake`) are also provided
 under `.devdeps/`.
 
-For the Wii, Wii U, and 3DS targets, transport, crypto, and the platform
-abstraction (`src/platform/*_platform.c`) use stub implementations that return
-`WF_ERR_NOT_IMPLEMENTED`. The Windows target is fully implemented against the
-Win32 API. Before integrating a console application, replace the stubs with
-platform-specific backends — see the `TODO` comments in the individual platform
-stub files (`*_platform.c`).
+The Wii platform abstraction now implements libogc networking initialisation,
+LWP mutexes, and monotonic timing, and a complete Channel Blue executable links
+against the cross-compiled SDK. Wii HTTPS/WebSocket and crypto/did:key backends
+remain honest `WF_ERR_NOT_IMPLEMENTED` stubs. Wii U and 3DS platform, transport,
+and crypto backends remain stubbed. The Windows target is fully implemented
+against the Win32 API.
 
 For consoles (Wii, Wii U, 3DS), the builds are client-only — server modules,
 OAuth flows, and desktop dependencies (libcurl, OpenSSL, pthreads) are excluded.
