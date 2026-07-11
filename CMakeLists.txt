@@ -806,6 +806,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_label_query PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME label_query COMMAND test_label_query)
 
+    add_executable(test_label_verify test/test_label_verify.c)
+    target_link_libraries(test_label_verify PRIVATE wolfram)
+    target_include_directories(test_label_verify PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME label_verify COMMAND test_label_verify)
+
     add_executable(test_oauth test/test_oauth.c)
     target_link_libraries(test_oauth PRIVATE wolfram)
     target_include_directories(test_oauth PRIVATE test ${cjson_SOURCE_DIR})

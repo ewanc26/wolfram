@@ -1,5 +1,8 @@
 #include "wolfram/label.h"
 #include "wolfram/syntax.h"
+#include "wolfram/repo/cbor.h"
+#include "wolfram/crypto.h"
+#include "wolfram/identity.h"
 
 #include <cJSON.h>
 #include <stdbool.h>
@@ -215,9 +218,194 @@ static wf_status wf_label_parse_info(cJSON *root, wf_label_message *out) {
     return WF_OK;
 }
 
+/* ── signature verification ────────────────────────────────────────────── */
+
+/* The eight schema fields of com.atproto.label#label, in the order they are
+ * declared in the lexicon. The DRISL serializer re-sorts the map keys by their
+ * canonical byte encoding, so this declaration order only documents intent. */
+static const char *k_label_field_names[8] = {
+    "ver", "src", "uri", "cid", "val", "neg", "cts", "exp"
+};
+
+static wf_cbor_item *wf_label_cbor_str(const char *s) {
+    if (!s) return NULL;
+    wf_cbor_item *it = calloc(1, sizeof(*it));
+    if (!it) return NULL;
+    it->type = WF_CBOR_STRING;
+    it->string.str = (char *)s; /* borrowed; never freed by us */
+    it->string.len = strlen(s);
+    return it;
+}
+
+static wf_cbor_item *wf_label_cbor_uint(int64_t v) {
+    wf_cbor_item *it = calloc(1, sizeof(*it));
+    if (!it) return NULL;
+    if (v < 0) {
+        it->type = WF_CBOR_NEGATIVE;
+        it->neginteger = (uint64_t)(-(v + 1));
+    } else {
+        it->type = WF_CBOR_UNSIGNED;
+        it->uinteger = (uint64_t)v;
+    }
+    return it;
+}
+
+static wf_cbor_item *wf_label_cbor_bool(int b) {
+    wf_cbor_item *it = calloc(1, sizeof(*it));
+    if (!it) return NULL;
+    it->type = WF_CBOR_SIMPLE;
+    it->simple_value = b ? 21 : 20; /* CBOR true (0xf5) / false (0xf4) */
+    return it;
+}
+
+static wf_cbor_item *wf_label_cbor_null(void) {
+    wf_cbor_item *it = calloc(1, sizeof(*it));
+    if (!it) return NULL;
+    it->type = WF_CBOR_SIMPLE;
+    it->simple_value = 22; /* CBOR null (0xf6) */
+    return it;
+}
+
+/*
+ * Reconstruct the DRISL-canonical DAG-CBOR encoding of a label exactly as the
+ * atproto reference signs it: every schema field except `sig`, with `cid`,
+ * `neg`, and `exp` emitted as CBOR null when absent (matching createLabelV1's
+ * `opts.x ?? null`), and `ver` always present (defaulting to 1 when the parsed
+ * label omits it). The `$type` field is intentionally excluded. The serialized
+ * bytes are the message that was SHA-256 hashed and signed by the labeler.
+ *
+ * On WF_OK, *out is heap-allocated and owned by the caller (free() it).
+ */
+static wf_status wf_label_build_signed_cbor(const wf_label *label,
+                                            unsigned char **out,
+                                            size_t *out_len) {
+    if (!label || !out || !out_len) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    *out_len = 0;
+
+    /* Required fields per the lexicon. */
+    if (!label->src || !label->uri || !label->val || !label->cts)
+        return WF_ERR_INVALID_ARG;
+
+    wf_cbor_item *keys[8] = {0};
+    wf_cbor_item *vals[8] = {0};
+
+    int64_t ver = label->has_ver ? label->ver : 1;
+    keys[0] = wf_label_cbor_str(k_label_field_names[0]);
+    vals[0] = wf_label_cbor_uint(ver);
+    keys[1] = wf_label_cbor_str(k_label_field_names[1]);
+    vals[1] = wf_label_cbor_str(label->src);
+    keys[2] = wf_label_cbor_str(k_label_field_names[2]);
+    vals[2] = wf_label_cbor_str(label->uri);
+    keys[3] = wf_label_cbor_str(k_label_field_names[3]);
+    vals[3] = label->has_cid ? wf_label_cbor_str(label->cid)
+                             : wf_label_cbor_null();
+    keys[4] = wf_label_cbor_str(k_label_field_names[4]);
+    vals[4] = wf_label_cbor_str(label->val);
+    keys[5] = wf_label_cbor_str(k_label_field_names[5]);
+    vals[5] = label->has_neg ? wf_label_cbor_bool(label->neg)
+                             : wf_label_cbor_null();
+    keys[6] = wf_label_cbor_str(k_label_field_names[6]);
+    vals[6] = wf_label_cbor_str(label->cts);
+    keys[7] = wf_label_cbor_str(k_label_field_names[7]);
+    vals[7] = label->has_exp ? wf_label_cbor_str(label->exp)
+                             : wf_label_cbor_null();
+
+    wf_status status = WF_OK;
+    for (size_t i = 0; i < 8; ++i) {
+        if (!keys[i] || !vals[i]) { status = WF_ERR_ALLOC; goto done; }
+    }
+
+    wf_cbor_item map;
+    memset(&map, 0, sizeof(map));
+    map.type = WF_CBOR_MAP;
+    map.map.count = 8;
+    map.map.pairs = calloc(8, sizeof(wf_cbor_pair));
+    if (!map.map.pairs) { status = WF_ERR_ALLOC; goto done; }
+    for (size_t i = 0; i < 8; ++i) {
+        map.map.pairs[i].key = keys[i];
+        map.map.pairs[i].value = vals[i];
+    }
+
+    unsigned char *cbor = wf_cbor_serialize(&map, out_len);
+    free(map.map.pairs);
+    if (!cbor) { status = WF_ERR_ALLOC; goto done; }
+    *out = cbor;
+
+done:
+    for (size_t i = 0; i < 8; ++i) {
+        free(keys[i]);
+        free(vals[i]);
+    }
+    return status;
+}
+
+wf_status wf_label_verify_signature_with_key(const char *signing_key_didkey,
+                                             const wf_label *label) {
+    if (!signing_key_didkey || !label) return WF_ERR_INVALID_ARG;
+    if (!label->has_sig || !label->sig || label->sig[0] == '\0')
+        return WF_ERR_INVALID_ARG;
+
+    unsigned char *cbor = NULL;
+    size_t cbor_len = 0;
+    wf_status status = wf_label_build_signed_cbor(label, &cbor, &cbor_len);
+    if (status != WF_OK) return status;
+
+    unsigned char *sig = NULL;
+    size_t sig_len = 0;
+    status = wf_crypto_base64url_decode(label->sig, &sig, &sig_len);
+    if (status != WF_OK) {
+        free(cbor);
+        return status;
+    }
+
+    /* wf_verify SHA-256-hashes `cbor` internally and checks the ECDSA
+     * signature, exactly matching the labeler's signing procedure. */
+    status = wf_verify(signing_key_didkey, cbor, cbor_len, sig, sig_len);
+    free(cbor);
+    free(sig);
+    return status;
+}
+
+wf_status wf_label_verify_signature(wf_xrpc_client *client,
+                                    const wf_label *label) {
+    if (!client || !label) return WF_ERR_INVALID_ARG;
+    if (!label->src || !wf_syntax_did_is_valid(label->src))
+        return WF_ERR_INVALID_ARG;
+
+    wf_did_document doc = {0};
+    wf_status status = wf_did_resolve(client, label->src, &doc);
+    if (status != WF_OK) return status;
+
+    /* The spec says to use the labeler's signing key (its `#atproto`
+     * verification method) and, if absent, treat the signature as invalid
+     * rather than falling back to other keys. */
+    if (!doc.signing_key) {
+        wf_did_document_free(&doc);
+        return WF_ERR_NOT_FOUND;
+    }
+
+    status = wf_label_verify_signature_with_key(doc.signing_key, label);
+    wf_did_document_free(&doc);
+    return status;
+}
+
 static wf_status wf_label_dispatch_record(const wf_label_subscribe_handle *handle,
-                                          const wf_label *label) {
+                                           const wf_label *label) {
     if (!handle || !label) return WF_ERR_INVALID_ARG;
+
+    /* Best-effort, non-fatal signature verification. When enabled the result
+     * is surfaced through on_error so the caller can decide what to do; the
+     * label is still dispatched regardless of the outcome. */
+    if (handle->opts.verify_signatures && handle->opts.verify_client) {
+        wf_status vs = wf_label_verify_signature(handle->opts.verify_client,
+                                                 label);
+        if (vs != WF_OK && handle->opts.on_error) {
+            handle->opts.on_error(vs, "label signature verification failed",
+                                  handle->opts.userdata);
+        }
+    }
+
     if (label->neg) {
         if (handle->opts.on_neg) handle->opts.on_neg(label, handle->opts.userdata);
         else if (handle->opts.on_label) handle->opts.on_label(label, handle->opts.userdata);
