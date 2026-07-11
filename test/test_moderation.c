@@ -406,6 +406,133 @@ static int test_decide_post_hidden(void) {
     return 0;
 }
 
+/* Verify atproto label negation: a label with `neg:true` of the same value,
+ * source and subject (uri, or cid when cid-scoped) revokes an earlier label. */
+static int test_decide_negation(void) {
+    wf_mod_opts opts = {0};
+    opts.user_did = "did:plc:me";
+
+    wf_mod_label_def def;
+    wf_mod_interpret_label_def(&def, "porn", NULL, "content", "alert", 1, "warn");
+    opts.label_defs = &def;
+    opts.label_def_count = 1;
+
+    wf_mod_labeler_pref lp = {0};
+    lp.did = strdup("did:plc:labeler");
+    opts.prefs.labelers = &lp;
+    opts.prefs.labeler_count = 1;
+
+    static const char *uri = "at://did:plc:other/app.bsky.feed.post/123";
+
+    /* --- Case 1: plain label, no negation -> label cause present. --- */
+    {
+        wf_mod_label labels[1];
+        labels[0] = make_label("did:plc:labeler", uri, "porn");
+
+        wf_mod_subject_post subject = {0};
+        subject.uri = uri;
+        subject.author.did = "did:plc:other";
+        subject.labels = labels;
+        subject.label_count = 1;
+
+        wf_mod_decision d;
+        MOD_CHECK(wf_mod_decide_post(&d, &subject, &opts) == WF_OK);
+        int found = 0;
+        for (size_t i = 0; i < d.cause_count; i++) {
+            if (d.causes[i].type == WF_MOD_CAUSE_LABEL) found = 1;
+        }
+        MOD_CHECK(found);
+        wf_mod_decision_free(&d);
+    }
+
+    /* --- Case 2: negation label (same uri/val/src) revokes the label. --- */
+    {
+        wf_mod_label labels[2];
+        labels[0] = make_label("did:plc:labeler", uri, "porn");
+        labels[1] = make_label("did:plc:labeler", uri, "porn");
+        labels[1].neg = true;
+
+        wf_mod_subject_post subject = {0};
+        subject.uri = uri;
+        subject.author.did = "did:plc:other";
+        subject.labels = labels;
+        subject.label_count = 2;
+
+        wf_mod_decision d;
+        MOD_CHECK(wf_mod_decide_post(&d, &subject, &opts) == WF_OK);
+        int found = 0;
+        for (size_t i = 0; i < d.cause_count; i++) {
+            if (d.causes[i].type == WF_MOD_CAUSE_LABEL) found = 1;
+        }
+        MOD_CHECK(!found);
+        wf_mod_decision_free(&d);
+    }
+
+    /* --- Case 3: negation scoped to a different uri does NOT revoke. --- */
+    {
+        wf_mod_label labels[2];
+        labels[0] = make_label("did:plc:labeler", uri, "porn");
+        labels[1] = make_label("did:plc:labeler",
+                               "at://did:plc:other/app.bsky.feed.post/other",
+                               "porn");
+        labels[1].neg = true;
+
+        wf_mod_subject_post subject = {0};
+        subject.uri = uri;
+        subject.author.did = "did:plc:other";
+        subject.labels = labels;
+        subject.label_count = 2;
+
+        wf_mod_decision d;
+        MOD_CHECK(wf_mod_decide_post(&d, &subject, &opts) == WF_OK);
+        int found = 0;
+        for (size_t i = 0; i < d.cause_count; i++) {
+            if (d.causes[i].type == WF_MOD_CAUSE_LABEL) found = 1;
+        }
+        MOD_CHECK(found);
+        wf_mod_decision_free(&d);
+    }
+
+    /* --- Case 4: cid-scoped negation revokes only the matching cid. --- */
+    {
+        wf_mod_label labels[3];
+        labels[0] = make_label("did:plc:labeler", uri, "porn");
+        labels[0].cid = (char *)"cid-a";
+        labels[0].has_cid = true;
+        labels[1] = make_label("did:plc:labeler", uri, "porn");
+        labels[1].cid = (char *)"cid-b";
+        labels[1].has_cid = true;
+        labels[2] = make_label("did:plc:labeler", uri, "porn");
+        labels[2].cid = (char *)"cid-a";
+        labels[2].has_cid = true;
+        labels[2].neg = true;
+
+        wf_mod_subject_post subject = {0};
+        subject.uri = uri;
+        subject.author.did = "did:plc:other";
+        subject.labels = labels;
+        subject.label_count = 3;
+
+        wf_mod_decision d;
+        MOD_CHECK(wf_mod_decide_post(&d, &subject, &opts) == WF_OK);
+        int active_cid_a = 0, active_cid_b = 0;
+        for (size_t i = 0; i < d.cause_count; i++) {
+            if (d.causes[i].type != WF_MOD_CAUSE_LABEL) continue;
+            if (d.causes[i].label.has_cid &&
+                strcmp(d.causes[i].label.cid, "cid-a") == 0) active_cid_a = 1;
+            if (d.causes[i].label.has_cid &&
+                strcmp(d.causes[i].label.cid, "cid-b") == 0) active_cid_b = 1;
+        }
+        MOD_CHECK(!active_cid_a); /* revoked by cid-a negation */
+        MOD_CHECK(active_cid_b);  /* cid-b untouched */
+        wf_mod_decision_free(&d);
+    }
+
+    free(lp.did);
+    wf_mod_label_def_free(&def);
+    return 0;
+}
+
 static int test_behavior_get(void) {
     MOD_CHECK(wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) == WF_MOD_ACTION_BLUR);
     MOD_CHECK(wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, WF_MOD_CTX_PROFILE_VIEW) == WF_MOD_ACTION_ALERT);
@@ -434,6 +561,7 @@ int main(void) {
     RUN(test_decide_post);
     RUN(test_decide_post_with_mute_word);
     RUN(test_decide_post_hidden);
+    RUN(test_decide_negation);
     RUN(test_behavior_get);
 
     if (failed == 0) {

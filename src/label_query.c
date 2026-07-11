@@ -140,6 +140,18 @@ wf_status wf_label_parse_query(const char *json, size_t len,
         const char *cts = cJSON_IsString(
             cJSON_GetObjectItemCaseSensitive(l, "cts"))
             ? cJSON_GetObjectItemCaseSensitive(l, "cts")->valuestring : NULL;
+        const char *cid = cJSON_IsString(
+            cJSON_GetObjectItemCaseSensitive(l, "cid"))
+            ? cJSON_GetObjectItemCaseSensitive(l, "cid")->valuestring : NULL;
+        const char *exp = cJSON_IsString(
+            cJSON_GetObjectItemCaseSensitive(l, "exp"))
+            ? cJSON_GetObjectItemCaseSensitive(l, "exp")->valuestring : NULL;
+
+        cJSON *neg_item = cJSON_GetObjectItemCaseSensitive(l, "neg");
+        bool neg = cJSON_IsBool(neg_item) && cJSON_IsTrue(neg_item);
+
+        cJSON *ver_item = cJSON_GetObjectItemCaseSensitive(l, "ver");
+        int ver = cJSON_IsNumber(ver_item) ? ver_item->valueint : 0;
 
         /* Labels without a value are not representable; skip them. */
         if (!val) {
@@ -164,9 +176,14 @@ wf_status wf_label_parse_query(const char *json, size_t len,
         lab->uri = wf_label_dup(uri);
         lab->val = wf_label_dup(val);
         lab->cts = wf_label_dup(cts);
+        lab->cid = wf_label_dup(cid);
+        lab->exp = wf_label_dup(exp);
+        lab->neg = neg;
+        lab->has_cid = (cid != NULL);
+        lab->ver = ver;
 
         if (!lab->val || (src && !lab->src) || (uri && !lab->uri) ||
-            (cts && !lab->cts)) {
+            (cts && !lab->cts) || (cid && !lab->cid) || (exp && !lab->exp)) {
             st = WF_ERR_ALLOC;
             goto done;
         }
@@ -182,6 +199,8 @@ done:
                 free(labels[i].uri);
                 free(labels[i].val);
                 free(labels[i].cts);
+                free(labels[i].cid);
+                free(labels[i].exp);
             }
             free(labels);
         }
