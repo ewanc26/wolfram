@@ -90,8 +90,8 @@ wf_status wf_xrpc_server_auth_config_protect(wf_xrpc_server_auth_config *cfg,
 wf_status wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config *cfg,
                                                      int require);
 
-/** Set whether a token's `lxm` claim (when present) must equal the request
- *  NSID (lexicon binding). Default: on. */
+/** Set whether a token must carry an `lxm` claim equal to the request NSID
+ *  (lexicon binding). Default: on. */
 wf_status wf_xrpc_server_auth_config_set_require_lxm(wf_xrpc_server_auth_config *cfg,
                                                      int require);
 

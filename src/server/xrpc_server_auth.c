@@ -333,9 +333,11 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
             !aud_matches(aud, cfg->server_did)) {
             goto done;
         }
-        /* Always enforce a token's `lxm` binding to the request NSID. */
-        if (claims.lxm && req->nsid &&
-            strcmp(claims.lxm, req->nsid) != 0) {
+        /* Match verifyJwt: when an lxm is required, the claim must be present
+         * and exactly equal to the XRPC method being authorized. */
+        if (cfg->require_lxm &&
+            (!claims.lxm || !req->nsid ||
+             strcmp(claims.lxm, req->nsid) != 0)) {
             goto done;
         }
         req->authed_subject = strdup(claims.iss);

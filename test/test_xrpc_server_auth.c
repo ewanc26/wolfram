@@ -149,6 +149,15 @@ static int run_test(void) {
                  WF_OK);
     }
 
+    char *missing_lxm_token = NULL;
+    {
+        wf_service_auth_request req = {0};
+        req.iss = issuer_didkey;
+        req.aud = server_did;
+        WF_CHECK(wf_server_create_service_auth(&req, &key,
+                                               &missing_lxm_token) == WF_OK);
+    }
+
     char *tampered_token = NULL;
     {
         wf_service_auth_request req = {0};
@@ -234,7 +243,16 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* ---- 6. Public route WITHOUT a token → 200 ---- */
+    /* ---- 6. Protected route WITH no lxm claim → 401 ---- */
+    {
+        SET_AUTH(missing_lxm_token);
+        wf_response_free(&res);
+        wf_xrpc_query(client, protected_nsid, NULL, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+    }
+
+    /* ---- 7. Public route WITHOUT a token → 200 ---- */
     {
         SET_AUTH(NULL);
         wf_response_free(&res);
@@ -255,6 +273,7 @@ cleanup_keys:
     free(good_token);
     free(wrong_aud_token);
     free(expired_token);
+    free(missing_lxm_token);
     free(tampered_token);
 
     if (failures == 0) {
