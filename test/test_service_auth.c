@@ -217,6 +217,38 @@ int main(void) {
         free(token);
     }
 
+    /* ---- 4c. Issuer must be a DID with at most one service fragment ---- */
+    {
+        const char *invalid_issuers[] = {
+            "not-a-did", "did:plc:issuer#", "did:plc:issuer#one#two"
+        };
+        for (size_t i = 0; i < sizeof(invalid_issuers) / sizeof(*invalid_issuers);
+             i++) {
+            wf_service_auth_request req = {0};
+            req.iss = invalid_issuers[i];
+            req.aud = aud;
+            char *token = NULL;
+            WF_CHECK(wf_server_create_service_auth(&req, &key, &token) == WF_OK);
+            wf_service_auth_claims claims = {0};
+            WF_CHECK(wf_server_verify_service_auth(token, didkey, 0, &claims) ==
+                     WF_ERR_PARSE);
+            wf_service_auth_claims_free(&claims);
+            free(token);
+        }
+
+        wf_service_auth_request req = {0};
+        req.iss = "did:plc:issuer#atproto_labeler";
+        req.aud = aud;
+        char *token = NULL;
+        WF_CHECK(wf_server_create_service_auth(&req, &key, &token) == WF_OK);
+        wf_service_auth_claims claims = {0};
+        WF_CHECK(wf_server_verify_service_auth(token, didkey, 0, &claims) ==
+                 WF_OK);
+        WF_CHECK(claims.iss && strcmp(claims.iss, req.iss) == 0);
+        wf_service_auth_claims_free(&claims);
+        free(token);
+    }
+
     /* ---- 5. Uniqueness: two tokens have distinct jti ---- */
     {
         wf_service_auth_request req = {0};
