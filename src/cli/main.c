@@ -53,6 +53,7 @@
 #include <signal.h>
 
 #include <cJSON.h>
+#include <stdbool.h>
 
 #include <inttypes.h>
 #include <time.h>
@@ -70,6 +71,14 @@
 #include "wolfram/feed_typed.h"
 #include "wolfram/actor_typed.h"
 #include "wolfram/moderation.h"
+#include "wolfram/repo_typed.h"
+#include "wolfram/feedgen_typed.h"
+#include "wolfram/notification_typed.h"
+#include "wolfram/moderation_report_typed.h"
+
+/* Global --json flag: when set, list/get commands print the raw JSON body
+ * instead of human-readable text. Parsed in main() before dispatch. */
+static bool g_json = false;
 
 /* ----------------------------------------------------------------- */
 /* Usage                                                             */
@@ -105,33 +114,48 @@ static void usage_stream(FILE *out) {
          "    thread           <service> <handle> <password> <at-uri> [depth]\n"
          "    notifications    <service> <handle> <password> [limit]\n"
          "\n"
-         "  Social graph:\n"
-         "    follow           <service> <handle> <password> <actor>\n"
-         "    unfollow         <service> <handle> <password> <actor>\n"
-         "    mute             <service> <handle> <password> <actor>\n"
-         "    unmute           <service> <handle> <password> <actor>\n"
-         "\n"
-          "  Identity & moderation:\n"
-         "    resolve          <service> <handle-or-did>\n"
-         "    labels subscribe <service> [--cursor N] [--seconds N]\n"
-         "    moderation       <service> <actor> [labeler-did]\n"
-         "    oauth-login      <service> <handle> [client-id] [redirect-uri]\n"
-         "\n"
-         "  Graph & lists:\n"
-         "    follows          <service> <actor> [limit]\n"
-         "    followers        <service> <actor> [limit]\n"
-         "    blocks           <service> <handle> <password> [limit]\n"
-         "    mutes            <service> <handle> <password> [limit]\n"
-         "    list             <service> <list-uri> [limit]\n"
-         "    lists            <service> <actor> [limit]\n"
-         "\n"
-         "  Records & media:\n"
-         "    get-record       <service> <handle> <password> <collection> <rkey>\n"
-         "    video upload     <service> <handle> <password> <file.mp4>\n"
-         "    video status     <service> <handle> <password> <job-id>\n"
-         "\n"
-         "  <at-uri> is an at:// URI (e.g. at://did:plc:xxx/app.bsky.feed.post/rkey)\n"
-         "  <actor> is a handle or DID\n", WOLFRAM_VERSION_STRING);
+          "  Social graph:\n"
+          "    follow           <service> <handle> <password> <actor>\n"
+          "    unfollow         <service> <handle> <password> <actor>\n"
+          "    block            <service> <handle> <password> <actor>\n"
+          "    unblock          <service> <handle> <password> <actor>\n"
+          "    mute             <service> <handle> <password> <actor>\n"
+          "    unmute           <service> <handle> <password> <actor>\n"
+          "\n"
+           "  Identity & moderation:\n"
+          "    resolve          <service> <handle-or-did>\n"
+          "    labels subscribe <service> [--cursor N] [--seconds N]\n"
+          "    moderation       <service> <actor> [labeler-did]\n"
+          "    moderation report <service> <handle> <password> --subject <uri> --reason <reason> [--reason-type <type>] [--cid <cid>]\n"
+          "    oauth-login      <service> <handle> [client-id] [redirect-uri] [--state-file <path>]\n"
+          "    oauth-callback   <service> --url <redirect> --state <state> [--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] [--session <path>]\n"
+          "\n"
+          "  Graph & lists:\n"
+          "    follows          <service> <actor> [limit]\n"
+          "    followers        <service> <actor> [limit]\n"
+          "    blocks           <service> <handle> <password> [limit]\n"
+          "    mutes            <service> <handle> <password> [limit]\n"
+          "    list             <service> <list-uri> [limit]\n"
+          "    lists            <service> <actor> [limit]\n"
+          "\n"
+          "  Records & media:\n"
+          "    get-record       <service> <handle> <password> <collection> <rkey>\n"
+          "    repo put-record  <service> <handle> <password> --collection <nsid> --rkey <rkey> --json <record|file>\n"
+          "    repo delete-record <service> <handle> <password> --collection <nsid> --rkey <rkey>\n"
+          "    repo list-records <service> <handle> <password> --collection <nsid> [--limit N] [--cursor C]\n"
+          "    repo describe     <service> <handle> <password> --repo <did-or-handle>\n"
+          "    video upload     <service> <handle> <password> <file.mp4>\n"
+          "    video status     <service> <handle> <password> <job-id>\n"
+          "\n"
+          "  Feed & discovery:\n"
+          "    feed get         <service> <handle> <password> --feed <generator-uri> [--limit N] [--cursor C]\n"
+          "    feed author      <service> <handle> <password> --actor <handle-or-did> [--limit N] [--cursor C]\n"
+          "\n"
+          "  Global options:\n"
+          "    --json           print raw JSON for list/get commands\n"
+          "\n"
+          "  <at-uri> is an at:// URI (e.g. at://did:plc:xxx/app.bsky.feed.post/rkey)\n"
+          "  <actor> is a handle or DID\n", WOLFRAM_VERSION_STRING);
 }
 
 /* Per-command help text. */
@@ -206,7 +230,31 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
         {"video",            "video upload <service> <handle> <password> <file.mp4>",
          "Upload a video blob via wf_agent_upload_video and report the blob CID and size."},
         {"video",            "video status <service> <handle> <password> <job-id>",
-         "Poll a video processing job via wf_agent_get_video_job_status."},
+          "Poll a video processing job via wf_agent_get_video_job_status."},
+        {"oauth-login",      "oauth-login <service> <handle> [client-id] [redirect-uri] [--state-file <path>]",
+          "Discover the authorization server, begin a PAR flow, and save the pending state. Prints the authorization URL and the opaque state token."},
+        {"oauth-callback",   "oauth-callback <service> --url <redirect> --state <state> [--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] [--session <path>]",
+          "Complete the OAuth flow: validate the callback, exchange the code for tokens, and persist the session (default ~/.wolfram_session.json)."},
+        {"block",            "block <service> <handle> <password> <actor>",
+          "Block an actor (handle or DID) via wf_agent_block."},
+        {"unblock",          "unblock <service> <handle> <password> <actor>",
+          "Unblock an actor by finding and deleting the block record via wf_agent_unblock."},
+        {"notifications",    "notifications update-seen [--seen-at <iso>] <service> <handle> <password>",
+          "Mark notifications seen via wf_agent_update_seen_typed."},
+        {"repo",             "repo put-record <service> <handle> <password> --collection <nsid> --rkey <rkey> --json <record|file>",
+          "Write a record via wf_agent_put_record_typed (read JSON from a string or file)."},
+        {"repo",             "repo delete-record <service> <handle> <password> --collection <nsid> --rkey <rkey>",
+          "Delete a record via wf_agent_delete_record_typed."},
+        {"repo",             "repo list-records <service> <handle> <password> --collection <nsid> [--limit N] [--cursor C]",
+          "List records via wf_agent_list_records_typed."},
+        {"repo",             "repo describe <service> <handle> <password> --repo <did-or-handle>",
+          "Describe a repository via wf_agent_describe_repo_typed."},
+        {"feed",             "feed get <service> <handle> <password> --feed <generator-uri> [--limit N] [--cursor C]",
+          "Fetch a custom feed via wf_agent_get_feed_typed."},
+        {"feed",             "feed author <service> <handle> <password> --actor <handle-or-did> [--limit N] [--cursor C]",
+          "Fetch an actor's author feed via wf_agent_get_author_feed_typed."},
+        {"moderation",       "moderation report <service> <handle> <password> --subject <uri> --reason <reason> [--reason-type <type>] [--cid <cid>]",
+          "Submit a moderation report via wf_agent_report_typed."},
     };
 
     for (size_t i = 0; i < sizeof(cmds)/sizeof(cmds[0]); ++i) {
@@ -569,6 +617,17 @@ static int cmd_timeline(int argc, char **argv) {
         return 1;
     }
 
+    if (g_json) {
+        wf_response res = {0};
+        s = wf_agent_get_timeline(agent, 50, NULL, NULL, &res);
+        if (s != WF_OK) fprintf(stderr, "error: request failed (status %d)\n", (int)s);
+        else if (res.body && res.body_len > 0) printf("%s\n", res.body);
+        else printf("(empty response, HTTP %ld)\n", res.status);
+        wf_response_free(&res);
+        wf_agent_free(agent);
+        return 0;
+    }
+
     timeline_ctx ctx = {0};
     char *last_cursor = NULL;
     s = wf_agent_get_timeline_paged(agent, 10, max_pages, timeline_on_page,
@@ -661,6 +720,29 @@ static int cmd_profile(int argc, char **argv) {
         wf_agent_profile_free(&prof);
         wf_agent_free(agent);
         return 1;
+    }
+
+    if (g_json) {
+        cJSON *j = cJSON_CreateObject();
+        if (j) {
+            if (prof.did) cJSON_AddStringToObject(j, "did", prof.did);
+            if (prof.handle) cJSON_AddStringToObject(j, "handle", prof.handle);
+            if (prof.display_name)
+                cJSON_AddStringToObject(j, "displayName", prof.display_name);
+            if (prof.description)
+                cJSON_AddStringToObject(j, "description", prof.description);
+            if (prof.avatar_cid)
+                cJSON_AddStringToObject(j, "avatar", prof.avatar_cid);
+            cJSON_AddNumberToObject(j, "followersCount", prof.followers_count);
+            cJSON_AddNumberToObject(j, "followsCount", prof.follows_count);
+            cJSON_AddNumberToObject(j, "postsCount", prof.posts_count);
+            char *out = cJSON_PrintUnformatted(j);
+            cJSON_Delete(j);
+            if (out) { printf("%s\n", out); free(out); }
+        }
+        wf_agent_profile_free(&prof);
+        wf_agent_free(agent);
+        return 0;
     }
 
     printf("%s\n", prof.display_name ? prof.display_name : "(no display name)");
@@ -901,6 +983,17 @@ static int cmd_thread(int argc, char **argv) {
         return 1;
     }
 
+    if (g_json) {
+        wf_response res = {0};
+        s = wf_agent_get_post_thread(agent, at_uri, depth, 0, &res);
+        if (s != WF_OK) fprintf(stderr, "error: request failed (status %d)\n", (int)s);
+        else if (res.body && res.body_len > 0) printf("%s\n", res.body);
+        else printf("(empty response, HTTP %ld)\n", res.status);
+        wf_response_free(&res);
+        wf_agent_free(agent);
+        return 0;
+    }
+
     wf_agent_thread thread = {0};
     s = wf_agent_get_post_thread_typed(agent, at_uri, depth, &thread);
     if (s != WF_OK) {
@@ -917,6 +1010,45 @@ static int cmd_thread(int argc, char **argv) {
 }
 
 static int cmd_notifications(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+
+    /* notifications update-seen [--seen-at <iso>] <service> <handle> <password> */
+    if (strcmp(argv[1], "update-seen") == 0) {
+        const char *seen_at = NULL;
+        const char *pos[4];
+        int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--seen-at") == 0 && i + 1 < argc) {
+                seen_at = argv[++i];
+            } else if (pi < 4) {
+                pos[pi++] = argv[i];
+            }
+        }
+        if (pi < 3) {
+            fprintf(stderr, "error: usage: wolfram notifications update-seen "
+                    "[--seen-at <iso>] <service> <handle> <password>\n");
+            return 1;
+        }
+
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+
+        wf_status s = wf_agent_update_seen_typed(agent, seen_at);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: updateSeen failed (status %d)\n", (int)s);
+            wf_agent_free(agent);
+            return 1;
+        }
+        printf("notifications marked seen%s%s\n",
+               seen_at ? " at " : "", seen_at ? seen_at : "");
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    /* notifications <service> <handle> <password> [limit] */
     if (argc < 4) {
         usage_stream(stderr);
         return 0;
@@ -937,6 +1069,17 @@ static int cmd_notifications(int argc, char **argv) {
         fprintf(stderr, "error: login failed (status %d)\n", (int)s);
         wf_agent_free(agent);
         return 1;
+    }
+
+    if (g_json) {
+        wf_response res = {0};
+        s = wf_agent_list_notifications(agent, limit, NULL, &res);
+        if (s != WF_OK) fprintf(stderr, "error: request failed (status %d)\n", (int)s);
+        else if (res.body && res.body_len > 0) printf("%s\n", res.body);
+        else printf("(empty response, HTTP %ld)\n", res.status);
+        wf_response_free(&res);
+        wf_agent_free(agent);
+        return 0;
     }
 
     wf_agent_notification_list list = {0};
@@ -976,6 +1119,68 @@ static int cmd_notifications(int argc, char **argv) {
 }
 
 static int cmd_moderation(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+
+    /* moderation report <service> <handle> <password> --subject <uri>
+     *   --reason <reason> [--reason-type <type>] [--cid <cid>] */
+    if (strcmp(argv[1], "report") == 0) {
+        const char *subject = NULL, *reason = NULL, *reason_type = NULL,
+                   *cid = NULL;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--subject") == 0 && i + 1 < argc) subject = argv[++i];
+            else if (strcmp(argv[i], "--reason") == 0 && i + 1 < argc) reason = argv[++i];
+            else if (strcmp(argv[i], "--reason-type") == 0 && i + 1 < argc) reason_type = argv[++i];
+            else if (strcmp(argv[i], "--cid") == 0 && i + 1 < argc) cid = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !subject || !reason) {
+            fprintf(stderr, "error: usage: wolfram moderation report <service> "
+                    "<handle> <password> --subject <uri> --reason <reason> "
+                    "[--reason-type <type>] [--cid <cid>]\n");
+            return 1;
+        }
+
+        /* The SDK requires a reasonType NSID. If --reason-type is omitted, the
+         * --reason text is used as the type (best effort); when --reason-type is
+         * present, --reason is the optional free-text note. */
+        const char *rt = reason_type ? reason_type : reason;
+        const char *free_reason = reason_type ? reason : NULL;
+
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+
+        const char *subject_did = NULL;
+        const char *subject_uri = NULL;
+        const char *subject_cid = NULL;
+        if (strncmp(subject, "did:", 4) == 0) {
+            subject_did = subject;
+        } else {
+            subject_uri = subject;
+            subject_cid = cid;
+        }
+
+        wf_moderation_report_record out = {0};
+        wf_status s = wf_agent_report_typed(agent, subject_did, subject_uri,
+                                            subject_cid, rt, free_reason, NULL,
+                                            NULL, &out);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: createReport failed (status %d)\n", (int)s);
+            wf_moderation_report_record_free(&out);
+            wf_agent_free(agent);
+            return 1;
+        }
+        printf("report id=%" PRId64 "\n", out.id);
+        if (out.reason_type) printf("reasonType: %s\n", out.reason_type);
+        if (out.reported_by) printf("reportedBy: %s\n", out.reported_by);
+        wf_moderation_report_record_free(&out);
+        wf_agent_free(agent);
+        return 0;
+    }
+
     if (argc < 3) {
         usage_stream(stderr);
         return 0;
@@ -1760,6 +1965,220 @@ static int cmd_video(int argc, char **argv) {
     return 1;
 }
 
+/* Return a heap-owned default path for the persisted OAuth pending-state file
+ * (~/.wolfram_oauth_state.json), falling back to the cwd when $HOME is unset.
+ * Caller frees. */
+static char *oauth_default_state_path(void) {
+    const char *home = getenv("HOME");
+    const char *name = ".wolfram_oauth_state.json";
+    if (!home) home = ".";
+    size_t n = strlen(home) + 1 + strlen(name) + 1;
+    char *p = malloc(n);
+    if (p) snprintf(p, n, "%s/%s", home, name);
+    return p;
+}
+
+/* Return a heap-owned default path for the persisted OAuth session file
+ * (~/.wolfram_session.json). Caller frees. */
+static char *oauth_default_session_path(void) {
+    const char *home = getenv("HOME");
+    const char *name = ".wolfram_session.json";
+    if (!home) home = ".";
+    size_t n = strlen(home) + 1 + strlen(name) + 1;
+    char *p = malloc(n);
+    if (p) snprintf(p, n, "%s/%s", home, name);
+    return p;
+}
+
+/* Write `data` to `path` (text mode). Returns 0 on success, -1 on failure. */
+static int write_text_file(const char *path, const char *data) {
+    FILE *f = fopen(path, "wb");
+    if (!f) return -1;
+    size_t n = fwrite(data, 1, strlen(data), f);
+    fclose(f);
+    return (n == strlen(data)) ? 0 : -1;
+}
+
+/* Read the entire text file `path` into a heap string (NUL terminated).
+ * Returns NULL on failure. Caller frees. */
+static char *read_text_file(const char *path) {
+    FILE *f = fopen(path, "rb");
+    if (!f) return NULL;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }
+    long len = ftell(f);
+    if (len < 0) { fclose(f); return NULL; }
+    rewind(f);
+    char *data = malloc((size_t)len + 1);
+    if (!data) { fclose(f); return NULL; }
+    size_t n = fread(data, 1, (size_t)len, f);
+    fclose(f);
+    data[n] = '\0';
+    return data;
+}
+
+/* Parse the query/fragment of a redirect URL into owned callback params.
+ * Mirrors examples/oauth_session.c; the caller frees the strdup'd fields. */
+static void parse_callback_url(const char *url, wf_oauth_callback_params *params) {
+    memset(params, 0, sizeof(*params));
+    const char *q = strchr(url, '?');
+    if (!q) q = strchr(url, '#');
+    if (!q) return;
+    q++;
+    while (*q) {
+        const char *amp = strchr(q, '&');
+        size_t pair_len = amp ? (size_t)(amp - q) : strlen(q);
+        const char *eq = memchr(q, '=', pair_len);
+        if (!eq) { q = amp ? amp + 1 : q + pair_len; continue; }
+        size_t name_len = (size_t)(eq - q);
+        size_t val_len = pair_len - name_len - 1;
+        if (name_len == 5 && memcmp(q, "state", 5) == 0)
+            params->state = strndup(eq + 1, val_len);
+        else if (name_len == 4 && memcmp(q, "code", 4) == 0)
+            params->code = strndup(eq + 1, val_len);
+        else if (name_len == 3 && memcmp(q, "iss", 3) == 0)
+            params->issuer = strndup(eq + 1, val_len);
+        else if (name_len == 5 && memcmp(q, "error", 5) == 0)
+            params->error = strndup(eq + 1, val_len);
+        q = amp ? amp + 1 : q + pair_len;
+    }
+}
+
+/* wolfram oauth-callback <service> --url <redirect> --state <state>
+ *   [--state-file <path>] [--client-id <id>] [--redirect-uri <uri>]
+ *   [--session <path>]
+ *
+ * Completes the OAuth flow begun by `oauth-login`: validates the callback
+ * against the persisted pending state, exchanges the code for tokens, and
+ * writes the resulting session to a file (default ~/.wolfram_session.json).
+ * No HTTP callback server is run; the user pastes the redirect URL. */
+static int cmd_oauth_callback(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = NULL;
+    const char *url = NULL;
+    const char *state = NULL;
+    const char *state_file = NULL;
+    const char *client_id = NULL;
+    const char *redirect_uri = NULL;
+    const char *session_path = NULL;
+
+    char **pos = malloc(sizeof(char *) * (size_t)argc);
+    if (!pos) {
+        fprintf(stderr, "error: out of memory\n");
+        return 1;
+    }
+    int pi = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--url") == 0 && i + 1 < argc) url = argv[++i];
+        else if (strcmp(argv[i], "--state") == 0 && i + 1 < argc) state = argv[++i];
+        else if (strcmp(argv[i], "--state-file") == 0 && i + 1 < argc) state_file = argv[++i];
+        else if (strcmp(argv[i], "--client-id") == 0 && i + 1 < argc) client_id = argv[++i];
+        else if (strcmp(argv[i], "--redirect-uri") == 0 && i + 1 < argc) redirect_uri = argv[++i];
+        else if (strcmp(argv[i], "--session") == 0 && i + 1 < argc) session_path = argv[++i];
+        else pos[pi++] = argv[i];
+    }
+    if (pi >= 1) service = pos[0];
+    free(pos);
+
+    if (!service || !url || !state) {
+        fprintf(stderr,
+                "error: usage: wolfram oauth-callback <service> --url <redirect> "
+                "--state <state> [--state-file <path>] [--client-id <id>] "
+                "[--redirect-uri <uri>] [--session <path>]\n");
+        return 1;
+    }
+
+    char *def_state = oauth_default_state_path();
+    const char *sf = state_file ? state_file : def_state;
+    char *state_json = read_text_file(sf);
+    free(def_state);
+    if (!state_json) {
+        fprintf(stderr, "error: could not read pending state file '%s' "
+                "(run oauth-login first)\n", sf);
+        return 1;
+    }
+
+    if (!redirect_uri) redirect_uri = "https://localhost/callback";
+    if (!client_id) client_id = redirect_uri;
+
+    wf_xrpc_client *transport = wf_xrpc_client_new(service);
+    if (!transport) {
+        fprintf(stderr, "error: failed to create XRPC client\n");
+        free(state_json);
+        return 1;
+    }
+
+    wf_oauth_resource_metadata resource = {0};
+    wf_oauth_server_metadata server = {0};
+    wf_status s = wf_oauth_discover(transport, service, &resource, &server);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: OAuth discovery failed (status %d)\n", (int)s);
+        wf_oauth_resource_metadata_free(&resource);
+        wf_oauth_server_metadata_free(&server);
+        wf_xrpc_client_free(transport);
+        free(state_json);
+        return 1;
+    }
+
+    wf_oauth_client_metadata client = {0};
+    s = wf_oauth_client_metadata_get(transport, client_id, &client);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: client metadata fetch failed (status %d)\n", (int)s);
+        wf_oauth_client_metadata_free(&client);
+        wf_oauth_resource_metadata_free(&resource);
+        wf_oauth_server_metadata_free(&server);
+        wf_xrpc_client_free(transport);
+        free(state_json);
+        return 1;
+    }
+
+    wf_oauth_client_auth client_auth = {
+        .client_id = client_id,
+        .authorization_server_issuer = server.issuer,
+        .signing_key = NULL,
+    };
+
+    wf_oauth_callback_params cb = {0};
+    parse_callback_url(url, &cb);
+
+    wf_oauth_authorization_complete_result complete = {0};
+    s = wf_oauth_authorization_complete(
+        transport, &server, &client, &client_auth, &cb,
+        state, state_json, strlen(state_json), redirect_uri, time(NULL), &complete);
+
+    free((void *)cb.state); free((void *)cb.code);
+    free((void *)cb.issuer); free((void *)cb.error);
+    wf_oauth_client_metadata_free(&client);
+    wf_oauth_resource_metadata_free(&resource);
+    wf_oauth_server_metadata_free(&server);
+    wf_xrpc_client_free(transport);
+    free(state_json);
+
+    if (s != WF_OK) {
+        fprintf(stderr, "error: authorization complete failed (status %d)\n", (int)s);
+        if (complete.error)
+            fprintf(stderr, "server error: %s: %s\n",
+                    complete.error,
+                    complete.error_description ? complete.error_description : "");
+        wf_oauth_authorization_complete_result_free(&complete);
+        return 1;
+    }
+
+    char *def_session = oauth_default_session_path();
+    const char *sp = session_path ? session_path : def_session;
+    if (complete.session_json) {
+        if (write_text_file(sp, complete.session_json) == 0)
+            printf("session saved to %s\n", sp);
+        else
+            fprintf(stderr, "error: failed to write session file '%s'\n", sp);
+    }
+    wf_oauth_authorization_complete_result_free(&complete);
+    free(def_session);
+    return 0;
+}
+
 /* OAuth login demonstration — discover the authorization server for the
  * protected resource and begin a PAR flow, printing the authorization URL the
  * user must visit plus the flow state. No callback server is run. */
@@ -1768,10 +2187,36 @@ static int cmd_oauth_login(int argc, char **argv) {
         usage_stream(stderr);
         return 0;
     }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *client_id = (argc >= 4) ? argv[3] : NULL;
-    const char *redirect_uri = (argc >= 5) ? argv[4] : "https://localhost/callback";
+    const char *service = NULL;
+    const char *handle = NULL;
+    const char *client_id = NULL;
+    const char *redirect_uri = "https://localhost/callback";
+    const char *state_file = NULL;
+
+    char **pos = malloc(sizeof(char *) * (size_t)argc);
+    if (!pos) {
+        fprintf(stderr, "error: out of memory\n");
+        return 1;
+    }
+    int pi = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--state-file") == 0 && i + 1 < argc) {
+            state_file = argv[++i];
+        } else {
+            pos[pi++] = argv[i];
+        }
+    }
+    if (pi < 2) {
+        fprintf(stderr, "error: usage: wolfram oauth-login <service> <handle> "
+                "[client-id] [redirect-uri] [--state-file <path>]\n");
+        free(pos);
+        return 1;
+    }
+    service = pos[0];
+    handle = pos[1];
+    if (pi >= 3) client_id = pos[2];
+    if (pi >= 4) redirect_uri = pos[3];
+    free(pos);
 
     wf_xrpc_client *transport = wf_xrpc_client_new(service);
     if (!transport) {
@@ -1799,7 +2244,8 @@ static int cmd_oauth_login(int argc, char **argv) {
     if (!client_id) {
         printf("\nOAuth discovery complete. Provide a client-id "
                "(and redirect-uri) to begin the PAR flow:\n"
-               "  wolfram oauth-login %s %s <client-id> [redirect-uri]\n",
+               "  wolfram oauth-login %s %s <client-id> [redirect-uri] "
+               "[--state-file <path>]\n",
                service, handle);
         wf_oauth_resource_metadata_free(&resource);
         wf_oauth_server_metadata_free(&server);
@@ -1846,12 +2292,446 @@ static int cmd_oauth_login(int argc, char **argv) {
         return 1;
     }
 
+    /* Persist the pending authorization state so oauth-callback can finish the
+     * flow. The state file holds the serialized PKCE/DPoP material; the printed
+     * `state` is the opaque CSRF token the callback must echo back. */
+    char *def_state = oauth_default_state_path();
+    const char *sf = state_file ? state_file : def_state;
+    if (begin.state_json) {
+        if (write_text_file(sf, begin.state_json) == 0)
+            printf("\npending state saved to %s\n", sf);
+        else
+            fprintf(stderr, "warning: failed to write state file '%s'\n", sf);
+    }
+    free(def_state);
+
     printf("\nOpen this URL in your browser to authorize:\n%s\n",
            begin.authorization_url ? begin.authorization_url : "(none)");
     printf("\nstate: %s\n", begin.state ? begin.state : "(none)");
+    printf("\nAfter authorizing, run:\n"
+           "  wolfram oauth-callback %s --url \"<redirect-url>\" --state %s%s%s\n",
+           service, begin.state ? begin.state : "",
+           state_file ? " --state-file " : "",
+           state_file ? state_file : "");
 
     wf_oauth_authorization_begin_result_free(&begin);
     return 0;
+}
+
+/* wolfram block <service> <handle> <password> <actor> */
+static int cmd_block(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *actor = argv[4];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) return 1;
+
+    char *did = NULL;
+    wf_status s = resolve_actor_to_did(agent, actor, &did);
+    if (s != WF_OK || !did) {
+        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
+                actor, (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_agent_post_result out = {0};
+    s = wf_agent_block(agent, did, &out);
+    free(did);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: block failed (status %d)\n", (int)s);
+        wf_agent_post_result_free(&out);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("%s\n", out.uri ? out.uri : "(no uri returned)");
+    wf_agent_post_result_free(&out);
+    wf_agent_free(agent);
+    return 0;
+}
+
+/* wolfram unblock <service> <handle> <password> <actor> */
+static int cmd_unblock(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *actor = argv[4];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) return 1;
+
+    char *did = NULL;
+    wf_status s = resolve_actor_to_did(agent, actor, &did);
+    if (s != WF_OK || !did) {
+        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
+                actor, (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_response res = {0};
+    s = wf_agent_get_blocks(agent, 100, NULL, &res);
+    if (s != WF_OK && s != WF_ERR_HTTP) {
+        fprintf(stderr, "error: getBlocks failed (status %d)\n", (int)s);
+        wf_response_free(&res);
+        free(did);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    char *block_uri = NULL;
+    if (res.body) {
+        cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+        if (root) {
+            cJSON *blocks = cJSON_GetObjectItemCaseSensitive(root, "blocks");
+            if (cJSON_IsArray(blocks)) {
+                for (int i = 0; i < cJSON_GetArraySize(blocks); ++i) {
+                    cJSON *b = cJSON_GetArrayItem(blocks, i);
+                    cJSON *subj = cJSON_GetObjectItemCaseSensitive(b, "subject");
+                    cJSON *sdid = subj
+                        ? cJSON_GetObjectItemCaseSensitive(subj, "did") : NULL;
+                    cJSON *uri = cJSON_GetObjectItemCaseSensitive(b, "uri");
+                    if (cJSON_IsString(sdid) && cJSON_IsString(uri) &&
+                        strcmp(sdid->valuestring, did) == 0) {
+                        block_uri = strdup(uri->valuestring);
+                        break;
+                    }
+                }
+            }
+            cJSON_Delete(root);
+        }
+    }
+    wf_response_free(&res);
+    free(did);
+
+    if (!block_uri) {
+        printf("(not currently blocking %s)\n", actor);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    s = wf_agent_unblock(agent, block_uri);
+    free(block_uri);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: unblock failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("unblocked %s\n", actor);
+    wf_agent_free(agent);
+    return 0;
+}
+
+/* wolfram repo <sub> ...  (put-record / delete-record / list-records / describe) */
+static int cmd_repo(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *sub = argv[1];
+
+    /* wolfram repo put-record <service> <handle> <password> --collection <nsid>
+     *   --rkey <rkey> --json <record|file> */
+    if (strcmp(sub, "put-record") == 0) {
+        const char *collection = NULL, *rkey = NULL, *json = NULL;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--collection") == 0 && i + 1 < argc) collection = argv[++i];
+            else if (strcmp(argv[i], "--rkey") == 0 && i + 1 < argc) rkey = argv[++i];
+            else if (strcmp(argv[i], "--json") == 0 && i + 1 < argc) json = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !collection || !rkey || !json) {
+            fprintf(stderr, "error: usage: wolfram repo put-record <service> "
+                    "<handle> <password> --collection <nsid> --rkey <rkey> "
+                    "--json <record|file>\n");
+            return 1;
+        }
+        const char *record_json = json;
+        char *file_buf = NULL;
+        if (json[0] != '{') {
+            file_buf = read_text_file(json);
+            if (!file_buf) {
+                fprintf(stderr, "error: cannot read record file '%s'\n", json);
+                return 1;
+            }
+            record_json = file_buf;
+        }
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) { free(file_buf); return 1; }
+        wf_session_data sd = {0};
+        wf_agent_get_session_data(agent, &sd);
+        const char *repo = sd.did ? sd.did : pos[1];
+        wf_repo_write_record_result out = {0};
+        wf_status s = wf_agent_put_record_typed(agent, repo, collection, rkey,
+                                                -1, record_json, NULL, NULL, &out);
+        free(file_buf);
+        wf_agent_session_data_free(&sd);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: putRecord failed (status %d)\n", (int)s);
+            wf_repo_write_record_result_free(&out);
+            wf_agent_free(agent);
+            return 1;
+        }
+        printf("%s\n", out.uri ? out.uri : "(no uri returned)");
+        wf_repo_write_record_result_free(&out);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    /* wolfram repo delete-record <service> <handle> <password> --collection <nsid>
+     *   --rkey <rkey> */
+    if (strcmp(sub, "delete-record") == 0) {
+        const char *collection = NULL, *rkey = NULL;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--collection") == 0 && i + 1 < argc) collection = argv[++i];
+            else if (strcmp(argv[i], "--rkey") == 0 && i + 1 < argc) rkey = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !collection || !rkey) {
+            fprintf(stderr, "error: usage: wolfram repo delete-record <service> "
+                    "<handle> <password> --collection <nsid> --rkey <rkey>\n");
+            return 1;
+        }
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+        wf_session_data sd = {0};
+        wf_agent_get_session_data(agent, &sd);
+        const char *repo = sd.did ? sd.did : pos[1];
+        wf_status s = wf_agent_delete_record_typed(agent, repo, collection, rkey,
+                                                   NULL, NULL);
+        wf_agent_session_data_free(&sd);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: deleteRecord failed (status %d)\n", (int)s);
+            wf_agent_free(agent);
+            return 1;
+        }
+        printf("deleted %s/%s/%s\n", repo, collection, rkey);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    /* wolfram repo list-records <service> <handle> <password> --collection <nsid>
+     *   [--limit N] [--cursor C] */
+    if (strcmp(sub, "list-records") == 0) {
+        const char *collection = NULL, *cursor = NULL;
+        int limit = 50;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--collection") == 0 && i + 1 < argc) collection = argv[++i];
+            else if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) limit = atoi(argv[++i]);
+            else if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc) cursor = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !collection) {
+            fprintf(stderr, "error: usage: wolfram repo list-records <service> "
+                    "<handle> <password> --collection <nsid> [--limit N] "
+                    "[--cursor C]\n");
+            return 1;
+        }
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+        wf_session_data sd = {0};
+        wf_agent_get_session_data(agent, &sd);
+        const char *repo = sd.did ? sd.did : pos[1];
+        if (g_json) {
+            wf_response res = {0};
+            wf_status s = wf_agent_list_records(agent, collection, limit, cursor, &res);
+            wf_agent_session_data_free(&sd);
+            return finish_agent_response(agent, s, &res);
+        }
+        wf_repo_record_list list = {0};
+        wf_status s = wf_agent_list_records_typed(agent, repo, collection, limit,
+                                                  cursor, 0, &list);
+        wf_agent_session_data_free(&sd);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: listRecords failed (status %d)\n", (int)s);
+            wf_repo_record_list_free(&list);
+            wf_agent_free(agent);
+            return 1;
+        }
+        for (size_t i = 0; i < list.count; ++i) {
+            const wf_repo_record *r = &list.items[i];
+            printf("%s (cid=%s)\n", r->uri ? r->uri : "?",
+                   r->has_cid && r->cid ? r->cid : "?");
+        }
+        if (list.cursor) printf("cursor: %s\n", list.cursor);
+        if (list.count == 0) printf("(no records)\n");
+        wf_repo_record_list_free(&list);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    /* wolfram repo describe <service> <handle> <password> --repo <did-or-handle> */
+    if (strcmp(sub, "describe") == 0) {
+        const char *repo = NULL;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--repo") == 0 && i + 1 < argc) repo = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !repo) {
+            fprintf(stderr, "error: usage: wolfram repo describe <service> "
+                    "<handle> <password> --repo <did-or-handle>\n");
+            return 1;
+        }
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+        if (g_json) {
+            wf_response res = {0};
+            wf_status s = wf_agent_describe_repo(agent, repo, &res);
+            return finish_agent_response(agent, s, &res);
+        }
+        wf_repo_description desc = {0};
+        wf_status s = wf_agent_describe_repo_typed(agent, repo, &desc);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: describeRepo failed (status %d)\n", (int)s);
+            wf_repo_description_free(&desc);
+            wf_agent_free(agent);
+            return 1;
+        }
+        printf("handle: %s\n", desc.handle ? desc.handle : "?");
+        printf("did: %s\n", desc.did ? desc.did : "?");
+        printf("handleIsCorrect: %d\n", desc.handle_is_correct);
+        printf("collections (%zu):\n", desc.collection_count);
+        for (size_t i = 0; i < desc.collection_count; ++i) {
+            printf("  %s\n", desc.collections[i] ? desc.collections[i] : "?");
+        }
+        wf_repo_description_free(&desc);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    fprintf(stderr, "error: unknown repo subcommand '%s' "
+            "(try put-record/delete-record/list-records/describe)\n", sub);
+    return 1;
+}
+
+/* wolfram feed <sub> ...  (get / author) */
+static int cmd_feed(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *sub = argv[1];
+
+    /* wolfram feed get <service> <handle> <password> --feed <generator-uri>
+     *   [--limit N] [--cursor C] */
+    if (strcmp(sub, "get") == 0) {
+        const char *feed = NULL, *cursor = NULL;
+        int limit = 50;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--feed") == 0 && i + 1 < argc) feed = argv[++i];
+            else if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) limit = atoi(argv[++i]);
+            else if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc) cursor = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !feed) {
+            fprintf(stderr, "error: usage: wolfram feed get <service> <handle> "
+                    "<password> --feed <generator-uri> [--limit N] [--cursor C]\n");
+            return 1;
+        }
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+        if (g_json) {
+            wf_response res = {0};
+            wf_status s = wf_agent_get_feed(agent, feed, limit, cursor, &res);
+            return finish_agent_response(agent, s, &res);
+        }
+        wf_agent_feed_view_list list = {0};
+        wf_status s = wf_agent_get_feed_typed(agent, feed, limit, cursor, &list);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: getFeed failed (status %d)\n", (int)s);
+            wf_agent_feed_view_list_free(&list);
+            wf_agent_free(agent);
+            return 1;
+        }
+        for (size_t i = 0; i < list.item_count; ++i) {
+            const wf_agent_post_view *post = &list.items[i].post;
+            const char *author = post->author.handle
+                ? post->author.handle
+                : (post->author.did ? post->author.did : "?");
+            const char *text = "";
+            if (post->record) {
+                cJSON *t = cJSON_GetObjectItemCaseSensitive(post->record, "text");
+                if (cJSON_IsString(t) && t->valuestring) text = t->valuestring;
+            }
+            printf("%s: %s\n", author, text);
+        }
+        if (list.cursor) printf("cursor: %s\n", list.cursor);
+        if (list.item_count == 0) printf("(empty feed)\n");
+        wf_agent_feed_view_list_free(&list);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    /* wolfram feed author <service> <handle> <password> --actor <handle-or-did>
+     *   [--limit N] [--cursor C] */
+    if (strcmp(sub, "author") == 0) {
+        const char *actor = NULL, *cursor = NULL;
+        int limit = 50;
+        const char *pos[3]; int pi = 0;
+        for (int i = 2; i < argc; ++i) {
+            if (strcmp(argv[i], "--actor") == 0 && i + 1 < argc) actor = argv[++i];
+            else if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc) limit = atoi(argv[++i]);
+            else if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc) cursor = argv[++i];
+            else if (pi < 3) pos[pi++] = argv[i];
+        }
+        if (pi < 3 || !actor) {
+            fprintf(stderr, "error: usage: wolfram feed author <service> <handle> "
+                    "<password> --actor <handle-or-did> [--limit N] [--cursor C]\n");
+            return 1;
+        }
+        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
+        if (!agent) return 1;
+        if (g_json) {
+            wf_response res = {0};
+            wf_status s = wf_agent_get_author_feed(agent, actor, limit, cursor,
+                                                   NULL, false, &res);
+            return finish_agent_response(agent, s, &res);
+        }
+        wf_agent_feed_list list = {0};
+        wf_status s = wf_agent_get_author_feed_typed(agent, actor, limit, cursor,
+                                                     NULL, &list);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: getAuthorFeed failed (status %d)\n", (int)s);
+            wf_agent_feed_list_free(&list);
+            wf_agent_free(agent);
+            return 1;
+        }
+        for (size_t i = 0; i < list.item_count; ++i) {
+            const wf_agent_post_view *post = &list.items[i].post;
+            const char *author = post->author.handle
+                ? post->author.handle
+                : (post->author.did ? post->author.did : "?");
+            const char *text = "";
+            if (post->record) {
+                cJSON *t = cJSON_GetObjectItemCaseSensitive(post->record, "text");
+                if (cJSON_IsString(t) && t->valuestring) text = t->valuestring;
+            }
+            printf("%s: %s\n", author, text);
+        }
+        if (list.cursor) printf("cursor: %s\n", list.cursor);
+        if (list.item_count == 0) printf("(empty feed)\n");
+        wf_agent_feed_list_free(&list);
+        wf_agent_free(agent);
+        return 0;
+    }
+
+    fprintf(stderr, "error: unknown feed subcommand '%s' (try get/author)\n", sub);
+    return 1;
 }
 
 /* ----------------------------------------------------------------- */
@@ -1861,6 +2741,20 @@ static int cmd_oauth_login(int argc, char **argv) {
 int main(int argc, char **argv) {
     if (argc < 2) {
         return usage_exit();
+    }
+
+    /* Strip a leading global --json flag (and any others) so the command and
+     * its positional arguments remain contiguous at argv[1..]. */
+    {
+        int out = 1;
+        for (int i = 1; i < argc; ++i) {
+            if (strcmp(argv[i], "--json") == 0) {
+                g_json = true;
+                continue;
+            }
+            argv[out++] = argv[i];
+        }
+        argc = out;
     }
 
     const char *cmd = argv[1];
@@ -1916,6 +2810,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "oauth-login") == 0) {
         return cmd_oauth_login(rest, cargv);
+    }
+    if (strcmp(cmd, "oauth-callback") == 0) {
+        return cmd_oauth_callback(rest, cargv);
     }
     if (strcmp(cmd, "timeline") == 0) {
         return cmd_timeline(rest, cargv);
@@ -1976,6 +2873,18 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "video") == 0) {
         return cmd_video(rest, cargv);
+    }
+    if (strcmp(cmd, "block") == 0) {
+        return cmd_block(rest, cargv);
+    }
+    if (strcmp(cmd, "unblock") == 0) {
+        return cmd_unblock(rest, cargv);
+    }
+    if (strcmp(cmd, "repo") == 0) {
+        return cmd_repo(rest, cargv);
+    }
+    if (strcmp(cmd, "feed") == 0) {
+        return cmd_feed(rest, cargv);
     }
 
     fprintf(stderr, "error: unknown command '%s'\n\n", cmd);
