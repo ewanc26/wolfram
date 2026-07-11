@@ -12,6 +12,10 @@
 #include "wolfram/crypto.h"
 #include "test.h"
 
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/obj_mac.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -52,6 +56,47 @@ done:
     free(sig_b64);
     free(signing_input);
     return forged;
+}
+
+static char *to_high_s_p256(const char *token) {
+    const char *dot2 = strrchr(token, '.');
+    unsigned char *sig = NULL;
+    size_t sig_len = 0, signing_len, token_len;
+    EC_GROUP *group = NULL;
+    BIGNUM *order = NULL, *low_s = NULL, *high_s = NULL;
+    char *sig_b64 = NULL, *result = NULL;
+
+    if (!dot2 || wf_crypto_base64url_decode(dot2 + 1, &sig, &sig_len) != WF_OK ||
+        sig_len != 64) {
+        goto done;
+    }
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    order = BN_new();
+    low_s = BN_bin2bn(sig + 32, 32, NULL);
+    high_s = BN_new();
+    if (!group || !order || !low_s || !high_s ||
+        EC_GROUP_get_order(group, order, NULL) != 1 ||
+        BN_sub(high_s, order, low_s) != 1 ||
+        BN_bn2binpad(high_s, sig + 32, 32) != 32 ||
+        wf_crypto_base64url_encode(sig, sig_len, &sig_b64) != WF_OK) {
+        goto done;
+    }
+    signing_len = (size_t)(dot2 - token);
+    token_len = signing_len + 1 + strlen(sig_b64);
+    result = malloc(token_len + 1);
+    if (result) {
+        snprintf(result, token_len + 1, "%.*s.%s", (int)signing_len, token,
+                 sig_b64);
+    }
+
+done:
+    free(sig);
+    free(sig_b64);
+    BN_free(order);
+    BN_free(low_s);
+    BN_free(high_s);
+    EC_GROUP_free(group);
+    return result;
 }
 
 int main(void) {
@@ -271,6 +316,37 @@ int main(void) {
             wf_service_auth_claims_free(&claims);
             free(forged);
         }
+        free(token);
+    }
+
+    /* ---- 4e. Service JWT verification permits high-S interoperability ---- */
+    {
+        wf_service_auth_request req = {0};
+        req.iss = iss;
+        req.aud = aud;
+        char *token = NULL;
+        WF_CHECK(wf_server_create_service_auth(&req, &key, &token) == WF_OK);
+        char *high_s_token = to_high_s_p256(token);
+        WF_CHECK(high_s_token != NULL);
+
+        const char *dot2 = high_s_token ? strrchr(high_s_token, '.') : NULL;
+        unsigned char *sig = NULL;
+        size_t sig_len = 0;
+        WF_CHECK(dot2 != NULL);
+        WF_CHECK(dot2 && wf_crypto_base64url_decode(dot2 + 1, &sig, &sig_len) ==
+                             WF_OK);
+        WF_CHECK(dot2 && wf_verify(didkey,
+                                   (const unsigned char *)high_s_token,
+                                   (size_t)(dot2 - high_s_token), sig, sig_len) ==
+                             WF_ERR_PARSE);
+
+        wf_service_auth_claims claims = {0};
+        WF_CHECK(wf_server_verify_service_auth(high_s_token, didkey, 0,
+                                               &claims) == WF_OK);
+        WF_CHECK(claims.iss && strcmp(claims.iss, iss) == 0);
+        wf_service_auth_claims_free(&claims);
+        free(sig);
+        free(high_s_token);
         free(token);
     }
 

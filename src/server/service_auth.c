@@ -465,8 +465,9 @@ wf_status wf_server_verify_service_auth(const char *token,
     if (!sig) {
         goto done;
     }
-    if (wf_verify(signing_key_didkey, (const unsigned char *)token, signing_len,
-                  sig, sig_len) != WF_OK) {
+    if (wf_verify_allow_malleable(signing_key_didkey,
+                                  (const unsigned char *)token, signing_len,
+                                  sig, sig_len) != WF_OK) {
         goto done;
     }
 
