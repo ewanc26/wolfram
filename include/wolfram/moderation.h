@@ -16,6 +16,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "wolfram/xrpc.h"
 
 #ifdef __cplusplus
@@ -90,6 +91,12 @@ typedef struct wf_mod_label {
     char *uri;   /* URI of the labeled subject */
     char *val;   /* label value string */
     char *cts;   /* creation timestamp */
+
+    bool neg;    /* 1 if this is a negation (revocation) label */
+    char *cid;   /* cid the label is scoped to, or NULL */
+    bool has_cid;/* 1 if `cid` is present */
+    int ver;     /* label schema version (optional, 0 if absent) */
+    char *exp;   /* expiry timestamp (optional), or NULL */
 } wf_mod_label;
 
 /** Behavior for a single target (account/profile/content) across contexts. */

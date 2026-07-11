@@ -125,8 +125,15 @@ static wf_status mod_merge_persisted_labels(wf_agent *agent, const char *uri,
         dst->uri = plabels[i].uri ? strdup(plabels[i].uri) : NULL;
         dst->val = plabels[i].val ? strdup(plabels[i].val) : NULL;
         dst->cts = plabels[i].cts ? strdup(plabels[i].cts) : NULL;
-        if (!dst->src || !dst->uri || !dst->val) {
+        dst->cid = plabels[i].cid ? strdup(plabels[i].cid) : NULL;
+        dst->exp = plabels[i].exp ? strdup(plabels[i].exp) : NULL;
+        dst->neg = plabels[i].neg;
+        dst->has_cid = plabels[i].has_cid;
+        dst->ver = plabels[i].ver;
+        if (!dst->src || !dst->uri || !dst->val || (plabels[i].cid && !dst->cid) ||
+            (plabels[i].exp && !dst->exp)) {
             free(dst->src); free(dst->uri); free(dst->val); free(dst->cts);
+            free(dst->cid); free(dst->exp);
             return WF_ERR_ALLOC;
         }
         (*count)++;
@@ -428,7 +435,7 @@ wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri,
     *out = NULL;
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_post_thread(agent, uri, 0, &res);
+    wf_status status = wf_agent_get_post_thread(agent, uri, 0, 0, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
