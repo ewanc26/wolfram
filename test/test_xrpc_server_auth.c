@@ -54,6 +54,22 @@ static wf_status public_handler(void *ctx, const wf_xrpc_request *req,
     return WF_OK;
 }
 
+typedef struct rotating_resolver_ctx {
+    const char *stale_key;
+    const char *current_key;
+    int calls;
+} rotating_resolver_ctx;
+
+static wf_status rotating_resolver(const char *did, char **out_didkey,
+                                   void *ctx) {
+    rotating_resolver_ctx *resolver = (rotating_resolver_ctx *)ctx;
+    const char *key;
+    if (!did || !out_didkey || !resolver) return WF_ERR_INVALID_ARG;
+    key = resolver->calls++ == 0 ? resolver->stale_key : resolver->current_key;
+    *out_didkey = strdup(key);
+    return *out_didkey ? WF_OK : WF_ERR_ALLOC;
+}
+
 /* ------------------------------------------------------------------ */
 /* Test                                                                */
 /* ------------------------------------------------------------------ */
@@ -62,6 +78,11 @@ static int run_test(void) {
     wf_xrpc_server *server = NULL;
     wf_xrpc_client *client = NULL;
     wf_response res = {0};
+    char *good_token = NULL;
+    char *wrong_aud_token = NULL;
+    char *expired_token = NULL;
+    char *missing_lxm_token = NULL;
+    char *tampered_token = NULL;
     int failures = 0;
 
     const char *protected_nsid = "app.bsky.feed.getFeedSkeleton";
@@ -75,6 +96,14 @@ static int run_test(void) {
     char *issuer_didkey = NULL;
     WF_CHECK(wf_signing_key_public_didkey(&key, &issuer_didkey) == WF_OK);
     WF_CHECK(issuer_didkey != NULL);
+
+    /* A stale key lets the injected resolver exercise verifyJwt-compatible
+     * refresh-on-signature-failure behavior. */
+    wf_signing_key stale_key = {0};
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &stale_key) == WF_OK);
+    char *stale_didkey = NULL;
+    WF_CHECK(wf_signing_key_public_didkey(&stale_key, &stale_didkey) == WF_OK);
+    rotating_resolver_ctx resolver = {stale_didkey, issuer_didkey, 0};
 
     /* Server's own DID (for aud checks) — a distinct did:key. */
     wf_signing_key server_key = {0};
@@ -103,6 +132,8 @@ static int run_test(void) {
     WF_CHECK(wf_xrpc_server_auth_config_set_server_did(cfg, server_did) ==
              WF_OK);
     WF_CHECK(wf_xrpc_server_auth_config_protect(cfg, protected_nsid) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_resolver(cfg, rotating_resolver,
+                                                     &resolver) == WF_OK);
     WF_CHECK(wf_xrpc_server_set_auth_middleware(server, cfg) == WF_OK);
     wf_xrpc_server_auth_config_free(cfg);
     cfg = NULL;
@@ -117,7 +148,6 @@ static int run_test(void) {
     }
 
     /* ---- Mint tokens ---- */
-    char *good_token = NULL;
     {
         wf_service_auth_request req = {0};
         req.iss = issuer_didkey;
@@ -128,7 +158,6 @@ static int run_test(void) {
         WF_CHECK(good_token != NULL);
     }
 
-    char *wrong_aud_token = NULL;
     {
         wf_service_auth_request req = {0};
         req.iss = issuer_didkey;
@@ -138,7 +167,6 @@ static int run_test(void) {
                  WF_OK);
     }
 
-    char *expired_token = NULL;
     {
         wf_service_auth_request req = {0};
         req.iss = issuer_didkey;
@@ -149,7 +177,6 @@ static int run_test(void) {
                  WF_OK);
     }
 
-    char *missing_lxm_token = NULL;
     {
         wf_service_auth_request req = {0};
         req.iss = issuer_didkey;
@@ -158,7 +185,6 @@ static int run_test(void) {
                                                &missing_lxm_token) == WF_OK);
     }
 
-    char *tampered_token = NULL;
     {
         wf_service_auth_request req = {0};
         req.iss = issuer_didkey;
@@ -184,6 +210,7 @@ static int run_test(void) {
         wf_status s = wf_xrpc_query(client, protected_nsid, NULL, &res);
         WF_CHECK(res.status == 200);
         WF_CHECK(s == WF_OK);
+        WF_CHECK(resolver.calls == 2);
         cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
         if (!root) {
             fprintf(stderr, "FAIL: protected reply not JSON\n");
@@ -269,6 +296,7 @@ cleanup_server:
     wf_xrpc_server_free(server);
 cleanup_keys:
     free(issuer_didkey);
+    free(stale_didkey);
     free(server_did);
     free(good_token);
     free(wrong_aud_token);
@@ -285,5 +313,6 @@ cleanup_keys:
 
 int main(void) {
     int rc = run_test();
+    WF_CHECK(rc == 0);
     WF_TEST_SUMMARY();
 }
