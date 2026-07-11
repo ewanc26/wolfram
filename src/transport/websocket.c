@@ -195,6 +195,19 @@ wf_status wf_websocket_receive(wf_websocket *socket,
 #endif
 }
 
+wf_status wf_websocket_send_ping(wf_websocket *socket) {
+    if (!socket) return WF_ERR_INVALID_ARG;
+#if LIBCURL_VERSION_NUM >= 0x075600
+    size_t sent = 0;
+    CURLcode result = curl_ws_send(socket->curl, "", 0, &sent, 0, CURLWS_PING);
+    if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
+    if (result != CURLE_OK) return WF_ERR_NETWORK;
+    return WF_OK;
+#else
+    return WF_ERR_INVALID_ARG;
+#endif
+}
+
 void wf_websocket_message_free(wf_websocket_message *message) {
     if (!message) return;
     free(message->data);

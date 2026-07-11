@@ -30,6 +30,11 @@ typedef struct wf_jetstream_options {
     /** Non-blocking reconnect backoff. Zero selects 250ms / 30s defaults. */
     uint32_t reconnect_initial_delay_ms;
     uint32_t reconnect_max_delay_ms;
+    /** Client keepalive: send a WebSocket PING when no frame has been received
+     *  for this many milliseconds. 0 selects a 30000ms default. libcurl
+     *  auto-handles the peer PONG, so this only guards against idle
+     *  TCP/proxy reaping (no missed-pong termination). */
+    uint32_t ping_interval_ms;
 } wf_jetstream_options;
 
 typedef struct wf_jetstream_options_update {
