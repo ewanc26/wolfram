@@ -449,49 +449,34 @@ static char *wf_jetstream_dup_seq(cJSON *parent, const char *key) {
     return wf_strdup(buf);
 }
 
-static int wf_jetstream_op_parse(cJSON *raw, wf_jetstream_op *out) {
-    memset(out, 0, sizeof(*out));
-    if (!cJSON_IsObject(raw)) return 0;
-    out->action = wf_jetstream_dup_string(raw, "action");
-    out->path = wf_jetstream_dup_string(raw, "path");
-    out->cid = wf_jetstream_dup_string(raw, "cid");
-    out->prev = wf_jetstream_dup_string(raw, "prev");
-    cJSON *value = cJSON_GetObjectItemCaseSensitive(raw, "value");
-    if (value && !cJSON_IsNull(value)) {
-        out->value = cJSON_Duplicate(value, 1);
-        out->has_value = out->value ? 1 : 0;
-    }
-    if (!out->action || !out->path) return 0;
-    return 1;
+static wf_jetstream_commit_op wf_jetstream_commit_op_from_string(
+    const char *op) {
+    if (!op) return WF_JETSTREAM_COMMIT_UNKNOWN;
+    if (strcmp(op, "create") == 0) return WF_JETSTREAM_COMMIT_CREATE;
+    if (strcmp(op, "update") == 0) return WF_JETSTREAM_COMMIT_UPDATE;
+    if (strcmp(op, "delete") == 0) return WF_JETSTREAM_COMMIT_DELETE;
+    return WF_JETSTREAM_COMMIT_UNKNOWN;
 }
 
 static wf_status wf_jetstream_commit_parse(cJSON *raw, wf_jetstream_commit *out) {
     if (!cJSON_IsObject(raw)) return WF_ERR_PARSE;
     memset(out, 0, sizeof(*out));
-    out->seq = wf_jetstream_dup_seq(raw, "seq");
-    out->repo = wf_jetstream_dup_string(raw, "repo");
-    out->did = wf_jetstream_dup_string(raw, "did");
-    if (!out->did && out->repo) out->did = wf_strdup(out->repo);
-    out->time = wf_jetstream_dup_string(raw, "time");
-    out->repo_rev = wf_jetstream_dup_string(raw, "rev");
-    out->blocks = wf_jetstream_dup_string(raw, "blocks");
-    cJSON *too_big = cJSON_GetObjectItemCaseSensitive(raw, "tooBig");
-    if (too_big && cJSON_IsBool(too_big)) out->too_big = cJSON_IsTrue(too_big);
-    cJSON *ops = cJSON_GetObjectItemCaseSensitive(raw, "ops");
-    if (ops && cJSON_IsArray(ops)) {
-        out->op_count = (size_t)cJSON_GetArraySize(ops);
-        if (out->op_count) {
-            out->ops = calloc(out->op_count, sizeof(wf_jetstream_op));
-            if (!out->ops) return WF_ERR_ALLOC;
-            for (size_t i = 0; i < out->op_count; ++i) {
-                if (!wf_jetstream_op_parse(cJSON_GetArrayItem(ops, (int)i),
-                                           &out->ops[i])) {
-                    return WF_ERR_PARSE;
-                }
-            }
-        }
+    cJSON *operation = cJSON_GetObjectItemCaseSensitive(raw, "operation");
+    if (!cJSON_IsString(operation) || !operation->valuestring)
+        return WF_ERR_PARSE;
+    out->operation = wf_jetstream_commit_op_from_string(operation->valuestring);
+    if (out->operation == WF_JETSTREAM_COMMIT_UNKNOWN) return WF_ERR_PARSE;
+    out->collection = wf_jetstream_dup_string(raw, "collection");
+    out->rkey = wf_jetstream_dup_string(raw, "rkey");
+    out->cid = wf_jetstream_dup_string(raw, "cid");
+    out->rev = wf_jetstream_dup_string(raw, "rev");
+    /* `record` is the owned record JSON for create/update; deletes omit it. */
+    cJSON *record = cJSON_GetObjectItemCaseSensitive(raw, "record");
+    if (record && !cJSON_IsNull(record)) {
+        out->record = cJSON_Duplicate(record, 1);
+        out->has_record = out->record ? 1 : 0;
     }
-    if (!out->seq || !out->repo) return WF_ERR_PARSE;
+    if (!out->collection || !out->rkey) return WF_ERR_PARSE;
     return WF_OK;
 }
 
@@ -499,11 +484,8 @@ static wf_status wf_jetstream_identity_parse(cJSON *raw,
                                              wf_jetstream_identity *out) {
     if (!cJSON_IsObject(raw)) return WF_ERR_PARSE;
     memset(out, 0, sizeof(*out));
-    out->seq = wf_jetstream_dup_seq(raw, "seq");
-    out->did = wf_jetstream_dup_string(raw, "did");
-    out->time = wf_jetstream_dup_string(raw, "time");
     out->handle = wf_jetstream_dup_string(raw, "handle");
-    if (!out->seq || !out->did) return WF_ERR_PARSE;
+    if (!out->handle) return WF_ERR_PARSE;
     return WF_OK;
 }
 
@@ -511,14 +493,10 @@ static wf_status wf_jetstream_account_parse(cJSON *raw,
                                             wf_jetstream_account *out) {
     if (!cJSON_IsObject(raw)) return WF_ERR_PARSE;
     memset(out, 0, sizeof(*out));
-    out->seq = wf_jetstream_dup_seq(raw, "seq");
-    out->did = wf_jetstream_dup_string(raw, "did");
-    out->time = wf_jetstream_dup_string(raw, "time");
-    out->status = wf_jetstream_dup_string(raw, "status");
     cJSON *active = cJSON_GetObjectItemCaseSensitive(raw, "active");
     if (!cJSON_IsBool(active)) return WF_ERR_PARSE;
     out->active = cJSON_IsTrue(active);
-    if (!out->seq || !out->did) return WF_ERR_PARSE;
+    out->status = wf_jetstream_dup_string(raw, "status");
     return WF_OK;
 }
 
@@ -545,13 +523,22 @@ wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
     cJSON *root = cJSON_ParseWithLength(json, json_len);
     cJSON *kind = root ? cJSON_GetObjectItemCaseSensitive(root, "kind") : NULL;
     cJSON *did = root ? cJSON_GetObjectItemCaseSensitive(root, "did") : NULL;
+    cJSON *seq = root ? cJSON_GetObjectItemCaseSensitive(root, "seq") : NULL;
+    cJSON *time_us = root ? cJSON_GetObjectItemCaseSensitive(root, "time_us")
+                          : NULL;
     if (!cJSON_IsObject(root) || !cJSON_IsString(kind) ||
-        !cJSON_IsString(did) || !did->valuestring) {
+        !cJSON_IsString(did) || !did->valuestring ||
+        !cJSON_IsNumber(seq) ||
+        !cJSON_IsNumber(time_us) || time_us->valuedouble < 0 ||
+        time_us->valuedouble > 9007199254740991.0 ||
+        (double)(int64_t)time_us->valuedouble != time_us->valuedouble) {
         cJSON_Delete(root); return WF_ERR_PARSE;
     }
     out->kind = wf_jetstream_kind_from_string(kind->valuestring);
     out->did = wf_strdup(did->valuestring);
     if (!out->did) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    out->seq = (int64_t)seq->valuedouble;
+    out->time_us = (int64_t)time_us->valuedouble;
 
     wf_status status = WF_ERR_PARSE;
     switch (out->kind) {
@@ -593,19 +580,10 @@ wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
 void wf_jetstream_event_typed_free(wf_jetstream_event_typed *ev) {
     if (!ev) return;
     free(ev->did);
-    if (ev->commit.ops) {
-        for (size_t i = 0; i < ev->commit.op_count; ++i) {
-            wf_jetstream_op *op = &ev->commit.ops[i];
-            free(op->action); free(op->path); free(op->cid);
-            free(op->prev); cJSON_Delete(op->value);
-        }
-        free(ev->commit.ops);
-    }
-    free(ev->commit.seq); free(ev->commit.did); free(ev->commit.time);
-    free(ev->commit.repo); free(ev->commit.repo_rev); free(ev->commit.blocks);
-    free(ev->identity.seq); free(ev->identity.did); free(ev->identity.time);
+    free(ev->commit.collection); free(ev->commit.rkey);
+    cJSON_Delete(ev->commit.record);
+    free(ev->commit.cid); free(ev->commit.rev);
     free(ev->identity.handle);
-    free(ev->account.seq); free(ev->account.did); free(ev->account.time);
     free(ev->account.status);
     free(ev->sync.seq); free(ev->sync.did); free(ev->sync.time);
     free(ev->sync.rev);
