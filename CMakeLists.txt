@@ -933,6 +933,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_validate PRIVATE test)
     add_test(NAME validate COMMAND test_validate)
 
+    add_executable(test_validate_grapheme test/test_validate_grapheme.c)
+    target_link_libraries(test_validate_grapheme PRIVATE wolfram)
+    target_include_directories(test_validate_grapheme PRIVATE test)
+    add_test(NAME validate_grapheme COMMAND test_validate_grapheme)
+
     if(WOLFRAM_BUILD_IDN)
         add_executable(test_idn test/test_idn.c)
         target_link_libraries(test_idn PRIVATE wolfram ${IDN2_LIBRARIES})
