@@ -23,6 +23,7 @@ struct wf_jetstream {
     int64_t cursor;
     uint32_t retry_delay_ms;
     uint64_t retry_at_ms;
+    uint64_t last_ping_ms;     /* last keepalive ping sent (ms) */
     char *pending_update_json;
     size_t pending_update_json_len;
 };
@@ -361,10 +362,14 @@ wf_status wf_jetstream_event_parse(const char *json, size_t json_len,
     cJSON *kind = root ? cJSON_GetObjectItemCaseSensitive(root, "kind") : NULL;
     cJSON *did = root ? cJSON_GetObjectItemCaseSensitive(root, "did") : NULL;
     cJSON *time_us = root ? cJSON_GetObjectItemCaseSensitive(root, "time_us") : NULL;
+    /* `info` frames (e.g. OutdatedCursor) carry neither time_us nor seq, so
+     * they are exempt from the timestamp gate; the reference ignores them. */
+    int is_info = cJSON_IsString(kind) && strcmp(kind->valuestring, "info") == 0;
     if (!cJSON_IsObject(root) || !cJSON_IsString(kind) || !cJSON_IsString(did) ||
-        !cJSON_IsNumber(time_us) || time_us->valuedouble < 0 ||
-        time_us->valuedouble > 9007199254740991.0 ||
-        (double)(int64_t)time_us->valuedouble != time_us->valuedouble) {
+        (!is_info &&
+         (!cJSON_IsNumber(time_us) || time_us->valuedouble < 0 ||
+          time_us->valuedouble > 9007199254740991.0 ||
+          (double)(int64_t)time_us->valuedouble != time_us->valuedouble))) {
         cJSON_Delete(root); return WF_ERR_PARSE;
     }
     size_t did_len = strlen(did->valuestring);
@@ -376,7 +381,7 @@ wf_status wf_jetstream_event_parse(const char *json, size_t json_len,
     memcpy(out->did, did->valuestring, did_len + 1);
     memcpy(out->json, json, json_len); out->json[json_len] = '\0';
     out->kind = wf_jetstream_kind_from_string(kind->valuestring);
-    out->time_us = (int64_t)time_us->valuedouble;
+    out->time_us = (int64_t)(is_info ? 0 : time_us->valuedouble);
     out->json_len = json_len;
     cJSON_Delete(root); return WF_OK;
 }
@@ -397,29 +402,64 @@ wf_status wf_jetstream_next(wf_jetstream *stream, wf_jetstream_event *out) {
             }
             return WF_ERR_WOULD_BLOCK;
         }
+        stream->last_ping_ms = wf_now_ms();
     }
-    wf_websocket_message message = {0};
-    wf_status status = wf_websocket_receive(stream->socket, &message);
-    if (status == WF_ERR_NETWORK) {
-        wf_websocket_free(stream->socket); stream->socket = NULL;
-        stream->retry_at_ms = wf_now_ms() + stream->retry_delay_ms;
-        return WF_ERR_WOULD_BLOCK;
-    }
-    if (status != WF_OK) return status;
-    if (message.type == WF_WEBSOCKET_TEXT && !stream->options.compress)
-        status = wf_jetstream_event_parse((const char *)message.data, message.len, out);
-    else if (message.type == WF_WEBSOCKET_BINARY && stream->options.compress)
-        status = wf_jetstream_event_parse_zstd(message.data, message.len,
-                    stream->dictionary, stream->options.zstd_dictionary_len, out);
-    else status = WF_ERR_PARSE;
-    wf_websocket_message_free(&message);
-    if (status == WF_OK) {
+    for (;;) {
+        wf_websocket_message message = {0};
+        wf_status status = wf_websocket_receive(stream->socket, &message);
+        if (status == WF_ERR_NETWORK) {
+            wf_websocket_free(stream->socket); stream->socket = NULL;
+            stream->retry_at_ms = wf_now_ms() + stream->retry_delay_ms;
+            return WF_ERR_WOULD_BLOCK;
+        }
+        if (status == WF_ERR_WOULD_BLOCK) {
+            /* Idle: the socket is healthy but has no frame yet. Send a
+             * keepalive ping when the idle window elapses. (Missed-pong
+             * termination is intentionally NOT implemented: libcurl
+             * auto-handles PING/PONG and does not surface PONG to the
+             * application receive path, and we must not alter the transport
+             * framing in websocket.c.) */
+            uint64_t now = wf_now_ms();
+            uint32_t ping_interval = stream->options.ping_interval_ms
+                                         ? stream->options.ping_interval_ms : 30000;
+            if (now - stream->last_ping_ms >= ping_interval) {
+                wf_websocket_send_ping(stream->socket);
+                stream->last_ping_ms = now;
+            }
+            return WF_ERR_WOULD_BLOCK;
+        }
+        if (status != WF_OK) return status;
+        if (message.type == WF_WEBSOCKET_TEXT && !stream->options.compress)
+            status = wf_jetstream_event_parse((const char *)message.data, message.len, out);
+        else if (message.type == WF_WEBSOCKET_BINARY && stream->options.compress)
+            status = wf_jetstream_event_parse_zstd(message.data, message.len,
+                        stream->dictionary, stream->options.zstd_dictionary_len, out);
+        else status = WF_ERR_PARSE;
+        wf_websocket_message_free(&message);
+        if (status != WF_OK) return status;
+
+        /* Info frames (e.g. OutdatedCursor) carry no time_us and must not be
+         * surfaced as events or errors. On OutdatedCursor the cursor is
+         * outdated, so reset it to 0 so the next reconnect replays from the
+         * start. The connection stays open either way. */
+        if (out->kind == WF_JETSTREAM_EVENT_INFO) {
+            cJSON *root = cJSON_ParseWithLength(out->json, out->json_len);
+            cJSON *name = root ? cJSON_GetObjectItemCaseSensitive(root, "name") : NULL;
+            if (name && cJSON_IsString(name) &&
+                strcmp(name->valuestring, "OutdatedCursor") == 0)
+                stream->cursor = 0;
+            cJSON_Delete(root);
+            wf_jetstream_event_free(out);
+            continue;
+        }
+
         stream->cursor = out->time_us;
+        stream->last_ping_ms = wf_now_ms();
         stream->retry_delay_ms = stream->options.reconnect_initial_delay_ms
                                      ? stream->options.reconnect_initial_delay_ms : 250;
         stream->retry_at_ms = 0;
+        return WF_OK;
     }
-    return status;
 }
 
 uint32_t wf_jetstream_reconnect_after_ms(const wf_jetstream *stream) {
@@ -526,12 +566,16 @@ wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
     cJSON *seq = root ? cJSON_GetObjectItemCaseSensitive(root, "seq") : NULL;
     cJSON *time_us = root ? cJSON_GetObjectItemCaseSensitive(root, "time_us")
                           : NULL;
+    /* Per the documented contract, only `kind` and `did` gate parsing. Info
+     * frames carry neither seq nor time_us, so those are optional. */
+    int is_info = cJSON_IsString(kind) && strcmp(kind->valuestring, "info") == 0;
+    int time_ok = is_info || (cJSON_IsNumber(time_us) && time_us->valuedouble >= 0 &&
+                   time_us->valuedouble <= 9007199254740991.0 &&
+                   (double)(int64_t)time_us->valuedouble == time_us->valuedouble);
     if (!cJSON_IsObject(root) || !cJSON_IsString(kind) ||
         !cJSON_IsString(did) || !did->valuestring ||
-        !cJSON_IsNumber(seq) ||
-        !cJSON_IsNumber(time_us) || time_us->valuedouble < 0 ||
-        time_us->valuedouble > 9007199254740991.0 ||
-        (double)(int64_t)time_us->valuedouble != time_us->valuedouble) {
+        (!is_info && !cJSON_IsNumber(seq)) ||
+        !time_ok) {
         cJSON_Delete(root); return WF_ERR_PARSE;
     }
     out->kind = wf_jetstream_kind_from_string(kind->valuestring);

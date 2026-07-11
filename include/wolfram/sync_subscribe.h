@@ -100,6 +100,11 @@ typedef struct wf_subscribe_options {
     void *userdata;
     int max_retry_seconds;
     int reconnect_delay_ms;
+    /* Client keepalive: send a WebSocket PING when no frame has been received
+     * for this many milliseconds. 0 selects a 30000ms default. The peer's PONG
+     * is auto-handled by libcurl and not surfaced, so this only guards against
+     * idle TCP/proxy reaping (no missed-pong termination). */
+    uint32_t ping_interval_ms;
 } wf_subscribe_options;
 
 typedef struct wf_subscribe_handle wf_subscribe_handle;
