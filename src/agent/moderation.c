@@ -335,6 +335,8 @@ static void cause_free(wf_mod_cause *c) {
         free(c->label.uri);
         free(c->label.val);
         free(c->label.cts);
+        free(c->label.cid);
+        free(c->label.exp);
     }
     if (c->type == WF_MOD_CAUSE_MUTE_WORD && c->matches) {
         for (size_t i = 0; i < c->match_count; i++) {
@@ -386,6 +388,11 @@ static wf_status cause_copy_deep(wf_mod_cause *dst, const wf_mod_cause *src) {
         dst->label.uri = dup_str(src->label.uri);
         dst->label.val = dup_str(src->label.val);
         dst->label.cts = dup_str(src->label.cts);
+        dst->label.cid = dup_str(src->label.cid);
+        dst->label.exp = dup_str(src->label.exp);
+        dst->label.neg = src->label.neg;
+        dst->label.has_cid = src->label.has_cid;
+        dst->label.ver = src->label.ver;
     } else if (src->type == WF_MOD_CAUSE_MUTE_WORD && src->match_count > 0) {
         dst->matches = calloc(src->match_count, sizeof(wf_mod_mute_word_match));
         if (!dst->matches) return WF_ERR_ALLOC;
@@ -751,6 +758,11 @@ wf_status wf_mod_add_label(wf_mod_decision *d,
     c.label.uri = dup_str(label->uri);
     c.label.val = dup_str(label->val);
     c.label.cts = dup_str(label->cts);
+    c.label.cid = dup_str(label->cid);
+    c.label.exp = dup_str(label->exp);
+    c.label.neg = label->neg;
+    c.label.has_cid = label->has_cid;
+    c.label.ver = label->ver;
     c.label_def = def;
     c.target = target;
     c.setting = pref;
@@ -782,6 +794,41 @@ static int is_profile_label(const wf_mod_label *label) {
     return str_ends_with(label->uri, "/app.bsky.actor.profile/self");
 }
 
+/* True when label L is revoked by some negation label in `labels`: a negation
+ * label (neg==1) of the same value from the same source, scoped to the same
+ * subject (by cid when both carry a cid, otherwise by uri). Implements atproto
+ * label-negation semantics (a later negated label cancels an earlier one). */
+static int label_is_negated(const wf_mod_label *L,
+                            const wf_mod_label *labels, size_t count) {
+    for (size_t i = 0; i < count; i++) {
+        const wf_mod_label *N = &labels[i];
+        if (!N->neg) continue;
+        if (!str_eq(N->val, L->val)) continue;
+        if (!str_eq(N->src, L->src)) continue;
+        if (N->has_cid) {
+            if (!L->has_cid) continue;
+            if (!str_eq(N->cid, L->cid)) continue;
+        } else {
+            if (!str_eq(N->uri, L->uri)) continue;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* Add a label to the decision, honoring negation: a negation label produces no
+ * active cause, and a label revoked by a negation label in the set is skipped. */
+static wf_status add_label_negation_aware(wf_mod_decision *out,
+                                          wf_mod_label_target target,
+                                          const wf_mod_label *label,
+                                          const wf_mod_label *labels,
+                                          size_t count,
+                                          const wf_mod_opts *opts) {
+    if (label->neg) return WF_OK;
+    if (label_is_negated(label, labels, count)) return WF_OK;
+    return wf_mod_add_label(out, target, label, opts);
+}
+
 wf_status wf_mod_decide_account(wf_mod_decision *out,
                                 const wf_mod_subject_profile *subject,
                                 const wf_mod_opts *opts) {
@@ -808,7 +855,9 @@ wf_status wf_mod_decide_account(wf_mod_decision *out,
     /* Account labels */
     for (size_t i = 0; i < subject->label_count; i++) {
         if (is_account_label(&subject->labels[i])) {
-            wf_mod_add_label(out, WF_MOD_TARGET_ACCOUNT, &subject->labels[i], opts);
+            add_label_negation_aware(out, WF_MOD_TARGET_ACCOUNT,
+                                     &subject->labels[i],
+                                     subject->labels, subject->label_count, opts);
         }
     }
 
@@ -828,7 +877,9 @@ wf_status wf_mod_decide_profile(wf_mod_decision *out,
     /* Profile labels only */
     for (size_t i = 0; i < subject->label_count; i++) {
         if (is_profile_label(&subject->labels[i])) {
-            wf_mod_add_label(out, WF_MOD_TARGET_PROFILE, &subject->labels[i], opts);
+            add_label_negation_aware(out, WF_MOD_TARGET_PROFILE,
+                                     &subject->labels[i],
+                                     subject->labels, subject->label_count, opts);
         }
     }
 
@@ -849,7 +900,9 @@ wf_status wf_mod_decide_post(wf_mod_decision *out,
 
     /* Content labels */
     for (size_t i = 0; i < subject->label_count; i++) {
-        wf_mod_add_label(&subject_d, WF_MOD_TARGET_CONTENT, &subject->labels[i], opts);
+        add_label_negation_aware(&subject_d, WF_MOD_TARGET_CONTENT,
+                                 &subject->labels[i],
+                                 subject->labels, subject->label_count, opts);
     }
 
     /* Check hidden posts */
@@ -957,7 +1010,9 @@ wf_status wf_mod_decide_feed_generator(wf_mod_decision *out,
     }
     set_did_and_me(&content_d, subject->creator.did, opts);
     for (size_t i = 0; i < subject->label_count; i++) {
-        wf_mod_add_label(&content_d, WF_MOD_TARGET_CONTENT, &subject->labels[i], opts);
+        add_label_negation_aware(&content_d, WF_MOD_TARGET_CONTENT,
+                                 &subject->labels[i],
+                                 subject->labels, subject->label_count, opts);
     }
 
     wf_mod_decision merged1;
@@ -1005,7 +1060,9 @@ wf_status wf_mod_decide_user_list(wf_mod_decision *out,
     }
     set_did_and_me(&content_d, subject->creator.did, opts);
     for (size_t i = 0; i < subject->label_count; i++) {
-        wf_mod_add_label(&content_d, WF_MOD_TARGET_CONTENT, &subject->labels[i], opts);
+        add_label_negation_aware(&content_d, WF_MOD_TARGET_CONTENT,
+                                 &subject->labels[i],
+                                 subject->labels, subject->label_count, opts);
     }
 
     wf_mod_decision merged1;
@@ -1757,6 +1814,12 @@ wf_status wf_mod_labels_from_json(wf_mod_label **out,
         const char *uri = json_str(cJSON_GetObjectItemCaseSensitive(l, "uri"));
         const char *val = json_str(cJSON_GetObjectItemCaseSensitive(l, "val"));
         const char *cts = json_str(cJSON_GetObjectItemCaseSensitive(l, "cts"));
+        const char *cid = json_str(cJSON_GetObjectItemCaseSensitive(l, "cid"));
+        const char *exp = json_str(cJSON_GetObjectItemCaseSensitive(l, "exp"));
+        cJSON *neg_item = cJSON_GetObjectItemCaseSensitive(l, "neg");
+        bool neg = cJSON_IsBool(neg_item) && cJSON_IsTrue(neg_item);
+        cJSON *ver_item = cJSON_GetObjectItemCaseSensitive(l, "ver");
+        int ver = cJSON_IsNumber(ver_item) ? ver_item->valueint : 0;
         if (!val) continue;
         if (*out_count >= cap) {
             size_t nc = (cap == 0) ? 4 : cap * 2;
@@ -1771,8 +1834,13 @@ wf_status wf_mod_labels_from_json(wf_mod_label **out,
         lab->uri = dup_str(uri);
         lab->val = dup_str(val);
         lab->cts = dup_str(cts);
+        lab->cid = dup_str(cid);
+        lab->exp = dup_str(exp);
+        lab->neg = neg;
+        lab->has_cid = (cid != NULL);
+        lab->ver = ver;
         if (!lab->val || (src && !lab->src) || (uri && !lab->uri) ||
-            (cts && !lab->cts)) {
+            (cts && !lab->cts) || (cid && !lab->cid) || (exp && !lab->exp)) {
             st = WF_ERR_ALLOC;
             goto done;
         }
@@ -1786,6 +1854,7 @@ done:
             for (size_t i = 0; i < *out_count; i++) {
                 free(arr[i].src); free(arr[i].uri);
                 free(arr[i].val); free(arr[i].cts);
+                free(arr[i].cid); free(arr[i].exp);
             }
             free(arr);
         }
@@ -1804,6 +1873,8 @@ void wf_mod_labels_free(wf_mod_label *labels, size_t count) {
         free(labels[i].uri);
         free(labels[i].val);
         free(labels[i].cts);
+        free(labels[i].cid);
+        free(labels[i].exp);
     }
     free(labels);
 }
