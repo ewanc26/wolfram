@@ -101,6 +101,18 @@ wf_status wf_verify(const char *public_key_multibase,
                       const unsigned char *msg, size_t msg_len,
                       const unsigned char *sig, size_t sig_len);
 
+/**
+ * Verify an ECDSA signature while accepting either low-S or high-S form.
+ *
+ * This exists for AT Protocol service-JWT interoperability, whose reference
+ * verifier explicitly permits malleable signatures. Repository, commit, and
+ * record verification should continue to use wf_verify so canonical low-S
+ * signatures remain required. Inputs and key formats match wf_verify.
+ */
+wf_status wf_verify_allow_malleable(const char *public_key_multibase,
+                                    const unsigned char *msg, size_t msg_len,
+                                    const unsigned char *sig, size_t sig_len);
+
 /* ------------------------------------------------------------------ */
 /* Generic P-256 / hashing / base64url helpers                         */
 /*                                                                     */
