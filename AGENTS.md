@@ -31,9 +31,37 @@ Agentic principles and technical context for the `wolfram` repository.
 - **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
 - **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
+## Repository map and generated-code contract
+
+- `include/wolfram/` is the installed C API. Public structs must document ownership, optional fields, lifetime, and the matching free routine; preserve C++ guards and avoid leaking private dependency types unnecessarily.
+- `src/transport`, `src/session`, `src/identity`, `src/repo`, `src/crypto`, `src/sync`, and `src/agent` contain the principal client layers. Root-level `src/*_typed.c` and `src/agent/*_typed.c` add owned parsers/builders and agent conveniences around generated calls.
+- `src/server`, `src/blob`, and `src/feedgen_server.c` are optional service-building infrastructure, not ports of the upstream PDS/AppView/Ozone backends. `src/store` and the server repo store have separate CMake gates and storage/security assumptions.
+- `lexicons/` is a checked-in snapshot of the upstream lexicon tree. `tools/wf_lexgen.py` generates `include/wolfram/atproto_lex.h` and `src/atproto_lex.c`; both generated files are checked in. Never hand-edit either generated file. Update the source lexicons, regenerate both outputs, run the Python generator tests, and review the generated diff together.
+- `test/fixtures/` includes copied upstream interoperability vectors and API-shaped JSON. Keep fixture provenance and byte-level data intact; update a fixture only when the authoritative upstream format or the behavior under test changes.
+- `cpp/` and `dotnet/` are bindings with their own generated ownership/interop layers. A C ABI or ownership change is incomplete until affected bindings and smoke tests are rebuilt.
+
+The bundled lexicon filenames currently match the local upstream checkout, but file parity is not semantic proof. For every protocol change, inspect the relevant lexicon and TypeScript implementation/tests under `/Volumes/Storage/Developer/Local/atproto`; check canonical encoding, validation order, limits, error semantics, pagination, union tags, and ownership rather than comparing endpoint names alone.
+
+## Validation matrix
+
+- The default desktop configure requires libcurl and OpenSSL, fetches pinned cJSON/libcbor sources, and builds examples and tests. A clean configure therefore may require network access even when tests themselves are offline.
+- `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` is the baseline desktop check. Use a fresh build directory after changing options, public layouts, generated code, or platform selection.
+- CTest includes `test_lexgen.py`; Python is therefore a development/test requirement even though it is not a runtime dependency. `validate_corpus` can pass by printing `SKIP` unless `WF_ATPROTO_LEXICONS` points at an upstream corpus, and `examples_live` passes with a `SKIP` unless live credentials are supplied. Do not report those surfaces as exercised from a green default CTest run alone.
+- Exercise optional modules explicitly: `WOLFRAM_BUILD_SERVER` also requires libmicrohttpd and SQLite; `WOLFRAM_BUILD_STORE` requires SQLite; store encryption additionally requires libsodium; `WOLFRAM_BUILD_TEST_HTTPD`, `WOLFRAM_BUILD_IDN`, and `WOLFRAM_BUILD_CPP` each add distinct coverage. Build only the matrix relevant to the change, but state what remained disabled or skipped.
+- Embedded configurations force tests, examples, OAuth, and server modules off. A Wii cross-build proves compile/link compatibility, not HTTP/TLS correctness on hardware. Wii HTTPS/P-256 work also requires an installation-unique 64-byte seed supplied before use and a rotate/persist/commit cycle; never add a shared fallback seed. Wii WebSocket and secp256k1 remain unsupported, and Wii U/3DS remain stub targets.
+- Run focused executables or `ctest -R <name>` while iterating. For ABI changes, rebuild all consumers rather than trusting an incremental relink. For parser/encoder work, add malformed, limit, allocation/cleanup, and round-trip cases as appropriate.
+
+## Security and correctness boundaries
+
+- Treat service URLs, DIDs, handles, NSIDs, AT URIs, record keys, cursors, JSON/CBOR/CAR, HTTP headers, redirects, and server request bodies as untrusted. Preserve size/recursion limits, exact audience/issuer/subject checks, algorithm restrictions, low-S signing rules where required, replay/nonce handling, and refresh retry bounds.
+- Never log or commit access/refresh tokens, app passwords, OAuth state/verifiers, DPoP or signing private keys, store encryption keys, live response bodies, or Wii entropy. Tests should mint ephemeral keys and use fixtures or the in-process mock server.
+- `WF_OK` means the promised output is initialized and owned as documented. On failure, leave outputs safely freeable and release every partial allocation. Do not collapse protocol-specific failures into success or infer missing union members.
+- The presence of a wrapper does not establish complete behavior. Several typed conveniences are intentionally honest stubs because no matching lexicon endpoint exists, and some repository-store paths still map protocol-specific errors to broad status codes. Search the implementation and tests before claiming coverage.
+- Platform implementations are not interchangeable: desktop crypto/HTTP uses OpenSSL/libcurl and optional secp256k1, while Wii uses mbedTLS plus compatibility code and excludes substantial desktop surface. Test the backend whose behavior changed.
+
 ## Current state
 
-The SDK is broad and multi-layered; almost all of it is implemented and tested. Highlights:
+The SDK is broad and multi-layered, with extensive offline coverage. “Implemented” below means a concrete code path exists; it does not imply every optional build, live service, or console backend ran in the current validation. Known honest stubs and partial modules remain and must stay visible. Highlights:
 
 - `xrpc`: libcurl query/procedure calls, encoded scalar/repeated parameters, generic HTTP GET, bearer authentication, binary blob upload (incl. video), DPoP-bound OAuth client (`auth_client`). Tested.
 - `session` / `server`: PDS login, resume, refresh, logout, and full `com.atproto.server` account lifecycle (createAccount, app passwords, deactivate, email/account-delete requests, session refresh). The `server_typed` agent wrappers implement the parameterless `com.atproto.server` procedures (`requestAccountDelete`, `requestEmailUpdate`, `requestEmailConfirmation`, `refreshSession`). Tested.
