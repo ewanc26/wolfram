@@ -6,11 +6,11 @@ Agentic principles and technical context for the `wolfram` repository.
 
 1. **Transport first**: client protocol modules route HTTP/XRPC and subscription traffic through the XRPC/WebSocket APIs. Keep raw client I/O in `src/transport/`; DNS resolution, optional server listeners, and platform initialization are separate explicit boundaries.
 2. **No hand-rolled crypto or hashing**: wrap `libsecp256k1` and an established SHA-256 implementation rather than writing field arithmetic or digest logic from scratch.
-3. **Stubs are honest**: unimplemented functions return an error and carry a `TODO` explaining what's missing and why — never a silent no-op or a fabricated success. Unimplemented *backends/transports* (e.g. the Wii HTTPS transport and Wii U/3DS platform stubs) return `WF_ERR_NOT_IMPLEMENTED`; unimplemented protocol functions with missing inputs return `WF_ERR_INVALID_ARG`. When the missing piece becomes available (e.g. a generated lex transport call), replace the stub with a real implementation rather than leaving it.
+3. **Stubs are honest**: unimplemented functions return an error and carry a `TODO` explaining what's missing and why — never a silent no-op or a fabricated success. Unimplemented backends/transports (e.g. Wii WebSocket and Wii U/3DS platform stubs) return `WF_ERR_NOT_IMPLEMENTED`; unimplemented protocol functions with missing inputs return `WF_ERR_INVALID_ARG`. When the missing piece becomes available (e.g. a generated lex transport call), replace the stub with a real implementation rather than leaving it.
 4. **Ownership is explicit**: every heap-allocated output has a matching `_free` function documented next to it. No hidden allocations, no implicit ownership transfer.
 5. **Protocol parity**: cross-reference `bluesky-social/atproto` for wire formats (XRPC envelopes, DID documents, DAG-CBOR, MST) rather than inferring them.
 6. **Pure C runtime**: the SDK and generated clients are C11. Python is permitted only for optional development-time code generation and tests; it must never become a runtime dependency.
-7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, Linux/AArch64, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/`. The Windows target is fully implemented against the Win32 API. Wii has real libogc network/mutex/time primitives but honest HTTPS/WebSocket/crypto stubs; Wii U/3DS retain honest stub backends that must be replaced before shipping.
+7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, Linux/AArch64, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/`. The Windows target is fully implemented against the Win32 API. Wii has real libogc primitives, mbedTLS HTTPS, and P-256/did:key crypto; WebSocket and secp256k1 remain honest stubs. Wii U/3DS retain honest stub backends that must be replaced before shipping.
 
 ## Code style
 
@@ -109,9 +109,10 @@ Cross-compilation targets for Nintendo consoles and Windows:
 
 **Linux ARM64**: `.devdeps/linux-aarch64.cmake`; AArch64 cross-compilation.
 
-Wii uses libogc for network initialisation, LWP mutexes, and monotonic timing;
-its HTTPS/WebSocket and crypto/did:key backends remain honest stubs. Wii U and
-3DS still use stub platform/transport/crypto implementations. The Windows
-target is fully implemented against the Win32 API (`windows_platform.c`).
+Wii uses libogc for network initialisation, LWP mutexes, and monotonic timing,
+plus mbedTLS for verified HTTPS and P-256/did:key crypto. WebSocket and
+secp256k1 remain honest stubs. Wii U and 3DS still use stub
+platform/transport/crypto implementations. The Windows target is fully
+implemented against the Win32 API (`windows_platform.c`).
 
 The desktop (x86_64) build includes the full suite of dependencies: libcurl, OpenSSL, pthreads, libmicrohttpd (if `WOLFRAM_BUILD_SERVER`), SQLite (if `WOLFRAM_BUILD_STORE`), libsodium (if `WOLFRAM_BUILD_STORE_CRYPTO`).
