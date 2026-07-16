@@ -4,7 +4,7 @@ Agentic principles and technical context for the `wolfram` repository.
 
 ## Technical philosophy
 
-1. **Transport first**: only transport modules (`xrpc.c` and `websocket.c`) do real network I/O. Protocol modules consume those APIs.
+1. **Transport first**: client protocol modules route HTTP/XRPC and subscription traffic through the XRPC/WebSocket APIs. Keep raw client I/O in `src/transport/`; DNS resolution, optional server listeners, and platform initialization are separate explicit boundaries.
 2. **No hand-rolled crypto or hashing**: wrap `libsecp256k1` and an established SHA-256 implementation rather than writing field arithmetic or digest logic from scratch.
 3. **Stubs are honest**: unimplemented functions return an error and carry a `TODO` explaining what's missing and why — never a silent no-op or a fabricated success. Unimplemented *backends/transports* (e.g. the Wii HTTPS transport and Wii U/3DS platform stubs) return `WF_ERR_NOT_IMPLEMENTED`; unimplemented protocol functions with missing inputs return `WF_ERR_INVALID_ARG`. When the missing piece becomes available (e.g. a generated lex transport call), replace the stub with a real implementation rather than leaving it.
 4. **Ownership is explicit**: every heap-allocated output has a matching `_free` function documented next to it. No hidden allocations, no implicit ownership transfer.
