@@ -168,12 +168,12 @@ The toolchain file is at `.devdeps/linux-aarch64.cmake`. Toolchains for
 additional architectures (`arm32.cmake`, `amd64.cmake`) are also provided
 under `.devdeps/`.
 
-The Wii platform abstraction now implements libogc networking initialisation,
-LWP mutexes, and monotonic timing, and a complete Channel Blue executable links
-against the cross-compiled SDK. Wii HTTPS/WebSocket and crypto/did:key backends
-remain honest `WF_ERR_NOT_IMPLEMENTED` stubs. Wii U and 3DS platform, transport,
-and crypto backends remain stubbed. The Windows target is fully implemented
-against the Win32 API.
+The Wii platform implements libogc networking, LWP mutexes, monotonic timing,
+mbedTLS HTTPS with CA validation, and the P-256/did:key crypto needed by the
+client. It requires a unique externally provisioned entropy seed through
+`wf_wii_set_entropy_seed`. Wii WebSocket and secp256k1 support remain honest
+stubs. Wii U and 3DS platform, transport, and crypto backends remain stubbed.
+The Windows target is fully implemented against the Win32 API.
 
 For consoles (Wii, Wii U, 3DS), the builds are client-only — server modules,
 OAuth flows, and desktop dependencies (libcurl, OpenSSL, pthreads) are excluded.

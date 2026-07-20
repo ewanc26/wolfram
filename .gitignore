@@ -101,3 +101,7 @@ venv/
 *.diff
 *.orig
 .cache/
+
+# Local Wii cross-compile artifacts (mbedTLS portlib + build tree)
+build-wii*
+wii-portlibs/
