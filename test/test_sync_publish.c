@@ -1,6 +1,7 @@
 #include "wolfram/sync_publish.h"
 #include "wolfram/sync_subscribe.h"
 #include "wolfram/repo/cid.h"
+#include "wolfram/crypto.h"
 #include "test.h"
 
 #include <cbor.h>
@@ -80,6 +81,31 @@ static int event_equal(const wf_subscribe_event *a, const wf_subscribe_event *b)
         const char *xm = a->data.error.message ? a->data.error.message : "";
         const char *ym = b->data.error.message ? b->data.error.message : "";
         if (strcmp(xm, ym)) return 0;
+        return 1;
+    }
+    case WF_SUBSCRIBE_EVENT_LABELS: {
+        const wf_subscribe_labels *x = &a->data.labels, *y = &b->data.labels;
+        if (x->labels_count != y->labels_count) return 0;
+        for (size_t i = 0; i < x->labels_count; i++) {
+            const wf_label *lx = &x->labels[i], *ly = &y->labels[i];
+            if (lx->has_ver != ly->has_ver) return 0;
+            if (lx->has_ver && lx->ver != ly->ver) return 0;
+            if (strcmp(lx->src, ly->src)) return 0;
+            if (strcmp(lx->uri, ly->uri)) return 0;
+            if (lx->has_cid != ly->has_cid) return 0;
+            if (lx->has_cid && strcmp(lx->cid, ly->cid)) return 0;
+            if (strcmp(lx->val, ly->val)) return 0;
+            if (lx->has_neg != ly->has_neg) return 0;
+            if (lx->has_neg && !!lx->neg != !!ly->neg) return 0;
+            if (strcmp(lx->cts, ly->cts)) return 0;
+            if (lx->has_exp != ly->has_exp) return 0;
+            if (lx->has_exp && strcmp(lx->exp, ly->exp)) return 0;
+            if (lx->has_sig != ly->has_sig) return 0;
+            if (lx->has_sig) {
+                if (!lx->sig || !ly->sig) return 0;
+                if (strcmp(lx->sig, ly->sig)) return 0;
+            }
+        }
         return 1;
     }
     default:
@@ -311,6 +337,46 @@ static void test_commit_no_prev_data(void) {
     free(ev.data.commit.blocks);
 }
 
+static void test_labels(void) {
+    wf_subscribe_event ev = {0};
+    ev.type = WF_SUBSCRIBE_EVENT_LABELS;
+    ev.seq = 1001;
+    ev.data.labels.seq = 1001;
+    ev.data.labels.labels_count = 2;
+    ev.data.labels.labels = calloc(2, sizeof(wf_label));
+
+    /* First label: fully populated (ver, cid, neg, exp, sig). */
+    wf_label *a = &ev.data.labels.labels[0];
+    a->ver = 1; a->has_ver = 1;
+    a->src = strdup("did:plc:labeler");
+    a->uri = strdup("at://did:plc:alice/app.bsky.feed.post/abc");
+    a->cid = strdup("bafyreictrgtcg7wph56xjgu3ke7c2tjjgbj5dssviw6staozglsfg5nlu");
+    a->has_cid = 1;
+    a->val = strdup("!no-unauthenticated");
+    a->neg = 1; a->has_neg = 1;
+    a->cts = strdup("2024-01-02T03:04:05.000Z");
+    a->exp = strdup("2025-01-02T03:04:05.000Z");
+    a->has_exp = 1;
+    unsigned char sig_bytes[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    WF_CHECK(wf_crypto_base64url_encode(sig_bytes, sizeof(sig_bytes),
+                                        &a->sig) == WF_OK);
+    a->has_sig = 1;
+
+    /* Second label: minimal, only the required fields set. */
+    wf_label *b = &ev.data.labels.labels[1];
+    b->src = strdup("did:plc:labeler");
+    b->uri = strdup("at://did:plc:bob/app.bsky.graph.follow/xyz");
+    b->val = strdup("spam");
+    b->cts = strdup("2024-03-04T05:06:07.000Z");
+
+    roundtrip(&ev, 0);
+
+    free(a->src); free(a->uri); free(a->cid); free(a->val);
+    free(a->cts); free(a->exp); free(a->sig);
+    free(b->src); free(b->uri); free(b->val); free(b->cts);
+    free(ev.data.labels.labels);
+}
+
 int main(void) {
     test_commit();
     test_commit_no_prev_data();
@@ -318,6 +384,7 @@ int main(void) {
     test_identity();
     test_account();
     test_info();
+    test_labels();
     test_error();
     WF_TEST_SUMMARY();
 }
