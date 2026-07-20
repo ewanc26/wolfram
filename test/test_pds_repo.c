@@ -50,6 +50,12 @@ static int run_unit(void) {
         unlink(path);
         return failures + 1;
     }
+    wf_repo_store_stats empty_stats = {1, 1};
+    WF_CHECK(wf_repo_store_get_stats(NULL, &empty_stats) == WF_ERR_INVALID_ARG);
+    WF_CHECK(empty_stats.repo_blocks == 0 && empty_stats.indexed_records == 0);
+    WF_CHECK(wf_repo_store_get_stats(store, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_repo_store_get_stats(store, &empty_stats) == WF_OK);
+    WF_CHECK(empty_stats.repo_blocks == 0 && empty_stats.indexed_records == 0);
 
     /* createRecord in a first collection (rkey auto-generated). */
     char *uri1 = NULL, *cid1 = NULL;
@@ -209,6 +215,12 @@ static int run_unit(void) {
     WF_CHECK(s == WF_ERR_NOT_FOUND || s == WF_ERR_INVALID_ARG);
     free(since_rev);
 
+    WF_CHECK(wf_repo_store_set_handle(store, "not a handle") ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(strcmp(wf_repo_store_handle(store), "test.example.com") == 0);
+    WF_CHECK(wf_repo_store_set_handle(store, "renamed.example.com") == WF_OK);
+    WF_CHECK(strcmp(wf_repo_store_handle(store), "renamed.example.com") == 0);
+
     /* describeRepo: did + handle + collections + rev. */
     char *desc = NULL;
     s = wf_repo_store_describe(store, &desc);
@@ -222,7 +234,7 @@ static int run_unit(void) {
     WF_CHECK(did && cJSON_IsString(did) &&
              strcmp(did->valuestring, "did:plc:testpds") == 0);
     WF_CHECK(handle && cJSON_IsString(handle) &&
-             strcmp(handle->valuestring, "test.example.com") == 0);
+             strcmp(handle->valuestring, "renamed.example.com") == 0);
     WF_CHECK(cols && cJSON_IsArray(cols));
     int has_posts = 0;
     for (int i = 0; cols && i < cJSON_GetArraySize(cols); i++) {
@@ -245,6 +257,10 @@ static int run_unit(void) {
     WF_CHECK(s == WF_OK && verified == 1);
     WF_CHECK(strcmp(cm.did, "did:plc:testpds") == 0);
     WF_CHECK(cm.sig_len == 64);
+    wf_repo_store_stats populated_stats = {0};
+    WF_CHECK(wf_repo_store_get_stats(store, &populated_stats) == WF_OK);
+    WF_CHECK(populated_stats.repo_blocks > 0);
+    WF_CHECK(populated_stats.indexed_records == 1);
 
     /* Persistence: reopen and the head still verifies, DID preserved. */
     wf_repo_store_free(store);
@@ -252,7 +268,11 @@ static int run_unit(void) {
     s = wf_repo_store_open(path, "did:plc:testpds", "test.example.com", &store);
     WF_CHECK(s == WF_OK && store != NULL);
     WF_CHECK(strcmp(wf_repo_store_did(store), "did:plc:testpds") == 0);
-    WF_CHECK(strcmp(wf_repo_store_handle(store), "test.example.com") == 0);
+    WF_CHECK(strcmp(wf_repo_store_handle(store), "renamed.example.com") == 0);
+    wf_repo_store_stats reopened_stats = {0};
+    WF_CHECK(wf_repo_store_get_stats(store, &reopened_stats) == WF_OK);
+    WF_CHECK(reopened_stats.repo_blocks == populated_stats.repo_blocks);
+    WF_CHECK(reopened_stats.indexed_records == populated_stats.indexed_records);
     int verified2 = 0;
     s = wf_repo_store_verify_head(store, &verified2, NULL);
     WF_CHECK(s == WF_OK && verified2 == 1);
@@ -363,8 +383,7 @@ static int run_server(void) {
 }
 
 int main(void) {
-    int failures = 0;
-    failures += run_unit();
-    failures += run_server();
+    run_unit();
+    run_server();
     WF_TEST_SUMMARY();
 }
