@@ -762,6 +762,30 @@ const char *wf_repo_store_handle(const wf_repo_store *store) {
     return store ? store->handle : NULL;
 }
 
+wf_status wf_repo_store_set_handle(wf_repo_store *store, const char *handle) {
+    if (!store || !handle || !wf_syntax_handle_is_valid(handle))
+        return WF_ERR_INVALID_ARG;
+    char *copy = strdup(handle);
+    if (!copy) return WF_ERR_ALLOC;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(store->db,
+            "UPDATE meta SET handle=? WHERE id=0;", -1, &stmt, NULL) !=
+            SQLITE_OK) {
+        free(copy);
+        return WF_ERR_INTERNAL;
+    }
+    sqlite3_bind_text(stmt, 1, handle, -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE || sqlite3_changes(store->db) != 1) {
+        free(copy);
+        return WF_ERR_INTERNAL;
+    }
+    free(store->handle);
+    store->handle = copy;
+    return WF_OK;
+}
+
 void wf_repo_store_set_event_callback(wf_repo_store *store,
                                       wf_repo_store_event_cb callback,
                                       void *context) {

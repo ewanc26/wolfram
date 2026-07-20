@@ -105,6 +105,8 @@ const char *wf_repo_store_did(const wf_repo_store *store);
 /** Repo handle (e.g. "example.com"). Borrowed; valid until store free. */
 const char *wf_repo_store_handle(const wf_repo_store *store);
 
+wf_status wf_repo_store_set_handle(wf_repo_store *store, const char *handle);
+
 /** Install or clear the post-persistence repository event observer. */
 void wf_repo_store_set_event_callback(wf_repo_store *store,
                                       wf_repo_store_event_cb callback,
