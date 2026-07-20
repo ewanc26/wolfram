@@ -301,6 +301,7 @@ static void *ws_streamer(void *arg) {
         free(frame);
     }
     wf_xrpc_server_ws_close(a->stream, 1000);
+    wf_xrpc_server_ws_release(a->stream);
     free(a);
     return NULL;
 }
@@ -311,8 +312,16 @@ static wf_status e2e_ws_handler(void *ctx, const wf_xrpc_request *req,
     struct ws_arg *a = malloc(sizeof(*a));
     if (!a) return WF_ERR_ALLOC;
     a->stream = stream;
+    if (wf_xrpc_server_ws_retain(stream) != WF_OK) {
+        free(a);
+        return WF_ERR_INVALID_ARG;
+    }
     pthread_t tid;
-    if (pthread_create(&tid, NULL, ws_streamer, a) != 0) { free(a); return WF_ERR_ALLOC; }
+    if (pthread_create(&tid, NULL, ws_streamer, a) != 0) {
+        wf_xrpc_server_ws_release(stream);
+        free(a);
+        return WF_ERR_ALLOC;
+    }
     pthread_detach(tid);
     return WF_OK;
 }

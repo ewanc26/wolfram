@@ -104,6 +104,31 @@ static wf_status test_proc_handler(void *ctx, const wf_xrpc_request *req,
     return WF_OK;
 }
 
+static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
+                                   wf_xrpc_response *resp) {
+    (void)ctx;
+    if (!req->path || strncmp(req->path, "/oauth/", 7) != 0)
+        return WF_ERR_INVALID_ARG;
+    if (strcmp(req->method, "POST") == 0) {
+        const char expected[] = "grant_type=authorization_code&code=abc";
+        if (!req->content_type ||
+            strncmp(req->content_type, "application/x-www-form-urlencoded",
+                    33) != 0 || req->body_len != strlen(expected) ||
+            memcmp(req->body, expected, strlen(expected)) != 0)
+            return WF_ERR_PARSE;
+        resp->http_status = 201;
+        wf_xrpc_response_add_header(resp, "DPoP-Nonce", "next-nonce");
+    } else {
+        cJSON *client = req->params
+            ? cJSON_GetObjectItemCaseSensitive(req->params, "client_id") : NULL;
+        if (!cJSON_IsString(client) || strcmp(client->valuestring, "native") != 0)
+            return WF_ERR_PARSE;
+    }
+    wf_xrpc_response_add_header(resp, "Cache-Control", "no-store");
+    wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
+    return WF_OK;
+}
+
 /* ------------------------------------------------------------------ */
 /* Test runner                                                         */
 /* ------------------------------------------------------------------ */
@@ -145,6 +170,14 @@ static int run_test(void) {
     if (wf_xrpc_server_register_procedure(server, "io.example.echo",
                                            test_proc_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register proc\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+    if (wf_xrpc_server_register_http_route(server, "GET", "/oauth/test",
+            test_http_handler, NULL) != WF_OK ||
+        wf_xrpc_server_register_http_route(server, "POST", "/oauth/token",
+            test_http_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: register generic HTTP routes\n");
         wf_xrpc_server_free(server);
         return 1;
     }
@@ -268,6 +301,39 @@ static int run_test(void) {
             failures++;
         } else if (res.status != 501) {
             fprintf(stderr, "FAIL: missing expected 501, got %ld\n", res.status);
+            failures++;
+        }
+        wf_response_free(&res);
+    }
+
+    /* Test 5: exact-path GET/POST routes preserve form bodies and headers. */
+    {
+        char url[160];
+        snprintf(url, sizeof(url), "%s/oauth/test?client_id=native", base_url);
+        wf_status s = wf_http_get(client, url, &res);
+        if (s != WF_OK || res.status != 200 || !res.body ||
+            strcmp(res.body, "{\"ok\":true}") != 0) {
+            fprintf(stderr, "FAIL: generic HTTP GET status=%d http=%ld\n",
+                    (int)s, res.status);
+            failures++;
+        }
+        wf_response_free(&res);
+
+        snprintf(url, sizeof(url), "%s/oauth/token", base_url);
+        s = wf_http_post(client, url, "application/x-www-form-urlencoded",
+            "grant_type=authorization_code&code=abc", NULL, 0, &res);
+        if (s != WF_OK || res.status != 201 || !res.dpop_nonce ||
+            strcmp(res.dpop_nonce, "next-nonce") != 0) {
+            fprintf(stderr, "FAIL: generic HTTP POST status=%d http=%ld\n",
+                    (int)s, res.status);
+            failures++;
+        }
+        wf_response_free(&res);
+
+        s = wf_http_get(client, url, &res);
+        if (s != WF_ERR_HTTP || res.status != 405) {
+            fprintf(stderr, "FAIL: generic wrong method status=%d http=%ld\n",
+                    (int)s, res.status);
             failures++;
         }
         wf_response_free(&res);
