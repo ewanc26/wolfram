@@ -14,6 +14,8 @@
  *      getRecord / describeRepo over HTTP and assert field-level results.
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include "wolfram/repo_store.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/xrpc_server.h"
@@ -27,8 +29,9 @@
 #include <unistd.h>
 
 static void temp_path(char *buf, size_t n, const char *tag) {
-    snprintf(buf, n, "/tmp/wolfram_pds_repo_%s_%lu.db", tag,
-             (unsigned long)getpid());
+    snprintf(buf, n, "/tmp/wolfram_pds_repo_%s_XXXXXX", tag);
+    int fd = mkstemp(buf);
+    if (fd >= 0) close(fd);
     unlink(buf);
 }
 
@@ -122,6 +125,7 @@ static int run_unit(void) {
     char *gc_rev = NULL, *gc_cid = NULL;
     s = wf_repo_store_get_head(store, &gc_rev, &gc_cid);
     WF_CHECK(s == WF_OK && gc_rev && *gc_rev && gc_cid && *gc_cid);
+    char *since_rev = gc_rev ? strdup(gc_rev) : NULL;
     free(gc_rev);
     free(gc_cid);
 
@@ -160,6 +164,50 @@ static int run_unit(void) {
     s = wf_repo_store_get_record(store, "com.example.posts", rkey1,
                                  &recj, &reccid);
     WF_CHECK(s == WF_ERR_NOT_FOUND);
+
+    /* Full and revision-filtered CAR exports are rooted at the current head. */
+    unsigned char *export_bytes = NULL;
+    size_t export_len = 0;
+    s = wf_repo_store_export(store, NULL, &export_bytes, &export_len);
+    WF_CHECK(s == WF_OK && export_bytes && export_len > 0);
+    wf_car exported = {0};
+    s = wf_car_parse(export_bytes, export_len, &exported);
+    WF_CHECK(s == WF_OK && exported.root_count == 1 &&
+             exported.block_count > 0);
+    wf_car_free(&exported);
+    free(export_bytes);
+
+    export_bytes = NULL;
+    export_len = 0;
+    s = wf_repo_store_export(store, since_rev, &export_bytes, &export_len);
+    WF_CHECK(s == WF_OK && export_bytes && export_len > 0);
+    memset(&exported, 0, sizeof(exported));
+    s = wf_car_parse(export_bytes, export_len, &exported);
+    WF_CHECK(s == WF_OK && exported.root_count == 1 &&
+             exported.block_count > 0);
+    wf_car_free(&exported);
+    free(export_bytes);
+
+    /* getBlocks returns a rootless CAR containing exactly the selected CID. */
+    const char *selected_cids[] = {ccid ? ccid : "", ccid ? ccid : ""};
+    export_bytes = NULL;
+    export_len = 0;
+    s = wf_repo_store_get_blocks(store, selected_cids, 2,
+                                 &export_bytes, &export_len);
+    WF_CHECK(s == WF_OK && export_bytes && export_len > 0);
+    memset(&exported, 0, sizeof(exported));
+    s = wf_car_parse(export_bytes, export_len, &exported);
+    WF_CHECK(s == WF_OK && exported.root_count == 0 &&
+             exported.block_count == 1);
+    wf_car_free(&exported);
+    free(export_bytes);
+    const char *missing_cids[] = {
+        "bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    };
+    s = wf_repo_store_get_blocks(store, missing_cids, 1,
+                                 &export_bytes, &export_len);
+    WF_CHECK(s == WF_ERR_NOT_FOUND || s == WF_ERR_INVALID_ARG);
+    free(since_rev);
 
     /* describeRepo: did + handle + collections + rev. */
     char *desc = NULL;
