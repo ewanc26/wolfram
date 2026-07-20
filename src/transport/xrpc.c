@@ -537,7 +537,12 @@ wf_status wf_xrpc_upload_blob_with_headers(
     }
     snprintf(url, url_cap, "%s/xrpc/%s", base_url, nsid);
 
-    {
+    if (client->auth_header) {
+        list = curl_slist_append(list, client->auth_header);
+        if (!list) status = WF_ERR_ALLOC;
+    }
+
+    if (status == WF_OK) {
         size_t n = strlen("Content-Type: ") + strlen(content_type) + 1;
         char *line = malloc(n);
         if (!line) {
