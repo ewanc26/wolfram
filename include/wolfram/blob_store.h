@@ -64,6 +64,8 @@ wf_status wf_blob_store_get(wf_blob_store *store, const char *cid,
 /** Return WF_OK if the blob exists, WF_ERR_NOT_FOUND otherwise. */
 wf_status wf_blob_store_exists(wf_blob_store *store, const char *cid);
 
+wf_status wf_blob_store_delete(wf_blob_store *store, const char *cid);
+
 /**
  * Enumerate every stored blob CID. On WF_OK, *out_cids receives a
  * caller-owned NULL-terminated array of CID strings (each freed with
