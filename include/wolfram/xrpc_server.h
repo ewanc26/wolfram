@@ -226,6 +226,17 @@ void wf_xrpc_server_stop(wf_xrpc_server *server);
 /** Free the server and all registered data. Safe to call with NULL. */
 void wf_xrpc_server_free(wf_xrpc_server *server);
 
+/**
+ * Register a heap allocation the server owns and releases (via `free_fn`) in
+ * wf_xrpc_server_free. Used by PDS repo/blob resolver registration so the
+ * per-request resolver bundle is freed with the server. `free_fn` must release
+ * `ptr`; `ptr` may be NULL (treated as a no-op, returns WF_ERR_INVALID_ARG).
+ * Returns WF_ERR_ALLOC if the bookkeeping node cannot be allocated; on failure
+ * the caller retains ownership of `ptr`.
+ */
+wf_status wf_xrpc_server_own_ctx(wf_xrpc_server *server, void *ptr,
+                                 void (*free_fn)(void *));
+
 /** Return the bound TCP port (0 if not started). */
 uint16_t wf_xrpc_server_port(const wf_xrpc_server *server);
 

@@ -387,6 +387,12 @@ if(WOLFRAM_BUILD_SERVER)
         target_include_directories(test_pds_repo PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME pds_repo COMMAND test_pds_repo)
 
+        # Per-request repo/blob resolver for a multi-tenant PDS.
+        add_executable(test_pds_repo_resolver test/test_pds_repo_resolver.c)
+        target_link_libraries(test_pds_repo_resolver PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_pds_repo_resolver PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME pds_repo_resolver COMMAND test_pds_repo_resolver)
+
         add_executable(test_feedgen_skeleton test/test_feedgen_skeleton.c)
         target_link_libraries(test_feedgen_skeleton PRIVATE wolfram)
         target_include_directories(test_feedgen_skeleton PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR})
