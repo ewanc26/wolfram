@@ -226,6 +226,28 @@ typedef struct wf_route {
     struct wf_route          *next;   /* linked list */
 } wf_route;
 
+typedef struct wf_static_route {
+    char *path;
+    char *content_type;
+    unsigned char *body;
+    size_t body_len;
+    struct wf_static_route *next;
+} wf_static_route;
+
+typedef struct wf_http_route {
+    char *method;
+    char *path;
+    wf_http_route_handler handler;
+    void *ctx;
+    struct wf_http_route *next;
+} wf_http_route;
+
+struct wf_xrpc_response_header {
+    char *name;
+    char *value;
+    struct wf_xrpc_response_header *next;
+};
+
 /* ------------------------------------------------------------------ */
 /* Server struct                                                       */
 /* ------------------------------------------------------------------ */
@@ -233,6 +255,8 @@ struct wf_xrpc_server {
     struct MHD_Daemon   *daemon;
     uint16_t             port;
     wf_route            *routes;
+    wf_static_route     *static_routes;
+    wf_http_route       *http_routes;
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
     /* Owned context installed by wf_xrpc_server_set_auth_middleware; the
@@ -570,6 +594,8 @@ struct wf_xrpc_ws_stream {
     int                           sock;   /* raw socket fd (server→client) */
     pthread_t                     thread; /* upgrade worker thread */
     pthread_mutex_t               mutex;  /* guards closed + serialises writes */
+    pthread_cond_t                worker_cond; /* signalled when refs reach zero */
+    unsigned int                  worker_refs; /* retained producer workers */
     bool                          closed; /* end-of-stream requested */
     struct wf_xrpc_ws_stream     *next;   /* global list in server */
 };
@@ -755,6 +781,14 @@ static void *wf_ws_serve_thread(void *arg) {
         free(payload);
     }
 
+    /* Prevent retained producer workers from racing the stream teardown. */
+    pthread_mutex_lock(&s->mutex);
+    s->closed = true;
+    while (s->worker_refs > 0) {
+        pthread_cond_wait(&s->worker_cond, &s->mutex);
+    }
+    pthread_mutex_unlock(&s->mutex);
+
     /* 3) Tear down the upgraded socket via libmicrohttpd. */
     MHD_upgrade_action(s->urh, MHD_UPGRADE_ACTION_CLOSE);
 
@@ -769,7 +803,11 @@ static void *wf_ws_serve_thread(void *arg) {
     }
     free((void *)req.nsid);
     free((void *)req.auth_header);
+    free((void *)req.dpop_header);
+    cJSON_Delete(req.params);
+    free(req.authed_subject);
     free(s->nsid);
+    pthread_cond_destroy(&s->worker_cond);
     pthread_mutex_destroy(&s->mutex);
     free(s);
     return NULL;
@@ -813,7 +851,11 @@ static void wf_ws_upgrade_handler(void *cls,
         pthread_mutex_unlock(&server->ws_mutex);
         free((void *)uc->req.nsid);
         free((void *)uc->req.auth_header);
+        free((void *)uc->req.dpop_header);
+        cJSON_Delete(uc->req.params);
+        free(uc->req.authed_subject);
         free(uc->stream->nsid);
+        pthread_cond_destroy(&uc->stream->worker_cond);
         pthread_mutex_destroy(&uc->stream->mutex);
         free(uc->stream);
         free(uc);
@@ -832,7 +874,8 @@ static void wf_ws_upgrade_handler(void *cls,
 static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
                                               wf_route *route,
                                               struct MHD_Connection *conn,
-                                              const char *nsid) {
+                                              const wf_xrpc_request *request) {
+    const char *nsid = request ? request->nsid : NULL;
     const char *upgrade = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
                                                        "Upgrade");
     const char *connection = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
@@ -872,9 +915,16 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
         free(stream);
         return MHD_NO;
     }
+    if (pthread_cond_init(&stream->worker_cond, NULL) != 0) {
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream->nsid);
+        free(stream);
+        return MHD_NO;
+    }
 
     uc = (wf_ws_upgrade_ctx *)calloc(1, sizeof(*uc));
     if (!uc) {
+        pthread_cond_destroy(&stream->worker_cond);
         pthread_mutex_destroy(&stream->mutex);
         free(stream->nsid);
         free(stream);
@@ -885,14 +935,45 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
     uc->stream = stream;
     uc->req.nsid = nsid ? strdup(nsid) : NULL;
     uc->req.method = "GET";
-    uc->req.auth_header = NULL;
-    uc->req.params = NULL;
+    uc->req.auth_header = request && request->auth_header
+                              ? strdup(request->auth_header) : NULL;
+    uc->req.dpop_header = request && request->dpop_header
+                              ? strdup(request->dpop_header) : NULL;
+    uc->req.params = request && request->params
+                         ? cJSON_Duplicate(request->params, true) : NULL;
     uc->req.handler_ctx = route->ctx;
+    uc->req.authed_subject = request && request->authed_subject
+                                 ? strdup(request->authed_subject) : NULL;
+    uc->req.authed_principal_kind = request
+                                        ? request->authed_principal_kind
+                                        : WF_XRPC_PRINCIPAL_NONE;
+    if ((nsid && !uc->req.nsid) ||
+        (request && request->auth_header && !uc->req.auth_header) ||
+        (request && request->dpop_header && !uc->req.dpop_header) ||
+        (request && request->params && !uc->req.params) ||
+        (request && request->authed_subject && !uc->req.authed_subject)) {
+        free((void *)uc->req.nsid);
+        free((void *)uc->req.auth_header);
+        free((void *)uc->req.dpop_header);
+        cJSON_Delete(uc->req.params);
+        free(uc->req.authed_subject);
+        free(uc);
+        pthread_cond_destroy(&stream->worker_cond);
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream->nsid);
+        free(stream);
+        return MHD_NO;
+    }
 
     resp = MHD_create_response_for_upgrade(wf_ws_upgrade_handler, uc);
     if (!resp) {
         free((void *)uc->req.nsid);
+        free((void *)uc->req.auth_header);
+        free((void *)uc->req.dpop_header);
+        cJSON_Delete(uc->req.params);
+        free(uc->req.authed_subject);
         free(uc);
+        pthread_cond_destroy(&stream->worker_cond);
         pthread_mutex_destroy(&stream->mutex);
         free(stream->nsid);
         free(stream);
@@ -909,29 +990,60 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
 wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
                                  const void *data, size_t len) {
     wf_xrpc_ws_stream *s = stream;
-    if (!s || s->closed) {
-        /* TODO: stream is closed or invalid; cannot send. */
+    if (!s) {
         return WF_ERR_INVALID_ARG;
     }
     if (!data && len > 0) {
         return WF_ERR_INVALID_ARG;
     }
     pthread_mutex_lock(&s->mutex);
-    wf_status rc = wf_ws_write_frame_locked(s, 0x2, data ? data : "", len);
+    wf_status rc = s->closed
+                       ? WF_ERR_INVALID_ARG
+                       : wf_ws_write_frame_locked(s, 0x2, data ? data : "", len);
     pthread_mutex_unlock(&s->mutex);
     return rc;
+}
+
+wf_status wf_xrpc_server_ws_retain(wf_xrpc_ws_stream *stream) {
+    if (!stream) return WF_ERR_INVALID_ARG;
+    pthread_mutex_lock(&stream->mutex);
+    if (stream->closed) {
+        pthread_mutex_unlock(&stream->mutex);
+        return WF_ERR_INVALID_ARG;
+    }
+    stream->worker_refs++;
+    pthread_mutex_unlock(&stream->mutex);
+    return WF_OK;
+}
+
+void wf_xrpc_server_ws_release(wf_xrpc_ws_stream *stream) {
+    if (!stream) return;
+    pthread_mutex_lock(&stream->mutex);
+    if (stream->worker_refs > 0) stream->worker_refs--;
+    if (stream->worker_refs == 0) pthread_cond_broadcast(&stream->worker_cond);
+    pthread_mutex_unlock(&stream->mutex);
+}
+
+int wf_xrpc_server_ws_is_closed(wf_xrpc_ws_stream *stream) {
+    int closed;
+    if (!stream) return 1;
+    pthread_mutex_lock(&stream->mutex);
+    closed = stream->closed ? 1 : 0;
+    pthread_mutex_unlock(&stream->mutex);
+    return closed;
 }
 
 wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code) {
     wf_xrpc_ws_stream *s = stream;
     unsigned char body[2];
-    if (!s || s->closed) {
-        /* TODO: stream already closed or invalid. */
-        return WF_ERR_INVALID_ARG;
-    }
+    if (!s) return WF_ERR_INVALID_ARG;
     body[0] = (unsigned char)((code >> 8) & 0xff);
     body[1] = (unsigned char)(code & 0xff);
     pthread_mutex_lock(&s->mutex);
+    if (s->closed) {
+        pthread_mutex_unlock(&s->mutex);
+        return WF_ERR_INVALID_ARG;
+    }
     s->closed = true;
     wf_ws_write_frame_locked(s, 0x8, body, 2);
     pthread_mutex_unlock(&s->mutex);
@@ -1040,6 +1152,27 @@ void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
     resp->content_type = content_type ? strdup(content_type) : NULL;
 }
 
+wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp,
+                                      const char *name, const char *value) {
+    if (!resp || !name || !name[0] || !value || strchr(name, ':') ||
+        strchr(name, '\r') || strchr(name, '\n') || strchr(value, '\r') ||
+        strchr(value, '\n'))
+        return WF_ERR_INVALID_ARG;
+    wf_xrpc_response_header *header = calloc(1, sizeof(*header));
+    if (!header) return WF_ERR_ALLOC;
+    header->name = strdup(name);
+    header->value = strdup(value);
+    if (!header->name || !header->value) {
+        free(header->name);
+        free(header->value);
+        free(header);
+        return WF_ERR_ALLOC;
+    }
+    header->next = resp->headers;
+    resp->headers = header;
+    return WF_OK;
+}
+
 /* ------------------------------------------------------------------ */
 /* URL parsing — extract NSID from /xrpc/<nsid>                       */
 /* ------------------------------------------------------------------ */
@@ -1125,6 +1258,32 @@ static wf_route *wf_server_find_route(const wf_xrpc_server *server,
     return NULL;
 }
 
+static wf_static_route *wf_server_find_static_route(
+        const wf_xrpc_server *server, const char *path) {
+    for (wf_static_route *route = server->static_routes; route;
+         route = route->next)
+        if (strcmp(route->path, path) == 0) return route;
+    return NULL;
+}
+
+static wf_http_route *wf_server_find_http_route(
+        const wf_xrpc_server *server, const char *method, const char *path) {
+    for (wf_http_route *route = server->http_routes; route;
+         route = route->next)
+        if (strcmp(route->method, method) == 0 &&
+            strcmp(route->path, path) == 0)
+            return route;
+    return NULL;
+}
+
+static bool wf_server_has_http_path(const wf_xrpc_server *server,
+                                    const char *path) {
+    for (wf_http_route *route = server->http_routes; route;
+         route = route->next)
+        if (strcmp(route->path, path) == 0) return true;
+    return false;
+}
+
 /* ------------------------------------------------------------------ */
 /* MHD request handler                                                  */
 /* ------------------------------------------------------------------ */
@@ -1154,7 +1313,8 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     wf_xrpc_response resp = WF_XRPC_RESPONSE_INIT;
     wf_xrpc_request req = {0};
     wf_route_kind kind;
-    wf_route *route;
+    wf_route *route = NULL;
+    wf_http_route *http_route = NULL;
     char *nsid = NULL;
     cJSON *params = NULL;
     const char *auth_header;
@@ -1197,6 +1357,21 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
             return MHD_YES;
         }
         /* upload_data_size == 0 means upload complete — process now */
+        http_route = wf_server_find_http_route(server, method, url);
+        if (http_route) {
+            if (pb->len > 0)
+                params = cJSON_ParseWithLength(pb->data, pb->len);
+            raw_pb = pb;
+            *con_cls = NULL;
+            goto process;
+        }
+        if (wf_server_has_http_path(server, url)) {
+            resp.http_status = 405;
+            free(pb->data);
+            free(pb);
+            *con_cls = NULL;
+            goto send;
+        }
         nsid = wf_server_extract_nsid(url);
         if (!nsid) {
             wf_xrpc_response_set_error(&resp, 400, "InvalidRequest",
@@ -1220,6 +1395,25 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
         goto process;
     }
 
+    /* Fixed public GET routes live outside the XRPC namespace. */
+    wf_static_route *static_route = wf_server_find_static_route(server, url);
+    if (static_route) {
+        wf_xrpc_response_set_body(&resp, (const char *)static_route->body,
+                                  static_route->body_len);
+        wf_xrpc_response_set_content_type(&resp, static_route->content_type);
+        goto send;
+    }
+
+    http_route = wf_server_find_http_route(server, method, url);
+    if (http_route) {
+        params = wf_server_get_query_params(conn);
+        goto process;
+    }
+    if (wf_server_has_http_path(server, url)) {
+        resp.http_status = 405;
+        goto send;
+    }
+
     /* GET request — parse NSID and query params */
     nsid = wf_server_extract_nsid(url);
     if (!nsid) {
@@ -1235,8 +1429,8 @@ process:
     /* Look up route. Distinguish a wrong HTTP method (the NSID is registered
      * but for the opposite kind) from an entirely unregistered NSID, so we emit
      * the canonical XRPC error names and status codes. */
-    route = wf_server_find_route(server, nsid, kind);
-    if (!route) {
+    if (!http_route) route = wf_server_find_route(server, nsid, kind);
+    if (!http_route && !route) {
         wf_route_kind other = (kind == WF_ROUTE_QUERY)
                                   ? WF_ROUTE_PROCEDURE
                                   : WF_ROUTE_QUERY;
@@ -1310,18 +1504,25 @@ process:
     dpop_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
     char *authed_subject = NULL;
     wf_xrpc_principal_kind authed_kind = WF_XRPC_PRINCIPAL_NONE;
-    if (server->auth_cb) {
+    if (!http_route && server->auth_cb) {
         wf_xrpc_request auth_req;
         memset(&auth_req, 0, sizeof(auth_req));
         auth_req.nsid = nsid;
+        auth_req.path = url;
         auth_req.method = method;
         auth_req.auth_header = auth_header;
         auth_req.dpop_header = dpop_header;
         auth_req.params = params;
         auth_req.handler_ctx = route->ctx;
-        if (server->auth_cb(&auth_req, server->auth_ctx) != WF_OK) {
-            wf_xrpc_response_set_error(&resp, 401, "AuthenticationRequired",
-                                        "Authentication required");
+        wf_status auth_status = server->auth_cb(&auth_req, server->auth_ctx);
+        if (auth_status != WF_OK) {
+            if (auth_status == WF_ERR_CONFLICT)
+                wf_xrpc_response_set_error(&resp, 400, "RepoDeactivated",
+                                           "Repository is deactivated");
+            else
+                wf_xrpc_response_set_error(&resp, 401,
+                                           "AuthenticationRequired",
+                                           "Authentication required");
             goto send;
         }
         /* The auth callback may have authenticated a principal; capture its
@@ -1334,11 +1535,12 @@ process:
     /* Build request and call handler */
     memset(&req, 0, sizeof(req));
     req.nsid = nsid;
+    req.path = url;
     req.method = method;
     req.auth_header = auth_header;
     req.dpop_header = dpop_header;
     req.params = params;
-    req.handler_ctx = route->ctx;
+    req.handler_ctx = http_route ? http_route->ctx : route->ctx;
     /* Raw POST body (kept alive in raw_pb) + request Content-Type. */
     if (raw_pb) {
         req.body = (const unsigned char *)raw_pb->data;
@@ -1351,8 +1553,8 @@ process:
     req.authed_subject = authed_subject;
     req.authed_principal_kind = authed_kind;
 
-    if (route->is_ws) {
-        enum MHD_Result wsr = wf_server_ws_handshake(server, route, conn, nsid);
+    if (route && route->is_ws) {
+        enum MHD_Result wsr = wf_server_ws_handshake(server, route, conn, &req);
         if (wsr == MHD_YES) {
             ret = MHD_YES;
             goto cleanup;
@@ -1363,11 +1565,13 @@ process:
         goto send;
     }
 
-    if (route->is_sse) {
+    if (route && route->is_sse) {
         goto sse_stream;
     }
 
-    if (kind == WF_ROUTE_QUERY) {
+    if (http_route) {
+        http_route->handler(http_route->ctx, &req, &resp);
+    } else if (kind == WF_ROUTE_QUERY) {
         route->handler.query(route->ctx, &req, &resp);
     } else {
         route->handler.procedure(route->ctx, &req, &resp);
@@ -1397,6 +1601,9 @@ send:
     } else {
         MHD_add_response_header(mhd_resp, "Content-Type", "application/json");
     }
+    for (wf_xrpc_response_header *header = resp.headers; header;
+         header = header->next)
+        MHD_add_response_header(mhd_resp, header->name, header->value);
     wf_server_apply_cors(server, mhd_resp);
 
     ret = MHD_queue_response(conn, resp.http_status, mhd_resp);
@@ -1471,6 +1678,13 @@ cleanup:
     }
     free(resp.body); /* safe: NULL if already transferred */
     free(resp.content_type);
+    while (resp.headers) {
+        wf_xrpc_response_header *next = resp.headers->next;
+        free(resp.headers->name);
+        free(resp.headers->value);
+        free(resp.headers);
+        resp.headers = next;
+    }
     if (raw_pb) {
         free(raw_pb->data);
         free(raw_pb);
@@ -1636,6 +1850,23 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
         free(r);
         r = next;
     }
+    wf_static_route *static_route = server->static_routes;
+    while (static_route) {
+        wf_static_route *next = static_route->next;
+        free(static_route->path);
+        free(static_route->content_type);
+        free(static_route->body);
+        free(static_route);
+        static_route = next;
+    }
+    wf_http_route *http_route = server->http_routes;
+    while (http_route) {
+        wf_http_route *next = http_route->next;
+        free(http_route->method);
+        free(http_route->path);
+        free(http_route);
+        http_route = next;
+    }
     if (server->rate_limit_entries) {
         wf_server_free_rate_limit_entries(server->rate_limit_entries);
     }
@@ -1653,6 +1884,64 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
 
 uint16_t wf_xrpc_server_port(const wf_xrpc_server *server) {
     return server ? server->port : 0;
+}
+
+wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
+                                             const char *path,
+                                             const char *content_type,
+                                             const void *body,
+                                             size_t body_len) {
+    if (!server || !path || path[0] != '/' || !content_type ||
+        (!body && body_len > 0))
+        return WF_ERR_INVALID_ARG;
+    if (wf_server_find_static_route(server, path) ||
+        wf_server_has_http_path(server, path))
+        return WF_ERR_INVALID_ARG;
+    wf_static_route *route = calloc(1, sizeof(*route));
+    if (!route) return WF_ERR_ALLOC;
+    route->path = strdup(path);
+    route->content_type = strdup(content_type);
+    route->body = malloc(body_len ? body_len : 1);
+    if (!route->path || !route->content_type || !route->body) {
+        free(route->path);
+        free(route->content_type);
+        free(route->body);
+        free(route);
+        return WF_ERR_ALLOC;
+    }
+    if (body_len) memcpy(route->body, body, body_len);
+    route->body_len = body_len;
+    route->next = server->static_routes;
+    server->static_routes = route;
+    return WF_OK;
+}
+
+wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
+                                             const char *method,
+                                             const char *path,
+                                             wf_http_route_handler handler,
+                                             void *ctx) {
+    if (!server || !method || !path || path[0] != '/' || !handler ||
+        (strcmp(method, "GET") != 0 && strcmp(method, "POST") != 0))
+        return WF_ERR_INVALID_ARG;
+    if (wf_server_find_static_route(server, path) ||
+        wf_server_find_http_route(server, method, path))
+        return WF_ERR_INVALID_ARG;
+    wf_http_route *route = calloc(1, sizeof(*route));
+    if (!route) return WF_ERR_ALLOC;
+    route->method = strdup(method);
+    route->path = strdup(path);
+    if (!route->method || !route->path) {
+        free(route->method);
+        free(route->path);
+        free(route);
+        return WF_ERR_ALLOC;
+    }
+    route->handler = handler;
+    route->ctx = ctx;
+    route->next = server->http_routes;
+    server->http_routes = route;
+    return WF_OK;
 }
 
 /* ------------------------------------------------------------------ */
