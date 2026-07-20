@@ -46,6 +46,39 @@ extern "C" {
 /** Opaque, durable repo store handle. */
 typedef struct wf_repo_store wf_repo_store;
 
+typedef enum wf_repo_store_event_kind {
+    WF_REPO_STORE_EVENT_COMMIT,
+    WF_REPO_STORE_EVENT_SYNC,
+} wf_repo_store_event_kind;
+
+/**
+ * A repository event emitted after durable persistence. All pointers and CAR
+ * bytes are borrowed and remain valid only for the callback invocation.
+ * Commit events currently describe one actual stored commit/op; applyWrites
+ * therefore emits one event for each commit it creates.
+ */
+typedef struct wf_repo_store_event {
+    wf_repo_store_event_kind kind;
+    const char *did;
+    wf_cid commit_cid;
+    const char *rev;
+    const char *since;             /* NULL for a genesis commit */
+    wf_cid prev_data;
+    int has_prev_data;
+    const char *action;            /* create/update/delete; commit only */
+    const char *collection;        /* commit only */
+    const char *rkey;              /* commit only */
+    wf_cid cid;
+    int has_cid;
+    wf_cid prev;
+    int has_prev;
+    const unsigned char *blocks;   /* incremental CAR, full CAR for sync */
+    size_t blocks_len;
+} wf_repo_store_event;
+
+typedef void (*wf_repo_store_event_cb)(const wf_repo_store_event *event,
+                                       void *context);
+
 /**
  * Open (or create) a durable repo store at `path`.
  *
@@ -68,6 +101,11 @@ const char *wf_repo_store_did(const wf_repo_store *store);
 
 /** Repo handle (e.g. "example.com"). Borrowed; valid until store free. */
 const char *wf_repo_store_handle(const wf_repo_store *store);
+
+/** Install or clear the post-persistence repository event observer. */
+void wf_repo_store_set_event_callback(wf_repo_store *store,
+                                      wf_repo_store_event_cb callback,
+                                      void *context);
 
 /**
  * Append a new record (createRecord).
@@ -224,6 +262,39 @@ wf_status wf_repo_store_list_records(wf_repo_store *store,
  */
 wf_status wf_repo_store_get_head(wf_repo_store *store, char **out_rev,
                                  char **out_cid);
+
+/**
+ * Export the repository as a CAR rooted at the current commit.
+ *
+ * When `since_or_null` is NULL or empty, all persisted repo blocks are
+ * included. Otherwise only blocks created at revisions lexicographically
+ * newer than the supplied TID revision are included, matching
+ * com.atproto.sync.getRepo's incremental export semantics. On WF_OK,
+ * `*out_data` is caller-owned and freed with free().
+ */
+wf_status wf_repo_store_export(wf_repo_store *store,
+                               const char *since_or_null,
+                               unsigned char **out_data, size_t *out_len);
+
+/**
+ * Export selected repository blocks as a rootless CAR.
+ *
+ * Every requested CID must exist; otherwise WF_ERR_NOT_FOUND is returned and
+ * no partial CAR is produced. Duplicate input CIDs are emitted once. The
+ * caller owns `*out_data` and frees it with free().
+ */
+wf_status wf_repo_store_get_blocks(wf_repo_store *store,
+                                    const char *const *cids,
+                                    size_t cid_count,
+                                    unsigned char **out_data,
+                                    size_t *out_len);
+
+/** Mint a service-auth JWT with the repository's persisted signing key. */
+wf_status wf_repo_store_create_service_auth(wf_repo_store *store,
+                                             const char *audience,
+                                             int64_t expiration,
+                                             const char *lxm,
+                                             char **out_token);
 
 /* ------------------------------------------------------------------ */
 /* XRPC server integration                                             */
