@@ -129,6 +129,7 @@ static void *relay_forward(void *arg) {
     /* End the downstream stream (no-op if already closed by the control loop).
      * The control loop then observes `closed` and exits, closing the socket. */
     wf_xrpc_server_ws_close(stream, 1000);
+    wf_xrpc_server_ws_release(stream);
     free(fwd);
     return NULL;
 }
@@ -150,10 +151,15 @@ static wf_status relay_ws_handler(void *ctx, const wf_xrpc_request *req,
     }
     fwd->relay = relay;
     fwd->stream = stream;
+    if (wf_xrpc_server_ws_retain(stream) != WF_OK) {
+        free(fwd);
+        return WF_ERR_INVALID_ARG;
+    }
 
     /* Spawn a detached forward worker; the handler must return promptly so the
      * server can run its control-frame loop (ping/pong, client close). */
     if (pthread_create(&tid, NULL, relay_forward, fwd) != 0) {
+        wf_xrpc_server_ws_release(stream);
         free(fwd);
         return WF_ERR_ALLOC;
     }

@@ -119,6 +119,10 @@ struct ws_thread_arg {
     int                count;
 };
 
+struct ws_handler_ctx {
+    int cursor_seen;
+};
+
 static void *ws_streamer(void *arg) {
     struct ws_thread_arg *a = (struct ws_thread_arg *)arg;
     char payload[32];
@@ -129,6 +133,7 @@ static void *ws_streamer(void *arg) {
         }
     }
     wf_xrpc_server_ws_close(a->stream, 1000);
+    wf_xrpc_server_ws_release(a->stream);
     free(a);
     return NULL;
 }
@@ -137,8 +142,15 @@ static wf_status ws_handler(void *ctx, const wf_xrpc_request *req,
                             wf_xrpc_ws_stream *stream) {
     struct ws_thread_arg *a;
     pthread_t tid;
-    (void)ctx;
-    (void)req;
+    struct ws_handler_ctx *handler_ctx = (struct ws_handler_ctx *)ctx;
+    const cJSON *cursor = req && req->params
+                              ? cJSON_GetObjectItemCaseSensitive(req->params,
+                                                                 "cursor")
+                              : NULL;
+    if (handler_ctx && cJSON_IsString(cursor) &&
+        strcmp(cursor->valuestring, "42") == 0) {
+        handler_ctx->cursor_seen = 1;
+    }
 
     a = (struct ws_thread_arg *)malloc(sizeof(*a));
     if (!a) {
@@ -147,9 +159,15 @@ static wf_status ws_handler(void *ctx, const wf_xrpc_request *req,
     a->stream = stream;
     a->count = 3;
 
+    if (wf_xrpc_server_ws_retain(stream) != WF_OK) {
+        free(a);
+        return WF_ERR_INVALID_ARG;
+    }
+
     /* Spawn a detached worker that streams frames; the handler must return
      * promptly so libmicrohttpd can complete the upgrade handshake. */
     if (pthread_create(&tid, NULL, ws_streamer, a) != 0) {
+        wf_xrpc_server_ws_release(stream);
         free(a);
         return WF_ERR_ALLOC;
     }
@@ -169,6 +187,7 @@ static int run_test(void) {
     int failures = 0;
     int fd = -1;
     uint16_t port;
+    struct ws_handler_ctx handler_ctx = {0};
 
     server = wf_xrpc_server_start("127.0.0.1", 0, 1);
     if (!server) {
@@ -183,7 +202,7 @@ static int run_test(void) {
     }
 
     if (wf_xrpc_server_register_ws(server, "io.example.subscribe",
-                                   ws_handler, NULL) != WF_OK) {
+                                   ws_handler, &handler_ctx) != WF_OK) {
         fprintf(stderr, "FAIL: register WS endpoint\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -199,7 +218,7 @@ static int run_test(void) {
 
     char req[256];
     int nr = snprintf(req, sizeof(req),
-                      "GET /xrpc/io.example.subscribe HTTP/1.1\r\n"
+                      "GET /xrpc/io.example.subscribe?cursor=42 HTTP/1.1\r\n"
                       "Host: 127.0.0.1:%u\r\n"
                       "Upgrade: websocket\r\n"
                       "Connection: Upgrade\r\n"
@@ -354,6 +373,12 @@ static int run_test(void) {
         failures++;
     } else {
         printf("PASS: stream terminated with a close frame\n");
+    }
+    if (!handler_ctx.cursor_seen) {
+        fprintf(stderr, "FAIL: WS handler did not receive cursor query param\n");
+        failures++;
+    } else {
+        printf("PASS: WS handler received cursor query param\n");
     }
 
 cleanup:

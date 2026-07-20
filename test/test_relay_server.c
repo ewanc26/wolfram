@@ -170,6 +170,7 @@ static void *upstream_streamer(void *arg) {
         }
     }
     wf_xrpc_server_ws_close(a->stream, 1000);
+    wf_xrpc_server_ws_release(a->stream);
     free(a);
     return NULL;
 }
@@ -188,7 +189,13 @@ static wf_status upstream_ws_handler(void *ctx, const wf_xrpc_request *req,
     a->stream = stream;
     a->count = 3;
 
+    if (wf_xrpc_server_ws_retain(stream) != WF_OK) {
+        free(a);
+        return WF_ERR_INVALID_ARG;
+    }
+
     if (pthread_create(&tid, NULL, upstream_streamer, a) != 0) {
+        wf_xrpc_server_ws_release(stream);
         free(a);
         return WF_ERR_ALLOC;
     }

@@ -47,6 +47,7 @@ typedef enum {
 
 typedef struct wf_xrpc_request {
     const char *nsid;          /* Parsed XRPC NSID from URL path */
+    const char *path;          /* Exact request path (for non-XRPC routes). */
     const char *method;        /* "GET" or "POST" */
     const char *auth_header;   /* Raw Authorization header (may be NULL) */
     const char *dpop_header;   /* Raw DPoP proof header (may be NULL) */
@@ -68,6 +69,8 @@ typedef struct wf_xrpc_request {
     wf_xrpc_principal_kind authed_principal_kind; /* kind of `authed_subject` */
 } wf_xrpc_request;
 
+typedef struct wf_xrpc_response_header wf_xrpc_response_header;
+
 /* ------------------------------------------------------------------ */
 /* Response — fill in the handler callback, server sends it           */
 /* ------------------------------------------------------------------ */
@@ -79,10 +82,11 @@ typedef struct wf_xrpc_response {
      * header instead of the default "application/json" (used to serve raw
      * blobs). Owned by the handler; the server frees it after sending. */
     char   *content_type;
+    wf_xrpc_response_header *headers; /* private owned response-header list */
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT { 200, NULL, 0, NULL }
+#define WF_XRPC_RESPONSE_INIT { 200, NULL, 0, NULL, NULL }
 
 /** Set the response body (copies the string). */
 void wf_xrpc_response_set_body(wf_xrpc_response *resp,
@@ -103,6 +107,10 @@ void wf_xrpc_response_set_error_body(wf_xrpc_response *resp,
 void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
                                         const char *content_type);
 
+/** Add a response header (copies name and value). */
+wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp,
+                                      const char *name, const char *value);
+
 /* ------------------------------------------------------------------ */
 /* Handler callbacks                                                   */
 /* ------------------------------------------------------------------ */
@@ -116,6 +124,11 @@ typedef wf_status (*wf_xrpc_query_handler)(void *ctx,
 typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
                                                 const wf_xrpc_request *req,
                                                 wf_xrpc_response *resp);
+
+/** Handler for an exact-path GET or POST route outside /xrpc. */
+typedef wf_status (*wf_http_route_handler)(void *ctx,
+                                           const wf_xrpc_request *req,
+                                           wf_xrpc_response *resp);
 
 /* ------------------------------------------------------------------ */
 /* SSE (Server-Sent Events) streaming                                  */
@@ -171,10 +184,11 @@ typedef struct wf_xrpc_ws_stream wf_xrpc_ws_stream;
  *
  * Invoked after the RFC 6455 handshake completes (101 Switching Protocols),
  * from the connection's upgrade worker thread. The handler should return
- * promptly (typically after spawning a worker thread that calls
- * wf_xrpc_server_ws_send / wf_xrpc_server_ws_close) — the connection is kept
- * open until wf_xrpc_server_ws_close is called or the client closes it. A
- * handler that sends one frame and closes produces a single-shot stream.
+ * promptly. Before spawning a worker, retain the stream with
+ * wf_xrpc_server_ws_retain; the worker must release it after its final
+ * send/close. The connection is kept open until wf_xrpc_server_ws_close is
+ * called or the client closes it. A handler that sends one frame and closes
+ * produces a single-shot stream.
  */
 typedef wf_status (*wf_xrpc_ws_handler)(void *ctx,
                                         const wf_xrpc_request *req,
@@ -214,6 +228,28 @@ void wf_xrpc_server_free(wf_xrpc_server *server);
 
 /** Return the bound TCP port (0 if not started). */
 uint16_t wf_xrpc_server_port(const wf_xrpc_server *server);
+
+/**
+ * Register a fixed public GET response outside the /xrpc namespace (for
+ * example a /.well-known document). The server copies all strings.
+ */
+wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
+                                             const char *path,
+                                             const char *content_type,
+                                             const void *body,
+                                             size_t body_len);
+
+/**
+ * Register a dynamic public route outside /xrpc. `method` must be GET or POST.
+ * POST bodies are exposed through req->body and req->body_len; JSON bodies are
+ * additionally decoded into req->params. These routes deliberately bypass the
+ * XRPC auth callback so protocol-specific handlers can authenticate themselves.
+ */
+wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
+                                             const char *method,
+                                             const char *path,
+                                             wf_http_route_handler handler,
+                                             void *ctx);
 
 /* ------------------------------------------------------------------ */
 /* Route registration                                                  */
@@ -286,11 +322,25 @@ wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
  * Send a single binary (opcode 0x2) WebSocket frame to the client.
  *
  * Must be called from a context other than the WS handler invocation
- * (typically a dedicated worker thread). Returns WF_ERR_INVALID_ARG if the
- * stream is already closed. Server → client frames are sent UNMASKED.
+ * (typically a dedicated worker thread holding a retained reference). Returns
+ * WF_ERR_INVALID_ARG if the stream is already closed. Server → client frames
+ * are sent UNMASKED.
  */
 wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
                                  const void *data, size_t len);
+
+/**
+ * Retain a WebSocket stream for use by a worker thread. A successful retain
+ * must be paired with wf_xrpc_server_ws_release. Returns WF_ERR_INVALID_ARG
+ * when the stream is already closing.
+ */
+wf_status wf_xrpc_server_ws_retain(wf_xrpc_ws_stream *stream);
+
+/** Release a worker reference acquired by wf_xrpc_server_ws_retain. */
+void wf_xrpc_server_ws_release(wf_xrpc_ws_stream *stream);
+
+/** Return non-zero when the stream is closing or has been closed. */
+int wf_xrpc_server_ws_is_closed(wf_xrpc_ws_stream *stream);
 
 /**
  * Send a close (opcode 0x8) frame carrying `code` and tear down the
