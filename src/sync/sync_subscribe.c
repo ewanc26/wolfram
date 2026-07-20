@@ -1,5 +1,6 @@
 #include "wolfram/sync_subscribe.h"
 #include "wolfram/websocket.h"
+#include "wolfram/crypto.h"
 
 #include <cbor.h>
 #include <stdio.h>
@@ -110,6 +111,21 @@ static void event_free(wf_subscribe_event *ev) {
     case WF_SUBSCRIBE_EVENT_ERROR:
         free(ev->data.error.error);
         free(ev->data.error.message);
+        break;
+    case WF_SUBSCRIBE_EVENT_LABELS:
+        if (ev->data.labels.labels) {
+            for (size_t i = 0; i < ev->data.labels.labels_count; i++) {
+                wf_label *lab = &ev->data.labels.labels[i];
+                free(lab->src);
+                free(lab->uri);
+                free(lab->cid);
+                free(lab->val);
+                free(lab->cts);
+                free(lab->exp);
+                free(lab->sig);
+            }
+            free(ev->data.labels.labels);
+        }
         break;
     default:
         break;
@@ -388,6 +404,132 @@ static wf_status parse_info(cbor_item_t *body, wf_subscribe_event *ev) {
     return WF_OK;
 }
 
+static wf_status parse_labels(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_labels *l = &ev->data.labels;
+    ev->type = WF_SUBSCRIBE_EVENT_LABELS;
+
+    cbor_item_t *seq = map_find(body, "seq");
+    if (!seq || !item_int(seq, &l->seq)) return WF_ERR_PARSE;
+    ev->seq = l->seq;
+
+    cbor_item_t *labels = map_find(body, "labels");
+    if (!labels || !cbor_isa_array(labels)) return WF_ERR_PARSE;
+
+    l->labels_count = cbor_array_size(labels);
+    if (l->labels_count == 0) { l->labels = NULL; return WF_OK; }
+
+    l->labels = calloc(l->labels_count, sizeof(wf_label));
+    if (!l->labels) return WF_ERR_ALLOC;
+
+    cbor_item_t **items = cbor_array_handle(labels);
+    for (size_t i = 0; i < l->labels_count; i++) {
+        wf_label *lab = &l->labels[i];
+        memset(lab, 0, sizeof(*lab));
+        cbor_item_t *item = items[i];
+        if (!cbor_isa_map(item)) goto fail;
+
+        cbor_item_t *ver = map_find(item, "ver");
+        int64_t v = 0;
+        if (ver && item_int(ver, &v)) { lab->ver = v; lab->has_ver = 1; }
+
+        cbor_item_t *src = map_find(item, "src");
+        size_t slen = 0;
+        const char *sstr = src ? item_string(src, &slen) : NULL;
+        if (!sstr) goto fail;
+        lab->src = malloc(slen + 1);
+        if (!lab->src) goto fail;
+        memcpy(lab->src, sstr, slen);
+        lab->src[slen] = '\0';
+
+        cbor_item_t *uri = map_find(item, "uri");
+        size_t ulen = 0;
+        const char *ustr = uri ? item_string(uri, &ulen) : NULL;
+        if (!ustr) goto fail;
+        lab->uri = malloc(ulen + 1);
+        if (!lab->uri) goto fail;
+        memcpy(lab->uri, ustr, ulen);
+        lab->uri[ulen] = '\0';
+
+        cbor_item_t *cid = map_find(item, "cid");
+        if (cid && cbor_isa_string(cid)) {
+            size_t clen = 0;
+            const char *cstr = item_string(cid, &clen);
+            if (cstr) {
+                lab->cid = malloc(clen + 1);
+                if (!lab->cid) goto fail;
+                memcpy(lab->cid, cstr, clen);
+                lab->cid[clen] = '\0';
+                lab->has_cid = 1;
+            }
+        }
+
+        cbor_item_t *val = map_find(item, "val");
+        size_t vlen = 0;
+        const char *vstr = val ? item_string(val, &vlen) : NULL;
+        if (!vstr) goto fail;
+        lab->val = malloc(vlen + 1);
+        if (!lab->val) goto fail;
+        memcpy(lab->val, vstr, vlen);
+        lab->val[vlen] = '\0';
+
+        cbor_item_t *neg = map_find(item, "neg");
+        if (neg && cbor_is_bool(neg)) {
+            lab->neg = cbor_get_bool(neg);
+            lab->has_neg = 1;
+        }
+
+        cbor_item_t *cts = map_find(item, "cts");
+        size_t tlen = 0;
+        const char *tstr = cts ? item_string(cts, &tlen) : NULL;
+        if (!tstr) goto fail;
+        lab->cts = malloc(tlen + 1);
+        if (!lab->cts) goto fail;
+        memcpy(lab->cts, tstr, tlen);
+        lab->cts[tlen] = '\0';
+
+        cbor_item_t *exp = map_find(item, "exp");
+        if (exp && cbor_isa_string(exp)) {
+            size_t elen = 0;
+            const char *estr = item_string(exp, &elen);
+            if (estr) {
+                lab->exp = malloc(elen + 1);
+                if (!lab->exp) goto fail;
+                memcpy(lab->exp, estr, elen);
+                lab->exp[elen] = '\0';
+                lab->has_exp = 1;
+            }
+        }
+
+        /* `sig` is a CBOR byte string on the wire; re-encode it to the
+         * base64url NUL-terminated form the rest of wolfram uses. */
+        cbor_item_t *sig = map_find(item, "sig");
+        if (sig && cbor_isa_bytestring(sig)) {
+            size_t sl = cbor_bytestring_length(sig);
+            const unsigned char *sd = cbor_bytestring_handle(sig);
+            if (wf_crypto_base64url_encode(sd, sl, &lab->sig) != WF_OK) goto fail;
+            lab->has_sig = 1;
+        }
+    }
+
+    return WF_OK;
+
+fail:
+    for (size_t i = 0; i < l->labels_count; i++) {
+        wf_label *lab = &l->labels[i];
+        free(lab->src);
+        free(lab->uri);
+        free(lab->cid);
+        free(lab->val);
+        free(lab->cts);
+        free(lab->exp);
+        free(lab->sig);
+    }
+    free(l->labels);
+    l->labels = NULL;
+    l->labels_count = 0;
+    return WF_ERR_ALLOC;
+}
+
 static wf_status parse_error_body(cbor_item_t *body, wf_subscribe_event *ev) {
     ev->type = WF_SUBSCRIBE_EVENT_ERROR;
     ev->seq = 0;
@@ -590,6 +732,8 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
                 s = parse_account(body, &ev);
             else if (t_len == 5 && memcmp(t_str, "#info", 5) == 0)
                 s = parse_info(body, &ev);
+            else if (t_len == 7 && memcmp(t_str, "#labels", 7) == 0)
+                s = parse_labels(body, &ev);
         }
 
         cbor_decref(&header);
@@ -710,6 +854,8 @@ wf_status wf_subscribe_decode_frame(const unsigned char *data, size_t len,
                 s = parse_account(body, out);
             else if (t_len == 5 && memcmp(t_str, "#info", 5) == 0)
                 s = parse_info(body, out);
+            else if (t_len == 7 && memcmp(t_str, "#labels", 7) == 0)
+                s = parse_labels(body, out);
         }
     }
 
