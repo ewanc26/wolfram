@@ -93,6 +93,17 @@ static bool wf_blob_ends_with(const char *s, const char *suffix) {
     return ls >= lx && strcmp(s + ls - lx, suffix) == 0;
 }
 
+static bool wf_blob_cid_is_valid(const char *cid) {
+    if (!cid || !*cid) return false;
+    for (const unsigned char *p = (const unsigned char *)cid; *p; p++) {
+        if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+              (*p >= '0' && *p <= '9'))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 wf_blob_store *wf_blob_store_new(const char *path) {
     wf_blob_store *store = (wf_blob_store *)calloc(1, sizeof(*store));
     if (!store) return NULL;
@@ -113,6 +124,7 @@ wf_blob_store *wf_blob_store_new(const char *path) {
                 const char *name = ent->d_name;
                 if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
                 if (wf_blob_ends_with(name, ".mime")) continue;
+                if (!wf_blob_cid_is_valid(name)) continue;
 
                 char *datap = wf_blob_path(store->dir, name);
                 char *mimep = wf_blob_path(store->dir, name);
@@ -181,7 +193,7 @@ void wf_blob_store_free(wf_blob_store *store) {
 wf_status wf_blob_store_put(wf_blob_store *store, const char *cid,
                             const char *mime_type,
                             const unsigned char *data, size_t len) {
-    if (!store || !cid || !*cid || !mime_type || !data) {
+    if (!store || !wf_blob_cid_is_valid(cid) || !mime_type || !data) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -252,7 +264,8 @@ persist:
 wf_status wf_blob_store_get(wf_blob_store *store, const char *cid,
                             unsigned char **out_data, size_t *out_len,
                             char **out_mime) {
-    if (!store || !cid || !out_data || !out_len || !out_mime) {
+    if (!store || !wf_blob_cid_is_valid(cid) || !out_data || !out_len ||
+        !out_mime) {
         return WF_ERR_INVALID_ARG;
     }
     *out_data = NULL;
@@ -279,11 +292,64 @@ wf_status wf_blob_store_get(wf_blob_store *store, const char *cid,
 }
 
 wf_status wf_blob_store_exists(wf_blob_store *store, const char *cid) {
-    if (!store || !cid) return WF_ERR_INVALID_ARG;
+    if (!store || !wf_blob_cid_is_valid(cid)) return WF_ERR_INVALID_ARG;
     for (wf_blob_node *n = store->head; n; n = n->next) {
         if (strcmp(n->cid, cid) == 0) return WF_OK;
     }
     return WF_ERR_NOT_FOUND;
+}
+
+wf_status wf_blob_store_delete(wf_blob_store *store, const char *cid) {
+    if (!store || !wf_blob_cid_is_valid(cid)) return WF_ERR_INVALID_ARG;
+
+    wf_blob_node **link = &store->head;
+    while (*link && strcmp((*link)->cid, cid) != 0) link = &(*link)->next;
+    if (!*link) return WF_ERR_NOT_FOUND;
+
+    if (store->file_backed) {
+        char *datap = wf_blob_path(store->dir, cid);
+        char *mimep = wf_blob_path(store->dir, cid);
+        if (!datap || !mimep) {
+            free(datap);
+            free(mimep);
+            return WF_ERR_ALLOC;
+        }
+        size_t plen = strlen(mimep);
+        char *mp = (char *)realloc(mimep, plen + 6);
+        if (!mp) {
+            free(datap);
+            free(mimep);
+            return WF_ERR_ALLOC;
+        }
+        mimep = mp;
+        memcpy(mimep + plen, ".mime", 6);
+
+        if (remove(datap) != 0) {
+            free(datap);
+            free(mimep);
+            return WF_ERR_INTERNAL;
+        }
+        if (remove(mimep) != 0) {
+            wf_blob_node *node = *link;
+            FILE *f = fopen(datap, "wb");
+            if (f) {
+                if (fwrite(node->data, 1, node->len, f) != node->len) {
+                    (void)remove(datap);
+                }
+                fclose(f);
+            }
+            free(datap);
+            free(mimep);
+            return WF_ERR_INTERNAL;
+        }
+        free(datap);
+        free(mimep);
+    }
+
+    wf_blob_node *node = *link;
+    *link = node->next;
+    wf_blob_node_free(node);
+    return WF_OK;
 }
 
 wf_status wf_blob_store_list(wf_blob_store *store, char ***out_cids,
