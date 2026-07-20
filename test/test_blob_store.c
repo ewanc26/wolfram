@@ -177,6 +177,17 @@ static int test_unit_memory(void) {
         return 1;
     }
 
+    char **cids = NULL;
+    size_t cids_count = 0;
+    if (wf_blob_store_list(store, &cids, &cids_count) != WF_OK ||
+        cids_count != 1 || !cids || strcmp(cids[0], cid) != 0) {
+        fprintf(stderr, "FAIL: list (memory) expected one matching CID\n");
+        wf_blob_store_list_free(cids, cids_count);
+        wf_blob_store_free(store);
+        return 1;
+    }
+    wf_blob_store_list_free(cids, cids_count);
+
     unsigned char *data = NULL;
     size_t len = 0;
     char *got_mime = NULL;

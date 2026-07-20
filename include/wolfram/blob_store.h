@@ -60,6 +60,18 @@ wf_status wf_blob_store_get(wf_blob_store *store, const char *cid,
 /** Return WF_OK if the blob exists, WF_ERR_NOT_FOUND otherwise. */
 wf_status wf_blob_store_exists(wf_blob_store *store, const char *cid);
 
+/**
+ * Enumerate every stored blob CID. On WF_OK, *out_cids receives a
+ * caller-owned NULL-terminated array of CID strings (each freed with
+ * free()); use wf_blob_store_list_free to release it. Returns
+ * WF_ERR_ALLOC on OOM. The order of CIDs is unspecified.
+ */
+wf_status wf_blob_store_list(wf_blob_store *store, char ***out_cids,
+                             size_t *out_count);
+
+/** Free a CID array returned by wf_blob_store_list. Safe to call with NULL. */
+void wf_blob_store_list_free(char **cids, size_t count);
+
 /*
  * Server integration (requires WOLFRAM_BUILD_SERVER). Registers
  * com.atproto.repo.uploadBlob (procedure) and com.atproto.sync.getBlob (query)
