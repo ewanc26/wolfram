@@ -310,32 +310,8 @@ if(WOLFRAM_BUILD_SERVER)
     # Service-token / Bearer auth middleware (built on the XRPC server + the
     # OAuth/service-auth verification primitives).
     target_sources(wolfram PRIVATE src/server/xrpc_server_auth.c)
-    # Durable, writable PDS repo store (SQLite-backed; builds on the repo
-    # primitives + the XRPC server route handlers).
-    target_sources(wolfram PRIVATE src/repo/repo_store.c)
     target_include_directories(wolfram PRIVATE ${MICROHTTPD_INCLUDE_DIR})
     target_link_libraries(wolfram PUBLIC ${MICROHTTPD_LIBRARY} Threads::Threads)
-
-    # SQLite3 for durable repo storage.
-    find_package(SQLite3 QUIET)
-    if(NOT SQLite3_FOUND)
-        find_path(SQLITE3_INCLUDE_DIR NAMES sqlite3.h)
-        find_library(SQLITE3_LIBRARY NAMES sqlite3)
-        if(SQLITE3_INCLUDE_DIR AND SQLITE3_LIBRARY)
-            set(SQLite3_FOUND TRUE)
-            set(SQLite3_INCLUDE_DIRS ${SQLITE3_INCLUDE_DIR})
-            set(SQLite3_LIBRARIES ${SQLITE3_LIBRARY})
-        endif()
-    endif()
-    if(NOT SQLite3_FOUND)
-        message(FATAL_ERROR
-            "WOLFRAM_BUILD_SERVER=ON requires SQLite3 (needed by the PDS "
-            "repo store) but it was not found on this system. Install it "
-            "(e.g. `brew install sqlite3` / `apt install libsqlite3-dev`).")
-    endif()
-    target_include_directories(wolfram PRIVATE ${SQLite3_INCLUDE_DIRS})
-    target_link_libraries(wolfram PRIVATE ${SQLite3_LIBRARIES})
-    message(STATUS "SQLite3 found (${SQLite3_LIBRARIES}) — building PDS repo store")
 
     if(WOLFRAM_BUILD_TESTS)
         add_executable(test_xrpc_server test/test_xrpc_server.c)
@@ -390,18 +366,6 @@ if(WOLFRAM_BUILD_SERVER)
         target_link_libraries(test_sync_publish_server PRIVATE wolfram Threads::Threads)
         target_include_directories(test_sync_publish_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME sync_publish_server COMMAND test_sync_publish_server)
-
-        # Durable, writable PDS repo store + core com.atproto.repo serving.
-        add_executable(test_pds_repo test/test_pds_repo.c)
-        target_link_libraries(test_pds_repo PRIVATE wolfram Threads::Threads)
-        target_include_directories(test_pds_repo PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
-        add_test(NAME pds_repo COMMAND test_pds_repo)
-
-        # Per-request repo/blob resolver for a multi-tenant PDS.
-        add_executable(test_pds_repo_resolver test/test_pds_repo_resolver.c)
-        target_link_libraries(test_pds_repo_resolver PRIVATE wolfram Threads::Threads)
-        target_include_directories(test_pds_repo_resolver PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
-        add_test(NAME pds_repo_resolver COMMAND test_pds_repo_resolver)
 
         add_executable(test_feedgen_skeleton test/test_feedgen_skeleton.c)
         target_link_libraries(test_feedgen_skeleton PRIVATE wolfram)
