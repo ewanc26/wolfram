@@ -49,6 +49,11 @@ extern "C" {
 /** Opaque, durable repo store handle. */
 typedef struct wf_repo_store wf_repo_store;
 
+typedef struct wf_repo_store_stats {
+    size_t repo_blocks;
+    size_t indexed_records;
+} wf_repo_store_stats;
+
 typedef enum wf_repo_store_event_kind {
     WF_REPO_STORE_EVENT_COMMIT,
     WF_REPO_STORE_EVENT_SYNC,
@@ -106,6 +111,9 @@ const char *wf_repo_store_did(const wf_repo_store *store);
 const char *wf_repo_store_handle(const wf_repo_store *store);
 
 wf_status wf_repo_store_set_handle(wf_repo_store *store, const char *handle);
+
+wf_status wf_repo_store_get_stats(wf_repo_store *store,
+                                  wf_repo_store_stats *out_stats);
 
 /** Install or clear the post-persistence repository event observer. */
 void wf_repo_store_set_event_callback(wf_repo_store *store,

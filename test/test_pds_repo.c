@@ -50,6 +50,12 @@ static int run_unit(void) {
         unlink(path);
         return failures + 1;
     }
+    wf_repo_store_stats empty_stats = {1, 1};
+    WF_CHECK(wf_repo_store_get_stats(NULL, &empty_stats) == WF_ERR_INVALID_ARG);
+    WF_CHECK(empty_stats.repo_blocks == 0 && empty_stats.indexed_records == 0);
+    WF_CHECK(wf_repo_store_get_stats(store, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_repo_store_get_stats(store, &empty_stats) == WF_OK);
+    WF_CHECK(empty_stats.repo_blocks == 0 && empty_stats.indexed_records == 0);
 
     /* createRecord in a first collection (rkey auto-generated). */
     char *uri1 = NULL, *cid1 = NULL;
@@ -251,6 +257,10 @@ static int run_unit(void) {
     WF_CHECK(s == WF_OK && verified == 1);
     WF_CHECK(strcmp(cm.did, "did:plc:testpds") == 0);
     WF_CHECK(cm.sig_len == 64);
+    wf_repo_store_stats populated_stats = {0};
+    WF_CHECK(wf_repo_store_get_stats(store, &populated_stats) == WF_OK);
+    WF_CHECK(populated_stats.repo_blocks > 0);
+    WF_CHECK(populated_stats.indexed_records == 1);
 
     /* Persistence: reopen and the head still verifies, DID preserved. */
     wf_repo_store_free(store);
@@ -259,6 +269,10 @@ static int run_unit(void) {
     WF_CHECK(s == WF_OK && store != NULL);
     WF_CHECK(strcmp(wf_repo_store_did(store), "did:plc:testpds") == 0);
     WF_CHECK(strcmp(wf_repo_store_handle(store), "renamed.example.com") == 0);
+    wf_repo_store_stats reopened_stats = {0};
+    WF_CHECK(wf_repo_store_get_stats(store, &reopened_stats) == WF_OK);
+    WF_CHECK(reopened_stats.repo_blocks == populated_stats.repo_blocks);
+    WF_CHECK(reopened_stats.indexed_records == populated_stats.indexed_records);
     int verified2 = 0;
     s = wf_repo_store_verify_head(store, &verified2, NULL);
     WF_CHECK(s == WF_OK && verified2 == 1);
