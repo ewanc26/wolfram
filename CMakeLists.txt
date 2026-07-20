@@ -234,13 +234,33 @@ src/agent/push_endpoint.c
 
 # Embedded/console platform support
 if(WOLFRAM_BUILD_WII)
-    target_sources(wolfram PRIVATE src/platform/wii_platform.c src/openssl_compat.c)
+    target_sources(wolfram PRIVATE src/platform/wii_platform.c
+                                     src/openssl_compat.c
+                                     src/transport/wii_tls.c)
     target_compile_definitions(wolfram PUBLIC WOLFRAM_WII)
     target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                                ${LIBOGC}/include)
-    target_link_directories(wolfram PUBLIC ${LIBOGC}/lib/wii)
-    target_link_libraries(wolfram PUBLIC ogc)
-    message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON)")
+    # mbedTLS is cross-compiled as a Wii portlib (see tools/build_wii_mbedtls.sh).
+    # Keep the custom portlib local by default so setup never requires root.
+    # WII_PORTLIBS may override the location for packaged toolchains.
+    if(DEFINED ENV{WII_PORTLIBS})
+        set(WII_PORTLIBS "$ENV{WII_PORTLIBS}")
+    else()
+        set(WII_PORTLIBS "${CMAKE_CURRENT_SOURCE_DIR}/build-wii-mbedtls")
+    endif()
+    if(NOT EXISTS "${WII_PORTLIBS}/lib/libmbedtls.a")
+        message(FATAL_ERROR
+            "WOLFRAM_BUILD_WII=ON requires mbedTLS for the Wii. It was not found "
+            "at ${WII_PORTLIBS}/lib/libmbedtls.a. Build it with:\n"
+            "    tools/build_wii_mbedtls.sh\n"
+            "(network + devkitPro toolchain required).")
+    endif()
+    target_include_directories(wolfram PRIVATE ${WII_PORTLIBS}/include)
+    target_link_libraries(wolfram PUBLIC ogc
+        ${WII_PORTLIBS}/lib/libmbedtls.a
+        ${WII_PORTLIBS}/lib/libmbedx509.a
+        ${WII_PORTLIBS}/lib/libmbedcrypto.a)
+    message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON), mbedTLS linked")
 elseif(WOLFRAM_BUILD_WIIU)
     target_sources(wolfram PRIVATE src/platform/wiiu_platform.c src/openssl_compat.c)
     target_compile_definitions(wolfram PUBLIC WOLFRAM_WIIU)
@@ -713,6 +733,16 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_xrpc PRIVATE wolfram)
     target_include_directories(test_xrpc PRIVATE test)
     add_test(NAME xrpc COMMAND test_xrpc)
+
+    if(NOT WOLFRAM_BUILD_EMBEDDED)
+        add_executable(test_xrpc_wii_host
+            test/test_xrpc_wii_host.c
+            src/transport/xrpc_wii.c)
+        target_include_directories(test_xrpc_wii_host PRIVATE
+            include src ${cjson_SOURCE_DIR})
+        target_link_libraries(test_xrpc_wii_host PRIVATE cjson)
+        add_test(NAME xrpc_wii_host COMMAND test_xrpc_wii_host)
+    endif()
 
     add_executable(test_identity test/test_identity.c)
     target_link_libraries(test_identity PRIVATE wolfram)
