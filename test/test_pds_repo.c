@@ -209,6 +209,12 @@ static int run_unit(void) {
     WF_CHECK(s == WF_ERR_NOT_FOUND || s == WF_ERR_INVALID_ARG);
     free(since_rev);
 
+    WF_CHECK(wf_repo_store_set_handle(store, "not a handle") ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(strcmp(wf_repo_store_handle(store), "test.example.com") == 0);
+    WF_CHECK(wf_repo_store_set_handle(store, "renamed.example.com") == WF_OK);
+    WF_CHECK(strcmp(wf_repo_store_handle(store), "renamed.example.com") == 0);
+
     /* describeRepo: did + handle + collections + rev. */
     char *desc = NULL;
     s = wf_repo_store_describe(store, &desc);
@@ -222,7 +228,7 @@ static int run_unit(void) {
     WF_CHECK(did && cJSON_IsString(did) &&
              strcmp(did->valuestring, "did:plc:testpds") == 0);
     WF_CHECK(handle && cJSON_IsString(handle) &&
-             strcmp(handle->valuestring, "test.example.com") == 0);
+             strcmp(handle->valuestring, "renamed.example.com") == 0);
     WF_CHECK(cols && cJSON_IsArray(cols));
     int has_posts = 0;
     for (int i = 0; cols && i < cJSON_GetArraySize(cols); i++) {
@@ -252,7 +258,7 @@ static int run_unit(void) {
     s = wf_repo_store_open(path, "did:plc:testpds", "test.example.com", &store);
     WF_CHECK(s == WF_OK && store != NULL);
     WF_CHECK(strcmp(wf_repo_store_did(store), "did:plc:testpds") == 0);
-    WF_CHECK(strcmp(wf_repo_store_handle(store), "test.example.com") == 0);
+    WF_CHECK(strcmp(wf_repo_store_handle(store), "renamed.example.com") == 0);
     int verified2 = 0;
     s = wf_repo_store_verify_head(store, &verified2, NULL);
     WF_CHECK(s == WF_OK && verified2 == 1);
