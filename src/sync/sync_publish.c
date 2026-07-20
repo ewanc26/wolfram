@@ -1,5 +1,6 @@
 #include "wolfram/sync_publish.h"
 #include "wolfram/sync_subscribe.h"
+#include "wolfram/crypto.h"
 
 #include <cbor.h>
 #include <stdlib.h>
@@ -172,6 +173,76 @@ static cbor_item_t *build_info_body(const wf_subscribe_info *info) {
     return m;
 }
 
+/* Build one `com.atproto.label.defs#label` map (inverse of parse_labels in
+ * sync_subscribe.c). Lexicon key order: ver (opt), src, uri, cid (opt), val,
+ * neg (opt), cts, exp (opt), sig (opt). `sig` is emitted as a CBOR byte string
+ * of the base64url-decoded wf_label.sig (the wire form per the lexicon). */
+static cbor_item_t *build_label_item(const wf_label *l) {
+    if (!l->src || !l->uri || !l->val || !l->cts) return NULL;
+
+    size_t n = 4;
+    if (l->has_ver) n++;
+    if (l->has_cid) n++;
+    if (l->has_neg) n++;
+    if (l->has_exp) n++;
+    if (l->has_sig) n++;
+
+    cbor_item_t *m = cbor_new_definite_map(n);
+    if (!m) return NULL;
+
+    if (l->has_ver)
+        map_put(m, "ver", int_item(l->ver));
+    map_put(m, "src", cbor_build_string(l->src));
+    map_put(m, "uri", cbor_build_string(l->uri));
+    if (l->has_cid)
+        map_put(m, "cid", cbor_build_string(l->cid));
+    map_put(m, "val", cbor_build_string(l->val));
+    if (l->has_neg)
+        map_put(m, "neg", cbor_build_bool(l->neg));
+    map_put(m, "cts", cbor_build_string(l->cts));
+    if (l->has_exp)
+        map_put(m, "exp", cbor_build_string(l->exp));
+    if (l->has_sig) {
+        unsigned char *raw = NULL;
+        size_t raw_len = 0;
+        if (wf_crypto_base64url_decode(l->sig, &raw, &raw_len) != WF_OK) {
+            cbor_decref(&m);
+            return NULL;
+        }
+        cbor_item_t *bs = cbor_build_bytestring(raw, raw_len);
+        free(raw);
+        if (!map_put(m, "sig", bs)) {
+            cbor_decref(&m);
+            return NULL;
+        }
+    }
+    return m;
+}
+
+static cbor_item_t *build_labels_body(const wf_subscribe_labels *l) {
+    cbor_item_t *m = cbor_new_definite_map(2);
+    if (!m) return NULL;
+    map_put(m, "seq", int_item(l->seq));
+
+    cbor_item_t *arr = cbor_new_definite_array(l->labels_count);
+    if (!arr) {
+        cbor_decref(&m);
+        return NULL;
+    }
+    for (size_t i = 0; i < l->labels_count; i++) {
+        cbor_item_t *item = build_label_item(&l->labels[i]);
+        if (!item) {
+            cbor_decref(&arr);
+            cbor_decref(&m);
+            return NULL;
+        }
+        (void)cbor_array_push(arr, item);
+        cbor_decref(&item);
+    }
+    map_put(m, "labels", arr);
+    return m;
+}
+
 static cbor_item_t *build_error_body(const char *error, const char *message) {
     cbor_item_t *m = cbor_new_definite_map(error ? 2 : 1);
     map_put(m, "error",
@@ -213,6 +284,10 @@ wf_status wf_sync_publish_event(const wf_subscribe_event *ev,
     case WF_SUBSCRIBE_EVENT_INFO:
         body = build_info_body(&ev->data.info);
         t = "#info";
+        break;
+    case WF_SUBSCRIBE_EVENT_LABELS:
+        body = build_labels_body(&ev->data.labels);
+        t = "#labels";
         break;
     case WF_SUBSCRIBE_EVENT_ERROR:
         body = build_error_body(ev->data.error.error, ev->data.error.message);

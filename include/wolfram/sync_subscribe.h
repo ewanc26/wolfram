@@ -3,6 +3,7 @@
 
 #include "wolfram/repo/cid.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/label.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -16,6 +17,7 @@ typedef enum wf_subscribe_event_type {
     WF_SUBSCRIBE_EVENT_IDENTITY,
     WF_SUBSCRIBE_EVENT_ACCOUNT,
     WF_SUBSCRIBE_EVENT_INFO,
+    WF_SUBSCRIBE_EVENT_LABELS,
     WF_SUBSCRIBE_EVENT_ERROR,
 } wf_subscribe_event_type;
 
@@ -75,6 +77,16 @@ typedef struct wf_subscribe_info {
     int has_message;
 } wf_subscribe_info;
 
+/* A `com.atproto.label.subscribeLabels` #labels event: a batch of labels
+ * (com.atproto.label.defs#label) sharing one sequence number. `labels` is an
+ * array of `labels_count` wf_label items, owned by the event and released by
+ * wf_subscribe_event_free. */
+typedef struct wf_subscribe_labels {
+    int64_t seq;
+    wf_label *labels;
+    size_t labels_count;
+} wf_subscribe_labels;
+
 typedef struct wf_subscribe_event {
     wf_subscribe_event_type type;
     int64_t seq;
@@ -84,6 +96,7 @@ typedef struct wf_subscribe_event {
         wf_subscribe_identity identity;
         wf_subscribe_account account;
         wf_subscribe_info info;
+        wf_subscribe_labels labels;
         struct { char *error; char *message; } error;
     } data;
 } wf_subscribe_event;
