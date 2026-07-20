@@ -381,6 +381,13 @@ if(WOLFRAM_BUILD_SERVER)
         target_include_directories(test_sync_publish_e2e PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME sync_publish_e2e COMMAND test_sync_publish_e2e)
 
+        # sync_publish → subscribeRepos → sync_subscribe client end-to-end
+        # round-trip, driven by the real subscription client.
+        add_executable(test_sync_publish_server test/test_sync_publish_server.c)
+        target_link_libraries(test_sync_publish_server PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_sync_publish_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME sync_publish_server COMMAND test_sync_publish_server)
+
         # Durable, writable PDS repo store + core com.atproto.repo serving.
         add_executable(test_pds_repo test/test_pds_repo.c)
         target_link_libraries(test_pds_repo PRIVATE wolfram Threads::Threads)
