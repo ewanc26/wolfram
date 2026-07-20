@@ -449,7 +449,6 @@ cleanup:
 }
 
 int main(void) {
-    int failures = 0;
-    failures += run();
+    run();
     WF_TEST_SUMMARY();
 }

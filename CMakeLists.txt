@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0077 NEW)
+if(POLICY CMP0156)
+    cmake_policy(SET CMP0156 NEW)
+endif()
 project(wolfram
     VERSION 0.1.0
     DESCRIPTION "A C SDK for the AT Protocol"
@@ -63,9 +66,9 @@ if(NOT WOLFRAM_BUILD_EMBEDDED)
     endif()
 endif()
 
-# cJSON v1.7.18 and libcbor v0.13.0 declare an old cmake_minimum_required
-# (<3.5) which CMake 4.x rejects. Allow them to configure anyway.
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+# cJSON v1.7.18 and libcbor v0.13.0 declare old cmake_minimum_required
+# versions which CMake 4.x rejects. Configure them with 3.10 policies.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.10 CACHE STRING "" FORCE)
 
 include(FetchContent)
 FetchContent_Declare(

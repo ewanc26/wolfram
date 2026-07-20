@@ -762,6 +762,57 @@ const char *wf_repo_store_handle(const wf_repo_store *store) {
     return store ? store->handle : NULL;
 }
 
+wf_status wf_repo_store_set_handle(wf_repo_store *store, const char *handle) {
+    if (!store || !handle || !wf_syntax_handle_is_valid(handle))
+        return WF_ERR_INVALID_ARG;
+    char *copy = strdup(handle);
+    if (!copy) return WF_ERR_ALLOC;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(store->db,
+            "UPDATE meta SET handle=? WHERE id=0;", -1, &stmt, NULL) !=
+            SQLITE_OK) {
+        free(copy);
+        return WF_ERR_INTERNAL;
+    }
+    sqlite3_bind_text(stmt, 1, handle, -1, SQLITE_TRANSIENT);
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    if (rc != SQLITE_DONE || sqlite3_changes(store->db) != 1) {
+        free(copy);
+        return WF_ERR_INTERNAL;
+    }
+    free(store->handle);
+    store->handle = copy;
+    return WF_OK;
+}
+
+wf_status wf_repo_store_get_stats(wf_repo_store *store,
+                                  wf_repo_store_stats *out_stats) {
+    if (!out_stats) return WF_ERR_INVALID_ARG;
+    memset(out_stats, 0, sizeof(*out_stats));
+    if (!store) return WF_ERR_INVALID_ARG;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(store->db,
+            "SELECT (SELECT COUNT(*) FROM blocks), "
+            "(SELECT COUNT(*) FROM records);", -1, &stmt, NULL) != SQLITE_OK)
+        return WF_ERR_INTERNAL;
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        return WF_ERR_INTERNAL;
+    }
+    sqlite3_int64 blocks = sqlite3_column_int64(stmt, 0);
+    sqlite3_int64 records = sqlite3_column_int64(stmt, 1);
+    sqlite3_finalize(stmt);
+    if (blocks < 0 || records < 0 ||
+        (uint64_t)blocks > (uint64_t)SIZE_MAX ||
+        (uint64_t)records > (uint64_t)SIZE_MAX)
+        return WF_ERR_INTERNAL;
+    out_stats->repo_blocks = (size_t)blocks;
+    out_stats->indexed_records = (size_t)records;
+    return WF_OK;
+}
+
 void wf_repo_store_set_event_callback(wf_repo_store *store,
                                       wf_repo_store_event_cb callback,
                                       void *context) {

@@ -234,8 +234,58 @@ static int test_unit_memory(void) {
         }
     }
 
+    if (wf_blob_store_delete(store, cid) != WF_OK) {
+        fprintf(stderr, "FAIL: delete (memory)\n");
+        fail = 1;
+    }
+    if (wf_blob_store_exists(store, cid) != WF_ERR_NOT_FOUND) {
+        fprintf(stderr, "FAIL: deleted blob still exists (memory)\n");
+        fail = 1;
+    }
+    data = NULL;
+    len = 0;
+    got_mime = NULL;
+    if (wf_blob_store_get(store, cid, &data, &len, &got_mime) !=
+        WF_ERR_NOT_FOUND) {
+        fprintf(stderr, "FAIL: deleted blob still readable (memory)\n");
+        free(data);
+        free(got_mime);
+        fail = 1;
+    }
+    cids = NULL;
+    cids_count = 0;
+    if (wf_blob_store_list(store, &cids, &cids_count) != WF_OK ||
+        cids_count != 0 || cids != NULL) {
+        fprintf(stderr, "FAIL: deleted blob still listed (memory)\n");
+        wf_blob_store_list_free(cids, cids_count);
+        fail = 1;
+    }
+    if (wf_blob_store_delete(store, cid) != WF_ERR_NOT_FOUND) {
+        fprintf(stderr, "FAIL: repeated delete should be NOT_FOUND\n");
+        fail = 1;
+    }
+
     wf_blob_store_free(store);
     if (!fail) printf("PASS: in-memory unit\n");
+    return fail;
+}
+
+static int test_delete_invalid_args(void) {
+    wf_blob_store *store = wf_blob_store_new(NULL);
+    if (!store) {
+        fprintf(stderr, "FAIL: store (delete invalid args)\n");
+        return 1;
+    }
+    int fail = 0;
+    if (wf_blob_store_delete(NULL, "bafytest") != WF_ERR_INVALID_ARG ||
+        wf_blob_store_delete(store, NULL) != WF_ERR_INVALID_ARG ||
+        wf_blob_store_delete(store, "") != WF_ERR_INVALID_ARG ||
+        wf_blob_store_delete(store, "../bafytest") != WF_ERR_INVALID_ARG) {
+        fprintf(stderr, "FAIL: delete invalid args\n");
+        fail = 1;
+    }
+    wf_blob_store_free(store);
+    if (!fail) printf("PASS: delete invalid args\n");
     return fail;
 }
 
@@ -281,14 +331,52 @@ static int test_file_backed(void) {
         }
         free(data); free(mime);
     }
+    if (wf_blob_store_delete(s2, cid) != WF_OK ||
+        wf_blob_store_exists(s2, cid) != WF_ERR_NOT_FOUND) {
+        fprintf(stderr, "FAIL: delete (file)\n");
+        fail = 1;
+    }
+    char **cids = NULL;
+    size_t cids_count = 0;
+    if (wf_blob_store_list(s2, &cids, &cids_count) != WF_OK ||
+        cids_count != 0 || cids != NULL) {
+        fprintf(stderr, "FAIL: deleted blob still listed (file)\n");
+        wf_blob_store_list_free(cids, cids_count);
+        fail = 1;
+    }
     wf_blob_store_free(s2);
 
-    /* Clean up the temp dir. */
+    wf_blob_store *s3 = wf_blob_store_new(dir);
+    if (!s3) {
+        fprintf(stderr, "FAIL: reopen after delete (file)\n");
+        fail = 1;
+    } else {
+        data = NULL;
+        len = 0;
+        mime = NULL;
+        if (wf_blob_store_get(s3, cid, &data, &len, &mime) !=
+            WF_ERR_NOT_FOUND) {
+            fprintf(stderr, "FAIL: deleted blob returned after reopen\n");
+            free(data);
+            free(mime);
+            fail = 1;
+        }
+        wf_blob_store_free(s3);
+    }
+
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s", dir, cid);
-    remove(path);
+    if (access(path, F_OK) == 0) {
+        fprintf(stderr, "FAIL: deleted data file remains\n");
+        remove(path);
+        fail = 1;
+    }
     snprintf(path, sizeof(path), "%s/%s.mime", dir, cid);
-    remove(path);
+    if (access(path, F_OK) == 0) {
+        fprintf(stderr, "FAIL: deleted MIME file remains\n");
+        remove(path);
+        fail = 1;
+    }
     rmdir(dir);
 
     if (!fail) printf("PASS: file-backed persistence\n");
@@ -427,6 +515,7 @@ static int test_server_roundtrip(void) {
 int main(void) {
     int failures = 0;
     failures += test_unit_memory();
+    failures += test_delete_invalid_args();
     failures += test_file_backed();
     failures += test_server_roundtrip();
     if (failures == 0) printf("ALL PASS: blob_store\n");
