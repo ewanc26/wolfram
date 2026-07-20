@@ -20,6 +20,44 @@
 #include <string.h>
 #include <stdio.h>
 
+/*
+ * Internal routing bundle installed by the blob-store server registrations.
+ * When `resolver` is NULL the handlers use the single `fallback_blobs`;
+ * otherwise `resolver` picks the per-request blob store (and may also
+ * resolve a repo store). The bundle is heap-allocated and owned by the
+ * server (freed in wf_xrpc_server_free).
+ */
+typedef struct wf_pds_repo_bundle {
+    wf_xrpc_repo_resolver resolver;
+    void *resolver_ctx;
+    wf_repo_store *fallback_repo;
+    wf_blob_store *fallback_blobs;
+} wf_pds_repo_bundle;
+
+/*
+ * Resolve the blob store for a request from the registration's bundle.
+ * Returns the store to use (never NULL on success) or NULL after writing a
+ * 400 AccountNotFound response when the resolver fails / resolves no store.
+ * When no resolver is set the single fallback store is returned.
+ */
+static wf_blob_store *resolve_blobs(wf_pds_repo_bundle *b,
+                                    const wf_xrpc_request *req,
+                                    wf_xrpc_response *resp) {
+    wf_blob_store *blobs = b->fallback_blobs;
+    if (b->resolver) {
+        wf_repo_store *out_repo = NULL;
+        wf_blob_store *out_blobs = NULL;
+        if (b->resolver(b->resolver_ctx, req, &out_repo, &out_blobs) != WF_OK ||
+            !out_blobs) {
+            wf_xrpc_response_set_error(resp, 400, "AccountNotFound",
+                                        "Account is not hosted here");
+            return NULL;
+        }
+        blobs = out_blobs;
+    }
+    return blobs;
+}
+
 /* Escape a string for inclusion inside a JSON string (returns owned buffer). */
 static char *wf_bs_json_escape(const char *s) {
     size_t need = 0;
@@ -39,8 +77,9 @@ static char *wf_bs_json_escape(const char *s) {
 }
 
 static wf_status blob_upload_handler(void *ctx, const wf_xrpc_request *req,
-                                      wf_xrpc_response *resp) {
-    wf_blob_store *store = (wf_blob_store *)ctx;
+                                       wf_xrpc_response *resp) {
+    wf_blob_store *store = resolve_blobs((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!store) return WF_OK;
 
     if (!req->body || req->body_len == 0) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -104,8 +143,9 @@ static wf_status blob_upload_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status blob_get_handler(void *ctx, const wf_xrpc_request *req,
-                                   wf_xrpc_response *resp) {
-    wf_blob_store *store = (wf_blob_store *)ctx;
+                                    wf_xrpc_response *resp) {
+    wf_blob_store *store = resolve_blobs((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!store) return WF_OK;
 
     cJSON *cid = req->params
                      ? cJSON_GetObjectItemCaseSensitive(req->params, "cid")
@@ -139,13 +179,37 @@ static wf_status blob_get_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 wf_status wf_xrpc_server_register_blob_store(wf_xrpc_server *server,
-                                             wf_blob_store *store) {
+                                              wf_blob_store *store) {
     if (!server || !store) {
         return WF_ERR_INVALID_ARG;
     }
+    /* Single-store path: build a resolver-less bundle that always serves
+     * `store`. The server owns the bundle and frees it on
+     * wf_xrpc_server_free, preserving the caller-owned `store` contract. */
+    wf_pds_repo_bundle *b = (wf_pds_repo_bundle *)malloc(sizeof(*b));
+    if (!b) return WF_ERR_ALLOC;
+    *b = (wf_pds_repo_bundle){0};
+    b->fallback_blobs = store;
+    wf_xrpc_server_own_ctx(server, b, free);
     wf_status s = wf_xrpc_server_register_procedure(
-        server, "com.atproto.repo.uploadBlob", blob_upload_handler, store);
+        server, "com.atproto.repo.uploadBlob", blob_upload_handler, b);
     if (s != WF_OK) return s;
     return wf_xrpc_server_register_query(
-        server, "com.atproto.sync.getBlob", blob_get_handler, store);
+        server, "com.atproto.sync.getBlob", blob_get_handler, b);
+}
+
+wf_status wf_xrpc_server_register_blob_store_resolver(
+    wf_xrpc_server *server, wf_xrpc_repo_resolver resolver, void *ctx) {
+    if (!server) return WF_ERR_INVALID_ARG;
+    wf_pds_repo_bundle *b = (wf_pds_repo_bundle *)malloc(sizeof(*b));
+    if (!b) return WF_ERR_ALLOC;
+    *b = (wf_pds_repo_bundle){0};
+    b->resolver = resolver;
+    b->resolver_ctx = ctx;
+    wf_xrpc_server_own_ctx(server, b, free);
+    wf_status s = wf_xrpc_server_register_procedure(
+        server, "com.atproto.repo.uploadBlob", blob_upload_handler, b);
+    if (s != WF_OK) return s;
+    return wf_xrpc_server_register_query(
+        server, "com.atproto.sync.getBlob", blob_get_handler, b);
 }
