@@ -39,7 +39,7 @@ set(CMAKE_OBJDUMP ${DEVKITPPC}/bin/powerpc-eabi-objdump)
 # Wii-specific flags: big-endian, single-precision FPU, no exceptions
 # -Wno-error=incompatible-pointer-types: pre-existing type mismatches in the
 # codebase that GCC 14+ treats as errors by default.
-set(CMAKE_C_FLAGS_INIT "-mogc -mcpu=750 -meabi -mhard-float -ffunction-sections -fdata-sections -Wno-error=incompatible-pointer-types")
+set(CMAKE_C_FLAGS_INIT "-mogc -mcpu=750 -meabi -mhard-float -ffunction-sections -fdata-sections -O2 -Wno-error=incompatible-pointer-types")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_C_FLAGS_INIT}")
 
 # Wii memory layout: 24 MB MEM1 + ~48 MB MEM2
