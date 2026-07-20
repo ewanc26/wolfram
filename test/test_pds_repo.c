@@ -383,8 +383,7 @@ static int run_server(void) {
 }
 
 int main(void) {
-    int failures = 0;
-    failures += run_unit();
-    failures += run_server();
+    run_unit();
+    run_server();
     WF_TEST_SUMMARY();
 }

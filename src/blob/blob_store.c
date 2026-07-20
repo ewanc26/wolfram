@@ -69,7 +69,7 @@ static void wf_blob_node_free(wf_blob_node *node) {
 }
 
 /* Read an entire file into a heap buffer (caller frees). Returns WF_OK and sets
- * *out/*out_len; WF_ERR_NOT_FOUND if unopenable; WF_ERR_ALLOC on OOM. */
+ * the output buffer and length; WF_ERR_NOT_FOUND if unopenable; WF_ERR_ALLOC on OOM. */
 static wf_status wf_blob_read_file(const char *path, unsigned char **out,
                                     size_t *out_len) {
     FILE *f = fopen(path, "rb");
