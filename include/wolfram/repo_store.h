@@ -39,6 +39,9 @@
 #include "wolfram/repo/commit.h"
 #include "wolfram/xrpc_server.h"
 
+/* Forward declaration; the resolver may resolve a blob store per request. */
+typedef struct wf_blob_store wf_blob_store;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -307,7 +310,39 @@ wf_status wf_repo_store_create_service_auth(wf_repo_store *store,
  * lifetime and free it after wf_xrpc_server_free.
  */
 wf_status wf_xrpc_server_register_pds_repo(wf_xrpc_server *server,
-                                           wf_repo_store *store);
+                                            wf_repo_store *store);
+
+/*
+ * Per-request resolver for multi-tenant PDS deployments. Given the
+ * incoming request, return the repo store (and/or blob store) that
+ * should service it, resolved from req->params (did/repo/collection/
+ * rkey) and/or req->authed_subject. The returned pointers are BORROWED
+ * for the duration of the request and must NOT be freed by the server.
+ * If the account cannot be resolved return WF_ERR_NOT_FOUND (or any
+ * error) and leave *out_repo / *out_blobs NULL; the handler maps this
+ * to a 400 RepoNotFound / AccountNotFound. out_repo / out_blobs may be
+ * independently NULL.
+ */
+typedef wf_status (*wf_xrpc_repo_resolver)(void *ctx,
+                                           const wf_xrpc_request *req,
+                                           wf_repo_store **out_repo,
+                                           wf_blob_store **out_blobs);
+
+/**
+ * Register the com.atproto.repo read/write route handlers on an XRPC
+ * server with a per-request resolver instead of a fixed store, enabling
+ * a multi-tenant PDS to serve different accounts from different stores.
+ *
+ * The resolver is invoked for every request; it must return (via
+ * out_repo) the wf_repo_store that should service the request, resolved
+ * from req->params / req->authed_subject. The returned store is
+ * borrowed for the request duration; the caller keeps ownership of both
+ * `ctx` and the stores the resolver returns and must free them after
+ * wf_xrpc_server_free. The server owns the internal routing bundle it
+ * allocates and frees it on wf_xrpc_server_free.
+ */
+wf_status wf_xrpc_server_register_pds_repo_resolver(
+    wf_xrpc_server *server, wf_xrpc_repo_resolver resolver, void *ctx);
 
 #ifdef __cplusplus
 }
