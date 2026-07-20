@@ -92,6 +92,15 @@ wf_status wf_agent_unregister_push_ext(wf_agent *agent, const char *service_did,
 wf_status wf_get_notif_endpoint(wf_agent *agent, const char *service_did, char **out_endpoint);
 
 /* Reply API */
+/* Create a reply with explicit root and parent strong references. Use this
+ * when replying to a post that may itself be a reply. */
+wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
+                              const char *root_uri, const char *root_cid,
+                              const char *parent_uri, const char *parent_cid,
+                              wf_agent_post_result *out);
+
+/* Convenience for replying directly to a top-level post. The supplied post
+ * is used as both root and parent. */
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
                          const char *parent_uri, const char *parent_cid,
                          wf_agent_post_result *out);
@@ -127,12 +136,16 @@ typedef struct wf_agent_profile {
     char *display_name;
     char *description;
     char *avatar_cid;
+    char *following;     /* viewer.following record URI, or NULL */
     int followers_count;
     int follows_count;
     int posts_count;
 } wf_agent_profile;
 
 wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_profile *out);
+/* Parse an app.bsky.actor.getProfile response without network I/O. */
+wf_status wf_agent_parse_profile(const char *json, size_t json_len,
+                                 wf_agent_profile *out);
 void wf_agent_profile_free(wf_agent_profile *profile);
 
 /* Social graph */

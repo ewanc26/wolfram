@@ -106,6 +106,7 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     free(profile->display_name);
     free(profile->description);
     free(profile->avatar_cid);
+    free(profile->following);
     memset(profile, 0, sizeof(*profile));
 }
 
@@ -651,6 +652,14 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
         status = wf_agent_set_string(&out->avatar_cid, avatar->valuestring);
     }
 
+    cJSON *viewer = cJSON_GetObjectItemCaseSensitive(root, "viewer");
+    if (status == WF_OK && cJSON_IsObject(viewer)) {
+        cJSON *following = cJSON_GetObjectItemCaseSensitive(viewer, "following");
+        if (cJSON_IsString(following) && following->valuestring) {
+            status = wf_agent_set_string(&out->following, following->valuestring);
+        }
+    }
+
     cJSON *followers_count = cJSON_GetObjectItemCaseSensitive(root, "followersCount");
     cJSON *follows_count = cJSON_GetObjectItemCaseSensitive(root, "followsCount");
     cJSON *posts_count = cJSON_GetObjectItemCaseSensitive(root, "postsCount");
@@ -692,6 +701,15 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
 
     cJSON_Delete(root);
     return status;
+}
+
+wf_status wf_agent_parse_profile(const char *json, size_t json_len,
+                                 wf_agent_profile *out) {
+    wf_response response = {0};
+    if (!json || !json_len || !out) return WF_ERR_INVALID_ARG;
+    response.body = (char *)json;
+    response.body_len = json_len;
+    return wf_agent_profile_from_response(&response, out);
 }
 
 static wf_status wf_agent_build_follow_record(wf_agent *agent,
