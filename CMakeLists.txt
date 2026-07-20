@@ -130,6 +130,8 @@ add_library(wolfram
     src/label/label.c
     # Label query/get (request/response)
     src/label_query.c
+    # Label subscribeLabels agent consumption wrapper
+    src/label_subscribe_typed.c
     # Syntax validation
     src/syntax/syntax.c
     # TID generation clock
