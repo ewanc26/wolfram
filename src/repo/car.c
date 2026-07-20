@@ -58,7 +58,7 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
         } else if (k->type == WF_CBOR_STRING && k->string.len == 5 &&
                    memcmp(k->string.str, "roots", 5) == 0) {
             wf_cbor_item *v = hdr->map.pairs[i].value;
-            if (v->type != WF_CBOR_ARRAY || v->children.count == 0) {
+            if (v->type != WF_CBOR_ARRAY) {
                 wf_cbor_free(hdr);
                 return WF_ERR_INVALID_ARG;
             }
@@ -70,8 +70,10 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
     if (!found_roots) { wf_cbor_free(hdr); return WF_ERR_INVALID_ARG; }
 
     out->root_count = roots_arr->children.count;
-    out->roots = calloc(out->root_count, sizeof(wf_cid));
-    if (!out->roots) { wf_cbor_free(hdr); return WF_ERR_ALLOC; }
+    if (out->root_count > 0) {
+        out->roots = calloc(out->root_count, sizeof(wf_cid));
+        if (!out->roots) { wf_cbor_free(hdr); return WF_ERR_ALLOC; }
+    }
 
     for (size_t i = 0; i < out->root_count; i++) {
         wf_cbor_item *root_item = roots_arr->children.items[i];

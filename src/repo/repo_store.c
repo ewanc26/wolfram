@@ -26,6 +26,7 @@
 #include "wolfram/repo/diff.h"
 #include "wolfram/repo/mst.h"
 #include "wolfram/syntax.h"
+#include "wolfram/server.h"
 #include "wolfram/tid.h"
 #include "wolfram/xrpc_server.h"
 #include "wolfram/crypto.h"
@@ -52,6 +53,8 @@ struct wf_repo_store {
     wf_car car;                 /* accumulated blocks; roots -> &head */
     wf_cid head;                /* current head commit CID (len 0 = empty) */
     size_t persisted_blocks;    /* count of blocks already flushed to db */
+    wf_repo_store_event_cb event_cb;
+    void *event_ctx;
 };
 
 /* ------------------------------------------------------------------ */
@@ -451,13 +454,22 @@ static wf_status reindex_all(wf_repo_store *s) {
 /* ------------------------------------------------------------------ */
 
 static wf_status persist_new_blocks(wf_repo_store *s) {
+    char revision[64] = "";
+    wf_car_block *head_block = wf_car_find_block(&s->car, &s->head);
+    if (head_block) {
+        wf_commit commit;
+        if (wf_commit_parse(head_block->data, head_block->data_len,
+                            &commit) == WF_OK)
+            snprintf(revision, sizeof(revision), "%s", commit.rev);
+    }
     for (size_t i = s->persisted_blocks; i < s->car.block_count; i++) {
         wf_car_block *blk = &s->car.blocks[i];
         char *cidstr = wf_cid_to_string(&blk->cid);
         if (!cidstr) return WF_ERR_ALLOC;
         sqlite3_stmt *stmt = NULL;
         if (sqlite3_prepare_v2(s->db,
-                "INSERT OR IGNORE INTO blocks (cid, data) VALUES (?, ?);",
+                "INSERT OR IGNORE INTO blocks (cid, data, repo_rev) "
+                "VALUES (?, ?, ?);",
                 -1, &stmt, NULL) != SQLITE_OK) {
             free(cidstr);
             return WF_ERR_INTERNAL;
@@ -465,6 +477,7 @@ static wf_status persist_new_blocks(wf_repo_store *s) {
         sqlite3_bind_text(stmt, 1, cidstr, -1, SQLITE_TRANSIENT);
         sqlite3_bind_blob(stmt, 2, blk->data, (int)blk->data_len,
                           SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 3, revision, -1, SQLITE_TRANSIENT);
         int rc = sqlite3_step(stmt);
         sqlite3_finalize(stmt);
         free(cidstr);
@@ -612,7 +625,7 @@ wf_status wf_repo_store_open(const char *path, const char *did,
         "  did TEXT NOT NULL, handle TEXT NOT NULL,"
         "  key_type INTEGER NOT NULL, key_bytes BLOB NOT NULL);"
         "CREATE TABLE IF NOT EXISTS blocks ("
-        "  cid TEXT PRIMARY KEY, data BLOB NOT NULL);"
+        "  cid TEXT PRIMARY KEY, data BLOB NOT NULL, repo_rev TEXT);"
         "CREATE TABLE IF NOT EXISTS head ("
         "  id INTEGER PRIMARY KEY CHECK(id=0), cid TEXT);"
         "CREATE TABLE IF NOT EXISTS records ("
@@ -622,6 +635,28 @@ wf_status wf_repo_store_open(const char *path, const char *did,
     char *errmsg = NULL;
     if (sqlite3_exec(s->db, schema, NULL, NULL, &errmsg) != SQLITE_OK) {
         if (errmsg) sqlite3_free(errmsg);
+        free_store(s);
+        return WF_ERR_INTERNAL;
+    }
+
+    /* Migration for stores created before incremental CAR export tracked the
+     * revision that introduced each block. Legacy rows remain NULL and are
+     * included in full exports; all newly persisted blocks carry repo_rev. */
+    int has_repo_rev = 0;
+    sqlite3_stmt *column_stmt = NULL;
+    if (sqlite3_prepare_v2(s->db, "PRAGMA table_info(blocks);", -1,
+                           &column_stmt, NULL) != SQLITE_OK) {
+        free_store(s);
+        return WF_ERR_INTERNAL;
+    }
+    while (sqlite3_step(column_stmt) == SQLITE_ROW) {
+        const char *name = (const char *)sqlite3_column_text(column_stmt, 1);
+        if (name && strcmp(name, "repo_rev") == 0) has_repo_rev = 1;
+    }
+    sqlite3_finalize(column_stmt);
+    if (!has_repo_rev && sqlite3_exec(s->db,
+            "ALTER TABLE blocks ADD COLUMN repo_rev TEXT;", NULL, NULL,
+            NULL) != SQLITE_OK) {
         free_store(s);
         return WF_ERR_INTERNAL;
     }
@@ -727,6 +762,75 @@ const char *wf_repo_store_handle(const wf_repo_store *store) {
     return store ? store->handle : NULL;
 }
 
+void wf_repo_store_set_event_callback(wf_repo_store *store,
+                                      wf_repo_store_event_cb callback,
+                                      void *context) {
+    if (!store) return;
+    store->event_cb = callback;
+    store->event_ctx = context;
+}
+
+static int parse_commit_at(wf_repo_store *s, const wf_cid *cid,
+                           wf_commit *out) {
+    if (!s || !cid || !cid->len || !out) return 0;
+    const wf_car_block *block = wf_car_find_block(&s->car, cid);
+    return block && wf_commit_parse(block->data, block->data_len, out) == WF_OK;
+}
+
+static void emit_commit_event(wf_repo_store *s, const wf_cid *old_head,
+                              const char *action, const char *collection,
+                              const char *rkey, const wf_cid *cid,
+                              const wf_cid *prev) {
+    if (!s || !s->event_cb) return;
+    wf_commit current = {0}, previous = {0};
+    if (!parse_commit_at(s, &s->head, &current)) return;
+    int has_previous = parse_commit_at(s, old_head, &previous);
+    unsigned char *blocks = NULL;
+    size_t blocks_len = 0;
+    if (wf_repo_store_export(s, has_previous ? previous.rev : NULL,
+                             &blocks, &blocks_len) != WF_OK)
+        return;
+    wf_repo_store_event event = {
+        .kind = WF_REPO_STORE_EVENT_COMMIT,
+        .did = s->did,
+        .commit_cid = s->head,
+        .rev = current.rev,
+        .since = has_previous ? previous.rev : NULL,
+        .prev_data = previous.data,
+        .has_prev_data = has_previous,
+        .action = action,
+        .collection = collection,
+        .rkey = rkey,
+        .cid = cid ? *cid : (wf_cid){{0}, 0},
+        .has_cid = cid != NULL,
+        .prev = prev ? *prev : (wf_cid){{0}, 0},
+        .has_prev = prev != NULL,
+        .blocks = blocks,
+        .blocks_len = blocks_len,
+    };
+    s->event_cb(&event, s->event_ctx);
+    free(blocks);
+}
+
+static void emit_sync_event(wf_repo_store *s) {
+    if (!s || !s->event_cb) return;
+    wf_commit current = {0};
+    if (!parse_commit_at(s, &s->head, &current)) return;
+    unsigned char *blocks = NULL;
+    size_t blocks_len = 0;
+    if (wf_repo_store_export(s, NULL, &blocks, &blocks_len) != WF_OK) return;
+    wf_repo_store_event event = {
+        .kind = WF_REPO_STORE_EVENT_SYNC,
+        .did = s->did,
+        .commit_cid = s->head,
+        .rev = current.rev,
+        .blocks = blocks,
+        .blocks_len = blocks_len,
+    };
+    s->event_cb(&event, s->event_ctx);
+    free(blocks);
+}
+
 /* ------------------------------------------------------------------ */
 /* Write / read operations                                             */
 /* ------------------------------------------------------------------ */
@@ -768,6 +872,7 @@ wf_status wf_repo_store_create_record(wf_repo_store *s, const char *collection,
     if (st != WF_OK) return st;
 
     wf_cid out_commit = {{0}, 0}, out_record = {{0}, 0};
+    wf_cid old_head = s->head;
     const wf_cid *prev = s->head.len ? &s->head : NULL;
     st = wf_repo_create_record(&s->car, prev, s->did, collection, rkey, cbor,
                                 cbor_len, &s->key, &out_commit, &out_record);
@@ -786,6 +891,8 @@ wf_status wf_repo_store_create_record(wf_repo_store *s, const char *collection,
     }
     *out_cid = cidstr;
     index_upsert_record(s, collection, rkey, cidstr, record_json);
+    emit_commit_event(s, &old_head, "create", collection, rkey,
+                      &out_record, NULL);
     return WF_OK;
 }
 
@@ -832,6 +939,7 @@ wf_status wf_repo_store_put_record(wf_repo_store *s, const char *collection,
     }
 
     wf_cid out_commit = {{0}, 0}, out_record = {{0}, 0};
+    wf_cid old_head = s->head;
     unsigned char *cbor = NULL;
     size_t cbor_len = 0;
     st = encode_record_json(record_json, &cbor, &cbor_len);
@@ -862,6 +970,9 @@ wf_status wf_repo_store_put_record(wf_repo_store *s, const char *collection,
     }
     *out_cid = cidstr;
     index_upsert_record(s, collection, rkey, cidstr, record_json);
+    emit_commit_event(s, &old_head, exists ? "update" : "create",
+                      collection, rkey, &out_record,
+                      exists ? &ex_cid : NULL);
     return WF_OK;
 }
 
@@ -898,12 +1009,15 @@ wf_status wf_repo_store_delete_record(wf_repo_store *s, const char *collection,
     }
 
     wf_cid out_commit = {{0}, 0};
+    wf_cid old_head = s->head;
     st = wf_repo_delete_record(&s->car, &s->head, s->did, collection, rkey,
                                  &s->key, &out_commit);
     if (st != WF_OK) return st;
     st = commit_persist(s, &out_commit);
     if (st != WF_OK) return st;
     index_delete_record(s, collection, rkey);
+    emit_commit_event(s, &old_head, "delete", collection, rkey, NULL,
+                      &ex_cid);
     return WF_OK;
 }
 
@@ -1539,6 +1653,116 @@ wf_status wf_repo_store_get_head(wf_repo_store *s, char **out_rev,
     return WF_OK;
 }
 
+wf_status wf_repo_store_export(wf_repo_store *s, const char *since,
+                               unsigned char **out_data, size_t *out_len) {
+    if (!s || !out_data || !out_len) return WF_ERR_INVALID_ARG;
+    *out_data = NULL;
+    *out_len = 0;
+    if (s->head.len == 0) return WF_ERR_NOT_FOUND;
+
+    const char *sql = since && since[0]
+        ? "SELECT cid FROM blocks WHERE repo_rev > ? "
+          "ORDER BY repo_rev DESC, cid DESC;"
+        : "SELECT cid FROM blocks ORDER BY repo_rev DESC, cid DESC;";
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK)
+        return WF_ERR_INTERNAL;
+    if (since && since[0])
+        sqlite3_bind_text(stmt, 1, since, -1, SQLITE_TRANSIENT);
+
+    wf_car export_car = {0};
+    export_car.roots = &s->head;
+    export_car.root_count = 1;
+    wf_status status = WF_OK;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *cid_string = (const char *)sqlite3_column_text(stmt, 0);
+        wf_cid cid;
+        if (!cid_string || wf_cid_from_string(cid_string, &cid) != WF_OK) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        wf_car_block *source = wf_car_find_block(&s->car, &cid);
+        if (!source) {
+            status = WF_ERR_NOT_FOUND;
+            break;
+        }
+        wf_car_block *grown = realloc(export_car.blocks,
+            (export_car.block_count + 1) * sizeof(*grown));
+        if (!grown) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
+        export_car.blocks = grown;
+        export_car.blocks[export_car.block_count++] = *source;
+    }
+    sqlite3_finalize(stmt);
+    if (status == WF_OK)
+        status = wf_car_write(&export_car, out_data, out_len);
+    free(export_car.blocks); /* Shallow references into s->car. */
+    return status;
+}
+
+wf_status wf_repo_store_get_blocks(wf_repo_store *s,
+                                    const char *const *cids,
+                                    size_t cid_count,
+                                    unsigned char **out_data,
+                                    size_t *out_len) {
+    if (!s || !cids || cid_count == 0 || !out_data || !out_len)
+        return WF_ERR_INVALID_ARG;
+    *out_data = NULL;
+    *out_len = 0;
+    if (s->head.len == 0) return WF_ERR_NOT_FOUND;
+
+    wf_car selected = {0};
+    wf_status status = WF_OK;
+    for (size_t i = 0; i < cid_count; i++) {
+        wf_cid cid;
+        if (!cids[i] || wf_cid_from_string(cids[i], &cid) != WF_OK) {
+            status = WF_ERR_INVALID_ARG;
+            break;
+        }
+        int duplicate = 0;
+        for (size_t j = 0; j < selected.block_count; j++) {
+            if (cid_equal(&selected.blocks[j].cid, &cid)) {
+                duplicate = 1;
+                break;
+            }
+        }
+        if (duplicate) continue;
+        wf_car_block *source = wf_car_find_block(&s->car, &cid);
+        if (!source) {
+            status = WF_ERR_NOT_FOUND;
+            break;
+        }
+        wf_car_block *grown = realloc(selected.blocks,
+            (selected.block_count + 1) * sizeof(*grown));
+        if (!grown) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
+        selected.blocks = grown;
+        selected.blocks[selected.block_count++] = *source;
+    }
+    if (status == WF_OK) status = wf_car_write(&selected, out_data, out_len);
+    free(selected.blocks); /* Shallow references into s->car. */
+    return status;
+}
+
+wf_status wf_repo_store_create_service_auth(wf_repo_store *s,
+                                             const char *audience,
+                                             int64_t expiration,
+                                             const char *lxm,
+                                             char **out_token) {
+    if (!s || !audience || !out_token) return WF_ERR_INVALID_ARG;
+    wf_service_auth_request request = {
+        .iss = s->did,
+        .aud = audience,
+        .exp = expiration,
+        .lxm = lxm,
+    };
+    return wf_server_create_service_auth(&request, &s->key, out_token);
+}
+
 /* ── Route handlers ──────────────────────────────────────────────────── */
 
 static wf_status h_list_records(void *ctx, const wf_xrpc_request *req,
@@ -1665,6 +1889,7 @@ static wf_status h_import_repo(void *ctx, const wf_xrpc_request *req,
      * Index rebuild failures are best-effort: persistence already
      * succeeded, but callers should re-list to recover. */
     reindex_all(s);
+    emit_sync_event(s);
 
     cJSON *out = cJSON_CreateObject();
     char *js = cJSON_PrintUnformatted(out);
