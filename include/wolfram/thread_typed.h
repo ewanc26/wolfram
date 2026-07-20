@@ -41,6 +41,8 @@ typedef struct wf_agent_thread_post {
     int like_count;
     int quote_count;
     char *indexed_at;
+    char *viewer_like;       /* viewer.like record URI, or NULL */
+    char *viewer_repost;     /* viewer.repost record URI, or NULL */
 } wf_agent_thread_post;
 
 typedef struct wf_agent_thread_node wf_agent_thread_node;

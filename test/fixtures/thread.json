@@ -17,6 +17,10 @@
       "repostCount": 1,
       "likeCount": 5,
       "quoteCount": 0,
+      "viewer": {
+        "like": "at://did:plc:viewer/app.bsky.feed.like/like1",
+        "repost": "at://did:plc:viewer/app.bsky.feed.repost/repost1"
+      },
       "indexedAt": "2026-07-01T10:01:00Z"
     },
     "parent": {

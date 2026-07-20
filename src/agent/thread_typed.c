@@ -66,6 +66,8 @@ static void wf_agent_thread_post_reset(wf_agent_thread_post *p) {
         cJSON_Delete(p->embed);
     }
     free(p->indexed_at);
+    free(p->viewer_like);
+    free(p->viewer_repost);
     memset(p, 0, sizeof(*p));
 }
 
@@ -140,6 +142,21 @@ static wf_status wf_agent_thread_parse_post(cJSON *obj,
     }
     if (st == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
         st = wf_agent_thread_set_string(&out->indexed_at, indexed->valuestring);
+    }
+    if (st == WF_OK) {
+        cJSON *viewer = cJSON_GetObjectItemCaseSensitive(obj, "viewer");
+        if (cJSON_IsObject(viewer)) {
+            cJSON *like = cJSON_GetObjectItemCaseSensitive(viewer, "like");
+            cJSON *repost = cJSON_GetObjectItemCaseSensitive(viewer, "repost");
+            if (cJSON_IsString(like) && like->valuestring) {
+                st = wf_agent_thread_set_string(&out->viewer_like,
+                                                like->valuestring);
+            }
+            if (st == WF_OK && cJSON_IsString(repost) && repost->valuestring) {
+                st = wf_agent_thread_set_string(&out->viewer_repost,
+                                                repost->valuestring);
+            }
+        }
     }
 
     /* Take ownership of the `record` and `embed` subtrees (type `unknown`). */
