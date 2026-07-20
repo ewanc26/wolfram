@@ -100,6 +100,10 @@ int main(void) {
         WF_CHECK(t.root.post.repost_count == 1);
         WF_CHECK(t.root.post.like_count == 5);
         WF_CHECK(t.root.post.quote_count == 0);
+        WF_CHECK(t.root.post.viewer_like &&
+                 strstr(t.root.post.viewer_like, "app.bsky.feed.like/like1"));
+        WF_CHECK(t.root.post.viewer_repost &&
+                 strstr(t.root.post.viewer_repost, "app.bsky.feed.repost/repost1"));
         WF_CHECK(t.root.post.indexed_at &&
                  strcmp(t.root.post.indexed_at, "2026-07-01T10:01:00Z") == 0);
         WF_CHECK(t.root.post.record != NULL);

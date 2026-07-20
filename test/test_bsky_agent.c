@@ -39,6 +39,8 @@ static int test_null_agent(void) {
     EXPECT_INVALID_ARG(wf_bsky_agent_login_session(NULL, NULL));
     EXPECT_INVALID_ARG(wf_bsky_agent_logout(NULL));
     EXPECT_INVALID_ARG(wf_bsky_agent_post(NULL, "hi", &post));
+    EXPECT_INVALID_ARG(wf_agent_reply_refs(NULL, "hi", "at://root", "root-cid",
+                                           "at://parent", "parent-cid", &post));
     EXPECT_INVALID_ARG(wf_bsky_agent_get_profile(NULL, "h", &prof));
     EXPECT_INVALID_ARG(wf_bsky_agent_get_timeline(NULL, 10, NULL, &feed));
     EXPECT_INVALID_ARG(wf_bsky_agent_resolve_handle(NULL, "h", &did));
@@ -70,6 +72,10 @@ static int test_null_args(void) {
     EXPECT_INVALID_ARG(wf_bsky_agent_login_session(&b, NULL));
     EXPECT_INVALID_ARG(wf_bsky_agent_post(&b, NULL, &post));
     EXPECT_INVALID_ARG(wf_bsky_agent_post(&b, "hi", NULL));
+    EXPECT_INVALID_ARG(wf_agent_reply_refs(b.agent, "hi", NULL, "root-cid",
+                                           "at://parent", "parent-cid", &post));
+    EXPECT_INVALID_ARG(wf_agent_reply_refs(b.agent, "hi", "at://root", "root-cid",
+                                           "at://parent", NULL, &post));
     EXPECT_INVALID_ARG(wf_bsky_agent_get_profile(&b, NULL, &prof));
     EXPECT_INVALID_ARG(wf_bsky_agent_get_profile(&b, "h", NULL));
     EXPECT_INVALID_ARG(wf_bsky_agent_get_timeline(&b, 10, NULL, NULL));
@@ -104,7 +110,29 @@ static int test_init_free_idempotent(void) {
     return 1;
 }
 
+static int test_parse_profile_viewer(void) {
+    const char *json =
+        "{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\","
+        "\"avatar\":\"https://cdn.example/alice.png\","
+        "\"viewer\":{\"following\":"
+        "\"at://did:plc:me/app.bsky.graph.follow/one\"}}";
+    wf_agent_profile profile = {0};
+    if (wf_agent_parse_profile(json, strlen(json), &profile) != WF_OK ||
+        !profile.avatar_cid || !profile.following ||
+        strcmp(profile.avatar_cid, "https://cdn.example/alice.png") != 0 ||
+        strcmp(profile.following,
+               "at://did:plc:me/app.bsky.graph.follow/one") != 0) {
+        wf_agent_profile_free(&profile);
+        return 0;
+    }
+    wf_agent_profile_free(&profile);
+    return 1;
+}
+
 int main(void) {
+    if (!test_parse_profile_viewer()) {
+        return 1;
+    }
     if (!test_null_agent()) {
         return 1;
     }

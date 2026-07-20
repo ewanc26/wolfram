@@ -917,11 +917,13 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
     return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
 }
 
-/* Reply to a post */
-wf_status wf_agent_reply(wf_agent *agent, const char *text,
-                        const char *parent_uri, const char *parent_cid,
-                        wf_agent_post_result *out) {
-    if (!agent || !text || !parent_uri || !parent_cid || !out) {
+/* Reply with separate root and parent strong references. */
+wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
+                             const char *root_uri, const char *root_cid,
+                             const char *parent_uri, const char *parent_cid,
+                             wf_agent_post_result *out) {
+    if (!agent || !text || !root_uri || !root_cid ||
+        !parent_uri || !parent_cid || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -955,8 +957,8 @@ wf_status wf_agent_reply(wf_agent *agent, const char *text,
     cJSON *root = cJSON_CreateObject();
     cJSON *parent = cJSON_CreateObject();
     if (!root || !parent) { cJSON_Delete(reply); cJSON_Delete(record); return WF_ERR_ALLOC; }
-    cJSON_AddStringToObject(root, "uri", parent_uri);
-    cJSON_AddStringToObject(root, "cid", parent_cid);
+    cJSON_AddStringToObject(root, "uri", root_uri);
+    cJSON_AddStringToObject(root, "cid", root_cid);
     cJSON_AddStringToObject(parent, "uri", parent_uri);
     cJSON_AddStringToObject(parent, "cid", parent_cid);
     cJSON_AddItemToObject(reply, "root", root);
@@ -967,6 +969,13 @@ wf_status wf_agent_reply(wf_agent *agent, const char *text,
         return WF_ERR_ALLOC;
     }
     return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+}
+
+wf_status wf_agent_reply(wf_agent *agent, const char *text,
+                        const char *parent_uri, const char *parent_cid,
+                        wf_agent_post_result *out) {
+    return wf_agent_reply_refs(agent, text, parent_uri, parent_cid,
+                               parent_uri, parent_cid, out);
 }
 
 /* Quote a post (record embed) */
