@@ -1296,9 +1296,47 @@ wf_status wf_repo_store_verify_head(wf_repo_store *s, int *out_verified,
 /* XRPC server route handlers                                          */
 /* ------------------------------------------------------------------ */
 
+/*
+ * Internal routing bundle installed by the PDS repo server registrations.
+ * When `resolver` is NULL the handlers use the single `fallback_repo`;
+ * otherwise `resolver` picks the per-request store. The bundle is
+ * heap-allocated and owned by the server (freed in wf_xrpc_server_free).
+ */
+typedef struct wf_pds_repo_bundle {
+    wf_xrpc_repo_resolver resolver;
+    void *resolver_ctx;
+    wf_repo_store *fallback_repo;
+    wf_blob_store *fallback_blobs;
+} wf_pds_repo_bundle;
+
+/*
+ * Resolve the repo store for a request from the registration's bundle.
+ * Returns the store to use (never NULL on success) or NULL after writing a
+ * 400 RepoNotFound response when the resolver fails / resolves no store.
+ * When no resolver is set the single fallback store is returned.
+ */
+static wf_repo_store *resolve_repo(wf_pds_repo_bundle *b,
+                                   const wf_xrpc_request *req,
+                                   wf_xrpc_response *resp) {
+    wf_repo_store *store = b->fallback_repo;
+    if (b->resolver) {
+        wf_repo_store *out_repo = NULL;
+        wf_blob_store *out_blobs = NULL;
+        if (b->resolver(b->resolver_ctx, req, &out_repo, &out_blobs) != WF_OK ||
+            !out_repo) {
+            wf_xrpc_response_set_error(resp, 400, "RepoNotFound",
+                                        "Repository is not hosted here");
+            return NULL;
+        }
+        store = out_repo;
+    }
+    return store;
+}
+
 static wf_status h_create_record(void *ctx, const wf_xrpc_request *req,
-                                 wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                  wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     cJSON *body = req->params;
     if (!body || !cJSON_IsObject(body)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -1348,8 +1386,9 @@ static wf_status h_create_record(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status h_put_record(void *ctx, const wf_xrpc_request *req,
-                              wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                               wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     cJSON *body = req->params;
     if (!body || !cJSON_IsObject(body)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -1402,8 +1441,9 @@ static wf_status h_put_record(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status h_delete_record(void *ctx, const wf_xrpc_request *req,
-                                 wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                  wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     cJSON *body = req->params;
     if (!body || !cJSON_IsObject(body)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -1443,8 +1483,9 @@ static wf_status h_delete_record(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status h_get_record(void *ctx, const wf_xrpc_request *req,
-                              wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                               wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     cJSON *p = req->params;
     if (!p || !cJSON_IsObject(p)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -1485,8 +1526,9 @@ static wf_status h_get_record(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status h_apply_writes(void *ctx, const wf_xrpc_request *req,
-                                wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                 wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     cJSON *body = req->params;
     if (!body || !cJSON_IsObject(body)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -1534,9 +1576,9 @@ static wf_status h_apply_writes(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status h_describe_repo(void *ctx, const wf_xrpc_request *req,
-                                 wf_xrpc_response *resp) {
-    (void)req;
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                  wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     char *json = NULL;
     wf_status st = wf_repo_store_describe(s, &json);
     if (st != WF_OK) {
@@ -1766,8 +1808,9 @@ wf_status wf_repo_store_create_service_auth(wf_repo_store *s,
 /* ── Route handlers ──────────────────────────────────────────────────── */
 
 static wf_status h_list_records(void *ctx, const wf_xrpc_request *req,
-                                wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                 wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     cJSON *p = req->params;
     if (!p || !cJSON_IsObject(p)) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
@@ -1802,9 +1845,9 @@ static wf_status h_list_records(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status h_get_latest_commit(void *ctx, const wf_xrpc_request *req,
-                                     wf_xrpc_response *resp) {
-    (void)req;
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                      wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     char *rev = NULL, *cid = NULL;
     wf_status st = wf_repo_store_get_head(s, &rev, &cid);
     if (st == WF_ERR_NOT_FOUND) {
@@ -1835,8 +1878,9 @@ static wf_status h_get_latest_commit(void *ctx, const wf_xrpc_request *req,
  * rebuild the records index. */
 
 static wf_status h_import_repo(void *ctx, const wf_xrpc_request *req,
-                               wf_xrpc_response *resp) {
-    wf_repo_store *s = (wf_repo_store *)ctx;
+                                wf_xrpc_response *resp) {
+    wf_repo_store *s = resolve_repo((wf_pds_repo_bundle *)ctx, req, resp);
+    if (!s) return WF_OK;
     if (!req->body || req->body_len == 0) {
         wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
                                     "CAR body required");
@@ -1900,38 +1944,67 @@ static wf_status h_import_repo(void *ctx, const wf_xrpc_request *req,
     return WF_OK;
 }
 
+static wf_status register_pds_repo_handlers(wf_xrpc_server *server,
+                                            wf_pds_repo_bundle *b);
+
 wf_status wf_xrpc_server_register_pds_repo(wf_xrpc_server *server,
-                                           wf_repo_store *store) {
+                                            wf_repo_store *store) {
     if (!server || !store) return WF_ERR_INVALID_ARG;
+    /* Single-store path: build a resolver-less bundle that always serves
+     * `store`. The server owns the bundle and frees it on
+     * wf_xrpc_server_free, preserving the caller-owned `store` contract. */
+    wf_pds_repo_bundle *b = (wf_pds_repo_bundle *)malloc(sizeof(*b));
+    if (!b) return WF_ERR_ALLOC;
+    *b = (wf_pds_repo_bundle){0};
+    b->fallback_repo = store;
+    wf_xrpc_server_own_ctx(server, b, free);
+    return register_pds_repo_handlers(server, b);
+}
+
+static wf_status register_pds_repo_handlers(wf_xrpc_server *server,
+                                            wf_pds_repo_bundle *b) {
+    if (!server || !b) return WF_ERR_INVALID_ARG;
     wf_status s;
     s = wf_xrpc_server_register_procedure(server,
-            "com.atproto.repo.createRecord", h_create_record, store);
+            "com.atproto.repo.createRecord", h_create_record, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_procedure(server, "com.atproto.repo.putRecord",
-            h_put_record, store);
+            h_put_record, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_procedure(server,
-            "com.atproto.repo.deleteRecord", h_delete_record, store);
+            "com.atproto.repo.deleteRecord", h_delete_record, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_procedure(server, "com.atproto.repo.applyWrites",
-            h_apply_writes, store);
+            h_apply_writes, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_query(server, "com.atproto.repo.getRecord",
-            h_get_record, store);
+            h_get_record, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_query(server, "com.atproto.repo.describeRepo",
-            h_describe_repo, store);
+            h_describe_repo, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_query(server, "com.atproto.repo.listRecords",
-            h_list_records, store);
+            h_list_records, b);
     if (s != WF_OK) return s;
     s = wf_xrpc_server_register_query(server, "com.atproto.sync.getLatestCommit",
-            h_get_latest_commit, store);
+            h_get_latest_commit, b);
     if (s != WF_OK) return s;
     /* importRepo (CAR POST body) — see h_import_repo. uploadBlob is
      * registered separately by wf_xrpc_server_register_blob_store. */
     s = wf_xrpc_server_register_procedure(server,
-            "com.atproto.repo.importRepo", h_import_repo, store);
+            "com.atproto.repo.importRepo", h_import_repo, b);
     if (s != WF_OK) return s;
     return WF_OK;
+}
+
+wf_status wf_xrpc_server_register_pds_repo_resolver(
+    wf_xrpc_server *server, wf_xrpc_repo_resolver resolver, void *ctx) {
+    if (!server) return WF_ERR_INVALID_ARG;
+    wf_pds_repo_bundle *b = (wf_pds_repo_bundle *)malloc(sizeof(*b));
+    if (!b) return WF_ERR_ALLOC;
+    *b = (wf_pds_repo_bundle){0};
+    b->resolver = resolver;
+    b->resolver_ctx = ctx;
+    wf_xrpc_server_own_ctx(server, b, free);
+    return register_pds_repo_handlers(server, b);
 }
