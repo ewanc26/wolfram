@@ -249,6 +249,23 @@ struct wf_xrpc_response_header {
 };
 
 /* ------------------------------------------------------------------ */
+/* Owned context list (for PDS repo/blob resolver bundles)             */
+/* ------------------------------------------------------------------ */
+
+/*
+ * A heap allocation the server owns and releases in wf_xrpc_server_free via
+ * `free_fn`. Used by wf_xrpc_server_register_pds_repo(_resolver) and the blob
+ * equivalents so the per-request resolver bundle is freed with the server
+ * without leaking it to the caller. The bundle frees only itself; the
+ * fallback stores / resolver ctx remain caller-owned.
+ */
+struct wf_owned_ctx {
+    void                   *ptr;
+    void                  (*free_fn)(void *);
+    struct wf_owned_ctx    *next;
+};
+
+/* ------------------------------------------------------------------ */
 /* Server struct                                                       */
 /* ------------------------------------------------------------------ */
 struct wf_xrpc_server {
@@ -257,6 +274,7 @@ struct wf_xrpc_server {
     wf_route            *routes;
     wf_static_route     *static_routes;
     wf_http_route       *http_routes;
+    struct wf_owned_ctx *owned_ctxs;       /* heap allocations freed on server free */
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
     /* Owned context installed by wf_xrpc_server_set_auth_middleware; the
@@ -1879,11 +1897,40 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     if (server->auth_mw_ctx && server->auth_mw_free) {
         server->auth_mw_free(server->auth_mw_ctx);
     }
+    /* Release resolver bundles (and any other owned contexts) installed by
+     * wf_xrpc_server_own_ctx, each via its own free function. */
+    struct wf_owned_ctx *oc = server->owned_ctxs;
+    while (oc) {
+        struct wf_owned_ctx *next = oc->next;
+        if (oc->free_fn) oc->free_fn(oc->ptr);
+        free(oc);
+        oc = next;
+    }
     free(server);
 }
 
 uint16_t wf_xrpc_server_port(const wf_xrpc_server *server) {
     return server ? server->port : 0;
+}
+
+/*
+ * Register a heap allocation the server owns and frees (via `free_fn`) in
+ * wf_xrpc_server_free. Used by the PDS repo/blob resolver registrations so the
+ * per-request resolver bundle is released with the server. Returns WF_ERR_ALLOC
+ * on allocation failure (in which case nothing is recorded); the caller keeps
+ * ownership of `ptr` in that case. `ptr` may be NULL (no-op).
+ */
+wf_status wf_xrpc_server_own_ctx(wf_xrpc_server *server, void *ptr,
+                                 void (*free_fn)(void *)) {
+    if (!server || !ptr) return WF_ERR_INVALID_ARG;
+    struct wf_owned_ctx *node =
+        (struct wf_owned_ctx *)malloc(sizeof(*node));
+    if (!node) return WF_ERR_ALLOC;
+    node->ptr = ptr;
+    node->free_fn = free_fn;
+    node->next = server->owned_ctxs;
+    server->owned_ctxs = node;
+    return WF_OK;
 }
 
 wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
