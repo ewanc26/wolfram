@@ -39,12 +39,11 @@ of scope, as described under **Scope** above.
 Beyond the client surface above, the SDK also ships streaming/infra modules —
 `jetstream` (filtered Jetstream subscription with cursor reconnect/backoff),
 `sync_publish` (firehose event production, the inverse of `sync_subscribe`),
-`blob_store` (blob persistence/serving), and `relay_server` / `feedgen_server`
-(libmicrohttpd helpers) — plus dedicated `*_typed` parser/wrapper families
-across every lexicon namespace (including honest `actor_status_typed` stubs
-where the lexicon defines only a `record`). OAuth additionally covers
-resource-server token verification. See [`AGENTS.md`](AGENTS.md) (Current state)
-for the full per-module status.
+and `relay_server` / `feedgen_server` (libmicrohttpd helpers) — plus dedicated
+`*_typed` parser/wrapper families across every lexicon namespace (including
+honest `actor_status_typed` stubs where the lexicon defines only a `record`).
+OAuth additionally covers resource-server token verification. See
+[`AGENTS.md`](AGENTS.md) (Current state) for the full per-module status.
 The optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER=ON`)
 supports route registration, auth middleware, a token-bucket rate limiter,
 Server-Sent Events (SSE) streaming, and WebSocket (RFC 6455) subscription

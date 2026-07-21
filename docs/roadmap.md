@@ -192,23 +192,12 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
      `stop`/`free`, and an offline round-trip test against `wf_xrpc_client`.
      Built when `WOLFRAM_BUILD_SERVER=ON`. Tested.
 
- 58. Blob persistence + serving for a self-hosted PDS (`blob_store.h` /
-     `blob_store.c`, `src/server/blob_store_server.c`) — a self-contained blob
-     store keyed by CID string, with an in-memory mode and a file-backed mode
-     (one file per blob named by its CID, plus a `<cid>.mime` sidecar; re-opening
-     the same directory reloads blobs). `wf_blob_store_*` (new/free/put/get/
-     exists) with owned retrieval (freed via `free()`). Server integration
-     `wf_xrpc_server_register_blob_store` registers `com.atproto.repo.uploadBlob`
-     (procedure) and `com.atproto.sync.getBlob` (query) on a `wf_xrpc_server`: the
-     upload handler computes the blob's raw multicodec (0x55) SHA-256 CID with
-     `wf_cid_of_bytes`, stores it, and returns the TypedBlobRef; getBlob serves
-     the raw bytes with the stored Content-Type. The XRPC server request/response
-     structs were extended to carry a raw POST body and a custom response
-     Content-Type so binary blobs can be served directly. Built (for the server
-     integration) when `WOLFRAM_BUILD_SERVER=ON`; the core store is always built.
-     Tested offline (`test_blob_store.c`): unit put/get/exists, file-backed
-     persistence across re-open, and a full server round-trip via a raw HTTP
-     client asserting returned CID and round-tripped bytes + Content-Type.
+ 58. Blob persistence + serving — migrated to MetalBear as
+     `metalbear_blob_store*` (see the MetalBear repository for the
+     `metalbear_blob_store.h` / `metalbear_blob_store.c` implementation and
+     `metalbear_blob_store_server.c` XRPC route handlers). The original
+     `wf_blob_store*` source files remain in this repository for historical
+     reference but are no longer built or part of the SDK.
 
  49. Server-Sent Events (SSE) streaming for the XRPC server — real streaming via
     libmicrohttpd `MHD_suspend_connection` / `MHD_resume_connection`. An SSE
