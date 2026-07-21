@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 /*
  * xrpc_server.c — minimal XRPC server on libmicrohttpd.
  *
