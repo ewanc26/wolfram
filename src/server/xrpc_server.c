@@ -1568,6 +1568,8 @@ process:
     }
     req.content_type =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
+    req.host_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
     /* Carry the authenticated principal (if any) established above.
      * `authed_subject` is server-owned and freed in cleanup. */
     req.authed_subject = authed_subject;
