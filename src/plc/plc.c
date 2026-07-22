@@ -787,7 +787,7 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
     memcpy(operation_url + base_len + 1, did, did_len + 1);
 
     PLC_LOG("wf_plc_submit_operation_raw: operation URL=%s", operation_url);
-    PLC_LOG("wf_plc_submit_operation_raw: signed_op_json length=%zu", strlen(signed_op_json));
+    PLC_LOG("wf_plc_submit_operation_raw: signed_op_json: %s", signed_op_json);
 
     client = wf_xrpc_client_new(operation_url);
     if (!client) {
@@ -802,7 +802,7 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
 
     PLC_LOG("wf_plc_submit_operation_raw: POST status=%d, response code=%ld", status, response.status);
     if (response.body && response.body_len > 0) {
-        PLC_LOG("wf_plc_submit_operation_raw: response body (first 200 chars): %.200s", response.body);
+        PLC_LOG("wf_plc_submit_operation_raw: response body: %.*s", (int)(response.body_len > 1024 ? 1024 : response.body_len), response.body);
     }
 
     wf_xrpc_client_free(client);
