@@ -16,9 +16,35 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define WF_LOG_LEVEL_DEBUG 0
+#define WF_LOG_LEVEL_INFO  1
+#define WF_LOG_LEVEL_WARN  2
+#define WF_LOG_LEVEL_ERROR 3
+
+#ifndef WOLFRAM_LOG_LEVEL
+#define WOLFRAM_LOG_LEVEL WF_LOG_LEVEL_WARN
+#endif
+
+static void wf_log(int level, const char *fmt, ...) {
+    if (level < WOLFRAM_LOG_LEVEL) return;
+    static const char *names[] = {"DEBUG", "INFO", "WARN", "ERROR"};
+    va_list ap;
+    fprintf(stderr, "Wolfram [%s] ", names[level]);
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+    fprintf(stderr, "\n");
+}
+
+#define WF_LOG_DEBUG(...) wf_log(WF_LOG_LEVEL_DEBUG, __VA_ARGS__)
+#define WF_LOG_INFO(...)  wf_log(WF_LOG_LEVEL_INFO,  __VA_ARGS__)
+#define WF_LOG_WARN(...)  wf_log(WF_LOG_LEVEL_WARN,  __VA_ARGS__)
+#define WF_LOG_ERROR(...) wf_log(WF_LOG_LEVEL_ERROR, __VA_ARGS__)
+
 struct wf_xrpc_client {
     char *base_url;   /* e.g. "https://eurosky.social", no trailing slash */
     char *auth_header; /* "Authorization: Bearer <jwt>", or NULL */
+    char *ca_bundle;  /* path to custom CA bundle, or NULL for system default */
     wf_xrpc_handler_fn handler; /* NULL in production; test seam */
     void *handler_userdata;
     wf_xrpc_refresh_fn refresh_cb; /* NULL unless auto-refresh is enabled */
@@ -116,6 +142,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     if (!client) return;
     free(client->base_url);
     free(client->auth_header);
+    free(client->ca_bundle);
     free(client);
 }
 
@@ -139,6 +166,17 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     if (client->auth_header) {
         snprintf(client->auth_header, needed, "Authorization: Bearer %s", access_jwt);
     }
+}
+
+void wf_xrpc_client_set_ca_bundle(wf_xrpc_client *client, const char *path) {
+    if (!client) return;
+
+    free(client->ca_bundle);
+    client->ca_bundle = NULL;
+
+    if (!path) return;
+
+    client->ca_bundle = strdup(path);
 }
 
 wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
@@ -248,6 +286,9 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "wolfram/" WOLFRAM_VERSION_STRING);
+    if (client->ca_bundle) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, client->ca_bundle);
+    }
     if (headers) {
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
@@ -257,8 +298,11 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)body_len);
     }
 
+    WF_LOG_DEBUG("HTTP %s %s", method, url);
     wf_status status = WF_OK;
-    if (curl_easy_perform(curl) != CURLE_OK) {
+    CURLcode curl_rc = curl_easy_perform(curl);
+    if (curl_rc != CURLE_OK) {
+        WF_LOG_ERROR("HTTP %s %s failed: %s", method, url, curl_easy_strerror(curl_rc));
         status = WF_ERR_NETWORK;
     } else {
         long http_status = 0;
@@ -268,6 +312,8 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         out->body_len = buf.len;
         out->dpop_nonce = capture.dpop_nonce;
         capture.dpop_nonce = NULL;
+
+        WF_LOG_DEBUG("HTTP response %ld for %s", http_status, url);
 
         if (http_status < 200 || http_status >= 300) {
             status = WF_ERR_HTTP;
@@ -370,6 +416,8 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
         } else {
             snprintf(url, url_cap, "%s/xrpc/%s", client->base_url, nsid);
         }
+
+        WF_LOG_DEBUG("XRPC %s %s", is_post ? "POST" : "GET", url);
 
         struct curl_slist *headers = NULL;
         status = wf_xrpc_build_headers(client, is_post, content_type, &headers);
