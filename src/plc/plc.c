@@ -670,15 +670,23 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
                                       const char *signed_op_json) {
     wf_xrpc_client *client = NULL;
     wf_response response = {0};
+    char operation_url[1024];
     wf_status status;
 
     if (!plc_directory_url || !signed_op_json)
         return WF_ERR_INVALID_ARG;
 
-    client = wf_xrpc_client_new(plc_directory_url);
+    size_t base_len = strlen(plc_directory_url);
+    const char *suffix = "/operation";
+    if (base_len + strlen(suffix) + 1 >= sizeof(operation_url))
+        return WF_ERR_INVALID_ARG;
+    memcpy(operation_url, plc_directory_url, base_len);
+    memcpy(operation_url + base_len, suffix, strlen(suffix) + 1);
+
+    client = wf_xrpc_client_new(operation_url);
     if (!client) return WF_ERR_ALLOC;
 
-    status = wf_http_post(client, plc_directory_url,
+    status = wf_http_post(client, operation_url,
                           "application/json", signed_op_json,
                           NULL, 0, &response);
     wf_xrpc_client_free(client);
