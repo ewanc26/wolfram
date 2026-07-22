@@ -158,8 +158,13 @@ wf_status wf_plc_operation_compute_did(const char *unsigned_op_json,
  * Submit a signed PLC operation directly to the PLC directory via raw HTTPS.
  * This is used during initial account creation, bypassing the
  * com.atproto.identity.submitPlcOperation XRPC procedure.
+ *
+ * @param plc_directory_url Base URL of the PLC directory (e.g., "https://plc.directory")
+ * @param did The DID to submit the operation for (e.g., "did:plc:abc123")
+ * @param signed_op_json The signed operation as a JSON string
  */
 wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
+                                      const char *did,
                                       const char *signed_op_json);
 
 #ifdef __cplusplus

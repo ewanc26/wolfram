@@ -667,21 +667,24 @@ wf_status wf_plc_operation_compute_did(const char *unsigned_op_json,
 }
 
 wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
+                                      const char *did,
                                       const char *signed_op_json) {
     wf_xrpc_client *client = NULL;
     wf_response response = {0};
     char operation_url[1024];
     wf_status status;
 
-    if (!plc_directory_url || !signed_op_json)
+    if (!plc_directory_url || !did || !signed_op_json)
         return WF_ERR_INVALID_ARG;
 
+    /* Build URL: plc_directory_url/<did> */
     size_t base_len = strlen(plc_directory_url);
-    const char *suffix = "/operation";
-    if (base_len + strlen(suffix) + 1 >= sizeof(operation_url))
+    size_t did_len = strlen(did);
+    if (base_len + 1 + did_len + 1 >= sizeof(operation_url))
         return WF_ERR_INVALID_ARG;
     memcpy(operation_url, plc_directory_url, base_len);
-    memcpy(operation_url + base_len, suffix, strlen(suffix) + 1);
+    operation_url[base_len] = '/';
+    memcpy(operation_url + base_len + 1, did, did_len + 1);
 
     client = wf_xrpc_client_new(operation_url);
     if (!client) return WF_ERR_ALLOC;
