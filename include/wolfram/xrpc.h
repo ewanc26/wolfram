@@ -94,6 +94,13 @@ void wf_xrpc_client_free(wf_xrpc_client *client);
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 
 /**
+ * Set a custom CA bundle path for TLS verification. When non-NULL, libcurl
+ * uses this PEM file instead of the system default. Pass NULL to restore
+ * default system CA behavior.
+ */
+void wf_xrpc_client_set_ca_bundle(wf_xrpc_client *client, const char *path);
+
+/**
  * Re-point the client at a new service/PDS base URL (e.g. after discovering
  * the account's PDS from its DID document). A trailing slash is stripped.
  * Existing auth state is preserved. Returns WF_ERR_INVALID_ARG for a NULL/empty
