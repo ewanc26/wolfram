@@ -59,6 +59,8 @@ typedef struct wf_xrpc_request {
     size_t      body_len;
     /* Request Content-Type header (may be NULL). Valid only during the handler. */
     const char *content_type;
+    /* Request Host header (may be NULL). Valid only during the handler. */
+    const char *host_header;
     void       *handler_ctx;   /* User context from route registration */
     /* The following two fields are populated by an auth middleware (e.g.
      * wf_xrpc_server_set_auth_middleware) and are valid only for the duration
