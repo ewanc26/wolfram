@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
