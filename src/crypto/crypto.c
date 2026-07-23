@@ -16,9 +16,7 @@
 #include <openssl/sha.h>
 #include <cJSON.h>
 
-/* Simple logging for crypto operations */
-#define CRYPTO_LOG(fmt, ...) fprintf(stderr, "[CRYPTO] " fmt "\n", ##__VA_ARGS__)
-#define CRYPTO_LOG_ERR(fmt, ...) fprintf(stderr, "[CRYPTO ERROR] " fmt "\n", ##__VA_ARGS__)
+#include "wolfram/log.h"
 
 static wf_status wf_p256_is_low_s(const BIGNUM *s, const EC_KEY *eckey) {
     const BIGNUM *order;
@@ -129,16 +127,16 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     char *b58;
     char *didkey;
 
-    CRYPTO_LOG("wf_signing_key_public_didkey: enter, key_type=%d", key ? key->type : -1);
+    WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: enter, key_type=%d", key ? key->type : -1);
 
     if (!key || !out_didkey) {
-        CRYPTO_LOG_ERR("wf_signing_key_public_didkey: invalid args");
+        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: invalid args");
         return WF_ERR_INVALID_ARG;
     }
     *out_didkey = NULL;
 
     if (key->type == WF_KEY_TYPE_P256) {
-        CRYPTO_LOG("wf_signing_key_public_didkey: deriving P-256 public key");
+        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: deriving P-256 public key");
         EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         const EC_GROUP *group;
         const BIGNUM *priv;
@@ -147,13 +145,13 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         size_t n;
 
         if (!eckey) {
-            CRYPTO_LOG_ERR("wf_signing_key_public_didkey: EC_KEY_new failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: EC_KEY_new failed");
             return WF_ERR_ALLOC;
         }
         group = EC_KEY_get0_group(eckey);
         bn_priv = BN_bin2bn(key->bytes, 32, NULL);
         if (!bn_priv || EC_KEY_set_private_key(eckey, bn_priv) != 1) {
-            CRYPTO_LOG_ERR("wf_signing_key_public_didkey: failed to set private key");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: failed to set private key");
             BN_free(bn_priv);
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
@@ -161,7 +159,7 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         priv = EC_KEY_get0_private_key(eckey);
         point = EC_POINT_new(group);
         if (!point || EC_POINT_mul(group, point, priv, NULL, NULL, NULL) != 1) {
-            CRYPTO_LOG_ERR("wf_signing_key_public_didkey: EC_POINT_mul failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: EC_POINT_mul failed");
             EC_POINT_free(point);
             BN_free(bn_priv);
             EC_KEY_free(eckey);
@@ -173,28 +171,28 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         BN_free(bn_priv);
         EC_KEY_free(eckey);
         if (n != 33) {
-            CRYPTO_LOG_ERR("wf_signing_key_public_didkey: compressed point size != 33 (got %zu)", n);
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: compressed point size != 33 (got %zu)", n);
             return WF_ERR_ALLOC;
         }
         prefixed[0] = 0x80;
         prefixed[1] = 0x24;
         memcpy(prefixed + 2, raw, 33);
-        CRYPTO_LOG("wf_signing_key_public_didkey: P-256 public key derived");
+        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: P-256 public key derived");
     } else if (key->type == WF_KEY_TYPE_SECP256K1) {
 #ifdef HAVE_LIBSECP256K1
-        CRYPTO_LOG("wf_signing_key_public_didkey: deriving secp256k1 public key");
+        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: deriving secp256k1 public key");
         secp256k1_context *ctx =
             secp256k1_context_create(SECP256K1_CONTEXT_NONE);
         secp256k1_pubkey pubkey;
         size_t clen = 33;
         if (!ctx) {
-            CRYPTO_LOG_ERR("wf_signing_key_public_didkey: secp256k1_context_create failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1_context_create failed");
             return WF_ERR_ALLOC;
         }
         if (secp256k1_ec_pubkey_create(ctx, &pubkey, key->bytes) != 1 ||
             secp256k1_ec_pubkey_serialize(ctx, raw, &clen, &pubkey,
                                           SECP256K1_EC_COMPRESSED) != 1) {
-            CRYPTO_LOG_ERR("wf_signing_key_public_didkey: secp256k1 pubkey create/serialize failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1 pubkey create/serialize failed");
             secp256k1_context_destroy(ctx);
             return WF_ERR_ALLOC;
         }
@@ -202,34 +200,34 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         prefixed[0] = 0xe7;
         prefixed[1] = 0x01;
         memcpy(prefixed + 2, raw, 33);
-        CRYPTO_LOG("wf_signing_key_public_didkey: secp256k1 public key derived");
+        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: secp256k1 public key derived");
 #else
-        CRYPTO_LOG_ERR("wf_signing_key_public_didkey: secp256k1 not available");
+        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1 not available");
         (void)multicodec;
         (void)raw;
         return WF_ERR_INVALID_ARG;
 #endif
     } else {
-        CRYPTO_LOG_ERR("wf_signing_key_public_didkey: unsupported key type %d", key->type);
+        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: unsupported key type %d", key->type);
         return WF_ERR_INVALID_ARG;
     }
 
     b58 = wf_b58_encode(prefixed, sizeof(prefixed));
     if (!b58) {
-        CRYPTO_LOG_ERR("wf_signing_key_public_didkey: base58 encode failed");
+        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: base58 encode failed");
         return WF_ERR_ALLOC;
     }
 
     didkey = malloc(strlen("did:key:z") + strlen(b58) + 1);
     if (!didkey) {
-        CRYPTO_LOG_ERR("wf_signing_key_public_didkey: malloc failed");
+        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: malloc failed");
         free(b58);
         return WF_ERR_ALLOC;
     }
     sprintf(didkey, "did:key:z%s", b58);
     free(b58);
 
-    CRYPTO_LOG("wf_signing_key_public_didkey: success, didkey=%s", didkey);
+    WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: success, didkey=%s", didkey);
     *out_didkey = didkey;
     return WF_OK;
 }
@@ -434,73 +432,73 @@ wf_status wf_didkey_verification_method_id(const char *didkey, char **out_id) {
 }
 
 wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
-    CRYPTO_LOG("wf_signing_key_generate: enter, type=%d", type);
+    WF_LOG_DEBUG("crypto", "wf_signing_key_generate: enter, type=%d", type);
 
     if (!out) {
-        CRYPTO_LOG_ERR("wf_signing_key_generate: null output");
+        WF_LOG_ERROR("crypto", "wf_signing_key_generate: null output");
         return WF_ERR_INVALID_ARG;
     }
     memset(out, 0, sizeof(*out));
 
     if (type == WF_KEY_TYPE_P256) {
-        CRYPTO_LOG("wf_signing_key_generate: generating P-256 key");
+        WF_LOG_DEBUG("crypto", "wf_signing_key_generate: generating P-256 key");
         EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         if (!eckey) {
-            CRYPTO_LOG_ERR("wf_signing_key_generate: EC_KEY_new_by_curve_name failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_generate: EC_KEY_new_by_curve_name failed");
             return WF_ERR_ALLOC;
         }
         if (EC_KEY_generate_key(eckey) != 1) {
-            CRYPTO_LOG_ERR("wf_signing_key_generate: EC_KEY_generate_key failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_generate: EC_KEY_generate_key failed");
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
         }
         const BIGNUM *priv = EC_KEY_get0_private_key(eckey);
         if (!priv || BN_bn2binpad(priv, out->bytes, 32) != 32) {
-            CRYPTO_LOG_ERR("wf_signing_key_generate: failed to extract private key");
+            WF_LOG_ERROR("crypto", "wf_signing_key_generate: failed to extract private key");
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
         }
         out->type = WF_KEY_TYPE_P256;
         EC_KEY_free(eckey);
-        CRYPTO_LOG("wf_signing_key_generate: P-256 key generated successfully");
+        WF_LOG_DEBUG("crypto", "wf_signing_key_generate: P-256 key generated successfully");
         return WF_OK;
     }
 
     if (type != WF_KEY_TYPE_SECP256K1) {
-        CRYPTO_LOG_ERR("wf_signing_key_generate: unsupported key type %d", type);
+        WF_LOG_ERROR("crypto", "wf_signing_key_generate: unsupported key type %d", type);
         return WF_ERR_INVALID_ARG;
     }
 
 #ifdef HAVE_LIBSECP256K1
-    CRYPTO_LOG("wf_signing_key_generate: generating secp256k1 key");
+    WF_LOG_DEBUG("crypto", "wf_signing_key_generate: generating secp256k1 key");
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
     if (!ctx) {
-        CRYPTO_LOG_ERR("wf_signing_key_generate: secp256k1_context_create failed");
+        WF_LOG_ERROR("crypto", "wf_signing_key_generate: secp256k1_context_create failed");
         return WF_ERR_ALLOC;
     }
 
     /* Try up to 10 times to generate a valid key */
     for (int attempt = 0; attempt < 10; attempt++) {
         if (RAND_bytes(out->bytes, 32) != 1) {
-            CRYPTO_LOG_ERR("wf_signing_key_generate: RAND_bytes failed on attempt %d", attempt);
+            WF_LOG_ERROR("crypto", "wf_signing_key_generate: RAND_bytes failed on attempt %d", attempt);
             secp256k1_context_destroy(ctx);
             return WF_ERR_ALLOC;
         }
         if (secp256k1_ec_seckey_verify(ctx, out->bytes)) {
             out->type = WF_KEY_TYPE_SECP256K1;
             secp256k1_context_destroy(ctx);
-            CRYPTO_LOG("wf_signing_key_generate: secp256k1 key generated successfully on attempt %d", attempt);
+            WF_LOG_DEBUG("crypto", "wf_signing_key_generate: secp256k1 key generated successfully on attempt %d", attempt);
             return WF_OK;
         }
-        CRYPTO_LOG("wf_signing_key_generate: secp256k1_ec_seckey_verify failed on attempt %d, retrying", attempt);
+        WF_LOG_DEBUG("crypto", "wf_signing_key_generate: secp256k1_ec_seckey_verify failed on attempt %d, retrying", attempt);
     }
 
-    CRYPTO_LOG_ERR("wf_signing_key_generate: failed to generate valid secp256k1 key after 10 attempts");
+    WF_LOG_ERROR("crypto", "wf_signing_key_generate: failed to generate valid secp256k1 key after 10 attempts");
     secp256k1_context_destroy(ctx);
     memset(out, 0, sizeof(*out));
     return WF_ERR_ALLOC;
 #else
-    CRYPTO_LOG_ERR("wf_signing_key_generate: secp256k1 not available");
+    WF_LOG_ERROR("crypto", "wf_signing_key_generate: secp256k1 not available");
     (void)type;
     return WF_ERR_INVALID_ARG;
 #endif
@@ -509,24 +507,24 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
 wf_status wf_sign(const wf_signing_key *key,
                    const unsigned char *msg, size_t msg_len,
                    unsigned char *sig_out, size_t sig_out_cap) {
-    CRYPTO_LOG("wf_sign: enter, key_type=%d, msg_len=%zu, sig_cap=%zu", key ? key->type : -1, msg_len, sig_out_cap);
+    WF_LOG_DEBUG("crypto", "wf_sign: enter, key_type=%d, msg_len=%zu, sig_cap=%zu", key ? key->type : -1, msg_len, sig_out_cap);
 
     if (!key || !msg || msg_len == 0 || !sig_out || sig_out_cap < 64) {
-        CRYPTO_LOG_ERR("wf_sign: invalid args");
+        WF_LOG_ERROR("crypto", "wf_sign: invalid args");
         return WF_ERR_INVALID_ARG;
     }
 
     if (key->type == WF_KEY_TYPE_P256) {
-        CRYPTO_LOG("wf_sign: signing with P-256");
+        WF_LOG_DEBUG("crypto", "wf_sign: signing with P-256");
         EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         if (!eckey) {
-            CRYPTO_LOG_ERR("wf_sign: EC_KEY_new_by_curve_name failed");
+            WF_LOG_ERROR("crypto", "wf_sign: EC_KEY_new_by_curve_name failed");
             return WF_ERR_ALLOC;
         }
 
         BIGNUM *priv = BN_bin2bn(key->bytes, 32, NULL);
         if (!priv || EC_KEY_set_private_key(eckey, priv) != 1) {
-            CRYPTO_LOG_ERR("wf_sign: failed to set private key");
+            WF_LOG_ERROR("crypto", "wf_sign: failed to set private key");
             BN_free(priv);
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
@@ -538,7 +536,7 @@ wf_status wf_sign(const wf_signing_key *key,
 
         ECDSA_SIG *sig = ECDSA_do_sign(hash, 32, eckey);
         if (!sig) {
-            CRYPTO_LOG_ERR("wf_sign: ECDSA_do_sign failed");
+            WF_LOG_ERROR("crypto", "wf_sign: ECDSA_do_sign failed");
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
         }
@@ -550,7 +548,7 @@ wf_status wf_sign(const wf_signing_key *key,
 
         ECDSA_SIG_get0(sig, &r0, &s0);
         if (!r0 || !s0) {
-            CRYPTO_LOG_ERR("wf_sign: ECDSA_SIG_get0 failed");
+            WF_LOG_ERROR("crypto", "wf_sign: ECDSA_SIG_get0 failed");
             ECDSA_SIG_free(sig);
             return WF_ERR_ALLOC;
         }
@@ -558,7 +556,7 @@ wf_status wf_sign(const wf_signing_key *key,
         r = BN_dup(r0);
         s = BN_dup(s0);
         if (!r || !s) {
-            CRYPTO_LOG_ERR("wf_sign: BN_dup failed");
+            WF_LOG_ERROR("crypto", "wf_sign: BN_dup failed");
             BN_free(r);
             BN_free(s);
             ECDSA_SIG_free(sig);
@@ -568,7 +566,7 @@ wf_status wf_sign(const wf_signing_key *key,
 
         status = wf_p256_normalize_s(eckey, &s);
         if (status != WF_OK) {
-            CRYPTO_LOG_ERR("wf_sign: p256_normalize_s failed status=%d", status);
+            WF_LOG_ERROR("crypto", "wf_sign: p256_normalize_s failed status=%d", status);
             BN_free(r);
             BN_free(s);
             ECDSA_SIG_free(sig);
@@ -578,7 +576,7 @@ wf_status wf_sign(const wf_signing_key *key,
 
         if (BN_bn2binpad(r, sig_out, 32) != 32 ||
             BN_bn2binpad(s, sig_out + 32, 32) != 32) {
-            CRYPTO_LOG_ERR("wf_sign: BN_bn2binpad failed");
+            WF_LOG_ERROR("crypto", "wf_sign: BN_bn2binpad failed");
             BN_free(r);
             BN_free(s);
             ECDSA_SIG_free(sig);
@@ -590,16 +588,16 @@ wf_status wf_sign(const wf_signing_key *key,
         BN_free(s);
         ECDSA_SIG_free(sig);
         EC_KEY_free(eckey);
-        CRYPTO_LOG("wf_sign: P-256 signature created successfully");
+        WF_LOG_DEBUG("crypto", "wf_sign: P-256 signature created successfully");
         return WF_OK;
     }
 
 #ifdef HAVE_LIBSECP256K1
     if (key->type == WF_KEY_TYPE_SECP256K1) {
-        CRYPTO_LOG("wf_sign: signing with secp256k1");
+        WF_LOG_DEBUG("crypto", "wf_sign: signing with secp256k1");
         secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
         if (!ctx) {
-            CRYPTO_LOG_ERR("wf_sign: secp256k1_context_create failed");
+            WF_LOG_ERROR("crypto", "wf_sign: secp256k1_context_create failed");
             return WF_ERR_ALLOC;
         }
 
@@ -609,19 +607,19 @@ wf_status wf_sign(const wf_signing_key *key,
         secp256k1_ecdsa_signature sig;
         if (secp256k1_ecdsa_sign(ctx, &sig, hash, key->bytes,
                                    secp256k1_nonce_function_rfc6979, NULL) != 1) {
-            CRYPTO_LOG_ERR("wf_sign: secp256k1_ecdsa_sign failed");
+            WF_LOG_ERROR("crypto", "wf_sign: secp256k1_ecdsa_sign failed");
             secp256k1_context_destroy(ctx);
             return WF_ERR_ALLOC;
         }
 
         secp256k1_ecdsa_signature_serialize_compact(ctx, sig_out, &sig);
         secp256k1_context_destroy(ctx);
-        CRYPTO_LOG("wf_sign: secp256k1 signature created successfully");
+        WF_LOG_DEBUG("crypto", "wf_sign: secp256k1 signature created successfully");
         return WF_OK;
     }
 #endif
 
-    CRYPTO_LOG_ERR("wf_sign: unsupported key type %d", key->type);
+    WF_LOG_ERROR("crypto", "wf_sign: unsupported key type %d", key->type);
     return WF_ERR_INVALID_ARG;
 }
 

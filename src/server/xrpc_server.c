@@ -28,6 +28,8 @@
 #include <sys/socket.h>
 #include <openssl/sha.h>
 
+#include "wolfram/log.h"
+
 /* Simple growable buffer used to accumulate POST request bodies. */
 typedef struct post_buf {
     char *data;
@@ -1534,6 +1536,7 @@ process:
         auth_req.dpop_header = dpop_header;
         auth_req.params = params;
         auth_req.handler_ctx = route->ctx;
+        auth_req.host_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
         wf_status auth_status = server->auth_cb(&auth_req, server->auth_ctx);
         if (auth_status != WF_OK) {
             if (auth_status == WF_ERR_CONFLICT)
@@ -1589,6 +1592,15 @@ process:
 
     if (route && route->is_sse) {
         goto sse_stream;
+    }
+
+    if (route && !http_route && !static_route) {
+        WF_LOG_DEBUG("xrpc",
+            "REQ %s %s nsid=%s auth=%s host=%s",
+            method, url,
+            nsid ? nsid : "-",
+            auth_header ? "yes" : "no",
+            req.host_header ? req.host_header : "-");
     }
 
     if (http_route) {
