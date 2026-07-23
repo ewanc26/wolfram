@@ -281,6 +281,10 @@ struct wf_xrpc_server {
     struct wf_owned_ctx *owned_ctxs;       /* heap allocations freed on server free */
     wf_xrpc_auth_cb      auth_cb;
     void                *auth_ctx;
+    /* Optional handler for NSIDs with no registered route (see
+     * wf_xrpc_server_set_fallback). ctx is borrowed, not owned. */
+    wf_xrpc_fallback_handler fallback;
+    void                *fallback_ctx;
     /* Owned context installed by wf_xrpc_server_set_auth_middleware; the
      * server frees it (via auth_mw_free) in wf_xrpc_server_free. Cleared when
      * an external auth callback replaces the middleware. */
@@ -1251,6 +1255,49 @@ static enum MHD_Result wf_server_qs_iter(void *cls,
     return MHD_YES;
 }
 
+static enum MHD_Result wf_server_qs_build_iter(void *cls,
+                                                enum MHD_ValueKind kind,
+                                                const char *key,
+                                                const char *value) {
+    (void)kind;
+    struct qs_build_ctx {
+        char *buf;
+        size_t len;
+        size_t cap;
+    } *c = (struct qs_build_ctx *)cls;
+    size_t needed = (key ? strlen(key) : 0) + (value ? strlen(value) : 0) + 2;
+    if (c->len > 0) needed++;
+    if (c->len + needed + 1 > c->cap) {
+        size_t newcap = (c->cap + needed) * 2;
+        char *grown = realloc(c->buf, newcap);
+        if (!grown) return MHD_NO;
+        c->buf = grown;
+        c->cap = newcap;
+    }
+    if (c->len > 0) c->buf[c->len++] = '&';
+    if (key) {
+        strcpy(c->buf + c->len, key);
+        c->len += strlen(key);
+    }
+    c->buf[c->len++] = '=';
+    if (value) {
+        strcpy(c->buf + c->len, value);
+        c->len += strlen(value);
+    }
+    return MHD_YES;
+}
+
+static char *wf_server_build_raw_query(struct MHD_Connection *conn) {
+    struct qs_build_ctx {
+        char *buf;
+        size_t len;
+        size_t cap;
+    } ctx = {0};
+    MHD_get_connection_values(conn, MHD_GET_ARGUMENT_KIND,
+                              &wf_server_qs_build_iter, &ctx);
+    return ctx.buf;
+}
+
 static cJSON *wf_server_get_query_params(struct MHD_Connection *conn) {
     struct qs_ctx ctx;
     ctx.obj = cJSON_CreateObject();
@@ -1460,6 +1507,34 @@ process:
             wf_xrpc_response_set_error(
                 &resp, 400, "InvalidRequest",
                 "Incorrect HTTP method for this endpoint");
+        } else if (server->fallback) {
+            /* Unknown NSID with a fallback installed (e.g. an AppView
+             * proxy). The request struct is not built yet at this point, so
+             * assemble a minimal one here; the fallback runs before the auth
+             * callback and must verify any bearer token itself. */
+            wf_xrpc_request freq;
+            memset(&freq, 0, sizeof(freq));
+            freq.nsid = nsid;
+            freq.path = url;
+            freq.method = method;
+            freq.auth_header = MHD_lookup_connection_value(
+                conn, MHD_HEADER_KIND, "Authorization");
+            freq.dpop_header = MHD_lookup_connection_value(
+                conn, MHD_HEADER_KIND, "DPoP");
+            freq.params = params;
+            freq.handler_ctx = server->fallback_ctx;
+            freq.raw_query = wf_server_build_raw_query(conn);
+            freq.atproto_proxy = MHD_lookup_connection_value(
+                conn, MHD_HEADER_KIND, "atproto-proxy");
+            freq.content_type = MHD_lookup_connection_value(
+                conn, MHD_HEADER_KIND, "Content-Type");
+            freq.host_header = MHD_lookup_connection_value(
+                conn, MHD_HEADER_KIND, "Host");
+            if (raw_pb) {
+                freq.body = (const unsigned char *)raw_pb->data;
+                freq.body_len = raw_pb->len;
+            }
+            server->fallback(server->fallback_ctx, &freq, &resp);
         } else {
             wf_xrpc_response_set_error(
                 &resp, 501, "MethodNotImplemented",
@@ -1573,6 +1648,9 @@ process:
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
     req.host_header =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+    req.raw_query = wf_server_build_raw_query(conn);
+    req.atproto_proxy =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "atproto-proxy");
     /* Carry the authenticated principal (if any) established above.
      * `authed_subject` is server-owned and freed in cleanup. */
     req.authed_subject = authed_subject;
@@ -2117,6 +2195,15 @@ void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
     server->auth_mw_free = NULL;
     server->auth_cb = cb;
     server->auth_ctx = ctx;
+}
+
+void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
+                                 wf_xrpc_fallback_handler handler, void *ctx) {
+    if (!server) {
+        return;
+    }
+    server->fallback = handler;
+    server->fallback_ctx = ctx;
 }
 
 void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,

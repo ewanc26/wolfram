@@ -61,6 +61,13 @@ typedef struct wf_xrpc_request {
     const char *content_type;
     /* Request Host header (may be NULL). Valid only during the handler. */
     const char *host_header;
+    /* Raw, unparsed query string (without the leading '?'), or NULL when the
+     * URL carries no query. Useful to forward a request verbatim (e.g. from
+     * a proxying fallback handler). Valid only during the handler. */
+    const char *raw_query;
+    /* Request `atproto-proxy` header value ("<did>#<service_id>"), or NULL.
+     * Valid only during the handler. */
+    const char *atproto_proxy;
     void       *handler_ctx;   /* User context from route registration */
     /* The following two fields are populated by an auth middleware (e.g.
      * wf_xrpc_server_set_auth_middleware) and are valid only for the duration
@@ -131,6 +138,21 @@ typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
 typedef wf_status (*wf_http_route_handler)(void *ctx,
                                            const wf_xrpc_request *req,
                                            wf_xrpc_response *resp);
+
+/**
+ * Fallback handler for XRPC NSIDs with no registered route.
+ *
+ * Installed via wf_xrpc_server_set_fallback. Invoked instead of the
+ * built-in 501 MethodNotImplemented response when neither a query nor a
+ * procedure route matches the request NSID (a wrong-method request on a
+ * registered NSID keeps the 400 error). Typical use: an AppView/service
+ * proxy that forwards unmatched app.bsky.* / chat.bsky.* routes upstream
+ * (the reference PDS `pipethrough` behaviour). The fallback runs before
+ * the server auth callback, so it must verify any bearer token itself.
+ */
+typedef wf_status (*wf_xrpc_fallback_handler)(void *ctx,
+                                              const wf_xrpc_request *req,
+                                              wf_xrpc_response *resp);
 
 /* ------------------------------------------------------------------ */
 /* SSE (Server-Sent Events) streaming                                  */
@@ -371,6 +393,15 @@ wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code);
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
                                         wf_xrpc_auth_cb cb, void *ctx);
+
+/**
+ * Install (or replace, with NULL) the fallback handler invoked for XRPC
+ * NSIDs with no registered query/procedure route. See
+ * wf_xrpc_fallback_handler for semantics. `ctx` is passed back to the
+ * handler as-is and is NOT owned by the server.
+ */
+void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
+                                 wf_xrpc_fallback_handler handler, void *ctx);
 
 /**
  * Like wf_xrpc_server_set_auth_callback, but also records an owned middleware

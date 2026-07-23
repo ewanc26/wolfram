@@ -105,7 +105,7 @@ static wf_status test_proc_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
-                                   wf_xrpc_response *resp) {
+                                    wf_xrpc_response *resp) {
     (void)ctx;
     if (!req->path || strncmp(req->path, "/oauth/", 7) != 0)
         return WF_ERR_INVALID_ARG;
@@ -126,6 +126,31 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
     }
     wf_xrpc_response_add_header(resp, "Cache-Control", "no-store");
     wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
+    return WF_OK;
+}
+
+/* Fallback handler: echoes the fields an AppView-style proxy needs
+ * (nsid, method, raw query, atproto-proxy header, body) so the test can
+ * assert they arrive intact for unregistered NSIDs. */
+static wf_status test_fallback_handler(void *ctx, const wf_xrpc_request *req,
+                                        wf_xrpc_response *resp) {
+    (void)ctx;
+    cJSON *obj = cJSON_CreateObject();
+    if (!obj) return WF_ERR_ALLOC;
+    cJSON_AddStringToObject(obj, "fallback", "yes");
+    cJSON_AddStringToObject(obj, "nsid", req->nsid ? req->nsid : "");
+    cJSON_AddStringToObject(obj, "method", req->method ? req->method : "");
+    if (req->raw_query)
+        cJSON_AddStringToObject(obj, "raw_query", req->raw_query);
+    if (req->atproto_proxy)
+        cJSON_AddStringToObject(obj, "atproto_proxy", req->atproto_proxy);
+    if (req->body && req->body_len)
+        cJSON_AddStringToObject(obj, "body_len", "set");
+    char *json = cJSON_PrintUnformatted(obj);
+    cJSON_Delete(obj);
+    if (!json) return WF_ERR_ALLOC;
+    wf_xrpc_response_set_body(resp, json, strlen(json));
+    free(json);
     return WF_OK;
 }
 
@@ -301,6 +326,81 @@ static int run_test(void) {
             failures++;
         } else if (res.status != 501) {
             fprintf(stderr, "FAIL: missing expected 501, got %ld\n", res.status);
+            failures++;
+        }
+        wf_response_free(&res);
+    }
+
+    /* Test 4b: an installed fallback receives unregistered NSIDs verbatim
+     * (raw query, atproto-proxy header, body), wrong-method requests on a
+     * registered NSID still error, and removing the fallback restores 501. */
+    {
+        wf_xrpc_server_set_fallback(server, test_fallback_handler, NULL);
+
+        /* GET with raw query + atproto-proxy header preserved. */
+        char url[200];
+        snprintf(url, sizeof(url),
+                 "%s/xrpc/io.example.unknown?a=1&b=two%%20words", base_url);
+        wf_http_header hdrs[] = {
+            {"atproto-proxy", "did:web:svc.example#bsky_appview"},
+        };
+        wf_status s = wf_http_get_with_headers(client, url, hdrs, 1, &res);
+        cJSON *root = (s == WF_OK && res.body)
+            ? cJSON_ParseWithLength(res.body, res.body_len) : NULL;
+        if (!root) {
+            fprintf(stderr, "FAIL: fallback GET status=%d http=%ld\n",
+                    (int)s, res.status);
+            failures++;
+        } else {
+            cJSON *raw = cJSON_GetObjectItemCaseSensitive(root, "raw_query");
+            cJSON *pxy = cJSON_GetObjectItemCaseSensitive(root,
+                                                          "atproto_proxy");
+            if (!cJSON_IsString(raw) ||
+                strcmp(raw->valuestring, "a=1&b=two words") != 0) {
+                fprintf(stderr, "FAIL: fallback raw_query mismatch: got '%s'\n",
+                        cJSON_IsString(raw) ? raw->valuestring : "(null)");
+                failures++;
+            }
+            if (!cJSON_IsString(pxy) ||
+                strcmp(pxy->valuestring, "did:web:svc.example#bsky_appview")
+                    != 0) {
+                fprintf(stderr, "FAIL: fallback atproto_proxy mismatch\n");
+                failures++;
+            }
+            cJSON_Delete(root);
+        }
+        wf_response_free(&res);
+
+        /* POST to an unknown NSID reaches the fallback with its body. */
+        s = wf_xrpc_procedure(client, "io.example.unknownProc",
+                              "{\"x\":1}", &res);
+        root = (s == WF_OK && res.body)
+            ? cJSON_ParseWithLength(res.body, res.body_len) : NULL;
+        if (!root ||
+            !cJSON_IsString(cJSON_GetObjectItemCaseSensitive(root,
+                                                             "body_len"))) {
+            fprintf(stderr, "FAIL: fallback POST status=%d http=%ld\n",
+                    (int)s, res.status);
+            failures++;
+        }
+        if (root) cJSON_Delete(root);
+        wf_response_free(&res);
+
+        /* Wrong method on a REGISTERED NSID keeps the 400 error. */
+        s = wf_xrpc_procedure(client, "io.example.ping", "{}", &res);
+        if (s != WF_ERR_HTTP || res.status != 400) {
+            fprintf(stderr, "FAIL: wrong-method expected 400, got %d/%ld\n",
+                    (int)s, res.status);
+            failures++;
+        }
+        wf_response_free(&res);
+
+        /* Removing the fallback restores the 501. */
+        wf_xrpc_server_set_fallback(server, NULL, NULL);
+        s = wf_xrpc_query(client, "io.example.missing", NULL, &res);
+        if (s != WF_ERR_HTTP || res.status != 501) {
+            fprintf(stderr, "FAIL: fallback removal expected 501, got %d/%ld\n",
+                    (int)s, res.status);
             failures++;
         }
         wf_response_free(&res);
