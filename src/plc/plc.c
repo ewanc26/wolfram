@@ -773,12 +773,13 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
 
     wf_plc_base32_encode(hash, sizeof(hash), b32);
     {
-        char b32_hex[103];
-        for (int i = 0; i < 54 && b32[i]; i++) {
+        size_t b32_len = strlen(b32);
+        char b32_hex[109];
+        for (size_t i = 0; i < b32_len; i++) {
             sprintf(b32_hex + i * 2, "%02x", (unsigned char)b32[i]);
         }
-        b32_hex[104] = '\0';
-        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32_raw=%s len=%zu", b32_hex, strlen(b32));
+        b32_hex[b32_len * 2] = '\0';
+        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32_raw=%s len=%zu", b32_hex, b32_len);
     }
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32 hash=%.24s", b32);
 
