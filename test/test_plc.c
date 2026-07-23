@@ -30,17 +30,13 @@ static int build_and_sign_roundtrip(wf_key_type key_type) {
     wf_signing_key key;
     char *didkey = NULL;
     char *didkey2 = NULL;
-    const char *rotation_keys[] = {
-        "did:key:zQ3shXYZrotation", "did:key:zQ3shABCrotation"};
     const char *also_known_as[] = {"at://alice.example", "at://alice.bsky.social"};
-    const char *vm_json = "{\"atproto\":\"did:key:zQ3shSigningExample\","
-                          "\"signing\":\"did:key:zQ3shSigningP256\"}";
     const char *services_json =
         "{\"atproto_pds\":\"https://pds.example.com\"}";
     wf_plc_operation_update update = {
-        .rotation_keys = rotation_keys,
-        .rotation_keys_count = 2,
-        .verification_methods_json = vm_json,
+        .rotation_keys = NULL,
+        .rotation_keys_count = 0,
+        .verification_methods_json = NULL,
         .services_json = services_json,
         .also_known_as = also_known_as,
         .also_known_as_count = 2,
@@ -62,6 +58,10 @@ static int build_and_sign_roundtrip(wf_key_type key_type) {
     if (didkey) {
         CHECK(strncmp(didkey, "did:key:z", 9) == 0, "didkey has did:key:z prefix");
     }
+
+    const char *rotation_keys[] = { didkey, "did:key:zQ3shABCrotation" };
+    update.rotation_keys = rotation_keys;
+    update.rotation_keys_count = 2;
 
     status = wf_plc_operation_build(&update, &op_json);
     CHECK(status == WF_OK, "wf_plc_operation_build");
@@ -85,13 +85,9 @@ static int build_and_sign_roundtrip(wf_key_type key_type) {
     if (signed_root) {
         const cJSON *sig =
             cJSON_GetObjectItemCaseSensitive(signed_root, "sig");
-        CHECK(sig != NULL && cJSON_IsObject(sig), "signed op has sig map");
+        CHECK(sig != NULL && cJSON_IsString(sig), "signed op has sig string");
         if (sig && didkey) {
-            const cJSON *entry =
-                cJSON_GetObjectItemCaseSensitive(sig, didkey);
-            CHECK(entry != NULL, "sig keyed by signer did:key");
-            CHECK(entry && cJSON_IsString(entry) &&
-                      entry->valuestring[0] != '\0',
+            CHECK(sig->valuestring != NULL && sig->valuestring[0] != '\0',
                   "sig value is non-empty string");
         }
     }
