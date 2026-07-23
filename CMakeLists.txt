@@ -4,7 +4,7 @@ if(POLICY CMP0156)
     cmake_policy(SET CMP0156 NEW)
 endif()
 project(wolfram
-    VERSION 0.1.3
+    VERSION 0.1.4
     DESCRIPTION "A C SDK for the AT Protocol"
     LANGUAGES C CXX
 )
@@ -100,6 +100,16 @@ set(SANITIZE OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(libcbor)
 set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+FetchContent_Declare(
+    base64url
+    GIT_REPOSITORY https://github.com/jons/base64url.git
+    GIT_TAG master
+)
+FetchContent_GetProperties(base64url)
+if(NOT base64url_POPULATED)
+    FetchContent_Populate(base64url)
+endif()
+
 add_library(wolfram
     # Transport
     $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
@@ -120,6 +130,7 @@ add_library(wolfram
     src/repo/sync.c
     src/repo/cbor_build.c
     src/repo/cbor_map_find.c
+    ${base64url_SOURCE_DIR}/librb64u.c
     # Session
     src/session/session.c
     $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/session/auth_client.c>
@@ -419,6 +430,7 @@ target_include_directories(wolfram
         ${CMAKE_CURRENT_SOURCE_DIR}/third_party
         ${cjson_SOURCE_DIR}
         ${cjson_BINARY_DIR}
+        ${base64url_SOURCE_DIR}
         ${SECP256K1_INCLUDE_DIRS}
 )
 
@@ -741,6 +753,10 @@ if(WOLFRAM_BUILD_EXAMPLES)
     add_executable(example_admin_search examples/admin_search.c)
     target_link_libraries(example_admin_search PRIVATE wolfram)
     target_include_directories(example_admin_search PRIVATE ${cjson_SOURCE_DIR})
+
+    add_executable(mint_did test/mint_did.c)
+    target_link_libraries(mint_did PRIVATE wolfram)
+    target_include_directories(mint_did PRIVATE test ${cjson_SOURCE_DIR})
 endif()
 
 if(WOLFRAM_BUILD_TESTS)
