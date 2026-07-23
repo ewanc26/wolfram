@@ -300,14 +300,6 @@ static wf_status wf_plc_canonical_cbor(const cJSON *root, const char *skip,
         *out_len = 0;
         return WF_ERR_ALLOC;
     }
-    {
-        char hex[(*out_len) * 2 + 1];
-        for (size_t i = 0; i < *out_len; i++) {
-            sprintf(hex + i * 2, "%02x", buf[i]);
-        }
-        hex[*out_len * 2] = '\0';
-        WF_LOG_DEBUG("plc", "wf_plc_canonical_cbor: hex=%s", hex);
-    }
     WF_LOG_DEBUG("plc", "wf_plc_canonical_cbor: success, output length=%zu", *out_len);
     *out = buf;
     return WF_OK;
@@ -742,7 +734,7 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
     }
 
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: computing canonical CBOR");
-    if (wf_plc_canonical_cbor(root, NULL, &cbor, &cbor_len) != WF_OK) {
+    if (wf_plc_canonical_cbor(root, "sig", &cbor, &cbor_len) != WF_OK) {
         WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: CBOR encoding failed");
         cJSON_Delete(root);
         return WF_ERR_INTERNAL;
