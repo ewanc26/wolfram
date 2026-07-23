@@ -469,14 +469,17 @@ wf_status wf_plc_operation_sign(const char *op_json,
     }
     WF_LOG_DEBUG("plc", "wf_plc_operation_sign: signer didkey=%s", didkey);
 
-    /* The PLC directory expects sig as a flat base64url string, not an
-     * object mapping the did:key to the signature. The signer's did:key
-     * is implicitly one of the rotationKeys, which the directory tries
-     * in order to verify the signature. */
-    if (!cJSON_AddStringToObject(root, "sig", sig_b64)) {
+    /* The PLC directory expects sig as an object mapping the signer's
+     * did:key to the base64url signature, matching the @did-plc/codec
+     * reference format. */
+    cJSON *sig_obj = cJSON_CreateObject();
+    if (!sig_obj || !cJSON_AddItemToObject(sig_obj, didkey,
+            cJSON_CreateString(sig_b64))) {
+        free(sig_obj);
         WF_LOG_ERROR("plc", "wf_plc_operation_sign: failed to add sig to JSON");
         status = WF_ERR_ALLOC; goto cleanup;
     }
+    cJSON_AddItemToObject(root, "sig", sig_obj);
 
     json = cJSON_PrintUnformatted(root);
     if (!json) {
@@ -503,6 +506,7 @@ wf_status wf_plc_operation_verify(const char *signed_json,
                                   char **out_signer_didkey) {
     cJSON *root = NULL;
     const cJSON *sig_item = NULL;
+    const cJSON *sig_b64_item = NULL;
     const char *didkey = NULL;
     const char *sig_b64 = NULL;
     const cJSON *rotation_keys = NULL;
@@ -521,11 +525,19 @@ wf_status wf_plc_operation_verify(const char *signed_json,
     }
 
     sig_item = cJSON_GetObjectItemCaseSensitive(root, "sig");
-    if (!sig_item || !cJSON_IsString(sig_item) ||
-        !sig_item->valuestring[0]) {
+    if (!sig_item || !cJSON_IsObject(sig_item)) {
         status = WF_ERR_PARSE; goto cleanup;
     }
-    sig_b64 = sig_item->valuestring;
+    cJSON_ArrayForEach(sig_b64_item, sig_item) {
+        if (cJSON_IsString(sig_b64_item) && sig_b64_item->valuestring[0]) {
+            sig_b64 = sig_b64_item->valuestring;
+            didkey = sig_b64_item->string;
+            break;
+        }
+    }
+    if (!sig_b64 || !didkey) {
+        status = WF_ERR_PARSE; goto cleanup;
+    }
 
     sig = wf_plc_base64url_decode(sig_b64, &sig_len);
     if (!sig || sig_len != 64) { status = WF_ERR_PARSE; goto cleanup; }
