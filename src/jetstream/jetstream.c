@@ -470,7 +470,10 @@ uint32_t wf_jetstream_reconnect_after_ms(const wf_jetstream *stream) {
 }
 
 void wf_jetstream_event_free(wf_jetstream_event *event) {
-    if (!event) return; free(event->did); free(event->json); memset(event, 0, sizeof(*event));
+    if (!event) return;
+    free(event->did);
+    free(event->json);
+    memset(event, 0, sizeof(*event));
 }
 
 /* ── typed payload parsing ── */
