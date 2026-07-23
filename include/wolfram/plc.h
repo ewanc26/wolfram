@@ -144,12 +144,12 @@ wf_status wf_plc_update_handle(wf_xrpc_client *client, const char *handle);
 /**
  * Compute the PLC DID for a signed genesis operation.
  *
- * The DID is `did:plc:<base32(sha256(canonical-cbor(signed-op)))[:24]>`,
- * derived from the canonical DAG-CBOR encoding of the signed operation
- * (including `sig`). The input JSON is parsed internally; the caller frees
- * the output with wf_plc_operation_free if a non-WF_OK code is returned,
- * but the resulting DID string is plain ASCII and may be free()d normally.
- * On WF_OK both outputs are owned by the caller.
+  * The DID is `did:plc:<base32(sha256(canonical-cbor(operation)))[:24]>`,
+  * derived from the canonical DAG-CBOR encoding of the operation data with
+  * the `sig` field omitted. The input JSON is parsed internally; the caller
+  * frees the output with wf_plc_operation_free if a non-WF_OK code is
+  * returned, but the resulting DID string is plain ASCII and may be free()d
+  * normally. On WF_OK both outputs are owned by the caller.
  */
 wf_status wf_plc_operation_compute_did(const char *signed_op_json,
                                        char **out_did);
