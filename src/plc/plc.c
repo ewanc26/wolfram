@@ -14,11 +14,8 @@
 #include <cJSON.h>
 
 #include "wolfram/identity.h"
+#include "wolfram/log.h"
 #include "wolfram/repo/cbor.h"
-
-/* Simple logging for PLC operations */
-#define PLC_LOG(fmt, ...) fprintf(stderr, "[PLC] " fmt "\n", ##__VA_ARGS__)
-#define PLC_LOG_ERR(fmt, ...) fprintf(stderr, "[PLC ERROR] " fmt "\n", ##__VA_ARGS__)
 
 /* ── small utilities ────────────────────────────────────────── */
 
@@ -289,21 +286,21 @@ static wf_status wf_plc_canonical_cbor(const cJSON *root, const char *skip,
     wf_cbor_item *item = wf_plc_cbor_from_json(root, skip);
     unsigned char *buf;
 
-    PLC_LOG("wf_plc_canonical_cbor: enter (skip=%s)", skip ? skip : "null");
+    WF_LOG_DEBUG("plc", "wf_plc_canonical_cbor: enter (skip=%s)", skip ? skip : "null");
 
     if (!item) {
-        PLC_LOG_ERR("wf_plc_canonical_cbor: failed to convert JSON to CBOR");
+        WF_LOG_ERROR("plc", "wf_plc_canonical_cbor: failed to convert JSON to CBOR");
         return WF_ERR_ALLOC;
     }
     wf_plc_cbor_canonicalize(item);
     buf = wf_cbor_serialize(item, out_len);
     wf_cbor_free(item);
     if (!buf) {
-        PLC_LOG_ERR("wf_plc_canonical_cbor: serialization failed");
+        WF_LOG_ERROR("plc", "wf_plc_canonical_cbor: serialization failed");
         *out_len = 0;
         return WF_ERR_ALLOC;
     }
-    PLC_LOG("wf_plc_canonical_cbor: success, output length=%zu", *out_len);
+    WF_LOG_DEBUG("plc", "wf_plc_canonical_cbor: success, output length=%zu", *out_len);
     *out = buf;
     return WF_OK;
 }
@@ -320,32 +317,32 @@ wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
     char *json = NULL;
     wf_status status = WF_OK;
 
-    PLC_LOG("wf_plc_operation_build: enter");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_build: enter");
 
     if (!update || !out_json) {
-        PLC_LOG_ERR("wf_plc_operation_build: invalid args");
+        WF_LOG_ERROR("plc", "wf_plc_operation_build: invalid args");
         return WF_ERR_INVALID_ARG;
     }
     *out_json = NULL;
 
-    PLC_LOG("wf_plc_operation_build: rotation_keys_count=%zu, also_known_as_count=%zu",
+    WF_LOG_DEBUG("plc", "wf_plc_operation_build: rotation_keys_count=%zu, also_known_as_count=%zu",
             update->rotation_keys_count, update->also_known_as_count);
 
     op = cJSON_CreateObject();
     if (!op) {
-        PLC_LOG_ERR("wf_plc_operation_build: failed to create JSON object");
+        WF_LOG_ERROR("plc", "wf_plc_operation_build: failed to create JSON object");
         return WF_ERR_ALLOC;
     }
 
     if (!cJSON_AddStringToObject(op, "type", "plc_operation")) {
-        PLC_LOG_ERR("wf_plc_operation_build: failed to add type");
+        WF_LOG_ERROR("plc", "wf_plc_operation_build: failed to add type");
         status = WF_ERR_ALLOC; goto cleanup;
     }
 
     arr = cJSON_AddArrayToObject(op, "rotationKeys");
     if (!arr) { status = WF_ERR_ALLOC; goto cleanup; }
     for (size_t i = 0; i < update->rotation_keys_count; i++) {
-        PLC_LOG("wf_plc_operation_build: adding rotation key [%zu]=%s", i, update->rotation_keys[i]);
+        WF_LOG_DEBUG("plc", "wf_plc_operation_build: adding rotation key [%zu]=%s", i, update->rotation_keys[i]);
         if (!cJSON_AddItemToArray(arr,
                 cJSON_CreateString(update->rotation_keys[i]))) {
             status = WF_ERR_ALLOC; goto cleanup;
@@ -355,7 +352,7 @@ wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
     if (update->verification_methods_json && *update->verification_methods_json) {
         sub = cJSON_Parse(update->verification_methods_json);
         if (!sub) {
-            PLC_LOG_ERR("wf_plc_operation_build: failed to parse verification_methods_json");
+            WF_LOG_ERROR("plc", "wf_plc_operation_build: failed to parse verification_methods_json");
             status = WF_ERR_PARSE; goto cleanup;
         }
     } else {
@@ -366,10 +363,10 @@ wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
     sub = NULL;
 
     if (update->services_json && *update->services_json) {
-        PLC_LOG("wf_plc_operation_build: parsing services_json: %s", update->services_json);
+        WF_LOG_DEBUG("plc", "wf_plc_operation_build: parsing services_json: %s", update->services_json);
         sub = cJSON_Parse(update->services_json);
         if (!sub) {
-            PLC_LOG_ERR("wf_plc_operation_build: failed to parse services_json");
+            WF_LOG_ERROR("plc", "wf_plc_operation_build: failed to parse services_json");
             status = WF_ERR_PARSE; goto cleanup;
         }
     } else {
@@ -382,7 +379,7 @@ wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
     arr = cJSON_AddArrayToObject(op, "alsoKnownAs");
     if (!arr) { status = WF_ERR_ALLOC; goto cleanup; }
     for (size_t i = 0; i < update->also_known_as_count; i++) {
-        PLC_LOG("wf_plc_operation_build: adding alsoKnownAs [%zu]=%s", i, update->also_known_as[i]);
+        WF_LOG_DEBUG("plc", "wf_plc_operation_build: adding alsoKnownAs [%zu]=%s", i, update->also_known_as[i]);
         if (!cJSON_AddItemToArray(arr,
                 cJSON_CreateString(update->also_known_as[i]))) {
             status = WF_ERR_ALLOC; goto cleanup;
@@ -390,22 +387,19 @@ wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
     }
 
     if (update->prev && *update->prev) {
-        PLC_LOG("wf_plc_operation_build: adding prev=%s", update->prev);
+        WF_LOG_DEBUG("plc", "wf_plc_operation_build: adding prev=%s", update->prev);
         if (!cJSON_AddStringToObject(op, "prev", update->prev)) {
             status = WF_ERR_ALLOC; goto cleanup;
         }
-    } else {
-        PLC_LOG("wf_plc_operation_build: adding prev=null (genesis operation)");
-        cJSON_AddItemToObject(op, "prev", cJSON_CreateNull());
     }
 
     json = cJSON_PrintUnformatted(op);
     if (!json) {
-        PLC_LOG_ERR("wf_plc_operation_build: failed to serialize JSON");
+        WF_LOG_ERROR("plc", "wf_plc_operation_build: failed to serialize JSON");
         status = WF_ERR_ALLOC; goto cleanup;
     }
 
-    PLC_LOG("wf_plc_operation_build: success, output length=%zu", strlen(json));
+    WF_LOG_DEBUG("plc", "wf_plc_operation_build: success, output length=%zu", strlen(json));
     *out_json = json;
     json = NULL; /* ownership transferred to caller */
 
@@ -413,87 +407,84 @@ cleanup:
     cJSON_Delete(op);
     wf_plc_operation_free(json); /* no-op when NULL (success transferred) */
     if (status != WF_OK) {
-        PLC_LOG_ERR("wf_plc_operation_build: failed with status=%d", status);
+        WF_LOG_ERROR("plc", "wf_plc_operation_build: failed with status=%d", status);
     }
     return status;
 }
 
 wf_status wf_plc_operation_sign(const char *op_json,
                                 const wf_signing_key *key,
-                                char **out_signed_json) {
+                                  char **out_signed_json) {
     cJSON *root = NULL;
-    cJSON *sig_obj = NULL;
     unsigned char *cbor = NULL;
     size_t cbor_len = 0;
-    unsigned char hash[SHA256_DIGEST_LENGTH];
     unsigned char sig[64];
     char *sig_b64 = NULL;
     char *didkey = NULL;
     char *json = NULL;
     wf_status status = WF_OK;
 
-    PLC_LOG("wf_plc_operation_sign: enter");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: enter");
 
     if (!op_json || !key || !out_signed_json) {
-        PLC_LOG_ERR("wf_plc_operation_sign: invalid args");
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: invalid args");
         return WF_ERR_INVALID_ARG;
     }
     *out_signed_json = NULL;
 
-    PLC_LOG("wf_plc_operation_sign: parsing op_json (len=%zu)", strlen(op_json));
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: parsing op_json (len=%zu)", strlen(op_json));
     root = cJSON_Parse(op_json);
     if (!root || !cJSON_IsObject(root)) {
-        PLC_LOG_ERR("wf_plc_operation_sign: failed to parse op_json");
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: failed to parse op_json");
         status = WF_ERR_PARSE; goto cleanup;
     }
 
-    PLC_LOG("wf_plc_operation_sign: computing canonical CBOR");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: computing canonical CBOR");
     status = wf_plc_canonical_cbor(root, "sig", &cbor, &cbor_len);
     if (status != WF_OK) {
-        PLC_LOG_ERR("wf_plc_operation_sign: canonical CBOR failed status=%d", status);
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: canonical CBOR failed status=%d", status);
         goto cleanup;
     }
-    PLC_LOG("wf_plc_operation_sign: CBOR length=%zu", cbor_len);
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: CBOR length=%zu", cbor_len);
 
-    SHA256(cbor, cbor_len, hash);
-    PLC_LOG("wf_plc_operation_sign: SHA256 hash computed");
-
-    PLC_LOG("wf_plc_operation_sign: signing with key type=%d", key->type);
-    status = wf_sign(key, hash, sizeof(hash), sig, sizeof(sig));
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: signing with key type=%d", key->type);
+    status = wf_sign(key, cbor, cbor_len, sig, sizeof(sig));
     if (status != WF_OK) {
-        PLC_LOG_ERR("wf_plc_operation_sign: signing failed status=%d", status);
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: signing failed status=%d", status);
         goto cleanup;
     }
-    PLC_LOG("wf_plc_operation_sign: signature created (64 bytes)");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: signature created (64 bytes)");
 
     sig_b64 = wf_plc_base64url_encode(sig, sizeof(sig));
     if (!sig_b64) {
-        PLC_LOG_ERR("wf_plc_operation_sign: base64 encoding failed");
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: base64 encoding failed");
         status = WF_ERR_ALLOC; goto cleanup;
     }
-    PLC_LOG("wf_plc_operation_sign: signature base64 len=%zu", strlen(sig_b64));
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: signature base64 len=%zu", strlen(sig_b64));
 
     status = wf_signing_key_public_didkey(key, &didkey);
     if (status != WF_OK) {
-        PLC_LOG_ERR("wf_plc_operation_sign: failed to get public didkey status=%d", status);
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: failed to get public didkey status=%d", status);
         goto cleanup;
     }
-    PLC_LOG("wf_plc_operation_sign: signer didkey=%s", didkey);
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: signer didkey=%s", didkey);
 
-    sig_obj = cJSON_AddObjectToObject(root, "sig");
-    if (!sig_obj ||
-        !cJSON_AddStringToObject(sig_obj, didkey, sig_b64)) {
-        PLC_LOG_ERR("wf_plc_operation_sign: failed to add sig to JSON");
+    /* The PLC directory expects sig as a flat base64url string, not an
+     * object mapping the did:key to the signature. The signer's did:key
+     * is implicitly one of the rotationKeys, which the directory tries
+     * in order to verify the signature. */
+    if (!cJSON_AddStringToObject(root, "sig", sig_b64)) {
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: failed to add sig to JSON");
         status = WF_ERR_ALLOC; goto cleanup;
     }
 
     json = cJSON_PrintUnformatted(root);
     if (!json) {
-        PLC_LOG_ERR("wf_plc_operation_sign: failed to serialize signed JSON");
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: failed to serialize signed JSON");
         status = WF_ERR_ALLOC; goto cleanup;
     }
 
-    PLC_LOG("wf_plc_operation_sign: success, output length=%zu", strlen(json));
+    WF_LOG_DEBUG("plc", "wf_plc_operation_sign: success, output length=%zu", strlen(json));
     *out_signed_json = json;
 
 cleanup:
@@ -503,7 +494,7 @@ cleanup:
     cJSON_Delete(root);
     if (status != WF_OK) {
         free(json);
-        PLC_LOG_ERR("wf_plc_operation_sign: failed with status=%d", status);
+        WF_LOG_ERROR("plc", "wf_plc_operation_sign: failed with status=%d", status);
     }
     return status;
 }
@@ -511,15 +502,14 @@ cleanup:
 wf_status wf_plc_operation_verify(const char *signed_json,
                                   char **out_signer_didkey) {
     cJSON *root = NULL;
-    const cJSON *sig_obj = NULL;
-    const cJSON *sig_val = NULL;
+    const cJSON *sig_item = NULL;
     const char *didkey = NULL;
     const char *sig_b64 = NULL;
+    const cJSON *rotation_keys = NULL;
     unsigned char *cbor = NULL;
     size_t cbor_len = 0;
     unsigned char *sig = NULL;
     size_t sig_len = 0;
-    unsigned char hash[SHA256_DIGEST_LENGTH];
     wf_status status = WF_OK;
 
     if (!signed_json || !out_signer_didkey) return WF_ERR_INVALID_ARG;
@@ -530,17 +520,12 @@ wf_status wf_plc_operation_verify(const char *signed_json,
         status = WF_ERR_PARSE; goto cleanup;
     }
 
-    sig_obj = cJSON_GetObjectItemCaseSensitive(root, "sig");
-    if (!sig_obj || !cJSON_IsObject(sig_obj) ||
-        cJSON_GetArraySize((cJSON *)sig_obj) == 0) {
+    sig_item = cJSON_GetObjectItemCaseSensitive(root, "sig");
+    if (!sig_item || !cJSON_IsString(sig_item) ||
+        !sig_item->valuestring[0]) {
         status = WF_ERR_PARSE; goto cleanup;
     }
-
-    /* Take the first key/value pair. */
-    sig_val = sig_obj->child;
-    didkey = sig_val->string;
-    sig_b64 = sig_val->valuestring;
-    if (!didkey || !sig_b64) { status = WF_ERR_PARSE; goto cleanup; }
+    sig_b64 = sig_item->valuestring;
 
     sig = wf_plc_base64url_decode(sig_b64, &sig_len);
     if (!sig || sig_len != 64) { status = WF_ERR_PARSE; goto cleanup; }
@@ -548,13 +533,26 @@ wf_status wf_plc_operation_verify(const char *signed_json,
     status = wf_plc_canonical_cbor(root, "sig", &cbor, &cbor_len);
     if (status != WF_OK) goto cleanup;
 
-    SHA256(cbor, cbor_len, hash);
+    /* wf_verify hashes the message internally (SHA256), so pass the raw
+     * CBOR bytes — not a pre-computed hash — to avoid double-hashing. */
+    rotation_keys = cJSON_GetObjectItemCaseSensitive(root, "rotationKeys");
+    if (!rotation_keys || !cJSON_IsArray(rotation_keys)) {
+        status = WF_ERR_PARSE; goto cleanup;
+    }
 
-    status = wf_verify(didkey, hash, sizeof(hash), sig, sig_len);
-    if (status != WF_OK) goto cleanup;
+    for (int i = 0; i < (int)cJSON_GetArraySize(rotation_keys); i++) {
+        const cJSON *rk = cJSON_GetArrayItem(rotation_keys, i);
+        if (!cJSON_IsString(rk) || !rk->valuestring[0]) continue;
+        didkey = rk->valuestring;
+        if (wf_verify(didkey, cbor, cbor_len, sig, sig_len) == WF_OK) {
+            *out_signer_didkey = wf_plc_strdup(didkey);
+            if (!*out_signer_didkey) { status = WF_ERR_ALLOC; goto cleanup; }
+            status = WF_OK;
+            goto cleanup;
+        }
+    }
 
-    *out_signer_didkey = wf_plc_strdup(didkey);
-    if (!*out_signer_didkey) { status = WF_ERR_ALLOC; goto cleanup; }
+    status = WF_ERR_INVALID_ARG;
 
 cleanup:
     free(cbor);
@@ -707,7 +705,7 @@ static void wf_plc_base32_encode(const unsigned char *in, size_t in_len,
     out[o] = '\0';
 }
 
-wf_status wf_plc_operation_compute_did(const char *unsigned_op_json,
+wf_status wf_plc_operation_compute_did(const char *signed_op_json,
                                        char **out_did) {
     cJSON *root = NULL;
     unsigned char *cbor = NULL;
@@ -716,45 +714,45 @@ wf_status wf_plc_operation_compute_did(const char *unsigned_op_json,
     char b32[54];
     char *did = NULL;
 
-    PLC_LOG("wf_plc_operation_compute_did: enter");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: enter");
 
-    if (!unsigned_op_json || !out_did) {
-        PLC_LOG_ERR("wf_plc_operation_compute_did: invalid args");
+    if (!signed_op_json || !out_did) {
+        WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: invalid args");
         return WF_ERR_INVALID_ARG;
     }
     *out_did = NULL;
 
-    PLC_LOG("wf_plc_operation_compute_did: parsing JSON (len=%zu)", strlen(unsigned_op_json));
-    root = cJSON_Parse(unsigned_op_json);
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: parsing JSON (len=%zu)", strlen(signed_op_json));
+    root = cJSON_Parse(signed_op_json);
     if (!root || !cJSON_IsObject(root)) {
-        PLC_LOG_ERR("wf_plc_operation_compute_did: failed to parse JSON");
+        WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: failed to parse JSON");
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
 
-    PLC_LOG("wf_plc_operation_compute_did: computing canonical CBOR");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: computing canonical CBOR");
     if (wf_plc_canonical_cbor(root, NULL, &cbor, &cbor_len) != WF_OK) {
-        PLC_LOG_ERR("wf_plc_operation_compute_did: CBOR encoding failed");
+        WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: CBOR encoding failed");
         cJSON_Delete(root);
         return WF_ERR_INTERNAL;
     }
     cJSON_Delete(root);
 
-    PLC_LOG("wf_plc_operation_compute_did: CBOR length=%zu", cbor_len);
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: CBOR length=%zu", cbor_len);
     SHA256(cbor, cbor_len, hash);
     free(cbor);
 
     wf_plc_base32_encode(hash, sizeof(hash), b32);
-    PLC_LOG("wf_plc_operation_compute_did: base32 hash=%.24s", b32);
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32 hash=%.24s", b32);
 
     did = malloc(32);
     if (!did) {
-        PLC_LOG_ERR("wf_plc_operation_compute_did: allocation failed");
+        WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: allocation failed");
         return WF_ERR_ALLOC;
     }
     snprintf(did, 32, "did:plc:%.24s", b32);
 
-    PLC_LOG("wf_plc_operation_compute_did: success, did=%s", did);
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: success, did=%s", did);
     *out_did = did;
     return WF_OK;
 }
@@ -767,11 +765,11 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
     char operation_url[1024];
     wf_status status;
 
-    PLC_LOG("wf_plc_submit_operation_raw: enter");
-    PLC_LOG("wf_plc_submit_operation_raw: plc_url=%s, did=%s", plc_directory_url ? plc_directory_url : "(null)", did ? did : "(null)");
+    WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: enter");
+    WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: plc_url=%s, did=%s", plc_directory_url ? plc_directory_url : "(null)", did ? did : "(null)");
 
     if (!plc_directory_url || !did || !signed_op_json) {
-        PLC_LOG_ERR("wf_plc_submit_operation_raw: invalid args");
+        WF_LOG_ERROR("plc", "wf_plc_submit_operation_raw: invalid args");
         return WF_ERR_INVALID_ARG;
     }
 
@@ -779,30 +777,30 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
     size_t base_len = strlen(plc_directory_url);
     size_t did_len = strlen(did);
     if (base_len + 1 + did_len + 1 >= sizeof(operation_url)) {
-        PLC_LOG_ERR("wf_plc_submit_operation_raw: URL too long");
+        WF_LOG_ERROR("plc", "wf_plc_submit_operation_raw: URL too long");
         return WF_ERR_INVALID_ARG;
     }
     memcpy(operation_url, plc_directory_url, base_len);
     operation_url[base_len] = '/';
     memcpy(operation_url + base_len + 1, did, did_len + 1);
 
-    PLC_LOG("wf_plc_submit_operation_raw: operation URL=%s", operation_url);
-    PLC_LOG("wf_plc_submit_operation_raw: signed_op_json: %s", signed_op_json);
+    WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: operation URL=%s", operation_url);
+    WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: signed_op_json: %s", signed_op_json);
 
     client = wf_xrpc_client_new(operation_url);
     if (!client) {
-        PLC_LOG_ERR("wf_plc_submit_operation_raw: failed to create HTTP client");
+        WF_LOG_ERROR("plc", "wf_plc_submit_operation_raw: failed to create HTTP client");
         return WF_ERR_ALLOC;
     }
 
-    PLC_LOG("wf_plc_submit_operation_raw: sending POST request");
+    WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: sending POST request");
     status = wf_http_post(client, operation_url,
                           "application/json", signed_op_json,
                           NULL, 0, &response);
 
-    PLC_LOG("wf_plc_submit_operation_raw: POST status=%d, response code=%ld", status, response.status);
+    WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: POST status=%d, response code=%ld", status, response.status);
     if (response.body && response.body_len > 0) {
-        PLC_LOG("wf_plc_submit_operation_raw: response body: %.*s", (int)(response.body_len > 1024 ? 1024 : response.body_len), response.body);
+        WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: response body: %.*s", (int)(response.body_len > 1024 ? 1024 : response.body_len), response.body);
     }
 
     wf_xrpc_client_free(client);
@@ -810,9 +808,9 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
         free(response.body);
     }
     if (status != WF_OK) {
-        PLC_LOG_ERR("wf_plc_submit_operation_raw: failed with status=%d", status);
+        WF_LOG_ERROR("plc", "wf_plc_submit_operation_raw: failed with status=%d", status);
     } else {
-        PLC_LOG("wf_plc_submit_operation_raw: success");
+        WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: success");
     }
     return status;
 }
