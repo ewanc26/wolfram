@@ -16,6 +16,7 @@
 #include "wolfram/identity.h"
 #include "wolfram/log.h"
 #include "wolfram/repo/cbor.h"
+#include "librb64u.h"
 
 /* ── small utilities ────────────────────────────────────────── */
 
@@ -35,91 +36,33 @@ static void *wf_plc_alloc(size_t n) { return calloc(1, n); }
 
 /* ── base64url (RFC 4648 §5, no padding) ───────────────────── */
 
-static const char wf_b64url_alphabet[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-
 static char *wf_plc_base64url_encode(const unsigned char *in, size_t len) {
-    size_t out_len = (len + 2) / 3 * 4;
-    char *out = malloc(out_len + 1);
-    size_t o = 0, i = 0;
+    size_t maxlen = ((len + 2) / 3) * 4 + 1;
+    char *out = malloc(maxlen);
+    size_t dlen = 0;
 
     if (!out) return NULL;
-
-    while (i + 3 <= len) {
-        unsigned int n = (in[i] << 16) | (in[i + 1] << 8) | in[i + 2];
-        out[o++] = wf_b64url_alphabet[(n >> 18) & 0x3f];
-        out[o++] = wf_b64url_alphabet[(n >> 12) & 0x3f];
-        out[o++] = wf_b64url_alphabet[(n >> 6) & 0x3f];
-        out[o++] = wf_b64url_alphabet[n & 0x3f];
-        i += 3;
+    if (base64url_encode(out, maxlen, (const char *)in, len, &dlen) < 0) {
+        free(out);
+        return NULL;
     }
-    if (len - i == 1) {
-        unsigned int n = in[i] << 16;
-        out[o++] = wf_b64url_alphabet[(n >> 18) & 0x3f];
-        out[o++] = wf_b64url_alphabet[(n >> 12) & 0x3f];
-    } else if (len - i == 2) {
-        unsigned int n = (in[i] << 16) | (in[i + 1] << 8);
-        out[o++] = wf_b64url_alphabet[(n >> 18) & 0x3f];
-        out[o++] = wf_b64url_alphabet[(n >> 12) & 0x3f];
-        out[o++] = wf_b64url_alphabet[(n >> 6) & 0x3f];
-    }
-    out[o] = '\0';
+    out[dlen] = '\0';
     return out;
-}
-
-static int wf_plc_base64url_value(char c) {
-    if (c >= 'A' && c <= 'Z') return c - 'A';
-    if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-    if (c >= '0' && c <= '9') return c - '0' + 52;
-    if (c == '-') return 62;
-    if (c == '_') return 63;
-    return -1;
 }
 
 static unsigned char *wf_plc_base64url_decode(const char *in, size_t *out_len) {
     size_t in_len = strlen(in);
-    size_t pad = 0;
-    size_t i = 0;
-    size_t o = 0;
-    unsigned char *out;
+    size_t maxlen = (in_len / 4) * 3 + 3;
+    unsigned char *out = malloc(maxlen);
+    size_t dlen = 0;
 
-    while (i < in_len && in[i] != '=') i++;
-    pad = in_len - i; /* trailing '=' not expected but tolerated */
-    if (in_len < pad) { *out_len = 0; return NULL; }
-    {
-        size_t data_len = in_len - pad;
-        out = malloc(data_len * 3 / 4 + 1);
-        if (!out) { *out_len = 0; return NULL; }
-        i = 0;
-        while (i + 4 <= data_len) {
-            int a = wf_plc_base64url_value(in[i]);
-            int b = wf_plc_base64url_value(in[i + 1]);
-            int c = wf_plc_base64url_value(in[i + 2]);
-            int d = wf_plc_base64url_value(in[i + 3]);
-            if (a < 0 || b < 0 || c < 0 || d < 0) { free(out); *out_len = 0; return NULL; }
-            unsigned int n = (a << 18) | (b << 12) | (c << 6) | d;
-            out[o++] = (unsigned char)((n >> 16) & 0xff);
-            out[o++] = (unsigned char)((n >> 8) & 0xff);
-            out[o++] = (unsigned char)(n & 0xff);
-            i += 4;
-        }
-        if (data_len - i == 2) {
-            int a = wf_plc_base64url_value(in[i]);
-            int b = wf_plc_base64url_value(in[i + 1]);
-            if (a < 0 || b < 0) { free(out); *out_len = 0; return NULL; }
-            unsigned int n = (a << 18) | (b << 12);
-            out[o++] = (unsigned char)((n >> 16) & 0xff);
-        } else if (data_len - i == 3) {
-            int a = wf_plc_base64url_value(in[i]);
-            int b = wf_plc_base64url_value(in[i + 1]);
-            int c = wf_plc_base64url_value(in[i + 2]);
-            if (a < 0 || b < 0 || c < 0) { free(out); *out_len = 0; return NULL; }
-            unsigned int n = (a << 18) | (b << 12) | (c << 6);
-            out[o++] = (unsigned char)((n >> 16) & 0xff);
-            out[o++] = (unsigned char)((n >> 8) & 0xff);
-        }
+    if (!out) { *out_len = 0; return NULL; }
+    if (base64url_decode((char *)out, maxlen, in, in_len, &dlen) != 0) {
+        free(out);
+        *out_len = 0;
+        return NULL;
     }
-    *out_len = o;
+    *out_len = dlen;
     return out;
 }
 
@@ -741,8 +684,8 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
         return WF_ERR_PARSE;
     }
 
-    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: computing canonical CBOR (skip=sig)");
-    if (wf_plc_canonical_cbor(root, "sig", &cbor, &cbor_len) != WF_OK) {
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: computing canonical CBOR");
+    if (wf_plc_canonical_cbor(root, NULL, &cbor, &cbor_len) != WF_OK) {
         WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: CBOR encoding failed");
         cJSON_Delete(root);
         return WF_ERR_INTERNAL;
@@ -755,7 +698,7 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
             sprintf(hex + i * 2, "%02x", cbor[i]);
         }
         hex[cbor_len * 2] = '\0';
-        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: cbor hex(skip=sig)=%s", hex);
+        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: cbor hex=%s", hex);
     }
 
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: CBOR length=%zu", cbor_len);
@@ -783,12 +726,12 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
     }
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32 hash=%.24s", b32);
 
-    did = malloc(32);
+    did = malloc(33);  /* "did:plc:" (8) + 24 chars + NUL */
     if (!did) {
         WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: allocation failed");
         return WF_ERR_ALLOC;
     }
-    snprintf(did, 32, "did:plc:%.24s", b32);
+    snprintf(did, 33, "did:plc:%.24s", b32);
 
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: success, did=%s", did);
     *out_did = did;
