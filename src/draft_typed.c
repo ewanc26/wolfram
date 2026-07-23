@@ -484,14 +484,19 @@ static wf_status wf_agent_draft_build_and_call_create(
         return WF_ERR_INVALID_ARG;
     }
 
-    wf_lex_app_bsky_draft_defs_draft draft = {0};
-    wf_status status = wf_draft_build_lex(root, &draft, posts_out, langs_out);
+    wf_lex_app_bsky_draft_defs_draft *draft = calloc(1, sizeof(*draft));
+    if (!draft) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    wf_status status = wf_draft_build_lex(root, draft, posts_out, langs_out);
     if (status != WF_OK) {
         cJSON_Delete(root);
+        free(draft);
         return status;
     }
 
-    input->draft = &draft;
+    input->draft = draft;
     (void)agent;
     return WF_OK;
 }
@@ -530,6 +535,7 @@ wf_status wf_agent_draft_createDraft_typed(wf_agent *agent,
     }
     free(posts);
     free(langs);
+    free(input.draft);
     return status;
 }
 
@@ -551,21 +557,36 @@ wf_status wf_agent_draft_updateDraft_typed(wf_agent *agent,
 
     wf_lex_app_bsky_draft_defs_draft_post **posts = NULL;
     char **langs = NULL;
-    wf_lex_app_bsky_draft_defs_draft draft = {0};
-    wf_status status = wf_draft_build_lex(root, &draft, &posts, &langs);
+    wf_lex_app_bsky_draft_defs_draft *draft = calloc(1, sizeof(*draft));
+    if (!draft) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    wf_status status = wf_draft_build_lex(root, draft, &posts, &langs);
     if (status != WF_OK) {
         cJSON_Delete(root);
         free(posts);
         free(langs);
+        free(draft);
         return status;
     }
 
-    wf_lex_app_bsky_draft_defs_draft_with_id with_id = {0};
-    with_id.id = draft_id;
-    with_id.draft = &draft;
+    wf_lex_app_bsky_draft_defs_draft_with_id *with_id = calloc(1, sizeof(*with_id));
+    if (!with_id) {
+        for (size_t i = 0; posts && i < draft->posts.count; ++i) {
+            free(posts[i]);
+        }
+        free(posts);
+        free(langs);
+        free(draft);
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    with_id->id = draft_id;
+    with_id->draft = draft;
 
     wf_lex_app_bsky_draft_update_draft_main_input input = {0};
-    input.draft = &with_id;
+    input.draft = with_id;
 
     wf_response res = {0};
     wf_agent_sync_auth(agent);
@@ -576,11 +597,13 @@ wf_status wf_agent_draft_updateDraft_typed(wf_agent *agent,
     }
 
     wf_response_free(&res);
-    for (size_t i = 0; posts && i < draft.posts.count; ++i) {
+    for (size_t i = 0; posts && i < draft->posts.count; ++i) {
         free(posts[i]);
     }
     free(posts);
     free(langs);
+    free(input.draft->draft);
+    free(input.draft);
     cJSON_Delete(root);
     return status;
 }
