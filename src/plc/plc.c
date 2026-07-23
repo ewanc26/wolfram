@@ -300,6 +300,14 @@ static wf_status wf_plc_canonical_cbor(const cJSON *root, const char *skip,
         *out_len = 0;
         return WF_ERR_ALLOC;
     }
+    {
+        char hex[(*out_len) * 2 + 1];
+        for (size_t i = 0; i < *out_len; i++) {
+            sprintf(hex + i * 2, "%02x", buf[i]);
+        }
+        hex[*out_len * 2] = '\0';
+        WF_LOG_DEBUG("plc", "wf_plc_canonical_cbor: hex=%s", hex);
+    }
     WF_LOG_DEBUG("plc", "wf_plc_canonical_cbor: success, output length=%zu", *out_len);
     *out = buf;
     return WF_OK;
@@ -733,7 +741,7 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
         return WF_ERR_PARSE;
     }
 
-    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: computing canonical CBOR");
+    WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: computing canonical CBOR (skip=sig)");
     if (wf_plc_canonical_cbor(root, "sig", &cbor, &cbor_len) != WF_OK) {
         WF_LOG_ERROR("plc", "wf_plc_operation_compute_did: CBOR encoding failed");
         cJSON_Delete(root);
@@ -741,11 +749,37 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
     }
     cJSON_Delete(root);
 
+    {
+        char hex[cbor_len * 2 + 1];
+        for (size_t i = 0; i < cbor_len; i++) {
+            sprintf(hex + i * 2, "%02x", cbor[i]);
+        }
+        hex[cbor_len * 2] = '\0';
+        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: cbor hex(skip=sig)=%s", hex);
+    }
+
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: CBOR length=%zu", cbor_len);
     SHA256(cbor, cbor_len, hash);
     free(cbor);
 
+    {
+        char hash_hex[65];
+        for (int i = 0; i < 32; i++) {
+            sprintf(hash_hex + i * 2, "%02x", hash[i]);
+        }
+        hash_hex[64] = '\0';
+        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: sha256(skip=sig)=%s", hash_hex);
+    }
+
     wf_plc_base32_encode(hash, sizeof(hash), b32);
+    {
+        char b32_hex[103];
+        for (int i = 0; i < 54 && b32[i]; i++) {
+            sprintf(b32_hex + i * 2, "%02x", (unsigned char)b32[i]);
+        }
+        b32_hex[104] = '\0';
+        WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32_raw=%s len=%zu", b32_hex, strlen(b32));
+    }
     WF_LOG_DEBUG("plc", "wf_plc_operation_compute_did: base32 hash=%.24s", b32);
 
     did = malloc(32);
