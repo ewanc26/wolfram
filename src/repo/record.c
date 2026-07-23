@@ -65,7 +65,10 @@ static wf_status convert_object(const cJSON *j, const wf_record_schema *s,
 }
 
 static wf_status convert(const cJSON *j, const wf_record_schema *s, wf_cbor_item **out) {
-    if (!j || !s || !out) return WF_ERR_INVALID_ARG; *out = NULL;
+    if (!j || !s || !out) {
+        *out = NULL;
+        return WF_ERR_INVALID_ARG;
+    }
     wf_cbor_item *v = NULL;
     switch (s->type) {
     case WF_RECORD_STRING:
@@ -94,7 +97,9 @@ static wf_status convert(const cJSON *j, const wf_record_schema *s, wf_cbor_item
     case WF_RECORD_OBJECT: return convert_object(j, s, out);
     default: return WF_ERR_INVALID_ARG;
     }
-    if (!v) return WF_ERR_ALLOC; *out = v; return WF_OK;
+    if (!v) return WF_ERR_ALLOC;
+    *out = v;
+    return WF_OK;
 }
 
 wf_status wf_record_encode_json(const char *collection, const wf_record_schema *schema,
