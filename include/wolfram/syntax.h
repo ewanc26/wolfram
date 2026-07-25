@@ -9,6 +9,16 @@ extern "C" {
 #endif
 
 int wf_syntax_did_is_valid(const char *did);
+
+/*
+ * Method-specific validation for did:plc — exactly 24 characters from the
+ * base32 alphabet abcdefghijklmnopqrstuvwxyz234567 after the "did:plc:"
+ * prefix. wf_syntax_did_is_valid() enforces only the generic DID grammar and
+ * will happily accept a malformed PLC identifier, so prefer this when minting
+ * or accepting a PLC identity.
+ */
+int wf_syntax_did_plc_is_valid(const char *did);
+
 int wf_syntax_handle_is_valid(const char *handle);
 int wf_syntax_at_identifier_is_valid(const char *id);
 int wf_syntax_nsid_is_valid(const char *nsid);
@@ -29,6 +39,7 @@ int wf_syntax_datetime_is_valid(const char *datetime);
 int wf_syntax_language_is_valid(const char *language);
 
 wf_status wf_syntax_did_validate(const char *did);
+wf_status wf_syntax_did_plc_validate(const char *did);
 wf_status wf_syntax_handle_validate(const char *handle);
 wf_status wf_syntax_nsid_validate(const char *nsid);
 
