@@ -147,6 +147,40 @@ wf_status wf_syntax_did_validate(const char *did) {
     return wf_syntax_did_is_valid(did) ? WF_OK : WF_ERR_PARSE;
 }
 
+/*
+ * did:plc is far tighter than the generic DID grammar above: the identifier is
+ * the first 24 characters of the base32-encoded SHA-256 of the genesis
+ * operation, over the alphabet abcdefghijklmnopqrstuvwxyz234567 (lowercase
+ * only, and none of 0/1/8/9).
+ *
+ * Generic validation accepts anything matching the method-specific-id charset,
+ * so obviously wrong values like "did:plc:bearbootstrap" pass it. That is not
+ * hypothetical: exactly that placeholder reached a live PDS as an account
+ * identity, and every record written under it got an AT-URI resolving nowhere.
+ * Code minting or accepting a PLC identity should use this instead of the
+ * generic check.
+ */
+int wf_syntax_did_plc_is_valid(const char *did) {
+    const size_t prefix_len = 8; /* strlen("did:plc:") */
+    const size_t id_len = 24;
+    size_t i;
+
+    if (!did) return 0;
+    if (strncmp(did, "did:plc:", prefix_len) != 0) return 0;
+    /* Exact length: no trailing characters, no path, query or fragment. */
+    if (strlen(did) != prefix_len + id_len) return 0;
+
+    for (i = prefix_len; i < prefix_len + id_len; i++) {
+        char c = did[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= '2' && c <= '7'))) return 0;
+    }
+    return 1;
+}
+
+wf_status wf_syntax_did_plc_validate(const char *did) {
+    return wf_syntax_did_plc_is_valid(did) ? WF_OK : WF_ERR_PARSE;
+}
+
 /* ── Handle ──────────────────────────────────────────────────────────── */
 
 int wf_syntax_handle_is_valid(const char *handle) {

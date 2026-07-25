@@ -15,6 +15,47 @@ static void test_did_valid(void) {
     WF_CHECK(!wf_syntax_did_is_valid("did:m123:val"));      /* method must be letters only */
 }
 
+/*
+ * did:plc is stricter than the generic grammar: exactly 24 characters from
+ * abcdefghijklmnopqrstuvwxyz234567. The generic check cannot catch a malformed
+ * PLC identifier, which is how a placeholder like "did:plc:bearbootstrap"
+ * reached a live PDS as an account identity.
+ */
+static void test_did_plc(void) {
+    /* Real identifiers, also accepted by the generic check above. */
+    WF_CHECK(wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur"));
+    WF_CHECK(wf_syntax_did_plc_is_valid("did:plc:ewvi7nxzyq6n7qoy7fe2v4ji"));
+    /* Whole base32 alphabet, exactly 24 characters. */
+    WF_CHECK(wf_syntax_did_plc_is_valid("did:plc:abcdefghijklmnopqrstuvwx"));
+    WF_CHECK(wf_syntax_did_plc_is_valid("did:plc:234567234567234567234567"));
+
+    /* Wrong length — the regression that motivated this. */
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:bearbootstrap"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvu"));   /* 23 */
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvurx")); /* 25 */
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:"));
+
+    /* Characters outside the base32 alphabet: 0, 1, 8, 9 and uppercase. */
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvu0"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvu1"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvu8"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvu9"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:Z72I7HDYNMK6R22Z27H6TVUR"));
+
+    /* Other methods and malformed input are not did:plc. */
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:web:example.com"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid(""));
+    WF_CHECK(!wf_syntax_did_plc_is_valid(NULL));
+
+    /* No trailing path, query or fragment. */
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur#atproto"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur/foo"));
+
+    /* The generic validator accepts this; that difference is the whole point. */
+    WF_CHECK(wf_syntax_did_is_valid("did:plc:bearbootstrap"));
+}
+
 static void test_did_invalid(void) {
     WF_CHECK(!wf_syntax_did_is_valid("did:"));
     WF_CHECK(!wf_syntax_did_is_valid("did:method:"));
@@ -225,7 +266,7 @@ static void test_language_invalid(void) {
 /* ── Main ────────────────────────────────────────────────────────────── */
 
 int main(void) {
-    test_did_valid(); test_did_invalid();
+    test_did_valid(); test_did_invalid(); test_did_plc();
     test_handle_valid(); test_handle_invalid();
     test_at_identifier_valid(); test_at_identifier_invalid();
     test_nsid_valid(); test_nsid_invalid();
