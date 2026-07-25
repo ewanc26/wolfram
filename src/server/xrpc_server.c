@@ -241,6 +241,10 @@ typedef struct wf_static_route {
 typedef struct wf_http_route {
     char *method;
     char *path;
+    /* When set, `path` matches any request path that starts with it, rather
+     * than only an exact equal. Exact routes are always preferred, so a prefix
+     * can never shadow one. */
+    bool prefix;
     wf_http_route_handler handler;
     void *ctx;
     struct wf_http_route *next;
@@ -1337,12 +1341,23 @@ static wf_static_route *wf_server_find_static_route(
 
 static wf_http_route *wf_server_find_http_route(
         const wf_xrpc_server *server, const char *method, const char *path) {
+    wf_http_route *best_prefix = NULL;
+    size_t best_len = 0;
     for (wf_http_route *route = server->http_routes; route;
-         route = route->next)
-        if (strcmp(route->method, method) == 0 &&
-            strcmp(route->path, path) == 0)
-            return route;
-    return NULL;
+         route = route->next) {
+        if (strcmp(route->method, method) != 0) continue;
+        if (!route->prefix) {
+            if (strcmp(route->path, path) == 0) return route;
+            continue;
+        }
+        /* Longest prefix wins, so nested prefixes stay predictable. */
+        size_t len = strlen(route->path);
+        if (strncmp(route->path, path, len) == 0 && len > best_len) {
+            best_prefix = route;
+            best_len = len;
+        }
+    }
+    return best_prefix;
 }
 
 static bool wf_server_has_http_path(const wf_xrpc_server *server,
@@ -2057,11 +2072,12 @@ wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
-                                             const char *method,
-                                             const char *path,
-                                             wf_http_route_handler handler,
-                                             void *ctx) {
+static wf_status wf_server_add_http_route(wf_xrpc_server *server,
+                                          const char *method,
+                                          const char *path,
+                                          bool prefix,
+                                          wf_http_route_handler handler,
+                                          void *ctx) {
     if (!server || !method || !path || path[0] != '/' || !handler ||
         (strcmp(method, "GET") != 0 && strcmp(method, "POST") != 0))
         return WF_ERR_INVALID_ARG;
@@ -2078,11 +2094,28 @@ wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
         free(route);
         return WF_ERR_ALLOC;
     }
+    route->prefix = prefix;
     route->handler = handler;
     route->ctx = ctx;
     route->next = server->http_routes;
     server->http_routes = route;
     return WF_OK;
+}
+
+wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
+                                             const char *method,
+                                             const char *path,
+                                             wf_http_route_handler handler,
+                                             void *ctx) {
+    return wf_server_add_http_route(server, method, path, false, handler, ctx);
+}
+
+wf_status wf_xrpc_server_register_http_prefix(wf_xrpc_server *server,
+                                              const char *method,
+                                              const char *prefix,
+                                              wf_http_route_handler handler,
+                                              void *ctx) {
+    return wf_server_add_http_route(server, method, prefix, true, handler, ctx);
 }
 
 /* ------------------------------------------------------------------ */

@@ -286,6 +286,21 @@ wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
                                              wf_http_route_handler handler,
                                              void *ctx);
 
+/**
+ * As wf_xrpc_server_register_http_route, but `prefix` matches any request path
+ * that starts with it, letting one handler serve a family of paths — for
+ * example the per-account did:web documents a PDS hosts under a path segment.
+ * The handler reads the full path from req->path.
+ *
+ * Exact routes are matched first, so a prefix can never shadow one; among
+ * prefixes the longest match wins.
+ */
+wf_status wf_xrpc_server_register_http_prefix(wf_xrpc_server *server,
+                                              const char *method,
+                                              const char *prefix,
+                                              wf_http_route_handler handler,
+                                              void *ctx);
+
 /* ------------------------------------------------------------------ */
 /* Route registration                                                  */
 /* ------------------------------------------------------------------ */
