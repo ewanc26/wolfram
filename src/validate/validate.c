@@ -454,6 +454,11 @@ static const wf_lexicon_doc *wf_registry_find_doc(const wf_lexicon_registry *reg
     return NULL;
 }
 
+int wf_lexicon_registry_contains(const wf_lexicon_registry *registry,
+                                 const char *lexicon_id) {
+    return wf_registry_find_doc(registry, lexicon_id) != NULL;
+}
+
 static wf_lexicon_doc *wf_registry_find_doc_mut(wf_lexicon_registry *registry,
                                                const char *lexicon_id) {
     wf_lexicon_doc *doc;

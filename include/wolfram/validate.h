@@ -41,6 +41,12 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
 wf_status wf_lexicon_registry_load_dir(wf_lexicon_registry *registry,
                                        const char *dir);
 
+/* Is `lexicon_id` loaded in the registry? Lets a caller distinguish "no schema
+ * to check against" from "checked and invalid", which a PDS needs in order to
+ * report validationStatus `unknown` rather than rejecting the write. */
+int wf_lexicon_registry_contains(const wf_lexicon_registry *registry,
+                                 const char *lexicon_id);
+
 /* Validate a JSON value against a lexicon record definition */
 wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,
                                      const char *lexicon_id,
