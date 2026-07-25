@@ -2363,5 +2363,137 @@ int main(void) {
         wf_car_free(&car);
     }
 
+    /* wf_repo_apply_writes: one signed commit for a whole batch, and no
+     * commit at all when any op in the batch fails. */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char ra[] = {0xA1, 0x61, 'a', 0x01};
+        unsigned char rb[] = {0xA1, 0x61, 'b', 0x02};
+        unsigned char rc[] = {0xA1, 0x61, 'c', 0x03};
+
+        wf_repo_write batch[3];
+        memset(batch, 0, sizeof(batch));
+        batch[0] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
+                                   "3jui7kd54zh2a", ra, sizeof(ra), {{0}, 0}};
+        batch[1] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
+                                   "3jui7kd54zh2b", rb, sizeof(rb), {{0}, 0}};
+        batch[2] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
+                                   "3jui7kd54zh2c", rc, sizeof(rc), {{0}, 0}};
+
+        wf_cid commit1;
+        memset(&commit1, 0, sizeof(commit1));
+        WF_CHECK(wf_repo_apply_writes(&car, NULL, "did:plc:test", batch, 3,
+                                      &key, &commit1) == WF_OK);
+        WF_CHECK(commit1.len == 36);
+        for (int i = 0; i < 3; i++) WF_CHECK(batch[i].out_record.len == 36);
+
+        /* One commit: every record is readable from that single commit. */
+        static const char *const keys[] = {"3jui7kd54zh2a", "3jui7kd54zh2b",
+                                           "3jui7kd54zh2c"};
+        for (int i = 0; i < 3; i++) {
+            unsigned char *got = NULL;
+            size_t got_len = 0;
+            wf_cid got_cid;
+            memset(&got_cid, 0, sizeof(got_cid));
+            WF_CHECK(wf_repo_get_record(&car, &commit1, "com.example.b",
+                                        keys[i], &got, &got_len,
+                                        &got_cid) == WF_OK);
+            free(got);
+        }
+        /* The commit chains off nothing (genesis), not off an intermediate
+         * commit — proof the batch did not become three commits. */
+        {
+            wf_car_block *blk = wf_car_find_block(&car, &commit1);
+            wf_commit parsed;
+            memset(&parsed, 0, sizeof(parsed));
+            WF_CHECK(blk && wf_commit_parse(blk->data, blk->data_len,
+                                            &parsed) == WF_OK);
+            WF_CHECK(!parsed.has_prev);
+        }
+
+        /* A batch whose second op cannot apply leaves no new commit: the
+         * valid first write must not survive on its own. */
+        wf_repo_write bad[2];
+        memset(bad, 0, sizeof(bad));
+        bad[0] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
+                                 "3jui7kd54zh2d", ra, sizeof(ra), {{0}, 0}};
+        bad[1] = (wf_repo_write){WF_REPO_WRITE_DELETE, "com.example.b",
+                                 "3jui7kd54zh2z", NULL, 0, {{0}, 0}};
+        wf_cid commit2;
+        memset(&commit2, 0, sizeof(commit2));
+        WF_CHECK(wf_repo_apply_writes(&car, &commit1, "did:plc:test", bad, 2,
+                                      &key, &commit2) == WF_ERR_NOT_FOUND);
+        WF_CHECK(commit2.len == 0);
+        {
+            unsigned char *got = NULL;
+            size_t got_len = 0;
+            wf_cid got_cid;
+            memset(&got_cid, 0, sizeof(got_cid));
+            WF_CHECK(wf_repo_get_record(&car, &commit1, "com.example.b",
+                                        "3jui7kd54zh2d", &got, &got_len,
+                                        &got_cid) != WF_OK);
+            free(got);
+        }
+
+        /* Creating over an existing key is a conflict, not a silent update. */
+        wf_repo_write dup[1];
+        memset(dup, 0, sizeof(dup));
+        dup[0] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
+                                 "3jui7kd54zh2a", rb, sizeof(rb), {{0}, 0}};
+        wf_cid commit3;
+        memset(&commit3, 0, sizeof(commit3));
+        WF_CHECK(wf_repo_apply_writes(&car, &commit1, "did:plc:test", dup, 1,
+                                      &key, &commit3) == WF_ERR_CONFLICT);
+
+        wf_car_free(&car);
+    }
+
+    /* Two records with byte-identical bodies share one content-addressed
+     * block, but each still needs its own MST entry: the second create must
+     * not no-op and hand back a zeroed commit CID. */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+        unsigned char same[] = {0xA1, 0x61, 's', 0x09};
+
+        wf_cid c1, r1, c2, r2;
+        memset(&c1, 0, sizeof(c1)); memset(&r1, 0, sizeof(r1));
+        memset(&c2, 0, sizeof(c2)); memset(&r2, 0, sizeof(r2));
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                       "com.example.d", "3jui7kd54zh2a",
+                                       same, sizeof(same), &key, &c1,
+                                       &r1) == WF_OK);
+        WF_CHECK(c1.len == 36);
+        WF_CHECK(wf_repo_create_record(&car, &c1, "did:plc:test",
+                                       "com.example.d", "3jui7kd54zh2b",
+                                       same, sizeof(same), &key, &c2,
+                                       &r2) == WF_OK);
+        WF_CHECK(c2.len == 36);          /* a real second commit */
+        WF_CHECK(check_cid(&r1, &r2));   /* same content, same record CID */
+
+        unsigned char *got = NULL;
+        size_t got_len = 0;
+        wf_cid got_cid;
+        memset(&got_cid, 0, sizeof(got_cid));
+        WF_CHECK(wf_repo_get_record(&car, &c2, "com.example.d", "3jui7kd54zh2b",
+                                    &got, &got_len, &got_cid) == WF_OK);
+        free(got);
+        got = NULL;
+        WF_CHECK(wf_repo_get_record(&car, &c2, "com.example.d", "3jui7kd54zh2a",
+                                    &got, &got_len, &got_cid) == WF_OK);
+        free(got);
+        wf_car_free(&car);
+    }
+
     WF_TEST_SUMMARY();
 }
