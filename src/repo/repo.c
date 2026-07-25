@@ -147,14 +147,12 @@ wf_status wf_repo_create_record(wf_car *car,
     wf_status s = wf_cid_of_block(record_cbor, record_cbor_len, out_record);
     if (s != WF_OK) return s;
 
-    /* Content-addressed store: skip appending if a block with this record
-     * CID already exists (reused across writes); wf_repo_verify rejects CARs
-     * with duplicate CIDs. */
-    if (wf_car_find_block(car, out_record)) {
-        return WF_OK;
-    }
-
-    {
+    /* Content-addressed store: a block with this CID may already be present
+     * because another record has byte-identical content. Only the *append* is
+     * skipped (wf_repo_verify rejects CARs with duplicate CIDs) — the MST
+     * insert and the commit below must still happen, or the new record would
+     * be silently dropped and the caller handed a zeroed commit CID. */
+    if (!wf_car_find_block(car, out_record)) {
         wf_car_block *new_blocks = realloc(car->blocks,
             (car->block_count + 1) * sizeof(wf_car_block));
         if (!new_blocks) return WF_ERR_ALLOC;
@@ -382,6 +380,168 @@ wf_status wf_repo_delete_record(wf_car *car,
     s = wf_commit_create(did, rev, &new_mst_root,
                          (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
                          key, car, &commit);
+    if (s != WF_OK) return s;
+
+    *out_commit = commit.cid;
+    return WF_OK;
+}
+
+/* Build the MST key for a record: "<collection>/<rkey>". */
+static wf_status repo_mst_key(const char *collection, const char *rkey,
+                              unsigned char **out_key, size_t *out_len) {
+    size_t col_len = strlen(collection), rkey_len = strlen(rkey);
+    size_t key_len = col_len + 1 + rkey_len;
+    unsigned char *key = malloc(key_len);
+    if (!key) return WF_ERR_ALLOC;
+    memcpy(key, collection, col_len);
+    key[col_len] = '/';
+    memcpy(key + col_len + 1, rkey, rkey_len);
+    *out_key = key;
+    *out_len = key_len;
+    return WF_OK;
+}
+
+/* Append a record block unless a block with the same CID is already present.
+ * The store is content-addressed, so identical bodies share one block; only
+ * the append is skipped, never the caller's MST mutation. */
+static wf_status repo_put_block(wf_car *car, const wf_cid *cid,
+                                const unsigned char *data, size_t len) {
+    if (wf_car_find_block(car, cid)) return WF_OK;
+    wf_car_block *blocks = realloc(car->blocks,
+        (car->block_count + 1) * sizeof(*blocks));
+    if (!blocks) return WF_ERR_ALLOC;
+    car->blocks = blocks;
+    wf_car_block *blk = &car->blocks[car->block_count];
+    blk->cid = *cid;
+    blk->data_len = len;
+    blk->data = malloc(len);
+    if (!blk->data) return WF_ERR_ALLOC;
+    memcpy(blk->data, data, len);
+    car->block_count++;
+    return WF_OK;
+}
+
+wf_status wf_repo_apply_writes(wf_car *car,
+                               const wf_cid *prev_commit,
+                               const char *did,
+                               wf_repo_write *writes,
+                               size_t count,
+                               const wf_signing_key *key,
+                               wf_cid *out_commit) {
+    if (!car || !did || !key || !out_commit || (count && !writes))
+        return WF_ERR_INVALID_ARG;
+
+    memset(out_commit, 0, sizeof(*out_commit));
+
+    wf_cid mst_root = {{0}, 0};
+    if (prev_commit && prev_commit->len > 0) {
+        wf_car_block *block = wf_car_find_block(car, prev_commit);
+        if (!block) return WF_ERR_PARSE;
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        wf_status s = wf_commit_parse(block->data, block->data_len, &commit);
+        if (s != WF_OK) return s;
+        mst_root = commit.data;
+    }
+
+    /* Stage every op against a working root. Nothing is committed until the
+     * whole batch succeeds, so a failure here leaves the previous head as the
+     * repo's current commit and the batch has no effect. */
+    for (size_t i = 0; i < count; i++) {
+        wf_repo_write *w = &writes[i];
+        if (!w->collection || !*w->collection || !w->rkey || !*w->rkey)
+            return WF_ERR_INVALID_ARG;
+        memset(&w->out_record, 0, sizeof(w->out_record));
+
+        unsigned char *mst_key = NULL;
+        size_t mst_key_len = 0;
+        wf_status s = repo_mst_key(w->collection, w->rkey, &mst_key,
+                                   &mst_key_len);
+        if (s != WF_OK) return s;
+
+        wf_cid existing = {{0}, 0};
+        int found = mst_root.len > 0 &&
+            wf_mst_find(car, &mst_root, mst_key, mst_key_len, &existing) == WF_OK;
+        wf_cid new_root = {{0}, 0};
+
+        switch (w->action) {
+        case WF_REPO_WRITE_CREATE:
+        case WF_REPO_WRITE_UPDATE:
+            if (!w->record_cbor || w->record_cbor_len == 0) {
+                free(mst_key);
+                return WF_ERR_INVALID_ARG;
+            }
+            if (w->action == WF_REPO_WRITE_CREATE && found) {
+                free(mst_key);
+                return WF_ERR_CONFLICT;
+            }
+            if (w->action == WF_REPO_WRITE_UPDATE && !found) {
+                free(mst_key);
+                return WF_ERR_NOT_FOUND;
+            }
+            s = wf_cid_of_block(w->record_cbor, w->record_cbor_len,
+                                &w->out_record);
+            if (s == WF_OK)
+                s = repo_put_block(car, &w->out_record, w->record_cbor,
+                                   w->record_cbor_len);
+            if (s == WF_OK) {
+                s = found
+                    ? mst_update_value(car, &mst_root, mst_key, mst_key_len,
+                                       &w->out_record, &new_root)
+                    : wf_mst_add(car, &mst_root, mst_key, mst_key_len,
+                                 &w->out_record, &new_root);
+            }
+            break;
+        case WF_REPO_WRITE_DELETE:
+            if (!found) {
+                free(mst_key);
+                return WF_ERR_NOT_FOUND;
+            }
+            s = wf_mst_delete(car, &mst_root, mst_key, mst_key_len, &new_root);
+            break;
+        default:
+            free(mst_key);
+            return WF_ERR_INVALID_ARG;
+        }
+        free(mst_key);
+        if (s != WF_OK) return s;
+
+        /* Deleting the last entry empties the tree; the commit still needs a
+         * concrete root, so materialise the empty node. */
+        if (new_root.len == 0) {
+            wf_cid empty = {{0}, 0};
+            wf_mst_node empty_node;
+            s = wf_mst_node_build(0, &empty, NULL, 0, &empty_node);
+            if (s == WF_OK) {
+                s = wf_mst_node_finalize(&empty_node, car);
+                if (s == WF_OK) new_root = empty_node.cid;
+            }
+            wf_mst_node_free(&empty_node);
+            if (s != WF_OK) return s;
+        }
+        mst_root = new_root;
+    }
+
+    /* An empty batch still needs a root to commit against. */
+    if (mst_root.len == 0) {
+        wf_cid empty = {{0}, 0};
+        wf_mst_node empty_node;
+        wf_status s = wf_mst_node_build(0, &empty, NULL, 0, &empty_node);
+        if (s == WF_OK) {
+            s = wf_mst_node_finalize(&empty_node, car);
+            if (s == WF_OK) mst_root = empty_node.cid;
+        }
+        wf_mst_node_free(&empty_node);
+        if (s != WF_OK) return s;
+    }
+
+    wf_commit commit;
+    memset(&commit, 0, sizeof(commit));
+    char rev[64];
+    wf_tid_now(rev);
+    wf_status s = wf_commit_create(did, rev, &mst_root,
+        (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
+        key, car, &commit);
     if (s != WF_OK) return s;
 
     *out_commit = commit.cid;
