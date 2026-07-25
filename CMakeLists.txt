@@ -4,7 +4,7 @@ if(POLICY CMP0156)
     cmake_policy(SET CMP0156 NEW)
 endif()
 project(wolfram
-    VERSION 0.1.4
+    VERSION 0.2.0
     DESCRIPTION "A C SDK for the AT Protocol"
     LANGUAGES C CXX
 )
@@ -40,6 +40,26 @@ if(WOLFRAM_BUILD_EMBEDDED OR WOLFRAM_BUILD_WINDOWS)
     set(WOLFRAM_BUILD_NON_POSIX ON)
 else()
     set(WOLFRAM_BUILD_NON_POSIX OFF)
+endif()
+
+# Transport selection is a separate axis from platform, because "embedded" is
+# not one thing. The Wii and 3DS have no libcurl, so they use the hand-rolled
+# socket+mbedTLS transport (xrpc_wii.c / websocket_wii.c). That transport pulls
+# in src/transport/wii_tls.c, which is written against libogc's net_* API and
+# so only builds for the Wii.
+#
+# The Wii U is a different case: devkitPro packages libcurl for it
+# (dkp-pacman -S wiiu-curl), so it uses the same curl-based transport as
+# desktop. Routing it through the socket transport instead left libwolfram.a
+# with undefined wii_tls_* symbols — invisible inside a static archive, but a
+# hard link failure for any executable that actually used XRPC.
+#
+# Crypto stays keyed off the embedded axis regardless: no console ships
+# OpenSSL, so they all use the mbedTLS-backed crypto_wii.c.
+if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_3DS)
+    set(WOLFRAM_USE_SOCKET_TRANSPORT ON)
+else()
+    set(WOLFRAM_USE_SOCKET_TRANSPORT OFF)
 endif()
 
 if(NOT WOLFRAM_BUILD_NON_POSIX)
@@ -112,8 +132,8 @@ endif()
 
 add_library(wolfram
     # Transport
-    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
-    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/transport/websocket_wii.c,src/transport/websocket.c>
+    $<IF:$<BOOL:${WOLFRAM_USE_SOCKET_TRANSPORT}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
+    $<IF:$<BOOL:${WOLFRAM_USE_SOCKET_TRANSPORT}>,src/transport/websocket_wii.c,src/transport/websocket.c>
     # Identity
     src/identity/identity.c
     # Crypto
@@ -286,10 +306,52 @@ if(WOLFRAM_BUILD_WII)
         ${WII_PORTLIBS}/lib/libmbedcrypto.a)
     message(STATUS "Building for Nintendo Wii (WOLFRAM_BUILD_WII=ON), mbedTLS linked")
 elseif(WOLFRAM_BUILD_WIIU)
-    target_sources(wolfram PRIVATE src/platform/wiiu_platform.c src/openssl_compat.c)
+    # wiiu_random.c supplies wii_tls_random(), which crypto_wii.c needs for
+    # P-256. On the Wii that symbol lives in wii_tls.c, which the Wii U does not
+    # build (libogc-only, and the Wii U uses the curl transport instead).
+    target_sources(wolfram PRIVATE src/platform/wiiu_platform.c
+                                   src/crypto/wiiu_random.c
+                                   src/openssl_compat.c)
     target_compile_definitions(wolfram PUBLIC WOLFRAM_WIIU)
     target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-    message(STATUS "Building for Nintendo Wii U (WOLFRAM_BUILD_WIIU=ON)")
+
+    # Unlike the Wii, the Wii U does not need mbedTLS cross-compiled by hand:
+    # devkitPro packages it (dkp-pacman -S wiiu-mbedtls), so it is found in
+    # portlibs alongside wut. The embedded crypto and transport sources shared
+    # with the Wii (crypto_wii.c, xrpc_wii.c) include mbedtls headers directly,
+    # so this is required, not optional.
+    if(DEFINED ENV{DEVKITPRO})
+        set(WIIU_PORTLIBS "$ENV{DEVKITPRO}/portlibs/wiiu")
+    else()
+        set(WIIU_PORTLIBS "/opt/devkitpro/portlibs/wiiu")
+    endif()
+
+    if(NOT EXISTS "${WIIU_PORTLIBS}/lib/libmbedtls.a")
+        message(FATAL_ERROR
+            "WOLFRAM_BUILD_WIIU=ON requires mbedTLS for the Wii U. It was not "
+            "found at ${WIIU_PORTLIBS}/lib/libmbedtls.a. Install it with:\n"
+            "    dkp-pacman -S wiiu-mbedtls\n"
+            "or set DEVKITPRO to your devkitPro root.")
+    endif()
+
+    # The Wii U uses the curl-based transport (see WOLFRAM_USE_SOCKET_TRANSPORT
+    # above), so libcurl is required too. curl is built statically here and its
+    # headers need CURL_STATICLIB or they declare the wrong linkage.
+    if(NOT EXISTS "${WIIU_PORTLIBS}/lib/libcurl.a")
+        message(FATAL_ERROR
+            "WOLFRAM_BUILD_WIIU=ON requires libcurl for the Wii U. It was not "
+            "found at ${WIIU_PORTLIBS}/lib/libcurl.a. Install it with:\n"
+            "    dkp-pacman -S wiiu-curl")
+    endif()
+
+    target_compile_definitions(wolfram PUBLIC CURL_STATICLIB)
+    target_include_directories(wolfram PRIVATE ${WIIU_PORTLIBS}/include)
+    target_link_libraries(wolfram PUBLIC
+        ${WIIU_PORTLIBS}/lib/libcurl.a
+        ${WIIU_PORTLIBS}/lib/libmbedtls.a
+        ${WIIU_PORTLIBS}/lib/libmbedx509.a
+        ${WIIU_PORTLIBS}/lib/libmbedcrypto.a)
+    message(STATUS "Building for Nintendo Wii U (WOLFRAM_BUILD_WIIU=ON), curl + mbedTLS linked")
 elseif(WOLFRAM_BUILD_3DS)
     target_sources(wolfram PRIVATE src/platform/3ds_platform.c src/openssl_compat.c)
     target_compile_definitions(wolfram PUBLIC WOLFRAM_3DS)
