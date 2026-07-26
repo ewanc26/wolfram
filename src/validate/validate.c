@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>   /* strncasecmp */
 #include <sys/stat.h>
 
 #define WF_VALIDATE_MAX_DEPTH 128
@@ -442,6 +443,41 @@ done:
     curl_free(scheme);
     curl_url_cleanup(parsed);
     return valid;
+}
+
+/*
+ * Does a lexicon blob `accept` pattern admit `mime`?
+ *
+ * Lexicon accept entries are glob-style: a trailing slash-star wildcard is
+ * legal and pervasive. Nearly every blob field in the app.bsky lexicons uses
+ * one, so comparing them exactly rejects every real image and video upload.
+ * MIME types are also case-insensitive, and a Content-Type may carry
+ * parameters ("image/png; charset=binary") that are not part of the type
+ * itself.
+ */
+static int wf_mime_accepts(const char *pattern, const char *mime) {
+    size_t mime_len;
+    const char *semi;
+    if (!pattern || !mime) return 0;
+
+    semi = strchr(mime, ';');
+    mime_len = semi ? (size_t)(semi - mime) : strlen(mime);
+    while (mime_len > 0 && (mime[mime_len - 1] == ' ' ||
+                            mime[mime_len - 1] == '\t'))
+        mime_len--;
+
+    if (strcmp(pattern, "*/*") == 0) return 1;
+
+    {
+        size_t plen = strlen(pattern);
+        if (plen >= 2 && pattern[plen - 1] == '*' && pattern[plen - 2] == '/') {
+            /* "image/*" admits any subtype of "image/". */
+            size_t prefix = plen - 1;
+            return mime_len > prefix &&
+                   strncasecmp(pattern, mime, prefix) == 0;
+        }
+        return plen == mime_len && strncasecmp(pattern, mime, mime_len) == 0;
+    }
 }
 
 static const wf_lexicon_doc *wf_registry_find_doc(const wf_lexicon_registry *registry,
@@ -1129,7 +1165,9 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
                 const cJSON *entry;
                 int found = 0;
                 cJSON_ArrayForEach(entry, accept) {
-                    if (wf_is_json_string(entry) && strcmp(entry->valuestring, mime_type->valuestring) == 0) {
+                    if (wf_is_json_string(entry) &&
+                        wf_mime_accepts(entry->valuestring,
+                                        mime_type->valuestring)) {
                         found = 1;
                         break;
                     }
