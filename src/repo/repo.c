@@ -42,7 +42,18 @@ static wf_status repo_mst_load_node_depth(wf_car *car, const wf_cid *cid,
     wf_car_block *block = wf_car_find_block(car, cid);
     if (!block) return WF_ERR_PARSE;
     wf_status s = wf_mst_node_parse(block->data, block->data_len, cid, out);
-    if (s != WF_OK || out->count > 0 || out->left.len == 0) return s;
+    if (s != WF_OK) return s;
+
+    /* The layer is derived, not serialised — see the note in mst.c. A node
+     * with leaves takes its layer from the first leaf's key; only a leafless
+     * one derives it from a child. Getting this wrong makes nodes at the same
+     * real layer compare as different, which breaks subtree merges. */
+    if (out->count > 0) {
+        out->layer = wf_mst_key_layer(out->entries[0].key,
+                                      out->entries[0].key_len);
+        return s;
+    }
+    if (out->left.len == 0) return s;
 
     wf_mst_node child = {0};
     s = repo_mst_load_node_depth(car, &out->left, &child, depth + 1);
