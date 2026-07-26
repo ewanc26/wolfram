@@ -230,6 +230,67 @@ static void test_com_atproto_repo_createRecord(void) {
     wf_lexicon_registry_free(r);
 }
 
+
+/* Lexicon blob `accept` entries are glob-style. Nearly every blob field in the
+ * app.bsky lexicons uses a wildcard, so exact-matching them rejects every real
+ * image and video upload. */
+static void test_blob_accept_wildcard(void) {
+    wf_lexicon_registry *reg = wf_lexicon_registry_new();
+    WF_CHECK(reg != NULL);
+    if (!reg) return;
+
+    static const char lex[] =
+        "{\"lexicon\":1,\"id\":\"com.example.media\",\"defs\":{\"main\":{"
+        "\"type\":\"record\",\"record\":{\"type\":\"object\","
+        "\"required\":[\"img\"],\"properties\":{"
+        "\"img\":{\"type\":\"blob\",\"accept\":[\"image/*\"]}}}}}}";
+    WF_CHECK(wf_lexicon_registry_load(reg, lex, sizeof(lex) - 1) == WF_OK);
+
+    static const struct { const char *mime; int valid; } cases[] = {
+        {"image/png", 1},
+        {"image/jpeg", 1},
+        {"IMAGE/PNG", 1},                 /* MIME types are case-insensitive */
+        {"image/png; charset=binary", 1}, /* parameters are not part of the type */
+        {"video/mp4", 0},
+        {"text/plain", 0},
+        {"image", 0},                     /* a bare type is not a subtype match */
+        {"imagex/png", 0},                /* the slash must line up */
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        char rec[256];
+        snprintf(rec, sizeof(rec),
+                 "{\"$type\":\"com.example.media\",\"img\":{\"$type\":\"blob\","
+                 "\"ref\":{\"$link\":\"bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},"
+                 "\"mimeType\":\"%s\",\"size\":10}}", cases[i].mime);
+        wf_validate_result r =
+            wf_validate_record(reg, "com.example.media", rec, strlen(rec));
+        if (r.success != cases[i].valid)
+            fprintf(stderr, "  mime '%s': expected %s, got %s\n", cases[i].mime,
+                    cases[i].valid ? "valid" : "invalid",
+                    r.success ? "valid" : "invalid");
+        WF_CHECK(r.success == cases[i].valid);
+        wf_validate_result_free(&r);
+    }
+
+    /* A fully-wildcard pattern admits anything. */
+    static const char anylex[] =
+        "{\"lexicon\":1,\"id\":\"com.example.any\",\"defs\":{\"main\":{"
+        "\"type\":\"record\",\"record\":{\"type\":\"object\","
+        "\"required\":[\"f\"],\"properties\":{"
+        "\"f\":{\"type\":\"blob\",\"accept\":[\"*/*\"]}}}}}}";
+    WF_CHECK(wf_lexicon_registry_load(reg, anylex, sizeof(anylex) - 1) == WF_OK);
+    static const char anyrec[] =
+        "{\"$type\":\"com.example.any\",\"f\":{\"$type\":\"blob\","
+        "\"ref\":{\"$link\":\"bafkreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},"
+        "\"mimeType\":\"application/zip\",\"size\":10}}";
+    wf_validate_result any =
+        wf_validate_record(reg, "com.example.any", anyrec, sizeof(anyrec) - 1);
+    WF_CHECK(any.success);
+    wf_validate_result_free(&any);
+
+    wf_lexicon_registry_free(reg);
+}
+
 int main(void) {
     wf_lexicon_registry *r = wf_lexicon_registry_new();
     WF_CHECK(r != NULL);
@@ -349,6 +410,7 @@ int main(void) {
     test_app_bsky_feed_post();
     test_com_atproto_repo_strongRef();
     test_com_atproto_repo_getRecord();
+    test_blob_accept_wildcard();
     test_com_atproto_repo_createRecord();
     test_query_validation();
     test_procedure_validation();
