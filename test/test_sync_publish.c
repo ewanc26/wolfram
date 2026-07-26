@@ -175,6 +175,97 @@ static void roundtrip(const wf_subscribe_event *ev, int expect_error) {
     free(buf);
 }
 
+
+/*
+ * Every CID link on the wire must be tag 42 wrapping a byte string that starts
+ * with the 0x00 multibase identity prefix.
+ *
+ * This is checked against the raw bytes on purpose. Round-tripping cannot see
+ * it: wf_subscribe's parse_cid_link tolerantly skips leading zero bytes, so a
+ * frame written without the prefix decodes back to exactly what went in and
+ * every existing test passes. Strict DAG-CBOR readers — the Go ipld stack
+ * relays are built on — reject such a frame outright, so the whole firehose
+ * was being silently discarded by conforming consumers.
+ */
+static void test_cid_links_carry_multibase_prefix(void) {
+    wf_subscribe_event ev = {0};
+    ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+    wf_subscribe_commit *c = &ev.data.commit;
+    c->seq = 7;
+    snprintf(c->did, sizeof(c->did), "did:plc:test");
+    snprintf(c->rev, sizeof(c->rev), "3jui7kd54zh2y");
+    snprintf(c->since, sizeof(c->since), "3jui7kd54zh2x");
+    snprintf(c->time, sizeof(c->time), "2026-01-01T00:00:00.000Z");
+    c->commit_cid = sample_cid(1);
+    c->prev_data = sample_cid(2);
+    c->has_prev_data = 1;
+    wf_subscribe_repo_op op = {0};
+    snprintf(op.action, sizeof(op.action), "update");
+    op.path = "app.bsky.feed.post/abc";
+    op.cid = sample_cid(3);
+    op.has_cid = 1;
+    op.prev = sample_cid(4);
+    op.has_prev = 1;
+    c->ops = &op;
+    c->ops_count = 1;
+
+    unsigned char *buf = NULL;
+    size_t len = 0;
+    WF_CHECK(wf_sync_publish_event(&ev, &buf, &len) == WF_OK);
+    if (!buf) return;
+
+    /* Tag 42 encodes as 0xD8 0x2A. Each occurrence must be followed by a byte
+     * string header and then 0x00. A 36-byte CID plus the prefix is 37 bytes,
+     * which encodes as 0x58 0x25 (one-byte length). */
+    int links = 0, prefixed = 0;
+    for (size_t i = 0; i + 4 < len; i++) {
+        if (buf[i] != 0xD8 || buf[i + 1] != 0x2A) continue;
+        links++;
+        /* buf[i+2] is the bytestring header; the payload starts after it. */
+        size_t payload = 0;
+        if (buf[i + 2] == 0x58) payload = i + 4;        /* 1-byte length */
+        else if ((buf[i + 2] & 0xE0) == 0x40) payload = i + 3;  /* inline len */
+        if (payload && payload < len && buf[payload] == 0x00) prefixed++;
+    }
+    /* commit, prevData, ops[0].cid, ops[0].prev */
+    WF_CHECK(links == 4);
+    WF_CHECK(prefixed == links);
+    free(buf);
+}
+
+/* A creation must not carry a `prev` key at all — the lexicon says the field
+ * "should not be defined" there, and a null is not the same as absent. */
+static void test_create_op_omits_prev(void) {
+    wf_subscribe_event ev = {0};
+    ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+    wf_subscribe_commit *c = &ev.data.commit;
+    c->seq = 8;
+    snprintf(c->did, sizeof(c->did), "did:plc:test");
+    snprintf(c->rev, sizeof(c->rev), "3jui7kd54zh2y");
+    snprintf(c->time, sizeof(c->time), "2026-01-01T00:00:00.000Z");
+    c->commit_cid = sample_cid(1);
+    wf_subscribe_repo_op op = {0};
+    snprintf(op.action, sizeof(op.action), "create");
+    op.path = "app.bsky.feed.post/abc";
+    op.cid = sample_cid(3);
+    op.has_cid = 1;
+    op.has_prev = 0;
+    c->ops = &op;
+    c->ops_count = 1;
+
+    unsigned char *buf = NULL;
+    size_t len = 0;
+    WF_CHECK(wf_sync_publish_event(&ev, &buf, &len) == WF_OK);
+    if (!buf) return;
+    /* "prev" as a CBOR text string is 0x64 'p' 'r' 'e' 'v'. */
+    static const unsigned char needle[] = {0x64, 'p', 'r', 'e', 'v'};
+    int found = 0;
+    for (size_t i = 0; i + sizeof(needle) <= len; i++)
+        if (memcmp(buf + i, needle, sizeof(needle)) == 0) { found = 1; break; }
+    WF_CHECK(!found);
+    free(buf);
+}
+
 static void test_commit(void) {
     wf_subscribe_event ev = {0};
     ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
@@ -379,6 +470,8 @@ static void test_labels(void) {
 
 int main(void) {
     test_commit();
+    test_cid_links_carry_multibase_prefix();
+    test_create_op_omits_prev();
     test_commit_no_prev_data();
     test_sync();
     test_identity();

@@ -19,8 +19,24 @@ static cbor_item_t *int_item(int64_t v) {
 /* Build a CBOR tag-42 cid-link: a bytestring of the raw CID bytes. The decoder
  * strips a single leading 0x00 byte (none present for CIDv1 dag-cbor/sha2-256),
  * so we emit the bytes verbatim. */
+/*
+ * A DAG-CBOR CID link is tag 42 wrapping a byte string whose FIRST byte is
+ * 0x00 — the multibase identity prefix. It is not optional and it is not part
+ * of the CID: binary CIDs are raw, and the prefix exists only so the byte
+ * string is a valid multibase value.
+ *
+ * Emitting the CID without it produces frames that a lenient reader still
+ * makes sense of but a strict DAG-CBOR decoder rejects outright. Every
+ * commit, prevData and op cid on this firehose was written that way, so
+ * conforming relays (indigo's Go ipld stack among them) dropped every event:
+ * they connected, consumed, and indexed nothing.
+ */
 static cbor_item_t *cid_link_item(const wf_cid *cid) {
-    cbor_item_t *bs = cbor_build_bytestring(cid->bytes, cid->len);
+    unsigned char buf[sizeof(cid->bytes) + 1];
+    if (cid->len > sizeof(cid->bytes)) return NULL;
+    buf[0] = 0x00;
+    memcpy(buf + 1, cid->bytes, cid->len);
+    cbor_item_t *bs = cbor_build_bytestring(buf, cid->len + 1);
     if (!bs) return NULL;
     cbor_item_t *tag = cbor_new_tag(42);
     if (!tag) {
@@ -70,7 +86,11 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
     cbor_item_t *arr = cbor_new_definite_array(n);
     if (!arr) return NULL;
     for (size_t i = 0; i < n; i++) {
-        cbor_item_t *op = cbor_new_definite_map(4);
+        /* action, path and cid are required; prev only appears when there is
+         * one. The lexicon is explicit that on a creation "field should not be
+         * defined", so a null prev is not the same as omitting it — the
+         * reference omits the key entirely and so do we. */
+        cbor_item_t *op = cbor_new_definite_map(ops[i].has_prev ? 4 : 3);
         if (!op) {
             cbor_decref(&arr);
             return NULL;
@@ -83,8 +103,6 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
             map_put(op, "cid", cbor_new_null());
         if (ops[i].has_prev)
             map_put(op, "prev", cid_link_item(&ops[i].prev));
-        else
-            map_put(op, "prev", cbor_new_null());
         (void)cbor_array_push(arr, op);
         cbor_decref(&op);
     }
