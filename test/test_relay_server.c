@@ -99,10 +99,37 @@ static int test_write_all(int fd, const void *buf, size_t len) {
     return 0;
 }
 
+/*
+ * Bytes the handshake read past the end of the HTTP headers.
+ *
+ * One read() can return the 101 response together with whatever the server
+ * sent next — and when the relay fails its upstream connect it closes almost
+ * immediately, so the close frame lands in the same segment as the headers.
+ * Dropping those bytes is what made this test fail roughly one run in thirty
+ * under parallel ctest: it then waited three seconds for a frame it had
+ * already read and thrown away. Replay them instead.
+ */
+static unsigned char test_pending[4096];
+static size_t        test_pending_len;
+static size_t        test_pending_off;
+
+static void test_pushback(const void *data, size_t len) {
+    if (len > sizeof(test_pending)) len = sizeof(test_pending);
+    memcpy(test_pending, data, len);
+    test_pending_len = len;
+    test_pending_off = 0;
+}
+
 static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
     char *p = (char *)buf;
     size_t off = 0;
     int remaining = timeout_ms;
+
+    /* Serve from the handshake's over-read first. */
+    while (off < len && test_pending_off < test_pending_len) {
+        p[off++] = (char)test_pending[test_pending_off++];
+    }
+
     while (off < len) {
         struct pollfd pfd = { fd, POLLIN, 0 };
         int pr = poll(&pfd, 1, remaining > 0 ? remaining : 1000);
@@ -147,6 +174,15 @@ static int test_ws_handshake(int fd, uint16_t port, const char *path) {
     hdr[hoff] = '\0';
     if (!got_eoh || strncmp(hdr, "HTTP/1.1 101", 12) != 0) {
         return -1;
+    }
+
+    /* Anything past the header terminator is already frame data. */
+    {
+        char *eoh = strstr(hdr, "\r\n\r\n");
+        size_t body_at = (size_t)(eoh - hdr) + 4;
+        if (hoff > body_at) {
+            test_pushback(hdr + body_at, hoff - body_at);
+        }
     }
     return 0;
 }
