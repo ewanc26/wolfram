@@ -944,16 +944,14 @@ wf_status wf_agent_get_list_blocks_typed(wf_agent *agent, int limit,
 wf_status wf_agent_get_actor_lists_typed(wf_agent *agent, const char *actor,
                                          int limit, const char *cursor,
                                          wf_graph_list_view_list *out) {
-    /* TODO: app.bsky.graph.getActorLists has no generated lex wrapper in
-     * atproto_lex.h (the NSID is absent from the local lexicon set). The
-     * response is a "lists" array of listView identical to getListMutes; wire
-     * this up once the generated binding exists. */
+    /* atproto has no app.bsky.graph.getActorLists. The endpoint that returns
+     * an actor's lists is app.bsky.graph.getLists; use that instead. */
     (void)agent;
     (void)actor;
     (void)limit;
     (void)cursor;
     (void)out;
-    return WF_ERR_INVALID_ARG;
+    return WF_ERR_NOT_IMPLEMENTED;
 }
 
 /* Helper: issue a generated query call, parse the body "starterPacks" array
@@ -1196,35 +1194,35 @@ wf_status wf_agent_unmute_actor_list_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_block_actor_typed(wf_agent *agent, const char *actor) {
-    /* TODO: app.bsky.graph.blockActor has no generated lex wrapper in
-     * atproto_lex.h. Wire up (procedure; input {actor}) once generated. */
+    /* Not a stub awaiting generation: atproto has no app.bsky.graph.blockActor
+     * procedure and never has. Blocking is a record write — create an
+     * app.bsky.graph.block record — which wf_agent_graph_block already does. */
     (void)agent;
     (void)actor;
-    return WF_ERR_INVALID_ARG;
+    return WF_ERR_NOT_IMPLEMENTED;
 }
 
 wf_status wf_agent_unblock_actor_typed(wf_agent *agent, const char *actor) {
-    /* TODO: app.bsky.graph.unblockActor has no generated lex wrapper in
-     * atproto_lex.h. Wire up (procedure; input {actor}) once generated. */
+    /* No such procedure upstream. Unblocking deletes the block record; see
+     * wf_agent_graph_unblock. */
     (void)agent;
     (void)actor;
-    return WF_ERR_INVALID_ARG;
+    return WF_ERR_NOT_IMPLEMENTED;
 }
 
 wf_status wf_agent_block_actor_list_typed(wf_agent *agent,
                                           const char *list_uri) {
-    /* TODO: app.bsky.graph.blockActorList has no generated lex wrapper in
-     * atproto_lex.h. Wire up (procedure; input {list}) once generated. */
+    /* No such procedure upstream. Blocking a mod list is an
+     * app.bsky.graph.listblock record; see wf_agent_graph_listblock. */
     (void)agent;
     (void)list_uri;
-    return WF_ERR_INVALID_ARG;
+    return WF_ERR_NOT_IMPLEMENTED;
 }
 
 wf_status wf_agent_unblock_actor_list_typed(wf_agent *agent,
                                             const char *list_uri) {
-    /* TODO: app.bsky.graph.unblockActorList has no generated lex wrapper in
-     * atproto_lex.h. Wire up (procedure; input {list}) once generated. */
+    /* No such procedure upstream; delete the listblock record instead. */
     (void)agent;
     (void)list_uri;
-    return WF_ERR_INVALID_ARG;
+    return WF_ERR_NOT_IMPLEMENTED;
 }

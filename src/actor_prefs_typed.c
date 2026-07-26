@@ -1309,5 +1309,5 @@ wf_status wf_agent_declare_actor_typed(wf_agent *agent,
      * is available. */
     (void)agent;
     (void)decl;
-    return WF_ERR_INVALID_ARG;
+    return WF_ERR_NOT_IMPLEMENTED;
 }

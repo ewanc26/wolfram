@@ -272,8 +272,10 @@ wf_status wf_agent_get_suggestions_typed(wf_agent *agent, int limit,
                                          const char *cursor,
                                          wf_agent_actor_list *out);
 
-/* app.bsky.actor.declareActor — STUB: no generated lex wrapper exists in this
- * tree (declaration.json is absent from the local lexicons). */
+/* NOT IMPLEMENTED — returns WF_ERR_NOT_IMPLEMENTED.
+ * There is no app.bsky.actor.declareActor procedure in atproto; a declaration
+ * is a record (e.g. chat.bsky.actor.declaration), written through the repo
+ * API rather than called. */
 wf_status wf_agent_declare_actor_typed(wf_agent *agent,
                                        const wf_actor_declaration *decl);
 
