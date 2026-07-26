@@ -276,6 +276,30 @@ src/agent/push_endpoint.c
     src/image.c
 )
 
+# POSIX feature-test macros.
+#
+# glibc hides strdup, strndup, struct sigaction, clock_gettime, gmtime_r and
+# friends behind a feature-test macro under strict ISO C, while macOS and the
+# BSDs expose them by default. Without this, a Linux build produces implicit
+# declarations of strdup — which returns int, so the pointer is truncated on
+# 64-bit — and hard errors like "storage size of 'sa' isn't known". The
+# Dockerfile set CFLAGS=-D_DEFAULT_SOURCE to paper over this, but CI and any
+# other consumer did not, so Linux builds broke there instead.
+#
+# Set it on the target so every consumer inherits it and no source file has to
+# remember; most of the affected files are generated and cannot carry a #define.
+# Console toolchains (newlib/devkitPro) supply their own headers, so scope this
+# to hosted POSIX platforms.
+if(UNIX AND NOT WOLFRAM_BUILD_WII AND NOT WOLFRAM_BUILD_WIIU
+        AND NOT WOLFRAM_BUILD_3DS)
+    target_compile_definitions(wolfram PUBLIC _POSIX_C_SOURCE=200809L
+                                              _DEFAULT_SOURCE)
+    if(APPLE)
+        # _POSIX_C_SOURCE alone hides BSD extensions in Apple's libc.
+        target_compile_definitions(wolfram PUBLIC _DARWIN_C_SOURCE)
+    endif()
+endif()
+
 # Embedded/console platform support
 if(WOLFRAM_BUILD_WII)
     target_sources(wolfram PRIVATE src/platform/wii_platform.c
