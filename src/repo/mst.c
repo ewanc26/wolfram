@@ -7,6 +7,7 @@
 
 #include <openssl/sha.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 unsigned wf_mst_key_layer(const unsigned char *key, size_t key_len) {
@@ -347,7 +348,28 @@ static wf_status mst_load_node_depth(wf_car *car, const wf_cid *cid,
     wf_car_block *block = wf_car_find_block(car, cid);
     if (!block) return WF_ERR_PARSE;
     wf_status s = wf_mst_node_parse(block->data, block->data_len, cid, out);
-    if (s != WF_OK || out->count > 0 || out->left.len == 0) return s;
+    if (s != WF_OK) return s;
+
+    /*
+     * A node's layer is NOT serialised — it is derived, and wf_mst_node_parse
+     * leaves it zero. atproto derives it in MST.attemptGetLayer: from the
+     * first leaf's key when the node has leaves (util.layerForEntries), and
+     * otherwise from a child subtree's layer plus one.
+     *
+     * Deriving only the second case, as this did, left every node that has
+     * leaves claiming layer 0 while a leafless node reported its true layer.
+     * Comparing the two then disagrees: mst_merge_subtrees rejects a merge
+     * across layers (as atproto's appendMerge does), so deleting a key whose
+     * neighbours were both subtrees failed with WF_ERR_PARSE whenever the tree
+     * had grown past one layer. Whether it did depends on the leading zeros of
+     * the keys' hashes, so it struck only some sets of record keys.
+     */
+    if (out->count > 0) {
+        out->layer = wf_mst_key_layer(out->entries[0].key,
+                                      out->entries[0].key_len);
+        return s;
+    }
+    if (out->left.len == 0) return s;
 
     wf_mst_node child = {0};
     s = mst_load_node_depth(car, &out->left, &child, depth + 1);
@@ -690,6 +712,32 @@ static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
     }
     if (s != WF_OK) return s;
 
+    /*
+     * A subtree must sit exactly one layer below its parent — atproto relies
+     * on that invariant (createChild uses layer - 1, and add only descends
+     * when the key's layer is below this node's, so a recursive add can never
+     * raise a child past its parent).
+     *
+     * Adding into an existing child can still return a node at a *lower* layer
+     * than the child was, leaving a gap. Two siblings then sit at different
+     * depths, and deleting a key between them asks mst_merge_subtrees to merge
+     * across layers, which it rightly refuses (as appendMerge does) — an
+     * intermittent WF_ERR_PARSE that depended on the leading zeros of the
+     * keys' hashes. Re-raise so the gap never forms.
+     */
+    if (new_subtree.len > 0 && node->layer > 0) {
+        wf_mst_node grown;
+        if (mst_load_node(car, &new_subtree, &grown) == WF_OK) {
+            unsigned grown_layer = grown.layer;
+            wf_mst_node_free(&grown);
+            if (grown_layer + 1 < node->layer) {
+                s = mst_raise_subtree(car, &new_subtree, grown_layer,
+                                      node->layer);
+                if (s != WF_OK) return s;
+            }
+        }
+    }
+
     size_t new_count = node->count;
     wf_mst_entry *new_entries = calloc(new_count, sizeof(wf_mst_entry));
     if (!new_entries) return WF_ERR_ALLOC;
@@ -837,6 +885,27 @@ static wf_status mst_merge_subtrees(wf_car *car, const wf_cid *a,
         wf_mst_node_free(&left_node);
         return s;
     }
+    /*
+     * A node with neither leaves nor a left subtree carries no data. atproto's
+     * MST never holds a pointer to one — deleteRecurse drops the link instead
+     * of storing an empty child — so appendMerge is never asked to merge one
+     * and its layer is meaningless (nothing to derive it from, hence 0).
+     * Comparing that 0 against a real sibling's layer rejected the merge and
+     * failed the delete. Merging with nothing yields the other side.
+     */
+    if (left_node.count == 0 && left_node.left.len == 0) {
+        *out = *b;
+        wf_mst_node_free(&left_node);
+        wf_mst_node_free(&right_node);
+        return WF_OK;
+    }
+    if (right_node.count == 0 && right_node.left.len == 0) {
+        *out = *a;
+        wf_mst_node_free(&left_node);
+        wf_mst_node_free(&right_node);
+        return WF_OK;
+    }
+
     if (left_node.layer != right_node.layer ||
         (left_node.count > 0 && right_node.count > 0 &&
          wf_mst_key_cmp(left_node.entries[left_node.count - 1].key,
