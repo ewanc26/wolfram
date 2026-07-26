@@ -1114,8 +1114,14 @@ if(WOLFRAM_BUILD_TESTS)
     add_executable(test_validate_corpus test/test_validate_corpus.c)
     target_link_libraries(test_validate_corpus PRIVATE wolfram)
     target_include_directories(test_validate_corpus PRIVATE test)
+    # Default to the lexicon snapshot checked in at lexicons/, so the corpus is
+    # actually validated everywhere rather than only on a machine that happens
+    # to have an upstream atproto checkout at one absolute path — which is what
+    # was hardcoded here, so this test SKIPped on CI and for every contributor.
+    # WF_ATPROTO_LEXICONS in the environment still overrides, for checking
+    # against a newer upstream tree.
     target_compile_definitions(test_validate_corpus PRIVATE
-        WF_ATPROTO_LEXICONS="/Volumes/Storage/Developer/Local/atproto/lexicons")
+        WF_ATPROTO_LEXICONS="${CMAKE_CURRENT_SOURCE_DIR}/lexicons")
     add_test(NAME validate_corpus COMMAND test_validate_corpus)
 
     add_executable(test_embed test/test_embed.c)

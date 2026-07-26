@@ -266,9 +266,10 @@ wf_status wf_agent_get_list_blocks_typed(wf_agent *agent, int limit,
                                          const char *cursor,
                                          wf_graph_list_view_list *out);
 
-/* app.bsky.graph.getActorLists -> wf_graph_list_view_list ("lists").
- * TODO: no generated lex wrapper exists for this NSID in atproto_lex.h; returns
- * WF_ERR_INVALID_ARG until the binding is generated. */
+/* NOT IMPLEMENTED — returns WF_ERR_NOT_IMPLEMENTED.
+ * There is no app.bsky.graph.getActorLists in atproto; this is not a binding
+ * waiting to be generated. The endpoint that returns an actor's lists is
+ * app.bsky.graph.getLists. */
 wf_status wf_agent_get_actor_lists_typed(wf_agent *agent, const char *actor,
                                          int limit, const char *cursor,
                                          wf_graph_list_view_list *out);
@@ -329,15 +330,16 @@ wf_status wf_agent_unmute_actor_typed(wf_agent *agent, const char *actor);
 wf_status wf_agent_mute_actor_list_typed(wf_agent *agent, const char *list_uri);
 wf_status wf_agent_unmute_actor_list_typed(wf_agent *agent, const char *list_uri);
 
-/* app.bsky.graph.blockActor / unblockActor.
- * TODO: no generated lex wrapper exists for these NSIDs in atproto_lex.h;
- * returns WF_ERR_INVALID_ARG until the bindings are generated. */
+/* NOT IMPLEMENTED — both return WF_ERR_NOT_IMPLEMENTED.
+ * atproto has no blockActor/unblockActor procedures. Blocking is a record
+ * write: create or delete an app.bsky.graph.block record. Use
+ * wf_agent_graph_block / wf_agent_graph_unblock in graph_write.h. */
 wf_status wf_agent_block_actor_typed(wf_agent *agent, const char *actor);
 wf_status wf_agent_unblock_actor_typed(wf_agent *agent, const char *actor);
 
-/* app.bsky.graph.blockActorList / unblockActorList.
- * TODO: no generated lex wrapper exists for these NSIDs in atproto_lex.h;
- * returns WF_ERR_INVALID_ARG until the bindings are generated. */
+/* NOT IMPLEMENTED — both return WF_ERR_NOT_IMPLEMENTED.
+ * As above: blocking a moderation list is an app.bsky.graph.listblock record,
+ * not a procedure. See graph_write.h. */
 wf_status wf_agent_block_actor_list_typed(wf_agent *agent, const char *list_uri);
 wf_status wf_agent_unblock_actor_list_typed(wf_agent *agent, const char *list_uri);
 
