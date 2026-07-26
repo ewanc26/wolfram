@@ -1034,6 +1034,19 @@ wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
     return rc;
 }
 
+wf_status wf_xrpc_server_ws_ping(wf_xrpc_ws_stream *stream) {
+    wf_xrpc_ws_stream *s = stream;
+    if (!s) return WF_ERR_INVALID_ARG;
+    pthread_mutex_lock(&s->mutex);
+    /* Opcode 0x9, empty payload. A conforming peer replies with a pong, but
+     * the value here is the outbound byte itself: it resets the idle timer on
+     * every proxy between us and the subscriber. */
+    wf_status rc = s->closed ? WF_ERR_INVALID_ARG
+                             : wf_ws_write_frame_locked(s, 0x9, "", 0);
+    pthread_mutex_unlock(&s->mutex);
+    return rc;
+}
+
 wf_status wf_xrpc_server_ws_retain(wf_xrpc_ws_stream *stream) {
     if (!stream) return WF_ERR_INVALID_ARG;
     pthread_mutex_lock(&stream->mutex);

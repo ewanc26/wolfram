@@ -384,6 +384,17 @@ wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
  * must be paired with wf_xrpc_server_ws_release. Returns WF_ERR_INVALID_ARG
  * when the stream is already closing.
  */
+/**
+ * Send a WebSocket ping on an open stream.
+ *
+ * A long-lived stream that is merely idle looks dead to every intermediary in
+ * the path: nginx's proxy_read_timeout defaults to 60s and CDNs impose their
+ * own, so a quiet firehose gets torn down and the subscriber reconnect-loops.
+ * Pinging periodically keeps the connection alive without requiring every
+ * operator to tune every proxy. Safe to call from a worker thread.
+ */
+wf_status wf_xrpc_server_ws_ping(wf_xrpc_ws_stream *stream);
+
 wf_status wf_xrpc_server_ws_retain(wf_xrpc_ws_stream *stream);
 
 /** Release a worker reference acquired by wf_xrpc_server_ws_retain. */
