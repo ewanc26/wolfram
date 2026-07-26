@@ -627,6 +627,9 @@ struct wf_xrpc_ws_stream {
     pthread_cond_t                worker_cond; /* signalled when refs reach zero */
     unsigned int                  worker_refs; /* retained producer workers */
     bool                          closed; /* end-of-stream requested */
+    /* Set once the spawning thread has recorded `thread`. The worker must not
+     * touch (or free) the stream until then — see wf_ws_upgrade_handler. */
+    bool                          thread_ready;
     struct wf_xrpc_ws_stream     *next;   /* global list in server */
 };
 
@@ -782,6 +785,20 @@ static void *wf_ws_serve_thread(void *arg) {
     wf_xrpc_request req = uc->req;
     free(uc);
 
+    /* Wait until the spawning thread has stored our thread id.
+     *
+     * Everything below can finish and free `s` — a handler that pushes a few
+     * frames and closes takes microseconds — so running ahead of that store
+     * left wf_ws_upgrade_handler writing through freed memory, crashing the
+     * whole process on the MHD polling thread. It is rare (about 1 run in 300
+     * under parallel load) and fatal, so the ordering is enforced rather than
+     * hoped for. */
+    pthread_mutex_lock(&s->mutex);
+    while (!s->thread_ready) {
+        pthread_cond_wait(&s->worker_cond, &s->mutex);
+    }
+    pthread_mutex_unlock(&s->mutex);
+
     /* 1) Invoke the user handler (it pushes frames / may close). */
     route->handler.ws(route->ctx, &req, s);
 
@@ -909,26 +926,29 @@ static void wf_ws_upgrade_handler(void *cls,
     (void)extra_in_size;
     wf_ws_upgrade_ctx *uc = (wf_ws_upgrade_ctx *)cls;
     wf_xrpc_server *server = uc->server;
+    /* Hold the stream directly: the worker frees `uc` as its first act, so
+     * `uc` must not be dereferenced once pthread_create has succeeded. */
+    wf_xrpc_ws_stream *stream = uc->stream;
     pthread_t tid;
 
-    uc->stream->sock = (int)sock;
-    uc->stream->urh = urh;
+    stream->sock = (int)sock;
+    stream->urh = urh;
 
     pthread_mutex_lock(&server->ws_mutex);
-    uc->stream->next = server->ws_streams;
-    server->ws_streams = uc->stream;
+    stream->next = server->ws_streams;
+    server->ws_streams = stream;
     pthread_mutex_unlock(&server->ws_mutex);
 
     if (pthread_create(&tid, NULL, wf_ws_serve_thread, uc) != 0) {
         /* Could not spawn a worker: close the upgrade immediately. */
         MHD_upgrade_action(urh, MHD_UPGRADE_ACTION_CLOSE);
         pthread_mutex_lock(&server->ws_mutex);
-        if (server->ws_streams == uc->stream) {
-            server->ws_streams = uc->stream->next;
+        if (server->ws_streams == stream) {
+            server->ws_streams = stream->next;
         } else {
             wf_xrpc_ws_stream *pr = server->ws_streams;
-            while (pr && pr->next != uc->stream) pr = pr->next;
-            if (pr) pr->next = uc->stream->next;
+            while (pr && pr->next != stream) pr = pr->next;
+            if (pr) pr->next = stream->next;
         }
         pthread_mutex_unlock(&server->ws_mutex);
         free((void *)uc->req.nsid);
@@ -936,15 +956,22 @@ static void wf_ws_upgrade_handler(void *cls,
         free((void *)uc->req.dpop_header);
         cJSON_Delete(uc->req.params);
         free(uc->req.authed_subject);
-        free(uc->stream->nsid);
-        pthread_cond_destroy(&uc->stream->worker_cond);
-        pthread_mutex_destroy(&uc->stream->mutex);
-        free(uc->stream);
+        free(stream->nsid);
+        pthread_cond_destroy(&stream->worker_cond);
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream);
         free(uc);
         return;
     }
-    uc->stream->thread = tid;
-    /* Not detached: wf_xrpc_server_free joins the worker thread. */
+
+    /* Publish the thread id and release the worker. Until this runs the worker
+     * is parked, so the stream cannot be freed underneath us. Not detached:
+     * wf_xrpc_server_free joins it. */
+    pthread_mutex_lock(&stream->mutex);
+    stream->thread = tid;
+    stream->thread_ready = true;
+    pthread_cond_broadcast(&stream->worker_cond);
+    pthread_mutex_unlock(&stream->mutex);
 }
 
 /**
