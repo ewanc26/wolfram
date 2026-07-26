@@ -455,6 +455,16 @@ if(WOLFRAM_BUILD_SERVER)
         target_include_directories(test_xrpc_server_ws PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME xrpc_server_ws COMMAND test_xrpc_server_ws)
 
+        add_executable(test_xrpc_server_ws_many test/test_xrpc_server_ws_many.c)
+        target_link_libraries(test_xrpc_server_ws_many PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_xrpc_server_ws_many PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME xrpc_server_ws_many COMMAND test_xrpc_server_ws_many)
+        # The teardown bug this covers is a use-after-free in threads that are
+        # never joined, so the process can still exit 0 while corrupting memory.
+        # Make a sanitizer build fail the test instead of merely printing.
+        set_tests_properties(xrpc_server_ws_many PROPERTIES
+            ENVIRONMENT "ASAN_OPTIONS=abort_on_error=1:detect_leaks=0")
+
         add_executable(test_xrpc_server_ws_slow_client test/test_xrpc_server_ws_slow_client.c)
         target_link_libraries(test_xrpc_server_ws_slow_client PRIVATE wolfram Threads::Threads)
         target_include_directories(test_xrpc_server_ws_slow_client PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})

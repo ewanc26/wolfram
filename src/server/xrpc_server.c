@@ -300,7 +300,11 @@ struct wf_xrpc_server {
     wf_xrpc_sse_stream  *sse_streams;          /* open SSE connections */
     pthread_mutex_t      sse_mutex;            /* guards sse_streams */
     wf_xrpc_ws_stream   *ws_streams;           /* open WebSocket connections */
-    pthread_mutex_t      ws_mutex;             /* guards ws_streams */
+    pthread_mutex_t      ws_mutex;             /* guards ws_streams + ws_stopping */
+    /* Set once teardown has begun. A stream linked after the join loop has
+     * drained the list would never be joined, so upgrades are refused from
+     * here on rather than accepted into a server that is going away. */
+    bool                 ws_stopping;
     bool                 cors_enabled;          /* emit CORS headers when true */
     char                *cors_origin;           /* owned Allow-Origin value */
 };
@@ -630,6 +634,11 @@ struct wf_xrpc_ws_stream {
     /* Set once the spawning thread has recorded `thread`. The worker must not
      * touch (or free) the stream until then — see wf_ws_upgrade_handler. */
     bool                          thread_ready;
+    /* Set under ws_mutex by wf_xrpc_server_stop when it takes responsibility
+     * for joining this worker. The worker detaches itself when this is false,
+     * so a connection that ends on its own leaves nothing to reap. Guarded by
+     * ws_mutex, not mutex: it is decided at the same moment as list removal. */
+    bool                          reaped;
     struct wf_xrpc_ws_stream     *next;   /* global list in server */
 };
 
@@ -888,9 +897,21 @@ static void *wf_ws_serve_thread(void *arg) {
      * subscriber can read them. For a firehose the lost frames are the last
      * ones before the disconnect, which are exactly the ones a consumer needs
      * to resume from the right cursor. */
-    wf_ws_shutdown_gracefully(s->sock);
-    MHD_upgrade_action(s->urh, MHD_UPGRADE_ACTION_CLOSE);
-
+    /*
+     * Leave the server's list before closing the socket, not after.
+     *
+     * MHD_upgrade_action(CLOSE) closes the fd, and the kernel is free to hand
+     * that same number straight back to the next accepted connection. While
+     * this stream was still listed, wf_xrpc_server_stop would read the stale
+     * number and shutdown() somebody else's live connection.
+     *
+     * The same critical section decides who joins this thread: if stop() has
+     * already claimed it (`reaped`) it holds our id and will join, so we must
+     * not detach. Otherwise nothing will ever join us and we detach here —
+     * without that, every finished WebSocket connection would leak a thread
+     * descriptor and its stack for the life of the process.
+     */
+    bool reaped = false;
     if (s->server) {
         pthread_mutex_lock(&s->server->ws_mutex);
         wf_xrpc_ws_stream **pp = &s->server->ws_streams;
@@ -898,8 +919,17 @@ static void *wf_ws_serve_thread(void *arg) {
             if (*pp == s) { *pp = s->next; break; }
             pp = &(*pp)->next;
         }
+        reaped = s->reaped;
         pthread_mutex_unlock(&s->server->ws_mutex);
     }
+
+    wf_ws_shutdown_gracefully(s->sock);
+    MHD_upgrade_action(s->urh, MHD_UPGRADE_ACTION_CLOSE);
+
+    if (!reaped) {
+        pthread_detach(pthread_self());
+    }
+
     free((void *)req.nsid);
     free((void *)req.auth_header);
     free((void *)req.dpop_header);
@@ -934,23 +964,21 @@ static void wf_ws_upgrade_handler(void *cls,
     stream->sock = (int)sock;
     stream->urh = urh;
 
+    /*
+     * Spawn the worker and publish the stream under one hold of ws_mutex.
+     *
+     * The list must never contain a stream whose `thread` has not been stored:
+     * wf_xrpc_server_stop reads that field under this same lock to decide what
+     * to join, and would otherwise join a zero id. The worker is parked on
+     * thread_ready throughout, so touching the stream here is safe even though
+     * the thread is already running.
+     */
     pthread_mutex_lock(&server->ws_mutex);
-    stream->next = server->ws_streams;
-    server->ws_streams = stream;
-    pthread_mutex_unlock(&server->ws_mutex);
 
-    if (pthread_create(&tid, NULL, wf_ws_serve_thread, uc) != 0) {
-        /* Could not spawn a worker: close the upgrade immediately. */
-        MHD_upgrade_action(urh, MHD_UPGRADE_ACTION_CLOSE);
-        pthread_mutex_lock(&server->ws_mutex);
-        if (server->ws_streams == stream) {
-            server->ws_streams = stream->next;
-        } else {
-            wf_xrpc_ws_stream *pr = server->ws_streams;
-            while (pr && pr->next != stream) pr = pr->next;
-            if (pr) pr->next = stream->next;
-        }
+    if (server->ws_stopping) {
+        /* Teardown has started; this connection would never be joined. */
         pthread_mutex_unlock(&server->ws_mutex);
+        MHD_upgrade_action(urh, MHD_UPGRADE_ACTION_CLOSE);
         free((void *)uc->req.nsid);
         free((void *)uc->req.auth_header);
         free((void *)uc->req.dpop_header);
@@ -964,11 +992,33 @@ static void wf_ws_upgrade_handler(void *cls,
         return;
     }
 
-    /* Publish the thread id and release the worker. Until this runs the worker
-     * is parked, so the stream cannot be freed underneath us. Not detached:
-     * wf_xrpc_server_free joins it. */
-    pthread_mutex_lock(&stream->mutex);
+    if (pthread_create(&tid, NULL, wf_ws_serve_thread, uc) != 0) {
+        /* Could not spawn a worker: close the upgrade immediately. */
+        pthread_mutex_unlock(&server->ws_mutex);
+        MHD_upgrade_action(urh, MHD_UPGRADE_ACTION_CLOSE);
+        free((void *)uc->req.nsid);
+        free((void *)uc->req.auth_header);
+        free((void *)uc->req.dpop_header);
+        cJSON_Delete(uc->req.params);
+        free(uc->req.authed_subject);
+        free(stream->nsid);
+        pthread_cond_destroy(&stream->worker_cond);
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream);
+        free(uc);
+        return;
+    }
+
+    /* Record the id and publish the stream, both under ws_mutex, so stop()
+     * never observes a listed stream with an unwritten thread. */
     stream->thread = tid;
+    stream->next = server->ws_streams;
+    server->ws_streams = stream;
+    pthread_mutex_unlock(&server->ws_mutex);
+
+    /* Release the worker. Releasing stream->mutex publishes the store above,
+     * which the worker acquires when it observes thread_ready. */
+    pthread_mutex_lock(&stream->mutex);
     stream->thread_ready = true;
     pthread_cond_broadcast(&stream->worker_cond);
     pthread_mutex_unlock(&stream->mutex);
@@ -2018,8 +2068,11 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
     pthread_mutex_unlock(&server->sse_mutex);
 
     /* Mark open WebSocket connections closed and wake their poll loops so the
-     * upgrade worker threads exit promptly (they join in wf_xrpc_server_free). */
+     * upgrade worker threads exit promptly (they join in wf_xrpc_server_free).
+     * Latch ws_stopping first so no further upgrade can join the list behind
+     * the drain loop below. */
     pthread_mutex_lock(&server->ws_mutex);
+    server->ws_stopping = true;
     for (wf_xrpc_ws_stream *s = server->ws_streams; s; s = s->next) {
         pthread_mutex_lock(&s->mutex);
         s->closed = true;
@@ -2028,23 +2081,35 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
     }
     pthread_mutex_unlock(&server->ws_mutex);
 
-    /* Join the WebSocket upgrade worker threads BEFORE tearing down the daemon:
-     * each worker calls MHD_upgrade_action() to close its upgrade, which is only
-     * valid while the daemon is still alive. Snapshot the thread handles and
-     * clear the list so workers unlink harmlessly. */
-    {
-        pthread_t handles[64];
-        size_t n = 0;
+    /*
+     * Join the WebSocket workers BEFORE tearing down the daemon: each one
+     * calls MHD_upgrade_action() to close its upgrade, which is only valid
+     * while the daemon is alive.
+     *
+     * Pop one stream at a time and claim it, rather than snapshotting into a
+     * fixed array: a bounded snapshot that still cleared the whole list left
+     * every worker past the limit unlinked and unjoined, running on into a
+     * freed server. Sixty-five firehose subscribers is not an exotic load.
+     * Claiming under ws_mutex also settles ownership — the worker sees
+     * `reaped` and leaves the join to us instead of detaching.
+     */
+    for (;;) {
+        wf_xrpc_ws_stream *s;
+        pthread_t tid;
+
         pthread_mutex_lock(&server->ws_mutex);
-        for (wf_xrpc_ws_stream *s = server->ws_streams; s && n < 64;
-             s = s->next) {
-            handles[n++] = s->thread;
+        s = server->ws_streams;
+        if (s) {
+            server->ws_streams = s->next;
+            s->reaped = true;
+            tid = s->thread;
         }
-        server->ws_streams = NULL;
         pthread_mutex_unlock(&server->ws_mutex);
-        for (size_t i = 0; i < n; i++) {
-            pthread_join(handles[i], NULL);
+
+        if (!s) {
+            break;
         }
+        pthread_join(tid, NULL);
     }
 
     MHD_stop_daemon(server->daemon);
