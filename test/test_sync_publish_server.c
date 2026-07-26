@@ -215,10 +215,32 @@ static int test_write_all(int fd, const void *buf, size_t len) {
     return 0;
 }
 
+/*
+ * Bytes the handshake read past the end of the HTTP headers. One read() can
+ * return the 101 response and the first published frames in the same segment,
+ * so anything after "\r\n\r\n" is frame data and must be replayed here rather
+ * than dropped — otherwise the reader waits for bytes it already holds.
+ */
+static unsigned char test_pending[8192];
+static size_t        test_pending_len;
+static size_t        test_pending_off;
+
+static void test_pushback(const void *data, size_t len) {
+    if (len > sizeof(test_pending)) len = sizeof(test_pending);
+    memcpy(test_pending, data, len);
+    test_pending_len = len;
+    test_pending_off = 0;
+}
+
 static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
     char *p = (char *)buf;
     size_t off = 0;
     int remaining = timeout_ms;
+
+    while (off < len && test_pending_off < test_pending_len) {
+        p[off++] = (char)test_pending[test_pending_off++];
+    }
+
     while (off < len) {
         struct pollfd pfd = { fd, POLLIN, 0 };
         int pr = poll(&pfd, 1, remaining > 0 ? remaining : 1000);
@@ -309,6 +331,11 @@ static int run_raw_client_e2e(struct test_ctx *ctx) {
                 (int)hoff, hdr);
         close(fd);
         return 1;
+    }
+    {
+        char *eoh = strstr(hdr, "\r\n\r\n");
+        size_t body_at = (size_t)(eoh - hdr) + 4;
+        if (hoff > body_at) test_pushback(hdr + body_at, hoff - body_at);
     }
 
     int failures = 0;
