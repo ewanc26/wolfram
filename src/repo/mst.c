@@ -1049,6 +1049,24 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
             new_entries[i].subtree = node->entries[i].subtree;
         }
 
+        /*
+         * A recursive delete can empty the subtree. atproto drops the pointer
+         * in that case rather than linking an empty node
+         * (MST.deleteRecurse: "if (subTreeEntries.length === 0) return
+         * this.removeEntry(index - 1)"), and the MST shape is part of the
+         * commit's data CID — so keeping the link would compute a different
+         * root than every other implementation for identical data, and leave a
+         * pointer that later traversals must chase.
+         */
+        if (subtree.len > 0) {
+            wf_mst_node probe;
+            if (mst_load_node(car, &subtree, &probe) == WF_OK) {
+                if (probe.count == 0 && probe.left.len == 0)
+                    memset(&subtree, 0, sizeof(subtree));
+                wf_mst_node_free(&probe);
+            }
+        }
+
         wf_mst_node new_node;
         if (use_left) {
             s = wf_mst_node_build(node->layer, &subtree,
