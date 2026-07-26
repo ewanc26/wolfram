@@ -92,11 +92,37 @@ static int test_write_all(int fd, const void *buf, size_t len) {
     return 0;
 }
 
+/*
+ * Bytes the handshake read past the end of the HTTP headers.
+ *
+ * A single read() can return the 101 response and the first stream frames in
+ * one segment — and does, once the server is quick enough to have written them
+ * before the client's first read. Anything after "\r\n\r\n" therefore belongs
+ * to the frame stream and must be replayed here rather than dropped, or the
+ * reader below blocks waiting for bytes it already holds.
+ */
+static unsigned char test_pending[4096];
+static size_t        test_pending_len;
+static size_t        test_pending_off;
+
+static void test_pushback(const void *data, size_t len) {
+    if (len > sizeof(test_pending)) len = sizeof(test_pending);
+    memcpy(test_pending, data, len);
+    test_pending_len = len;
+    test_pending_off = 0;
+}
+
 /* Read exactly `len` bytes with an overall timeout (ms). 0 ok, -1 fail. */
 static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
     char *p = (char *)buf;
     size_t off = 0;
     int remaining = timeout_ms;
+
+    /* Serve from the handshake's over-read first. */
+    while (off < len && test_pending_off < test_pending_len) {
+        p[off++] = (char)test_pending[test_pending_off++];
+    }
+
     while (off < len) {
         struct pollfd pfd = { fd, POLLIN, 0 };
         int pr = poll(&pfd, 1, remaining > 0 ? remaining : 1000);
@@ -258,6 +284,16 @@ static int run_test(void) {
                 (int)hoff, hdr);
         failures++;
         goto cleanup;
+    }
+
+    /* Keep whatever arrived in the same read as the headers: those bytes are
+     * already frame data. */
+    {
+        char *eoh = strstr(hdr, "\r\n\r\n");
+        size_t body_at = (size_t)(eoh - hdr) + 4;
+        if (hoff > body_at) {
+            test_pushback(hdr + body_at, hoff - body_at);
+        }
     }
 
     /* Extract Sec-WebSocket-Accept and verify it. */

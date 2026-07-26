@@ -730,6 +730,50 @@ static wf_status wf_ws_write_frame_locked(wf_xrpc_ws_stream *s, uint8_t opcode,
     return rc;
 }
 
+/**
+ * Half-close the socket and drain whatever the peer still has queued, so the
+ * subsequent close() cannot turn into an RST.
+ *
+ * shutdown(SHUT_WR) puts a FIN after everything we have already written, so
+ * the peer sees an ordinary end-of-stream once it has read our frames. We then
+ * read (and discard) until the peer's own FIN arrives, because it is *unread
+ * inbound* data that makes close() send RST — a client that pinged us, or sent
+ * its own close frame, is enough. The wait is bounded: a peer that never
+ * finishes costs us WS_LINGER_MS, not a stuck worker thread.
+ */
+#define WS_LINGER_MS 500
+
+static void wf_ws_shutdown_gracefully(int sock) {
+    unsigned char scratch[1024];
+    int remaining = WS_LINGER_MS;
+
+    if (sock < 0) {
+        return;
+    }
+    shutdown(sock, SHUT_WR);
+
+    while (remaining > 0) {
+        struct pollfd pfd = { sock, POLLIN, 0 };
+        int step = remaining < 50 ? remaining : 50;
+        int pr = poll(&pfd, 1, step);
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            return;
+        }
+        if (pr == 0) {
+            remaining -= step;
+            continue;
+        }
+        ssize_t n = read(sock, scratch, sizeof(scratch));
+        if (n <= 0) {
+            /* 0 = peer FIN (the good case); <0 = already reset or errored. */
+            return;
+        }
+        /* Discarded deliberately: the stream is over, and the only purpose of
+         * reading is to leave the receive queue empty. */
+    }
+}
+
 /** Upgrade worker: run the user handler then drain client control frames. */
 static void *wf_ws_serve_thread(void *arg) {
     wf_ws_upgrade_ctx *uc = (wf_ws_upgrade_ctx *)arg;
@@ -819,7 +863,15 @@ static void *wf_ws_serve_thread(void *arg) {
     }
     pthread_mutex_unlock(&s->mutex);
 
-    /* 3) Tear down the upgraded socket via libmicrohttpd. */
+    /* 3) Tear down the upgraded socket via libmicrohttpd — but only after the
+     * peer has had a chance to collect what we already sent. Closing a socket
+     * that still has unread data in its receive queue makes the kernel send
+     * RST instead of FIN, and a received RST discards the peer's receive
+     * buffer: frames we delivered perfectly well are destroyed before a slow
+     * subscriber can read them. For a firehose the lost frames are the last
+     * ones before the disconnect, which are exactly the ones a consumer needs
+     * to resume from the right cursor. */
+    wf_ws_shutdown_gracefully(s->sock);
     MHD_upgrade_action(s->urh, MHD_UPGRADE_ACTION_CLOSE);
 
     if (s->server) {

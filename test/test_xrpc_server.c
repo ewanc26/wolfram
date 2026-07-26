@@ -539,14 +539,36 @@ static int test_rate_limiter_refill(void) {
         return 1;
     }
 
-    /* Wait 1 sec for 1 token to refill */
+    /* Wait for the bucket to refill. At least one token must appear. */
     sleep(1);
     if (wf_rate_limiter_consume(rl, "key", 1, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: rl refill after 1s should have 1 token\n");
         wf_rate_limiter_free(rl);
         return 1;
     }
-    /* Should be empty again */
+
+    /*
+     * Drain whatever else refilled, then assert the bucket is empty.
+     *
+     * Do not assume the sleep granted exactly one token: sleep(1) is a lower
+     * bound, and on a loaded machine it returns late enough for the full 2 to
+     * refill — which made this fail roughly one parallel run in two hundred.
+     * The property worth testing is that the bucket empties and then refuses,
+     * not that a specific number of tokens accrued in wall-clock time. The
+     * drain is bounded by the capacity so a limiter that never refuses fails
+     * here rather than looping.
+     */
+    {
+        int drained = 0;
+        while (wf_rate_limiter_consume(rl, "key", 1, &retry) == WF_OK) {
+            if (++drained > 2) {
+                fprintf(stderr, "FAIL: rl handed out more than its capacity\n");
+                wf_rate_limiter_free(rl);
+                return 1;
+            }
+        }
+    }
+    /* Empty now — and an immediate retry must still be refused. */
     if (wf_rate_limiter_consume(rl, "key", 1, &retry) != WF_ERR_RATE_LIMIT) {
         fprintf(stderr, "FAIL: rl refill should be empty again\n");
         wf_rate_limiter_free(rl);

@@ -1,106 +1,119 @@
 /**
- * wiiu_platform.c — Nintendo Wii U platform implementation (wut stubs).
+ * wiiu_platform.c — Nintendo Wii U platform implementation (devkitPPC/wut).
  *
- * Maps platform abstractions to wut (Wii U Toolchain) primitives.
- * Currently contains stub implementations; TODO comments indicate what
- * needs to be filled in when the Wii U integration is built out.
+ * Maps the platform abstraction onto wut primitives:
+ *   - init/shutdown → nsysnet's socket library
+ *   - mutex         → coreinit OSMutex
+ *   - time          → OSGetTime, converted to microseconds since the UNIX epoch
  *
- * Build with devkitPPC: powerpc-eabi-gcc, linked against wut.
+ * Build with devkitPPC against wut (-lwut).
+ *
+ * Network connection ownership
+ * ----------------------------
+ * Unlike the Wii, where net_init() both brings up the link and initialises
+ * sockets, the Wii U splits these — and wut already owns the connection half.
+ *
+ * wut's socket devoptab initialiser (__init_wut_socket, pulled into the link
+ * as soon as anything references sockets) runs socket_lib_init(), AddDevice()
+ * and then ACInitialize() followed by ACConnectAsync(). Its counterpart
+ * __fini_wut_socket calls ACClose() and ACFinalize() at exit.
+ *
+ * Wolfram must therefore NOT touch nn::ac: calling ACInitialize/ACFinalize
+ * here would double-finalize against wut's own teardown. socket_lib_init() is
+ * still called below because wut only reaches it when the socket devoptab is
+ * linked in, which is not guaranteed for an embedder that pulls in Wolfram
+ * without otherwise using sockets. Calling it a second time is safe — it is
+ * the same idempotent RPL export wut invokes unconditionally at startup.
+ *
+ * Deciding whether the link is actually up (ACIsApplicationConnected) stays
+ * with the application, which is where the "no network" UI lives anyway.
  */
 
 #include "wolfram/platform.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <coreinit/mutex.h>
+#include <coreinit/systeminfo.h>
+#include <coreinit/time.h>
+/* socket_lib_init/finish live in the raw nsysnet header; nsysnet/socket.h is
+ * a deprecated compatibility shim that no longer declares them. */
+#include <nsysnet/_socket.h>
 
-/* TODO: #include <coreinit/thread.h>   — for OSJoinThread, OSSemaphore */
-/* TODO: #include <coreinit/time.h>      — for OSGetTime */
-/* TODO: #include <nsysnet/socket.h>     — for socket (BSD-like) */
-/* TODO: #include <nn/ssl.h>             — for SSL context */
+#include <stdlib.h>
 
 /* ── Init / shutdown ────────────────────────────────────────────────── */
 
+static int wf_socket_initialized = 0;
+
 wf_status wf_platform_init(void) {
-    /*
-     * TODO: Implement when building the Wii U integration:
-     *   1. FSInit() — filesystem
-     *   2. socketInit() — networking
-     *   3. Initialise SSL/TLS context
-     *   4. Initialise AX audio (if needed)
-     */
-    return WF_ERR_NOT_IMPLEMENTED;
+    if (wf_socket_initialized) return WF_OK;
+    /* socket_lib_init() returns void; there is no failure to report. */
+    socket_lib_init();
+    wf_socket_initialized = 1;
+    return WF_OK;
 }
 
 void wf_platform_shutdown(void) {
-    /*
-     * TODO: Implement when building the Wii U integration:
-     *   1. socketShutdown()
-     *   2. FSShutdown()
-     */
+    if (!wf_socket_initialized) return;
+    socket_lib_finish();
+    wf_socket_initialized = 0;
 }
 
 /* ── Mutex ──────────────────────────────────────────────────────────── */
 
 /*
- * TODO: Replace with wut OSSemaphore:
- *   #include <coreinit/semaphore.h>
- *
- *   struct wf_platform_mutex { OSSemaphore sem; };
- *
- *   wf_platform_mutex *wf_platform_mutex_new(void) {
- *       wf_platform_mutex *m = calloc(1, sizeof(*m));
- *       if (!m) return NULL;
- *       OSSemaphoreInit(&m->sem, 1);
- *       return m;
- *   }
- *
- *   void wf_platform_mutex_lock(wf_platform_mutex *m) {
- *       if (m) OSSemaphoreAcquire(&m->sem, 1);
- *   }
- *
- *   void wf_platform_mutex_unlock(wf_platform_mutex *m) {
- *       if (m) OSSemaphoreRelease(&m->sem);
- *   }
- *
- *   void wf_platform_mutex_free(wf_platform_mutex *m) {
- *       if (!m) return;
- *       OSSemaphoreDestroy(&m->sem);
- *       free(m);
- *   }
+ * OSMutex rather than OSSemaphore: it is the real mutual-exclusion primitive
+ * on this platform, it is recursive for the owning thread, and it needs no
+ * explicit destroy call.
  */
-
-struct wf_platform_mutex { int dummy; };
+struct wf_platform_mutex { OSMutex handle; };
 
 wf_platform_mutex *wf_platform_mutex_new(void) {
-    /* Stub: no real backend yet — signal failure honestly. */
-    return NULL;
+    wf_platform_mutex *mutex = calloc(1, sizeof(*mutex));
+    if (!mutex) return NULL;
+    OSInitMutex(&mutex->handle);
+    return mutex;
 }
 
 void wf_platform_mutex_lock(wf_platform_mutex *m) {
-    (void)m;
+    if (m) OSLockMutex(&m->handle);
 }
 
 void wf_platform_mutex_unlock(wf_platform_mutex *m) {
-    (void)m;
+    if (m) OSUnlockMutex(&m->handle);
 }
 
 void wf_platform_mutex_free(wf_platform_mutex *m) {
+    /* OSMutex has no destructor; it is a plain structure the OS links into a
+     * thread's owned-mutex list only while the mutex is held. */
     free(m);
 }
 
 /* ── Time ───────────────────────────────────────────────────────────── */
 
-/*
- * TODO: Replace with wut timer:
- *   #include <coreinit/time.h>
- *
- *   uint64_t wf_platform_time_micros(void) {
- *       // OSGetTime() returns ticks since boot; OSTicksToMicroseconds() converts
- *       return OSTicksToMicroseconds(OSGetTime());
- *   }
- */
+/* Seconds between the UNIX epoch and the Wii U's 2000-01-01 OSTime epoch. */
+#define WF_WIIU_EPOCH_OFFSET_SECONDS 946684800ull
 
+/*
+ * OSGetTime() counts timer ticks since 2000-01-01, so by now it is on the
+ * order of 5e16. wut's OSTicksToMicroseconds() multiplies by 1000000 before
+ * dividing, which overflows uint64 well before that (5e16 * 1e6 = 5e22 against
+ * a ceiling of 1.8e19) and would return a wrapped, non-monotonic value. The
+ * conversion is therefore done divide-first, keeping the remainder so
+ * sub-second resolution survives.
+ *
+ * OSGetSystemTime() (ticks since boot) would sidestep the overflow but is the
+ * wrong clock: TIDs are record keys that encode a real timestamp and have to
+ * sort correctly against records written by other clients, so a boot-relative
+ * clock would place every record written here at the start of 1970.
+ */
 uint64_t wf_platform_time_micros(void) {
-    /* Stub: return 0 until wut timer is wired up. */
-    return 0;
+    const uint64_t ticks_per_second = (uint64_t)OSTimerClockSpeed;
+    if (ticks_per_second == 0) return 0;
+
+    const uint64_t ticks = (uint64_t)OSGetTime();
+    const uint64_t seconds = ticks / ticks_per_second;
+    const uint64_t remainder = ticks % ticks_per_second;
+
+    return (seconds + WF_WIIU_EPOCH_OFFSET_SECONDS) * 1000000ull
+           + (remainder * 1000000ull) / ticks_per_second;
 }

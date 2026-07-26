@@ -10,7 +10,7 @@ Agentic principles and technical context for the `wolfram` repository.
 4. **Ownership is explicit**: every heap-allocated output has a matching `_free` function documented next to it. No hidden allocations, no implicit ownership transfer.
 5. **Protocol parity**: cross-reference `bluesky-social/atproto` for wire formats (XRPC envelopes, DID documents, DAG-CBOR, MST) rather than inferring them.
 6. **Pure C runtime**: the SDK and generated clients are C11. Python is permitted only for optional development-time code generation and tests; it must never become a runtime dependency.
-7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, Linux/AArch64, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/`. The Windows target is fully implemented against the Win32 API. Wii has real libogc primitives, mbedTLS HTTPS, and P-256/did:key crypto; WebSocket and secp256k1 remain honest stubs. Wii U/3DS retain honest stub backends that must be replaced before shipping.
+7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, Linux/AArch64, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/`. The Windows target is fully implemented against the Win32 API. Wii has real libogc primitives, mbedTLS HTTPS, and P-256/did:key crypto; WebSocket and secp256k1 remain honest stubs. Wii U has real wut primitives and uses the curl transport (see "Platform support"). 3DS retains an honest stub backend that must be replaced before shipping.
 
 ## Code style
 
@@ -27,7 +27,7 @@ Agentic principles and technical context for the `wolfram` repository.
 - **Tests**: `ctest --test-dir build`
 - **Lexicon generation**: `python3 tools/wf_lexgen.py $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h`
 - **Optional modules**: gated by CMake options — `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption), `WOLFRAM_BUILD_TEST_HTTPD` (libmicrohttpd mock PDS for offline HTTP integration tests), `WOLFRAM_BUILD_IDN` (libidn2 internationalised-handle resolution), `WOLFRAM_BUILD_CPP` (C++ RAII wrapper `wolfram-cpp`). Platform/example/test flags: `WOLFRAM_BUILD_WII` / `_WIIU` / `_3DS` / `_WINDOWS`, `WOLFRAM_BUILD_EXAMPLES`, `WOLFRAM_BUILD_TESTS`.
-- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64) are supported via `.devdeps/*.cmake` toolchain files. Wii uses real libogc platform primitives; Wii U/3DS retain stub platform implementations. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads.
+- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64) are supported via `.devdeps/*.cmake` toolchain files. Wii and Wii U use real platform primitives (libogc and wut respectively); 3DS retains a stub platform implementation. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads.
 - **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
 - **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
@@ -48,7 +48,8 @@ The bundled lexicon filenames currently match the local upstream checkout, but f
 - `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` is the baseline desktop check. Use a fresh build directory after changing options, public layouts, generated code, or platform selection.
 - CTest includes `test_lexgen.py`; Python is therefore a development/test requirement even though it is not a runtime dependency. `validate_corpus` can pass by printing `SKIP` unless `WF_ATPROTO_LEXICONS` points at an upstream corpus, and `examples_live` passes with a `SKIP` unless live credentials are supplied. Do not report those surfaces as exercised from a green default CTest run alone.
 - Exercise optional modules explicitly: `WOLFRAM_BUILD_SERVER` also requires libmicrohttpd and SQLite; `WOLFRAM_BUILD_STORE` requires SQLite; store encryption additionally requires libsodium; `WOLFRAM_BUILD_TEST_HTTPD`, `WOLFRAM_BUILD_IDN`, and `WOLFRAM_BUILD_CPP` each add distinct coverage. Build only the matrix relevant to the change, but state what remained disabled or skipped.
-- Embedded configurations force tests, examples, OAuth, and server modules off. A Wii cross-build proves compile/link compatibility, not HTTP/TLS correctness on hardware. Wii HTTPS/P-256 work also requires an installation-unique 64-byte seed supplied before use and a rotate/persist/commit cycle; never add a shared fallback seed. Wii WebSocket and secp256k1 remain unsupported, and Wii U/3DS remain stub targets.
+- Embedded configurations force tests, examples, OAuth, and server modules off. A console cross-build proves compile/link compatibility, not HTTP/TLS correctness on hardware. Wii **and Wii U** P-256 work requires an installation-unique 64-byte seed supplied before use and a rotate/persist/commit cycle; never add a shared fallback seed. Wii WebSocket and secp256k1 remain unsupported, and 3DS remains a stub target.
+- Cross-builds hide link errors: an undefined symbol in a static archive only fails when something links it. After changing platform source selection, check the archive (`powerpc-eabi-nm build-wiiu/libwolfram.a | grep ' U '`) rather than trusting a successful `libwolfram.a`. Routing the Wii U through the socket transport built cleanly for months while leaving five undefined `wii_tls_*` symbols in the archive.
 - Run focused executables or `ctest -R <name>` while iterating. For ABI changes, rebuild all consumers rather than trusting an incremental relink. For parser/encoder work, add malformed, limit, allocation/cleanup, and round-trip cases as appropriate.
 
 ## Security and correctness boundaries
@@ -80,6 +81,18 @@ The SDK is broad and multi-layered, with extensive offline coverage. “Implemen
 - `validate` / `json` / `syntax` / `richtext`: runtime lexicon validation, generic JSON canonicalize/validate, syntax validators, rich-text facets. Tested.
 - `store`: optional SQLite session + repo-mirror + persisted-label storage (`WOLFRAM_BUILD_STORE`; `WOLFRAM_BUILD_STORE_CRYPTO` adds libsodium at-rest encryption).
 - `xrpc_server`: optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER`). Route registration, **Server-Sent Events (SSE) streaming** for subscription-style endpoints, and **WebSocket (RFC 6455) subscription endpoints** with per-route token-bucket rate limiting, auth middleware, CORS. Tested offline.
+  Closing a WS stream half-closes and drains the socket before handing it back
+  to libmicrohttpd. This is not politeness: `close()` on a socket with unread
+  inbound data makes the kernel send RST, and a received RST discards the
+  peer's receive buffer — destroying frames that were delivered correctly but
+  not yet read. A subscriber that is merely slow (a loaded machine is enough)
+  loses the tail of the stream, which for a firehose is exactly the events a
+  consumer needs in order to resume from the right cursor. Covered by
+  `test_xrpc_server_ws_slow_client`, which fails deterministically without it.
+  Raw-socket test clients must also replay whatever the handshake read past
+  `\r\n\r\n`: one `read()` can return the 101 response and the first frames
+  together, and discarding the remainder makes a test wait for bytes it is
+  already holding.
 - `feedgen_server`: optional `libmicrohttpd`-backed feed-generator skeleton server helper (`WOLFRAM_BUILD_SERVER`) serving `app.bsky.feed.getFeedSkeleton` and `getFeedGenerator`. Tested.
 - `relay_server`: optional `libmicrohttpd`-backed generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`), built on the server's WS endpoints and the libcurl WebSocket client transport. `wf_xrpc_server_register_relay` registers a WS route (e.g. `com.atproto.sync.subscribeRepos`) that, on a downstream connect, opens an upstream `ws(s)://` connection and forwards each received message byte-for-byte until either side closes, then closes downstream. Protocol-agnostic (raw frames, no parsing) so it serves `subscribeRepos`, `subscribeLabels`, or any binary subscription. Config deep-copied and freed by `wf_relay_config_free`; the `wf_relay_server` handle owns the copy and is freed by `wf_relay_server_free` after `wf_xrpc_server_free`. Tested offline (`test_relay_server`).
 - `blob_store`: **Migrated to MetalBear.** The PDS blob persistence/serving code (`wf_blob_store*`) has been moved to the MetalBear repository as `metalbear_blob_store*` (header `metalbear_blob_store.h`, core store `metalbear_blob_store.c`, XRPC route handlers `metalbear_blob_store_server.c`). The original Wolfram source files remain for historical reference but are no longer compiled or part of the SDK.
@@ -101,7 +114,7 @@ Cross-compilation targets for Nintendo consoles and Windows:
 
 **Wii**: `.devdeps/wii.cmake`; client-only build, excludes OAuth, server modules, and desktop dependencies.
 
-**Wii U**: `.devdeps/wiiu.cmake`; client-only build.
+**Wii U**: `.devdeps/wiiu.cmake`; client-only build. Requires `dkp-pacman -S wiiu-dev wiiu-pkg-config wiiu-curl wiiu-mbedtls`. The toolchain file delegates to devkitPro's own `WiiU.cmake`.
 
 **3DS**: `.devdeps/3ds.cmake`; client-only build.
 
@@ -111,8 +124,40 @@ Cross-compilation targets for Nintendo consoles and Windows:
 
 Wii uses libogc for network initialisation, LWP mutexes, and monotonic timing,
 plus mbedTLS for verified HTTPS and P-256/did:key crypto. WebSocket and
-secp256k1 remain honest stubs. Wii U and 3DS still use stub
-platform/transport/crypto implementations. The Windows target is fully
-implemented against the Win32 API (`windows_platform.c`).
+secp256k1 remain honest stubs. 3DS still uses stub platform/transport/crypto
+implementations. The Windows target is fully implemented against the Win32 API
+(`windows_platform.c`).
+
+**Wii U is no longer a stub target.** `wiiu_platform.c` is implemented against
+wut: `socket_lib_init()` for the socket library, `OSMutex` for locking, and
+`OSGetTime` for the clock. Note the clock conversion is done divide-first —
+wut's `OSTicksToMicroseconds()` multiplies by 1000000 before dividing, which
+overflows uint64 for ticks-since-2000 values and would return a wrapped,
+non-monotonic result.
+
+Two things differ from the Wii and are easy to get wrong:
+
+- **Transport is curl, not the socket stack.** "Embedded" is not one thing.
+  `xrpc_wii.c`/`websocket_wii.c` depend on `wii_tls.c`, which is written
+  against libogc's `net_*` API and only builds for the Wii. The Wii U has a
+  real libcurl portlib, so it uses the same curl transport as desktop. This is
+  the `WOLFRAM_USE_SOCKET_TRANSPORT` axis in CMakeLists.txt, deliberately
+  separate from `WOLFRAM_BUILD_EMBEDDED`. Crypto stays on the embedded axis —
+  no console has OpenSSL, so all of them use the mbedTLS-backed `crypto_wii.c`.
+- **wut owns nn::ac.** `__init_wut_socket` already calls `ACInitialize()` and
+  `ACConnectAsync()`, and `__fini_wut_socket` calls `ACClose()`/`ACFinalize()`.
+  `wf_platform_init()` therefore touches only the socket library; deciding
+  whether the link is up stays with the application.
+
+**Wii U entropy fails closed, for the same reason the Wii's does.** devkitPro's
+Wii U mbedTLS defines `mbedtls_hardware_poll`, so seeding a DRBG from it
+compiles and runs — but it is `srand(OSGetSystemTick()); rand()`, a
+timer-seeded libc PRNG. Since `wii_tls_random()` feeds P-256 key generation and
+ECDSA signing, accepting it would make private keys recoverable by search.
+`src/crypto/wiiu_random.c` supplies that symbol (the Wii gets it from
+`wii_tls.c`, which the Wii U does not build) and refuses to produce output
+until the application provisions 64 real bytes via `wf_wiiu_set_entropy_seed()`
+— see `include/wolfram/wiiu.h`, which mirrors the Wii API including the
+rotate/persist/commit cycle. Never add a shared fallback seed.
 
 The desktop (x86_64) build includes the full suite of dependencies: libcurl, OpenSSL, pthreads, libmicrohttpd (if `WOLFRAM_BUILD_SERVER`), SQLite (if `WOLFRAM_BUILD_STORE`), libsodium (if `WOLFRAM_BUILD_STORE_CRYPTO`).
