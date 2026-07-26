@@ -86,7 +86,23 @@ borrowed and must outlive the struct, while output decoders return owning
 objects with a `_output_free`. Input encoders resolve referenced objects,
 arrays, strings, and tokens recursively.
 
+## The CLI
+
+The default build produces `./build/wolfram`, the primary command-line client:
+
+```sh
+./build/wolfram post https://bsky.social you@example.com yourpassword "Hello!"
+./build/wolfram help          # every command
+./build/wolfram help post     # one command
+```
+
+[docs/cli.md](cli.md) documents it in full.
+
 ## Examples
+
+The programs below are separate single-purpose binaries under `examples/`,
+built only when configured with `-DWOLFRAM_BUILD_EXAMPLES=ON`. They are not
+produced by the default build:
 
 ```sh
 ./build/describe_repo https://eurosky.social did:plc:ofrbh253gwicbkc5nktqepol
