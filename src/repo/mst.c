@@ -228,9 +228,65 @@ wf_status wf_mst_node_build(unsigned layer, const wf_cid *left,
     return WF_OK;
 }
 
+static wf_status mst_load_node(wf_car *car, const wf_cid *cid,
+                               wf_mst_node *out);
+static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
+                                   unsigned child_layer,
+                                   unsigned parent_layer);
+
+/* Raise `cid` until it sits exactly one layer below `parent_layer`. */
+static wf_status mst_normalise_child(wf_car *car, wf_cid *cid,
+                                     unsigned parent_layer) {
+    wf_mst_node child;
+    if (mst_load_node(car, cid, &child) != WF_OK) return WF_OK;
+    unsigned actual = child.layer;
+    wf_mst_node_free(&child);
+    if (actual + 1 >= parent_layer) return WF_OK;
+    return mst_raise_subtree(car, cid, actual, parent_layer);
+}
+
 wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
     if (!node || !car) return WF_ERR_INVALID_ARG;
     if (node->cid.len > 0) return WF_OK;
+
+    /*
+     * Normalise child depth before writing the node.
+     *
+     * atproto's MST keeps every subtree exactly one layer below its parent —
+     * createChild uses layer - 1, and add never raises a child past its
+     * parent — and several operations rely on it. splitAround in particular
+     * can hand back halves at different depths, because a half that keeps
+     * leaves derives its layer from them while one left holding only a subtree
+     * derives it from that child.
+     *
+     * The construction paths were each re-levelling their own children, and
+     * every one that was missed showed up later as two siblings at different
+     * layers, which made deleting a key between them ask mst_merge_subtrees
+     * for a cross-layer merge — refused, as atproto's appendMerge refuses it.
+     * Doing it here instead means every node written to the CAR satisfies the
+     * invariant no matter which path built it.
+     *
+     * A node's own layer is what a reader will derive: from the first leaf's
+     * key when it has leaves, otherwise the layer it was built with.
+     */
+    if (node->count > 0 || node->left.len > 0) {
+        unsigned effective = node->count > 0
+            ? wf_mst_key_layer(node->entries[0].key, node->entries[0].key_len)
+            : node->layer;
+        if (effective > 0) {
+            if (node->left.len > 0) {
+                wf_status rs = mst_normalise_child(car, &node->left, effective);
+                if (rs != WF_OK) return rs;
+            }
+            for (size_t i = 0; i < node->count; i++) {
+                if (node->entries[i].subtree.len == 0) continue;
+                wf_status rs = mst_normalise_child(car,
+                                                   &node->entries[i].subtree,
+                                                   effective);
+                if (rs != WF_OK) return rs;
+            }
+        }
+    }
 
     unsigned char *prev_key = NULL;
     size_t prev_key_len = 0;
@@ -588,6 +644,12 @@ static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
     return WF_OK;
 }
 
+static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
+                                   unsigned child_layer,
+                                   unsigned parent_layer);
+static wf_status mst_raise_to_layer(wf_car *car, wf_cid *cid,
+                                    unsigned target_layer);
+
 static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
                                   const unsigned char *key, size_t key_len,
                                   const wf_cid *value, wf_cid *new_cid) {
@@ -619,6 +681,18 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     if (preceding_tree->len > 0) {
         wf_status ss = mst_split_around(car, preceding_tree, key, key_len,
                                         &pred_subtree, &new_subtree);
+        if (ss != WF_OK) {
+            free(new_entries);
+            return ss;
+        }
+        /* Both halves become subtrees of this node, so both must sit exactly
+         * one layer below it. A split does not guarantee that on its own: the
+         * half that keeps leaves derives its layer from them, while a half
+         * left holding only a subtree derives it from that child, so they can
+         * come out at different depths. */
+        ss = mst_raise_to_layer(car, &pred_subtree, node->layer);
+        if (ss == WF_OK)
+            ss = mst_raise_to_layer(car, &new_subtree, node->layer);
         if (ss != WF_OK) {
             free(new_entries);
             return ss;
@@ -668,9 +742,7 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     return WF_OK;
 }
 
-static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
-                                   unsigned child_layer,
-                                   unsigned parent_layer);
+
 
 static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
                                         const unsigned char *key,
@@ -787,6 +859,19 @@ static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
     return WF_OK;
 }
 
+/* Raise `cid` so that it sits exactly one layer below `target_layer`, starting
+ * from whatever layer the node actually derives. */
+static wf_status mst_raise_to_layer(wf_car *car, wf_cid *cid,
+                                    unsigned target_layer) {
+    if (cid->len == 0) return WF_OK;
+    wf_mst_node node;
+    wf_status s = mst_load_node(car, cid, &node);
+    if (s != WF_OK) return s;
+    unsigned actual = node.layer;
+    wf_mst_node_free(&node);
+    return mst_raise_subtree(car, cid, actual, target_layer);
+}
+
 static wf_status mst_add_at_higher_layer(wf_car *car,
                                          const wf_mst_node *node,
                                          const unsigned char *key,
@@ -798,9 +883,18 @@ static wf_status mst_add_at_higher_layer(wf_car *car,
     wf_status s = mst_split_around(car, &node->cid, key, key_len, &left, &right);
     if (s != WF_OK) return s;
 
-    s = mst_raise_subtree(car, &left, node->layer, key_layer);
+    /*
+     * Raise each half from the layer it actually has, not from the layer the
+     * node we split had. A split half that keeps leaves derives its layer from
+     * those leaves, while one left holding only a subtree derives it from that
+     * child — so the two halves can come out at different depths. Raising both
+     * by the same amount then preserves the difference, and the two end up as
+     * siblings at different layers. Deleting a key between them later asks for
+     * a merge across layers, which is refused.
+     */
+    s = mst_raise_to_layer(car, &left, key_layer);
     if (s != WF_OK) return s;
-    s = mst_raise_subtree(car, &right, node->layer, key_layer);
+    s = mst_raise_to_layer(car, &right, key_layer);
     if (s != WF_OK) return s;
 
     wf_mst_entry mid_entry;
