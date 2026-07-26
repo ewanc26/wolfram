@@ -232,8 +232,11 @@ int main(void) {
         WF_CHECK(wf_agent_get_suggestions(agent, 101, NULL,
                                           &res) ==
                  WF_ERR_INVALID_ARG);
+        /* No app.bsky.actor.declareActor exists upstream — a declaration is a
+         * record, not a procedure — so this reports NOT_IMPLEMENTED rather
+         * than blaming the arguments. */
         WF_CHECK(wf_agent_declare_actor_typed(NULL, &d) ==
-                 WF_ERR_INVALID_ARG);
+                 WF_ERR_NOT_IMPLEMENTED);
         wf_response_free(&res);
         wf_agent_free(agent);
         /* a non-NULL opaque agent pointer is rejected because its client is

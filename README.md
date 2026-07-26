@@ -3,7 +3,7 @@
 A C SDK for the AT Protocol — a client-side, wire-level implementation of the
 protocol, not a port of the upstream `atproto` service backends.
 
-**Version:** 0.1.1
+**Version:** 0.2.0
 
 The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
@@ -79,9 +79,17 @@ Topic guides:
 cmake -S . -B build && cmake --build build && ctest --test-dir build
 ```
 
+That builds `./build/wolfram`, the CLI, which is the quickest way to check the
+SDK end to end:
+
 ```sh
-./build/create_post https://bsky.social you@example.com yourpassword "Hello from wolfram!"
+./build/wolfram post https://bsky.social you@example.com yourpassword "Hello from wolfram!"
+./build/wolfram help post
 ```
+
+See [docs/cli.md](docs/cli.md) for the full command reference. The `examples/`
+programs referenced elsewhere in the docs are a separate set of small,
+single-purpose binaries built only with `-DWOLFRAM_BUILD_EXAMPLES=ON`.
 
 `wolfram` is organized into small, layered modules — transport → identity →
 repo → agent. See [docs/modules.md](docs/modules.md) for the full status table.

@@ -404,10 +404,13 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_list_blocks_typed(agent, 10, NULL, NULL) ==
                  WF_ERR_INVALID_ARG);
+        /* These name endpoints atproto does not have, so they report
+         * NOT_IMPLEMENTED rather than pretending the arguments were at
+         * fault. See the header for what to use instead. */
         WF_CHECK(wf_agent_get_actor_lists_typed(agent, "did:plc:x", 10, NULL,
-                                                &gv) == WF_ERR_INVALID_ARG);
+                                                &gv) == WF_ERR_NOT_IMPLEMENTED);
         WF_CHECK(wf_agent_get_actor_lists_typed(agent, NULL, 10, NULL, &gv) ==
-                 WF_ERR_INVALID_ARG);
+                 WF_ERR_NOT_IMPLEMENTED);
         WF_CHECK(wf_agent_get_starter_packs_typed(agent, NULL, 0, &spl) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_starter_packs_typed(NULL, (const char *const *)"x",
@@ -431,14 +434,17 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_unmute_actor_list_typed(NULL, "at://x/list") ==
                  WF_ERR_INVALID_ARG);
+        /* Blocking is a record write in atproto, not a procedure — these
+         * report NOT_IMPLEMENTED and the header points at
+         * wf_agent_graph_block / _unblock. */
         WF_CHECK(wf_agent_block_actor_typed(agent, "did:plc:x") ==
-                 WF_ERR_INVALID_ARG);
+                 WF_ERR_NOT_IMPLEMENTED);
         WF_CHECK(wf_agent_unblock_actor_typed(agent, NULL) ==
-                 WF_ERR_INVALID_ARG);
+                 WF_ERR_NOT_IMPLEMENTED);
         WF_CHECK(wf_agent_block_actor_list_typed(agent, "at://x/list") ==
-                 WF_ERR_INVALID_ARG);
+                 WF_ERR_NOT_IMPLEMENTED);
         WF_CHECK(wf_agent_unblock_actor_list_typed(NULL, "at://x/list") ==
-                 WF_ERR_INVALID_ARG);
+                 WF_ERR_NOT_IMPLEMENTED);
 
         wf_agent_actor_list_free(&al);
         wf_graph_list_view_list_free(&gv);
