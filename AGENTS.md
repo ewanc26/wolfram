@@ -70,7 +70,13 @@ The SDK is broad and multi-layered, with extensive offline coverage. “Implemen
 - `crypto`: secp256k1 (libsecp256k1) + P-256 (OpenSSL), `did:key`/multikey verification. Tested.
 - `repo` / `record`: DAG-CBOR, CIDs, CAR, MST, signed v3 commits, record CRUD, diff verify/apply, operation inversion, schema-driven record encoding. Tested.
 - `sync` / `sync_typed` / `sync_subscribe` / `sync_verify`: CAR download, `com.atproto.sync.*` typed wrappers, firehose `subscribeRepos` WebSocket subscription with commit verification. Tested.
-- `sync_publish`: firehose event production — builds the framed `{header}{body}` CBOR messages a relay/PDS streams over WebSocket (`wf_sync_publish_event` / `wf_sync_publish_error`), the exact inverse of the `sync_subscribe` decoder, covering `commit`/`sync`/`identity`/`account`/`info` and `op:-1` error frames. Round-trip tested by `test_sync_publish`. Tested.
+- `sync_publish`: firehose event production. Map keys are emitted in DAG-CBOR's
+  deterministic order (RFC 8949 §4.2.1: shorter keys first, then bytewise),
+  sorted centrally in `serialize_two` so builders stay free to add fields in
+  whatever order reads best. This cannot be caught by a round-trip — our
+  decoder accepts any order, so insertion-ordered frames decode perfectly and
+  are rejected by a strict reader. Assert on encoded bytes, and when in doubt
+  compare against a live `#commit` from `bsky.network`. Firehose event production — builds the framed `{header}{body}` CBOR messages a relay/PDS streams over WebSocket (`wf_sync_publish_event` / `wf_sync_publish_error`), the exact inverse of the `sync_subscribe` decoder, covering `commit`/`sync`/`identity`/`account`/`info` and `op:-1` error frames. Round-trip tested by `test_sync_publish`. Tested.
 - `agent` / `bsky_agent`: high-level BskyAgent bundling session + xrpc + identity + agent; posts, profile, social graph, feeds, preferences, push registration, notifications, blobs, video upload, and `app.bsky.graph` write wrappers (`graph_write.{c,h}`: mute/unmute thread + actor-list, block/list/listitem/starterpack/listblock create/update/delete) tested against an offline mock PDS. Tested.
 - `chat` / `chat_typed`: `chat.bsky.*` DM/group/actor/moderation write+query wrappers with chat-service endpoint resolution. Tested.
 - `ozone` / `ozone_typed`: full `tools.ozone.*` typed coverage (moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, set value). Tested.
