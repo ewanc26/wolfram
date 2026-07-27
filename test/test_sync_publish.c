@@ -626,11 +626,224 @@ static void test_integers_are_minimally_encoded(void) {
     free(frame);
 }
 
+/*
+ * One canonical-DAG-CBOR check, applied to every event kind.
+ *
+ * Three separate defects of this shape each made a PDS built on this SDK
+ * unfederatable — a CID link missing its 0x00 multibase prefix, map keys out
+ * of canonical order, and integers encoded wider than necessary — and each was
+ * found only after federation broke, because our own decoder tolerates
+ * precisely what the encoder gets wrong. The targeted tests above were written
+ * one at a time, after each bug. This asserts the whole property at once so
+ * the next one fails here instead of in the field.
+ *
+ * Checks, over the encoded bytes: definite lengths only; minimal integer,
+ * string and byte heads; map keys sorted shorter-first then bytewise; CID
+ * links as tag 42 wrapping a byte string that begins 0x00; no floats.
+ */
+typedef struct {
+	int nonminimal;
+	int indefinite;
+	int unsorted_keys;
+	int bad_cid_link;
+	int floats;
+} canon_report;
+
+static size_t canon_walk(const unsigned char *b, size_t len, size_t i,
+                          canon_report *r);
+
+static size_t canon_head(const unsigned char *b, size_t i, uint8_t *maj,
+                          uint8_t *minor, uint64_t *val, canon_report *r) {
+	*maj = b[i] >> 5;
+	*minor = b[i] & 0x1F;
+	i++;
+	if (*minor < 24) { *val = *minor; return i; }
+	if (*minor == 24) { *val = b[i]; i += 1; }
+	else if (*minor == 25) { *val = ((uint64_t)b[i] << 8) | b[i + 1]; i += 2; }
+	else if (*minor == 26) {
+		*val = ((uint64_t)b[i] << 24) | ((uint64_t)b[i + 1] << 16) |
+		       ((uint64_t)b[i + 2] << 8) | b[i + 3];
+		i += 4;
+	} else if (*minor == 27) {
+		*val = 0;
+		for (int k = 0; k < 8; k++) *val = (*val << 8) | b[i + k];
+		i += 8;
+	} else {
+		/* 31 is indefinite length, which DAG-CBOR forbids outright. */
+		r->indefinite++;
+		*val = 0;
+	}
+	/* Every head must use the shortest form that holds its argument. */
+	uint8_t want = *val < 24      ? (uint8_t)*val
+	             : *val <= 0xFF   ? 24
+	             : *val <= 0xFFFF ? 25
+	             : *val <= 0xFFFFFFFFu ? 26 : 27;
+	if (*minor <= 27 && *minor != want) r->nonminimal++;
+	return i;
+}
+
+static size_t canon_walk(const unsigned char *b, size_t len, size_t i,
+                          canon_report *r) {
+	uint8_t maj, minor;
+	uint64_t val;
+	if (i >= len) return i;
+	i = canon_head(b, i, &maj, &minor, &val, r);
+	switch (maj) {
+	case 2: case 3:
+		i += (size_t)val;
+		break;
+	case 4:
+		for (uint64_t k = 0; k < val; k++) i = canon_walk(b, len, i, r);
+		break;
+	case 5: {
+		/* Keys must be sorted shorter-first, then bytewise. */
+		size_t prev_at = 0, prev_len = 0;
+		for (uint64_t k = 0; k < val; k++) {
+			uint8_t kmaj, kminor;
+			uint64_t klen;
+			size_t head = i;
+			i = canon_head(b, i, &kmaj, &kminor, &klen, r);
+			size_t at = i;
+			if (kmaj == 3) {
+				if (k > 0) {
+					bool ordered =
+					    (prev_len < klen) ||
+					    (prev_len == klen &&
+					     memcmp(b + prev_at, b + at, (size_t)klen) < 0);
+					if (!ordered) r->unsorted_keys++;
+				}
+				prev_at = at;
+				prev_len = (size_t)klen;
+				i += (size_t)klen;
+			} else {
+				i = head;
+				i = canon_walk(b, len, i, r);
+			}
+			i = canon_walk(b, len, i, r);   /* value */
+		}
+		break;
+	}
+	case 6:
+		if (val == 42) {
+			/* A CID link wraps a byte string whose first byte is 0x00. */
+			uint8_t tmaj, tminor;
+			uint64_t tlen;
+			size_t at = canon_head(b, i, &tmaj, &tminor, &tlen, r);
+			if (tmaj != 2 || tlen == 0 || b[at] != 0x00) r->bad_cid_link++;
+			i = at + (size_t)tlen;
+		} else {
+			i = canon_walk(b, len, i, r);
+		}
+		break;
+	case 7:
+		/* 25/26/27 in major 7 are half/single/double floats. */
+		if (minor == 25) { r->floats++; i += 2; }
+		else if (minor == 26) { r->floats++; i += 4; }
+		else if (minor == 27) { r->floats++; i += 8; }
+		break;
+	default:
+		break;
+	}
+	return i;
+}
+
+static void canon_check(const unsigned char *frame, size_t len, const char *what) {
+	canon_report r = {0};
+	size_t i = canon_walk(frame, len, 0, &r);   /* header */
+	canon_walk(frame, len, i, &r);              /* body */
+	if (r.nonminimal) fprintf(stderr, "  %s: %d non-minimal heads\n", what, r.nonminimal);
+	if (r.indefinite) fprintf(stderr, "  %s: %d indefinite lengths\n", what, r.indefinite);
+	if (r.unsorted_keys) fprintf(stderr, "  %s: %d unsorted map keys\n", what, r.unsorted_keys);
+	if (r.bad_cid_link) fprintf(stderr, "  %s: %d malformed CID links\n", what, r.bad_cid_link);
+	if (r.floats) fprintf(stderr, "  %s: %d floats\n", what, r.floats);
+	WF_CHECK(r.nonminimal == 0 && r.indefinite == 0 && r.unsorted_keys == 0 &&
+	         r.bad_cid_link == 0 && r.floats == 0);
+}
+
+/* Build one of every event kind and hold them all to the same standard. */
+static void test_every_event_is_canonical(void) {
+	unsigned char *frame = NULL;
+	size_t len = 0;
+	const char *now = "2024-01-02T03:04:05.000Z";
+
+	{	wf_subscribe_event ev = {0};
+		ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+		ev.seq = 1785119372; ev.data.commit.seq = ev.seq;
+		snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:canon");
+		ev.data.commit.commit_cid = sample_cid(1);
+		ev.data.commit.has_prev_data = 1;
+		ev.data.commit.prev_data = sample_cid(2);
+		snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2c");
+		snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2fke3oy2b");
+		snprintf(ev.data.commit.time, sizeof(ev.data.commit.time), "%s", now);
+		unsigned char blocks[3] = {1, 2, 3};
+		ev.data.commit.blocks = malloc(sizeof(blocks));
+		memcpy(ev.data.commit.blocks, blocks, sizeof(blocks));
+		ev.data.commit.blocks_len = sizeof(blocks);
+		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+			canon_check(frame, len, "#commit"); free(frame); frame = NULL;
+		}
+		free(ev.data.commit.blocks);
+	}
+	{	wf_subscribe_event ev = {0};
+		ev.type = WF_SUBSCRIBE_EVENT_SYNC;
+		ev.seq = 300; ev.data.sync.seq = ev.seq;
+		snprintf(ev.data.sync.did, sizeof(ev.data.sync.did), "did:plc:canon");
+		snprintf(ev.data.sync.rev, sizeof(ev.data.sync.rev), "3kf2fke3oy2c");
+		snprintf(ev.data.sync.time, sizeof(ev.data.sync.time), "%s", now);
+		unsigned char blocks[2] = {9, 9};
+		ev.data.sync.blocks = malloc(sizeof(blocks));
+		memcpy(ev.data.sync.blocks, blocks, sizeof(blocks));
+		ev.data.sync.blocks_len = sizeof(blocks);
+		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+			canon_check(frame, len, "#sync"); free(frame); frame = NULL;
+		}
+		free(ev.data.sync.blocks);
+	}
+	{	wf_subscribe_event ev = {0};
+		ev.type = WF_SUBSCRIBE_EVENT_IDENTITY;
+		ev.seq = 70000; ev.data.identity.seq = ev.seq;
+		snprintf(ev.data.identity.did, sizeof(ev.data.identity.did), "did:plc:canon");
+		snprintf(ev.data.identity.handle, sizeof(ev.data.identity.handle), "a.example.com");
+		ev.data.identity.has_handle = 1;
+		snprintf(ev.data.identity.time, sizeof(ev.data.identity.time), "%s", now);
+		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+			canon_check(frame, len, "#identity"); free(frame); frame = NULL;
+		}
+	}
+	{	wf_subscribe_event ev = {0};
+		ev.type = WF_SUBSCRIBE_EVENT_ACCOUNT;
+		ev.seq = 23; ev.data.account.seq = ev.seq;
+		snprintf(ev.data.account.did, sizeof(ev.data.account.did), "did:plc:canon");
+		ev.data.account.active = 0;
+		snprintf(ev.data.account.status, sizeof(ev.data.account.status), "deactivated");
+		ev.data.account.has_status = 1;
+		snprintf(ev.data.account.time, sizeof(ev.data.account.time), "%s", now);
+		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+			canon_check(frame, len, "#account"); free(frame); frame = NULL;
+		}
+	}
+	{	wf_subscribe_event ev = {0};
+		ev.type = WF_SUBSCRIBE_EVENT_INFO;
+		snprintf(ev.data.info.name, sizeof(ev.data.info.name), "OutdatedCursor");
+		snprintf(ev.data.info.message, sizeof(ev.data.info.message), "Requested cursor exceeded limit");
+		ev.data.info.has_message = 1;
+		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+			canon_check(frame, len, "#info"); free(frame); frame = NULL;
+		}
+	}
+	if (wf_sync_publish_error(1234567, "FutureCursor", "Cursor in the future.",
+	                          &frame, &len) == WF_OK) {
+		canon_check(frame, len, "error frame"); free(frame); frame = NULL;
+	}
+}
+
 int main(void) {
     test_commit();
     test_cid_links_carry_multibase_prefix();
     test_map_keys_are_canonically_ordered();
     test_integers_are_minimally_encoded();
+    test_every_event_is_canonical();
     test_create_op_omits_prev();
     test_commit_no_prev_data();
     test_sync();
