@@ -1532,8 +1532,10 @@ int main(void) {
             WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
                                        &mst_root, &prev_cid, &key,
                                        &car, &commit) == WF_OK);
-            WF_CHECK(commit.has_prev == 1);
-            WF_CHECK(memcmp(&commit.prev, &prev_cid, sizeof(wf_cid)) == 0);
+            /* v3 writes prev as null whatever the caller passes: the spec
+             * says the field "must exist ... but is virtually always null",
+             * and no other implementation emits a CID there. */
+            WF_CHECK(commit.has_prev == 0);
 
             wf_car_free(&car);
         }
@@ -1612,8 +1614,8 @@ int main(void) {
         WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
                                    &mst_root, &prev_cid, &key,
                                    &car, &commit) == WF_OK);
-        WF_CHECK(commit.has_prev == 1);
-        WF_CHECK(memcmp(&commit.prev, &prev_cid, sizeof(wf_cid)) == 0);
+        /* See above: v3 commits carry a null prev. */
+        WF_CHECK(commit.has_prev == 0);
 
         wf_car_free(&car);
     }
@@ -1967,9 +1969,13 @@ int main(void) {
         options.expected_did = "did:plc:not-the-owner";
         WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_ERR_PARSE);
         options.expected_did = did;
+        /* expected_prev cannot reject a v3 commit: those carry a null prev,
+         * so there is nothing to disagree with. The chain is established by
+         * rev ordering, and on the firehose by prevData. The option still
+         * applies to a legacy commit that does carry one. */
         wf_cid wrong_prev = record_cid;
         options.expected_prev = &wrong_prev;
-        WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_ERR_PARSE);
+        WF_CHECK(wf_repo_verify(&car, &options, &verified) == WF_OK);
         options.expected_prev = NULL;
 
         /* A changed block whose old CID remains in the CAR must be rejected. */
@@ -2103,9 +2109,11 @@ int main(void) {
         WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &update, &options,
                                       &checked_prev) == WF_OK);
         wf_repo_diff_free(&checked_prev);
+        /* Same as above: a null prev cannot contradict expected_prev. */
         options.expected_prev = &commit_base;
         WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &update, &options,
-                                      &checked_prev) == WF_ERR_PARSE);
+                                      &checked_prev) == WF_OK);
+        wf_repo_diff_free(&checked_prev);
         options.expected_prev = NULL;
 
         /* Like consumer.ts ensureLeaves, changed leaves must be in update. */

@@ -94,10 +94,18 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
     if (rlen >= sizeof(out->rev)) return WF_ERR_INVALID_ARG;
     memcpy(out->rev, rev_str, rlen + 1);
     out->data = *data_cid;
-    if (prev_cid && prev_cid->len > 0) {
-        out->prev = *prev_cid;
-        out->has_prev = 1;
-    }
+    /*
+     * `prev` is written as null, whatever the caller passes.
+     *
+     * The repository specification is explicit for version 3: the field "must
+     * exist in the CBOR object, but is virtually always null". It is a v2
+     * back-compatibility remnant, and the reference implementation emits null
+     * unconditionally. Writing a real CID here put a field on the wire that no
+     * other implementation produces, inside the bytes that get signed — and
+     * nothing local can see it, because our own reader accepts either form.
+     * The commit chain is carried by `rev` and, on the firehose, by `prevData`.
+     */
+    (void)prev_cid;
     out->version = 3;
 
     wf_cbor_item *map = calloc(1, sizeof(*map));
@@ -114,8 +122,7 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
     map->map.pairs[2].key = cbor_str("data");
     map->map.pairs[2].value = cbor_cid(data_cid);
     map->map.pairs[3].key = cbor_str("prev");
-    map->map.pairs[3].value = (prev_cid && prev_cid->len > 0)
-                              ? cbor_cid(prev_cid) : cbor_null();
+    map->map.pairs[3].value = cbor_null();
     map->map.pairs[4].key = cbor_str("version");
     map->map.pairs[4].value = cbor_uint(3);
 
