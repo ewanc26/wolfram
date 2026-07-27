@@ -531,10 +531,106 @@ static void test_map_keys_are_canonically_ordered(void) {
     free(frame);
 }
 
+/*
+ * Integers must use the shortest form that holds the value.
+ *
+ * DAG-CBOR requires minimal-length integer encoding and a strict reader
+ * rejects anything wider. This is invisible to a round-trip, because our own
+ * decoder accepts any width — the frame decodes perfectly here and is dropped
+ * by the consumer. So walk the encoded bytes and check every integer head.
+ */
+static size_t check_minimal_ints(const unsigned char *b, size_t len,
+                                 size_t i, int *bad);
+
+static size_t read_head(const unsigned char *b, size_t i, uint8_t *maj,
+                        uint8_t *minor, uint64_t *val) {
+    *maj = b[i] >> 5;
+    *minor = b[i] & 0x1F;
+    i++;
+    if (*minor < 24) { *val = *minor; return i; }
+    if (*minor == 24) { *val = b[i]; return i + 1; }
+    if (*minor == 25) { *val = ((uint64_t)b[i] << 8) | b[i+1]; return i + 2; }
+    if (*minor == 26) {
+        *val = ((uint64_t)b[i] << 24) | ((uint64_t)b[i+1] << 16) |
+               ((uint64_t)b[i+2] << 8) | b[i+3];
+        return i + 4;
+    }
+    *val = 0;
+    for (int k = 0; k < 8; k++) *val = (*val << 8) | b[i + k];
+    return i + 8;
+}
+
+static uint8_t canonical_minor(uint64_t v) {
+    if (v < 24) return (uint8_t)v;
+    if (v <= 0xFF) return 24;
+    if (v <= 0xFFFF) return 25;
+    if (v <= 0xFFFFFFFFu) return 26;
+    return 27;
+}
+
+static size_t check_minimal_ints(const unsigned char *b, size_t len,
+                                 size_t i, int *bad) {
+    uint8_t maj, minor;
+    uint64_t val;
+    if (i >= len) return i;
+    i = read_head(b, i, &maj, &minor, &val);
+    if ((maj == 0 || maj == 1) && minor != canonical_minor(val)) (*bad)++;
+    switch (maj) {
+    case 2: case 3:
+        i += (size_t)val;
+        break;
+    case 4:
+        for (uint64_t k = 0; k < val; k++) i = check_minimal_ints(b, len, i, bad);
+        break;
+    case 5:
+        for (uint64_t k = 0; k < val; k++) {
+            i = check_minimal_ints(b, len, i, bad);
+            i = check_minimal_ints(b, len, i, bad);
+        }
+        break;
+    case 6:
+        i = check_minimal_ints(b, len, i, bad);
+        break;
+    default:
+        break;
+    }
+    return i;
+}
+
+static void test_integers_are_minimally_encoded(void) {
+    wf_subscribe_event ev = {0};
+    ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+    /* A seq that fits in 32 bits: encoding it at 64 is the exact bug. */
+    ev.seq = 1785119372;
+    ev.data.commit.seq = ev.seq;
+    snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:minint");
+    ev.data.commit.commit_cid = sample_cid(5);
+    snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2c");
+    snprintf(ev.data.commit.time, sizeof(ev.data.commit.time),
+             "2024-01-02T03:04:05.000Z");
+    unsigned char blocks[2] = {0x01, 0x02};
+    ev.data.commit.blocks = malloc(sizeof(blocks));
+    memcpy(ev.data.commit.blocks, blocks, sizeof(blocks));
+    ev.data.commit.blocks_len = sizeof(blocks);
+
+    unsigned char *frame = NULL;
+    size_t len = 0;
+    WF_CHECK(wf_sync_publish_event(&ev, &frame, &len) == WF_OK);
+    free(ev.data.commit.blocks);
+    if (!frame) return;
+
+    int bad = 0;
+    size_t i = check_minimal_ints(frame, len, 0, &bad);   /* header */
+    check_minimal_ints(frame, len, i, &bad);              /* body */
+    WF_CHECK(bad == 0);
+    free(frame);
+}
+
 int main(void) {
     test_commit();
     test_cid_links_carry_multibase_prefix();
     test_map_keys_are_canonically_ordered();
+    test_integers_are_minimally_encoded();
     test_create_op_omits_prev();
     test_commit_no_prev_data();
     test_sync();

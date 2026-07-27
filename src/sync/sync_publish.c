@@ -3,6 +3,7 @@
 #include "wolfram/crypto.h"
 
 #include <cbor.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,10 +11,30 @@
  * These mirror the encoding side of `src/sync/sync_subscribe.c`'s decoder so
  * the produced frames are the exact inverse of what that decoder parses. */
 
-/* Build a signed integer item (CBOR major type 0 for >=0, 1 for <0). */
+/*
+ * Build a signed integer item (CBOR major type 0 for >=0, 1 for <0), in the
+ * shortest form that holds the value.
+ *
+ * DAG-CBOR requires minimal-length integer encoding, and a strict reader
+ * rejects anything wider. Building every integer at 64 bits put `op: 1` in the
+ * frame header into eight bytes where one is canonical, so the header itself
+ * failed to decode and the connection was dropped before any event was
+ * processed — while our own decoder, which reads any width, saw nothing wrong.
+ * Compare a frame from bsky.network: zero non-minimal integers.
+ */
 static cbor_item_t *int_item(int64_t v) {
-    if (v >= 0) return cbor_build_uint64((uint64_t)v);
-    return cbor_build_negint64((uint64_t)(-(v + 1)));
+    if (v >= 0) {
+        uint64_t u = (uint64_t)v;
+        if (u <= UINT8_MAX) return cbor_build_uint8((uint8_t)u);
+        if (u <= UINT16_MAX) return cbor_build_uint16((uint16_t)u);
+        if (u <= UINT32_MAX) return cbor_build_uint32((uint32_t)u);
+        return cbor_build_uint64(u);
+    }
+    uint64_t u = (uint64_t)(-(v + 1));
+    if (u <= UINT8_MAX) return cbor_build_negint8((uint8_t)u);
+    if (u <= UINT16_MAX) return cbor_build_negint16((uint16_t)u);
+    if (u <= UINT32_MAX) return cbor_build_negint32((uint32_t)u);
+    return cbor_build_negint64(u);
 }
 
 /* Build a CBOR tag-42 cid-link: a bytestring of the raw CID bytes. The decoder
