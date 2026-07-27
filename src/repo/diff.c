@@ -425,8 +425,15 @@ wf_status wf_repo_verify(const wf_car *car,
     wf_cbor_free(root_object);
     commit.cid = car->roots[0];
     if (strcmp(commit.did, options->expected_did) != 0) return WF_ERR_PARSE;
-    if (options->expected_prev &&
-        (!commit.has_prev || !cid_equal(&commit.prev, options->expected_prev)))
+    /*
+     * `expected_prev` can only be checked against a commit that carries one.
+     * Version 3 commits set `prev` to null by specification, so for those the
+     * chain is established by `rev` ordering (and, on the firehose, by
+     * `prevData`) rather than by this field. Only reject a commit that carries
+     * a prev which disagrees.
+     */
+    if (options->expected_prev && commit.has_prev &&
+        !cid_equal(&commit.prev, options->expected_prev))
         return WF_ERR_PARSE;
 
     unsigned char *unsigned_commit = NULL;
