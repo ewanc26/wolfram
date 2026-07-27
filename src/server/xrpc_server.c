@@ -305,6 +305,11 @@ struct wf_xrpc_server {
      * drained the list would never be joined, so upgrades are refused from
      * here on rather than accepted into a server that is going away. */
     bool                 ws_stopping;
+    /* Upgrades queued but not yet handed to wf_ws_upgrade_handler. MHD gives
+     * no callback when a response is destroyed without upgrading, so a client
+     * that disappears between the 101 and the handover would otherwise strand
+     * the context and stream forever. Guarded by ws_mutex. */
+    struct wf_ws_pending *ws_pending;
     bool                 cors_enabled;          /* emit CORS headers when true */
     char                *cors_origin;           /* owned Allow-Origin value */
 };
@@ -642,6 +647,13 @@ struct wf_xrpc_ws_stream {
     struct wf_xrpc_ws_stream     *next;   /* global list in server */
 };
 
+/** An upgrade that has been queued but not yet handed over. */
+typedef struct wf_ws_pending {
+    struct MHD_Connection    *conn;
+    struct wf_ws_upgrade_ctx *uc;
+    struct wf_ws_pending     *next;
+} wf_ws_pending;
+
 /** Closure handed to libmicrohttpd's upgrade handler. */
 typedef struct wf_ws_upgrade_ctx {
     wf_xrpc_server      *server;
@@ -784,6 +796,88 @@ static void wf_ws_shutdown_gracefully(int sock) {
         /* Discarded deliberately: the stream is over, and the only purpose of
          * reading is to leave the receive queue empty. */
     }
+}
+
+/* Release an upgrade that never happened: the context, the request copy it
+ * carries, and the half-built stream. Mirrors the cleanup the upgrade handler
+ * performs when it refuses. */
+static void wf_ws_discard_upgrade(wf_ws_upgrade_ctx *uc) {
+    if (!uc) return;
+    wf_xrpc_ws_stream *stream = uc->stream;
+    free((void *)uc->req.nsid);
+    free((void *)uc->req.auth_header);
+    free((void *)uc->req.dpop_header);
+    cJSON_Delete(uc->req.params);
+    free(uc->req.authed_subject);
+    if (stream) {
+        free(stream->nsid);
+        pthread_cond_destroy(&stream->worker_cond);
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream);
+    }
+    free(uc);
+}
+
+/* Record an upgrade as queued-but-not-handed-over. */
+static void wf_ws_pending_add(wf_xrpc_server *server,
+                              struct MHD_Connection *conn,
+                              wf_ws_upgrade_ctx *uc) {
+    wf_ws_pending *node = calloc(1, sizeof(*node));
+    if (!node) return;   /* Losing the record only costs us the safety net. */
+    node->conn = conn;
+    node->uc = uc;
+    pthread_mutex_lock(&server->ws_mutex);
+    node->next = server->ws_pending;
+    server->ws_pending = node;
+    pthread_mutex_unlock(&server->ws_mutex);
+}
+
+/*
+ * Remove a pending record and return the context it held, or NULL when there
+ * is no match. Matches on `uc` when given, otherwise on `conn`; with both NULL
+ * it takes whatever is at the head, which is how teardown drains the list.
+ * The caller decides what the removal means — the handler claims the upgrade,
+ * connection close and teardown discard it.
+ */
+static wf_ws_upgrade_ctx *wf_ws_pending_take(wf_xrpc_server *server,
+                                             struct MHD_Connection *conn,
+                                             wf_ws_upgrade_ctx *uc) {
+    wf_ws_upgrade_ctx *found = NULL;
+    pthread_mutex_lock(&server->ws_mutex);
+    wf_ws_pending **pp = &server->ws_pending;
+    while (*pp) {
+        if ((uc && (*pp)->uc == uc) ||
+            (!uc && conn && (*pp)->conn == conn) ||
+            (!uc && !conn)) {
+            wf_ws_pending *node = *pp;
+            *pp = node->next;
+            found = node->uc;
+            free(node);
+            break;
+        }
+        pp = &(*pp)->next;
+    }
+    pthread_mutex_unlock(&server->ws_mutex);
+    return found;
+}
+
+/*
+ * MHD connection lifecycle hook.
+ *
+ * The only reason this exists: MHD never tells us when an upgrade response is
+ * destroyed without upgrading. A client that vanishes between the queued 101
+ * and the handover leaves its context and stream allocated with nothing left
+ * holding a pointer to them. Connection close is the one event that covers
+ * that case, and by then a successful upgrade has already claimed its record.
+ */
+static void wf_ws_notify_connection(void *cls, struct MHD_Connection *conn,
+                                    void **socket_context,
+                                    enum MHD_ConnectionNotificationCode code) {
+    (void)socket_context;
+    if (code != MHD_CONNECTION_NOTIFY_CLOSED) return;
+    wf_xrpc_server *server = cls;
+    if (!server) return;
+    wf_ws_discard_upgrade(wf_ws_pending_take(server, conn, NULL));
 }
 
 /** Upgrade worker: run the user handler then drain client control frames. */
@@ -959,6 +1053,8 @@ static void wf_ws_upgrade_handler(void *cls,
     /* Hold the stream directly: the worker frees `uc` as its first act, so
      * `uc` must not be dereferenced once pthread_create has succeeded. */
     wf_xrpc_ws_stream *stream = uc->stream;
+    /* The handover happened, so connection close must not also free this. */
+    wf_ws_pending_take(server, NULL, uc);
     pthread_t tid;
 
     /*
@@ -1164,6 +1260,8 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
     MHD_add_response_header(resp, "Upgrade", "websocket");
     MHD_add_response_header(resp, "Connection", "Upgrade");
     MHD_add_response_header(resp, "Sec-WebSocket-Accept", accept);
+    /* Track it until the handover: see wf_ws_notify_connection. */
+    wf_ws_pending_add(server, conn, uc);
     MHD_queue_response(conn, MHD_HTTP_SWITCHING_PROTOCOLS, resp);
     MHD_destroy_response(resp);
     return MHD_YES;
@@ -2058,6 +2156,7 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
         NULL, NULL,                       /* Accept policy */
         &wf_server_mhd_handler, server,   /* Main handler */
         MHD_OPTION_NOTIFY_COMPLETED, NULL, NULL,
+        MHD_OPTION_NOTIFY_CONNECTION, &wf_ws_notify_connection, server,
         MHD_OPTION_EXTERNAL_LOGGER, NULL, NULL,
         MHD_OPTION_END);
     if (!server->daemon) {
@@ -2148,6 +2247,16 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
         return;
     }
     wf_xrpc_server_stop(server);
+
+    /* Anything still queued for upgrade when the daemon went away will never
+     * be handed over, and its connection-close notification can no longer
+     * arrive. Release those here so shutdown does not strand them. */
+    for (;;) {
+        wf_ws_upgrade_ctx *pending = wf_ws_pending_take(server, NULL, NULL);
+        if (!pending) break;
+        wf_ws_discard_upgrade(pending);
+    }
+
     /* stop() has already joined every WebSocket upgrade worker thread (and
      * torn down the daemon), so no streams remain and routes can be freed. */
     r = server->routes;
