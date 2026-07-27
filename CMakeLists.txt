@@ -546,20 +546,51 @@ target_link_libraries(wolfram PRIVATE libcbor::libcbor)
 # Silence the toolchain warnings for this single third-party TU only.
 set_source_files_properties(src/image.c PROPERTIES COMPILE_FLAGS "-w")
 
+#
+# Resolve a pkg-config module's library names to absolute paths.
+#
+# pkg_check_modules reports bare names ("cares") plus a separate directory
+# list. target_link_directories(PRIVATE) does not propagate to consumers, but
+# the names do: a static libwolfram hands `-lcares` to whatever links it,
+# without the `-L` that makes it findable. On Linux the libraries sit in a
+# default search path so nothing noticed; on macOS with Homebrew they do not,
+# and the consumer's link fails with "library 'cares' not found".
+#
+# Absolute paths propagate correctly and need no search path at all.
+#
+function(wolfram_absolute_libs out_var names dirs)
+    set(resolved "")
+    foreach(name ${names})
+        if(IS_ABSOLUTE "${name}")
+            list(APPEND resolved "${name}")
+        else()
+            find_library(WF_LIB_${name} NAMES ${name} HINTS ${dirs})
+            if(WF_LIB_${name})
+                list(APPEND resolved "${WF_LIB_${name}}")
+            else()
+                # Fall back to the bare name; a default-path library still
+                # links, and this is no worse than before.
+                list(APPEND resolved "${name}")
+            endif()
+        endif()
+    endforeach()
+    set(${out_var} "${resolved}" PARENT_SCOPE)
+endfunction()
+
 if(CARES_FOUND)
+    wolfram_absolute_libs(CARES_LINK_LIBS "${CARES_LIBRARIES}" "${CARES_LIBRARY_DIRS}")
     target_include_directories(wolfram PRIVATE ${CARES_INCLUDE_DIRS})
-    target_link_directories(wolfram PRIVATE ${CARES_LIBRARY_DIRS})
-    target_link_libraries(wolfram PRIVATE ${CARES_LIBRARIES})
+    target_link_libraries(wolfram PRIVATE ${CARES_LINK_LIBS})
     target_compile_definitions(wolfram PRIVATE HAVE_CARES)
-    message(STATUS "c-ares found: ${CARES_VERSION}")
+    message(STATUS "c-ares found: ${CARES_VERSION} (${CARES_LINK_LIBS})")
 endif()
 
 if(ZSTD_FOUND)
+    wolfram_absolute_libs(ZSTD_LINK_LIBS "${ZSTD_LIBRARIES}" "${ZSTD_LIBRARY_DIRS}")
     target_include_directories(wolfram PRIVATE ${ZSTD_INCLUDE_DIRS})
-    target_link_directories(wolfram PRIVATE ${ZSTD_LIBRARY_DIRS})
-    target_link_libraries(wolfram PRIVATE ${ZSTD_LIBRARIES})
+    target_link_libraries(wolfram PRIVATE ${ZSTD_LINK_LIBS})
     target_compile_definitions(wolfram PRIVATE HAVE_LIBZSTD)
-    message(STATUS "libzstd found: ${ZSTD_VERSION}")
+    message(STATUS "libzstd found: ${ZSTD_VERSION} (${ZSTD_LINK_LIBS})")
 else()
     message(STATUS "libzstd not found — Jetstream compression remains unavailable")
 endif()
