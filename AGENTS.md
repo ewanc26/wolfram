@@ -93,6 +93,36 @@ The SDK is broad and multi-layered, with extensive offline coverage. “Implemen
   `\r\n\r\n`: one `read()` can return the 101 response and the first frames
   together, and discarding the remainder makes a test wait for bytes it is
   already holding.
+
+  **Membership of `server->ws_streams` means "a joinable worker exists for
+  this stream."** Every WebSocket lifetime bug found here came from that
+  invariant not holding, and each was fatal rather than cosmetic:
+
+  - The worker frees its upgrade context as its first act and can run to
+    completion in microseconds, so nothing may dereference that context after
+    `pthread_create` succeeds. The worker parks on `thread_ready` until the
+    spawning thread has stored its id, which is also why the id and the list
+    insertion happen under the same lock — `wf_xrpc_server_stop` reads that
+    field under `ws_mutex` and would otherwise join a zero id.
+  - Teardown drains the list one entry at a time. A bounded snapshot that
+    still cleared the whole list left every worker past the limit unlinked and
+    unjoined, running on into a freed server; 65 firehose subscribers is an
+    ordinary load, not an exotic one.
+  - `ws_stopping` latches under `ws_mutex` so no upgrade can join the list
+    behind the drain loop.
+  - A worker that finishes on its own detaches itself, decided under
+    `ws_mutex` in the same critical section as the unlink (`reaped`). Without
+    it every completed connection leaked a thread descriptor and its stack for
+    the life of the process — unbounded on a host with churning subscribers.
+  - Unlink before closing the socket. The kernel reuses the fd immediately, so
+    a still-listed stream let `stop()` `shutdown()` an unrelated live
+    connection.
+
+  `test_xrpc_server_ws_many` covers the teardown path with 96 concurrent
+  subscribers. It only detects the use-after-free under a sanitizer — a plain
+  build can exit 0 while corrupting memory — so it sets `abort_on_error`, and
+  a handler that merely returns is not enough to expose it: the workers must
+  still be running when the server is freed.
 - `feedgen_server`: optional `libmicrohttpd`-backed feed-generator skeleton server helper (`WOLFRAM_BUILD_SERVER`) serving `app.bsky.feed.getFeedSkeleton` and `getFeedGenerator`. Tested.
 - `relay_server`: optional `libmicrohttpd`-backed generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`), built on the server's WS endpoints and the libcurl WebSocket client transport. `wf_xrpc_server_register_relay` registers a WS route (e.g. `com.atproto.sync.subscribeRepos`) that, on a downstream connect, opens an upstream `ws(s)://` connection and forwards each received message byte-for-byte until either side closes, then closes downstream. Protocol-agnostic (raw frames, no parsing) so it serves `subscribeRepos`, `subscribeLabels`, or any binary subscription. Config deep-copied and freed by `wf_relay_config_free`; the `wf_relay_server` handle owns the copy and is freed by `wf_relay_server_free` after `wf_xrpc_server_free`. Tested offline (`test_relay_server`).
 - `blob_store`: **Migrated to MetalBear.** The PDS blob persistence/serving code (`wf_blob_store*`) has been moved to the MetalBear repository as `metalbear_blob_store*` (header `metalbear_blob_store.h`, core store `metalbear_blob_store.c`, XRPC route handlers `metalbear_blob_store_server.c`). The original Wolfram source files remain for historical reference but are no longer compiled or part of the SDK.
