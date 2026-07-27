@@ -294,6 +294,8 @@ struct wf_xrpc_server {
      * an external auth callback replaces the middleware. */
     void                *auth_mw_ctx;
     void               (*auth_mw_free)(void *);
+    wf_xrpc_request_observer observer;         /* optional, not owned */
+    void                *observer_ctx;
     wf_rate_limiter     *rate_limiter;        /* global IP-based limiter */
     wf_rate_limiter     *rate_limiter_owned;  /* non-NULL => server frees it */
     wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
@@ -1645,6 +1647,17 @@ static enum MHD_Result wf_server_mhd_options(void *cls,
                                               size_t *upload_data_size,
                                               void **con_cls);
 
+/* Report a finished request to the observer, if one is installed. Called
+ * from every path that decides a status, the rate limiter's 429 included —
+ * a refusal the caller never sees counted is the one an operator most needs
+ * to see. */
+static void wf_server_observe(wf_xrpc_server *server, const char *nsid,
+                              const char *path, const char *method,
+                              unsigned int status) {
+    if (server && server->observer)
+        server->observer(server->observer_ctx, nsid, path, method, status);
+}
+
 static enum MHD_Result wf_server_mhd_handler(void *cls,
                                               struct MHD_Connection *conn,
                                               const char *url,
@@ -1867,6 +1880,7 @@ process:
                     MHD_queue_response(conn, 429, mhd_rl);
                     MHD_destroy_response(mhd_rl);
                 }
+                wf_server_observe(server, nsid, url, method, 429);
                 ret = MHD_YES;
                 goto cleanup;
             }
@@ -1996,6 +2010,7 @@ send:
         MHD_add_response_header(mhd_resp, header->name, header->value);
     wf_server_apply_cors(server, mhd_resp);
 
+    wf_server_observe(server, nsid, url, method, resp.http_status);
     ret = MHD_queue_response(conn, resp.http_status, mhd_resp);
     MHD_destroy_response(mhd_resp);
 
@@ -2501,6 +2516,14 @@ void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
     server->cors_enabled = enabled;
     free(server->cors_origin);
     server->cors_origin = (origin && origin[0]) ? strdup(origin) : NULL;
+}
+
+void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
+                                         wf_xrpc_request_observer cb,
+                                         void *ctx) {
+    if (!server) return;
+    server->observer = cb;
+    server->observer_ctx = ctx;
 }
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
