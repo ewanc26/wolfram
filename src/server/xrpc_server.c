@@ -961,6 +961,29 @@ static void wf_ws_upgrade_handler(void *cls,
     wf_xrpc_ws_stream *stream = uc->stream;
     pthread_t tid;
 
+    /*
+     * MHD hands us MHD_INVALID_SOCKET when it could not complete the upgrade
+     * itself — it cannot allocate the internal socketpair under load, or the
+     * connection died first. Spawning a worker on that means poll()/read() on
+     * fd -1 for the life of the stream: EBADF at best, and on a platform where
+     * the cast lands on a live descriptor, reads and writes against somebody
+     * else's connection. Refuse before anything is spawned or published.
+     */
+    if (sock == MHD_INVALID_SOCKET) {
+        MHD_upgrade_action(urh, MHD_UPGRADE_ACTION_CLOSE);
+        free((void *)uc->req.nsid);
+        free((void *)uc->req.auth_header);
+        free((void *)uc->req.dpop_header);
+        cJSON_Delete(uc->req.params);
+        free(uc->req.authed_subject);
+        free(stream->nsid);
+        pthread_cond_destroy(&stream->worker_cond);
+        pthread_mutex_destroy(&stream->mutex);
+        free(stream);
+        free(uc);
+        return;
+    }
+
     stream->sock = (int)sock;
     stream->urh = urh;
 
