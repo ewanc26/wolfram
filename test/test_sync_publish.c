@@ -468,9 +468,73 @@ static void test_labels(void) {
     free(ev.data.labels.labels);
 }
 
+/*
+ * Map keys must go out in DAG-CBOR's deterministic order.
+ *
+ * RFC 8949 §4.2.1: shorter keys first, then bytewise. This asserts on the
+ * encoded bytes because a round-trip cannot see the difference — our decoder
+ * accepts any order, so frames in insertion order decode perfectly here and
+ * are rejected by a strict reader. The expected order below is the order
+ * bsky.network actually emits for a #commit.
+ */
+static void test_map_keys_are_canonically_ordered(void) {
+    wf_subscribe_event ev = {0};
+    ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+    ev.seq = 77;
+    ev.data.commit.seq = 77;
+    snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:order");
+    ev.data.commit.commit_cid = sample_cid(3);
+    snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2c");
+    snprintf(ev.data.commit.time, sizeof(ev.data.commit.time),
+             "2024-01-02T03:04:05.000Z");
+    unsigned char blocks[2] = {0x01, 0x02};
+    ev.data.commit.blocks = malloc(sizeof(blocks));
+    memcpy(ev.data.commit.blocks, blocks, sizeof(blocks));
+    ev.data.commit.blocks_len = sizeof(blocks);
+
+    unsigned char *frame = NULL;
+    size_t len = 0;
+    WF_CHECK(wf_sync_publish_event(&ev, &frame, &len) == WF_OK);
+    free(ev.data.commit.blocks);
+    if (!frame) return;
+
+    /* Walk the raw bytes: the keys must appear in this order. Searching for
+     * each in turn and requiring the offsets to increase is enough, and does
+     * not need a CBOR parser in the test. */
+    static const char *expected[] = {
+        "ops", "rev", "seq", "repo", "time", "blobs", "since",
+        "blocks", "commit", "rebase", "tooBig",
+    };
+    size_t previous = 0;
+    int ordered = 1;
+    for (size_t i = 0; i < sizeof(expected) / sizeof(expected[0]); i++) {
+        const char *key = expected[i];
+        size_t klen = strlen(key);
+        size_t at = 0;
+        int found = 0;
+        for (size_t j = 0; j + klen <= len; j++) {
+            /* Text-string header for a short key is 0x60|len, so match the
+             * header too and avoid hitting the same letters inside a value. */
+            if (j > 0 && (unsigned char)frame[j - 1] == (0x60 | klen) &&
+                memcmp(frame + j, key, klen) == 0) {
+                at = j;
+                found = 1;
+                break;
+            }
+        }
+        WF_CHECK(found);
+        if (!found) { ordered = 0; break; }
+        if (at < previous) ordered = 0;
+        previous = at;
+    }
+    WF_CHECK(ordered);
+    free(frame);
+}
+
 int main(void) {
     test_commit();
     test_cid_links_carry_multibase_prefix();
+    test_map_keys_are_canonically_ordered();
     test_create_op_omits_prev();
     test_commit_no_prev_data();
     test_sync();
