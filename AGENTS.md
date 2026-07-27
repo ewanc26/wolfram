@@ -70,10 +70,29 @@ The SDK is broad and multi-layered, with extensive offline coverage. “Implemen
 - `crypto`: secp256k1 (libsecp256k1) + P-256 (OpenSSL), `did:key`/multikey verification. Tested.
 - `repo` / `record`: DAG-CBOR, CIDs, CAR, MST, signed v3 commits, record CRUD, diff verify/apply, operation inversion, schema-driven record encoding. Tested.
 - `sync` / `sync_typed` / `sync_subscribe` / `sync_verify`: CAR download, `com.atproto.sync.*` typed wrappers, firehose `subscribeRepos` WebSocket subscription with commit verification. Tested.
-- `sync_publish`: firehose event production. Map keys are emitted in DAG-CBOR's
-  deterministic order (RFC 8949 §4.2.1: shorter keys first, then bytewise),
-  sorted centrally in `serialize_two` so builders stay free to add fields in
-  whatever order reads best. This cannot be caught by a round-trip — our
+- `sync_publish`: firehose event production. Frames must be **canonical
+  DAG-CBOR**, and three separate defects of that kind each made the PDS
+  unfederatable while every local test passed:
+
+  | defect | our decoder | a strict decoder |
+  |---|---|---|
+  | CID link missing the `0x00` multibase prefix | skips leading zeros | rejects |
+  | map keys not in canonical order | order-independent | rejects |
+  | integer encoded wider than necessary | accepts any width | rejects |
+
+  The last one was the worst: every integer was built at 64-bit width, so the
+  frame header's `op: 1` took eight bytes where one is canonical. A consumer
+  failed on the *header* and dropped the connection before reading anything,
+  which looks from the outside exactly like a relay that will not talk to you.
+  Integers go through `int_item`, which picks the narrowest form; map keys are
+  sorted centrally in `serialize_two` (RFC 8949 §4.2.1: shorter keys first,
+  then bytewise) so builders stay free to add fields in whatever order reads
+  best.
+
+  **Assert on encoded bytes, never on a round-trip** — our own decoder is
+  tolerant of precisely what the encoder gets wrong. When something will not
+  federate, capture a live frame from `bsky.network` and compare it field by
+  field and byte by byte; that is what found all three. This cannot be caught by a round-trip — our
   decoder accepts any order, so insertion-ordered frames decode perfectly and
   are rejected by a strict reader. Assert on encoded bytes, and when in doubt
   compare against a live `#commit` from `bsky.network`. Firehose event production — builds the framed `{header}{body}` CBOR messages a relay/PDS streams over WebSocket (`wf_sync_publish_event` / `wf_sync_publish_error`), the exact inverse of the `sync_subscribe` decoder, covering `commit`/`sync`/`identity`/`account`/`info` and `op:-1` error frames. Round-trip tested by `test_sync_publish`. Tested.
