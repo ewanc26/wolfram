@@ -57,11 +57,66 @@ static int map_put(cbor_item_t *map, const char *key, cbor_item_t *val) {
     return cbor_map_add(map, p);
 }
 
+/*
+ * Sort a map's entries into DAG-CBOR's deterministic order, recursively.
+ *
+ * RFC 8949 §4.2.1 orders map keys by their encoded bytes: shorter keys first,
+ * then bytewise. Our keys are all short text strings, so comparing (length,
+ * bytes) is the same comparison. libcbor preserves insertion order, so frames
+ * went out in whatever order the builders happened to add fields — compare a
+ * #commit from bsky.network:
+ *
+ *   upstream  ops rev seq repo time blobs since blocks commit rebase tooBig
+ *   ours      seq rebase tooBig repo commit rev since blocks ops blobs time
+ *
+ * Both decode to the same event, and an order-tolerant reader never notices,
+ * which is exactly why this survived so long. A strict DAG-CBOR decoder
+ * rejects the frame outright.
+ */
+static int canonical_pair_cmp(const void *lhs, const void *rhs) {
+    const struct cbor_pair *a = lhs, *b = rhs;
+    size_t alen = cbor_string_length(a->key);
+    size_t blen = cbor_string_length(b->key);
+    if (alen != blen) return alen < blen ? -1 : 1;
+    return memcmp(cbor_string_handle(a->key), cbor_string_handle(b->key), alen);
+}
+
+static void canonicalise(cbor_item_t *item) {
+    if (!item) return;
+    switch (cbor_typeof(item)) {
+    case CBOR_TYPE_MAP: {
+        struct cbor_pair *pairs = cbor_map_handle(item);
+        size_t count = cbor_map_size(item);
+        for (size_t i = 0; i < count; i++) {
+            /* Only string keys occur here; a non-string would make the
+             * comparison meaningless, so leave such a map alone. */
+            if (!cbor_isa_string(pairs[i].key)) return;
+        }
+        qsort(pairs, count, sizeof(*pairs), canonical_pair_cmp);
+        for (size_t i = 0; i < count; i++) canonicalise(pairs[i].value);
+        break;
+    }
+    case CBOR_TYPE_ARRAY: {
+        size_t count = cbor_array_size(item);
+        for (size_t i = 0; i < count; i++)
+            canonicalise(cbor_array_handle(item)[i]);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 /* Serialize `a` then `b` into one contiguous owned buffer (header then body). */
 static wf_status serialize_two(cbor_item_t *a, cbor_item_t *b,
                                unsigned char **out, size_t *out_len) {
     unsigned char *b1 = NULL, *b2 = NULL;
     size_t l1 = 0, l2 = 0;
+    /* Every frame passes through here, so this is the one place that has to
+     * remember; individual builders can add fields in whatever order reads
+     * best. */
+    canonicalise(a);
+    canonicalise(b);
     if (!cbor_serialize_alloc(a, &b1, &l1)) return WF_ERR_ALLOC;
     if (!cbor_serialize_alloc(b, &b2, &l2)) {
         free(b1);
