@@ -230,6 +230,31 @@ typedef wf_status (*wf_xrpc_ws_handler)(void *ctx,
 typedef wf_status (*wf_xrpc_auth_cb)(wf_xrpc_request *req, void *ctx);
 
 /* ------------------------------------------------------------------ */
+/* Request observer (optional)                                         */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Compile-time feature flag, so a consumer can build against a Wolfram with
+ * or without the observer rather than requiring a lockstep upgrade.
+ */
+#define WF_XRPC_HAS_REQUEST_OBSERVER 1
+
+/**
+ * Called once per request, after the status is decided and before the
+ * response is queued. `nsid` is the XRPC method, or NULL for a plain HTTP
+ * route; `path` is always the request path.
+ *
+ * This is the only point that sees every request together with its outcome —
+ * an auth callback runs too early to know the status and never runs at all
+ * for HTTP routes or for a request the rate limiter refused. It is called on
+ * a worker thread while the connection is being served, so it must not block:
+ * incrementing a counter is the intended use, writing to a socket is not.
+ */
+typedef void (*wf_xrpc_request_observer)(void *ctx, const char *nsid,
+                                         const char *path, const char *method,
+                                         unsigned int status);
+
+/* ------------------------------------------------------------------ */
 /* Server lifecycle                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -419,6 +444,12 @@ wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code);
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
                                         wf_xrpc_auth_cb cb, void *ctx);
+
+/** Install (or clear, with NULL) the per-request observer. `ctx` is not
+ *  owned by the server. */
+void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
+                                         wf_xrpc_request_observer cb,
+                                         void *ctx);
 
 /**
  * Install (or replace, with NULL) the fallback handler invoked for XRPC

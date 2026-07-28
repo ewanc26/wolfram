@@ -480,6 +480,11 @@ if(WOLFRAM_BUILD_SERVER)
         target_include_directories(test_relay_server PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME relay_server COMMAND test_relay_server)
 
+        add_executable(test_xrpc_server_observer test/test_xrpc_server_observer.c)
+        target_link_libraries(test_xrpc_server_observer PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_xrpc_server_observer PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME xrpc_server_observer COMMAND test_xrpc_server_observer)
+
         add_executable(test_xrpc_server_auth test/test_xrpc_server_auth.c)
         target_link_libraries(test_xrpc_server_auth PRIVATE wolfram Threads::Threads)
         target_include_directories(test_xrpc_server_auth PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
