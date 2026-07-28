@@ -131,6 +131,30 @@ cmake --build build-wiiu
 Requires [devkitPro](https://devkitpro.org/) with devkitPPC and the wut SDK
 installed. The toolchain file is at `.devdeps/wiiu.cmake`.
 
+The Wii U is the one console target that can also build the XRPC **server**,
+using the bundled libmicrohttpd shim (`src/server/mhd_shim.c`) in place of a
+library that has no console port. devkitPro packages no SQLite, so point the
+build at the [amalgamation](https://sqlite.org/download.html):
+
+```sh
+cmake -S . -B build-wiiu \
+  -DCMAKE_TOOLCHAIN_FILE=.devdeps/wiiu.cmake \
+  -DWOLFRAM_BUILD_WIIU=ON \
+  -DWOLFRAM_BUILD_SERVER=ON \
+  -DWOLFRAM_SQLITE_AMALGAMATION=/path/to/sqlite-amalgamation
+cmake --build build-wiiu
+```
+
+**The Wii U build is theoretically compatible: it compiles and links, and it
+has never been run on hardware.** Everything it depends on cross-compiles —
+secp256k1, SQLite, mbedTLS (including server-side TLS), curl — and the shim
+is exercised by the full test suite natively, where `-DWOLFRAM_MHD_SHIM=ON`
+substitutes it for the real library on any platform. That is evidence the code
+is portable and honours MHD's contract. It is not evidence that it boots, and
+a clean cross-compile says nothing about a runtime that has never executed a
+single instruction of it. Treat it as a starting point for someone with a
+console, not as a supported target.
+
 ### 3DS
 
 A cross-compilation target for the Nintendo 3DS (devkitARM/libctru) is
@@ -181,11 +205,13 @@ The Wii platform implements libogc networking, LWP mutexes, monotonic timing,
 mbedTLS HTTPS with CA validation, and the P-256/did:key crypto needed by the
 client. It requires a unique externally provisioned entropy seed through
 `wf_wii_set_entropy_seed`. Wii WebSocket and secp256k1 support remain honest
-stubs. Wii U and 3DS platform, transport, and crypto backends remain stubbed.
-The Windows target is fully implemented against the Win32 API.
+stubs. The 3DS platform, transport, and crypto backends remain stubbed. The
+Windows target is fully implemented against the Win32 API.
 
-For consoles (Wii, Wii U, 3DS), the builds are client-only — server modules,
-OAuth flows, and desktop dependencies (libcurl, OpenSSL, pthreads) are excluded.
+The Wii and 3DS builds are client-only: server modules, OAuth flows, and the
+desktop dependencies (libcurl, OpenSSL, pthreads) are excluded. The Wii U can
+build the server as well — see above — but only as far as compiling, which is
+not the same as working.
 
 ## Contributing
 
