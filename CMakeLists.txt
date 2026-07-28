@@ -23,6 +23,8 @@ add_compile_options(-Wall -Wextra -Wpedantic)
 # dependencies (libcurl, OpenSSL, pthreads) are replaced with platform stubs.
 option(WOLFRAM_BUILD_WII "Build for Nintendo Wii (devkitPPC/libogc)" OFF)
 option(WOLFRAM_BUILD_WIIU "Build for Nintendo Wii U (devkitPPC/wut)" OFF)
+option(WOLFRAM_MHD_SHIM
+    "Use the bundled libmicrohttpd shim instead of the real library" OFF)
 option(WOLFRAM_BUILD_3DS "Build for Nintendo 3DS (devkitARM/libctru)" OFF)
 
 # Windows cross-compilation (MinGW-w64). Uses Win32 APIs instead of POSIX.
@@ -391,17 +393,47 @@ else()
 endif()
 
 if(WOLFRAM_BUILD_EMBEDDED)
-    # Embedded targets: skip server, examples, tests (no curl/OpenSSL/pthreads)
-    set(WOLFRAM_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    #
+    # Embedded targets skip examples and tests: there is no host to run them
+    # on. The server used to be skipped here too, for want of
+    # curl/OpenSSL/pthreads — but that is no longer true of the Wii U, which
+    # has curl and mbedTLS in devkitPro's portlibs, pthreads in newlib, and
+    # now the libmicrohttpd shim below. It is still true of the Wii and the
+    # 3DS, so those keep the old behaviour.
+    #
+    if(NOT WOLFRAM_BUILD_WIIU)
+        set(WOLFRAM_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+    endif()
     set(WOLFRAM_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(WOLFRAM_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 endif()
 
-# XRPC server module (optional, requires libmicrohttpd)
+# XRPC server module (optional, requires libmicrohttpd — or the shim)
 if(WOLFRAM_BUILD_SERVER)
-    find_path(MICROHTTPD_INCLUDE_DIR NAMES microhttpd.h REQUIRED)
-    find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
+    #
+    # libmicrohttpd has no port to the Nintendo consoles, so WOLFRAM_MHD_SHIM
+    # substitutes an implementation of the slice xrpc_server.c uses, built on
+    # BSD sockets. It is forced on for the Wii U and available everywhere else,
+    # because a shim that can only be built for a target nobody can run tests
+    # on is a shim nobody can trust: enabling it natively runs the whole
+    # existing server suite against it.
+    #
+    if(WOLFRAM_BUILD_WIIU OR WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_3DS)
+        set(WOLFRAM_MHD_SHIM ON CACHE BOOL "" FORCE)
+    endif()
     find_package(Threads REQUIRED)
+    if(WOLFRAM_MHD_SHIM)
+        # Ahead of any system microhttpd.h on the include path, so
+        # `#include <microhttpd.h>` resolves to the shim.
+        set(MICROHTTPD_INCLUDE_DIR
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/wolfram/compat")
+        set(MICROHTTPD_LIBRARY "")
+        target_sources(wolfram PRIVATE src/server/mhd_shim.c)
+        message(STATUS "XRPC server using the libmicrohttpd shim")
+    else()
+        find_path(MICROHTTPD_INCLUDE_DIR NAMES microhttpd.h REQUIRED)
+        find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
+    endif()
     target_sources(wolfram PRIVATE src/server/xrpc_server.c)
     # JSON configuration loader for the XRPC server.
     target_sources(wolfram PRIVATE src/server/xrpc_server_config.c)
@@ -428,6 +460,36 @@ if(WOLFRAM_BUILD_SERVER)
             set(SQLite3_INCLUDE_DIRS ${SQLITE3_INCLUDE_DIR})
             set(SQLite3_LIBRARIES ${SQLITE3_LIBRARY})
         endif()
+    endif()
+    #
+    # devkitPro packages no SQLite for the Wii U, and there is no system one to
+    # find. Build it from the amalgamation instead, which is what SQLite ships
+    # for exactly this case. The console is a single process with no other
+    # writer, so it needs neither threading nor WAL nor the fcntl locking that
+    # newlib does not provide — `unix-none` semantics are correct here rather
+    # than a compromise.
+    #
+    if(NOT SQLite3_FOUND AND WOLFRAM_BUILD_WIIU)
+        set(WOLFRAM_SQLITE_AMALGAMATION "" CACHE PATH
+            "Directory holding sqlite3.c/sqlite3.h for targets with no packaged SQLite")
+        if(NOT WOLFRAM_SQLITE_AMALGAMATION)
+            message(FATAL_ERROR
+                "WOLFRAM_BUILD_WIIU=ON with the server needs SQLite, which "
+                "devkitPro does not package. Download the amalgamation from "
+                "https://sqlite.org/download.html and point "
+                "-DWOLFRAM_SQLITE_AMALGAMATION= at the unpacked directory.")
+        endif()
+        target_sources(wolfram PRIVATE
+            "${WOLFRAM_SQLITE_AMALGAMATION}/sqlite3.c")
+        set_source_files_properties(
+            "${WOLFRAM_SQLITE_AMALGAMATION}/sqlite3.c" PROPERTIES
+            COMPILE_DEFINITIONS
+            "SQLITE_THREADSAFE=0;SQLITE_OMIT_WAL=1;SQLITE_OMIT_LOAD_EXTENSION=1;SQLITE_DEFAULT_LOCKING_MODE=1;SQLITE_TEMP_STORE=3")
+        set(SQLite3_FOUND TRUE)
+        set(SQLite3_INCLUDE_DIRS "${WOLFRAM_SQLITE_AMALGAMATION}")
+        set(SQLite3_LIBRARIES "")
+        message(STATUS "SQLite3 built from the amalgamation at "
+                       "${WOLFRAM_SQLITE_AMALGAMATION}")
     endif()
     if(NOT SQLite3_FOUND)
         message(FATAL_ERROR
