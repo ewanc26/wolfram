@@ -13,6 +13,9 @@
 
 #include <cJSON.h>
 #include <microhttpd.h>
+#if defined(WOLFRAM_WIIU)
+#include <mbedtls/sha1.h>
+#endif
 
 #include <arpa/inet.h>
 #include <pthread.h>
@@ -1167,7 +1170,13 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
     wf_xrpc_ws_stream *stream;
     wf_ws_upgrade_ctx *uc;
     struct MHD_Response *resp;
+#if defined(WOLFRAM_WIIU)
+    /* No OpenSSL on the console; mbedTLS supplies the SHA-1 that RFC 6455
+     * requires for Sec-WebSocket-Accept. */
+    unsigned char digest[20];
+#else
     unsigned char digest[SHA_DIGEST_LENGTH];
+#endif
     char accept[40];
     char concat[256];
 
@@ -1179,8 +1188,13 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
 
     snprintf(concat, sizeof(concat),
              "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11", key);
+#if defined(WOLFRAM_WIIU)
+    mbedtls_sha1((const unsigned char *)concat, strlen(concat), digest);
+    wf_ws_base64_encode(digest, 20, accept);
+#else
     SHA1((const unsigned char *)concat, strlen(concat), digest);
     wf_ws_base64_encode(digest, SHA_DIGEST_LENGTH, accept);
+#endif
 
     stream = (wf_xrpc_ws_stream *)calloc(1, sizeof(*stream));
     if (!stream) return MHD_NO;
@@ -1837,7 +1851,12 @@ process:
     /* Rate limiter — charge 1 token against client IP */
     if (server->rate_limiter) {
         const union MHD_ConnectionInfo *ci;
+#if defined(WOLFRAM_WIIU)
+        /* wut's headers have no IPv6; a console on a home LAN is v4-only. */
+        char ip_str[INET_ADDRSTRLEN];
+#else
         char ip_str[INET6_ADDRSTRLEN];
+#endif
         unsigned int retry_after = 0;
 
         ci = MHD_get_connection_info(conn,
@@ -1847,10 +1866,12 @@ process:
                 inet_ntop(AF_INET,
                           &((struct sockaddr_in *)ci->client_addr)->sin_addr,
                           ip_str, sizeof(ip_str));
+#if !defined(WOLFRAM_WIIU)
             } else if (ci->client_addr->sa_family == AF_INET6) {
                 inet_ntop(AF_INET6,
                           &((struct sockaddr_in6 *)ci->client_addr)->sin6_addr,
                           ip_str, sizeof(ip_str));
+#endif
             } else {
                 (void)snprintf(ip_str, sizeof(ip_str), "unknown");
             }
