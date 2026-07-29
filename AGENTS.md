@@ -215,4 +215,34 @@ until the application provisions 64 real bytes via `wf_wiiu_set_entropy_seed()`
 — see `include/wolfram/wiiu.h`, which mirrors the Wii API including the
 rotate/persist/commit cycle. Never add a shared fallback seed.
 
+**That same weak poll also seeds libcurl's TLS on Wii U, and closing it needs
+the application's help.** `wf_wiiu_set_entropy_seed()` fixes Wolfram's own
+P-256 work, but libcurl holds a *separate* mbedTLS entropy context for the
+transport — so client randoms and ephemeral ECDHE keys were still being drawn
+from `srand(OSGetSystemTick())` on every request. Three details make that
+unfixable from inside Wolfram alone:
+
+- devkitPro's patch puts `mbedtls_hardware_poll` in `library/entropy.c`, the
+  same translation unit that registers it. A competing definition collides, and
+  `ld --wrap` does not redirect an intra-unit reference, so it cannot be
+  overridden at link time.
+- The portlib is built with `MBEDTLS_NO_PLATFORM_ENTROPY`, so that poll is the
+  only source in the pool. Nothing sits behind it.
+- No PowerPC-reachable hardware RNG is documented for this console; IOSU
+  gatekeeps the crypto hardware.
+
+`wf_xrpc_client_set_tls_rng()` is the way in. It installs
+`CURLOPT_SSL_CTX_FUNCTION`, and the callback calls `mbedtls_ssl_conf_rng()` on
+the `mbedtls_ssl_config *` curl hands over. curl invokes that callback *after*
+its own `mbedtls_ssl_conf_rng()` and before `mbedtls_ssl_setup()`, so ours wins
+for the whole handshake — verified against curl 8.7.1, which is what
+`wiiu-curl` ships.
+
+The hook compiles only where libcurl is genuinely mbedTLS-backed
+(`WOLFRAM_CURL_MBEDTLS`, implied by `WOLFRAM_WIIU`) *and* re-checks
+`curl_version_info()` at runtime, because handing the callback's `void *` to a
+different backend's context type would be straight type confusion. Everywhere
+else the setter returns `WF_ERR_UNSUPPORTED` rather than accepting an RNG it
+will never call.
+
 The desktop (x86_64) build includes the full suite of dependencies: libcurl, OpenSSL, pthreads, libmicrohttpd (if `WOLFRAM_BUILD_SERVER`), SQLite (if `WOLFRAM_BUILD_STORE`), libsodium (if `WOLFRAM_BUILD_STORE_CRYPTO`).
