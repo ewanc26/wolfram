@@ -50,6 +50,14 @@ typedef struct wf_agent {
     char *mirror_signing_key;
     /* Local repo mirror — a wf_car whose root is the latest verified commit. */
     wf_car mirror;
+    /* TLS settings, remembered rather than applied once: an agent owns three
+     * clients (data plane, session, and the lazily-created chat client), and a
+     * platform that needs a CA bundle or its own handshake RNG needs every one
+     * of them configured, including ones that do not exist yet at the time the
+     * application sets this. */
+    char *ca_bundle;
+    wf_tls_rng_fn tls_rng;
+    void *tls_rng_userdata;
 #ifdef WOLFRAM_BUILD_STORE
     /* Optional persistence target. Caller-owned; never freed by the agent. */
     wf_store *store;
@@ -958,6 +966,76 @@ wf_agent *wf_agent_new(const char *service_url) {
     return agent;
 }
 
+void wf_agent_apply_tls(wf_agent *agent, wf_xrpc_client *client) {
+    if (!agent || !client) {
+        return;
+    }
+    if (agent->ca_bundle) {
+        wf_xrpc_client_set_ca_bundle(client, agent->ca_bundle);
+    }
+    if (agent->tls_rng) {
+        /* Deliberately unchecked: an application that asked for its own RNG
+         * has already been told by wf_agent_set_tls_rng whether this build can
+         * honour it, and failing a chat-service call here would be a confusing
+         * place to report it a second time. */
+        (void)wf_xrpc_client_set_tls_rng(client, agent->tls_rng,
+                                         agent->tls_rng_userdata);
+    }
+}
+
+wf_status wf_agent_set_ca_bundle(wf_agent *agent, const char *path) {
+    if (!agent) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    char *copy = NULL;
+    if (path) {
+        copy = wf_agent_strdup(path);
+        if (!copy) {
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    free(agent->ca_bundle);
+    agent->ca_bundle = copy;
+
+    /* Every client that already exists. The chat client picks it up when it is
+     * created, via wf_agent_apply_tls. */
+    wf_xrpc_client_set_ca_bundle(agent->client, path);
+    if (agent->session) {
+        wf_xrpc_client_set_ca_bundle(agent->session->client, path);
+    }
+    if (agent->chat_client) {
+        wf_xrpc_client_set_ca_bundle(agent->chat_client, path);
+    }
+    return WF_OK;
+}
+
+wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn,
+                               void *userdata) {
+    if (!agent) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_status status = wf_xrpc_client_set_tls_rng(agent->client, fn, userdata);
+    if (status != WF_OK) {
+        /* Report the first refusal and install nothing, so the agent never
+         * ends up with some clients using the application RNG and others not. */
+        return status;
+    }
+
+    agent->tls_rng = fn;
+    agent->tls_rng_userdata = userdata;
+
+    if (agent->session) {
+        (void)wf_xrpc_client_set_tls_rng(agent->session->client, fn, userdata);
+    }
+    if (agent->chat_client) {
+        (void)wf_xrpc_client_set_tls_rng(agent->chat_client, fn, userdata);
+    }
+    return WF_OK;
+}
+
 void wf_agent_free(wf_agent *agent) {
     if (!agent) {
         return;
@@ -967,6 +1045,7 @@ void wf_agent_free(wf_agent *agent) {
     wf_xrpc_client_free(agent->client);
     wf_xrpc_client_free(agent->chat_client);
     free(agent->service_url);
+    free(agent->ca_bundle);
     free(agent->mirror_did);
     free(agent->mirror_signing_key);
     wf_car_free(&agent->mirror);
