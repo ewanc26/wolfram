@@ -19,6 +19,21 @@
 
 #include "wolfram/log.h"
 
+/*
+ * The application TLS RNG hook (wf_xrpc_client_set_tls_rng) reaches into
+ * libcurl's mbedTLS backend, so it is only compiled where mbedTLS headers are
+ * guaranteed to be present and libcurl is actually built against them. The Wii
+ * U is the platform that needs it; another target can opt in by defining
+ * WOLFRAM_CURL_MBEDTLS.
+ */
+#if !defined(WOLFRAM_CURL_MBEDTLS) && defined(WOLFRAM_WIIU)
+#define WOLFRAM_CURL_MBEDTLS 1
+#endif
+
+#if defined(WOLFRAM_CURL_MBEDTLS)
+#include <mbedtls/ssl.h>
+#endif
+
 struct wf_xrpc_client {
     char *base_url;   /* e.g. "https://eurosky.social", no trailing slash */
     char *auth_header; /* "Authorization: Bearer <jwt>", or NULL */
@@ -28,7 +43,72 @@ struct wf_xrpc_client {
     wf_xrpc_refresh_fn refresh_cb; /* NULL unless auto-refresh is enabled */
     void *refresh_userdata;
     int refreshing; /* re-entrancy guard while a refresh is in flight */
+    wf_tls_rng_fn tls_rng; /* NULL unless the application supplied one */
+    void *tls_rng_userdata;
 };
+
+/* ── Application TLS RNG ─────────────────────────────────────────────── */
+
+/*
+ * Compiling the hook in is not enough — the linked libcurl has to be the
+ * mbedTLS build, or CURLOPT_SSL_CTX_FUNCTION hands the callback a context of a
+ * completely different type. curl reports its backend at runtime, so check
+ * rather than assume.
+ */
+static int wf_curl_uses_mbedtls(void) {
+    const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
+    if (!info || !info->ssl_version) return 0;
+    return strncmp(info->ssl_version, "mbedTLS", 7) == 0;
+}
+
+int wf_xrpc_tls_rng_supported(void) {
+#if defined(WOLFRAM_CURL_MBEDTLS)
+    return wf_curl_uses_mbedtls();
+#else
+    return 0;
+#endif
+}
+
+#if defined(WOLFRAM_CURL_MBEDTLS)
+/*
+ * curl invokes this from mbed_connect_step1 after its own
+ * mbedtls_ssl_conf_rng() call and before mbedtls_ssl_setup(), so installing
+ * ours here replaces curl's DRBG for the whole handshake.
+ */
+static CURLcode wf_tls_ctx_cb(CURL *curl, void *ssl_ctx, void *userdata) {
+    wf_xrpc_client *client = (wf_xrpc_client *)userdata;
+    (void)curl;
+
+    if (!client || !client->tls_rng || !ssl_ctx) return CURLE_OK;
+
+    mbedtls_ssl_conf_rng((mbedtls_ssl_config *)ssl_ctx, client->tls_rng,
+                         client->tls_rng_userdata);
+    return CURLE_OK;
+}
+#endif
+
+wf_status wf_xrpc_client_set_tls_rng(wf_xrpc_client *client, wf_tls_rng_fn fn,
+                                     void *userdata) {
+    if (!client) return WF_ERR_INVALID_ARG;
+
+    /* Clearing is always allowed: it restores libcurl's own RNG, which every
+     * build can do. */
+    if (!fn) {
+        client->tls_rng = NULL;
+        client->tls_rng_userdata = NULL;
+        return WF_OK;
+    }
+
+    if (!wf_xrpc_tls_rng_supported()) {
+        WF_LOG_WARN("xrpc", "application TLS RNG requested but unsupported in "
+                            "this build; leaving libcurl's own RNG in place");
+        return WF_ERR_UNSUPPORTED;
+    }
+
+    client->tls_rng = fn;
+    client->tls_rng_userdata = userdata;
+    return WF_OK;
+}
 
 /* curl write callback: append incoming bytes to a growable buffer. */
 struct wf_buffer {
@@ -267,6 +347,12 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     if (client->ca_bundle) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, client->ca_bundle);
     }
+#if defined(WOLFRAM_CURL_MBEDTLS)
+    if (client->tls_rng) {
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, wf_tls_ctx_cb);
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, client);
+    }
+#endif
     if (headers) {
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
