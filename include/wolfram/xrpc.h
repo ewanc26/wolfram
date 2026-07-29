@@ -101,6 +101,51 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 void wf_xrpc_client_set_ca_bundle(wf_xrpc_client *client, const char *path);
 
 /**
+ * Application-supplied random number generator for the TLS handshake.
+ *
+ * Writes `len` bytes to `output` and returns 0 on success, non-zero on
+ * failure. The signature deliberately matches mbedTLS's `f_rng` convention so
+ * it can be installed directly, without a shim.
+ */
+typedef int (*wf_tls_rng_fn)(void *userdata, unsigned char *output, size_t len);
+
+/**
+ * True when this build can actually honour wf_xrpc_client_set_tls_rng: the
+ * hook is compiled in AND the linked libcurl really is using mbedTLS.
+ */
+int wf_xrpc_tls_rng_supported(void);
+
+/**
+ * Replace the RNG libcurl's mbedTLS backend uses for the TLS handshake —
+ * client randoms, ephemeral key agreement, and anything else drawn during it.
+ *
+ * This exists for platforms whose mbedTLS has no usable entropy source of its
+ * own. The Wii U is the motivating case: devkitPro's portlib builds mbedTLS
+ * with MBEDTLS_NO_PLATFORM_ENTROPY and supplies an `mbedtls_hardware_poll`
+ * that is `srand(OSGetSystemTick()); rand()` per byte, so every handshake is
+ * seeded from the console's uptime. That poll cannot be overridden at link
+ * time — it lives in the same translation unit that registers it, so a
+ * competing definition collides and --wrap does not touch an intra-unit
+ * reference — and libcurl owns the mbedTLS entropy context, so an application
+ * has no other way in.
+ *
+ * Callers on such a platform are expected to pass a properly seeded DRBG. Note
+ * what this does NOT do: it does not affect certificate verification (see
+ * wf_xrpc_client_set_ca_bundle), and it does not affect any other mbedTLS
+ * consumer in the process.
+ *
+ * `fn` is called from whichever thread issues the request, so it must be
+ * thread-safe if the client is used from more than one. Pass NULL to restore
+ * libcurl's own RNG.
+ *
+ * Returns WF_ERR_INVALID_ARG for a NULL client, and WF_ERR_UNSUPPORTED when
+ * this build cannot honour it (see wf_xrpc_tls_rng_supported) — rather than a
+ * silent no-op that would leave a caller believing its RNG was in use.
+ */
+wf_status wf_xrpc_client_set_tls_rng(wf_xrpc_client *client, wf_tls_rng_fn fn,
+                                     void *userdata);
+
+/**
  * Re-point the client at a new service/PDS base URL (e.g. after discovering
  * the account's PDS from its DID document). A trailing slash is stripped.
  * Existing auth state is preserved. Returns WF_ERR_INVALID_ARG for a NULL/empty

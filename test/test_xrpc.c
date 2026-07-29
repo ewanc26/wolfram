@@ -11,6 +11,14 @@
 #include "wolfram/xrpc.h"
 #include "test.h"
 
+/* Stand-in application RNG. Never called here — no handshake happens in a
+ * unit test — it only needs a valid wf_tls_rng_fn address to install. */
+static int wf_test_tls_rng(void *userdata, unsigned char *output, size_t len) {
+    (void)userdata;
+    memset(output, 0x5A, len);
+    return 0;
+}
+
 int main(void) {
     /* Rejects empty/NULL base URLs. */
     WF_CHECK(wf_xrpc_client_new(NULL) == NULL);
@@ -75,6 +83,36 @@ int main(void) {
         WF_CHECK(wf_xrpc_error(&r, &err, NULL) == WF_OK);
         WF_CHECK(err && strcmp(err, "InvalidToken") == 0);
         free(err);
+    }
+
+    /*
+     * Application TLS RNG. Whether one can be installed depends on the linked
+     * libcurl's backend, which differs between a desktop build (usually
+     * OpenSSL) and the Wii U one (mbedTLS), so the expected outcome is taken
+     * from wf_xrpc_tls_rng_supported() rather than hardcoded. What must hold
+     * everywhere is that the two cases stay distinguishable: a build that
+     * cannot honour the RNG has to say so, not silently accept one it will
+     * never call.
+     */
+    {
+        wf_xrpc_client *c = wf_xrpc_client_new("https://example.com");
+        WF_CHECK(c != NULL);
+
+        WF_CHECK(wf_xrpc_client_set_tls_rng(NULL, wf_test_tls_rng, NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        wf_status installed = wf_xrpc_client_set_tls_rng(c, wf_test_tls_rng, c);
+        if (wf_xrpc_tls_rng_supported()) {
+            WF_CHECK(installed == WF_OK);
+        } else {
+            WF_CHECK(installed == WF_ERR_UNSUPPORTED);
+        }
+
+        /* Clearing restores libcurl's own RNG and is valid everywhere,
+         * including on builds that cannot install one. */
+        WF_CHECK(wf_xrpc_client_set_tls_rng(c, NULL, NULL) == WF_OK);
+
+        wf_xrpc_client_free(c);
     }
 
     WF_TEST_SUMMARY();
