@@ -31,6 +31,32 @@ typedef struct wf_agent wf_agent;
 wf_agent *wf_agent_new(const char *service_url);
 void wf_agent_free(wf_agent *agent);
 
+/*
+ * TLS configuration.
+ *
+ * Both settings are remembered by the agent and applied to every XRPC client it
+ * owns — the data-plane client, the session's client, and the chat-service
+ * client, which is created lazily on first use and would otherwise miss them.
+ *
+ * These exist because the low-level equivalents on wf_xrpc_client are
+ * unreachable through the agent: wf_agent is opaque, which on a platform with
+ * no system trust store and no usable entropy source made the whole high-level
+ * API unusable. Every console is such a platform.
+ */
+
+/* Use `path` as the CA bundle for TLS verification instead of the system
+ * default. NULL restores default behaviour. Returns WF_ERR_INVALID_ARG for a
+ * NULL agent and WF_ERR_ALLOC if the path cannot be copied. */
+wf_status wf_agent_set_ca_bundle(wf_agent *agent, const char *path);
+
+/*
+ * Supply the RNG used for the TLS handshake — see wf_xrpc_client_set_tls_rng
+ * for what this is for and when it is honoured. Returns that function's status
+ * for the data-plane client; on anything but WF_OK nothing is installed on any
+ * client, so the agent is never left half-configured.
+ */
+wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn, void *userdata);
+
 /* Session management */
 wf_status wf_agent_login(wf_agent *agent, const char *identifier, const char *password);
 wf_status wf_agent_resume(wf_agent *agent, const wf_session_data *data);

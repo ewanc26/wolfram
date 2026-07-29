@@ -601,6 +601,9 @@ wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
     if (!agent->chat_client) {
         return WF_ERR_ALLOC;
     }
+    /* The chat service is a separate host reached over the same transport, so
+     * it needs the same CA bundle and handshake RNG as the data plane. */
+    wf_agent_apply_tls(agent, agent->chat_client);
     return WF_OK;
 }
 

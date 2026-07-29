@@ -1519,6 +1519,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_include_directories(test_agent_moderation PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME agent_moderation COMMAND test_agent_moderation)
 
+    add_executable(test_agent_tls test/test_agent_tls.c)
+    target_link_libraries(test_agent_tls PRIVATE wolfram)
+    target_include_directories(test_agent_tls PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME agent_tls COMMAND test_agent_tls)
+
     add_executable(test_bsky_agent test/test_bsky_agent.c)
     target_link_libraries(test_bsky_agent PRIVATE wolfram)
     target_include_directories(test_bsky_agent PRIVATE test ${cjson_SOURCE_DIR})

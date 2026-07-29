@@ -23,6 +23,14 @@ typedef struct wf_agent {
     char *mirror_did;
     char *mirror_signing_key;
     wf_car mirror;
+    /* TLS settings, remembered rather than applied once: an agent owns three
+     * clients (data plane, session, and the lazily-created chat client), and a
+     * platform that needs a CA bundle or its own handshake RNG needs every one
+     * of them configured, including ones that do not exist yet at the time the
+     * application sets this. */
+    char *ca_bundle;
+    wf_tls_rng_fn tls_rng;
+    void *tls_rng_userdata;
 #ifdef WOLFRAM_BUILD_STORE
     /* Optional persistence target. Caller-owned; never freed by the agent. */
     wf_store *store;
@@ -32,6 +40,11 @@ typedef struct wf_agent {
     size_t persisted_label_count;
 #endif
 } wf_agent;
+
+/* Apply the agent's remembered TLS settings to one of its clients. Called for
+ * each client the agent creates, so a lazily-created one is not left with the
+ * library defaults. */
+void wf_agent_apply_tls(wf_agent *agent, wf_xrpc_client *client);
 
 /* Helper: convert int to string */
 static inline int wf_agent_int_to_str(int value, char *buf, size_t buf_len) {
