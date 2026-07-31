@@ -75,20 +75,40 @@ static unsigned char *copy_bytes(const unsigned char *data, size_t len) {
     return c;
 }
 
-/* Return 1 if the integer item is minimally encoded (RFC 8949 §2.1). */
+/* Return 1 if the integer item is minimally encoded (RFC 8949 §2.1).
+ * DAG-CBOR requires the shortest encoding: values 0-23 use a single byte
+ * (CBOR_INT_8), 24-255 use CBOR_INT_8, 256-65535 use CBOR_INT_16, etc.
+ * A 64-bit width for a value that fits in 8 bits is non-canonical. */
 static int int_is_minimal(const cbor_item_t *item) {
     if (!item) return 0;
     switch (cbor_typeof(item)) {
-    case CBOR_TYPE_UINT:
-        return cbor_get_int(item) <= UINT8_MAX && cbor_uint_set_uint(item, cbor_get_int(item)) == CBOR_OK;
-    case CBOR_TYPE_NEGINT:
-        return cbor_get_int(item) <= UINT8_MAX && cbor_negint_set_negint(item, -1 - cbor_get_int(item)) == CBOR_OK;
+    case CBOR_TYPE_UINT: {
+        uint64_t val = cbor_get_int(item);
+        cbor_int_width width = cbor_int_get_width(item);
+        if (val <= 23 && width != CBOR_INT_8) return 0;
+        if (val <= UINT8_MAX && width != CBOR_INT_8) return 0;
+        if (val <= UINT16_MAX && width == CBOR_INT_64) return 0;
+        if (val <= UINT32_MAX && width == CBOR_INT_64) return 0;
+        return 1;
+    }
+    case CBOR_TYPE_NEGINT: {
+        uint64_t val = cbor_get_int(item);
+        cbor_int_width width = cbor_int_get_width(item);
+        if (val <= 23 && width != CBOR_INT_8) return 0;
+        if (val <= UINT8_MAX && width != CBOR_INT_8) return 0;
+        if (val <= UINT16_MAX && width == CBOR_INT_64) return 0;
+        if (val <= UINT32_MAX && width == CBOR_INT_64) return 0;
+        return 1;
+    }
     default:
         return 1; /* not an integer, skip */
     }
 }
 
-/* Check recursively if a CBOR map has keys in canonical DAG-CBOR order. */
+/* Check recursively if a CBOR map has keys in canonical DAG-CBOR order.
+ * DAG-CBOR sorts keys by length first, then lexicographically within the
+ * same length (RFC 8949 §4.2.1). A key that is a prefix of the next key
+ * (shorter length) must come first. */
 static wf_status check_canonical_map(cbor_item_t *map, size_t depth) {
     if (depth > 20) return WF_OK; /* arbitrary depth limit */
     if (!cbor_isa_map(map)) return WF_OK;
@@ -103,10 +123,10 @@ static wf_status check_canonical_map(cbor_item_t *map, size_t depth) {
         if (i > 0 && cbor_isa_string(pairs[i - 1].key)) {
             size_t prev_len = cbor_string_length(pairs[i - 1].key);
             size_t cur_len = cbor_string_length(pairs[i].key);
-            if (prev_len != cur_len) {
-                return WF_ERR_PARSE;
-            }
-            if (memcmp(cbor_string_handle(pairs[i - 1].key), cbor_string_handle(pairs[i].key), cur_len) < 0) {
+            size_t min_len = prev_len < cur_len ? prev_len : cur_len;
+            int cmp = memcmp(cbor_string_handle(pairs[i - 1].key),
+                             cbor_string_handle(pairs[i].key), min_len);
+            if (cmp > 0 || (cmp == 0 && prev_len > cur_len)) {
                 return WF_ERR_PARSE;
             }
         }
@@ -121,8 +141,13 @@ static wf_status check_canonical_map(cbor_item_t *map, size_t depth) {
     return WF_OK;
 }
 
-/* Strict CID link validation: CID tag 42 must have 0x00 prefix. */
-static wf_status parse_cid_link_with_strict_check(cbor_item_t *item, const unsigned char *full_data, size_t full_len) {
+/* Strict CID link validation: CID tag 42 must have 0x00 multibase prefix.
+ * Our lenient decoder skips leading zeros, so a frame without the prefix
+ * round-trips through our own tests but is rejected by every strict reader. */
+static wf_status parse_cid_link_with_strict_check(cbor_item_t *item,
+                                                    const unsigned char *full_data,
+                                                    size_t full_len) {
+    (void)full_data; (void)full_len;
     if (cbor_typeof(item) == CBOR_TYPE_TAG && cbor_tag_value(item) == 42) {
         cbor_item_t *tagged = cbor_tag_item(item);
         if (cbor_isa_bytestring(tagged)) {
@@ -136,10 +161,12 @@ static wf_status parse_cid_link_with_strict_check(cbor_item_t *item, const unsig
     return WF_OK;
 }
 
+/* Strict CID link parser: requires the 0x00 multibase prefix. */
 static wf_status parse_cid_link_strict(cbor_item_t *item, wf_cid *out) {
     if (!out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
-    if (cbor_typeof(item) != CBOR_TYPE_TAG || cbor_tag_value(item) != 42) return WF_ERR_PARSE;
+    if (cbor_typeof(item) != CBOR_TYPE_TAG || cbor_tag_value(item) != 42)
+        return WF_ERR_PARSE;
     cbor_item_t *tagged = cbor_tag_item(item);
     if (!cbor_isa_bytestring(tagged)) return WF_ERR_PARSE;
     size_t len = cbor_bytestring_length(tagged);
@@ -152,37 +179,11 @@ static wf_status parse_cid_link_strict(cbor_item_t *item, wf_cid *out) {
     return WF_OK;
 }
 
-static wf_status is_canonical_dag_cbor(cbor_item_t *item) {
-    if (!item) return WF_ERR_PARSE;
-    switch (cbor_typeof(item)) {
-    case CBOR_TYPE_MAP:
-        wf_status s = check_canonical_map(item, 0);
-        if (s != WF_OK) return s;
-        /* recurse on all values */
-        struct cbor_pair *pairs = cbor_map_handle(item);
-        size_t count = cbor_map_size(item);
-        for (size_t i = 0; i < count; i++) {
-            wf_status s = is_canonical_dag_cbor(pairs[i].value);
-            if (s != WF_OK) return s;
-        }
-        break;
-    case CBOR_TYPE_ARRAY:
-        for (size_t i = 0; i < cbor_array_size(item); i++) {
-            wf_status s = is_canonical_dag_cbor(cbor_array_handle(item)[i]);
-            if (s != WF_OK) return s;
-        }
-        break;
-    default:
-        break;
-    }
-    return WF_OK;
-}
-
+/* Recursively check that all integers in a CBOR item are minimally encoded. */
 static int is_minimally_encoded(cbor_item_t *item) {
     if (!item) return 0;
     switch (cbor_typeof(item)) {
-    case CBOR_TYPE_MAP:
-        /* Check each key-value pair */
+    case CBOR_TYPE_MAP: {
         struct cbor_pair *pairs = cbor_map_handle(item);
         size_t count = cbor_map_size(item);
         for (size_t i = 0; i < count; i++) {
@@ -190,6 +191,7 @@ static int is_minimally_encoded(cbor_item_t *item) {
             if (!is_minimally_encoded(pairs[i].value)) return 0;
         }
         break;
+    }
     case CBOR_TYPE_ARRAY:
         for (size_t i = 0; i < cbor_array_size(item); i++) {
             if (!is_minimally_encoded(cbor_array_handle(item)[i])) return 0;
@@ -203,6 +205,35 @@ static int is_minimally_encoded(cbor_item_t *item) {
         break;
     }
     return 1;
+}
+
+/* Recursively check that a CBOR item is canonical DAG-CBOR: keys in
+ * deterministic order, integers minimally encoded, CID links with 0x00
+ * prefix. */
+static wf_status is_canonical_dag_cbor(cbor_item_t *item) {
+    if (!item) return WF_ERR_PARSE;
+    switch (cbor_typeof(item)) {
+    case CBOR_TYPE_MAP: {
+        wf_status s = check_canonical_map(item, 0);
+        if (s != WF_OK) return s;
+        struct cbor_pair *pairs = cbor_map_handle(item);
+        size_t count = cbor_map_size(item);
+        for (size_t i = 0; i < count; i++) {
+            s = is_canonical_dag_cbor(pairs[i].value);
+            if (s != WF_OK) return s;
+        }
+        break;
+    }
+    case CBOR_TYPE_ARRAY:
+        for (size_t i = 0; i < cbor_array_size(item); i++) {
+            wf_status s = is_canonical_dag_cbor(cbor_array_handle(item)[i]);
+            if (s != WF_OK) return s;
+        }
+        break;
+    default:
+        break;
+    }
+    return WF_OK;
 }
 
 static int parse_cid_link(cbor_item_t *item, wf_cid *out) {
@@ -310,12 +341,687 @@ static int parse_repo_op(cbor_item_t *item, wf_subscribe_repo_op *op) {
 
     cbor_item_t *cid = map_find(item, "cid");
     if (cid && !cbor_is_null(cid) && !cbor_is_undef(cid))
-        op->has_cid = parse_cid_link_strict(cid, &op->cid);
+        op->has_cid = (parse_cid_link_strict(cid, &op->cid) == WF_OK);
 
     cbor_item_t *prev = map_find(item, "prev");
     if (prev && !cbor_is_null(prev) && !cbor_is_undef(prev))
-        op->has_prev = parse_cid_link_strict(prev, &op->prev);
+        op->has_prev = (parse_cid_link_strict(prev, &op->prev) == WF_OK);
 
     return 1;
 }
 
+static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_commit *c = &ev->data.commit;
+    ev->type = WF_SUBSCRIBE_EVENT_COMMIT;
+
+    cbor_item_t *seq = map_find(body, "seq");
+    if (!seq || !item_int(seq, &c->seq)) return WF_ERR_PARSE;
+    ev->seq = c->seq;
+
+    cbor_item_t *repo = map_find(body, "repo");
+    size_t rlen = 0;
+    const char *rstr = repo ? item_string(repo, &rlen) : NULL;
+    if (!rstr || rlen >= sizeof(c->did)) return WF_ERR_PARSE;
+    memcpy(c->did, rstr, rlen);
+    c->did[rlen] = '\0';
+
+    cbor_item_t *commit = map_find(body, "commit");
+    if (!commit || parse_cid_link_strict(commit, &c->commit_cid) != WF_OK)
+        return WF_ERR_PARSE;
+
+    cbor_item_t *rev = map_find(body, "rev");
+    size_t revlen = 0;
+    const char *revstr = rev ? item_string(rev, &revlen) : NULL;
+    if (!revstr || revlen >= sizeof(c->rev)) return WF_ERR_PARSE;
+    memcpy(c->rev, revstr, revlen);
+    c->rev[revlen] = '\0';
+
+    cbor_item_t *since = map_find(body, "since");
+    if (since && cbor_isa_string(since)) {
+        size_t slen = 0;
+        const char *sstr = item_string(since, &slen);
+        if (sstr && slen < sizeof(c->since))
+            memcpy(c->since, sstr, slen);
+    }
+
+    cbor_item_t *blocks = map_find(body, "blocks");
+    if (!blocks || !cbor_isa_bytestring(blocks)) return WF_ERR_PARSE;
+    c->blocks_len = cbor_bytestring_length(blocks);
+    if (c->blocks_len > 0) {
+        c->blocks = copy_bytes(cbor_bytestring_handle(blocks), c->blocks_len);
+        if (!c->blocks) return WF_ERR_ALLOC;
+    }
+
+    cbor_item_t *ops = map_find(body, "ops");
+    if (ops && cbor_isa_array(ops)) {
+        c->ops_count = cbor_array_size(ops);
+        if (c->ops_count > 0) {
+            c->ops = calloc(c->ops_count, sizeof(wf_subscribe_repo_op));
+            if (!c->ops) return WF_ERR_ALLOC;
+            cbor_item_t **items = cbor_array_handle(ops);
+            for (size_t i = 0; i < c->ops_count; i++) {
+                if (!parse_repo_op(items[i], &c->ops[i])) {
+                    for (size_t j = 0; j < i; j++) free(c->ops[j].path);
+                    free(c->ops); c->ops = NULL; c->ops_count = 0;
+                    return WF_ERR_PARSE;
+                }
+            }
+        }
+    }
+
+    cbor_item_t *time = map_find(body, "time");
+    size_t tlen = 0;
+    const char *tstr = time ? item_string(time, &tlen) : NULL;
+    if (!tstr || tlen >= sizeof(c->time)) return WF_ERR_PARSE;
+    memcpy(c->time, tstr, tlen);
+    c->time[tlen] = '\0';
+
+    /* prevData: optional cid-link to the previous commit's MST root (inductive
+     * firehose). Only populated when present on the wire. */
+    cbor_item_t *prev_data = map_find(body, "prevData");
+    if (prev_data && !cbor_is_null(prev_data) && !cbor_is_undef(prev_data))
+        c->has_prev_data = (parse_cid_link_strict(prev_data, &c->prev_data) == WF_OK);
+
+    return WF_OK;
+}
+
+static wf_status parse_sync(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_sync *s = &ev->data.sync;
+    ev->type = WF_SUBSCRIBE_EVENT_SYNC;
+
+    cbor_item_t *seq = map_find(body, "seq");
+    if (!seq || !item_int(seq, &s->seq)) return WF_ERR_PARSE;
+    ev->seq = s->seq;
+
+    cbor_item_t *did = map_find(body, "did");
+    size_t dlen = 0;
+    const char *dstr = did ? item_string(did, &dlen) : NULL;
+    if (!dstr || dlen >= sizeof(s->did)) return WF_ERR_PARSE;
+    memcpy(s->did, dstr, dlen);
+    s->did[dlen] = '\0';
+
+    cbor_item_t *blocks = map_find(body, "blocks");
+    if (!blocks || !cbor_isa_bytestring(blocks)) return WF_ERR_PARSE;
+    s->blocks_len = cbor_bytestring_length(blocks);
+    if (s->blocks_len > 0) {
+        s->blocks = copy_bytes(cbor_bytestring_handle(blocks), s->blocks_len);
+        if (!s->blocks) return WF_ERR_ALLOC;
+    }
+
+    cbor_item_t *rev = map_find(body, "rev");
+    size_t revlen = 0;
+    const char *revstr = rev ? item_string(rev, &revlen) : NULL;
+    if (!revstr || revlen >= sizeof(s->rev)) return WF_ERR_PARSE;
+    memcpy(s->rev, revstr, revlen);
+    s->rev[revlen] = '\0';
+
+    cbor_item_t *time = map_find(body, "time");
+    size_t tlen = 0;
+    const char *tstr = time ? item_string(time, &tlen) : NULL;
+    if (!tstr || tlen >= sizeof(s->time)) return WF_ERR_PARSE;
+    memcpy(s->time, tstr, tlen);
+    s->time[tlen] = '\0';
+
+    return WF_OK;
+}
+
+static wf_status parse_identity(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_identity *id = &ev->data.identity;
+    ev->type = WF_SUBSCRIBE_EVENT_IDENTITY;
+
+    cbor_item_t *seq = map_find(body, "seq");
+    if (!seq || !item_int(seq, &id->seq)) return WF_ERR_PARSE;
+    ev->seq = id->seq;
+
+    cbor_item_t *did = map_find(body, "did");
+    size_t dlen = 0;
+    const char *dstr = did ? item_string(did, &dlen) : NULL;
+    if (!dstr || dlen >= sizeof(id->did)) return WF_ERR_PARSE;
+    memcpy(id->did, dstr, dlen);
+    id->did[dlen] = '\0';
+
+    cbor_item_t *time = map_find(body, "time");
+    size_t tlen = 0;
+    const char *tstr = time ? item_string(time, &tlen) : NULL;
+    if (!tstr || tlen >= sizeof(id->time)) return WF_ERR_PARSE;
+    memcpy(id->time, tstr, tlen);
+    id->time[tlen] = '\0';
+
+    cbor_item_t *handle = map_find(body, "handle");
+    if (handle && cbor_isa_string(handle)) {
+        size_t hlen = 0;
+        const char *hstr = item_string(handle, &hlen);
+        if (hstr && hlen < sizeof(id->handle)) {
+            memcpy(id->handle, hstr, hlen);
+            id->handle[hlen] = '\0';
+            id->has_handle = 1;
+        }
+    }
+
+    return WF_OK;
+}
+
+static wf_status parse_account(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_account *ac = &ev->data.account;
+    ev->type = WF_SUBSCRIBE_EVENT_ACCOUNT;
+
+    cbor_item_t *seq = map_find(body, "seq");
+    if (!seq || !item_int(seq, &ac->seq)) return WF_ERR_PARSE;
+    ev->seq = ac->seq;
+
+    cbor_item_t *did = map_find(body, "did");
+    size_t dlen = 0;
+    const char *dstr = did ? item_string(did, &dlen) : NULL;
+    if (!dstr || dlen >= sizeof(ac->did)) return WF_ERR_PARSE;
+    memcpy(ac->did, dstr, dlen);
+    ac->did[dlen] = '\0';
+
+    cbor_item_t *time = map_find(body, "time");
+    size_t tlen = 0;
+    const char *tstr = time ? item_string(time, &tlen) : NULL;
+    if (!tstr || tlen >= sizeof(ac->time)) return WF_ERR_PARSE;
+    memcpy(ac->time, tstr, tlen);
+    ac->time[tlen] = '\0';
+
+    cbor_item_t *active = map_find(body, "active");
+    if (active && cbor_is_bool(active)) ac->active = cbor_get_bool(active);
+
+    cbor_item_t *status = map_find(body, "status");
+    if (status && cbor_isa_string(status)) {
+        size_t slen = 0;
+        const char *sstr = item_string(status, &slen);
+        if (sstr && slen < sizeof(ac->status)) {
+            memcpy(ac->status, sstr, slen);
+            ac->status[slen] = '\0';
+            ac->has_status = 1;
+        }
+    }
+
+    return WF_OK;
+}
+
+static wf_status parse_info(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_info *info = &ev->data.info;
+    ev->type = WF_SUBSCRIBE_EVENT_INFO;
+    ev->seq = 0;
+
+    cbor_item_t *name = map_find(body, "name");
+    size_t nlen = 0;
+    const char *nstr = name ? item_string(name, &nlen) : NULL;
+    if (!nstr || nlen >= sizeof(info->name)) return WF_ERR_PARSE;
+    memcpy(info->name, nstr, nlen);
+    info->name[nlen] = '\0';
+
+    cbor_item_t *message = map_find(body, "message");
+    if (message && cbor_isa_string(message)) {
+        size_t mlen = 0;
+        const char *mstr = item_string(message, &mlen);
+        if (mstr && mlen < sizeof(info->message)) {
+            memcpy(info->message, mstr, mlen);
+            info->message[mlen] = '\0';
+            info->has_message = 1;
+        }
+    }
+
+    return WF_OK;
+}
+
+static wf_status parse_labels(cbor_item_t *body, wf_subscribe_event *ev) {
+    wf_subscribe_labels *l = &ev->data.labels;
+    ev->type = WF_SUBSCRIBE_EVENT_LABELS;
+
+    cbor_item_t *seq = map_find(body, "seq");
+    if (!seq || !item_int(seq, &l->seq)) return WF_ERR_PARSE;
+    ev->seq = l->seq;
+
+    cbor_item_t *labels = map_find(body, "labels");
+    if (!labels || !cbor_isa_array(labels)) return WF_ERR_PARSE;
+
+    l->labels_count = cbor_array_size(labels);
+    if (l->labels_count == 0) { l->labels = NULL; return WF_OK; }
+
+    l->labels = calloc(l->labels_count, sizeof(wf_label));
+    if (!l->labels) return WF_ERR_ALLOC;
+
+    cbor_item_t **items = cbor_array_handle(labels);
+    for (size_t i = 0; i < l->labels_count; i++) {
+        wf_label *lab = &l->labels[i];
+        memset(lab, 0, sizeof(*lab));
+        cbor_item_t *item = items[i];
+        if (!cbor_isa_map(item)) goto fail;
+
+        cbor_item_t *ver = map_find(item, "ver");
+        int64_t v = 0;
+        if (ver && item_int(ver, &v)) { lab->ver = v; lab->has_ver = 1; }
+
+        cbor_item_t *src = map_find(item, "src");
+        size_t slen = 0;
+        const char *sstr = src ? item_string(src, &slen) : NULL;
+        if (!sstr) goto fail;
+        lab->src = malloc(slen + 1);
+        if (!lab->src) goto fail;
+        memcpy(lab->src, sstr, slen);
+        lab->src[slen] = '\0';
+
+        cbor_item_t *uri = map_find(item, "uri");
+        size_t ulen = 0;
+        const char *ustr = uri ? item_string(uri, &ulen) : NULL;
+        if (!ustr) goto fail;
+        lab->uri = malloc(ulen + 1);
+        if (!lab->uri) goto fail;
+        memcpy(lab->uri, ustr, ulen);
+        lab->uri[ulen] = '\0';
+
+        cbor_item_t *cid = map_find(item, "cid");
+        if (cid && cbor_isa_string(cid)) {
+            size_t clen = 0;
+            const char *cstr = item_string(cid, &clen);
+            if (cstr) {
+                lab->cid = malloc(clen + 1);
+                if (!lab->cid) goto fail;
+                memcpy(lab->cid, cstr, clen);
+                lab->cid[clen] = '\0';
+                lab->has_cid = 1;
+            }
+        }
+
+        cbor_item_t *val = map_find(item, "val");
+        size_t vlen = 0;
+        const char *vstr = val ? item_string(val, &vlen) : NULL;
+        if (!vstr) goto fail;
+        lab->val = malloc(vlen + 1);
+        if (!lab->val) goto fail;
+        memcpy(lab->val, vstr, vlen);
+        lab->val[vlen] = '\0';
+
+        cbor_item_t *neg = map_find(item, "neg");
+        if (neg && cbor_is_bool(neg)) {
+            lab->neg = cbor_get_bool(neg);
+            lab->has_neg = 1;
+        }
+
+        cbor_item_t *cts = map_find(item, "cts");
+        size_t tlen = 0;
+        const char *tstr = cts ? item_string(cts, &tlen) : NULL;
+        if (!tstr) goto fail;
+        lab->cts = malloc(tlen + 1);
+        if (!lab->cts) goto fail;
+        memcpy(lab->cts, tstr, tlen);
+        lab->cts[tlen] = '\0';
+
+        cbor_item_t *exp = map_find(item, "exp");
+        if (exp && cbor_isa_string(exp)) {
+            size_t elen = 0;
+            const char *estr = item_string(exp, &elen);
+            if (estr) {
+                lab->exp = malloc(elen + 1);
+                if (!lab->exp) goto fail;
+                memcpy(lab->exp, estr, elen);
+                lab->exp[elen] = '\0';
+                lab->has_exp = 1;
+            }
+        }
+
+        /* `sig` is a CBOR byte string on the wire; re-encode it to the
+         * base64url NUL-terminated form the rest of wolfram uses. */
+        cbor_item_t *sig = map_find(item, "sig");
+        if (sig && cbor_isa_bytestring(sig)) {
+            size_t sl = cbor_bytestring_length(sig);
+            const unsigned char *sd = cbor_bytestring_handle(sig);
+            if (wf_crypto_base64url_encode(sd, sl, &lab->sig) != WF_OK) goto fail;
+            lab->has_sig = 1;
+        }
+    }
+
+    return WF_OK;
+
+fail:
+    for (size_t i = 0; i < l->labels_count; i++) {
+        wf_label *lab = &l->labels[i];
+        free(lab->src);
+        free(lab->uri);
+        free(lab->cid);
+        free(lab->val);
+        free(lab->cts);
+        free(lab->exp);
+        free(lab->sig);
+    }
+    free(l->labels);
+    l->labels = NULL;
+    l->labels_count = 0;
+    return WF_ERR_ALLOC;
+}
+
+static wf_status parse_error_body(cbor_item_t *body, wf_subscribe_event *ev) {
+    ev->type = WF_SUBSCRIBE_EVENT_ERROR;
+    ev->seq = 0;
+
+    cbor_item_t *err = map_find(body, "error");
+    size_t elen = 0;
+    const char *estr = err ? item_string(err, &elen) : NULL;
+    if (!estr) return WF_ERR_PARSE;
+
+    ev->data.error.error = malloc(elen + 1);
+    if (!ev->data.error.error) return WF_ERR_ALLOC;
+    memcpy(ev->data.error.error, estr, elen);
+    ev->data.error.error[elen] = '\0';
+
+    cbor_item_t *msg = map_find(body, "message");
+    if (msg && cbor_isa_string(msg)) {
+        size_t mlen = 0;
+        const char *mstr = item_string(msg, &mlen);
+        if (mstr) {
+            ev->data.error.message = malloc(mlen + 1);
+            if (!ev->data.error.message) return WF_ERR_ALLOC;
+            memcpy(ev->data.error.message, mstr, mlen);
+            ev->data.error.message[mlen] = '\0';
+        }
+    }
+
+    return WF_OK;
+}
+
+/* ── handle lifecycle ── */
+
+static void handle_close(wf_subscribe_handle *handle) {
+    wf_websocket_free(handle->socket);
+    handle->socket = NULL;
+}
+
+static wf_status handle_connect(wf_subscribe_handle *handle) {
+    char *url = NULL;
+    wf_status s = build_url(handle->opts.service, handle->cursor, &url);
+    if (s != WF_OK) return s;
+    s = wf_websocket_connect(url, &handle->socket);
+    free(url);
+    return s;
+}
+
+static wf_status subscribe_loop(wf_subscribe_handle *handle) {
+    uint32_t initial_delay = handle->opts.reconnect_delay_ms > 0
+                                 ? (uint32_t)handle->opts.reconnect_delay_ms : 3000;
+    uint32_t max_delay = handle->opts.max_retry_seconds > 0
+                             ? (uint32_t)handle->opts.max_retry_seconds * 1000 : 64000;
+    uint32_t ping_interval = handle->opts.ping_interval_ms > 0
+                                 ? handle->opts.ping_interval_ms
+                                 : WF_SUBSCRIBE_DEFAULT_PING_INTERVAL_MS;
+
+    handle->retry_delay_ms = initial_delay;
+
+    while (!handle->stopped) {
+        /* (Re)connect only when we have no live socket. A healthy connection
+         * is reused across loop iterations; a dropped one is re-established
+         * here with exponential backoff (the reference always retries
+         * connection errors, including the very first connect). */
+        if (!handle->socket) {
+            wf_status conn_status = handle_connect(handle);
+            if (conn_status != WF_OK) {
+                if (handle->opts.on_error)
+                    handle->opts.on_error(conn_status, "websocket connect failed",
+                                          handle->opts.userdata);
+
+                uint64_t now = wf_now_ms();
+                uint64_t wait = now + handle->retry_delay_ms;
+                while (!handle->stopped) {
+                    uint64_t remaining = wait > wf_now_ms() ? wait - wf_now_ms() : 0;
+                    if (remaining == 0) break;
+                    struct timespec ts = {(long)(remaining / 1000),
+                                         (long)(remaining % 1000) * 1000000L};
+                    nanosleep(&ts, NULL);
+                }
+                if (handle->stopped) break;
+
+                if (handle->retry_delay_ms < max_delay) {
+                    uint64_t doubled = (uint64_t)handle->retry_delay_ms * 2;
+                    handle->retry_delay_ms = doubled > max_delay
+                                                 ? max_delay : (uint32_t)doubled;
+                }
+                continue;
+            }
+
+            handle->retry_delay_ms = initial_delay;
+            handle->last_ping_ms = wf_now_ms();
+        }
+
+        wf_websocket_message msg = {0};
+        wf_status s = wf_websocket_receive(handle->socket, &msg);
+
+        if (s == WF_ERR_NETWORK) {
+            /* Transport dropped mid-stream: close, report, and let the
+             * top-of-loop reconnect (with backoff) resume from the cursor. */
+            wf_websocket_message_free(&msg);
+            handle_close(handle);
+            if (handle->opts.on_error)
+                handle->opts.on_error(s, "websocket receive failed",
+                                     handle->opts.userdata);
+
+            uint64_t now = wf_now_ms();
+            uint64_t wait = now + handle->retry_delay_ms;
+            while (!handle->stopped) {
+                uint64_t remaining = wait > wf_now_ms() ? wait - wf_now_ms() : 0;
+                if (remaining == 0) break;
+                struct timespec ts = {(long)(remaining / 1000),
+                                     (long)(remaining % 1000) * 1000000L};
+                nanosleep(&ts, NULL);
+            }
+            if (handle->stopped) break;
+
+            continue;
+        }
+
+        if (s == WF_ERR_WOULD_BLOCK) {
+            /* Socket is healthy but has no frame yet. Emit a keepalive ping
+             * when the idle window elapses so idle TCP/proxy connections are
+             * not reaped, then briefly poll again. (Missed-pong termination
+             * is intentionally NOT implemented here: libcurl auto-handles
+             * PING/PONG control frames and does not surface PONG to the
+             * application receive path, and this file must not alter the
+             * transport framing in websocket.c.) */
+            wf_websocket_message_free(&msg);
+            uint64_t now = wf_now_ms();
+            if (ping_interval > 0 && now - handle->last_ping_ms >= ping_interval) {
+                wf_websocket_send_ping(handle->socket);
+                handle->last_ping_ms = now;
+            }
+            struct timespec ts = {0, 20000000L}; /* 20ms */
+            nanosleep(&ts, NULL);
+            continue;
+        }
+
+        if (s != WF_OK) {
+            wf_websocket_message_free(&msg);
+            break;
+        }
+
+        if (msg.type != WF_WEBSOCKET_BINARY || msg.len == 0) {
+            wf_websocket_message_free(&msg);
+            continue;
+        }
+
+        struct cbor_load_result lr = {0};
+        cbor_item_t *header = cbor_load(msg.data, msg.len, &lr);
+        if (!header || lr.error.code != CBOR_ERR_NONE || lr.read >= msg.len) {
+            cbor_decref(&header);
+            wf_websocket_message_free(&msg);
+            continue;
+        }
+
+        cbor_item_t *body = cbor_load(msg.data + lr.read, msg.len - lr.read, &lr);
+        if (!body || lr.error.code != CBOR_ERR_NONE) {
+            cbor_decref(&header);
+            cbor_decref(&body);
+            wf_websocket_message_free(&msg);
+            continue;
+        }
+
+        int64_t op_val = 0;
+        cbor_item_t *op_item = map_find(header, "op");
+        int is_error = op_item && item_int(op_item, &op_val) && op_val < 0;
+
+        if (is_error) {
+            wf_subscribe_event ev = {0};
+            s = parse_error_body(body, &ev);
+            cbor_decref(&header);
+            cbor_decref(&body);
+            wf_websocket_message_free(&msg);
+
+            if (s == WF_OK) {
+                if (handle->opts.on_event)
+                    handle->opts.on_event(&ev, handle->opts.userdata);
+                if (handle->opts.on_error)
+                    handle->opts.on_error(WF_ERR_PARSE, ev.data.error.error,
+                                         handle->opts.userdata);
+                event_free(&ev);
+            }
+            continue;
+        }
+
+        cbor_item_t *t_item = map_find(header, "t");
+        size_t t_len = 0;
+        const char *t_str = t_item ? item_string(t_item, &t_len) : NULL;
+
+        wf_subscribe_event ev = {0};
+        s = WF_ERR_PARSE;
+
+        if (t_str && t_len > 0) {
+            if (t_len == 7 && memcmp(t_str, "#commit", 7) == 0)
+                s = parse_commit(body, &ev);
+            else if (t_len == 5 && memcmp(t_str, "#sync", 5) == 0)
+                s = parse_sync(body, &ev);
+            else if (t_len == 9 && memcmp(t_str, "#identity", 9) == 0)
+                s = parse_identity(body, &ev);
+            else if (t_len == 8 && memcmp(t_str, "#account", 8) == 0)
+                s = parse_account(body, &ev);
+            else if (t_len == 5 && memcmp(t_str, "#info", 5) == 0)
+                s = parse_info(body, &ev);
+            else if (t_len == 7 && memcmp(t_str, "#labels", 7) == 0)
+                s = parse_labels(body, &ev);
+        }
+
+        cbor_decref(&header);
+        cbor_decref(&body);
+        wf_websocket_message_free(&msg);
+
+        if (s == WF_OK) {
+            /* Any received frame counts as activity for the keepalive timer. */
+            handle->last_ping_ms = wf_now_ms();
+
+            if (ev.type == WF_SUBSCRIBE_EVENT_COMMIT ||
+                ev.type == WF_SUBSCRIBE_EVENT_SYNC ||
+                ev.type == WF_SUBSCRIBE_EVENT_IDENTITY ||
+                ev.type == WF_SUBSCRIBE_EVENT_ACCOUNT) {
+                if (ev.seq > handle->cursor)
+                    handle->cursor = ev.seq;
+            }
+
+            if (ev.type == WF_SUBSCRIBE_EVENT_INFO) {
+                /* Benign control frames: FutureCursor, FutureBlocks, etc. are
+                 * informational and must not tear down the subscription. For
+                 * OutdatedCursor the server has already reset to the earliest
+                 * available cursor, so we reset our local cursor to 0 and keep
+                 * draining on the SAME connection (the reference keeps the
+                 * socket open and replays from the start on the next reconnect).
+                 * We never close the socket on an info frame. */
+                if (strcmp(ev.data.info.name, "OutdatedCursor") == 0)
+                    handle->cursor = 0;
+            }
+
+            if (handle->opts.on_event)
+                handle->opts.on_event(&ev, handle->opts.userdata);
+            event_free(&ev);
+        }
+    }
+
+    handle_close(handle);
+    return WF_OK;
+}
+
+wf_status wf_subscribe_start(const wf_subscribe_options *opts,
+                             wf_subscribe_handle **out) {
+    if (!opts || !out || !opts->on_event) return WF_ERR_INVALID_ARG;
+    if (opts->service && strncmp(opts->service, "ws://", 5) != 0 &&
+                         strncmp(opts->service, "wss://", 6) != 0)
+        return WF_ERR_INVALID_ARG;
+    if (opts->max_retry_seconds < 0 || opts->reconnect_delay_ms < 0)
+        return WF_ERR_INVALID_ARG;
+
+    *out = NULL;
+    wf_subscribe_handle *handle = calloc(1, sizeof(*handle));
+    if (!handle) return WF_ERR_ALLOC;
+
+    handle->opts = *opts;
+    if (opts->service) {
+        handle->service_copy = wf_strdup(opts->service);
+        if (!handle->service_copy) { free(handle); return WF_ERR_ALLOC; }
+        handle->opts.service = handle->service_copy;
+    }
+    handle->cursor = opts->has_cursor ? opts->cursor : 0;
+
+    *out = handle;
+    wf_status s = subscribe_loop(handle);
+
+    wf_websocket_free(handle->socket);
+    free(handle->service_copy);
+    free(handle);
+    *out = NULL;
+    return s;
+}
+
+void wf_subscribe_stop(wf_subscribe_handle *handle) {
+    if (!handle) return;
+    handle->stopped = 1;
+}
+
+void wf_subscribe_event_free(wf_subscribe_event *ev) {
+    if (!ev) return;
+    event_free(ev);
+}
+
+wf_status wf_subscribe_decode_frame(const unsigned char *data, size_t len,
+                                    wf_subscribe_event *out) {
+    if (!data || !out || len == 0) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    struct cbor_load_result lr = {0};
+    cbor_item_t *header = cbor_load(data, len, &lr);
+    if (!header || lr.error.code != CBOR_ERR_NONE || lr.read >= len) {
+        cbor_decref(&header);
+        return WF_ERR_PARSE;
+    }
+
+    cbor_item_t *body = cbor_load(data + lr.read, len - lr.read, &lr);
+    if (!body || lr.error.code != CBOR_ERR_NONE) {
+        cbor_decref(&header);
+        cbor_decref(&body);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status s = WF_ERR_PARSE;
+    cbor_item_t *op_item = map_find(header, "op");
+    int64_t op_val = 0;
+    if (op_item && item_int(op_item, &op_val) && op_val < 0) {
+        s = parse_error_body(body, out);
+    } else {
+        cbor_item_t *t_item = map_find(header, "t");
+        size_t t_len = 0;
+        const char *t_str = t_item ? item_string(t_item, &t_len) : NULL;
+        if (t_str && t_len > 0) {
+            if (t_len == 7 && memcmp(t_str, "#commit", 7) == 0)
+                s = parse_commit(body, out);
+            else if (t_len == 5 && memcmp(t_str, "#sync", 5) == 0)
+                s = parse_sync(body, out);
+            else if (t_len == 9 && memcmp(t_str, "#identity", 9) == 0)
+                s = parse_identity(body, out);
+            else if (t_len == 8 && memcmp(t_str, "#account", 8) == 0)
+                s = parse_account(body, out);
+            else if (t_len == 5 && memcmp(t_str, "#info", 5) == 0)
+                s = parse_info(body, out);
+            else if (t_len == 7 && memcmp(t_str, "#labels", 7) == 0)
+                s = parse_labels(body, out);
+        }
+    }
+
+    cbor_decref(&header);
+    cbor_decref(&body);
+    return s;
+}

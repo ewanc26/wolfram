@@ -138,8 +138,8 @@ add_library(wolfram
     $<IF:$<BOOL:${WOLFRAM_USE_SOCKET_TRANSPORT}>,src/transport/websocket_wii.c,src/transport/websocket.c>
     # Identity
     src/identity/identity.c
-    # Crypto - prefer modern C++ where available
-    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.cpp>
+    # Crypto
+    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
     # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
     src/repo/cbor.c
     src/repo/cid.c
@@ -1102,6 +1102,36 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_oauth_verify PRIVATE wolfram)
     target_include_directories(test_oauth_verify PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME oauth_verify COMMAND test_oauth_verify)
+
+    if(WOLFRAM_BUILD_CPP)
+        # Find libsodium for the C++ RAII crypto wrappers.
+        if(NOT WOLFRAM_BUILD_EMBEDDED)
+            find_package(sodium QUIET)
+            if(NOT sodium_FOUND)
+                find_path(SODIUM_INCLUDE_DIR NAMES sodium.h)
+                find_library(SODIUM_LIBRARY NAMES sodium)
+                if(SODIUM_INCLUDE_DIR AND SODIUM_LIBRARY)
+                    set(sodium_FOUND TRUE)
+                    set(sodium_INCLUDE_DIRS ${SODIUM_INCLUDE_DIR})
+                    set(sodium_LIBRARIES ${SODIUM_LIBRARY})
+                endif()
+            endif()
+        endif()
+
+        add_executable(test_crypto_cpp test/crypto_cpp_test.cpp)
+        target_link_libraries(test_crypto_cpp PRIVATE wolfram)
+        target_include_directories(test_crypto_cpp PRIVATE test)
+        if(sodium_FOUND)
+            target_compile_definitions(test_crypto_cpp PRIVATE HAVE_LIBSODIUM)
+            target_include_directories(test_crypto_cpp PRIVATE ${sodium_INCLUDE_DIRS})
+            target_link_libraries(test_crypto_cpp PRIVATE ${sodium_LIBRARIES})
+        endif()
+        if(OpenSSL_FOUND)
+            target_compile_definitions(test_crypto_cpp PRIVATE HAVE_OPENSSL)
+            target_link_libraries(test_crypto_cpp PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+        endif()
+        add_test(NAME crypto_cpp COMMAND test_crypto_cpp)
+    endif()
 
     add_executable(test_syntax test/test_syntax.c)
     target_link_libraries(test_syntax PRIVATE wolfram)
