@@ -123,11 +123,15 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
             ? cJSON_GetObjectItemCaseSensitive(req->params, "client_id") : NULL;
         if (!cJSON_IsString(client) || strcmp(client->valuestring, "native") != 0)
             return WF_ERR_PARSE;
+        wf_xrpc_response_add_header(resp, "Set-Cookie",
+                                    "mb_device=xyz; Path=/; HttpOnly");
     }
     wf_xrpc_response_add_header(resp, "Cache-Control", "no-store");
     /*
-     * Echo the Cookie header into the body, not a response header: the test
-     * client's wf_response surfaces only status/body/dpop_nonce, so the body
+     * Echo the Cookie header into the body too, not just check it via the
+     * client's captured Set-Cookie: the body proves what the HANDLER
+     * received, the client-side capture proves what came back over the
+     * wire, and a bug could break either independently.
      * is the only place this test can actually see what the handler
      * received — proving the cookie reached the handler, not just that the
      * server accepted the request.
@@ -338,6 +342,12 @@ static int run_test(void) {
                 failures++;
             }
             cJSON_Delete(root);
+            if (!res.set_cookie ||
+                strcmp(res.set_cookie, "mb_device=xyz; Path=/; HttpOnly") != 0) {
+                fprintf(stderr, "FAIL: captured Set-Cookie mismatch: %s\n",
+                        res.set_cookie ? res.set_cookie : "NULL");
+                failures++;
+            }
         }
         wf_response_free(&res);
     }

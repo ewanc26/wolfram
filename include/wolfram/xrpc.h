@@ -62,6 +62,7 @@ typedef struct wf_response {
     char  *body;
     size_t body_len;
     char  *dpop_nonce; /* optional owned DPoP-Nonce response header */
+    char  *set_cookie; /* optional owned Set-Cookie response header */
 } wf_response;
 
 typedef struct wf_http_header {
