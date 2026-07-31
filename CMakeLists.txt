@@ -138,8 +138,8 @@ add_library(wolfram
     $<IF:$<BOOL:${WOLFRAM_USE_SOCKET_TRANSPORT}>,src/transport/websocket_wii.c,src/transport/websocket.c>
     # Identity
     src/identity/identity.c
-    # Crypto
-    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
+    # Crypto - prefer modern C++ where available
+    $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.cpp>
     # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
     src/repo/cbor.c
     src/repo/cid.c
