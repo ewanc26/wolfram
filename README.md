@@ -1,6 +1,6 @@
 # wolfram
 
-A C SDK for the AT Protocol — a client-side, wire-level implementation of the
+A primarily C SDK for the AT Protocol — a client-side, wire-level implementation of the
 protocol, not a port of the upstream `atproto` service backends.
 
 **Version:** 0.2.0
