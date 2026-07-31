@@ -117,28 +117,45 @@ struct wf_buffer {
     size_t cap;
 };
 
-struct wf_header_capture { char *dpop_nonce; };
+struct wf_header_capture { char *dpop_nonce; char *set_cookie; char *location; };
 
-static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
-    struct wf_header_capture *capture = userdata;
-    size_t len = size * nmemb;
-    static const char name[] = "DPoP-Nonce:";
+/*
+ * Copy the header value following `name:` (case-insensitive, whitespace and
+ * CRLF trimmed) into `*slot`, replacing whatever was there. Shared by every
+ * single-header capture below — Set-Cookie included — rather than
+ * duplicating the trim logic per header, which is how DPoP-Nonce's own
+ * version of this drifted from a copy the last time one was added.
+ */
+static void wf_capture_header(const char *ptr, size_t len, const char *name,
+                              size_t name_len, char **slot) {
     size_t i, start, end;
-    if (len < sizeof(name) - 1) return len;
-    for (i = 0; i < sizeof(name) - 1; i++) {
-        if (tolower((unsigned char)ptr[i]) != tolower((unsigned char)name[i])) return len;
+    if (len < name_len) return;
+    for (i = 0; i < name_len; i++) {
+        if (tolower((unsigned char)ptr[i]) != tolower((unsigned char)name[i]))
+            return;
     }
-    start = sizeof(name) - 1;
+    start = name_len;
     while (start < len && (ptr[start] == ' ' || ptr[start] == '\t')) start++;
     end = len;
     while (end > start && (ptr[end - 1] == '\r' || ptr[end - 1] == '\n' ||
                            ptr[end - 1] == ' ' || ptr[end - 1] == '\t')) end--;
     char *value = malloc(end - start + 1);
-    if (!value) return 0;
+    if (!value) return;
     memcpy(value, ptr + start, end - start);
     value[end - start] = '\0';
-    free(capture->dpop_nonce);
-    capture->dpop_nonce = value;
+    free(*slot);
+    *slot = value;
+}
+
+static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    struct wf_header_capture *capture = userdata;
+    size_t len = size * nmemb;
+    wf_capture_header(ptr, len, "DPoP-Nonce:", sizeof("DPoP-Nonce:") - 1,
+                      &capture->dpop_nonce);
+    wf_capture_header(ptr, len, "Set-Cookie:", sizeof("Set-Cookie:") - 1,
+                      &capture->set_cookie);
+    wf_capture_header(ptr, len, "Location:", sizeof("Location:") - 1,
+                      &capture->location);
     return len;
 }
 
@@ -376,6 +393,10 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         out->body_len = buf.len;
         out->dpop_nonce = capture.dpop_nonce;
         capture.dpop_nonce = NULL;
+        out->set_cookie = capture.set_cookie;
+        capture.set_cookie = NULL;
+        out->location = capture.location;
+        capture.location = NULL;
 
         WF_LOG_DEBUG("xrpc", "HTTP response %ld for %s", http_status, url);
 
@@ -391,6 +412,8 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         free(buf.data);
     }
     free(capture.dpop_nonce);
+    free(capture.set_cookie);
+    free(capture.location);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return status;
@@ -702,9 +725,13 @@ void wf_response_free(wf_response *res) {
     if (!res) return;
     free(res->body);
     free(res->dpop_nonce);
+    free(res->set_cookie);
+    free(res->location);
     res->body = NULL;
     res->body_len = 0;
     res->dpop_nonce = NULL;
+    res->set_cookie = NULL;
+    res->location = NULL;
     res->status = 0;
 }
 
