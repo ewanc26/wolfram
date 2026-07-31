@@ -3,11 +3,15 @@
 A primarily C SDK for the AT Protocol — a client-side, wire-level implementation of the
 protocol, not a port of the upstream `atproto` service backends.
 
-**Version:** 0.2.6
+**Version:** 0.3.0
 
 The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
+
+Pure C11 at runtime — C++ is used only for a few third-party wrappers that have
+no C ABI, and every such wrapper exposes a C interface so the SDK never
+requires a C++ toolchain. See the policy in [AGENTS.md](AGENTS.md).
 
 **Scope.** Wolfram is a faithful C port of the AT Protocol's *protocol/SDK
 layer* — the client and wire-format packages of the upstream TypeScript
