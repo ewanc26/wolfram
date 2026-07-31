@@ -21,6 +21,19 @@ Agentic principles and technical context for the `wolfram` repository.
 - **No commented-out code** left in place; delete dead code or move it to a test.
 - Follow the surrounding file's indentation and brace style.
 
+## Versioning
+
+- **Tag every version bump**: a commit that changes `VERSION` in
+  `CMakeLists.txt` must also create a signed annotated git tag on that commit:
+  `git tag -s v<major>.<minor>.<patch> -m "v<major>.<minor>.<patch>"` (use `-s`
+  when a signing key is available, otherwise `-a`). Push tags with
+  `git push --tags`.
+- **Bump in the same commit**: the version change and the tag must refer to the
+  same commit — no separate bump commit without a tag.
+- **Keep `include/wolfram/version.h` in sync**: the header defines
+  `WOLFRAM_VERSION_STRING` and the `WOLFRAM_VERSION_{MAJOR,MINOR,PATCH}` macros;
+  every CMakeLists.txt bump must update them to match.
+
 ## Development workflow
 
 - **Desktop builds**: `cmake -S . -B build && cmake --build build`
