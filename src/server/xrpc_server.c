@@ -320,17 +320,32 @@ struct wf_xrpc_server {
 };
 
 /* Apply the server's CORS policy to an outgoing MHD response (no-op when
- * CORS is disabled). Falls back to "*" when no origin was configured. */
+ * CORS is disabled). Falls back to "*" when no origin was configured.
+ *
+ * Allow-Headers on a preflight echoes the browser's requested headers, the
+ * same behaviour the reference PDS gets from the `cors` middleware. That lets
+ * clients send any atproto header (atproto-proxy, atproto-accept-labelers,
+ * X-Bsky-*) without the server maintaining the full set; a fixed list is only
+ * the fallback for non-preflight responses. */
 static void wf_server_apply_cors(wf_xrpc_server *server,
+                                  struct MHD_Connection *conn,
                                   struct MHD_Response *resp) {
     const char *origin;
+    const char *req_headers;
     if (!server || !server->cors_enabled) {
         return;
     }
     origin = server->cors_origin ? server->cors_origin : "*";
     MHD_add_response_header(resp, "Access-Control-Allow-Origin", origin);
+    req_headers = MHD_lookup_connection_value(
+        conn, MHD_HEADER_KIND, "Access-Control-Request-Headers");
     MHD_add_response_header(resp, "Access-Control-Allow-Headers",
-                             "Authorization, Content-Type, DPoP");
+                             req_headers && req_headers[0]
+                                 ? req_headers
+                                 : "Authorization, Content-Type, DPoP, Accept, "
+                                   "atproto-proxy, atproto-accept-labelers, "
+                                   "X-Bsky-Content-Checksum, "
+                                   "X-Bsky-Post-Verification");
     MHD_add_response_header(resp, "Access-Control-Allow-Methods",
                              "GET, POST, OPTIONS");
     MHD_add_response_header(resp, "Access-Control-Expose-Headers",
@@ -1898,7 +1913,7 @@ process:
                     MHD_add_response_header(mhd_rl, "Content-Type",
                                              "application/json");
                     MHD_add_response_header(mhd_rl, "Retry-After", ra_str);
-                    wf_server_apply_cors(server, mhd_rl);
+                    wf_server_apply_cors(server, conn, mhd_rl);
                     MHD_queue_response(conn, 429, mhd_rl);
                     MHD_destroy_response(mhd_rl);
                 }
@@ -2033,7 +2048,7 @@ send:
     for (wf_xrpc_response_header *header = resp.headers; header;
          header = header->next)
         MHD_add_response_header(mhd_resp, header->name, header->value);
-    wf_server_apply_cors(server, mhd_resp);
+    wf_server_apply_cors(server, conn, mhd_resp);
 
     wf_server_observe(server, nsid, url, method, resp.http_status);
     ret = MHD_queue_response(conn, resp.http_status, mhd_resp);
@@ -2087,12 +2102,7 @@ sse_stream:
         MHD_add_response_header(mhd_resp_sse, "Cache-Control", "no-cache");
         MHD_add_response_header(mhd_resp_sse, "Connection", "keep-alive");
         MHD_add_response_header(mhd_resp_sse, "X-Accel-Buffering", "no");
-        MHD_add_response_header(mhd_resp_sse, "Access-Control-Allow-Origin",
-                                "*");
-        MHD_add_response_header(mhd_resp_sse, "Access-Control-Allow-Headers",
-                                "Authorization, Content-Type, DPoP");
-        MHD_add_response_header(mhd_resp_sse, "Access-Control-Expose-Headers",
-                                "Content-Type, Retry-After");
+        wf_server_apply_cors(server, conn, mhd_resp_sse);
 
         ret = MHD_queue_response(conn, MHD_HTTP_OK, mhd_resp_sse);
         MHD_destroy_response(mhd_resp_sse);
@@ -2148,7 +2158,7 @@ static enum MHD_Result wf_server_mhd_options(void *cls,
     if (!resp) {
         return MHD_NO;
     }
-    wf_server_apply_cors(server, resp);
+    wf_server_apply_cors(server, conn, resp);
     MHD_add_response_header(resp, "Access-Control-Max-Age", "86400");
     ret = MHD_queue_response(conn, 204, resp);
     MHD_destroy_response(resp);
