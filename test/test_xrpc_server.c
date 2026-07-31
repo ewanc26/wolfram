@@ -109,6 +109,13 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
     (void)ctx;
     if (!req->path || strncmp(req->path, "/oauth/", 7) != 0)
         return WF_ERR_INVALID_ARG;
+    if (strcmp(req->method, "GET") == 0 &&
+        strcmp(req->path, "/oauth/redirect-test") == 0) {
+        wf_xrpc_response_add_header(resp, "Location",
+                                    "/oauth/consent?client_id=native");
+        resp->http_status = 302;
+        return WF_OK;
+    }
     if (strcmp(req->method, "POST") == 0) {
         const char expected[] = "grant_type=authorization_code&code=abc";
         if (!req->content_type ||
@@ -219,7 +226,9 @@ static int run_test(void) {
     if (wf_xrpc_server_register_http_route(server, "GET", "/oauth/test",
             test_http_handler, NULL) != WF_OK ||
         wf_xrpc_server_register_http_route(server, "POST", "/oauth/token",
-            test_http_handler, NULL) != WF_OK) {
+            test_http_handler, NULL) != WF_OK ||
+        wf_xrpc_server_register_http_route(server, "GET",
+            "/oauth/redirect-test", test_http_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register generic HTTP routes\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -348,6 +357,37 @@ static int run_test(void) {
                         res.set_cookie ? res.set_cookie : "NULL");
                 failures++;
             }
+        }
+        wf_response_free(&res);
+    }
+
+    /*
+     * Test 2c: Location header on a redirect.
+     *
+     * A 3xx response makes wf_http_get_with_headers return WF_ERR_HTTP, so
+     * `res.status` alone already says a redirect happened — but not where
+     * to. MetalBear's OAuth authorize endpoint answers every outcome with a
+     * 302 (success redirects to the client, a blocked attempt redirects to
+     * sign-in), so telling those apart is exactly what a caller needs
+     * Location for.
+     */
+    {
+        char url[160];
+        snprintf(url, sizeof(url), "%s/oauth/redirect-test", base_url);
+        wf_response_free(&res);
+        wf_status s = wf_http_get_with_headers(client, url, NULL, 0, &res);
+        if (s != WF_ERR_HTTP) {
+            fprintf(stderr, "FAIL: redirect query (status=%d)\n", (int)s);
+            failures++;
+        } else if (res.status != 302) {
+            fprintf(stderr, "FAIL: redirect status=%ld\n", res.status);
+            failures++;
+        } else if (!res.location ||
+                   strcmp(res.location,
+                          "/oauth/consent?client_id=native") != 0) {
+            fprintf(stderr, "FAIL: captured Location mismatch: %s\n",
+                    res.location ? res.location : "NULL");
+            failures++;
         }
         wf_response_free(&res);
     }

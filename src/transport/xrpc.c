@@ -117,7 +117,7 @@ struct wf_buffer {
     size_t cap;
 };
 
-struct wf_header_capture { char *dpop_nonce; char *set_cookie; };
+struct wf_header_capture { char *dpop_nonce; char *set_cookie; char *location; };
 
 /*
  * Copy the header value following `name:` (case-insensitive, whitespace and
@@ -154,6 +154,8 @@ static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb, void *user
                       &capture->dpop_nonce);
     wf_capture_header(ptr, len, "Set-Cookie:", sizeof("Set-Cookie:") - 1,
                       &capture->set_cookie);
+    wf_capture_header(ptr, len, "Location:", sizeof("Location:") - 1,
+                      &capture->location);
     return len;
 }
 
@@ -393,6 +395,8 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         capture.dpop_nonce = NULL;
         out->set_cookie = capture.set_cookie;
         capture.set_cookie = NULL;
+        out->location = capture.location;
+        capture.location = NULL;
 
         WF_LOG_DEBUG("xrpc", "HTTP response %ld for %s", http_status, url);
 
@@ -409,6 +413,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     }
     free(capture.dpop_nonce);
     free(capture.set_cookie);
+    free(capture.location);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return status;
@@ -721,10 +726,12 @@ void wf_response_free(wf_response *res) {
     free(res->body);
     free(res->dpop_nonce);
     free(res->set_cookie);
+    free(res->location);
     res->body = NULL;
     res->body_len = 0;
     res->dpop_nonce = NULL;
     res->set_cookie = NULL;
+    res->location = NULL;
     res->status = 0;
 }
 

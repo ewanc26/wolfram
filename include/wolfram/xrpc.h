@@ -63,6 +63,11 @@ typedef struct wf_response {
     size_t body_len;
     char  *dpop_nonce; /* optional owned DPoP-Nonce response header */
     char  *set_cookie; /* optional owned Set-Cookie response header */
+    /* Optional owned Location response header. Populated on a redirect (3xx)
+     * response even though that status makes the call return WF_ERR_HTTP —
+     * telling a 3xx apart from another 3xx that went somewhere else is
+     * exactly the situation a caller reads this field to resolve. */
+    char  *location;
 } wf_response;
 
 typedef struct wf_http_header {
