@@ -3,7 +3,7 @@
 A primarily C SDK for the AT Protocol — a client-side, wire-level implementation of the
 protocol, not a port of the upstream `atproto` service backends.
 
-**Version:** 0.2.0
+**Version:** 0.2.6
 
 The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
