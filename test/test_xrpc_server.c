@@ -125,7 +125,21 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
             return WF_ERR_PARSE;
     }
     wf_xrpc_response_add_header(resp, "Cache-Control", "no-store");
-    wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
+    /*
+     * Echo the Cookie header into the body, not a response header: the test
+     * client's wf_response surfaces only status/body/dpop_nonce, so the body
+     * is the only place this test can actually see what the handler
+     * received — proving the cookie reached the handler, not just that the
+     * server accepted the request.
+     */
+    if (req->cookie_header) {
+        char body[256];
+        int n = snprintf(body, sizeof(body), "{\"ok\":true,\"cookie\":\"%s\"}",
+                         req->cookie_header);
+        wf_xrpc_response_set_body(resp, body, (size_t)n);
+    } else {
+        wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
+    }
     return WF_OK;
 }
 
@@ -284,6 +298,46 @@ static int run_test(void) {
                 }
                 cJSON_Delete(root);
             }
+        }
+        wf_response_free(&res);
+    }
+
+    /*
+     * Test 2b: Cookie header reaches an HTTP route.
+     *
+     * A browser-facing HTTP route (an OAuth authorize page, say) has no
+     * Authorization header to carry a session — a cookie is what stands in
+     * for one. Regression coverage for that path specifically, since it goes
+     * through the plain-HTTP-route branch of the dispatcher rather than the
+     * XRPC one the auth-header test above exercises.
+     */
+    {
+        char url[160];
+        wf_http_header headers[] = {
+            {"Cookie", "mb_device=abc123; other=ignored"},
+        };
+        snprintf(url, sizeof(url), "%s/oauth/test?client_id=native", base_url);
+        wf_response_free(&res);
+        wf_status s = wf_http_get_with_headers(client, url, headers, 1, &res);
+        if (s != WF_OK) {
+            fprintf(stderr, "FAIL: cookie query (status=%d)\n", (int)s);
+            failures++;
+        } else if (res.status != 200) {
+            fprintf(stderr, "FAIL: cookie status=%ld\n", res.status);
+            failures++;
+        } else {
+            cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+            cJSON *cookie = root
+                ? cJSON_GetObjectItemCaseSensitive(root, "cookie") : NULL;
+            if (!cookie || !cJSON_IsString(cookie) ||
+                strcmp(cookie->valuestring,
+                       "mb_device=abc123; other=ignored") != 0) {
+                fprintf(stderr, "FAIL: cookie header mismatch: %s\n",
+                        cookie && cookie->valuestring ? cookie->valuestring
+                                                      : "NULL");
+                failures++;
+            }
+            cJSON_Delete(root);
         }
         wf_response_free(&res);
     }

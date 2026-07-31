@@ -1693,6 +1693,7 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     cJSON *params = NULL;
     const char *auth_header;
     const char *dpop_header;
+    const char *cookie_header;
     post_buf *raw_pb = NULL;   /* Kept alive past parsing so handlers can read
                                   the raw POST body (e.g. blob uploads). */
 
@@ -1912,6 +1913,7 @@ process:
     auth_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
                                                 "Authorization");
     dpop_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
+    cookie_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
     char *authed_subject = NULL;
     wf_xrpc_principal_kind authed_kind = WF_XRPC_PRINCIPAL_NONE;
     if (!http_route && server->auth_cb) {
@@ -1922,6 +1924,7 @@ process:
         auth_req.method = method;
         auth_req.auth_header = auth_header;
         auth_req.dpop_header = dpop_header;
+        auth_req.cookie_header = cookie_header;
         auth_req.params = params;
         auth_req.handler_ctx = route->ctx;
         auth_req.host_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
@@ -1950,6 +1953,7 @@ process:
     req.method = method;
     req.auth_header = auth_header;
     req.dpop_header = dpop_header;
+    req.cookie_header = cookie_header;
     req.params = params;
     req.handler_ctx = http_route ? http_route->ctx : route->ctx;
     /* Raw POST body (kept alive in raw_pb) + request Content-Type. */

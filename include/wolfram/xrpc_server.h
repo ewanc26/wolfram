@@ -51,6 +51,14 @@ typedef struct wf_xrpc_request {
     const char *method;        /* "GET" or "POST" */
     const char *auth_header;   /* Raw Authorization header (may be NULL) */
     const char *dpop_header;   /* Raw DPoP proof header (may be NULL) */
+    /* Raw Cookie header, exactly as sent (may be NULL). Unparsed: MHD has no
+     * cookie-jar concept and this mirrors that — a handler that wants one
+     * cookie among several parses the `name=value; name2=value2` string
+     * itself. Exists for HTTP routes a browser navigates to directly (an
+     * OAuth authorize page, say), which have no Authorization header to
+     * carry a session and nothing else in this struct can stand in for one.
+     * Valid only during the handler. */
+    const char *cookie_header;
     cJSON      *params;        /* Query params (GET) or body JSON (POST); may be NULL */
     /* Raw request body (POST). For binary procedures such as blob uploads the
      * body is the raw bytes, not JSON; handlers that need it read body /
