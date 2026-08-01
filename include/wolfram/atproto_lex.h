@@ -404,6 +404,10 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_APP_BSKY_GRAPH_SEARCH_STARTER_PACKS_NSID "app.bsky.graph.searchStarterPacks"
 #define WF_LEX_APP_BSKY_GRAPH_SEARCH_STARTER_PACKS_KIND "query"
 
+/** Find starter packs matching search criteria. Does not require auth. */
+#define WF_LEX_APP_BSKY_GRAPH_SEARCH_STARTER_PACKS_V2_NSID "app.bsky.graph.searchStarterPacksV2"
+#define WF_LEX_APP_BSKY_GRAPH_SEARCH_STARTER_PACKS_V2_KIND "query"
+
 /** Record defining a starter pack of actors and feeds for new users. */
 #define WF_LEX_APP_BSKY_GRAPH_STARTERPACK_NSID "app.bsky.graph.starterpack"
 #define WF_LEX_APP_BSKY_GRAPH_STARTERPACK_KIND "record"
@@ -1336,7 +1340,7 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_TOOLS_OZONE_QUEUE_ASSIGN_MODERATOR_NSID "tools.ozone.queue.assignModerator"
 #define WF_LEX_TOOLS_OZONE_QUEUE_ASSIGN_MODERATOR_KIND "procedure"
 
-/** Create a new moderation queue. Will fail if the queue configuration conflicts with an existing queue. */
+/** Create a new moderation queue. A queue can have optional matching criteria that ozone's queue router will use to match reports. A queue with no criteria must have reports assigned to it manually via (1) `modTool.meta.queueId` in `tools.ozone.moderation.emitEvent` or (2) `tools.ozone.report.reassignQueue`. */
 #define WF_LEX_TOOLS_OZONE_QUEUE_CREATE_QUEUE_NSID "tools.ozone.queue.createQueue"
 #define WF_LEX_TOOLS_OZONE_QUEUE_CREATE_QUEUE_KIND "procedure"
 
@@ -1370,6 +1374,10 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 /** Assign a report to a user. Defaults to the caller. Admins may assign to any moderator. */
 #define WF_LEX_TOOLS_OZONE_REPORT_ASSIGN_MODERATOR_NSID "tools.ozone.report.assignModerator"
 #define WF_LEX_TOOLS_OZONE_REPORT_ASSIGN_MODERATOR_KIND "procedure"
+
+/** Close all reports on a subject matching the given criteria. Reports whose current status does not permit a transition to closed are skipped silently. Intended for automated flows that resolve reports without taking action on the subject. */
+#define WF_LEX_TOOLS_OZONE_REPORT_CLOSE_REPORTS_NSID "tools.ozone.report.closeReports"
+#define WF_LEX_TOOLS_OZONE_REPORT_CLOSE_REPORTS_KIND "procedure"
 
 /** Register an activity on a report. For state-change activity types, validates the transition and updates report.status atomically. */
 #define WF_LEX_TOOLS_OZONE_REPORT_CREATE_ACTIVITY_NSID "tools.ozone.report.createActivity"
@@ -1831,6 +1839,8 @@ typedef struct wf_lex_app_bsky_graph_mute_actor_main_input wf_lex_app_bsky_graph
 typedef struct wf_lex_app_bsky_graph_mute_thread_main_input wf_lex_app_bsky_graph_mute_thread_main_input;
 typedef struct wf_lex_app_bsky_graph_search_starter_packs_main_output wf_lex_app_bsky_graph_search_starter_packs_main_output;
 typedef struct wf_lex_app_bsky_graph_search_starter_packs_main_params wf_lex_app_bsky_graph_search_starter_packs_main_params;
+typedef struct wf_lex_app_bsky_graph_search_starter_packs_v2_main_output wf_lex_app_bsky_graph_search_starter_packs_v2_main_output;
+typedef struct wf_lex_app_bsky_graph_search_starter_packs_v2_main_params wf_lex_app_bsky_graph_search_starter_packs_v2_main_params;
 typedef struct wf_lex_app_bsky_graph_starterpack_feed_item wf_lex_app_bsky_graph_starterpack_feed_item;
 typedef struct wf_lex_app_bsky_graph_starterpack_main wf_lex_app_bsky_graph_starterpack_main;
 typedef struct wf_lex_app_bsky_graph_unmute_actor_list_main_input wf_lex_app_bsky_graph_unmute_actor_list_main_input;
@@ -2474,6 +2484,8 @@ typedef struct wf_lex_tools_ozone_queue_unassign_moderator_main_input wf_lex_too
 typedef struct wf_lex_tools_ozone_queue_update_queue_main_input wf_lex_tools_ozone_queue_update_queue_main_input;
 typedef struct wf_lex_tools_ozone_queue_update_queue_main_output wf_lex_tools_ozone_queue_update_queue_main_output;
 typedef struct wf_lex_tools_ozone_report_assign_moderator_main_input wf_lex_tools_ozone_report_assign_moderator_main_input;
+typedef struct wf_lex_tools_ozone_report_close_reports_main_input wf_lex_tools_ozone_report_close_reports_main_input;
+typedef struct wf_lex_tools_ozone_report_close_reports_main_output wf_lex_tools_ozone_report_close_reports_main_output;
 typedef struct wf_lex_tools_ozone_report_create_activity_main_input wf_lex_tools_ozone_report_create_activity_main_input;
 typedef struct wf_lex_tools_ozone_report_create_activity_main_input_activity_union wf_lex_tools_ozone_report_create_activity_main_input_activity_union;
 typedef struct wf_lex_tools_ozone_report_create_activity_main_output wf_lex_tools_ozone_report_create_activity_main_output;
@@ -4208,6 +4220,9 @@ typedef struct wf_lex_app_bsky_actor_defs_labeler_pref_item {
 typedef struct wf_lex_app_bsky_actor_defs_bsky_app_state_pref {
     bool has_active_progress_guide;
     const wf_lex_app_bsky_actor_defs_bsky_app_progress_guide * active_progress_guide;
+    /** Indicates if the user is participating in the beta features program. */
+    bool has_is_beta_user;
+    bool is_beta_user;
     /** An array of tokens which identify nudges (modals, popups, tours, highlight dots) that should be shown to the user. */
     bool has_queued_nudges;
     WF_LEX_ARRAY(const char *) queued_nudges;
@@ -4437,6 +4452,9 @@ typedef struct wf_lex_app_bsky_ageassurance_defs_config {
 
 /** The Age Assurance configuration for a specific region. */
 typedef struct wf_lex_app_bsky_ageassurance_defs_config_region {
+    /** The platforms this configuration applies to. If omitted, the configuration applies to all platforms. */
+    bool has_platforms;
+    WF_LEX_ARRAY(const char *) platforms;
     /** The ISO 3166-1 alpha-2 country code this configuration applies to. */
     const char * country_code;
     /** The ISO 3166-2 region code this configuration applies to. If omitted, the configuration applies to the entire country. */
@@ -5947,6 +5965,8 @@ typedef struct wf_lex_app_bsky_graph_get_followers_main_params {
     int64_t limit;
     bool has_cursor;
     const char * cursor;
+    bool has_sort;
+    const char * sort;
 } wf_lex_app_bsky_graph_get_followers_main_params;
 
 typedef struct wf_lex_app_bsky_graph_get_followers_main_output {
@@ -5962,6 +5982,8 @@ typedef struct wf_lex_app_bsky_graph_get_follows_main_params {
     int64_t limit;
     bool has_cursor;
     const char * cursor;
+    bool has_sort;
+    const char * sort;
 } wf_lex_app_bsky_graph_get_follows_main_params;
 
 typedef struct wf_lex_app_bsky_graph_get_follows_main_output {
@@ -6211,6 +6233,24 @@ typedef struct wf_lex_app_bsky_graph_search_starter_packs_main_output {
     WF_LEX_ARRAY(const wf_lex_app_bsky_graph_defs_starter_pack_view_basic *) starter_packs;
 } wf_lex_app_bsky_graph_search_starter_packs_main_output;
 
+typedef struct wf_lex_app_bsky_graph_search_starter_packs_v2_main_params {
+    /** Search query string. Syntax, phrase, boolean, and faceting is unspecified, but Lucene query syntax is recommended. */
+    const char * q;
+    bool has_limit;
+    int64_t limit;
+    bool has_cursor;
+    const char * cursor;
+} wf_lex_app_bsky_graph_search_starter_packs_v2_main_params;
+
+typedef struct wf_lex_app_bsky_graph_search_starter_packs_v2_main_output {
+    bool has_cursor;
+    const char * cursor;
+    /** Estimated total number of matching hits. May be rounded or truncated. */
+    bool has_hits_total;
+    int64_t hits_total;
+    WF_LEX_ARRAY(const wf_lex_app_bsky_graph_defs_starter_pack_view *) starter_packs;
+} wf_lex_app_bsky_graph_search_starter_packs_v2_main_output;
+
 typedef struct wf_lex_app_bsky_graph_starterpack_main {
     /** Display name for starter pack; can not be empty. */
     const char * name;
@@ -6446,6 +6486,9 @@ typedef struct wf_lex_app_bsky_notification_list_notifications_notification {
     bool has_reason_subject;
     const char * reason_subject;
     wf_lex_json record;
+    /** The starter pack associated with this notification. Present when the notification is for a follow originating from a starter pack. */
+    bool has_starter_pack;
+    const wf_lex_app_bsky_graph_defs_starter_pack_view_basic * starter_pack;
     bool is_read;
     const char * indexed_at;
     bool has_labels;
@@ -6573,6 +6616,8 @@ typedef struct wf_lex_app_bsky_unspecced_defs_trending_topic {
 typedef struct wf_lex_app_bsky_unspecced_defs_skeleton_trend {
     const char * topic;
     const char * display_name;
+    bool has_description;
+    const char * description;
     const char * link;
     const char * started_at;
     int64_t post_count;
@@ -6586,6 +6631,8 @@ typedef struct wf_lex_app_bsky_unspecced_defs_skeleton_trend {
 typedef struct wf_lex_app_bsky_unspecced_defs_trend_view {
     const char * topic;
     const char * display_name;
+    bool has_description;
+    const char * description;
     const char * link;
     const char * started_at;
     int64_t post_count;
@@ -7029,6 +7076,9 @@ typedef struct wf_lex_app_bsky_unspecced_get_trends_main_params {
 
 typedef struct wf_lex_app_bsky_unspecced_get_trends_main_output {
     WF_LEX_ARRAY(const wf_lex_app_bsky_unspecced_defs_trend_view *) trends;
+    /** Snowflake for this recommendation, use when submitting recommendation events. */
+    bool has_rec_id_str;
+    const char * rec_id_str;
 } wf_lex_app_bsky_unspecced_get_trends_main_output;
 
 typedef struct wf_lex_app_bsky_unspecced_get_trends_skeleton_main_params {
@@ -7041,6 +7091,9 @@ typedef struct wf_lex_app_bsky_unspecced_get_trends_skeleton_main_params {
 
 typedef struct wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output {
     WF_LEX_ARRAY(const wf_lex_app_bsky_unspecced_defs_skeleton_trend *) trends;
+    /** Snowflake for this recommendation, use when submitting recommendation events. */
+    bool has_rec_id_str;
+    const char * rec_id_str;
 } wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output;
 
 typedef struct wf_lex_app_bsky_unspecced_init_age_assurance_main_input {
@@ -7160,6 +7213,9 @@ typedef struct wf_lex_app_bsky_video_defs_job_status {
     wf_lex_blob blob;
     bool has_error;
     const char * error;
+    /** A machine-readable code for why the video processing job failed. */
+    bool has_failure_code;
+    const char * failure_code;
     bool has_message;
     const char * message;
 } wf_lex_app_bsky_video_defs_job_status;
@@ -9305,6 +9361,9 @@ typedef struct wf_lex_com_atproto_server_describe_server_main_output {
     /** If true, a phone verification token must be supplied to create an account on this instance. */
     bool has_phone_verification_required;
     bool phone_verification_required;
+    /** Maximum size of a blob that can be uploaded via com.atproto.repo.uploadBlob, in bytes. */
+    bool has_blob_upload_limit;
+    int64_t blob_upload_limit;
     /** List of domain suffixes that can be used in account handles. */
     WF_LEX_ARRAY(const char *) available_user_domains;
     /** URLs of service policy documents. */
@@ -9815,6 +9874,9 @@ typedef struct wf_lex_internal_bsky_actor_get_profiles_main_params {
     /** DIDs to hydrate social proof (known followers) for. DIDs not also present in `dids` are ignored. */
     bool has_social_proof;
     WF_LEX_ARRAY(const char *) social_proof;
+    /** Include taken-down accounts in the response rather than omitting them. For service-to-service moderation use only. */
+    bool has_include_takedowns;
+    bool include_takedowns;
 } wf_lex_internal_bsky_actor_get_profiles_main_params;
 
 typedef struct wf_lex_internal_bsky_actor_get_profiles_main_output {
@@ -11120,11 +11182,13 @@ typedef struct wf_lex_tools_ozone_queue_create_queue_main_input {
     /** Display name for the queue (must be unique) */
     const char * name;
     /** Subject types this queue accepts */
+    bool has_subject_types;
     WF_LEX_ARRAY(const char *) subject_types;
     /** Collection name for record subjects. Required if subjectTypes includes 'record'. */
     bool has_collection;
     const char * collection;
     /** Report reason types (fully qualified NSIDs) */
+    bool has_report_types;
     WF_LEX_ARRAY(const char *) report_types;
     /** Optional description of the queue */
     bool has_description;
@@ -11141,11 +11205,13 @@ typedef struct wf_lex_tools_ozone_queue_defs_queue_view {
     /** Display name of the queue */
     const char * name;
     /** Subject types this queue accepts. */
+    bool has_subject_types;
     WF_LEX_ARRAY(const char *) subject_types;
     /** Collection name for record subjects (e.g., 'app.bsky.feed.post') */
     bool has_collection;
     const char * collection;
     /** Report reason types this queue accepts (fully qualified NSIDs) */
+    bool has_report_types;
     WF_LEX_ARRAY(const char *) report_types;
     /** Optional description of the queue */
     bool has_description;
@@ -11240,7 +11306,7 @@ typedef struct wf_lex_tools_ozone_queue_list_queues_main_params {
     /** Filter by enabled status. If not specified, returns all queues. */
     bool has_enabled;
     bool enabled;
-    /** Filter queues that handle this subject type ('account' or 'record'). */
+    /** Filter queues that handle this subject type ('account', 'record', 'message', or 'conversation'). */
     bool has_subject_type;
     const char * subject_type;
     /** Filter queues by collection name (e.g. 'app.bsky.feed.post'). */
@@ -11314,9 +11380,34 @@ typedef struct wf_lex_tools_ozone_report_assign_moderator_main_input {
     bool is_permanent;
 } wf_lex_tools_ozone_report_assign_moderator_main_input;
 
+typedef struct wf_lex_tools_ozone_report_close_reports_main_input {
+    /** Subject DID (account-level reports) or AT-URI (record-level reports) whose reports should be closed. */
+    const char * subject;
+    /** If specified, only reports of the given report types (fully qualified reason NSIDs) are closed. When omitted, all non-closed reports on the subject are targeted. */
+    bool has_report_types;
+    WF_LEX_ARRAY(const char *) report_types;
+    /** Optional moderator-only note recorded on each close activity. Not visible to reporters. */
+    bool has_internal_note;
+    const char * internal_note;
+    /** Set true when this action is triggered by an automated process. Defaults to false. */
+    bool has_is_automated;
+    bool is_automated;
+} wf_lex_tools_ozone_report_close_reports_main_input;
+
+typedef struct wf_lex_tools_ozone_report_close_reports_main_output {
+    /** Number of reports that were transitioned to closed. */
+    int64_t closed_count;
+    /** IDs of the reports that were closed. */
+    WF_LEX_ARRAY(int64_t) report_ids;
+} wf_lex_tools_ozone_report_close_reports_main_output;
+
 typedef struct wf_lex_tools_ozone_report_create_activity_main_input {
-    /** ID of the report to record activity on */
+    /** ID of the report to record activity on. Exactly one of reportId or eventId must be provided. */
+    bool has_report_id;
     int64_t report_id;
+    /** ID of the report moderation event. Resolves to the report created from that event. Exactly one of reportId or eventId must be provided. */
+    bool has_event_id;
+    int64_t event_id;
     /** The type of activity to record. */
     wf_lex_tools_ozone_report_create_activity_main_input_activity_union activity;
     /** Optional moderator-only note. Not visible to reporters. */
@@ -11395,6 +11486,9 @@ typedef struct wf_lex_tools_ozone_report_defs_report_view {
     /** Whether this report is muted. A report is muted if the reporter was muted or the subject was muted at the time the report was created. */
     bool has_is_muted;
     bool is_muted;
+    /** Whether this report was emitted by automated tooling. */
+    bool has_is_automated;
+    bool is_automated;
 } wf_lex_tools_ozone_report_defs_report_view;
 
 /** Activity recording a report being routed to a queue. */
@@ -11671,7 +11765,7 @@ typedef struct wf_lex_tools_ozone_report_query_reports_main_params {
     /** Filter to reports where the subject is this DID or any record owned by this DID. Unlike `subject` (which scopes to a specific account or record), this returns all reports tied to the DID across both account-level and record-level subjects. */
     bool has_did;
     const char * did;
-    /** If specified, reports of the given type (account or record) will be returned. */
+    /** If specified, reports of the given subject type will be returned. */
     bool has_subject_type;
     const char * subject_type;
     /** If specified, reports where the subject belongs to the given collections will be returned. When subjectType is set to 'account', this will be ignored. */
@@ -12860,6 +12954,15 @@ wf_status wf_lex_app_bsky_graph_search_starter_packs_main_call(wf_xrpc_client *c
     const wf_lex_app_bsky_graph_search_starter_packs_main_params *params, wf_response *out);
 wf_status wf_lex_app_bsky_graph_search_starter_packs_main_call_auth(wf_auth_client *client,
     const wf_lex_app_bsky_graph_search_starter_packs_main_params *params, wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_graph_search_starter_packs_v2_main_output **out_value);
+void wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_free(wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value);
+wf_status wf_lex_app_bsky_graph_search_starter_packs_v2_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *params, wf_response *out);
+wf_status wf_lex_app_bsky_graph_search_starter_packs_v2_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *params, wf_response *out);
 
 wf_status wf_lex_app_bsky_graph_unmute_actor_main_input_encode_json(
     const wf_lex_app_bsky_graph_unmute_actor_main_input *value, char **out_json);
@@ -14840,6 +14943,19 @@ wf_status wf_lex_tools_ozone_report_assign_moderator_main_call(wf_xrpc_client *c
     const wf_lex_tools_ozone_report_assign_moderator_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_report_assign_moderator_main_call_auth(wf_auth_client *client,
     const wf_lex_tools_ozone_report_assign_moderator_main_input *input, wf_response *out);
+
+wf_status wf_lex_tools_ozone_report_close_reports_main_input_encode_json(
+    const wf_lex_tools_ozone_report_close_reports_main_input *value, char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_tools_ozone_report_close_reports_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_report_close_reports_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_report_close_reports_main_output **out_value);
+void wf_lex_tools_ozone_report_close_reports_main_output_free(wf_lex_tools_ozone_report_close_reports_main_output *value);
+wf_status wf_lex_tools_ozone_report_close_reports_main_call(wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_close_reports_main_input *input, wf_response *out);
+wf_status wf_lex_tools_ozone_report_close_reports_main_call_auth(wf_auth_client *client,
+    const wf_lex_tools_ozone_report_close_reports_main_input *input, wf_response *out);
 
 wf_status wf_lex_tools_ozone_report_create_activity_main_input_encode_json(
     const wf_lex_tools_ozone_report_create_activity_main_input *value, char **out_json);
