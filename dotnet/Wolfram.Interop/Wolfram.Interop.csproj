@@ -31,7 +31,7 @@
           Inputs="$(WolframIncludeDir)/**/*.h;tools/gen_safehandles.cpp"
           Outputs="SafeHandles/SafeHandles.generated.cs">
 
-    <Exec Command="c++ -std=c++17 -O2 tools/gen_safehandles.cpp -o $(IntermediateOutputPath)gen_safehandles"
+    <Exec Command="mkdir -p $(IntermediateOutputPath) &amp;&amp; c++ -std=c++17 -O2 tools/gen_safehandles.cpp -o $(IntermediateOutputPath)gen_safehandles"
           WorkingDirectory="$(ProjectDir)"
           IgnoreStandardErrorWarningFormat="true" />
 
