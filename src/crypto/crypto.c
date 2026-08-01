@@ -13,6 +13,12 @@
 #include <openssl/evp.h>
 #include <openssl/obj_mac.h>
 #include <openssl/rand.h>
+
+/* OpenSSL 3.0 deprecated the EC_KEY/ECDSA API in favor of EVP_PKEY.
+ * The deprecated declarations are suppressed here; migration to EVP
+ * is tracked as a separate refactoring item. */
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #include <openssl/sha.h>
 #include <cJSON.h>
 
@@ -123,11 +129,11 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
                                        char **out_didkey) {
     unsigned char raw[33];
     unsigned char prefixed[35];
-    const unsigned char *multicodec;
     char *b58;
     char *didkey;
 
-    WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: enter, key_type=%d", key ? key->type : -1);
+    WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: enter, key_type=%d",
+                key ? (int)key->type : -1);
 
     if (!key || !out_didkey) {
         WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: invalid args");
@@ -507,7 +513,8 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
 wf_status wf_sign(const wf_signing_key *key,
                    const unsigned char *msg, size_t msg_len,
                    unsigned char *sig_out, size_t sig_out_cap) {
-    WF_LOG_DEBUG("crypto", "wf_sign: enter, key_type=%d, msg_len=%zu, sig_cap=%zu", key ? key->type : -1, msg_len, sig_out_cap);
+    WF_LOG_DEBUG("crypto", "wf_sign: enter, key_type=%d, msg_len=%zu, sig_cap=%zu",
+                key ? (int)key->type : -1, msg_len, sig_out_cap);
 
     if (!key || !msg || msg_len == 0 || !sig_out || sig_out_cap < 64) {
         WF_LOG_ERROR("crypto", "wf_sign: invalid args");
@@ -987,3 +994,5 @@ wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
     cJSON_Delete(root);
     return WF_OK;
 }
+
+_Pragma("GCC diagnostic pop")

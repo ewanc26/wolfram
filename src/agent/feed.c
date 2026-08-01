@@ -140,6 +140,7 @@ wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
 wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
                                          int limit, const char *cursor, const char *filter,
                                          wf_response *out) {
+    (void)cursor;
     if (!agent || !actor || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
     if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
@@ -306,13 +307,14 @@ wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
 }
 
 wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
-                                  int limit, const char *cursor,
-                                  const char *since, const char *until,
-                                  const char *author, const char *lang,
-                                  wf_response *out) {
+                                   int limit, const char *cursor,
+                                   const char *since, const char *until,
+                                   const char *author, const char *lang,
+                                   wf_response *out) {
     if (!agent || !query || !query[0] || !out) return WF_ERR_INVALID_ARG;
     if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_lex_app_bsky_feed_search_posts_main_params params = {0};
+    (void)params;
     params.q = query;
     if (limit > 0) {
         params.has_limit = true;
@@ -501,6 +503,7 @@ wf_status wf_agent_get_list_feed_lex(wf_agent *agent, const char *list_uri,
 wf_status wf_agent_get_feed_lex(wf_agent *agent, const char *feed_uri,
                                 int limit, const char *cursor,
                                 wf_response *out) {
+    (void)cursor;
     if (!agent || !feed_uri || !out) return WF_ERR_INVALID_ARG;
     if (limit < 0 || limit > 100) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);

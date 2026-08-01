@@ -153,7 +153,7 @@ wf_status wf_websocket_receive(wf_websocket *socket,
     unsigned char chunk[8192];
     for (;;) {
         size_t received = 0;
-        const struct curl_ws_frame *meta = NULL;
+        struct curl_ws_frame *meta = NULL;
         CURLcode result = curl_ws_recv(socket->curl, chunk, sizeof(chunk),
                                       &received, &meta);
         if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;

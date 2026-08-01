@@ -19,7 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-add_compile_options(-Wall -Wextra -Wpedantic)
+add_compile_options(-Wall -Wextra -Wpedantic -Wno-gcc-compat -Wno-unused-function)
 
 # Console/embedded cross-compilation targets. When any is ON, desktop-specific
 # dependencies (libcurl, OpenSSL, pthreads) are replaced with platform stubs.
