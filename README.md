@@ -1,3 +1,14 @@
+<p align="center">
+  <img src="docs/logo.svg" alt="Wolfram" width="420">
+</p>
+
+<p align="center">
+  <a href="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml"><img src="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/ewanc26/wolfram/releases/latest"><img src="https://img.shields.io/github/v/release/ewanc26/wolfram?sort=semver" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ewanc26/wolfram" alt="MIT"></a>
+  <a href="https://github.com/sponsors/ewanc26"><img src="https://img.shields.io/github/sponsors/ewanc26?logo=githubsponsors&logoColor=white&label=sponsors" alt="Sponsor"></a>
+</p>
+
 # wolfram
 
 A primarily C SDK for the AT Protocol — a client-side, wire-level implementation of the
@@ -16,51 +27,19 @@ required by applications using `libwolfram`.
 
 C is the default language; C++ is used for complex or sensitive components where C is insufficient — RAII-based resource management (e.g. cJSON in `syntax` and `json`), performance-critical code, and third-party library integrations. All C++ code exposes a C ABI via `extern "C"` so the SDK never requires a C++ toolchain at runtime. See the policy in [AGENTS.md](AGENTS.md).
 
-**Scope.** Wolfram is a faithful C port of the AT Protocol's *protocol/SDK
-layer* — the client and wire-format packages of the upstream TypeScript
-repository (`@atproto/api`, `xrpc`, `identity`, `repo`, `crypto`, `syntax`,
-`oauth`, `lex`, `lexicon`, `did`, `ws-client`). It does **not** port the
-upstream *server-side service backends* (`pds`, `bsky` AppView, `ozone`,
-`bsync`), which are application servers (databases, business logic, hosting)
-rather than protocol SDK code. The optional `WOLFRAM_BUILD_SERVER` component is
-a generic XRPC server *framework* (routing, auth, SSE, WebSocket, relay, blob
-store) you can build a service on top of — it is not itself a PDS, AppView, or
-Ozone implementation.
+## Core Features
 
-**Protocol parity:** The bundled Lexicon snapshot matches the 396 files in the
-upstream atproto repository. Generated C23 and OAuth-authenticated clients cover
-all 314 query/procedure endpoints, and dedicated streaming clients cover all
-three subscription endpoints. CI enforces this complete wire-level coverage.
-
-**Status:** Broad, multi-layer *client* coverage is implemented and tested —
-transport (XRPC/WebSocket), identity (DID/handle + `com.atproto.identity`
-typed wrappers), repo (DAG-CBOR/CAR/MST), agent (com.atproto.* + chat/ozone/
-moderation), OAuth (DPoP/PAR), sync (firehose + Jetstream), moderation, DID PLC
-ops, rich text, syntax/validate/json, labeler service coverage,
-`app.bsky.video` typed wrappers (job status / upload limits / upload),
-notification v2 + activity subscriptions, optional SQLite store persistence,
-app.bsky.graph write wrappers (`wf_agent_graph_*`: mute/unmute thread +
-actor-list, block/list/listitem/starterpack/listblock create/update/delete),
-and higher-level endpoint examples. Wire-level coverage of the protocol is
-complete; the upstream *service backends* (PDS, AppView, Ozone, bsync) are out
-of scope, as described under **Scope** above.
-
-Beyond the client surface above, the SDK also ships streaming/infra modules —
-`jetstream` (filtered Jetstream subscription with cursor reconnect/backoff),
-`sync_publish` (firehose event production, the inverse of `sync_subscribe`),
-and `relay_server` / `feedgen_server` (libmicrohttpd helpers) — plus dedicated
-`*_typed` parser/wrapper families across every lexicon namespace (including
-honest `actor_status_typed` stubs where the lexicon defines only a `record`).
-OAuth additionally covers resource-server token verification. See
-[`AGENTS.md`](AGENTS.md) (Current state) for the full per-module status.
-The optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER=ON`)
-supports route registration, auth middleware, a token-bucket rate limiter,
-Server-Sent Events (SSE) streaming, and WebSocket (RFC 6455) subscription
-endpoints for subscription-style feeds. A feed-generator skeleton server helper
-(`feedgen_server.h`) and a generic upstream→downstream WebSocket subscription
-relay (`relay_server.h`, forwarding raw frames from an upstream `ws(s)://`
-subscription such as `com.atproto.sync.subscribeRepos` or
-`com.atproto.label.subscribeLabels`) are provided.
+- XRPC client with bearer authentication, DPoP-bound OAuth, and binary blob upload
+- Full AT Protocol lexicon coverage: 314 query/procedure endpoints across all namespaces
+- Streaming subscriptions: `subscribeRepos` (firehose), `subscribeLabels`, and `subscribeRepos` with cursor reconnect/backoff
+- Identity: DID resolution (`did:plc`, `did:web`), handle DNS TXT resolution, PLC operations
+- Repo: DAG-CBOR encoding/decoding, CAR import/export, MST, signed v3 commits, record CRUD, diff verify/apply
+- Agent: high-level `wf_agent_*` wrappers for `com.atproto.*`, `app.bsky.*`, `chat.bsky.*`, `tools.ozone.*`, and `app.bsky.graph` write operations
+- OAuth: discovery, PKCE S256, ES256 DPoP, PAR, callback validation, token refresh/revoke, and resource-server token verification
+- Moderation: offline decision engine (blur/alert/inform/filter) from labels, blocks, mutes, muted words, hidden posts
+- Validation: runtime lexicon validation, JSON canonicalize/validate, rich-text facets
+- Optional SQLite persistence (`WOLFRAM_BUILD_STORE`) with at-rest encryption via libsodium (`WOLFRAM_BUILD_STORE_CRYPTO`)
+- Optional libmicrohttpd-backed XRPC server (`WOLFRAM_BUILD_SERVER`) with SSE streaming, WebSocket subscriptions, and relay forwarding
 
 ## Documentation
 
@@ -100,6 +79,16 @@ single-purpose binaries built only with `-DWOLFRAM_BUILD_EXAMPLES=ON`.
 
 `wolfram` is organized into small, layered modules — transport → identity →
 repo → agent. See [docs/modules.md](docs/modules.md) for the full status table.
+
+## Build and test
+
+```sh
+cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure
+```
+
+The default desktop configure requires libcurl and OpenSSL, fetches pinned
+cJSON/libcbor sources, and builds examples and tests. A clean configure may
+require network access even when tests themselves are offline.
 
 ## Cross-compilation Support
 
