@@ -74,6 +74,8 @@ static wf_status extract_labels(const cJSON *owner, const char *key,
     return st;
 }
 
+#ifdef WOLFRAM_BUILD_STORE
+
 /* True when a persisted label's `label_uri` applies to a subject identified by
  * `subject_uri`. Subjects are identified either by a bare DID (accounts /
  * profiles) or an at:// URI; labels are likewise keyed either way, so we match
@@ -98,7 +100,6 @@ static int label_uri_applies(const char *subject_uri, const char *label_uri) {
     return 0;
 }
 
-#ifdef WOLFRAM_BUILD_STORE
 /* Append copies of the agent's persisted labels that apply to `uri` into
  * `*labels`/`*count`, taking ownership of the appended copies (freed later by
  * the caller via wf_mod_labels_free). Best-effort: no store / no match is
