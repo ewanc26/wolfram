@@ -23,7 +23,7 @@
 | `wolfram/xrpc_server.h`  | Implemented | Optional XRPC server (libmicrohttpd) — route registration, auth middleware, CORS, POST body accumulation, GET query-param parsing, token-bucket rate limiter (`wf_rate_limiter`) |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
-| `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (~15K-line header, ~82K-line source; all 312 query/procedure endpoints) |
+| `wolfram/atproto_lex.h`   | Implemented | Generated lexicon endpoint wrappers (~15K-line header, ~82K-line source; all 314 query/procedure endpoints) |
 | `wolfram/moderation.h`    | Implemented | Moderation decision engine — blur/alert/inform/filter for accounts, profiles, posts, notifications, feed generators, and user lists from labels, blocks, mutes, hidden posts, and muted words |
 | `wolfram/store.h`         | Partial/Optional | SQLite-backed session + repo-mirror persistence + persisted-label storage for the moderation engine (OFF by default; build with `WOLFRAM_BUILD_STORE=ON`; optional `WOLFRAM_BUILD_STORE_CRYPTO=ON` adds libsodium at-rest encryption) |
 | `wolfram/threadgate_postgate.h` | Implemented | Threadgate / postgate record helpers — `wf_agent_create_threadgate`/`wf_agent_create_postgate` and `wf_agent_delete_record_by_uri` |
