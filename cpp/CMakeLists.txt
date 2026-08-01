@@ -1,5 +1,5 @@
 # wolfram-cpp: header-only C++ RAII wrapper around libwolfram.
-# The C11 core stays authoritative; this layer only wraps it.
+# The C23 core stays authoritative; this layer only wraps it.
 add_library(wolfram-cpp INTERFACE)
 # wolfram's public headers include <cJSON.h>, but its cJSON include dirs are
 # PRIVATE, so consumers must add them explicitly (as the test targets do).
@@ -17,7 +17,7 @@ add_executable(gen_owners_tool
 target_include_directories(gen_owners_tool PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
-set_target_properties(gen_owners_tool PROPERTIES CXX_STANDARD 17)
+set_target_properties(gen_owners_tool PROPERTIES CXX_STANDARD 23)
 
 # --- Auto-generate RAII handle typedefs from C headers -------------------------
 # Scans include/wolfram/**/*.h for `void wf_<T>_free(wf_<T> *...)` and emits
@@ -47,7 +47,7 @@ add_dependencies(wolfram-cpp wolfram_gen_owners)
 
 if(WOLFRAM_BUILD_TESTS)
     add_executable(wolfram-cpp-smoke wolfram-cpp/test/smoke.cpp)
-    set_target_properties(wolfram-cpp-smoke PROPERTIES CXX_STANDARD 17)
+    set_target_properties(wolfram-cpp-smoke PROPERTIES CXX_STANDARD 23)
     target_link_libraries(wolfram-cpp-smoke PRIVATE wolfram-cpp)
     add_test(NAME wolfram-cpp-smoke COMMAND wolfram-cpp-smoke)
 endif()

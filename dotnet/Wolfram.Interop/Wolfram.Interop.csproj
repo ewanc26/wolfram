@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Description>C# interop wrapper over the wolfram C11 SDK (libwolfram). Wrappers only.</Description>
+    <Description>C# interop wrapper over the wolfram C23 SDK (libwolfram). Wrappers only.</Description>
 
     <!-- Path to the wolfram C headers, relative to this project. -->
     <WolframIncludeDir>../../include/wolfram</WolframIncludeDir>

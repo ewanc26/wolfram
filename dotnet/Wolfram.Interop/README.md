@@ -1,6 +1,6 @@
 # Wolfram.Interop (C# wrapper for wolfram / libwolfram)
 
-A **pure pass-through** C# wrapper over the wolfram C11 SDK (`libwolfram`). It
+A **pure pass-through** C# wrapper over the wolfram C23 SDK (`libwolfram`). It
 reimplements nothing — every call forwards to `libwolfram` (no crypto,
 transport, DAG-CBOR, or server logic lives here).
 
