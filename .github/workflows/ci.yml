@@ -30,6 +30,9 @@ jobs:
             libssl-dev \
             libsecp256k1-dev
 
+      - name: Clean build directory
+        run: rm -rf build
+
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 
@@ -62,6 +65,9 @@ jobs:
             libmicrohttpd-dev \
             libzstd-dev \
             libc-ares-dev
+
+      - name: Clean build directory
+        run: rm -rf build
 
       - name: Configure
         run: |
@@ -115,6 +121,10 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
             echo "dotnet not found — skipping C# interop job"
           fi
+
+      - name: Clean build directory
+        if: steps.check.outputs.available == 'true'
+        run: rm -rf build
 
       - name: Build shared libwolfram
         if: steps.check.outputs.available == 'true'
