@@ -53,4 +53,4 @@
 | `wolfram/blob_store.h`    | Optional | Self-contained blob persistence + serving (in-memory or file-backed); XRPC integration registers `uploadBlob`/`getBlob` (`WOLFRAM_BUILD_SERVER`; core store always built) |
 | `wolfram/platform.h`      | Implemented | Platform abstraction (init/shutdown, mutex, monotonic time). POSIX + Win32 implemented; Wii/Wii U/3DS ship honest `WF_ERR_NOT_IMPLEMENTED` stubs |
 | `examples/` | Implemented | Higher-level endpoint examples using generated clients (label query, PLC handle rotation, notification v2, admin search) |
-| `tools/wf_lexgen.py`      | Implemented | Lexicon JSON → typed C declarations, recursive input encoders, endpoint wrappers, and owning output decoders (development-time only; generated output is checked in) |
+| `tools/wf_lexgen.cpp`     | Implemented | Lexicon JSON → typed C declarations, recursive input encoders, endpoint wrappers, and owning output decoders (development-time only; generated output is checked in) |

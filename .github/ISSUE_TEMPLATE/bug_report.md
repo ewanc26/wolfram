@@ -7,7 +7,7 @@ assignees: []
 ---
 
 ## Affected module
-Which part of wolfram? e.g. `repo`, `xrpc`/`auth_client`, `agent`, `sync`/`sync_subscribe`, `validate`, `moderation`, `store`, `oauth`, `lexicon` / `tools/wf_lexgen.py`, build system, or docs.
+Which part of wolfram? e.g. `repo`, `xrpc`/`auth_client`, `agent`, `sync`/`sync_subscribe`, `validate`, `moderation`, `store`, `oauth`, `lexicon` / `tools/wf_lexgen.cpp`, build system, or docs.
 
 ## Describe the bug
 A clear and concise description of what the bug is.
