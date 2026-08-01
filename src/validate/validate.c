@@ -471,7 +471,7 @@ static int wf_mime_accepts(const char *pattern, const char *mime) {
     {
         size_t plen = strlen(pattern);
         if (plen >= 2 && pattern[plen - 1] == '*' && pattern[plen - 2] == '/') {
-            /* "image/*" admits any subtype of "image/". */
+            // "image/*" admits any subtype of "image/".
             size_t prefix = plen - 1;
             return mime_len > prefix &&
                    strncasecmp(pattern, mime, prefix) == 0;
