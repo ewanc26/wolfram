@@ -535,7 +535,7 @@ wf_status wf_agent_draft_createDraft_typed(wf_agent *agent,
     }
     free(posts);
     free(langs);
-    free(input.draft);
+    free((void *)input.draft);
     return status;
 }
 
@@ -602,8 +602,8 @@ wf_status wf_agent_draft_updateDraft_typed(wf_agent *agent,
     }
     free(posts);
     free(langs);
-    free(input.draft->draft);
-    free(input.draft);
+    free((void *)input.draft->draft);
+    free((void *)input.draft);
     cJSON_Delete(root);
     return status;
 }
