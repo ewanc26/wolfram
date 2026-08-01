@@ -410,8 +410,8 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
         }
         cJSON_Delete(document);
     }
-    assert_true(endpoint_count == 312,
-                "endpoint count is " + std::to_string(endpoint_count) + ", expected 312");
+    assert_true(endpoint_count == 314,
+                "endpoint count is " + std::to_string(endpoint_count) + ", expected 314");
     std::set<std::string> expected = {
         "chat.bsky.moderation.subscribeModEvents",
         "com.atproto.label.subscribeLabels",
