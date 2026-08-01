@@ -50,7 +50,7 @@ thin RAII layer:
   `error_category`, plus `wolfram::require(wf_status)` that throws
   `std::system_error`. `wf_status` is `is_error_code_enum`-enabled so it
   constructs `std::error_code` directly.
-- `tools/gen_owners.py` — scans `include/wolfram/*.h` for `void wf_<T>_free(...)`
+- `tools/gen_owners.cpp` — scans `include/wolfram/*.h` for `void wf_<T>_free(...)`
   and emits `wolfram/generated_owners.hpp` with one `wf_<T>_handle` typedef per
   owned type (372 handles from 51 headers). Regenerate after changing headers.
 - `wolfram/wolfram.hpp` — umbrella include.

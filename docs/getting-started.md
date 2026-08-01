@@ -49,7 +49,7 @@ ctest --test-dir build
 
 The generated Lexicon wrappers (`include/wolfram/atproto_lex.h` and
 `src/atproto_lex.c`) are **prebuilt and checked into the repository**, so a fresh
-clone compiles without running `wf_lexgen.py`. You only need it to regenerate
+clone compiles without running `wf_lexgen.cpp`. You only need it to regenerate
 wrappers from a different/newest Lexicon set or a custom lexicon.
 
 If Homebrew's libcurl isn't picked up automatically:
@@ -74,9 +74,10 @@ libsodium's `crypto_pwhash` (Argon2id).
 ## Generating Lexicon wrappers
 
 ```sh
-python3 tools/wf_lexgen.py path/to/lexicons/*.json -o generated/lexicons.h
+cmake --build build --target wf_lexgen_tool
+./build/wf_lexgen_tool path/to/lexicons/*.json -o generated/lexicons.h
 # Add generated JSON codecs and XRPC wrappers:
-python3 tools/wf_lexgen.py path/to/lexicons/*.json -o generated/lexicons.h \
+./build/wf_lexgen_tool path/to/lexicons/*.json -o generated/lexicons.h \
   --source-output generated/lexicons.c
 ```
 
