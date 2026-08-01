@@ -12,6 +12,7 @@
 //   wf_lexgen <lexicons...> [-o output.h]
 //              [--source-output output.c] [--guard GUARD] [--header-rel H]
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cinttypes>
