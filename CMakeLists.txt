@@ -4,7 +4,7 @@ if(POLICY CMP0156)
     cmake_policy(SET CMP0156 NEW)
 endif()
 project(wolfram
-    VERSION 0.2.6
+    VERSION 0.3.0
     DESCRIPTION "A C SDK for the AT Protocol"
     LANGUAGES C CXX
 )
