@@ -132,6 +132,22 @@ if(NOT base64url_POPULATED)
     FetchContent_Populate(base64url)
 endif()
 
+# Lexicon generator tool — C++ replacement for the removed tools/wf_lexgen.py.
+# A development-time codegen tool, so it is always built (not gated on
+# WOLFRAM_BUILD_TESTS) and ready to regenerate atproto_lex.{h,c}. It links the
+# vendored cJSON and needs OpenSSL headers, which the desktop build already
+# requires; non-POSIX cross-targets have no OpenSSL and skip the tool.
+if(NOT WOLFRAM_BUILD_NON_POSIX)
+    add_executable(wf_lexgen_tool tools/wf_lexgen.cpp)
+    set_target_properties(wf_lexgen_tool PROPERTIES CXX_STANDARD 17)
+    target_include_directories(wf_lexgen_tool PRIVATE
+        ${cjson_SOURCE_DIR}
+        ${cjson_BINARY_DIR}
+        ${OPENSSL_INCLUDE_DIR}
+    )
+    target_link_libraries(wf_lexgen_tool PRIVATE cjson OpenSSL::Crypto)
+endif()
+
 add_library(wolfram
     # Transport
     $<IF:$<BOOL:${WOLFRAM_USE_SOCKET_TRANSPORT}>,src/transport/xrpc_wii.c,src/transport/xrpc.c>
@@ -961,12 +977,23 @@ endif()
 if(WOLFRAM_BUILD_TESTS)
     enable_testing()
 
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
-    add_test(NAME lexgen
-        COMMAND ${Python3_EXECUTABLE} -m unittest discover
-            -s ${CMAKE_CURRENT_SOURCE_DIR}/test
-            -p test_lexgen.py
+    add_executable(test_lexgen test/test_lexgen.cpp)
+    set_target_properties(test_lexgen PROPERTIES CXX_STANDARD 17)
+    target_link_libraries(test_lexgen PRIVATE cjson OpenSSL::Crypto)
+    target_include_directories(test_lexgen PRIVATE
+        ${cjson_SOURCE_DIR}
+        ${cjson_BINARY_DIR}
+        ${OPENSSL_INCLUDE_DIR}
     )
+    target_compile_definitions(test_lexgen PRIVATE
+        WF_TEST_ROOT="${CMAKE_CURRENT_SOURCE_DIR}"
+        WF_TEST_GENERATOR="$<TARGET_FILE:wf_lexgen_tool>"
+        WF_TEST_CJSON_INCLUDE="${cjson_SOURCE_DIR}"
+        WF_TEST_CJSON_LIB="${cjson_BINARY_DIR}"
+        WF_TEST_OPENSSL_INCLUDE="${OPENSSL_INCLUDE_DIR}"
+        WF_TEST_OPENSSL_CRYPTO="${OPENSSL_CRYPTO_LIBRARY}"
+    )
+    add_test(NAME lexgen COMMAND test_lexgen)
 
     add_executable(test_xrpc test/test_xrpc.c)
     target_link_libraries(test_xrpc PRIVATE wolfram)
@@ -1102,36 +1129,6 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_oauth_verify PRIVATE wolfram)
     target_include_directories(test_oauth_verify PRIVATE test ${cjson_SOURCE_DIR})
     add_test(NAME oauth_verify COMMAND test_oauth_verify)
-
-    if(WOLFRAM_BUILD_CPP)
-        # Find libsodium for the C++ RAII crypto wrappers.
-        if(NOT WOLFRAM_BUILD_EMBEDDED)
-            find_package(sodium QUIET)
-            if(NOT sodium_FOUND)
-                find_path(SODIUM_INCLUDE_DIR NAMES sodium.h)
-                find_library(SODIUM_LIBRARY NAMES sodium)
-                if(SODIUM_INCLUDE_DIR AND SODIUM_LIBRARY)
-                    set(sodium_FOUND TRUE)
-                    set(sodium_INCLUDE_DIRS ${SODIUM_INCLUDE_DIR})
-                    set(sodium_LIBRARIES ${SODIUM_LIBRARY})
-                endif()
-            endif()
-        endif()
-
-        add_executable(test_crypto_cpp test/crypto_cpp_test.cpp)
-        target_link_libraries(test_crypto_cpp PRIVATE wolfram)
-        target_include_directories(test_crypto_cpp PRIVATE test)
-        if(sodium_FOUND)
-            target_compile_definitions(test_crypto_cpp PRIVATE HAVE_LIBSODIUM)
-            target_include_directories(test_crypto_cpp PRIVATE ${sodium_INCLUDE_DIRS})
-            target_link_libraries(test_crypto_cpp PRIVATE ${sodium_LIBRARIES})
-        endif()
-        if(OpenSSL_FOUND)
-            target_compile_definitions(test_crypto_cpp PRIVATE HAVE_OPENSSL)
-            target_link_libraries(test_crypto_cpp PRIVATE OpenSSL::SSL OpenSSL::Crypto)
-        endif()
-        add_test(NAME crypto_cpp COMMAND test_crypto_cpp)
-    endif()
 
     add_executable(test_syntax test/test_syntax.c)
     target_link_libraries(test_syntax PRIVATE wolfram)
