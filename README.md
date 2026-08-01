@@ -5,6 +5,10 @@ protocol, not a port of the upstream `atproto` service backends.
 
 **Version:** 0.3.0
 
+> **Not affiliated with Wolfram Alpha.** Despite the name, this project is an
+> independent AT Protocol SDK and has no connection to, or endorsement from,
+> Wolfram Alpha, Wolfram Research, Mathematica, or Stephen Wolfram.
+
 The runtime library and all generated client code are pure C11. The optional
 Lexicon generator is a development-time Python tool and is never linked into,
 embedded in, or required by applications using `libwolfram`.
