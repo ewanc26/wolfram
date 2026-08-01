@@ -9,12 +9,12 @@ protocol, not a port of the upstream `atproto` service backends.
 > independent AT Protocol SDK and has no connection to, or endorsement from,
 > Wolfram Alpha, Wolfram Research, Mathematica, or Stephen Wolfram.
 
-The runtime library and all generated client code are pure C11. The optional
+The runtime library and all generated client code are pure C23. The optional
 Lexicon generator is a development-time C++ tool (`tools/wf_lexgen.cpp`, built
 as the `wf_lexgen_tool` CMake target) and is never linked into, embedded in, or
 required by applications using `libwolfram`.
 
-Pure C11 at runtime — C++ is used only for a few third-party wrappers that have
+Pure C23 at runtime — C++ is used only for a few third-party wrappers that have
 no C ABI, and every such wrapper exposes a C interface so the SDK never
 requires a C++ toolchain. See the policy in [AGENTS.md](AGENTS.md).
 
@@ -30,7 +30,7 @@ store) you can build a service on top of — it is not itself a PDS, AppView, or
 Ozone implementation.
 
 **Protocol parity:** The bundled Lexicon snapshot matches the 396 files in the
-upstream atproto repository. Generated C11 and OAuth-authenticated clients cover
+upstream atproto repository. Generated C23 and OAuth-authenticated clients cover
 all 314 query/procedure endpoints, and dedicated streaming clients cover all
 three subscription endpoints. CI enforces this complete wire-level coverage.
 

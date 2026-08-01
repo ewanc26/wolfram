@@ -4,13 +4,15 @@ if(POLICY CMP0156)
     cmake_policy(SET CMP0156 NEW)
 endif()
 project(wolfram
-    VERSION 0.3.0
+    VERSION 0.4.0
     DESCRIPTION "A C SDK for the AT Protocol"
     LANGUAGES C CXX
 )
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -139,7 +141,7 @@ endif()
 # requires; non-POSIX cross-targets have no OpenSSL and skip the tool.
 if(NOT WOLFRAM_BUILD_NON_POSIX)
     add_executable(wf_lexgen_tool tools/wf_lexgen.cpp)
-    set_target_properties(wf_lexgen_tool PROPERTIES CXX_STANDARD 17)
+    set_target_properties(wf_lexgen_tool PROPERTIES CXX_STANDARD 23)
     target_include_directories(wf_lexgen_tool PRIVATE
         ${cjson_SOURCE_DIR}
         ${cjson_BINARY_DIR}
@@ -978,7 +980,7 @@ if(WOLFRAM_BUILD_TESTS)
     enable_testing()
 
     add_executable(test_lexgen test/test_lexgen.cpp)
-    set_target_properties(test_lexgen PROPERTIES CXX_STANDARD 17)
+    set_target_properties(test_lexgen PROPERTIES CXX_STANDARD 23)
     target_link_libraries(test_lexgen PRIVATE cjson OpenSSL::Crypto)
     target_include_directories(test_lexgen PRIVATE
         ${cjson_SOURCE_DIR}

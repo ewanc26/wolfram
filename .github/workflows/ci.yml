@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Default build: core C11 library + CLI + unit tests. No optional modules.
+  # Default build: core C23 library + CLI + unit tests. No optional modules.
   default:
     name: default build + ctest
     runs-on: ubuntu-latest

@@ -49,5 +49,5 @@ Tests are **offline-first** — `ctest --test-dir build` must pass with no netwo
 
 ## Development environment
 
-- CMake + a C11 compiler, or `nix develop` for a ready-made shell.
+- CMake + a C23 compiler, or `nix develop` for a ready-made shell.
 - `cmake --build build && ctest --test-dir build` before opening a PR.

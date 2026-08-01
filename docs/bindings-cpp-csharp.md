@@ -1,6 +1,6 @@
 # Companion language bindings (C++ and C#)
 
-wolfram's core SDK **must remain pure C11**. The C11 core (`libwolfram`) is the
+wolfram's core SDK **must remain pure C23**. The C23 core (`libwolfram`) is the
 single source of truth: it owns transport, crypto, DAG-CBOR, DNS, and the
 server. Companion languages are **consumer layers** that link `libwolfram` and
 call into it — they must never re-implement signing, hashing, serialization,

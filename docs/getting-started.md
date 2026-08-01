@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- A C11 compiler (Clang ships with Xcode Command Line Tools on macOS)
+- A C23 compiler (Clang ships with Xcode Command Line Tools on macOS)
 - CMake ≥ 3.20
 - libcurl
 - OpenSSL (libcrypto) — for SHA-256 hashing
