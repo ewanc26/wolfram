@@ -147,4 +147,6 @@ const wf_mod_label *wf_agent_get_persisted_labels(const wf_agent *agent,
     return agent->persisted_labels;
 }
 
-#endif /* WOLFRAM_BUILD_STORE */
+#else
+static void wf_label_persist_no_store(void) {}
+#endif
