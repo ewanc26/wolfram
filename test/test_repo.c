@@ -284,7 +284,7 @@ int main(void) {
     /* NULL / empty input */
     WF_CHECK(wf_cbor_parse(NULL, 0) == NULL);
     WF_CHECK(wf_cbor_parse(NULL, 5) == NULL);
-    WF_CHECK(wf_cbor_parse("", 0) == NULL);
+    WF_CHECK(wf_cbor_parse((const unsigned char *)"", 0) == NULL);
 
     /* Non-canonical integer: 0 encoded as 0x18 0x00 */
     {
