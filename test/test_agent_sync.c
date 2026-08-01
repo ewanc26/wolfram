@@ -388,10 +388,9 @@ int main(void) {
 
     /* ── searchActorsTypeahead ─────────────────────────────────────── */
     {
-        wf_agent *agent = wf_agent_new("https://example.com");
-        WF_CHECK(agent != NULL);
-        wf_response res = {0};
-        WF_CHECK(wf_agent_search_actors_typeahead(NULL, "bob", 10, NULL) == WF_ERR_INVALID_ARG);
+wf_agent *agent = wf_agent_new("https://example.com");
+WF_CHECK(agent != NULL);
+WF_CHECK(wf_agent_search_actors_typeahead(NULL, "bob", 10, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_search_actors_typeahead(agent, NULL, 10, NULL) == WF_ERR_INVALID_ARG);
         wf_agent_free(agent);
     }

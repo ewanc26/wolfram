@@ -703,14 +703,12 @@ int main(void) {
         WF_CHECK(wf_ozone_ops_report_refresh_stats(agent, NULL, &r) ==
                  WF_ERR_INVALID_ARG);
 
-        wf_lex_tools_ozone_queue_route_reports_main_input qi = {0};
-        wf_ozone_ops_route_reports_result rr = {0};
-        WF_CHECK(wf_ozone_ops_queue_route_reports(agent, NULL, &rr) ==
-                 WF_ERR_INVALID_ARG);
+wf_ozone_ops_route_reports_result rr = {0};
+WF_CHECK(wf_ozone_ops_queue_route_reports(agent, NULL, &rr) ==
+  WF_ERR_INVALID_ARG);
 
-        wf_lex_tools_ozone_signature_search_accounts_main_params sq = {0};
-        wf_ozone_ops_account_list al = {0};
-        WF_CHECK(wf_ozone_ops_signature_search_accounts(agent, NULL, &al) ==
+wf_ozone_ops_account_list al = {0};
+WF_CHECK(wf_ozone_ops_signature_search_accounts(agent, NULL, &al) ==
                  WF_ERR_INVALID_ARG);
 
         wf_agent_free(agent);
