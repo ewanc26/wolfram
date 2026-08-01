@@ -289,7 +289,7 @@ src/agent/push_endpoint.c
     # Owned typed wrappers for the remaining tools.ozone.moderation.* endpoints
     src/agent/ozone_admin_typed.c
     # Generic JSON round-trip / schema-subset validation
-    src/json/json.c
+    $<IF:$<BOOL:${WOLFRAM_BUILD_NON_POSIX}>,src/json/json.c,cpp/wolfram/json.cpp>
     # Image dimension probing via vendored stb_image (header-only, third_party/)
     src/image.c
 )
