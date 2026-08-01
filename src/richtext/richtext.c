@@ -44,14 +44,6 @@ void wf_richtext_free(wf_richtext *rt) {
     memset(rt, 0, sizeof(*rt));
 }
 
-static int facet_cmp(const void *a, const void *b) {
-    const wf_richtext_facet *fa = (const wf_richtext_facet *)a;
-    const wf_richtext_facet *fb = (const wf_richtext_facet *)b;
-    if (fa->byte_start < fb->byte_start) return -1;
-    if (fa->byte_start > fb->byte_start) return 1;
-    return 0;
-}
-
 /* ── segment iteration ── */
 
 static int is_whitespace_only(const char *s, size_t len) {
