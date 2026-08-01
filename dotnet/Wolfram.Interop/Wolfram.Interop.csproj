@@ -22,14 +22,20 @@
 
   <!-- Generated files are auto-included by the SDK's default globbing. -->
 
-  <!-- Generate SafeHandle subclasses from C headers (requires Python 3).
+  <!-- Generate SafeHandle subclasses from C headers (requires a POSIX C++
+       compiler, e.g. clang++/g++; the Python gen_safehandles.py was replaced
+       by tools/gen_safehandles.cpp).
        Runs before every build; regenerates when any C header changes. -->
   <Target Name="GenerateSafeHandles"
           BeforeTargets="BeforeBuild"
-          Inputs="$(WolframIncludeDir)/**/*.h"
+          Inputs="$(WolframIncludeDir)/**/*.h;tools/gen_safehandles.cpp"
           Outputs="SafeHandles/SafeHandles.generated.cs">
 
-    <Exec Command="python3 tools/gen_safehandles.py $(WolframIncludeDir) SafeHandles/SafeHandles.generated.cs"
+    <Exec Command="c++ -std=c++17 -O2 tools/gen_safehandles.cpp -o $(IntermediateOutputPath)gen_safehandles"
+          WorkingDirectory="$(ProjectDir)"
+          IgnoreStandardErrorWarningFormat="true" />
+
+    <Exec Command="$(IntermediateOutputPath)gen_safehandles $(WolframIncludeDir) SafeHandles/SafeHandles.generated.cs"
           WorkingDirectory="$(ProjectDir)"
           IgnoreStandardErrorWarningFormat="true" />
   </Target>

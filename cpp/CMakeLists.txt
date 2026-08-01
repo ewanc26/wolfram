@@ -10,13 +10,20 @@ target_include_directories(wolfram-cpp INTERFACE
 )
 target_link_libraries(wolfram-cpp INTERFACE wolfram)
 
+# --- Build the gen_owners tool (C++ replacement for Python script) ---------------
+add_executable(gen_owners_tool
+    wolfram-cpp/tools/gen_owners.cpp
+)
+target_include_directories(gen_owners_tool PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+)
+set_target_properties(gen_owners_tool PROPERTIES CXX_STANDARD 17)
+
 # --- Auto-generate RAII handle typedefs from C headers -------------------------
 # Scans include/wolfram/**/*.h for `void wf_<T>_free(wf_<T> *...)` and emits
 # unique_handle<wf_<T>, wf_<T>_free> typedefs. Regenerates whenever any C
 # public header changes, so new types are picked up automatically.
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-
-set(GEN_OWNERS_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/wolfram-cpp/tools/gen_owners.py)
+# First run: use existing generated_owners.hpp if it exists
 set(GEN_OWNERS_OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/wolfram-cpp/wolfram/generated_owners.hpp)
 
 file(GLOB WOLFRAM_PUBLIC_HEADERS CONFIGURE_DEPENDS
@@ -24,12 +31,13 @@ file(GLOB WOLFRAM_PUBLIC_HEADERS CONFIGURE_DEPENDS
     "${CMAKE_SOURCE_DIR}/include/wolfram/**/*.h"
 )
 
+# Create directory for generated file if needed
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfram-cpp/wolfram)
+
 add_custom_command(
     OUTPUT ${GEN_OWNERS_OUTPUT}
-    COMMAND ${Python3_EXECUTABLE} ${GEN_OWNERS_SCRIPT}
-            ${CMAKE_SOURCE_DIR}/include/wolfram
-            ${GEN_OWNERS_OUTPUT}
-    DEPENDS ${WOLFRAM_PUBLIC_HEADERS} ${GEN_OWNERS_SCRIPT}
+    COMMAND gen_owners_tool ${CMAKE_SOURCE_DIR}/include/wolfram ${GEN_OWNERS_OUTPUT}
+    DEPENDS ${WOLFRAM_PUBLIC_HEADERS} gen_owners_tool
     COMMENT "Regenerating wolfram-cpp owned handles from C headers"
     VERBATIM
 )
