@@ -2,7 +2,7 @@
  * ozone.h — moderation-service / labeler helper.
  *
  * A small, transport-backed convenience layer over the local atproto
- * `tools/ozone/*` lexicons. It reuses the low-level XRPC client
+ * `tools/ozone/` lexicons. It reuses the low-level XRPC client
  * (wolfram/xrpc.h) rather than performing any network I/O itself, so all
  * real socket work stays isolated in xrpc.c per the transport-first rule.
  *
