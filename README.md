@@ -29,7 +29,7 @@ a generic XRPC server *framework* (routing, auth, SSE, WebSocket, relay, blob
 store) you can build a service on top of — it is not itself a PDS, AppView, or
 Ozone implementation.
 
-**Protocol parity:** The bundled Lexicon snapshot matches the 395 files in the
+**Protocol parity:** The bundled Lexicon snapshot matches the 396 files in the
 upstream atproto repository. Generated C11 and OAuth-authenticated clients cover
 all 314 query/procedure endpoints, and dedicated streaming clients cover all
 three subscription endpoints. CI enforces this complete wire-level coverage.
