@@ -182,7 +182,6 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
         bool push_ok = cbor_array_push(arr, op);
         (void)push_ok;
         cbor_decref(&op);
-        cbor_decref(&op);
     }
     return arr;
 }
@@ -334,7 +333,6 @@ static cbor_item_t *build_labels_body(const wf_subscribe_labels *l) {
         }
         bool push_ok = cbor_array_push(arr, item);
         (void)push_ok;
-        cbor_decref(&item);
         cbor_decref(&item);
     }
     map_put(m, "labels", arr);
