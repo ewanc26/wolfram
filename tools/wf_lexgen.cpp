@@ -399,7 +399,7 @@ public:
         if (_unions_ready)
             return _unions;
         _unions.clear();
-        auto& catalog = object_catalog();
+        object_catalog();
 
         // Local recursive walk, mirroring the Python closure.
         std::function<void(const std::string&, const std::string&, cJSON*, const std::string&)> walk;
