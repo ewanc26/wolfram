@@ -1,6 +1,7 @@
 #include "wolfram/json.h"
 #include "wolfram/syntax.h"
 
+#include <cstdarg>
 #include <cmath>
 #include <cJSON.h>
 #include <cstdlib>
