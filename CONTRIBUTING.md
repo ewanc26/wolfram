@@ -1,6 +1,6 @@
 # Contributing to wolfram
 
-Thanks for your interest. This is an early scaffold, so there's more scope for structural feedback than usual — but a few ground rules still apply. C is the default language for all new code; C++ is permitted for complex or sensitive components where C proves insufficient — RAII-based resource management, performance-critical code, and third-party library integrations with no C equivalent. All C++ must expose a C ABI via `extern "C"` and never leak C++ types across the boundary. See [AGENTS.md](AGENTS.md) for the full language policy.
+Thanks for your interest. This is a mature AT Protocol SDK with extensive coverage — a few ground rules still apply. C is the default language for all new code; C++ is permitted for complex or sensitive components where C proves insufficient — RAII-based resource management, performance-critical code, and third-party library integrations with no C equivalent. All C++ must expose a C ABI via `extern "C"` and never leak C++ types across the boundary. See [AGENTS.md](AGENTS.md) for the full language policy.
 
 ## Core philosophy
 
