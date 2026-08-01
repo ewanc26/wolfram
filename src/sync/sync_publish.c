@@ -179,8 +179,8 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
             map_put(op, "cid", cbor_new_null());
         if (ops[i].has_prev)
             map_put(op, "prev", cid_link_item(&ops[i].prev));
-        CborItem *push_result = cbor_array_push(arr, op);
-        (void)push_result;
+        bool push_ok = cbor_array_push(arr, op);
+        (void)push_ok;
         cbor_decref(&op);
         cbor_decref(&op);
     }
@@ -332,8 +332,8 @@ static cbor_item_t *build_labels_body(const wf_subscribe_labels *l) {
             cbor_decref(&m);
             return NULL;
         }
-        CborItem *push_result = cbor_array_push(arr, item);
-        (void)push_result;
+        bool push_ok = cbor_array_push(arr, item);
+        (void)push_ok;
         cbor_decref(&item);
         cbor_decref(&item);
     }
