@@ -109,8 +109,9 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git
     GIT_TAG v1.7.18
 )
-set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-FetchContent_MakeAvailable(cjson)
+  set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+  FetchContent_MakeAvailable(cjson)
+  target_compile_options(cjson PRIVATE -Wno-keyword-macro)
 
 FetchContent_Declare(
     libcbor
