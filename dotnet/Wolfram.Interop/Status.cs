@@ -1,7 +1,7 @@
 namespace Wolfram.Interop;
 
 /// <summary>
-/// wolfram status codes. Values mirror the C11 <c>wf_status</c> enum
+/// wolfram status codes. Values mirror the C23 <c>wf_status</c> enum
 /// (canonical in xrpc.h). A managed copy is required because the wrapper must
 /// not reimplement the codes — it only forwards them from libwolfram.
 /// </summary>

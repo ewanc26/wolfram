@@ -1,6 +1,6 @@
 # wolfram documentation
 
-Usage documentation for the `wolfram` C11 SDK for the AT Protocol.
+Usage documentation for the `wolfram` C23 SDK for the AT Protocol.
 
 This directory contains per-module guides with runnable C snippets. Each
 snippet is accurate to the public function signatures in `include/wolfram/`
@@ -57,7 +57,7 @@ Include the single umbrella header in your program:
 #include "wolfram/wolfram.h"   /* pulls in every module */
 ```
 
-Link the `wolfram` target. The core SDK is pure C11; the optional
+Link the `wolfram` target. The core SDK is pure C23; the optional
 `tools/wf_lexgen.cpp` code generator is a C++ development-time tool and is never
 a runtime dependency. See the top-level [`README.md`](../README.md) for the full
 module status table and prerequisites.

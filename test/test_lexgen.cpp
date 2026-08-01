@@ -442,13 +442,13 @@ static void test_generated_header_compiles_as_c11() {
                       "  return value.message == 0;\n"
                       "}\n");
     std::vector<std::string> args = {
-        "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only",
-        "-I", ROOT + "/include", check.string(),
-    };
-    CommandResult res = run_command(args);
-    if (res.status != 0)
-        throw std::runtime_error("header C11 compile failed:\n" + res.stdout_text +
-                                 res.stderr_text);
+"cc", "-std=c23", "-Wall", "-Wextra", "-Werror", "-fsyntax-only",
+         "-I", ROOT + "/include", check.string(),
+     };
+     CommandResult res = run_command(args);
+     if (res.status != 0)
+         throw std::runtime_error("header C23 compile failed:\n" + res.stdout_text +
+                                  res.stderr_text);
 }
 
 static void test_union_array_cleanup_casts_away_borrowed_view_const() {

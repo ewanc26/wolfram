@@ -18,7 +18,7 @@ into it.
    element its alternative name.
 2. **Low RAM.** It's light on memory usage, and the codebase is structured to
    stay that way:
-   - **No runtime, no allocator, no GC.** The C11 core builds and runs without
+   - **No runtime, no allocator, no GC.** The C23 core builds and runs without
      a built-in allocator, event loop, or garbage collector — a long-lived
      firehose/Jetstream consumer has a flat, predictable heap profile rather
      than a sawtooth one.
@@ -37,7 +37,7 @@ into it.
 ## Why C, not Rust?
 
 The dominant AT Protocol SDKs are written in TypeScript
-(`bluesky-social/atproto`) and Rust (`rsky`, `indigo`). `wolfram` is a C11
+(`bluesky-social/atproto`) and Rust (`rsky`, `indigo`). `wolfram` is a C23
 alternative, and that choice is deliberate rather than incidental:
 
 - **Tiny, predictable footprint.** No runtime or allocator built in; no GC
