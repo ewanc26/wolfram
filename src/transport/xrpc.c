@@ -49,21 +49,11 @@ struct wf_xrpc_client {
 
 /* ── Application TLS RNG ─────────────────────────────────────────────── */
 
-/*
- * Compiling the hook in is not enough — the linked libcurl has to be the
- * mbedTLS build, or CURLOPT_SSL_CTX_FUNCTION hands the callback a context of a
- * completely different type. curl reports its backend at runtime, so check
- * rather than assume.
- */
-static int wf_curl_uses_mbedtls(void) {
+int wf_xrpc_tls_rng_supported(void) {
+#if defined(WOLFRAM_CURL_MBEDTLS)
     const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
     if (!info || !info->ssl_version) return 0;
     return strncmp(info->ssl_version, "mbedTLS", 7) == 0;
-}
-
-int wf_xrpc_tls_rng_supported(void) {
-#if defined(WOLFRAM_CURL_MBEDTLS)
-    return wf_curl_uses_mbedtls();
 #else
     return 0;
 #endif
