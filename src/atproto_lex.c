@@ -258,6 +258,7 @@ static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_queue_route_repo
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_queue_unassign_moderator_main_input(const wf_lex_tools_ozone_queue_unassign_moderator_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_queue_update_queue_main_input(const wf_lex_tools_ozone_queue_update_queue_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_report_assign_moderator_main_input(const wf_lex_tools_ozone_report_assign_moderator_main_input *value, cJSON **out);
+static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_report_close_reports_main_input(const wf_lex_tools_ozone_report_close_reports_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_report_create_activity_main_input(const wf_lex_tools_ozone_report_create_activity_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_report_reassign_queue_main_input(const wf_lex_tools_ozone_report_reassign_queue_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_report_refresh_stats_main_input(const wf_lex_tools_ozone_report_refresh_stats_main_input *value, cJSON **out);
@@ -793,6 +794,10 @@ static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_graph_search_starter_pack
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_main_output(cJSON *node, wf_lex_app_bsky_graph_search_starter_packs_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_main_params(wf_lex_app_bsky_graph_search_starter_packs_main_params *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_main_params(cJSON *node, wf_lex_app_bsky_graph_search_starter_packs_main_params *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(cJSON *node, wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_params(wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_v2_main_params(cJSON *node, wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_graph_starterpack_feed_item(wf_lex_app_bsky_graph_starterpack_feed_item *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_graph_starterpack_feed_item(cJSON *node, wf_lex_app_bsky_graph_starterpack_feed_item *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_graph_starterpack_main(wf_lex_app_bsky_graph_starterpack_main *value);
@@ -1967,6 +1972,10 @@ static WF_LEX_UNUSED void wf_lex_clear_wf_lex_tools_ozone_queue_update_queue_mai
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_tools_ozone_queue_update_queue_main_output(cJSON *node, wf_lex_tools_ozone_queue_update_queue_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_tools_ozone_report_assign_moderator_main_input(wf_lex_tools_ozone_report_assign_moderator_main_input *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_tools_ozone_report_assign_moderator_main_input(cJSON *node, wf_lex_tools_ozone_report_assign_moderator_main_input *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_input(wf_lex_tools_ozone_report_close_reports_main_input *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_tools_ozone_report_close_reports_main_input(cJSON *node, wf_lex_tools_ozone_report_close_reports_main_input *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_output(wf_lex_tools_ozone_report_close_reports_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_tools_ozone_report_close_reports_main_output(cJSON *node, wf_lex_tools_ozone_report_close_reports_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_tools_ozone_report_create_activity_main_input(wf_lex_tools_ozone_report_create_activity_main_input *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_tools_ozone_report_create_activity_main_input(cJSON *node, wf_lex_tools_ozone_report_create_activity_main_input *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_tools_ozone_report_create_activity_main_output(wf_lex_tools_ozone_report_create_activity_main_output *value);
@@ -6713,21 +6722,23 @@ static wf_status wf_lex_encode_wf_lex_tools_ozone_queue_create_queue_main_input(
     if (!item) goto fail;
     if (!item || !cJSON_AddItemToObject(root, "name", item)) { cJSON_Delete(item); item = NULL; goto fail; }
     item = NULL;
-    item = NULL;
-    if (value->subject_types.count && !value->subject_types.items) goto invalid;
-    item = cJSON_CreateArray();
-    if (!item) goto fail;
-    for (size_t i_subject_types = 0; i_subject_types < value->subject_types.count; ++i_subject_types) {
-        cJSON *element_subject_types = NULL;
-        if (!value->subject_types.items[i_subject_types]) goto invalid;
-        element_subject_types = cJSON_CreateString(value->subject_types.items[i_subject_types]);
-        if (!element_subject_types) goto fail;
-        if (!cJSON_AddItemToArray(item, element_subject_types)) {
-            cJSON_Delete(element_subject_types); goto fail;
+    if (value->has_subject_types) {
+        item = NULL;
+        if (value->subject_types.count && !value->subject_types.items) goto invalid;
+        item = cJSON_CreateArray();
+        if (!item) goto fail;
+        for (size_t i_subject_types = 0; i_subject_types < value->subject_types.count; ++i_subject_types) {
+            cJSON *element_subject_types = NULL;
+            if (!value->subject_types.items[i_subject_types]) goto invalid;
+            element_subject_types = cJSON_CreateString(value->subject_types.items[i_subject_types]);
+            if (!element_subject_types) goto fail;
+            if (!cJSON_AddItemToArray(item, element_subject_types)) {
+                cJSON_Delete(element_subject_types); goto fail;
+            }
         }
+        if (!item || !cJSON_AddItemToObject(root, "subjectTypes", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
     }
-    if (!item || !cJSON_AddItemToObject(root, "subjectTypes", item)) { cJSON_Delete(item); item = NULL; goto fail; }
-    item = NULL;
     if (value->has_collection) {
         item = NULL;
         if (!value->collection) goto invalid;
@@ -6736,21 +6747,23 @@ static wf_status wf_lex_encode_wf_lex_tools_ozone_queue_create_queue_main_input(
         if (!item || !cJSON_AddItemToObject(root, "collection", item)) { cJSON_Delete(item); item = NULL; goto fail; }
         item = NULL;
     }
-    item = NULL;
-    if (value->report_types.count && !value->report_types.items) goto invalid;
-    item = cJSON_CreateArray();
-    if (!item) goto fail;
-    for (size_t i_report_types = 0; i_report_types < value->report_types.count; ++i_report_types) {
-        cJSON *element_report_types = NULL;
-        if (!value->report_types.items[i_report_types]) goto invalid;
-        element_report_types = cJSON_CreateString(value->report_types.items[i_report_types]);
-        if (!element_report_types) goto fail;
-        if (!cJSON_AddItemToArray(item, element_report_types)) {
-            cJSON_Delete(element_report_types); goto fail;
+    if (value->has_report_types) {
+        item = NULL;
+        if (value->report_types.count && !value->report_types.items) goto invalid;
+        item = cJSON_CreateArray();
+        if (!item) goto fail;
+        for (size_t i_report_types = 0; i_report_types < value->report_types.count; ++i_report_types) {
+            cJSON *element_report_types = NULL;
+            if (!value->report_types.items[i_report_types]) goto invalid;
+            element_report_types = cJSON_CreateString(value->report_types.items[i_report_types]);
+            if (!element_report_types) goto fail;
+            if (!cJSON_AddItemToArray(item, element_report_types)) {
+                cJSON_Delete(element_report_types); goto fail;
+            }
         }
+        if (!item || !cJSON_AddItemToObject(root, "reportTypes", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
     }
-    if (!item || !cJSON_AddItemToObject(root, "reportTypes", item)) { cJSON_Delete(item); item = NULL; goto fail; }
-    item = NULL;
     if (value->has_description) {
         item = NULL;
         if (!value->description) goto invalid;
@@ -6930,7 +6943,7 @@ fail:
     cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;
 }
 
-static wf_status wf_lex_encode_wf_lex_tools_ozone_report_create_activity_main_input(const wf_lex_tools_ozone_report_create_activity_main_input *value, cJSON **out) {
+static wf_status wf_lex_encode_wf_lex_tools_ozone_report_close_reports_main_input(const wf_lex_tools_ozone_report_close_reports_main_input *value, cJSON **out) {
     if (!value || !out) return WF_ERR_INVALID_ARG;
     *out = NULL;
     wf_status status = WF_OK;
@@ -6940,10 +6953,73 @@ static wf_status wf_lex_encode_wf_lex_tools_ozone_report_create_activity_main_in
     (void)item;
     if (!root) return WF_ERR_ALLOC;
     item = NULL;
-    item = cJSON_CreateNumber((double)value->report_id);
+    if (!value->subject) goto invalid;
+    item = cJSON_CreateString(value->subject);
     if (!item) goto fail;
-    if (!item || !cJSON_AddItemToObject(root, "reportId", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+    if (!item || !cJSON_AddItemToObject(root, "subject", item)) { cJSON_Delete(item); item = NULL; goto fail; }
     item = NULL;
+    if (value->has_report_types) {
+        item = NULL;
+        if (value->report_types.count && !value->report_types.items) goto invalid;
+        item = cJSON_CreateArray();
+        if (!item) goto fail;
+        for (size_t i_report_types = 0; i_report_types < value->report_types.count; ++i_report_types) {
+            cJSON *element_report_types = NULL;
+            if (!value->report_types.items[i_report_types]) goto invalid;
+            element_report_types = cJSON_CreateString(value->report_types.items[i_report_types]);
+            if (!element_report_types) goto fail;
+            if (!cJSON_AddItemToArray(item, element_report_types)) {
+                cJSON_Delete(element_report_types); goto fail;
+            }
+        }
+        if (!item || !cJSON_AddItemToObject(root, "reportTypes", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    if (value->has_internal_note) {
+        item = NULL;
+        if (!value->internal_note) goto invalid;
+        item = cJSON_CreateString(value->internal_note);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "internalNote", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    if (value->has_is_automated) {
+        item = NULL;
+        item = cJSON_CreateBool(value->is_automated);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "isAutomated", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    *out = root; return WF_OK;
+invalid:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;
+fail:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;
+}
+
+static wf_status wf_lex_encode_wf_lex_tools_ozone_report_create_activity_main_input(const wf_lex_tools_ozone_report_create_activity_main_input *value, cJSON **out) {
+    if (!value || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    cJSON *root = cJSON_CreateObject();
+    cJSON *item = NULL;
+    (void)item;
+    if (!root) return WF_ERR_ALLOC;
+    if (value->has_report_id) {
+        item = NULL;
+        item = cJSON_CreateNumber((double)value->report_id);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "reportId", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    if (value->has_event_id) {
+        item = NULL;
+        item = cJSON_CreateNumber((double)value->event_id);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "eventId", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
     item = NULL;
     if (!value->activity.data) goto invalid;
     item = cJSON_ParseWithLength(value->activity.data, value->activity.length);
@@ -7878,6 +7954,14 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_actor_defs_bsky_app_state_pref(cJ
             if (!value->active_progress_guide) { status = WF_ERR_ALLOC; goto cleanup; }
             status = wf_lex_decode_wf_lex_app_bsky_actor_defs_bsky_app_progress_guide(member, (wf_lex_app_bsky_actor_defs_bsky_app_progress_guide *)value->active_progress_guide);
             if (status != WF_OK) goto cleanup;
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "isBetaUser");
+        if (member) {
+            value->has_is_beta_user = true;
+            if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->is_beta_user = cJSON_IsTrue(member);
         }
     }
     {
@@ -10471,6 +10555,10 @@ cleanup:
 
 static void wf_lex_clear_wf_lex_app_bsky_ageassurance_defs_config_region(wf_lex_app_bsky_ageassurance_defs_config_region *value) {
     if (!value) return;
+    for (size_t i = 0; i < value->platforms.count; ++i) {
+        free((void *)value->platforms.items[i]);
+    }
+    free((void *)value->platforms.items);
     free((void *)value->country_code);
     free((void *)value->region_code);
     for (size_t i = 0; i < value->additional_verification_methods.count; ++i) {
@@ -10488,6 +10576,25 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_ageassurance_defs_config_region(c
     wf_status status = WF_OK;
     (void)status;
     if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "platforms");
+        if (member) {
+            value->has_platforms = true;
+            if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->platforms.count = (size_t)cJSON_GetArraySize(member);
+            if (value->platforms.count) {
+                const char * *items = calloc(value->platforms.count, sizeof(*items));
+                if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+                value->platforms.items = items;
+                for (size_t i = 0; i < value->platforms.count; ++i) {
+                    cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                    if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+                    items[i] = wf_lex_strdup(element->valuestring);
+                    if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                }
+            }
+        }
+    }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "countryCode");
         if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
@@ -18760,6 +18867,7 @@ static void wf_lex_clear_wf_lex_app_bsky_graph_get_followers_main_params(wf_lex_
     if (!value) return;
     free((void *)value->actor);
     free((void *)value->cursor);
+    free((void *)value->sort);
     memset(value, 0, sizeof(*value));
 }
 
@@ -18788,6 +18896,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_graph_get_followers_main_params(c
             if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
             value->cursor = wf_lex_strdup(member->valuestring);
             if (!value->cursor) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "sort");
+        if (member) {
+            value->has_sort = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->sort = wf_lex_strdup(member->valuestring);
+            if (!value->sort) { status = WF_ERR_ALLOC; goto cleanup; }
         }
     }
     return WF_OK;
@@ -18856,6 +18973,7 @@ static void wf_lex_clear_wf_lex_app_bsky_graph_get_follows_main_params(wf_lex_ap
     if (!value) return;
     free((void *)value->actor);
     free((void *)value->cursor);
+    free((void *)value->sort);
     memset(value, 0, sizeof(*value));
 }
 
@@ -18884,6 +19002,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_graph_get_follows_main_params(cJS
             if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
             value->cursor = wf_lex_strdup(member->valuestring);
             if (!value->cursor) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "sort");
+        if (member) {
+            value->has_sort = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->sort = wf_lex_strdup(member->valuestring);
+            if (!value->sort) { status = WF_ERR_ALLOC; goto cleanup; }
         }
     }
     return WF_OK;
@@ -20312,6 +20439,100 @@ cleanup:
     return status;
 }
 
+static void wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value) {
+    if (!value) return;
+    free((void *)value->cursor);
+    for (size_t i = 0; i < value->starter_packs.count; ++i) {
+        if (value->starter_packs.items[i]) { wf_lex_clear_wf_lex_app_bsky_graph_defs_starter_pack_view((wf_lex_app_bsky_graph_defs_starter_pack_view *)value->starter_packs.items[i]); free((void *)value->starter_packs.items[i]); }
+    }
+    free((void *)value->starter_packs.items);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(cJSON *node, wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "cursor");
+        if (member) {
+            value->has_cursor = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->cursor = wf_lex_strdup(member->valuestring);
+            if (!value->cursor) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "hitsTotal");
+        if (member) {
+            value->has_hits_total = true;
+            if (!wf_lex_json_integer(member, &value->hits_total)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "starterPacks");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->starter_packs.count = (size_t)cJSON_GetArraySize(member);
+        if (value->starter_packs.count) {
+            const wf_lex_app_bsky_graph_defs_starter_pack_view * *items = calloc(value->starter_packs.count, sizeof(*items));
+            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+            value->starter_packs.items = items;
+            for (size_t i = 0; i < value->starter_packs.count; ++i) {
+                cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                items[i] = calloc(1, sizeof(*items[i]));
+                if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                status = wf_lex_decode_wf_lex_app_bsky_graph_defs_starter_pack_view(element, (wf_lex_app_bsky_graph_defs_starter_pack_view *)items[i]);
+                if (status != WF_OK) goto cleanup;
+            }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_params(wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *value) {
+    if (!value) return;
+    free((void *)value->q);
+    free((void *)value->cursor);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_v2_main_params(cJSON *node, wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "q");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->q = wf_lex_strdup(member->valuestring);
+        if (!value->q) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "limit");
+        if (member) {
+            value->has_limit = true;
+            if (!wf_lex_json_integer(member, &value->limit)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "cursor");
+        if (member) {
+            value->has_cursor = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->cursor = wf_lex_strdup(member->valuestring);
+            if (!value->cursor) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_params(value);
+    return status;
+}
+
 static void wf_lex_clear_wf_lex_app_bsky_graph_starterpack_feed_item(wf_lex_app_bsky_graph_starterpack_feed_item *value) {
     if (!value) return;
     free((void *)value->uri);
@@ -21711,6 +21932,7 @@ static void wf_lex_clear_wf_lex_app_bsky_notification_list_notifications_notific
     free((void *)value->reason);
     free((void *)value->reason_subject);
     free((void *)value->record.data);
+    if (value->starter_pack) { wf_lex_clear_wf_lex_app_bsky_graph_defs_starter_pack_view_basic((wf_lex_app_bsky_graph_defs_starter_pack_view_basic *)value->starter_pack); free((void *)value->starter_pack); }
     free((void *)value->indexed_at);
     for (size_t i = 0; i < value->labels.count; ++i) {
         if (value->labels.items[i]) { wf_lex_clear_wf_lex_com_atproto_label_defs_label((wf_lex_com_atproto_label_defs_label *)value->labels.items[i]); free((void *)value->labels.items[i]); }
@@ -21766,6 +21988,16 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_notification_list_notifications_n
         if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
         status = wf_lex_json_copy(member, &value->record);
         if (status != WF_OK) goto cleanup;
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "starterPack");
+        if (member) {
+            value->has_starter_pack = true;
+            value->starter_pack = calloc(1, sizeof(*value->starter_pack));
+            if (!value->starter_pack) { status = WF_ERR_ALLOC; goto cleanup; }
+            status = wf_lex_decode_wf_lex_app_bsky_graph_defs_starter_pack_view_basic(member, (wf_lex_app_bsky_graph_defs_starter_pack_view_basic *)value->starter_pack);
+            if (status != WF_OK) goto cleanup;
+        }
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "isRead");
@@ -22533,6 +22765,7 @@ static void wf_lex_clear_wf_lex_app_bsky_unspecced_defs_skeleton_trend(wf_lex_ap
     if (!value) return;
     free((void *)value->topic);
     free((void *)value->display_name);
+    free((void *)value->description);
     free((void *)value->link);
     free((void *)value->started_at);
     free((void *)value->status);
@@ -22561,6 +22794,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_unspecced_defs_skeleton_trend(cJS
         if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
         value->display_name = wf_lex_strdup(member->valuestring);
         if (!value->display_name) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "description");
+        if (member) {
+            value->has_description = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->description = wf_lex_strdup(member->valuestring);
+            if (!value->description) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "link");
@@ -22727,6 +22969,7 @@ static void wf_lex_clear_wf_lex_app_bsky_unspecced_defs_trend_view(wf_lex_app_bs
     if (!value) return;
     free((void *)value->topic);
     free((void *)value->display_name);
+    free((void *)value->description);
     free((void *)value->link);
     free((void *)value->started_at);
     free((void *)value->status);
@@ -22755,6 +22998,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_unspecced_defs_trend_view(cJSON *
         if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
         value->display_name = wf_lex_strdup(member->valuestring);
         if (!value->display_name) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "description");
+        if (member) {
+            value->has_description = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->description = wf_lex_strdup(member->valuestring);
+            if (!value->description) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "link");
@@ -24834,6 +25086,7 @@ static void wf_lex_clear_wf_lex_app_bsky_unspecced_get_trends_main_output(wf_lex
         if (value->trends.items[i]) { wf_lex_clear_wf_lex_app_bsky_unspecced_defs_trend_view((wf_lex_app_bsky_unspecced_defs_trend_view *)value->trends.items[i]); free((void *)value->trends.items[i]); }
     }
     free((void *)value->trends.items);
+    free((void *)value->rec_id_str);
     memset(value, 0, sizeof(*value));
 }
 
@@ -24857,6 +25110,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_unspecced_get_trends_main_output(
                 status = wf_lex_decode_wf_lex_app_bsky_unspecced_defs_trend_view(element, (wf_lex_app_bsky_unspecced_defs_trend_view *)items[i]);
                 if (status != WF_OK) goto cleanup;
             }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "recIdStr");
+        if (member) {
+            value->has_rec_id_str = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->rec_id_str = wf_lex_strdup(member->valuestring);
+            if (!value->rec_id_str) { status = WF_ERR_ALLOC; goto cleanup; }
         }
     }
     return WF_OK;
@@ -24893,6 +25155,7 @@ static void wf_lex_clear_wf_lex_app_bsky_unspecced_get_trends_skeleton_main_outp
         if (value->trends.items[i]) { wf_lex_clear_wf_lex_app_bsky_unspecced_defs_skeleton_trend((wf_lex_app_bsky_unspecced_defs_skeleton_trend *)value->trends.items[i]); free((void *)value->trends.items[i]); }
     }
     free((void *)value->trends.items);
+    free((void *)value->rec_id_str);
     memset(value, 0, sizeof(*value));
 }
 
@@ -24916,6 +25179,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_unspecced_get_trends_skeleton_mai
                 status = wf_lex_decode_wf_lex_app_bsky_unspecced_defs_skeleton_trend(element, (wf_lex_app_bsky_unspecced_defs_skeleton_trend *)items[i]);
                 if (status != WF_OK) goto cleanup;
             }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "recIdStr");
+        if (member) {
+            value->has_rec_id_str = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->rec_id_str = wf_lex_strdup(member->valuestring);
+            if (!value->rec_id_str) { status = WF_ERR_ALLOC; goto cleanup; }
         }
     }
     return WF_OK;
@@ -25426,6 +25698,7 @@ static void wf_lex_clear_wf_lex_app_bsky_video_defs_job_status(wf_lex_app_bsky_v
     free((void *)value->blob.cid);
     free((void *)value->blob.mime_type);
     free((void *)value->error);
+    free((void *)value->failure_code);
     free((void *)value->message);
     memset(value, 0, sizeof(*value));
 }
@@ -25477,6 +25750,15 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_video_defs_job_status(cJSON *node
             if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
             value->error = wf_lex_strdup(member->valuestring);
             if (!value->error) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "failureCode");
+        if (member) {
+            value->has_failure_code = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->failure_code = wf_lex_strdup(member->valuestring);
+            if (!value->failure_code) { status = WF_ERR_ALLOC; goto cleanup; }
         }
     }
     {
@@ -36944,6 +37226,13 @@ static wf_status wf_lex_decode_wf_lex_com_atproto_server_describe_server_main_ou
         }
     }
     {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "blobUploadLimit");
+        if (member) {
+            value->has_blob_upload_limit = true;
+            if (!wf_lex_json_integer(member, &value->blob_upload_limit)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "availableUserDomains");
         if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
         if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
@@ -39437,6 +39726,14 @@ static wf_status wf_lex_decode_wf_lex_internal_bsky_actor_get_profiles_main_para
                     if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
                 }
             }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "includeTakedowns");
+        if (member) {
+            value->has_include_takedowns = true;
+            if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->include_takedowns = cJSON_IsTrue(member);
         }
     }
     return WF_OK;
@@ -45823,18 +46120,20 @@ static wf_status wf_lex_decode_wf_lex_tools_ozone_queue_create_queue_main_input(
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "subjectTypes");
-        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        value->subject_types.count = (size_t)cJSON_GetArraySize(member);
-        if (value->subject_types.count) {
-            const char * *items = calloc(value->subject_types.count, sizeof(*items));
-            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
-            value->subject_types.items = items;
-            for (size_t i = 0; i < value->subject_types.count; ++i) {
-                cJSON *element = cJSON_GetArrayItem(member, (int)i);
-                if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-                items[i] = wf_lex_strdup(element->valuestring);
-                if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+        if (member) {
+            value->has_subject_types = true;
+            if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->subject_types.count = (size_t)cJSON_GetArraySize(member);
+            if (value->subject_types.count) {
+                const char * *items = calloc(value->subject_types.count, sizeof(*items));
+                if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+                value->subject_types.items = items;
+                for (size_t i = 0; i < value->subject_types.count; ++i) {
+                    cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                    if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+                    items[i] = wf_lex_strdup(element->valuestring);
+                    if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                }
             }
         }
     }
@@ -45849,18 +46148,20 @@ static wf_status wf_lex_decode_wf_lex_tools_ozone_queue_create_queue_main_input(
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "reportTypes");
-        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        value->report_types.count = (size_t)cJSON_GetArraySize(member);
-        if (value->report_types.count) {
-            const char * *items = calloc(value->report_types.count, sizeof(*items));
-            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
-            value->report_types.items = items;
-            for (size_t i = 0; i < value->report_types.count; ++i) {
-                cJSON *element = cJSON_GetArrayItem(member, (int)i);
-                if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-                items[i] = wf_lex_strdup(element->valuestring);
-                if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+        if (member) {
+            value->has_report_types = true;
+            if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->report_types.count = (size_t)cJSON_GetArraySize(member);
+            if (value->report_types.count) {
+                const char * *items = calloc(value->report_types.count, sizeof(*items));
+                if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+                value->report_types.items = items;
+                for (size_t i = 0; i < value->report_types.count; ++i) {
+                    cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                    if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+                    items[i] = wf_lex_strdup(element->valuestring);
+                    if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                }
             }
         }
     }
@@ -46075,18 +46376,20 @@ static wf_status wf_lex_decode_wf_lex_tools_ozone_queue_defs_queue_view(cJSON *n
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "subjectTypes");
-        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        value->subject_types.count = (size_t)cJSON_GetArraySize(member);
-        if (value->subject_types.count) {
-            const char * *items = calloc(value->subject_types.count, sizeof(*items));
-            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
-            value->subject_types.items = items;
-            for (size_t i = 0; i < value->subject_types.count; ++i) {
-                cJSON *element = cJSON_GetArrayItem(member, (int)i);
-                if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-                items[i] = wf_lex_strdup(element->valuestring);
-                if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+        if (member) {
+            value->has_subject_types = true;
+            if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->subject_types.count = (size_t)cJSON_GetArraySize(member);
+            if (value->subject_types.count) {
+                const char * *items = calloc(value->subject_types.count, sizeof(*items));
+                if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+                value->subject_types.items = items;
+                for (size_t i = 0; i < value->subject_types.count; ++i) {
+                    cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                    if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+                    items[i] = wf_lex_strdup(element->valuestring);
+                    if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                }
             }
         }
     }
@@ -46101,18 +46404,20 @@ static wf_status wf_lex_decode_wf_lex_tools_ozone_queue_defs_queue_view(cJSON *n
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "reportTypes");
-        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        value->report_types.count = (size_t)cJSON_GetArraySize(member);
-        if (value->report_types.count) {
-            const char * *items = calloc(value->report_types.count, sizeof(*items));
-            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
-            value->report_types.items = items;
-            for (size_t i = 0; i < value->report_types.count; ++i) {
-                cJSON *element = cJSON_GetArrayItem(member, (int)i);
-                if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-                items[i] = wf_lex_strdup(element->valuestring);
-                if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+        if (member) {
+            value->has_report_types = true;
+            if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->report_types.count = (size_t)cJSON_GetArraySize(member);
+            if (value->report_types.count) {
+                const char * *items = calloc(value->report_types.count, sizeof(*items));
+                if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+                value->report_types.items = items;
+                for (size_t i = 0; i < value->report_types.count; ++i) {
+                    cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                    if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+                    items[i] = wf_lex_strdup(element->valuestring);
+                    if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                }
             }
         }
     }
@@ -46685,6 +46990,108 @@ cleanup:
     return status;
 }
 
+static void wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_input(wf_lex_tools_ozone_report_close_reports_main_input *value) {
+    if (!value) return;
+    free((void *)value->subject);
+    for (size_t i = 0; i < value->report_types.count; ++i) {
+        free((void *)value->report_types.items[i]);
+    }
+    free((void *)value->report_types.items);
+    free((void *)value->internal_note);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_tools_ozone_report_close_reports_main_input(cJSON *node, wf_lex_tools_ozone_report_close_reports_main_input *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "subject");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->subject = wf_lex_strdup(member->valuestring);
+        if (!value->subject) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "reportTypes");
+        if (member) {
+            value->has_report_types = true;
+            if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->report_types.count = (size_t)cJSON_GetArraySize(member);
+            if (value->report_types.count) {
+                const char * *items = calloc(value->report_types.count, sizeof(*items));
+                if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+                value->report_types.items = items;
+                for (size_t i = 0; i < value->report_types.count; ++i) {
+                    cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                    if (!cJSON_IsString(element)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+                    items[i] = wf_lex_strdup(element->valuestring);
+                    if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                }
+            }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "internalNote");
+        if (member) {
+            value->has_internal_note = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->internal_note = wf_lex_strdup(member->valuestring);
+            if (!value->internal_note) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "isAutomated");
+        if (member) {
+            value->has_is_automated = true;
+            if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->is_automated = cJSON_IsTrue(member);
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_input(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_output(wf_lex_tools_ozone_report_close_reports_main_output *value) {
+    if (!value) return;
+    for (size_t i = 0; i < value->report_ids.count; ++i) {
+    }
+    free((void *)value->report_ids.items);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_tools_ozone_report_close_reports_main_output(cJSON *node, wf_lex_tools_ozone_report_close_reports_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "closedCount");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->closed_count)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "reportIds");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->report_ids.count = (size_t)cJSON_GetArraySize(member);
+        if (value->report_ids.count) {
+            int64_t *items = calloc(value->report_ids.count, sizeof(*items));
+            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+            value->report_ids.items = items;
+            for (size_t i = 0; i < value->report_ids.count; ++i) {
+                cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                if (!wf_lex_json_integer(element, &items[i])) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_output(value);
+    return status;
+}
+
 static void wf_lex_clear_wf_lex_tools_ozone_report_create_activity_main_input(wf_lex_tools_ozone_report_create_activity_main_input *value) {
     if (!value) return;
     wf_lex_clear_wf_lex_tools_ozone_report_create_activity_main_input_activity_union(&(value->activity));
@@ -46699,8 +47106,17 @@ static wf_status wf_lex_decode_wf_lex_tools_ozone_report_create_activity_main_in
     if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "reportId");
-        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
-        if (!wf_lex_json_integer(member, &value->report_id)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (member) {
+            value->has_report_id = true;
+            if (!wf_lex_json_integer(member, &value->report_id)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "eventId");
+        if (member) {
+            value->has_event_id = true;
+            if (!wf_lex_json_integer(member, &value->event_id)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
     }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "activity");
@@ -47462,6 +47878,14 @@ static wf_status wf_lex_decode_wf_lex_tools_ozone_report_defs_report_view(cJSON 
             value->has_is_muted = true;
             if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
             value->is_muted = cJSON_IsTrue(member);
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "isAutomated");
+        if (member) {
+            value->has_is_automated = true;
+            if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->is_automated = cJSON_IsTrue(member);
         }
     }
     return WF_OK;
@@ -63872,6 +64296,11 @@ wf_status wf_lex_app_bsky_graph_get_followers_main_call(wf_xrpc_client *client,
         if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
         ++encoded_capacity;
     }
+    if (params->has_sort) {
+        if (!params->sort) return WF_ERR_INVALID_ARG;
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
     if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
         number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
     wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
@@ -63888,6 +64317,9 @@ wf_status wf_lex_app_bsky_graph_get_followers_main_call(wf_xrpc_client *client,
     }
     if (params->has_cursor) {
         encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
+    }
+    if (params->has_sort) {
+        encoded[count++] = (wf_xrpc_param){"sort", params->sort};
     }
     wf_status status = wf_xrpc_query_params(client, "app.bsky.graph.getFollowers", encoded, count, response);
     free(encoded); free(number_values); return status;
@@ -63912,6 +64344,11 @@ wf_status wf_lex_app_bsky_graph_get_followers_main_call_auth(wf_auth_client *cli
         if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
         ++encoded_capacity;
     }
+    if (params->has_sort) {
+        if (!params->sort) return WF_ERR_INVALID_ARG;
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
     if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
         number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
     wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
@@ -63928,6 +64365,9 @@ wf_status wf_lex_app_bsky_graph_get_followers_main_call_auth(wf_auth_client *cli
     }
     if (params->has_cursor) {
         encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
+    }
+    if (params->has_sort) {
+        encoded[count++] = (wf_xrpc_param){"sort", params->sort};
     }
     wf_status status = wf_auth_client_query_params(client, "app.bsky.graph.getFollowers", encoded, count, response);
     free(encoded); free(number_values); return status;
@@ -63969,6 +64409,11 @@ wf_status wf_lex_app_bsky_graph_get_follows_main_call(wf_xrpc_client *client,
         if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
         ++encoded_capacity;
     }
+    if (params->has_sort) {
+        if (!params->sort) return WF_ERR_INVALID_ARG;
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
     if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
         number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
     wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
@@ -63985,6 +64430,9 @@ wf_status wf_lex_app_bsky_graph_get_follows_main_call(wf_xrpc_client *client,
     }
     if (params->has_cursor) {
         encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
+    }
+    if (params->has_sort) {
+        encoded[count++] = (wf_xrpc_param){"sort", params->sort};
     }
     wf_status status = wf_xrpc_query_params(client, "app.bsky.graph.getFollows", encoded, count, response);
     free(encoded); free(number_values); return status;
@@ -64009,6 +64457,11 @@ wf_status wf_lex_app_bsky_graph_get_follows_main_call_auth(wf_auth_client *clien
         if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
         ++encoded_capacity;
     }
+    if (params->has_sort) {
+        if (!params->sort) return WF_ERR_INVALID_ARG;
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
     if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
         number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
     wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
@@ -64025,6 +64478,9 @@ wf_status wf_lex_app_bsky_graph_get_follows_main_call_auth(wf_auth_client *clien
     }
     if (params->has_cursor) {
         encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
+    }
+    if (params->has_sort) {
+        encoded[count++] = (wf_xrpc_param){"sort", params->sort};
     }
     wf_status status = wf_auth_client_query_params(client, "app.bsky.graph.getFollows", encoded, count, response);
     free(encoded); free(number_values); return status;
@@ -65311,6 +65767,103 @@ wf_status wf_lex_app_bsky_graph_search_starter_packs_main_call_auth(wf_auth_clie
         encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
     }
     wf_status status = wf_auth_client_query_params(client, "app.bsky.graph.searchStarterPacks", encoded, count, response);
+    free(encoded); free(number_values); return status;
+}
+
+wf_status wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_graph_search_starter_packs_v2_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_free(wf_lex_app_bsky_graph_search_starter_packs_v2_main_output *value) {
+    wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_v2_main_output(value); free(value);
+}
+
+wf_status wf_lex_app_bsky_graph_search_starter_packs_v2_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *params, wf_response *response) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    if (!params || !response) return WF_ERR_INVALID_ARG;
+    size_t encoded_capacity = 0, number_capacity = 0;
+    if (!params->q) return WF_ERR_INVALID_ARG;
+    if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+    ++encoded_capacity;
+    if (params->has_limit) {
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+        if (number_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++number_capacity;
+    }
+    if (params->has_cursor) {
+        if (!params->cursor) return WF_ERR_INVALID_ARG;
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
+    if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
+        number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
+    char (*number_values)[32] = number_capacity ? malloc(number_capacity * sizeof(*number_values)) : NULL;
+    if ((encoded_capacity && !encoded) || (number_capacity && !number_values)) {
+        free(encoded); free(number_values); return WF_ERR_ALLOC;
+    }
+    size_t count = 0, number_count = 0;
+    (void)number_count;
+    encoded[count++] = (wf_xrpc_param){"q", params->q};
+    if (params->has_limit) {
+        snprintf(number_values[number_count], sizeof(number_values[number_count]), "%" PRId64, params->limit);
+        encoded[count++] = (wf_xrpc_param){"limit", number_values[number_count++]};
+    }
+    if (params->has_cursor) {
+        encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
+    }
+    wf_status status = wf_xrpc_query_params(client, "app.bsky.graph.searchStarterPacksV2", encoded, count, response);
+    free(encoded); free(number_values); return status;
+}
+
+wf_status wf_lex_app_bsky_graph_search_starter_packs_v2_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_graph_search_starter_packs_v2_main_params *params, wf_response *response) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    if (!params || !response) return WF_ERR_INVALID_ARG;
+    size_t encoded_capacity = 0, number_capacity = 0;
+    if (!params->q) return WF_ERR_INVALID_ARG;
+    if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+    ++encoded_capacity;
+    if (params->has_limit) {
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+        if (number_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++number_capacity;
+    }
+    if (params->has_cursor) {
+        if (!params->cursor) return WF_ERR_INVALID_ARG;
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
+    if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
+        number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
+    char (*number_values)[32] = number_capacity ? malloc(number_capacity * sizeof(*number_values)) : NULL;
+    if ((encoded_capacity && !encoded) || (number_capacity && !number_values)) {
+        free(encoded); free(number_values); return WF_ERR_ALLOC;
+    }
+    size_t count = 0, number_count = 0;
+    (void)number_count;
+    encoded[count++] = (wf_xrpc_param){"q", params->q};
+    if (params->has_limit) {
+        snprintf(number_values[number_count], sizeof(number_values[number_count]), "%" PRId64, params->limit);
+        encoded[count++] = (wf_xrpc_param){"limit", number_values[number_count++]};
+    }
+    if (params->has_cursor) {
+        encoded[count++] = (wf_xrpc_param){"cursor", params->cursor};
+    }
+    wf_status status = wf_auth_client_query_params(client, "app.bsky.graph.searchStarterPacksV2", encoded, count, response);
     free(encoded); free(number_values); return status;
 }
 
@@ -76407,6 +76960,10 @@ wf_status wf_lex_internal_bsky_actor_get_profiles_main_call(wf_xrpc_client *clie
         if (params->social_proof.count > SIZE_MAX - encoded_capacity) return WF_ERR_INVALID_ARG;
         encoded_capacity += params->social_proof.count;
     }
+    if (params->has_include_takedowns) {
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
     if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
         number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
     wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
@@ -76426,6 +76983,9 @@ wf_status wf_lex_internal_bsky_actor_get_profiles_main_call(wf_xrpc_client *clie
         for (size_t i = 0; i < params->social_proof.count; ++i) {
             encoded[count++] = (wf_xrpc_param){"socialProof", params->social_proof.items[i]};
         }
+    }
+    if (params->has_include_takedowns) {
+        encoded[count++] = (wf_xrpc_param){"includeTakedowns", (params->include_takedowns ? "true" : "false")};
     }
     wf_status status = wf_xrpc_query_params(client, "internal.bsky.actor.getProfiles", encoded, count, response);
     free(encoded); free(number_values); return status;
@@ -76453,6 +77013,10 @@ wf_status wf_lex_internal_bsky_actor_get_profiles_main_call_auth(wf_auth_client 
         if (params->social_proof.count > SIZE_MAX - encoded_capacity) return WF_ERR_INVALID_ARG;
         encoded_capacity += params->social_proof.count;
     }
+    if (params->has_include_takedowns) {
+        if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+        ++encoded_capacity;
+    }
     if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
         number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
     wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
@@ -76472,6 +77036,9 @@ wf_status wf_lex_internal_bsky_actor_get_profiles_main_call_auth(wf_auth_client 
         for (size_t i = 0; i < params->social_proof.count; ++i) {
             encoded[count++] = (wf_xrpc_param){"socialProof", params->social_proof.items[i]};
         }
+    }
+    if (params->has_include_takedowns) {
+        encoded[count++] = (wf_xrpc_param){"includeTakedowns", (params->include_takedowns ? "true" : "false")};
     }
     wf_status status = wf_auth_client_query_params(client, "internal.bsky.actor.getProfiles", encoded, count, response);
     free(encoded); free(number_values); return status;
@@ -79328,6 +79895,60 @@ wf_status wf_lex_tools_ozone_report_assign_moderator_main_call_auth(wf_auth_clie
     wf_status status = wf_lex_tools_ozone_report_assign_moderator_main_input_encode_json(input, &json);
     if (status != WF_OK) return status;
     status = wf_auth_client_procedure(client, "tools.ozone.report.assignModerator", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_tools_ozone_report_close_reports_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_report_close_reports_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_tools_ozone_report_close_reports_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_tools_ozone_report_close_reports_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_tools_ozone_report_close_reports_main_output_free(wf_lex_tools_ozone_report_close_reports_main_output *value) {
+    wf_lex_clear_wf_lex_tools_ozone_report_close_reports_main_output(value); free(value);
+}
+
+wf_status wf_lex_tools_ozone_report_close_reports_main_input_encode_json(
+    const wf_lex_tools_ozone_report_close_reports_main_input *value, char **out_json) {
+    if (!value || !out_json) return WF_ERR_INVALID_ARG;
+    *out_json = NULL; cJSON *root = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    status = wf_lex_encode_wf_lex_tools_ozone_report_close_reports_main_input(value, &root);
+    if (status != WF_OK) return status;
+    *out_json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return *out_json ? WF_OK : WF_ERR_ALLOC;
+}
+
+void wf_lex_tools_ozone_report_close_reports_main_json_free(char *json) { cJSON_free(json); }
+
+wf_status wf_lex_tools_ozone_report_close_reports_main_call(wf_xrpc_client *client,
+    const wf_lex_tools_ozone_report_close_reports_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_tools_ozone_report_close_reports_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_xrpc_procedure(client, "tools.ozone.report.closeReports", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_tools_ozone_report_close_reports_main_call_auth(wf_auth_client *client,
+    const wf_lex_tools_ozone_report_close_reports_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_tools_ozone_report_close_reports_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_auth_client_procedure(client, "tools.ozone.report.closeReports", json, response);
     cJSON_free(json);
     return status;
 }
