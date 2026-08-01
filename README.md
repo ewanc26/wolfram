@@ -14,9 +14,7 @@ Lexicon generator is a development-time C++ tool (`tools/wf_lexgen.cpp`, built
 as the `wf_lexgen_tool` CMake target) and is never linked into, embedded in, or
 required by applications using `libwolfram`.
 
-Pure C23 at runtime — C++ is used only for a few third-party wrappers that have
-no C ABI, and every such wrapper exposes a C interface so the SDK never
-requires a C++ toolchain. See the policy in [AGENTS.md](AGENTS.md).
+C is the default language; C++ is used for complex or sensitive components where C is insufficient — RAII-based resource management (e.g. cJSON in `syntax` and `json`), performance-critical code, and third-party library integrations. All C++ code exposes a C ABI via `extern "C"` so the SDK never requires a C++ toolchain at runtime. See the policy in [AGENTS.md](AGENTS.md).
 
 **Scope.** Wolfram is a faithful C port of the AT Protocol's *protocol/SDK
 layer* — the client and wire-format packages of the upstream TypeScript
