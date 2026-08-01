@@ -442,7 +442,7 @@ static void test_generated_header_compiles_as_c11() {
                       "  return value.message == 0;\n"
                       "}\n");
     std::vector<std::string> args = {
-"cc", "-std=c23", "-Wall", "-Wextra", "-Werror", "-fsyntax-only",
+"cc", "-std=c2x", "-Wall", "-Wextra", "-Werror", "-fsyntax-only",
          "-I", ROOT + "/include", check.string(),
      };
      CommandResult res = run_command(args);
