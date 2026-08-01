@@ -9,6 +9,12 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
+/* OpenSSL 3.0 deprecated the EC_KEY/ECDSA API in favor of EVP_PKEY.
+ * The deprecated declarations are suppressed here; migration to EVP
+ * is tracked as a separate refactoring item. */
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+
 #include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -477,3 +483,5 @@ done:
     free(signing_input); free(jwt);
     return status;
 }
+
+_Pragma("GCC diagnostic pop")
