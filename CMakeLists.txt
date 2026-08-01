@@ -4,7 +4,7 @@ if(POLICY CMP0156)
     cmake_policy(SET CMP0156 NEW)
 endif()
 project(wolfram
-    VERSION 0.4.0
+    VERSION 0.5.0
     DESCRIPTION "A C SDK for the AT Protocol"
     LANGUAGES C CXX
 )
@@ -196,7 +196,7 @@ add_library(wolfram
     # Label subscribeLabels agent consumption wrapper
     src/label_subscribe_typed.c
     # Syntax validation
-    src/syntax/syntax.c
+    cpp/wolfram/syntax.cpp
     # TID generation clock
     $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/platform/wii_tid.c,src/tid.c>
     # Lexicon validation
