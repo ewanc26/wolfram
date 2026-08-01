@@ -15,11 +15,10 @@
 #   docker run --rm -v "$PWD:/src" wolfram
 FROM ubuntu:24.04
 
-# g++ is needed for WOLFRAM_BUILD_CPP; python3 for the lexicon generator tests
-# that ctest runs; git because the build fetches pinned cJSON/libcbor sources.
-# libcjson-dev is separate from that fetched copy: the lexgen tests compile the
-# code they generate as a standalone program and link it against a system
-# cJSON, so without it those four tests fail to link.
+# g++ is needed for WOLFRAM_BUILD_CPP; git because the build fetches pinned
+# cJSON/libcbor sources. libcjson-dev is separate from that fetched copy: the
+# lexgen tests compile the code they generate as a standalone program and link
+# it against a system cJSON, so without it those four tests fail to link.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
@@ -35,7 +34,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libzstd-dev \
         libc-ares-dev \
         libidn2-dev \
-        python3 \
         libcjson-dev \
     && rm -rf /var/lib/apt/lists/*
 

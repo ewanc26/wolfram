@@ -10,8 +10,9 @@ protocol, not a port of the upstream `atproto` service backends.
 > Wolfram Alpha, Wolfram Research, Mathematica, or Stephen Wolfram.
 
 The runtime library and all generated client code are pure C11. The optional
-Lexicon generator is a development-time Python tool and is never linked into,
-embedded in, or required by applications using `libwolfram`.
+Lexicon generator is a development-time C++ tool (`tools/wf_lexgen.cpp`, built
+as the `wf_lexgen_tool` CMake target) and is never linked into, embedded in, or
+required by applications using `libwolfram`.
 
 Pure C11 at runtime — C++ is used only for a few third-party wrappers that have
 no C ABI, and every such wrapper exposes a C interface so the SDK never

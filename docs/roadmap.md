@@ -233,7 +233,7 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
      `wf_T_free` ownership contract, a `cstring` RAII owner for heap `char*`, and
      `wf_status` → `std::error_code` mapping with a throwing `require`. Owned
      handle typedefs are generated from the `wf_*_free` set
-     (`tools/gen_owners.py` → `generated_owners.hpp`, 372 handles from 51 headers).
+     (`tools/gen_owners.cpp` → `generated_owners.hpp`, 372 handles from 51 headers).
      Built with `WOLFRAM_BUILD_CPP=ON`; covered by an offline `wolfram-cpp-smoke`
      test. As part of adding it, the C public headers were made C++-clean: the
      `wf_status` / `wf_error` status enums were unified (previously duplicated

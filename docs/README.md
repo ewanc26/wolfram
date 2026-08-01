@@ -57,7 +57,7 @@ Include the single umbrella header in your program:
 #include "wolfram/wolfram.h"   /* pulls in every module */
 ```
 
-Link the `wolfram` target. The core SDK is pure C11; Python is only used for
-the optional `tools/wf_lexgen.py` code generator and is never a runtime
-dependency. See the top-level [`README.md`](../README.md) for the full module
-status table and prerequisites.
+Link the `wolfram` target. The core SDK is pure C11; the optional
+`tools/wf_lexgen.cpp` code generator is a C++ development-time tool and is never
+a runtime dependency. See the top-level [`README.md`](../README.md) for the full
+module status table and prerequisites.
