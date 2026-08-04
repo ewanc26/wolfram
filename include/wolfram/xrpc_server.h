@@ -408,8 +408,13 @@ wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
  *
  * Must be called from a context other than the WS handler invocation
  * (typically a dedicated worker thread holding a retained reference). Returns
- * WF_ERR_INVALID_ARG if the stream is already closed. Server → client frames
- * are sent UNMASKED.
+ * WF_ERR_INVALID_ARG if the stream is already closed, WF_ERR_TIMEOUT if the
+ * peer's receive window stayed full for the whole write timeout (a slow
+ * consumer that never drains, as opposed to a broken connection — the
+ * caller can use this to tell the two apart, e.g. subscribeRepos sending
+ * `ConsumerTooSlow` before closing rather than a bare disconnect), or
+ * WF_ERR_NETWORK for any other transport failure. Server → client frames are
+ * sent UNMASKED.
  */
 wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
                                  const void *data, size_t len);
