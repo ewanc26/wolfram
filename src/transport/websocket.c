@@ -154,8 +154,9 @@ wf_status wf_websocket_receive(wf_websocket *socket,
     for (;;) {
         size_t received = 0;
         struct curl_ws_frame *meta = NULL;
-CURLcode result = curl_ws_recv(socket->curl, chunk, sizeof(chunk),
-  &received, (struct curl_ws_frame **)&meta);
+        CURLcode result = curl_ws_recv(socket->curl, chunk, sizeof(chunk),
+                                       &received,
+                                       (const struct curl_ws_frame **)&meta);
         if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
         if (result != CURLE_OK || !meta || (meta->flags & CURLWS_CLOSE)) {
             wf_websocket_discard_pending(socket);
