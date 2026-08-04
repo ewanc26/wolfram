@@ -418,9 +418,17 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   (mirroring the reference PDS's `record_blob` + `deleteDereferencedBlobs`).
   See the MetalBear repository's `blob_store.h`/`repo_store.c` and its
   AGENTS.md "Repo writes" section for the same-CID-across-replacement
-  invariant. Remaining follow-ups: optional at-rest encryption of stored
-  bytes (analogous to `WOLFRAM_BUILD_STORE_CRYPTO`), and size/type limits
-  enforced at `uploadBlob` per the lexicon.
+  invariant. Blob mimetype/size limits (`accept`/`maxSize` on a lexicon's
+  `type: blob` field) were already enforced by `wf_validate_record`
+  (`src/validate/validate.c`) — the same place any other schema constraint
+  is checked, and the correct place per the reference PDS, which enforces
+  these "when the reference is created" rather than at upload time; that
+  had SDK-level tests (`test_validate.c`) but no end-to-end proof that
+  MetalBear's write handlers actually reject an out-of-bounds blob against
+  the real `app.bsky.embed.images` lexicon — `test_repo_store.c`'s
+  `run_blob_constraint_validation` now covers that. Remaining follow-up:
+  optional at-rest encryption of stored bytes (analogous to
+  `WOLFRAM_BUILD_STORE_CRYPTO`).
 - `app.bsky.notification.putPreferencesV2` and `getPreferences` share the
   fully typed 13-slot `defs#preferences` representation. The legacy v1
   `putPreferences` endpoint carries only its required `priority` boolean;
