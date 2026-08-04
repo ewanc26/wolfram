@@ -551,6 +551,11 @@ if(WOLFRAM_BUILD_SERVER)
         target_include_directories(test_xrpc_server_ws_slow_client PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
         add_test(NAME xrpc_server_ws_slow_client COMMAND test_xrpc_server_ws_slow_client)
 
+        add_executable(test_xrpc_server_ws_never_drains test/test_xrpc_server_ws_never_drains.c)
+        target_link_libraries(test_xrpc_server_ws_never_drains PRIVATE wolfram Threads::Threads)
+        target_include_directories(test_xrpc_server_ws_never_drains PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        add_test(NAME xrpc_server_ws_never_drains COMMAND test_xrpc_server_ws_never_drains)
+
         add_executable(test_chat_modevents_sub test/test_chat_modevents_sub.c)
         target_link_libraries(test_chat_modevents_sub PRIVATE wolfram Threads::Threads)
         target_include_directories(test_chat_modevents_sub PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})

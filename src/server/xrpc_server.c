@@ -706,7 +706,11 @@ static void wf_ws_base64_encode(const unsigned char *in, size_t len, char *out) 
     out[o] = '\0';
 }
 
-/** Write the full buffer to the socket; returns 0 on success, -1 on error. */
+/** Write the full buffer to the socket; returns 0 on success, -1 on a hard
+ *  failure (EOF, reset, poll error), or -2 when the peer's receive window
+ *  stayed full for the whole 2s write timeout — a slow consumer, not a
+ *  broken connection, and the two are distinguished so the caller can tell
+ *  the client why it is being disconnected (see WF_ERR_TIMEOUT below). */
 static int wf_ws_write_all(int sock, const void *buf, size_t len) {
     const char *p = (const char *)buf;
     size_t off = 0;
@@ -716,7 +720,9 @@ static int wf_ws_write_all(int sock, const void *buf, size_t len) {
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 struct pollfd pfd = { sock, POLLOUT, 0 };
-                if (poll(&pfd, 1, 2000) <= 0) return -1;
+                int pr = poll(&pfd, 1, 2000);
+                if (pr == 0) return -2;
+                if (pr < 0) return -1;
                 continue;
             }
             return -1;
@@ -766,12 +772,11 @@ static wf_status wf_ws_write_frame_locked(wf_xrpc_ws_stream *s, uint8_t opcode,
         }
         hlen = 10;
     }
-    wf_status rc = WF_OK;
-    if (wf_ws_write_all(s->sock, hdr, hlen) != 0 ||
-        (len > 0 && wf_ws_write_all(s->sock, data, len) != 0)) {
-        rc = WF_ERR_NETWORK;
-    }
-    return rc;
+    int hr = wf_ws_write_all(s->sock, hdr, hlen);
+    int dr = (hr == 0 && len > 0) ? wf_ws_write_all(s->sock, data, len) : 0;
+    if (hr == -2 || dr == -2) return WF_ERR_TIMEOUT;
+    if (hr != 0 || dr != 0) return WF_ERR_NETWORK;
+    return WF_OK;
 }
 
 /**
