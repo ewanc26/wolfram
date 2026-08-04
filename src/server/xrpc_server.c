@@ -1699,6 +1699,31 @@ static void wf_server_observe(wf_xrpc_server *server, const char *nsid,
         server->observer(server->observer_ctx, nsid, path, method, status);
 }
 
+/* Extract the client's address into `out` ("unknown" if it cannot be
+ * determined). Shared by the built-in rate limiter and wf_xrpc_request's
+ * client_ip, which previously duplicated this dance independently. */
+static void wf_server_client_ip(struct MHD_Connection *conn, char *out,
+                                size_t out_len) {
+    const union MHD_ConnectionInfo *ci =
+        MHD_get_connection_info(conn, MHD_CONNECTION_INFO_CLIENT_ADDRESS);
+    if (ci && ci->client_addr) {
+        if (ci->client_addr->sa_family == AF_INET) {
+            inet_ntop(AF_INET,
+                      &((struct sockaddr_in *)ci->client_addr)->sin_addr,
+                      out, out_len);
+            return;
+#if !defined(WOLFRAM_WIIU)
+        } else if (ci->client_addr->sa_family == AF_INET6) {
+            inet_ntop(AF_INET6,
+                      &((struct sockaddr_in6 *)ci->client_addr)->sin6_addr,
+                      out, out_len);
+            return;
+#endif
+        }
+    }
+    (void)snprintf(out, out_len, "unknown");
+}
+
 static enum MHD_Result wf_server_mhd_handler(void *cls,
                                               struct MHD_Connection *conn,
                                               const char *url,
@@ -1828,6 +1853,14 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
 
 process:
 
+#if defined(WOLFRAM_WIIU)
+    /* wut's headers have no IPv6; a console on a home LAN is v4-only. */
+    char client_ip_str[INET_ADDRSTRLEN];
+#else
+    char client_ip_str[INET6_ADDRSTRLEN];
+#endif
+    wf_server_client_ip(conn, client_ip_str, sizeof(client_ip_str));
+
     /* Look up route. Distinguish a wrong HTTP method (the NSID is registered
      * but for the opposite kind) from an entirely unregistered NSID, so we emit
      * the canonical XRPC error names and status codes. */
@@ -1855,6 +1888,7 @@ process:
             freq.dpop_header = MHD_lookup_connection_value(
                 conn, MHD_HEADER_KIND, "DPoP");
             freq.params = params;
+            freq.client_ip = client_ip_str;
             freq.handler_ctx = server->fallback_ctx;
             freq.raw_query = wf_server_build_raw_query(conn);
             freq.atproto_proxy = MHD_lookup_connection_value(
@@ -1885,61 +1919,36 @@ process:
         wf_server_find_route_rate_limiter(server, method, url);
     if (!active_rate_limiter) active_rate_limiter = server->rate_limiter;
     if (active_rate_limiter) {
-        const union MHD_ConnectionInfo *ci;
-#if defined(WOLFRAM_WIIU)
-        /* wut's headers have no IPv6; a console on a home LAN is v4-only. */
-        char ip_str[INET_ADDRSTRLEN];
-#else
-        char ip_str[INET6_ADDRSTRLEN];
-#endif
         unsigned int retry_after = 0;
 
-        ci = MHD_get_connection_info(conn,
-                                      MHD_CONNECTION_INFO_CLIENT_ADDRESS);
-        if (ci && ci->client_addr) {
-            if (ci->client_addr->sa_family == AF_INET) {
-                inet_ntop(AF_INET,
-                          &((struct sockaddr_in *)ci->client_addr)->sin_addr,
-                          ip_str, sizeof(ip_str));
-#if !defined(WOLFRAM_WIIU)
-            } else if (ci->client_addr->sa_family == AF_INET6) {
-                inet_ntop(AF_INET6,
-                          &((struct sockaddr_in6 *)ci->client_addr)->sin6_addr,
-                          ip_str, sizeof(ip_str));
-#endif
-            } else {
-                (void)snprintf(ip_str, sizeof(ip_str), "unknown");
+        if (wf_rate_limiter_consume(active_rate_limiter, client_ip_str,
+                                    1, &retry_after) != WF_OK) {
+            struct MHD_Response *mhd_rl;
+            char body[192];
+            char ra_str[16];
+            int n;
+
+            n = snprintf(body, sizeof(body),
+                         "{\"error\":\"RateLimitExceeded\","
+                         "\"message\":\"Rate limit exceeded. "
+                         "Retry after %u seconds.\"}",
+                         retry_after);
+            if (n < 0 || (size_t)n >= sizeof(body)) n = (int)sizeof(body) - 1;
+
+            mhd_rl = MHD_create_response_from_buffer(
+                (size_t)n, body, MHD_RESPMEM_MUST_COPY);
+            if (mhd_rl) {
+                snprintf(ra_str, sizeof(ra_str), "%u", retry_after);
+                MHD_add_response_header(mhd_rl, "Content-Type",
+                                         "application/json");
+                MHD_add_response_header(mhd_rl, "Retry-After", ra_str);
+                wf_server_apply_cors(server, conn, mhd_rl);
+                MHD_queue_response(conn, 429, mhd_rl);
+                MHD_destroy_response(mhd_rl);
             }
-
-            if (wf_rate_limiter_consume(active_rate_limiter, ip_str,
-                                        1, &retry_after) != WF_OK) {
-                struct MHD_Response *mhd_rl;
-                char body[192];
-                char ra_str[16];
-                int n;
-
-                n = snprintf(body, sizeof(body),
-                             "{\"error\":\"RateLimitExceeded\","
-                             "\"message\":\"Rate limit exceeded. "
-                             "Retry after %u seconds.\"}",
-                             retry_after);
-                if (n < 0 || (size_t)n >= sizeof(body)) n = (int)sizeof(body) - 1;
-
-                mhd_rl = MHD_create_response_from_buffer(
-                    (size_t)n, body, MHD_RESPMEM_MUST_COPY);
-                if (mhd_rl) {
-                    snprintf(ra_str, sizeof(ra_str), "%u", retry_after);
-                    MHD_add_response_header(mhd_rl, "Content-Type",
-                                             "application/json");
-                    MHD_add_response_header(mhd_rl, "Retry-After", ra_str);
-                    wf_server_apply_cors(server, conn, mhd_rl);
-                    MHD_queue_response(conn, 429, mhd_rl);
-                    MHD_destroy_response(mhd_rl);
-                }
-                wf_server_observe(server, nsid, url, method, 429);
-                ret = MHD_YES;
-                goto cleanup;
-            }
+            wf_server_observe(server, nsid, url, method, 429);
+            ret = MHD_YES;
+            goto cleanup;
         }
     }
 
@@ -1962,6 +1971,7 @@ process:
         auth_req.params = params;
         auth_req.handler_ctx = route->ctx;
         auth_req.host_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+        auth_req.client_ip = client_ip_str;
         wf_status auth_status = server->auth_cb(&auth_req, server->auth_ctx);
         if (auth_status != WF_OK) {
             if (auth_status == WF_ERR_CONFLICT)
@@ -1989,6 +1999,7 @@ process:
     req.dpop_header = dpop_header;
     req.cookie_header = cookie_header;
     req.params = params;
+    req.client_ip = client_ip_str;
     req.handler_ctx = http_route ? http_route->ctx : route->ctx;
     /* Raw POST body (kept alive in raw_pb) + request Content-Type. */
     if (raw_pb) {
