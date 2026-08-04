@@ -889,6 +889,79 @@ static int test_server_route_rate_limit(void) {
     return 1;
 }
 
+static const char *g_seen_client_ip;
+
+static wf_status test_client_ip_handler(void *ctx, const wf_xrpc_request *req,
+                                        wf_xrpc_response *resp) {
+    (void)ctx;
+    static char captured[64];
+    if (req->client_ip) {
+        snprintf(captured, sizeof(captured), "%s", req->client_ip);
+        g_seen_client_ip = captured;
+    }
+    wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
+    return WF_OK;
+}
+
+/*
+ * wf_xrpc_request.client_ip exists so a handler can key its own rate limits
+ * (or logging) by requester address the way the reference PDS does for
+ * createSession ("<identifier>-<ip>"). A loopback test client must see
+ * "127.0.0.1" — not NULL, not "unknown".
+ */
+static int test_request_client_ip(void) {
+    wf_xrpc_server *server;
+    wf_xrpc_client *client;
+    wf_response res = {0};
+    int failures = 0;
+
+    g_seen_client_ip = NULL;
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    if (!server) {
+        fprintf(stderr, "FAIL: client ip start\n");
+        return 1;
+    }
+    if (wf_xrpc_server_register_query(server, "io.example.whoami",
+                                       test_client_ip_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: client ip register\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+
+    uint16_t port = wf_xrpc_server_port(server);
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
+    client = wf_xrpc_client_new(base_url);
+    if (!client) {
+        fprintf(stderr, "FAIL: client ip client\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+
+    wf_status s = wf_xrpc_query(client, "io.example.whoami", NULL, &res);
+    if (s != WF_OK || res.status != 200) {
+        fprintf(stderr, "FAIL: client ip request: status=%d http=%ld\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    if (!g_seen_client_ip || strcmp(g_seen_client_ip, "127.0.0.1") != 0) {
+        fprintf(stderr, "FAIL: expected client_ip \"127.0.0.1\", got %s\n",
+                g_seen_client_ip ? g_seen_client_ip : "(null)");
+        failures++;
+    }
+
+    wf_xrpc_client_free(client);
+    wf_xrpc_server_free(server);
+
+    if (failures == 0) {
+        printf("PASS: request client_ip\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int failures = 0;
 
@@ -897,6 +970,7 @@ int main(void) {
     failures += test_rate_limiter_refill();
     failures += test_server_rate_limit();
     failures += test_server_route_rate_limit();
+    failures += test_request_client_ip();
 
     return failures;
 }
