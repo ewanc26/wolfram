@@ -78,6 +78,11 @@ typedef struct wf_xrpc_request {
     /* Request `atproto-proxy` header value ("<did>#<service_id>"), or NULL.
      * Valid only during the handler. */
     const char *atproto_proxy;
+    /* Client address (numeric IPv4/IPv6, no port), or "unknown" if it could
+     * not be determined. Valid only during the handler. NULL for requests
+     * built outside the HTTP dispatch path (e.g. some internal/test call
+     * sites) — check for NULL before use. */
+    const char *client_ip;
     void       *handler_ctx;   /* User context from route registration */
     /* The following two fields are populated by an auth middleware (e.g.
      * wf_xrpc_server_set_auth_middleware) and are valid only for the duration
