@@ -404,9 +404,12 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   DPoP-bound OAuth user tokens. Issuer fragments are handled per upstream
   `verifyServiceJwt`: `iss#atproto_labeler` selects the `#atproto_label`
   verification method and any other issuer selects `#atproto`
-  (`wf_did_resolve_verification_key`). Remaining work: guard service-token
-  routes that must never accept OAuth user credentials, and wire
-  `WF_XRPC_PRINCIPAL_SERVICE` subjects into per-route handler policies.
+  (`wf_did_resolve_verification_key`). Per-route principal policies
+  (`wf_xrpc_server_auth_config_require_principal`) are landed too: a SERVICE
+  rule guards routes that must never accept OAuth user credentials, a USER
+  rule guards routes that must never accept service tokens, and an ANY rule
+  overrides a broader rule (longest-prefix wins; any matching rule also
+  protects its prefix).
 - The blob store (item 58) is a minimal, correct foundation. Follow-ups include
   wiring it into the full PDS write path (tracking blobs against records so
   untethered blobs can be garbage-collected), optional at-rest encryption of
