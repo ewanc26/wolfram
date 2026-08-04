@@ -76,6 +76,13 @@ typedef struct wf_rate_limit_entry {
     struct wf_rate_limit_entry *next;
 } wf_rate_limit_entry;
 
+/* Find the rate limiter attached to this exact method+url via
+ * wf_xrpc_server_set_route_rate_limiter, or NULL if none was set — declared
+ * here so the request-dispatch path (well above where entries are managed)
+ * can see it. */
+static wf_rate_limiter *wf_server_find_route_rate_limiter(
+    wf_xrpc_server *server, const char *method, const char *url);
+
 struct wf_rate_limiter {
     unsigned int     points;          /* Max tokens (burst capacity) */
     unsigned int     duration_seconds;/* Refill window */
@@ -1869,8 +1876,15 @@ process:
         goto send;
     }
 
-    /* Rate limiter — charge 1 token against client IP */
-    if (server->rate_limiter) {
+    /* Rate limiter — charge 1 token against client IP. A route-specific
+     * limiter set via wf_xrpc_server_set_route_rate_limiter replaces the
+     * global one for that exact method+url, matching its documented
+     * contract ("defaults to IP-based limiter if none set"); otherwise the
+     * server-wide limiter applies as before. */
+    wf_rate_limiter *active_rate_limiter =
+        wf_server_find_route_rate_limiter(server, method, url);
+    if (!active_rate_limiter) active_rate_limiter = server->rate_limiter;
+    if (active_rate_limiter) {
         const union MHD_ConnectionInfo *ci;
 #if defined(WOLFRAM_WIIU)
         /* wut's headers have no IPv6; a console on a home LAN is v4-only. */
@@ -1897,7 +1911,7 @@ process:
                 (void)snprintf(ip_str, sizeof(ip_str), "unknown");
             }
 
-            if (wf_rate_limiter_consume(server->rate_limiter, ip_str,
+            if (wf_rate_limiter_consume(active_rate_limiter, ip_str,
                                         1, &retry_after) != WF_OK) {
                 struct MHD_Response *mhd_rl;
                 char body[192];
@@ -2619,6 +2633,18 @@ static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
     }
 }
 
+static wf_rate_limiter *wf_server_find_route_rate_limiter(
+    wf_xrpc_server *server, const char *method, const char *url) {
+    if (!server || !method || !url) return NULL;
+    char key[512];
+    int n = snprintf(key, sizeof(key), "%s:%s", method, url);
+    if (n < 0 || (size_t)n >= sizeof(key)) return NULL;
+    for (wf_rate_limit_entry *e = server->rate_limit_entries; e; e = e->next) {
+        if (e->route_key && strcmp(e->route_key, key) == 0) return e->rl;
+    }
+    return NULL;
+}
+
 /* Add a per-route rate limiter (method+url)
    Transfers ownership of 'rl' to the server */
 wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
@@ -2638,7 +2664,14 @@ wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
         wf_rate_limiter_free(rl);
         return WF_ERR_ALLOC;
     }
-    entry->route_key = strdup(url);
+    /* "GET:/xrpc/io.example.ping", matching the struct's documented format —
+     * method included so a POST and a GET to the same path don't collide. */
+    {
+        size_t n = strlen(method) + 1 + strlen(url) + 1;
+        entry->route_key = malloc(n);
+        if (entry->route_key)
+            snprintf(entry->route_key, n, "%s:%s", method, url);
+    }
     if (!entry->route_key) {
         free(entry);
         wf_rate_limiter_free(rl);
