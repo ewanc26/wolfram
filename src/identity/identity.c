@@ -729,6 +729,66 @@ wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
     return result;
 }
 
+wf_status wf_did_resolve_verification_key(wf_xrpc_client *client,
+                                          const char *did,
+                                          const char *key_id,
+                                          char **out_didkey) {
+    if (!client || !did || !key_id || key_id[0] != '#' || !out_didkey) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_didkey = NULL;
+
+    cJSON *root = NULL;
+    wf_status status = did_fetch_document(client, did, &root);
+    if (status != WF_OK) return status;
+    cJSON *doc_id = cJSON_GetObjectItemCaseSensitive(root, "id");
+    if (!cJSON_IsString(doc_id) || !doc_id->valuestring ||
+        strcmp(doc_id->valuestring, did) != 0) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    cJSON *verification = cJSON_GetObjectItemCaseSensitive(
+        root, "verificationMethod");
+    if (!cJSON_IsArray(verification)) {
+        cJSON_Delete(root);
+        return WF_ERR_NOT_FOUND;
+    }
+    status = wf_did_validate_verification_methods(verification);
+    if (status != WF_OK) {
+        cJSON_Delete(root);
+        return status;
+    }
+
+    wf_status result = WF_ERR_NOT_FOUND;
+    cJSON *item = NULL;
+    cJSON_ArrayForEach(item, verification) {
+        cJSON *id = cJSON_GetObjectItemCaseSensitive(item, "id");
+        cJSON *key_type = cJSON_GetObjectItemCaseSensitive(item, "type");
+        cJSON *public_key = cJSON_GetObjectItemCaseSensitive(
+            item, "publicKeyMultibase");
+        if (!cJSON_IsString(id) || !id->valuestring ||
+            !wf_did_item_id_matches(did, id->valuestring, key_id) ||
+            !cJSON_IsString(key_type) || !key_type->valuestring ||
+            !cJSON_IsString(public_key) || !public_key->valuestring) {
+            continue;
+        }
+        status = wf_didkey_from_verification_method(
+            key_type->valuestring, public_key->valuestring, out_didkey);
+        if (status == WF_OK) {
+            result = WF_OK;
+        } else if (status == WF_ERR_ALLOC) {
+            result = WF_ERR_ALLOC;
+        } else {
+            /* Bad key material is treated like a missing key. */
+            result = WF_ERR_NOT_FOUND;
+        }
+        break;
+    }
+    cJSON_Delete(root);
+    return result;
+}
+
 wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
                                  const char *service_type, char **out_endpoint) {
     const char *id = NULL;

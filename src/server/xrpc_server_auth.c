@@ -288,33 +288,58 @@ static int aud_matches(const char *aud, const char *server_did) {
 }
 
 /* Built-in resolver: did:key is self-describing (no network); other methods
- * defer to an optional resolver_client (wf_did_resolve). */
-static wf_status default_resolver(const char *did, char **out_didkey,
+ * defer to an optional resolver_client (wf_did_resolve_verification_key).
+ * The issuer may carry a service fragment (`iss#atproto_labeler`), which is
+ * stripped before resolving; upstream maps that fragment to the
+ * `#atproto_label` verification method and every other (or absent) fragment
+ * to `#atproto`. */
+static wf_status default_resolver(const char *iss, char **out_didkey,
                                   void *ctx) {
     mw_ctx *m = (mw_ctx *)ctx;
+    char *did = NULL;
+    const char *service_id = NULL;
+    const char *key_id = "#atproto";
+    wf_status rc = WF_ERR_NOT_FOUND;
 
-    if (!did || !out_didkey) {
+    if (!iss || !out_didkey) {
         return WF_ERR_INVALID_ARG;
     }
-    if (strncmp(did, "did:key:", 8) == 0) {
-        *out_didkey = strdup(did);
+    *out_didkey = NULL;
+
+    if (strncmp(iss, "did:key:", 8) == 0) {
+        *out_didkey = strdup(iss);
         return *out_didkey ? WF_OK : WF_ERR_ALLOC;
     }
-    /* Non-did:key DIDs require an HTTP client to fetch the DID document. When
-     * the caller supplied resolver_client we resolve and extract the
-     * verification key; otherwise we decline (production should inject a
-     * resolver or a client rather than force network I/O into this path). */
-    if (m && m->cfg.resolver_client) {
-        wf_did_document doc = {0};
-        if (wf_did_resolve(m->cfg.resolver_client, did, &doc) == WF_OK &&
-            doc.signing_key) {
-            *out_didkey = strdup(doc.signing_key);
-            wf_did_document_free(&doc);
-            return *out_didkey ? WF_OK : WF_ERR_ALLOC;
-        }
-        wf_did_document_free(&doc);
+
+    const char *hash = strchr(iss, '#');
+    if (hash) {
+        size_t did_len = (size_t)(hash - iss);
+        did = malloc(did_len + 1);
+        if (!did) return WF_ERR_ALLOC;
+        memcpy(did, iss, did_len);
+        did[did_len] = '\0';
+        service_id = hash + 1;
+    } else {
+        did = strdup(iss);
+        if (!did) return WF_ERR_ALLOC;
     }
-    return WF_ERR_NOT_FOUND;
+    if (service_id && strcmp(service_id, "atproto_labeler") == 0) {
+        key_id = "#atproto_label";
+    }
+
+    if (m && m->cfg.resolver_client) {
+        char *didkey = NULL;
+        if (wf_did_resolve_verification_key(m->cfg.resolver_client, did,
+                                            key_id, &didkey) == WF_OK &&
+            didkey) {
+            *out_didkey = didkey;
+            rc = WF_OK;
+        } else {
+            free(didkey);
+        }
+    }
+    free(did);
+    return rc;
 }
 
 /* ------------------------------------------------------------------ */
