@@ -144,10 +144,15 @@ void wf_rate_limiter_free(wf_rate_limiter *rl) {
     free(rl);
 }
 
-wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
-                                   const char *key,
-                                   unsigned int cost,
-                                   unsigned int *out_retry_after) {
+/* Shared by wf_rate_limiter_consume and wf_rate_limiter_consume_status.
+ * `out_status` is filled whenever non-NULL, on both WF_OK and
+ * WF_ERR_RATE_LIMIT — a caller setting RateLimit-* headers needs bucket
+ * state on a successful consume too, not just a rejected one. */
+static wf_status wf_rate_limiter_consume_core(wf_rate_limiter *rl,
+                                              const char *key,
+                                              unsigned int cost,
+                                              unsigned int *out_retry_after,
+                                              wf_rate_limit_status *out_status) {
     unsigned int idx;
     wf_rate_bucket *b;
     time_t now;
@@ -200,12 +205,20 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
 
     b->last_refill = now;
 
+    if (out_status) {
+        out_status->limit = rl->points;
+        out_status->duration_seconds = rl->duration_seconds;
+    }
+
     if (b->tokens < (double)cost) {
-        if (out_retry_after) {
-            /* Seconds until one token is available */
-            double wait = ((double)cost - b->tokens) / refill_rate;
-            if (wait < 1.0) wait = 1.0;
-            *out_retry_after = (unsigned int)(wait + 0.5);
+        /* Seconds until enough tokens are available for this request. */
+        double wait = ((double)cost - b->tokens) / refill_rate;
+        if (wait < 1.0) wait = 1.0;
+        unsigned int wait_s = (unsigned int)(wait + 0.5);
+        if (out_retry_after) *out_retry_after = wait_s;
+        if (out_status) {
+            out_status->remaining = (unsigned int)b->tokens;
+            out_status->reset_at = (unsigned int)now + wait_s;
         }
         return WF_ERR_RATE_LIMIT;
     }
@@ -214,7 +227,30 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
     if (out_retry_after) {
         *out_retry_after = 0;
     }
+    if (out_status) {
+        out_status->remaining = (unsigned int)b->tokens;
+        /* Full bucket, nothing pending: report the window itself as when
+         * a fresh cycle would complete, rather than "now". */
+        double wait = (double)rl->points > b->tokens
+            ? ((double)rl->points - b->tokens) / refill_rate
+            : (double)rl->duration_seconds;
+        out_status->reset_at = (unsigned int)now + (unsigned int)(wait + 0.5);
+    }
     return WF_OK;
+}
+
+wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
+                                   const char *key,
+                                   unsigned int cost,
+                                   unsigned int *out_retry_after) {
+    return wf_rate_limiter_consume_core(rl, key, cost, out_retry_after, NULL);
+}
+
+wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl,
+                                          const char *key,
+                                          unsigned int cost,
+                                          wf_rate_limit_status *out_status) {
+    return wf_rate_limiter_consume_core(rl, key, cost, NULL, out_status);
 }
 
 /* ------------------------------------------------------------------ */
@@ -356,7 +392,9 @@ static void wf_server_apply_cors(wf_xrpc_server *server,
     MHD_add_response_header(resp, "Access-Control-Allow-Methods",
                              "GET, POST, OPTIONS");
     MHD_add_response_header(resp, "Access-Control-Expose-Headers",
-                             "Content-Type, Retry-After");
+                             "Content-Type, Retry-After, RateLimit-Limit, "
+                             "RateLimit-Reset, RateLimit-Remaining, "
+                             "RateLimit-Policy");
 }
 
 /* ------------------------------------------------------------------ */
@@ -1919,14 +1957,22 @@ process:
         wf_server_find_route_rate_limiter(server, method, url);
     if (!active_rate_limiter) active_rate_limiter = server->rate_limiter;
     if (active_rate_limiter) {
-        unsigned int retry_after = 0;
+        wf_rate_limit_status rl_status = {0};
 
-        if (wf_rate_limiter_consume(active_rate_limiter, client_ip_str,
-                                    1, &retry_after) != WF_OK) {
+        if (wf_rate_limiter_consume_status(active_rate_limiter, client_ip_str,
+                                           1, &rl_status) != WF_OK) {
             struct MHD_Response *mhd_rl;
             char body[192];
-            char ra_str[16];
+            char num[16];
             int n;
+            /* seconds-until-available, for Retry-After: derived from
+             * reset_at rather than recomputed, so this always agrees with
+             * what the RateLimit-Reset header below claims. */
+            time_t now = time(NULL);
+            unsigned int retry_after =
+                rl_status.reset_at > (unsigned int)now
+                    ? rl_status.reset_at - (unsigned int)now
+                    : 1;
 
             n = snprintf(body, sizeof(body),
                          "{\"error\":\"RateLimitExceeded\","
@@ -1938,10 +1984,21 @@ process:
             mhd_rl = MHD_create_response_from_buffer(
                 (size_t)n, body, MHD_RESPMEM_MUST_COPY);
             if (mhd_rl) {
-                snprintf(ra_str, sizeof(ra_str), "%u", retry_after);
                 MHD_add_response_header(mhd_rl, "Content-Type",
                                          "application/json");
-                MHD_add_response_header(mhd_rl, "Retry-After", ra_str);
+                snprintf(num, sizeof(num), "%u", retry_after);
+                MHD_add_response_header(mhd_rl, "Retry-After", num);
+                /* RateLimit-*, matching the reference PDS's
+                 * rate-limiter-http.ts setStatusHeaders exactly. */
+                snprintf(num, sizeof(num), "%u", rl_status.limit);
+                MHD_add_response_header(mhd_rl, "RateLimit-Limit", num);
+                snprintf(num, sizeof(num), "%u", rl_status.reset_at);
+                MHD_add_response_header(mhd_rl, "RateLimit-Reset", num);
+                snprintf(num, sizeof(num), "%u", rl_status.remaining);
+                MHD_add_response_header(mhd_rl, "RateLimit-Remaining", num);
+                snprintf(num, sizeof(num), "%u;w=%u", rl_status.limit,
+                        rl_status.duration_seconds);
+                MHD_add_response_header(mhd_rl, "RateLimit-Policy", num);
                 wf_server_apply_cors(server, conn, mhd_rl);
                 MHD_queue_response(conn, 429, mhd_rl);
                 MHD_destroy_response(mhd_rl);
