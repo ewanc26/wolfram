@@ -61,19 +61,32 @@ typedef wf_status (*wf_xrpc_server_auth_resolve_fn)(const char *did,
 /* Owned configuration                                                 */
 /* ------------------------------------------------------------------ */
 
+/** Per-route principal policy: restrict which credential kinds may authorize
+ *  an NSID prefix. Rules are matched with longest-prefix-wins semantics
+ *  against the request NSID; when several rules match at the same prefix
+ *  length, the first one added wins. A rule whose kind is SERVICE or USER
+ *  also marks its prefix as protected. */
+typedef struct wf_xrpc_server_auth_principal_rule {
+    char *nsid_prefix;   /* owned; exact NSID or `prefix.` sub-namespace */
+    wf_xrpc_principal_kind kind; /* SERVICE, USER, or ANY (no restriction) */
+} wf_xrpc_server_auth_principal_rule;
+
 typedef struct wf_xrpc_server_auth_config {
     char *server_did;          /* owned; this server's DID, used for `aud` checks */
     char *server_origin;       /* owned external origin, used for DPoP `htu` */
     char **protected_nsids;    /* owned array of NSID prefixes requiring auth */
     size_t protected_nsid_count;
+    wf_xrpc_server_auth_principal_rule *principal_rules; /* owned array of
+                                          per-route principal policies */
+    size_t principal_rule_count;
     int    require_aud;        /* non-zero => enforce token `aud` == server_did */
     int    require_lxm;        /* non-zero => enforce token `lxm` == request NSID */
     wf_xrpc_client *resolver_client; /* borrowed; used by default resolver for
-                                         non-did:key DIDs (NULL => did:key only) */
+                                          non-did:key DIDs (NULL => did:key only) */
     wf_xrpc_server_auth_resolve_fn resolver; /* NULL => built-in default resolver */
     void *resolver_ctx;        /* ctx for an injected resolver (borrowed) */
     struct wf_oauth_trusted_keys *trusted_keys; /* optional; OAuth access-token
-                                         verification keys (borrowed, may be NULL) */
+                                          verification keys (borrowed, may be NULL) */
     struct wf_oauth_dpop_replay_cache *replay_cache; /* optional, borrowed */
 } wf_xrpc_server_auth_config;
 
@@ -99,6 +112,21 @@ wf_status wf_xrpc_server_auth_config_set_server_origin(
  *  `prefix + "."`. May be called repeatedly to protect several namespaces. */
 wf_status wf_xrpc_server_auth_config_protect(wf_xrpc_server_auth_config *cfg,
                                              const char *nsid_prefix);
+
+/** Restrict the principal kinds accepted for an NSID prefix — for example
+ *  service-only for `tools.ozone` moderation routes (which must never accept
+ *  OAuth user credentials) or user-only for `app.bsky.feed` routes (which
+ *  must never accept service tokens). `kind` must be WF_XRPC_PRINCIPAL_ANY,
+ *  WF_XRPC_PRINCIPAL_SERVICE, or WF_XRPC_PRINCIPAL_USER. The prefix is copied
+ *  and every matching rule also marks its prefix as protected (an ANY rule
+ *  protects the route while accepting either credential kind — use it to
+ *  override a broader SERVICE or USER rule). Rules are matched
+ *  longest-prefix-wins against the request NSID; when no rule matches, both
+ *  service and user tokens are accepted (the default). May be called
+ *  repeatedly. */
+wf_status wf_xrpc_server_auth_config_require_principal(
+    wf_xrpc_server_auth_config *cfg, const char *nsid_prefix,
+    wf_xrpc_principal_kind kind);
 
 /** Set whether a token's `aud` claim must equal the configured server_did.
  *  Default: on. */
@@ -139,7 +167,8 @@ wf_status wf_xrpc_server_auth_config_set_replay_cache(
  * Attach the auth middleware to `server`.
  *
  * Installs a wf_xrpc_auth_cb that, for each request:
- *   1. allows the request when its NSID is not in the protected set;
+ *   1. allows the request when its NSID is not in the protected set (any
+ *      matching principal rule also protects its prefix);
  *   2. otherwise requires an `Authorization: Bearer <token>` header and:
  *      a. treats the token as an app.bsky service JWT when the issuer's
  *         verification key (resolved from the token's `iss` via the resolver)
@@ -148,10 +177,14 @@ wf_status wf_xrpc_server_auth_config_set_replay_cache(
  *      b. when trusted_keys are configured, verifies it as an OAuth access
  *         token via wf_oauth_verify_bearer (DPoP-capable via
  *         wf_oauth_verify_request when a DPoP header is present).
+ *   Per-route principal rules (wf_xrpc_server_auth_config_require_principal)
+ *   select which of the two credential kinds a route accepts: a SERVICE rule
+ *   rejects OAuth user tokens, a USER rule rejects service tokens, and a
+ *   route with no matching rule (or an ANY rule) accepts either.
  *   On success it sets req->authed_subject (the resolved DID) and
  *   req->authed_principal_kind; the handler reads them. On any failure
- *   (missing token, bad signature, wrong/expired aud/lxm) the request is
- *   denied with 401.
+ *   (missing token, bad signature, wrong/expired aud/lxm, disallowed
+ *   principal kind) the request is denied with 401.
  *
  * The server takes ownership of the middleware's internal copy of `cfg` and
  * frees it in wf_xrpc_server_free. Passing NULL `cfg` is an error.
