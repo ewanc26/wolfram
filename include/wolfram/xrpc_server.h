@@ -43,6 +43,8 @@ typedef enum {
     WF_XRPC_PRINCIPAL_NONE = 0,
     WF_XRPC_PRINCIPAL_SERVICE,  /* app.bsky service JWT (iss = service DID) */
     WF_XRPC_PRINCIPAL_USER,     /* OAuth/OIDC access token (sub = user DID) */
+    WF_XRPC_PRINCIPAL_ANY,      /* service or user; used by per-route auth
+                                   policies to express "no restriction" */
 } wf_xrpc_principal_kind;
 
 typedef struct wf_xrpc_request {

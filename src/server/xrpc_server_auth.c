@@ -65,6 +65,10 @@ void wf_xrpc_server_auth_config_free(wf_xrpc_server_auth_config *cfg) {
         free(cfg->protected_nsids[i]);
     }
     free(cfg->protected_nsids);
+    for (size_t i = 0; i < cfg->principal_rule_count; i++) {
+        free(cfg->principal_rules[i].nsid_prefix);
+    }
+    free(cfg->principal_rules);
     /* Resolver, OAuth key, and replay-cache objects are borrowed. */
     free(cfg);
 }
@@ -132,6 +136,37 @@ wf_status wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config 
         return WF_ERR_INVALID_ARG;
     }
     cfg->require_aud = require;
+    return WF_OK;
+}
+
+wf_status wf_xrpc_server_auth_config_require_principal(
+    wf_xrpc_server_auth_config *cfg, const char *nsid_prefix,
+    wf_xrpc_principal_kind kind) {
+    wf_xrpc_server_auth_principal_rule *grown;
+    char *copy;
+
+    if (!cfg || !nsid_prefix || nsid_prefix[0] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (kind != WF_XRPC_PRINCIPAL_ANY && kind != WF_XRPC_PRINCIPAL_SERVICE &&
+        kind != WF_XRPC_PRINCIPAL_USER) {
+        return WF_ERR_INVALID_ARG;
+    }
+    copy = strdup(nsid_prefix);
+    if (!copy) {
+        return WF_ERR_ALLOC;
+    }
+    grown = (wf_xrpc_server_auth_principal_rule *)realloc(
+        cfg->principal_rules,
+        (cfg->principal_rule_count + 1) * sizeof(*grown));
+    if (!grown) {
+        free(copy);
+        return WF_ERR_ALLOC;
+    }
+    cfg->principal_rules = grown;
+    cfg->principal_rules[cfg->principal_rule_count].nsid_prefix = copy;
+    cfg->principal_rules[cfg->principal_rule_count].kind = kind;
+    cfg->principal_rule_count++;
     return WF_OK;
 }
 
@@ -203,6 +238,56 @@ static int nsid_protected(const wf_xrpc_server_auth_config *cfg,
         }
     }
     return 0;
+}
+
+/* True when `nsid` is covered by any principal rule (of any kind). An ANY
+ * override rule still marks its route as protected; it only relaxes which
+ * credential kinds are accepted. */
+static int nsid_has_rule(const wf_xrpc_server_auth_config *cfg,
+                         const char *nsid) {
+    if (!nsid || cfg->principal_rule_count == 0) {
+        return 0;
+    }
+    for (size_t i = 0; i < cfg->principal_rule_count; i++) {
+        const char *p = cfg->principal_rules[i].nsid_prefix;
+        size_t pl = p ? strlen(p) : 0;
+        if (pl == 0) {
+            continue;
+        }
+        if (strncmp(nsid, p, pl) == 0 &&
+            (nsid[pl] == '\0' || nsid[pl] == '.')) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* Longest-prefix-wins lookup of the per-route principal policy for `nsid`.
+ * Returns WF_XRPC_PRINCIPAL_ANY (no restriction) when no rule matches; on
+ * equal prefix length the first-added rule wins. */
+static wf_xrpc_principal_kind effective_principal_kind(
+    const wf_xrpc_server_auth_config *cfg, const char *nsid) {
+    size_t best_len = 0;
+    wf_xrpc_principal_kind best = WF_XRPC_PRINCIPAL_ANY;
+
+    if (!nsid || cfg->principal_rule_count == 0) {
+        return WF_XRPC_PRINCIPAL_ANY;
+    }
+    for (size_t i = 0; i < cfg->principal_rule_count; i++) {
+        const char *p = cfg->principal_rules[i].nsid_prefix;
+        size_t pl = p ? strlen(p) : 0;
+        if (pl == 0 || pl < best_len) {
+            continue;
+        }
+        if (strncmp(nsid, p, pl) == 0 &&
+            (nsid[pl] == '\0' || nsid[pl] == '.')) {
+            if (pl > best_len) {
+                best = cfg->principal_rules[i].kind;
+                best_len = pl;
+            }
+        }
+    }
+    return best;
 }
 
 /* Extract the token following a "Bearer " scheme (case-insensitive). */
@@ -359,9 +444,11 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
     wf_service_auth_claims claims = {0};
     wf_status service_status;
     wf_status rc = WF_ERR_INVALID_ARG;
+    wf_xrpc_principal_kind required = effective_principal_kind(cfg, req->nsid);
 
-    /* 1. Unprotected route → allow. */
-    if (!nsid_protected(cfg, req->nsid)) {
+    /* 1. Unprotected route → allow. Any matching principal rule (SERVICE,
+     * USER, or an ANY override) also implies protection. */
+    if (!nsid_protected(cfg, req->nsid) && !nsid_has_rule(cfg, req->nsid)) {
         return WF_OK;
     }
 
@@ -398,6 +485,11 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
         }
     }
     if (service_status == WF_OK) {
+        if (required == WF_XRPC_PRINCIPAL_USER) {
+            /* This route must never accept service tokens; fall through to
+             * user-credential verification instead of admitting the token. */
+            goto oauth;
+        }
         if (cfg->require_aud && cfg->server_did &&
             (!claims.aud || strcmp(claims.aud, cfg->server_did) != 0)) {
             goto done;
@@ -433,6 +525,11 @@ oauth:
                                     cfg->replay_cache, &vt) ==
                 WF_OK &&
             vt->sub) {
+            if (required == WF_XRPC_PRINCIPAL_SERVICE) {
+                /* This route must never accept user credentials. */
+                wf_oauth_verified_token_free(vt);
+                goto done;
+            }
             if (cfg->require_aud && cfg->server_did &&
                 (!vt->aud || !aud_matches(vt->aud, cfg->server_did))) {
                 wf_oauth_verified_token_free(vt);
@@ -475,6 +572,10 @@ static void mw_ctx_free(void *p) {
         free(m->cfg.protected_nsids[i]);
     }
     free(m->cfg.protected_nsids);
+    for (size_t i = 0; i < m->cfg.principal_rule_count; i++) {
+        free(m->cfg.principal_rules[i].nsid_prefix);
+    }
+    free(m->cfg.principal_rules);
     /* Resolver, OAuth key, and replay-cache objects are borrowed. */
     free(m);
 }
@@ -507,6 +608,22 @@ static wf_status mw_ctx_init(mw_ctx *m, const wf_xrpc_server_auth_config *src) {
                 return WF_ERR_ALLOC;
             }
             m->cfg.protected_nsid_count++;
+        }
+    }
+    if (src->principal_rule_count) {
+        m->cfg.principal_rules = (wf_xrpc_server_auth_principal_rule *)calloc(
+            src->principal_rule_count, sizeof(*m->cfg.principal_rules));
+        if (!m->cfg.principal_rules) {
+            return WF_ERR_ALLOC;
+        }
+        for (size_t i = 0; i < src->principal_rule_count; i++) {
+            m->cfg.principal_rules[i].nsid_prefix =
+                strdup(src->principal_rules[i].nsid_prefix);
+            if (!m->cfg.principal_rules[i].nsid_prefix) {
+                return WF_ERR_ALLOC;
+            }
+            m->cfg.principal_rules[i].kind = src->principal_rules[i].kind;
+            m->cfg.principal_rule_count++;
         }
     }
 

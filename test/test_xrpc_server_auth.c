@@ -181,6 +181,84 @@ done:
     return jwt;
 }
 
+/* Mint an app.bsky service JWT for the given issuer/aud/lxm. */
+static char *mint_service_token(const char *iss, const char *aud,
+                                const char *lxm, const wf_signing_key *key) {
+    wf_service_auth_request req = {0};
+    char *t = NULL;
+    req.iss = iss;
+    req.aud = aud;
+    req.lxm = lxm;
+    if (wf_server_create_service_auth(&req, key, &t) != WF_OK) {
+        return NULL;
+    }
+    return t;
+}
+
+/* GET /xrpc/<nsid> with a fresh DPoP-bound OAuth access token. Returns the
+ * HTTP status (or -1 on proof/transport failure) and, when `out` is non-NULL,
+ * moves the response there (the caller frees it). */
+static int oauth_get(wf_xrpc_client *client, const char *base_url,
+                     const char *nsid, const char *oauth_token,
+                     wf_oauth_dpop_key *dpop_key, const char *jti,
+                     wf_response *out) {
+    char url[256];
+    wf_oauth_dpop_proof_options opts;
+    char *proof = NULL;
+    char *auth = NULL;
+    wf_response res = {0};
+    wf_http_header headers[2];
+    int status;
+
+    snprintf(url, sizeof(url), "%s/xrpc/%s", base_url, nsid);
+    memset(&opts, 0, sizeof(opts));
+    opts.http_method = "GET";
+    opts.http_uri = url;
+    opts.access_token = oauth_token;
+    opts.jti = jti;
+    if (wf_oauth_dpop_proof_create(dpop_key, &opts, &proof) != WF_OK) {
+        return -1;
+    }
+    auth = malloc(strlen(oauth_token) + 6);
+    if (!auth) {
+        free(proof);
+        return -1;
+    }
+    snprintf(auth, strlen(oauth_token) + 6, "DPoP %s", oauth_token);
+    headers[0].name = "Authorization";
+    headers[0].value = auth;
+    headers[1].name = "DPoP";
+    headers[1].value = proof;
+    wf_xrpc_client_set_auth(client, NULL);
+    wf_http_get_with_headers(client, url, headers, 2, &res);
+    /* The HTTP status is meaningful even when a non-2xx response makes the
+     * call return an error; only a transport-level failure leaves it at 0. */
+    status = res.status > 0 ? (int)res.status : -1;
+    free(proof);
+    free(auth);
+    if (out) {
+        *out = res;
+    } else {
+        wf_response_free(&res);
+    }
+    return status;
+}
+
+/* Principal kind echoed by protected_handler in the response body, or -1. */
+static int body_principal_kind(const wf_response *res) {
+    cJSON *root = cJSON_ParseWithLength(res->body, res->body_len);
+    cJSON *kind;
+    int k = -1;
+    if (root) {
+        kind = cJSON_GetObjectItemCaseSensitive(root, "kind");
+        if (kind && cJSON_IsNumber(kind)) {
+            k = (int)kind->valuedouble;
+        }
+        cJSON_Delete(root);
+    }
+    return k;
+}
+
 /* ------------------------------------------------------------------ */
 /* Test                                                                */
 /* ------------------------------------------------------------------ */
@@ -703,10 +781,224 @@ cleanup_keys:
     return 1;
 }
 
+/* Drives the per-route principal policies (wf_xrpc_server_auth_config_require_principal):
+ * service-only routes reject OAuth user credentials, user-only routes reject
+ * service tokens, an ANY rule overrides a broader SERVICE rule
+ * (longest-prefix wins), and a policy rule implies protection. */
+static int run_principal_policy_test(void) {
+    const char *service_only_nsid = "tools.ozone.moderation.queryStatuses";
+    const char *overridden_nsid = "tools.ozone.moderation.queryEvents";
+    const char *user_only_nsid = "app.bsky.feed.getFeedSkeleton";
+    const char *both_nsid = "app.bsky.graph.getBlocks";
+
+    wf_xrpc_server *server = NULL;
+    wf_xrpc_client *client = NULL;
+    wf_response res = {0};
+    char *issuer_didkey = NULL;
+    char *server_did = NULL;
+    char *oauth_jwk = NULL;
+    char *oauth_token = NULL;
+    wf_oauth_dpop_key *dpop_key = NULL;
+    wf_oauth_trusted_keys *trusted_keys = NULL;
+    wf_oauth_dpop_replay_cache *replay_cache = NULL;
+    wf_signing_key issuer_key = {0};
+    wf_signing_key server_key = {0};
+    wf_signing_key oauth_key = {0};
+    char dpop_jkt[44] = {0};
+    int failures = 0;
+
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &issuer_key) == WF_OK);
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &server_key) == WF_OK);
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &oauth_key) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&issuer_key, &issuer_didkey) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&server_key, &server_did) == WF_OK);
+
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    WF_CHECK(server != NULL);
+    if (!server) {
+        goto cleanup_keys;
+    }
+    uint16_t port = wf_xrpc_server_port(server);
+    WF_CHECK(port != 0);
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
+
+    const char *routes[] = {service_only_nsid, overridden_nsid,
+                            user_only_nsid, both_nsid};
+    for (size_t i = 0; i < 4; i++) {
+        WF_CHECK(wf_xrpc_server_register_query(server, routes[i],
+                                               protected_handler, NULL) ==
+                 WF_OK);
+    }
+
+    oauth_jwk = oauth_access_jwk(&oauth_key);
+    WF_CHECK(oauth_jwk != NULL);
+    WF_CHECK(wf_oauth_trusted_keys_new(&trusted_keys) == WF_OK);
+    WF_CHECK(wf_oauth_trusted_keys_add_jwk(trusted_keys, oauth_jwk) == WF_OK);
+    WF_CHECK(wf_oauth_dpop_replay_cache_new(&replay_cache) == WF_OK);
+    WF_CHECK(wf_oauth_dpop_key_generate(&dpop_key) == WF_OK);
+    WF_CHECK(wf_oauth_dpop_key_thumbprint(dpop_key, dpop_jkt) == WF_OK);
+    oauth_token = oauth_access_token(&oauth_key, "did:plc:oauth-user",
+                                     server_did, dpop_jkt);
+    WF_CHECK(oauth_token != NULL);
+
+    wf_xrpc_server_auth_config *cfg = NULL;
+    WF_CHECK(wf_xrpc_server_auth_config_new(&cfg) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_did(cfg, server_did) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_origin(cfg, base_url) ==
+             WF_OK);
+    /* tools.ozone.moderation.* is service-only, but queryEvents is overridden
+     * back to ANY. getFeedSkeleton is user-only. getBlocks is protected with
+     * no policy (both accepted). */
+    WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                 cfg, "tools.ozone.moderation", WF_XRPC_PRINCIPAL_SERVICE) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                 cfg, "tools.ozone.moderation.queryEvents",
+                 WF_XRPC_PRINCIPAL_ANY) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                 cfg, user_only_nsid, WF_XRPC_PRINCIPAL_USER) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_protect(cfg, both_nsid) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_trusted_keys(cfg, trusted_keys) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_replay_cache(cfg, replay_cache) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_set_auth_middleware(server, cfg) == WF_OK);
+    wf_xrpc_server_auth_config_free(cfg);
+    cfg = NULL;
+
+    client = wf_xrpc_client_new(base_url);
+    WF_CHECK(client != NULL);
+    if (!client) {
+        goto cleanup_server;
+    }
+
+    #define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
+
+    /* ---- 1. Service-only rule implies protection: no token → 401 ---- */
+    {
+        SET_AUTH(NULL);
+        wf_response_free(&res);
+        wf_xrpc_query(client, service_only_nsid, NULL, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+    }
+
+    /* ---- 2. Service-only route: service token → 200 SERVICE; user → 401 ---- */
+    {
+        char *tok = mint_service_token(issuer_didkey, server_did,
+                                       service_only_nsid, &issuer_key);
+        WF_CHECK(tok != NULL);
+        SET_AUTH(tok);
+        wf_response_free(&res);
+        WF_CHECK(wf_xrpc_query(client, service_only_nsid, NULL, &res) == WF_OK);
+        WF_CHECK(res.status == 200);
+        WF_CHECK(body_principal_kind(&res) == (int)WF_XRPC_PRINCIPAL_SERVICE);
+        wf_response_free(&res);
+        WF_CHECK(oauth_get(client, base_url, service_only_nsid, oauth_token,
+                           dpop_key, "policy-svc-user-1", NULL) == 401);
+        free(tok);
+    }
+
+    /* ---- 3. ANY rule overrides the broad SERVICE rule: user token OK ---- */
+    {
+        wf_response r2 = {0};
+        WF_CHECK(oauth_get(client, base_url, overridden_nsid, oauth_token,
+                           dpop_key, "policy-override-1", &r2) == 200);
+        WF_CHECK(body_principal_kind(&r2) == (int)WF_XRPC_PRINCIPAL_USER);
+        wf_response_free(&r2);
+        char *tok = mint_service_token(issuer_didkey, server_did,
+                                       overridden_nsid, &issuer_key);
+        WF_CHECK(tok != NULL);
+        SET_AUTH(tok);
+        wf_response_free(&res);
+        WF_CHECK(wf_xrpc_query(client, overridden_nsid, NULL, &res) == WF_OK);
+        WF_CHECK(res.status == 200);
+        wf_response_free(&res);
+        free(tok);
+    }
+
+    /* ---- 4. User-only route: user → 200 USER; service → 401 ---- */
+    {
+        wf_response r2 = {0};
+        WF_CHECK(oauth_get(client, base_url, user_only_nsid, oauth_token,
+                           dpop_key, "policy-user-svc-1", &r2) == 200);
+        WF_CHECK(body_principal_kind(&r2) == (int)WF_XRPC_PRINCIPAL_USER);
+        wf_response_free(&r2);
+        char *tok = mint_service_token(issuer_didkey, server_did,
+                                       user_only_nsid, &issuer_key);
+        WF_CHECK(tok != NULL);
+        SET_AUTH(tok);
+        wf_response_free(&res);
+        wf_xrpc_query(client, user_only_nsid, NULL, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+        free(tok);
+    }
+
+    /* ---- 5. Protected route with no policy: both service and user OK ---- */
+    {
+        char *tok = mint_service_token(issuer_didkey, server_did, both_nsid,
+                                       &issuer_key);
+        WF_CHECK(tok != NULL);
+        SET_AUTH(tok);
+        wf_response_free(&res);
+        WF_CHECK(wf_xrpc_query(client, both_nsid, NULL, &res) == WF_OK);
+        WF_CHECK(res.status == 200);
+        wf_response_free(&res);
+        free(tok);
+        wf_response r2 = {0};
+        WF_CHECK(oauth_get(client, base_url, both_nsid, oauth_token, dpop_key,
+                           "policy-both-user-1", &r2) == 200);
+        WF_CHECK(body_principal_kind(&r2) == (int)WF_XRPC_PRINCIPAL_USER);
+        wf_response_free(&r2);
+    }
+
+    /* ---- 6. Argument validation ---- */
+    {
+        wf_xrpc_server_auth_config *c2 = NULL;
+        WF_CHECK(wf_xrpc_server_auth_config_new(&c2) == WF_OK);
+        WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                     c2, NULL, WF_XRPC_PRINCIPAL_SERVICE) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                     c2, "", WF_XRPC_PRINCIPAL_USER) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                     c2, "a.b", WF_XRPC_PRINCIPAL_NONE) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_server_auth_config_require_principal(
+                     c2, "a.b", (wf_xrpc_principal_kind)99) ==
+                 WF_ERR_INVALID_ARG);
+        wf_xrpc_server_auth_config_free(c2);
+    }
+
+    #undef SET_AUTH
+
+cleanup_server:
+    wf_xrpc_client_free(client);
+    wf_xrpc_server_free(server);
+cleanup_keys:
+    free(issuer_didkey);
+    free(server_did);
+    free(oauth_jwk);
+    free(oauth_token);
+    wf_oauth_dpop_key_free(dpop_key);
+    wf_oauth_trusted_keys_free(trusted_keys);
+    wf_oauth_dpop_replay_cache_free(replay_cache);
+
+    if (failures == 0) {
+        printf("PASS: XRPC server auth per-route principal policies\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int rc = run_test();
     WF_CHECK(rc == 0);
     rc = run_labeler_test();
+    WF_CHECK(rc == 0);
+    rc = run_principal_policy_test();
     WF_CHECK(rc == 0);
     WF_TEST_SUMMARY();
 }
