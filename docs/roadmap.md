@@ -410,11 +410,17 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   rule guards routes that must never accept service tokens, and an ANY rule
   overrides a broader rule (longest-prefix wins; any matching rule also
   protects its prefix).
-- The blob store (item 58) is a minimal, correct foundation. Follow-ups include
-  wiring it into the full PDS write path (tracking blobs against records so
-  untethered blobs can be garbage-collected), optional at-rest encryption of
-  stored bytes (analogous to `WOLFRAM_BUILD_STORE_CRYPTO`), and size/type
-  limits enforced at `uploadBlob` per the lexicon.
+- The blob store (item 58) is wired into the full PDS write path in
+  MetalBear: `metalbear_blob_store_associate`/`_dissociate`/
+  `_is_referenced` track which record URIs reference each blob, and
+  createRecord/putRecord/deleteRecord/applyWrites keep that bookkeeping
+  current, deleting a blob outright the moment no record references it
+  (mirroring the reference PDS's `record_blob` + `deleteDereferencedBlobs`).
+  See the MetalBear repository's `blob_store.h`/`repo_store.c` and its
+  AGENTS.md "Repo writes" section for the same-CID-across-replacement
+  invariant. Remaining follow-ups: optional at-rest encryption of stored
+  bytes (analogous to `WOLFRAM_BUILD_STORE_CRYPTO`), and size/type limits
+  enforced at `uploadBlob` per the lexicon.
 - `app.bsky.notification.putPreferencesV2` and `getPreferences` share the
   fully typed 13-slot `defs#preferences` representation. The legacy v1
   `putPreferences` endpoint carries only its required `priority` boolean;
