@@ -8,9 +8,13 @@
 #include "wolfram/xrpc.h"
 #include "wolfram/xrpc_server.h"
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 /* ------------------------------------------------------------------ */
@@ -962,6 +966,155 @@ static int test_request_client_ip(void) {
     return 1;
 }
 
+/* wf_xrpc_client's wf_response only surfaces a few named headers
+ * (dpop_nonce, set_cookie, location) — none of the ones under test here —
+ * so this drives a raw socket instead of the client library. */
+static int raw_post_headers(uint16_t port, const char *nsid,
+                            char *out, size_t out_cap) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    struct sockaddr_in addr = {0};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        close(fd);
+        return -1;
+    }
+    char req[256];
+    int n = snprintf(req, sizeof(req),
+                     "POST /xrpc/%s HTTP/1.1\r\n"
+                     "Host: 127.0.0.1:%u\r\n"
+                     "Content-Type: application/json\r\n"
+                     "Content-Length: 2\r\n"
+                     "Connection: close\r\n"
+                     "\r\n{}",
+                     nsid, (unsigned)port);
+    if (write(fd, req, (size_t)n) != n) {
+        close(fd);
+        return -1;
+    }
+    size_t used = 0;
+    for (;;) {
+        struct pollfd pfd = {fd, POLLIN, 0};
+        if (poll(&pfd, 1, 3000) <= 0) break;
+        if (used + 1 >= out_cap) break;
+        ssize_t r = read(fd, out + used, out_cap - 1 - used);
+        if (r <= 0) break;
+        used += (size_t)r;
+    }
+    out[used] = '\0';
+    close(fd);
+    return 0;
+}
+
+/* Returns 1 and fills `out` on a match, 0 otherwise. Not a shared static
+ * buffer — a caller checking several headers from the same response needs
+ * each value to survive past the next call. */
+static int find_header(const char *raw, const char *name, char *out,
+                       size_t out_cap) {
+    char prefix[48];
+    snprintf(prefix, sizeof(prefix), "\r\n%s:", name);
+    const char *p = strstr(raw, prefix);
+    if (!p) return 0;
+    p += strlen(prefix);
+    while (*p == ' ') p++;
+    const char *end = strstr(p, "\r\n");
+    if (!end) return 0;
+    size_t len = (size_t)(end - p);
+    if (len >= out_cap) len = out_cap - 1;
+    memcpy(out, p, len);
+    out[len] = '\0';
+    return 1;
+}
+
+/*
+ * A 429 response must carry RateLimit-Limit/Remaining/Reset/Policy in
+ * addition to Retry-After, matching the reference PDS's
+ * rate-limiter-http.ts setStatusHeaders exactly — a well-behaved client
+ * checks these to back off before it ever gets rate limited, not only
+ * after.
+ */
+static int test_rate_limit_headers(void) {
+    wf_xrpc_server *server;
+    wf_rate_limiter *rl;
+    int failures = 0;
+
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    if (!server) {
+        fprintf(stderr, "FAIL: rate limit headers start\n");
+        return 1;
+    }
+    /* A procedure (POST), not test_query_handler's GET-only ping — this
+     * test drives raw POST requests. */
+    if (wf_xrpc_server_register_procedure(server, "io.example.pong",
+                                          test_pong_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: rate limit headers register\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+    rl = wf_rate_limiter_new(1, 60, 0); /* 1 token: the 2nd request is limited */
+    wf_xrpc_server_set_rate_limiter(server, rl);
+
+    uint16_t port = wf_xrpc_server_port(server);
+    char raw[2048];
+
+    /* First request consumes the only token — no assertion needed, just
+     * getting the bucket into the state the 2nd request needs. */
+    raw_post_headers(port, "io.example.pong", raw, sizeof(raw));
+
+    if (raw_post_headers(port, "io.example.pong", raw, sizeof(raw)) != 0) {
+        fprintf(stderr, "FAIL: rate limit headers request\n");
+        failures++;
+    } else {
+        if (!strstr(raw, "429")) {
+            fprintf(stderr, "FAIL: expected 429, got: %.60s\n", raw);
+            failures++;
+        }
+        char limit[32], remaining[32], reset[32], policy[32], retry[32];
+        int has_limit = find_header(raw, "RateLimit-Limit", limit, sizeof(limit));
+        int has_remaining = find_header(raw, "RateLimit-Remaining", remaining,
+                                        sizeof(remaining));
+        int has_reset = find_header(raw, "RateLimit-Reset", reset, sizeof(reset));
+        int has_policy = find_header(raw, "RateLimit-Policy", policy,
+                                     sizeof(policy));
+        int has_retry = find_header(raw, "Retry-After", retry, sizeof(retry));
+
+        if (!has_limit || strcmp(limit, "1") != 0) {
+            fprintf(stderr, "FAIL: RateLimit-Limit = %s, want 1\n",
+                    has_limit ? limit : "(missing)");
+            failures++;
+        }
+        if (!has_remaining || strcmp(remaining, "0") != 0) {
+            fprintf(stderr, "FAIL: RateLimit-Remaining = %s, want 0\n",
+                    has_remaining ? remaining : "(missing)");
+            failures++;
+        }
+        if (!has_reset) {
+            fprintf(stderr, "FAIL: RateLimit-Reset missing\n");
+            failures++;
+        }
+        if (!has_policy || strcmp(policy, "1;w=60") != 0) {
+            fprintf(stderr, "FAIL: RateLimit-Policy = %s, want \"1;w=60\"\n",
+                    has_policy ? policy : "(missing)");
+            failures++;
+        }
+        if (!has_retry) {
+            fprintf(stderr, "FAIL: Retry-After missing\n");
+            failures++;
+        }
+    }
+
+    wf_xrpc_server_free(server);
+    wf_rate_limiter_free(rl);
+
+    if (failures == 0) {
+        printf("PASS: rate limit headers on 429\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int failures = 0;
 
@@ -971,6 +1124,7 @@ int main(void) {
     failures += test_server_rate_limit();
     failures += test_server_route_rate_limit();
     failures += test_request_client_ip();
+    failures += test_rate_limit_headers();
 
     return failures;
 }
