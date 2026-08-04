@@ -111,7 +111,7 @@ int wf_syntax_did_is_valid(const char *did) {
     for (i = msid_start; i < len; i++) {
         unsigned char c = static_cast<unsigned char>(did[i]);
         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-            (c >= '0' && c <= '9') || c == '.' || c == '-') {
+            (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_') {
             continue;
         }
         if (c == ':') {
