@@ -769,6 +769,126 @@ static int test_server_rate_limit(void) {
     return 1;
 }
 
+/* Any request that reaches this handler at all was not rejected by a rate
+ * limiter — used to prove pong's requests get past ping's route-specific
+ * bucket, independent of what test_query_handler would otherwise say about
+ * an nsid it doesn't recognise. */
+static wf_status test_pong_handler(void *ctx, const wf_xrpc_request *req,
+                                   wf_xrpc_response *resp) {
+    (void)ctx;
+    (void)req;
+    wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
+    return WF_OK;
+}
+
+/*
+ * wf_xrpc_server_set_route_rate_limiter attaches a limiter to an exact
+ * method+url, replacing the global one for that route only (the doc
+ * comment's "defaults to IP-based limiter if none set"). The route's own
+ * limiter must actually be enforced, and a different route with no
+ * route-specific limiter must fall through to the (looser) global one
+ * rather than being caught by the strict one meant for someone else's
+ * endpoint.
+ */
+static int test_server_route_rate_limit(void) {
+    wf_xrpc_server *server;
+    wf_xrpc_client *client;
+    wf_rate_limiter *global_rl;
+    wf_rate_limiter *route_rl;
+    wf_response res = {0};
+    int failures = 0;
+
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    if (!server) {
+        fprintf(stderr, "FAIL: route rate limit start\n");
+        return 1;
+    }
+    if (wf_xrpc_server_register_query(server, "io.example.ping",
+                                       test_query_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: route rate limit register ping\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+    if (wf_xrpc_server_register_query(server, "io.example.pong",
+                                       test_pong_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: route rate limit register pong\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+
+    /* A generous global budget, and a strict route-specific one attached to
+     * ping only: 1 token, 60s window. */
+    global_rl = wf_rate_limiter_new(100, 60, 0);
+    wf_xrpc_server_set_rate_limiter(server, global_rl);
+    route_rl = wf_rate_limiter_new(1, 60, 0);
+    wf_xrpc_server_set_route_rate_limiter(server, "GET",
+                                          "/xrpc/io.example.ping", route_rl);
+
+    uint16_t port = wf_xrpc_server_port(server);
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
+    client = wf_xrpc_client_new(base_url);
+    if (!client) {
+        fprintf(stderr, "FAIL: route rate limit client\n");
+        wf_xrpc_server_free(server);
+        wf_rate_limiter_free(global_rl);
+        return 1;
+    }
+
+    wf_status s;
+    wf_xrpc_param params[] = {{"msg", "ok"}};
+
+    /* ping's 1-token bucket: first request succeeds. */
+    s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
+    if (s != WF_OK || res.status != 200) {
+        fprintf(stderr, "FAIL: route rate limit ping req 1: status=%d http=%ld\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    /* ...second is rejected by the ROUTE limiter, despite the global budget
+     * of 100 having plenty left — proving the route-specific limiter is the
+     * one actually consulted, not silently ignored. */
+    s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
+    if (s != WF_ERR_HTTP || res.status != 429) {
+        fprintf(stderr,
+                "FAIL: route rate limit ping req 2: expected 429 (route "
+                "limiter should have fired), got status=%d http=%ld\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    /* pong has no route-specific limiter, so it falls through to the global
+     * 100-token budget — and must not be caught by ping's exhausted
+     * 1-token route bucket, which would mean routes weren't actually being
+     * distinguished. */
+    for (int i = 0; i < 5; i++) {
+        s = wf_xrpc_query_params(client, "io.example.pong", params, 1, &res);
+        if (s != WF_OK || res.status != 200) {
+            fprintf(stderr,
+                    "FAIL: route rate limit pong req %d: status=%d http=%ld "
+                    "(a route limiter meant for a different endpoint leaked)\n",
+                    i + 1, (int)s, res.status);
+            failures++;
+            wf_response_free(&res);
+            break;
+        }
+        wf_response_free(&res);
+    }
+
+    wf_xrpc_client_free(client);
+    wf_xrpc_server_free(server);
+    wf_rate_limiter_free(global_rl);
+
+    if (failures == 0) {
+        printf("PASS: route-specific rate limit\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int failures = 0;
 
@@ -776,6 +896,7 @@ int main(void) {
     failures += test_rate_limiter_basic();
     failures += test_rate_limiter_refill();
     failures += test_server_rate_limit();
+    failures += test_server_route_rate_limit();
 
     return failures;
 }
