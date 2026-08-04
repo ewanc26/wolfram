@@ -43,10 +43,15 @@ extern "C" {
  *
  * The built-in default resolver handles `did:key:` locally (no network) and,
  * for other methods, defers to an optional wf_xrpc_client supplied via the
- * config (wf_did_resolve). Callers may inject a custom resolver to avoid the
- * network entirely or to use a cached directory. The middleware may call the
- * resolver a second time after signature verification fails, allowing the
- * callback to refresh a stale cached signing key after issuer key rotation.
+ * config (wf_did_resolve_verification_key). The issuer string is passed
+ * through to the resolver as-is and may carry a service fragment
+ * (`iss#atproto_labeler`); the default resolver strips it and selects the
+ * matching verification method (`#atproto_label` for `atproto_labeler`,
+ * `#atproto` otherwise), mirroring upstream verifyServiceJwt. Callers may
+ * inject a custom resolver to avoid the network entirely or to use a cached
+ * directory. The middleware may call the resolver a second time after
+ * signature verification fails, allowing the callback to refresh a stale
+ * cached signing key after issuer key rotation.
  */
 typedef wf_status (*wf_xrpc_server_auth_resolve_fn)(const char *did,
                                                     char **out_didkey,

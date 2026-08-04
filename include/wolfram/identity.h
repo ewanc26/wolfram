@@ -74,6 +74,19 @@ wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
                                         const char *service_type,
                                         char **out_endpoint);
 
+/* Resolve a verification method by its canonical fragment (for example
+ * "#atproto" or "#atproto_label") and return its key normalized to
+ * `did:key:z...` form. Relative (`#fragment`) and absolute (`did#fragment`)
+ * ids in the DID document are accepted; the method must carry both a `type`
+ * and a `publicKeyMultibase`. Unknown methods and unsupported key material
+ * return WF_ERR_NOT_FOUND (matching the reference getVerificationMaterial
+ * semantics). On WF_OK, `*out_didkey` is heap-allocated and owned by the
+ * caller (free()). */
+wf_status wf_did_resolve_verification_key(wf_xrpc_client *client,
+                                          const char *did,
+                                          const char *key_id,
+                                          char **out_didkey);
+
 /**
  * Parse a DID document from its JSON representation.
  *
