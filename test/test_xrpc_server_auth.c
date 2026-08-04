@@ -76,6 +76,35 @@ static wf_status rotating_resolver(const char *did, char **out_didkey,
     return *out_didkey ? WF_OK : WF_ERR_ALLOC;
 }
 
+/* Canned issuer DID document (built at runtime from generated keys) served by
+ * the resolver client, so the default resolver runs without network I/O. */
+static const char *g_labeler_doc = NULL;
+
+static wf_status labeler_doc_handler(void *userdata, const char *method,
+                                     const char *url, const char *content_type,
+                                     const char *body, size_t body_len,
+                                     const wf_http_header *headers,
+                                     size_t header_count, wf_response *out) {
+    (void)userdata;
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+
+    size_t len = strlen(g_labeler_doc);
+    out->body = malloc(len + 1);
+    if (!out->body) {
+        return WF_ERR_ALLOC;
+    }
+    memcpy(out->body, g_labeler_doc, len + 1);
+    out->body_len = len;
+    out->status = 200;
+    return WF_OK;
+}
+
 static char *oauth_access_jwk(const wf_signing_key *key) {
     char *didkey = NULL, *x_b64 = NULL, *y_b64 = NULL, *json = NULL;
     unsigned char *raw = NULL, x[32], y[32];
@@ -493,8 +522,191 @@ cleanup_keys:
     return 1;
 }
 
+/* Drives the default resolver's fragment-based key selection against a canned
+ * issuer DID document: `iss#atproto_labeler` must resolve the `#atproto_label`
+ * verification method, and a bare issuer must resolve `#atproto`. */
+static int run_labeler_test(void) {
+    const char *protected_nsid = "com.atproto.label.queryLabels";
+    wf_xrpc_server *server = NULL;
+    wf_xrpc_client *client = NULL;
+    wf_xrpc_client *resolver_client = NULL;
+    wf_response res = {0};
+    char *atproto_token = NULL, *labeler_token = NULL, *wrong_key_token = NULL;
+    char *server_did = NULL, *atproto_didkey = NULL, *label_didkey = NULL;
+    char *labeler_doc = NULL;
+    int failures = 0;
+
+    wf_signing_key atproto_key = {0};
+    wf_signing_key label_key = {0};
+    wf_signing_key server_key = {0};
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &atproto_key) == WF_OK);
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &label_key) == WF_OK);
+    WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &server_key) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&atproto_key, &atproto_didkey) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&label_key, &label_didkey) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&server_key, &server_did) == WF_OK);
+
+    /* Build the canned DID document; publicKeyMultibase is the did:key tail. */
+    {
+        const char *atproto_mb = atproto_didkey + strlen("did:key:");
+        const char *label_mb = label_didkey + strlen("did:key:");
+        size_t len = 512 + strlen(atproto_mb) + strlen(label_mb);
+        labeler_doc = malloc(len);
+        WF_CHECK(labeler_doc != NULL);
+        if (labeler_doc) {
+            snprintf(labeler_doc, len,
+                     "{\"@context\":\"https://www.w3.org/ns/did/v1\","
+                     "\"id\":\"did:plc:labeler\",\"verificationMethod\":["
+                     "{\"id\":\"did:plc:labeler#atproto\",\"type\":\"Multikey\","
+                     "\"controller\":\"did:plc:labeler\",\"publicKeyMultibase\":\"%s\"},"
+                     "{\"id\":\"did:plc:labeler#atproto_label\",\"type\":\"Multikey\","
+                     "\"controller\":\"did:plc:labeler\",\"publicKeyMultibase\":\"%s\"}"
+                     "]}", atproto_mb, label_mb);
+        }
+    }
+    g_labeler_doc = labeler_doc;
+
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    WF_CHECK(server != NULL);
+    if (!server) {
+        goto cleanup_keys;
+    }
+    uint16_t port = wf_xrpc_server_port(server);
+    WF_CHECK(port != 0);
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
+
+    WF_CHECK(wf_xrpc_server_register_query(server, protected_nsid,
+                                           protected_handler, NULL) == WF_OK);
+
+    resolver_client = wf_xrpc_client_new("https://example.invalid");
+    WF_CHECK(resolver_client != NULL);
+    if (!resolver_client) {
+        goto cleanup_server;
+    }
+    wf_xrpc_set_handler(resolver_client, labeler_doc_handler, NULL);
+
+    wf_xrpc_server_auth_config *cfg = NULL;
+    WF_CHECK(wf_xrpc_server_auth_config_new(&cfg) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_did(cfg, server_did) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_origin(cfg, base_url) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_protect(cfg, protected_nsid) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_resolver_client(cfg,
+                                                            resolver_client) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_set_auth_middleware(server, cfg) == WF_OK);
+    wf_xrpc_server_auth_config_free(cfg);
+    cfg = NULL;
+
+    client = wf_xrpc_client_new(base_url);
+    WF_CHECK(client != NULL);
+    if (!client) {
+        goto cleanup_middleware;
+    }
+
+    /* Mint service tokens: bare issuer, labeler-fragment issuer signed by the
+     * labeler key, and labeler-fragment issuer signed by the WRONG (repo) key. */
+    {
+        wf_service_auth_request req = {0};
+        req.iss = "did:plc:labeler";
+        req.aud = server_did;
+        req.lxm = protected_nsid;
+        WF_CHECK(wf_server_create_service_auth(&req, &atproto_key,
+                                               &atproto_token) == WF_OK);
+    }
+    {
+        wf_service_auth_request req = {0};
+        req.iss = "did:plc:labeler#atproto_labeler";
+        req.aud = server_did;
+        req.lxm = protected_nsid;
+        WF_CHECK(wf_server_create_service_auth(&req, &label_key,
+                                               &labeler_token) == WF_OK);
+    }
+    {
+        wf_service_auth_request req = {0};
+        req.iss = "did:plc:labeler#atproto_labeler";
+        req.aud = server_did;
+        req.lxm = protected_nsid;
+        WF_CHECK(wf_server_create_service_auth(&req, &atproto_key,
+                                               &wrong_key_token) == WF_OK);
+    }
+
+    #define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
+
+    /* 1. Bare issuer resolves to #atproto → 200. */
+    {
+        SET_AUTH(atproto_token);
+        wf_response_free(&res);
+        wf_status s = wf_xrpc_query(client, protected_nsid, NULL, &res);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(res.status == 200);
+        wf_response_free(&res);
+    }
+
+    /* 2. `iss#atproto_labeler` resolves to #atproto_label → 200. */
+    {
+        SET_AUTH(labeler_token);
+        wf_response_free(&res);
+        wf_status s = wf_xrpc_query(client, protected_nsid, NULL, &res);
+        WF_CHECK(s == WF_OK);
+        WF_CHECK(res.status == 200);
+        wf_response_free(&res);
+    }
+
+    /* 3. Labeler issuer signed with the repo key → 401 (key selection). */
+    {
+        SET_AUTH(wrong_key_token);
+        wf_response_free(&res);
+        wf_xrpc_query(client, protected_nsid, NULL, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+    }
+
+    /* 4. Labeler issuer, wrong audience → 401. */
+    {
+        SET_AUTH(NULL);
+        wf_response_free(&res);
+        wf_service_auth_request req = {0};
+        req.iss = "did:plc:labeler#atproto_labeler";
+        req.aud = "did:web:someone-else.example.com";
+        req.lxm = protected_nsid;
+        char *bad_aud = NULL;
+        WF_CHECK(wf_server_create_service_auth(&req, &label_key, &bad_aud) ==
+                 WF_OK);
+        SET_AUTH(bad_aud);
+        wf_xrpc_query(client, protected_nsid, NULL, &res);
+        WF_CHECK(res.status == 401);
+        wf_response_free(&res);
+        free(bad_aud);
+    }
+
+    #undef SET_AUTH
+
+cleanup_middleware:
+    wf_xrpc_client_free(client);
+cleanup_server:
+    wf_xrpc_server_free(server);
+    wf_xrpc_client_free(resolver_client);
+cleanup_keys:
+    free(server_did);
+    free(atproto_didkey);
+    free(label_didkey);
+    free(labeler_doc);
+    free(atproto_token);
+    free(labeler_token);
+    free(wrong_key_token);
+
+    if (failures == 0) {
+        printf("PASS: XRPC server auth labeler-issuer key resolution\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int rc = run_test();
+    WF_CHECK(rc == 0);
+    rc = run_labeler_test();
     WF_CHECK(rc == 0);
     WF_TEST_SUMMARY();
 }

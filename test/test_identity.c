@@ -530,6 +530,92 @@ int main(void) {
     WF_CHECK(doc3.signing_key == NULL);
     wf_did_document_free(&doc3);
 
+    /* --- wf_did_resolve_verification_key (fragment-based key selection) --- */
+    {
+        char *vk = NULL;
+
+        /* Argument validation. */
+        WF_CHECK(wf_did_resolve_verification_key(NULL, "did:plc:chatdid",
+                                                 "#atproto", &vk) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve_verification_key(client, NULL, "#atproto",
+                                                 &vk) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 NULL, &vk) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "atproto", &vk) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto", NULL) ==
+                 WF_ERR_INVALID_ARG);
+
+        /* #atproto is picked up by fragment and by absolute id. */
+        g_did_doc =
+            "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+            "{\"id\":\"did:plc:chatdid#atproto\",\"controller\":"
+            "\"did:plc:chatdid\",\"type\":\"Multikey\",\"publicKeyMultibase\":"
+            "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto", &vk) == WF_OK);
+        WF_CHECK(vk && strcmp(vk,
+                "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+        free(vk);
+        vk = NULL;
+
+        /* A labeler document exposes its dedicated #atproto_label key. */
+        g_did_doc =
+            "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+            "{\"id\":\"#atproto\",\"controller\":\"did:plc:chatdid\","
+            "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+            "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"},"
+            "{\"id\":\"did:plc:chatdid#atproto_label\",\"controller\":"
+            "\"did:plc:chatdid\",\"type\":\"Multikey\",\"publicKeyMultibase\":"
+            "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto_label", &vk) == WF_OK);
+        WF_CHECK(vk && strcmp(vk,
+                "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+        free(vk);
+        vk = NULL;
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto", &vk) == WF_OK);
+        WF_CHECK(vk && strcmp(vk,
+                "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+        free(vk);
+        vk = NULL;
+
+        /* Unknown / unkeyed methods are WF_ERR_NOT_FOUND with NULL output. */
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#nope", &vk) ==
+                 WF_ERR_NOT_FOUND);
+        WF_CHECK(vk == NULL);
+        g_did_doc =
+            "{\"id\":\"did:plc:chatdid\",\"verificationMethod\":["
+            "{\"id\":\"#atproto\",\"controller\":\"did:plc:chatdid\","
+            "\"type\":\"Multikey\"}]}";
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto", &vk) ==
+                 WF_ERR_NOT_FOUND);
+        WF_CHECK(vk == NULL);
+
+        /* A document without any verificationMethod is NOT_FOUND. */
+        g_did_doc = "{\"id\":\"did:plc:chatdid\"}";
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto", &vk) ==
+                 WF_ERR_NOT_FOUND);
+
+        /* A document whose id does not match the requested DID is rejected. */
+        g_did_doc =
+            "{\"id\":\"did:plc:other\",\"verificationMethod\":["
+            "{\"id\":\"#atproto\",\"controller\":\"did:plc:other\","
+            "\"type\":\"Multikey\",\"publicKeyMultibase\":"
+            "\"zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF\"}]}";
+        WF_CHECK(wf_did_resolve_verification_key(client, "did:plc:chatdid",
+                                                 "#atproto", &vk) ==
+                 WF_ERR_PARSE);
+    }
+
     wf_xrpc_set_handler(client, NULL, NULL);
     free(doc_json);
 
