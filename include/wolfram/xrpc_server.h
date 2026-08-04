@@ -533,6 +533,32 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
                                    unsigned int cost,
                                    unsigned int *out_retry_after);
 
+/**
+ * Bucket status a caller can use to set RateLimit-Limit/Remaining/Reset/
+ * Policy response headers, matching the reference PDS's rate-limiter-http.ts
+ * (setStatusHeaders). `reset_at` is an absolute Unix timestamp — the
+ * reference reports an absolute time here, not a relative seconds-until
+ * value, despite the header's name.
+ */
+typedef struct wf_rate_limit_status {
+    unsigned int limit;            /* configured bucket capacity (points) */
+    unsigned int remaining;        /* tokens left after this consume */
+    unsigned int reset_at;         /* absolute Unix timestamp */
+    unsigned int duration_seconds; /* the bucket's window, for the Policy header */
+} wf_rate_limit_status;
+
+/**
+ * Like wf_rate_limiter_consume, but also reports full bucket status
+ * (limit/remaining/reset) — for a caller that wants to set the RateLimit-*
+ * response headers a client can use to self-throttle before it actually
+ * gets a 429. `out_status` may be NULL if the caller only cares about the
+ * WF_OK/WF_ERR_RATE_LIMIT result.
+ */
+wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl,
+                                          const char *key,
+                                          unsigned int cost,
+                                          wf_rate_limit_status *out_status);
+
 /* Attach a rate limiter to a server. When set, every request is charged
  * 1 token against the client's IP address before the auth callback.
  * Passing NULL removes the rate limiter. */
