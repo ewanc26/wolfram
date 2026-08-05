@@ -108,6 +108,31 @@ void wf_oauth_dpop_key_free(wf_oauth_dpop_key *key) {
     free(key);
 }
 
+wf_status wf_oauth_dpop_jwk_json(const wf_oauth_dpop_key *key,
+                                 char **out_jwk) {
+    cJSON *jwk = NULL;
+    char *x = NULL, *y = NULL, *json = NULL;
+    wf_status status;
+    if (!key || !out_jwk) return WF_ERR_INVALID_ARG;
+    *out_jwk = NULL;
+    status = wf_oauth_dpop_jwk(key, &jwk, &x, &y);
+    if (status != WF_OK) goto done;
+    json = cJSON_PrintUnformatted(jwk);
+    if (!json) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    *out_jwk = json;
+    json = NULL;
+    status = WF_OK;
+done:
+    cJSON_Delete(jwk);
+    free(x);
+    free(y);
+    free(json);
+    return status;
+}
+
 wf_status wf_oauth_dpop_coordinates(const wf_oauth_dpop_key *key,
                                     unsigned char x[32],
                                     unsigned char y[32]) {
