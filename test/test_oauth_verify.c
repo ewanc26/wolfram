@@ -220,6 +220,46 @@ static char *str_dup(const char *s) {
     return o;
 }
 
+/* Public JWK JSON for `ec` with a `kid`, as a client metadata document's
+ * jwks would carry it. */
+static char *client_jwk_json(EC_KEY *ec, const char *kid) {
+    unsigned char x[32], y[32];
+    char *xb, *yb, *out;
+    cJSON *j;
+    if (pub_coords(ec, x, y) != WF_OK) return NULL;
+    xb = b64url(x, 32);
+    yb = b64url(y, 32);
+    if (!xb || !yb) { free(xb); free(yb); return NULL; }
+    j = cJSON_CreateObject();
+    cJSON_AddStringToObject(j, "kty", "EC");
+    cJSON_AddStringToObject(j, "crv", "P-256");
+    cJSON_AddStringToObject(j, "x", xb);
+    cJSON_AddStringToObject(j, "y", yb);
+    cJSON_AddStringToObject(j, "kid", kid);
+    out = cJSON_PrintUnformatted(j);
+    free(xb);
+    free(yb);
+    cJSON_Delete(j);
+    return out;
+}
+
+/* RFC 7523 assertion JWT. `kid`, `jti` and `exp` may be NULL/0 to omit. */
+static char *make_assertion(EC_KEY *ec, const char *alg, const char *kid,
+                            const char *iss, const char *sub, const char *aud,
+                            const char *jti, int64_t iat, int64_t exp) {
+    cJSON *h = cJSON_CreateObject();
+    cJSON *p = cJSON_CreateObject();
+    cJSON_AddStringToObject(h, "alg", alg);
+    if (kid) cJSON_AddStringToObject(h, "kid", kid);
+    cJSON_AddStringToObject(p, "iss", iss);
+    cJSON_AddStringToObject(p, "sub", sub);
+    cJSON_AddStringToObject(p, "aud", aud);
+    if (jti) cJSON_AddStringToObject(p, "jti", jti);
+    cJSON_AddNumberToObject(p, "iat", (double)iat);
+    if (exp) cJSON_AddNumberToObject(p, "exp", (double)exp);
+    return make_jwt(ec, h, p);
+}
+
 int main(void) {
     wf_oauth_dpop_key *at_key = NULL, *dp_key = NULL;
     wf_oauth_trusted_keys *keys = NULL;
@@ -532,6 +572,160 @@ int main(void) {
         }
         wf_oauth_verified_token_free(dt);
         wf_oauth_dpop_replay_cache_free(replay2);
+    }
+
+    /* --- RFC 7523 client assertion (private_key_jwt) verification --- */
+    {
+        const char *client_id = "https://client.example/metadata.json";
+        const char *issuer = "https://as.example";
+        EC_KEY *client_ec = NULL;
+        char *client_jwk = NULL, *assertion = NULL;
+        wf_oauth_trusted_keys *ckeys = NULL;
+        wf_oauth_client_assertion_verified *ca = NULL;
+        unsigned char client_scalar[32];
+
+        for (size_t i = 0; i < 32; i++) client_scalar[i] = (unsigned char)(i * 7 + 3);
+        client_ec = key_from_scalar(client_scalar);
+        WF_CHECK(client_ec != NULL);
+        client_jwk = client_jwk_json(client_ec, "client-key-1");
+        WF_CHECK(client_jwk != NULL);
+        WF_CHECK(wf_oauth_trusted_keys_new(&ckeys) == WF_OK);
+        WF_CHECK(wf_oauth_trusted_keys_add_jwk(ckeys, client_jwk) == WF_OK);
+
+        /* Happy path. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a1",
+                                   now, now + 60);
+        WF_CHECK(assertion != NULL);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_OK);
+        WF_CHECK(ca && strcmp(ca->client_id, client_id) == 0 &&
+                 strcmp(ca->kid, "client-key-1") == 0 &&
+                 strcmp(ca->jti, "jti-a1") == 0 && ca->exp == now + 60);
+        wf_oauth_client_assertion_verified_free(ca);
+        ca = NULL;
+        free(assertion);
+        assertion = NULL;
+
+        /* Wrong expected client_id. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a2",
+                                   now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, "https://other.example/metadata.json",
+                     issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* Wrong audience. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, "https://evil.example",
+                                   "jti-a3", now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* iss != sub. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, "did:web:impersonator",
+                                   issuer, "jti-a4", now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* iat too old (> 60s). */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a5",
+                                   now - 120, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* iat in the future beyond clock skew. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a6",
+                                   now + 120, now + 180);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* Expired. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a7",
+                                   now - 100, now - 50);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* Tampered signature. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a8",
+                                   now, now + 60);
+        /* Tampered signature: flip a char in the middle of the signature
+         * segment. (Flipping the final base64url char can be a no-op — its
+         * contribution to the last signature byte is only v>>4.) */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a8",
+                                   now, now + 60);
+        {
+            const char *dot2 = strrchr(assertion, '.');
+            size_t idx = (size_t)(dot2 - assertion) + 10;
+            assertion[idx] = assertion[idx] == 'a' ? 'b' : 'a';
+        }
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_PARSE);
+        free(assertion);
+        assertion = NULL;
+
+        /* Header kid that no trusted key advertises. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-999",
+                                   client_id, client_id, issuer, "jti-a9",
+                                   now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_PARSE);
+        free(assertion);
+        assertion = NULL;
+
+        /* Missing header kid. */
+        assertion = make_assertion(client_ec, "ES256", NULL,
+                                   client_id, client_id, issuer, "jti-a10",
+                                   now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* Missing jti. */
+        assertion = make_assertion(client_ec, "ES256", "client-key-1",
+                                   client_id, client_id, issuer, NULL,
+                                   now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* Non-ES256 algorithm. */
+        assertion = make_assertion(client_ec, "none", "client-key-1",
+                                   client_id, client_id, issuer, "jti-a11",
+                                   now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        free(assertion);
+        assertion = NULL;
+
+        /* Malformed (no dots). */
+        WF_CHECK(wf_oauth_verify_client_assertion(
+                     "not-a-jwt", client_id, issuer, ckeys, &ca) == WF_ERR_PARSE);
+
+        wf_oauth_client_assertion_verified_free(ca);
+        wf_oauth_trusted_keys_free(ckeys);
+        free(client_jwk);
+        EC_KEY_free(client_ec);
     }
 
     /* Cleanup. */
