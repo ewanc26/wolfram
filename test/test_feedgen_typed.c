@@ -110,8 +110,10 @@ int main(void) {
         if (gens.generator_count == 2) {
             wf_agent_generator_view *g0 = &gens.generators[0];
             WF_CHECK(g0->uri != NULL);
-            WF_CHECK(strcmp(g0->uri,
-                "at://did:plc:alice/app.bsky.feed.generator/aaa111") == 0);
+            WF_CHECK(
+                strcmp(g0->uri,
+                       "at://did:plc:alice/app.bsky.feed.generator/aaa111") ==
+                0);
             WF_CHECK(g0->did != NULL);
             WF_CHECK(strcmp(g0->did, "did:plc:alice") == 0);
             WF_CHECK(g0->creator.did != NULL);
@@ -147,13 +149,15 @@ int main(void) {
         if (views.item_count == 2) {
             WF_CHECK(views.items[0].post.uri != NULL);
             WF_CHECK(strcmp(views.items[0].post.uri,
-                "at://did:plc:alice/app.bsky.feed.post/aaa111") == 0);
+                            "at://did:plc:alice/app.bsky.feed.post/aaa111") ==
+                     0);
             WF_CHECK(views.items[0].post.author.did != NULL);
-            WF_CHECK(strcmp(views.items[0].post.author.did, "did:plc:alice") == 0);
+            WF_CHECK(strcmp(views.items[0].post.author.did, "did:plc:alice") ==
+                     0);
             WF_CHECK(views.items[0].post.record != NULL);
             WF_CHECK(views.items[1].post.author.handle != NULL);
             WF_CHECK(strcmp(views.items[1].post.author.handle,
-                "bob.bsky.social") == 0);
+                            "bob.bsky.social") == 0);
             WF_CHECK(views.items[1].reason != NULL);
         }
         wf_agent_feed_view_list_free(&views);
@@ -173,7 +177,8 @@ int main(void) {
             wf_agent_feed_item *it = &likes.items[0];
             WF_CHECK(it->post.uri != NULL);
             WF_CHECK(strcmp(it->post.uri,
-                "at://did:plc:carol/app.bsky.feed.post/ccc333") == 0);
+                            "at://did:plc:carol/app.bsky.feed.post/ccc333") ==
+                     0);
             WF_CHECK(it->post.author.did != NULL);
             WF_CHECK(strcmp(it->post.author.did, "did:plc:carol") == 0);
             WF_CHECK(it->post.record != NULL);

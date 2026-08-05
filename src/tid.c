@@ -73,7 +73,8 @@ wf_status wf_tid_now(char out[15]) {
 
     pthread_mutex_lock(&wf_tid_lock);
     if (!wf_tid_initialized) {
-        /* One clockid per process, chosen randomly over the full 10-bit range. */
+        /* One clockid per process, chosen randomly over the full 10-bit range.
+         */
         wf_tid_clock = (uint32_t)rand() & 0x3FF;
         wf_tid_initialized = 1;
     }

@@ -45,7 +45,8 @@ static wf_status wf_actor_prefs_set_string(char **dst, const char *src) {
 }
 
 /* Parse a JSON string array into an owned char-pointer array + count. */
-static wf_status wf_actor_prefs_parse_string_array(cJSON *arr, char ***out_items,
+static wf_status wf_actor_prefs_parse_string_array(cJSON *arr,
+                                                   char ***out_items,
                                                    size_t *out_count) {
     if (!cJSON_IsArray(arr)) {
         return WF_ERR_PARSE;
@@ -126,7 +127,8 @@ static void wf_actor_pref_saved_feeds_reset(wf_actor_pref_saved_feeds *p) {
     memset(p, 0, sizeof(*p));
 }
 
-static void wf_actor_pref_saved_feeds_v2_reset(wf_actor_pref_saved_feeds_v2 *p) {
+static void
+wf_actor_pref_saved_feeds_v2_reset(wf_actor_pref_saved_feeds_v2 *p) {
     if (!p) {
         return;
     }
@@ -137,7 +139,8 @@ static void wf_actor_pref_saved_feeds_v2_reset(wf_actor_pref_saved_feeds_v2 *p) 
     memset(p, 0, sizeof(*p));
 }
 
-static void wf_actor_pref_personal_details_reset(wf_actor_pref_personal_details *p) {
+static void
+wf_actor_pref_personal_details_reset(wf_actor_pref_personal_details *p) {
     if (!p) {
         return;
     }
@@ -189,7 +192,8 @@ static void wf_actor_pref_hidden_posts_reset(wf_actor_pref_hidden_posts *p) {
     memset(p, 0, sizeof(*p));
 }
 
-static void wf_actor_pref_bsky_app_state_reset(wf_actor_pref_bsky_app_state *p) {
+static void
+wf_actor_pref_bsky_app_state_reset(wf_actor_pref_bsky_app_state *p) {
     if (!p) {
         return;
     }
@@ -236,8 +240,8 @@ static void wf_actor_pref_live_events_reset(wf_actor_pref_live_events *p) {
 /* parse for each sub-struct                                          */
 /* ------------------------------------------------------------------ */
 
-static wf_status wf_actor_pref_parse_content_label(cJSON *obj,
-                                                   wf_actor_pref_content_label *p) {
+static wf_status
+wf_actor_pref_parse_content_label(cJSON *obj, wf_actor_pref_content_label *p) {
     cJSON *ld = cJSON_GetObjectItemCaseSensitive(obj, "labelerDid");
     cJSON *label = cJSON_GetObjectItemCaseSensitive(obj, "label");
     cJSON *vis = cJSON_GetObjectItemCaseSensitive(obj, "visibility");
@@ -300,8 +304,9 @@ static wf_status wf_actor_pref_parse_saved_feeds(cJSON *obj,
     return s;
 }
 
-static wf_status wf_actor_pref_parse_saved_feeds_v2(
-    cJSON *obj, wf_actor_pref_saved_feeds_v2 *p) {
+static wf_status
+wf_actor_pref_parse_saved_feeds_v2(cJSON *obj,
+                                   wf_actor_pref_saved_feeds_v2 *p) {
     cJSON *items = cJSON_GetObjectItemCaseSensitive(obj, "items");
     if (!cJSON_IsArray(items)) {
         return WF_ERR_PARSE;
@@ -338,8 +343,9 @@ static wf_status wf_actor_pref_parse_saved_feeds_v2(
     return s;
 }
 
-static wf_status wf_actor_pref_parse_personal_details(
-    cJSON *obj, wf_actor_pref_personal_details *p) {
+static wf_status
+wf_actor_pref_parse_personal_details(cJSON *obj,
+                                     wf_actor_pref_personal_details *p) {
     cJSON *bd = cJSON_GetObjectItemCaseSensitive(obj, "birthDate");
     if (cJSON_IsString(bd) && bd->valuestring) {
         return wf_actor_prefs_set_string(&p->birth_date, bd->valuestring);
@@ -347,8 +353,8 @@ static wf_status wf_actor_pref_parse_personal_details(
     return WF_OK;
 }
 
-static wf_status wf_actor_pref_parse_declared_age(cJSON *obj,
-                                                  wf_actor_pref_declared_age *p) {
+static wf_status
+wf_actor_pref_parse_declared_age(cJSON *obj, wf_actor_pref_declared_age *p) {
     cJSON *o13 = cJSON_GetObjectItemCaseSensitive(obj, "isOverAge13");
     cJSON *o16 = cJSON_GetObjectItemCaseSensitive(obj, "isOverAge16");
     cJSON *o18 = cJSON_GetObjectItemCaseSensitive(obj, "isOverAge18");
@@ -380,8 +386,10 @@ static wf_status wf_actor_pref_parse_feed_view(cJSON *obj,
                                                wf_actor_pref_feed_view *p) {
     cJSON *feed = cJSON_GetObjectItemCaseSensitive(obj, "feed");
     cJSON *hr = cJSON_GetObjectItemCaseSensitive(obj, "hideReplies");
-    cJSON *hrbu = cJSON_GetObjectItemCaseSensitive(obj, "hideRepliesByUnfollowed");
-    cJSON *hrbl = cJSON_GetObjectItemCaseSensitive(obj, "hideRepliesByLikeCount");
+    cJSON *hrbu =
+        cJSON_GetObjectItemCaseSensitive(obj, "hideRepliesByUnfollowed");
+    cJSON *hrbl =
+        cJSON_GetObjectItemCaseSensitive(obj, "hideRepliesByLikeCount");
     cJSON *hrep = cJSON_GetObjectItemCaseSensitive(obj, "hideReposts");
     cJSON *hq = cJSON_GetObjectItemCaseSensitive(obj, "hideQuotePosts");
     wf_status s = WF_OK;
@@ -471,8 +479,8 @@ static wf_status wf_actor_pref_parse_muted_word(cJSON *obj,
     return s;
 }
 
-static wf_status wf_actor_pref_parse_hidden_posts(cJSON *obj,
-                                                  wf_actor_pref_hidden_posts *p) {
+static wf_status
+wf_actor_pref_parse_hidden_posts(cJSON *obj, wf_actor_pref_hidden_posts *p) {
     cJSON *items = cJSON_GetObjectItemCaseSensitive(obj, "items");
     if (!cJSON_IsArray(items)) {
         return WF_ERR_PARSE;
@@ -480,8 +488,9 @@ static wf_status wf_actor_pref_parse_hidden_posts(cJSON *obj,
     return wf_actor_prefs_parse_string_array(items, &p->uris, &p->uri_count);
 }
 
-static wf_status wf_actor_pref_parse_bsky_app_state(
-    cJSON *obj, wf_actor_pref_bsky_app_state *p) {
+static wf_status
+wf_actor_pref_parse_bsky_app_state(cJSON *obj,
+                                   wf_actor_pref_bsky_app_state *p) {
     cJSON *apg = cJSON_GetObjectItemCaseSensitive(obj, "activeProgressGuide");
     cJSON *qn = cJSON_GetObjectItemCaseSensitive(obj, "queuedNudges");
     cJSON *nuxs = cJSON_GetObjectItemCaseSensitive(obj, "nuxs");
@@ -526,21 +535,21 @@ static wf_status wf_actor_pref_parse_post_interaction_settings(
         if (!cJSON_IsArray(tg)) {
             return WF_ERR_PARSE;
         }
-        p->threadgate_allow_rules = cJSON_DetachItemFromObject(
-            obj, "threadgateAllowRules");
+        p->threadgate_allow_rules =
+            cJSON_DetachItemFromObject(obj, "threadgateAllowRules");
     }
     if (pg != NULL) {
         if (!cJSON_IsArray(pg)) {
             return WF_ERR_PARSE;
         }
-        p->postgate_embedding_rules = cJSON_DetachItemFromObject(
-            obj, "postgateEmbeddingRules");
+        p->postgate_embedding_rules =
+            cJSON_DetachItemFromObject(obj, "postgateEmbeddingRules");
     }
     return WF_OK;
 }
 
-static wf_status wf_actor_pref_parse_verification(cJSON *obj,
-                                                  wf_actor_pref_verification *p) {
+static wf_status
+wf_actor_pref_parse_verification(cJSON *obj, wf_actor_pref_verification *p) {
     cJSON *hb = cJSON_GetObjectItemCaseSensitive(obj, "hideBadges");
     if (hb != NULL) {
         if (!cJSON_IsBool(hb)) {
@@ -587,9 +596,8 @@ static const char *wf_actor_prefs_short_type(const char *type) {
 static wf_status wf_actor_prefs_classify(cJSON *obj, wf_actor_preferences *out,
                                          bool *consumed) {
     cJSON *type = cJSON_GetObjectItemCaseSensitive(obj, "$type");
-    const char *ts = (cJSON_IsString(type) && type->valuestring)
-                         ? type->valuestring
-                         : NULL;
+    const char *ts =
+        (cJSON_IsString(type) && type->valuestring) ? type->valuestring : NULL;
     const char *short_type = wf_actor_prefs_short_type(ts);
 
     *consumed = true;
@@ -627,14 +635,13 @@ static wf_status wf_actor_prefs_classify(cJSON *obj, wf_actor_preferences *out,
     } else if (strcmp(short_type, "savedFeedsPrefV2") == 0) {
         return wf_actor_pref_parse_saved_feeds_v2(obj, &out->saved_feeds_v2);
     } else if (strcmp(short_type, "personalDetailsPref") == 0) {
-        return wf_actor_pref_parse_personal_details(obj, &out->personal_details);
+        return wf_actor_pref_parse_personal_details(obj,
+                                                    &out->personal_details);
     } else if (strcmp(short_type, "declaredAgePref") == 0) {
         return wf_actor_pref_parse_declared_age(obj, &out->declared_age);
     } else if (strcmp(short_type, "feedViewPref") == 0) {
-        wf_actor_pref_feed_view *nl =
-            (wf_actor_pref_feed_view *)realloc(
-                out->feed_views,
-                (out->feed_view_count + 1) * sizeof(*nl));
+        wf_actor_pref_feed_view *nl = (wf_actor_pref_feed_view *)realloc(
+            out->feed_views, (out->feed_view_count + 1) * sizeof(*nl));
         if (!nl) {
             return WF_ERR_ALLOC;
         }
@@ -658,10 +665,9 @@ static wf_status wf_actor_prefs_classify(cJSON *obj, wf_actor_preferences *out,
             return WF_ERR_PARSE;
         }
         size_t n = (size_t)cJSON_GetArraySize(items);
-        wf_actor_pref_muted_word *nl =
-            (wf_actor_pref_muted_word *)realloc(
-                out->muting_keywords,
-                (out->muting_keyword_count + n) * sizeof(*nl));
+        wf_actor_pref_muted_word *nl = (wf_actor_pref_muted_word *)realloc(
+            out->muting_keywords,
+            (out->muting_keyword_count + n) * sizeof(*nl));
         if (!nl) {
             return WF_ERR_ALLOC;
         }
@@ -798,7 +804,8 @@ void wf_actor_preferences_free(wf_actor_preferences *out) {
     wf_actor_pref_hidden_posts_reset(&out->hidden_posts);
     wf_actor_pref_bsky_app_state_reset(&out->bsky_app_state);
     wf_actor_pref_labelers_reset(&out->labelers);
-    wf_actor_pref_post_interaction_settings_reset(&out->post_interaction_settings);
+    wf_actor_pref_post_interaction_settings_reset(
+        &out->post_interaction_settings);
     wf_actor_pref_live_events_reset(&out->live_events);
     if (out->extra) {
         cJSON_Delete(out->extra);
@@ -872,7 +879,8 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
     }
     /* savedFeedsPref */
     if (prefs->saved_feeds.pinned_count > 0 ||
-        prefs->saved_feeds.saved_count > 0 || prefs->saved_feeds.has_timeline_index) {
+        prefs->saved_feeds.saved_count > 0 ||
+        prefs->saved_feeds.has_timeline_index) {
         cJSON *o = cJSON_CreateObject();
         cJSON_AddStringToObject(o, "$type",
                                 "app.bsky.actor.defs#savedFeedsPref");
@@ -898,7 +906,8 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
         cJSON *items = cJSON_CreateArray();
         for (size_t i = 0; i < prefs->saved_feeds_v2.item_count; ++i) {
             cJSON *it = cJSON_CreateObject();
-            wf_actor_prefs_build_saved_feed(it, &prefs->saved_feeds_v2.items[i]);
+            wf_actor_prefs_build_saved_feed(it,
+                                            &prefs->saved_feeds_v2.items[i]);
             cJSON_AddItemToArray(items, it);
         }
         cJSON_AddItemToObject(o, "items", items);
@@ -920,13 +929,16 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
         cJSON_AddStringToObject(o, "$type",
                                 "app.bsky.actor.defs#declaredAgePref");
         if (prefs->declared_age.has_over_13) {
-            cJSON_AddBoolToObject(o, "isOverAge13", prefs->declared_age.over_13);
+            cJSON_AddBoolToObject(o, "isOverAge13",
+                                  prefs->declared_age.over_13);
         }
         if (prefs->declared_age.has_over_16) {
-            cJSON_AddBoolToObject(o, "isOverAge16", prefs->declared_age.over_16);
+            cJSON_AddBoolToObject(o, "isOverAge16",
+                                  prefs->declared_age.over_16);
         }
         if (prefs->declared_age.has_over_18) {
-            cJSON_AddBoolToObject(o, "isOverAge18", prefs->declared_age.over_18);
+            cJSON_AddBoolToObject(o, "isOverAge18",
+                                  prefs->declared_age.over_18);
         }
         cJSON_AddItemToArray(arr, o);
     }
@@ -934,8 +946,7 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
     for (size_t i = 0; i < prefs->feed_view_count; ++i) {
         const wf_actor_pref_feed_view *p = &prefs->feed_views[i];
         cJSON *o = cJSON_CreateObject();
-        cJSON_AddStringToObject(o, "$type",
-                                "app.bsky.actor.defs#feedViewPref");
+        cJSON_AddStringToObject(o, "$type", "app.bsky.actor.defs#feedViewPref");
         if (p->feed) {
             cJSON_AddStringToObject(o, "feed", p->feed);
         }
@@ -1027,28 +1038,27 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
                                 "app.bsky.actor.defs#bskyAppStatePref");
         if (prefs->bsky_app_state.active_progress_guide) {
             cJSON *apg = cJSON_CreateObject();
-            cJSON_AddStringToObject(apg, "guide",
-                                    prefs->bsky_app_state.active_progress_guide);
+            cJSON_AddStringToObject(
+                apg, "guide", prefs->bsky_app_state.active_progress_guide);
             cJSON_AddItemToObject(o, "activeProgressGuide", apg);
         }
         if (prefs->bsky_app_state.queued_nudge_count > 0) {
             cJSON *qn = cJSON_CreateArray();
-            wf_actor_prefs_add_string_array(qn, prefs->bsky_app_state.queued_nudges,
-                                            prefs->bsky_app_state.queued_nudge_count);
+            wf_actor_prefs_add_string_array(
+                qn, prefs->bsky_app_state.queued_nudges,
+                prefs->bsky_app_state.queued_nudge_count);
             cJSON_AddItemToObject(o, "queuedNudges", qn);
         }
         if (prefs->bsky_app_state.nuxs) {
-            cJSON_AddItemToObject(o, "nuxs",
-                                  cJSON_Duplicate(prefs->bsky_app_state.nuxs,
-                                                 1));
+            cJSON_AddItemToObject(
+                o, "nuxs", cJSON_Duplicate(prefs->bsky_app_state.nuxs, 1));
         }
         cJSON_AddItemToArray(arr, o);
     }
     /* labelersPref */
     if (prefs->labelers.labeler_count > 0) {
         cJSON *o = cJSON_CreateObject();
-        cJSON_AddStringToObject(o, "$type",
-                                "app.bsky.actor.defs#labelersPref");
+        cJSON_AddStringToObject(o, "$type", "app.bsky.actor.defs#labelersPref");
         cJSON *labelers = cJSON_CreateArray();
         wf_actor_prefs_add_string_array(labelers, prefs->labelers.labelers,
                                         prefs->labelers.labeler_count);
@@ -1059,17 +1069,21 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
     if (prefs->post_interaction_settings.threadgate_allow_rules ||
         prefs->post_interaction_settings.postgate_embedding_rules) {
         cJSON *o = cJSON_CreateObject();
-        cJSON_AddStringToObject(o, "$type",
-                                "app.bsky.actor.defs#postInteractionSettingsPref");
+        cJSON_AddStringToObject(
+            o, "$type", "app.bsky.actor.defs#postInteractionSettingsPref");
         if (prefs->post_interaction_settings.threadgate_allow_rules) {
             cJSON_AddItemToObject(
                 o, "threadgateAllowRules",
-                cJSON_Duplicate(prefs->post_interaction_settings.threadgate_allow_rules, 1));
+                cJSON_Duplicate(
+                    prefs->post_interaction_settings.threadgate_allow_rules,
+                    1));
         }
         if (prefs->post_interaction_settings.postgate_embedding_rules) {
             cJSON_AddItemToObject(
                 o, "postgateEmbeddingRules",
-                cJSON_Duplicate(prefs->post_interaction_settings.postgate_embedding_rules, 1));
+                cJSON_Duplicate(
+                    prefs->post_interaction_settings.postgate_embedding_rules,
+                    1));
         }
         cJSON_AddItemToArray(arr, o);
     }
@@ -1089,8 +1103,9 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
                                 "app.bsky.actor.defs#liveEventPreferences");
         if (prefs->live_events.hidden_feed_id_count > 0) {
             cJSON *hf = cJSON_CreateArray();
-            wf_actor_prefs_add_string_array(hf, prefs->live_events.hidden_feed_ids,
-                                            prefs->live_events.hidden_feed_id_count);
+            wf_actor_prefs_add_string_array(
+                hf, prefs->live_events.hidden_feed_ids,
+                prefs->live_events.hidden_feed_id_count);
             cJSON_AddItemToObject(o, "hiddenFeedIds", hf);
         }
         if (prefs->live_events.has_hide_all_feeds) {
@@ -1104,7 +1119,8 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
         cJSON *e = prefs->extra;
         int n = cJSON_GetArraySize(e);
         for (int i = 0; i < n; ++i) {
-            cJSON_AddItemToArray(arr, cJSON_Duplicate(cJSON_GetArrayItem(e, i), 1));
+            cJSON_AddItemToArray(arr,
+                                 cJSON_Duplicate(cJSON_GetArrayItem(e, i), 1));
         }
     }
 

@@ -13,7 +13,7 @@
  * The deprecated declarations are suppressed here; migration to EVP
  * is tracked as a separate refactoring item. */
 _Pragma("GCC diagnostic push")
-_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 
 #include <ctype.h>
 #include <limits.h>
@@ -21,7 +21,7 @@ _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #include <string.h>
 #include <time.h>
 
-struct wf_oauth_dpop_key {
+        struct wf_oauth_dpop_key {
     EC_KEY *ec;
 };
 
@@ -98,7 +98,8 @@ wf_status wf_oauth_dpop_key_export(const wf_oauth_dpop_key *key,
     const BIGNUM *scalar;
     if (!key || !key->ec || !private_key_out) return WF_ERR_INVALID_ARG;
     scalar = EC_KEY_get0_private_key(key->ec);
-    if (!scalar || BN_bn2binpad(scalar, private_key_out, 32) != 32) return WF_ERR_PARSE;
+    if (!scalar || BN_bn2binpad(scalar, private_key_out, 32) != 32)
+        return WF_ERR_PARSE;
     return WF_OK;
 }
 
@@ -108,8 +109,7 @@ void wf_oauth_dpop_key_free(wf_oauth_dpop_key *key) {
     free(key);
 }
 
-wf_status wf_oauth_dpop_jwk_json(const wf_oauth_dpop_key *key,
-                                 char **out_jwk) {
+wf_status wf_oauth_dpop_jwk_json(const wf_oauth_dpop_key *key, char **out_jwk) {
     cJSON *jwk = NULL;
     char *x = NULL, *y = NULL, *json = NULL;
     wf_status status;
@@ -134,8 +134,7 @@ done:
 }
 
 wf_status wf_oauth_dpop_coordinates(const wf_oauth_dpop_key *key,
-                                    unsigned char x[32],
-                                    unsigned char y[32]) {
+                                    unsigned char x[32], unsigned char y[32]) {
     const EC_GROUP *group;
     const EC_POINT *point;
     BIGNUM *x_bn = NULL, *y_bn = NULL;
@@ -150,7 +149,8 @@ wf_status wf_oauth_dpop_coordinates(const wf_oauth_dpop_key *key,
         status = WF_ERR_ALLOC;
         goto done;
     }
-    if (EC_POINT_get_affine_coordinates_GFp(group, point, x_bn, y_bn, NULL) != 1 ||
+    if (EC_POINT_get_affine_coordinates_GFp(group, point, x_bn, y_bn, NULL) !=
+            1 ||
         BN_bn2binpad(x_bn, x, 32) != 32 || BN_bn2binpad(y_bn, y, 32) != 32) {
         goto done;
     }
@@ -203,15 +203,17 @@ wf_status wf_oauth_dpop_key_thumbprint(const wf_oauth_dpop_key *key,
     if (!key || !thumbprint_out) return WF_ERR_INVALID_ARG;
     status = wf_oauth_dpop_jwk(key, &unused, &x, &y);
     if (status != WF_OK) return status;
-    needed = strlen(x) + strlen(y) + strlen("{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"\",\"y\":\"\"}") + 1;
+    needed =
+        strlen(x) + strlen(y) +
+        strlen("{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"\",\"y\":\"\"}") + 1;
     canonical = malloc(needed);
     if (!canonical) {
         status = WF_ERR_ALLOC;
         goto done;
     }
     snprintf(canonical, needed,
-             "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"%s\",\"y\":\"%s\"}",
-             x, y);
+             "{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"%s\",\"y\":\"%s\"}", x,
+             y);
     SHA256((const unsigned char *)canonical, strlen(canonical), digest);
     status = wf_oauth_base64url(digest, sizeof(digest), &encoded);
     if (status == WF_OK && strlen(encoded) != 43) status = WF_ERR_PARSE;
@@ -237,9 +239,12 @@ static char *wf_oauth_htu(const char *uri) {
     if (curl_url_set(parsed, CURLUPART_URL, uri, 0) != CURLUE_OK ||
         curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
         curl_url_get(parsed, CURLUPART_HOST, &host, 0) != CURLUE_OK ||
-        (strcmp(scheme, "https") != 0 && strcmp(scheme, "http") != 0)) goto invalid;
-    if (curl_url_get(parsed, CURLUPART_USER, &credentials, 0) == CURLUE_OK) goto invalid;
-    if (curl_url_get(parsed, CURLUPART_PASSWORD, &credentials, 0) == CURLUE_OK) goto invalid;
+        (strcmp(scheme, "https") != 0 && strcmp(scheme, "http") != 0))
+        goto invalid;
+    if (curl_url_get(parsed, CURLUPART_USER, &credentials, 0) == CURLUE_OK)
+        goto invalid;
+    if (curl_url_get(parsed, CURLUPART_PASSWORD, &credentials, 0) == CURLUE_OK)
+        goto invalid;
     curl_free(scheme);
     curl_free(host);
     curl_url_cleanup(parsed);
@@ -266,7 +271,8 @@ static int wf_oauth_http_method_valid(const char *method) {
     const unsigned char *cursor = (const unsigned char *)method;
     if (!cursor || !*cursor) return 0;
     while (*cursor) {
-        if (!isupper(*cursor) && !isdigit(*cursor) && strchr("!#$%&'*+-.^_`|~", *cursor) == NULL) {
+        if (!isupper(*cursor) && !isdigit(*cursor) &&
+            strchr("!#$%&'*+-.^_`|~", *cursor) == NULL) {
             return 0;
         }
         cursor++;
@@ -275,7 +281,8 @@ static int wf_oauth_http_method_valid(const char *method) {
 }
 
 static wf_status wf_oauth_es256_sign(const wf_oauth_dpop_key *key,
-                                     const unsigned char *input, size_t input_len,
+                                     const unsigned char *input,
+                                     size_t input_len,
                                      unsigned char signature[64]) {
     unsigned char digest[SHA256_DIGEST_LENGTH];
     ECDSA_SIG *sig;
@@ -302,9 +309,11 @@ static wf_status wf_oauth_es256_sign(const wf_oauth_dpop_key *key,
     }
     if (BN_rshift1(half_order, half_order) != 1) goto done;
     if (BN_cmp(normalized_s, half_order) > 0 &&
-        BN_sub(normalized_s, order, normalized_s) != 1) goto done;
+        BN_sub(normalized_s, order, normalized_s) != 1)
+        goto done;
     if (BN_bn2binpad(r, signature, 32) != 32 ||
-        BN_bn2binpad(normalized_s, signature + 32, 32) != 32) goto done;
+        BN_bn2binpad(normalized_s, signature + 32, 32) != 32)
+        goto done;
     status = WF_OK;
 
 done:
@@ -321,13 +330,15 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
     cJSON *header = NULL, *payload = NULL, *jwk = NULL;
     char *x = NULL, *y = NULL, *header_json = NULL, *payload_json = NULL;
     char *header_b64 = NULL, *payload_b64 = NULL, *signature_b64 = NULL;
-    char *htu = NULL, *jti = NULL, *ath = NULL, *signing_input = NULL, *jwt = NULL;
+    char *htu = NULL, *jti = NULL, *ath = NULL, *signing_input = NULL,
+         *jwt = NULL;
     unsigned char signature[64], digest[SHA256_DIGEST_LENGTH];
     size_t input_len, jwt_len;
     int64_t issued_at;
     wf_status status;
     if (!key || !options || !jwt_out ||
-        !wf_oauth_http_method_valid(options->http_method) || !options->http_uri) {
+        !wf_oauth_http_method_valid(options->http_method) ||
+        !options->http_uri) {
         return WF_ERR_INVALID_ARG;
     }
     *jwt_out = NULL;
@@ -365,7 +376,8 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
         status = WF_ERR_ALLOC;
         goto done;
     }
-    issued_at = options->issued_at > 0 ? options->issued_at : (int64_t)time(NULL);
+    issued_at =
+        options->issued_at > 0 ? options->issued_at : (int64_t)time(NULL);
     if (!cJSON_AddNumberToObject(payload, "iat", (double)issued_at)) {
         status = WF_ERR_ALLOC;
         goto done;
@@ -392,8 +404,9 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
     }
     status = wf_oauth_base64url((const unsigned char *)header_json,
                                 strlen(header_json), &header_b64);
-    if (status == WF_OK) status = wf_oauth_base64url(
-        (const unsigned char *)payload_json, strlen(payload_json), &payload_b64);
+    if (status == WF_OK)
+        status = wf_oauth_base64url((const unsigned char *)payload_json,
+                                    strlen(payload_json), &payload_b64);
     if (status != WF_OK) goto done;
     input_len = strlen(header_b64) + 1 + strlen(payload_b64);
     signing_input = malloc(input_len + 1);
@@ -404,8 +417,9 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
     snprintf(signing_input, input_len + 1, "%s.%s", header_b64, payload_b64);
     status = wf_oauth_es256_sign(key, (const unsigned char *)signing_input,
                                  input_len, signature);
-    if (status == WF_OK) status = wf_oauth_base64url(signature, sizeof(signature),
-                                                      &signature_b64);
+    if (status == WF_OK)
+        status =
+            wf_oauth_base64url(signature, sizeof(signature), &signature_b64);
     if (status != WF_OK) goto done;
     jwt_len = input_len + 1 + strlen(signature_b64);
     jwt = malloc(jwt_len + 1);
@@ -438,8 +452,7 @@ done:
 
 wf_status wf_oauth_client_assertion_create(
     const wf_oauth_dpop_key *key,
-    const wf_oauth_client_assertion_options *options,
-    char **jwt_out) {
+    const wf_oauth_client_assertion_options *options, char **jwt_out) {
     cJSON *header = NULL, *payload = NULL;
     char *jti = NULL, *header_json = NULL, *payload_json = NULL;
     char *header_b64 = NULL, *payload_b64 = NULL, *signature_b64 = NULL;
@@ -451,9 +464,11 @@ wf_status wf_oauth_client_assertion_create(
     if (!key || !options || !jwt_out || !options->client_id ||
         !*options->client_id || !options->authorization_server_issuer ||
         !wf_oauth_url_valid(options->authorization_server_issuer, 1, 1, 0) ||
-        !options->key_id || !*options->key_id) return WF_ERR_INVALID_ARG;
+        !options->key_id || !*options->key_id)
+        return WF_ERR_INVALID_ARG;
     *jwt_out = NULL;
-    issued_at = options->issued_at > 0 ? options->issued_at : (int64_t)time(NULL);
+    issued_at =
+        options->issued_at > 0 ? options->issued_at : (int64_t)time(NULL);
     if (issued_at <= 0 || issued_at > INT64_MAX - 60) return WF_ERR_INVALID_ARG;
     if (options->jti) {
         if (!*options->jti) return WF_ERR_INVALID_ARG;
@@ -471,7 +486,7 @@ wf_status wf_oauth_client_assertion_create(
         !cJSON_AddStringToObject(payload, "iss", options->client_id) ||
         !cJSON_AddStringToObject(payload, "sub", options->client_id) ||
         !cJSON_AddStringToObject(payload, "aud",
-                                options->authorization_server_issuer) ||
+                                 options->authorization_server_issuer) ||
         !cJSON_AddStringToObject(payload, "jti", jti) ||
         !cJSON_AddNumberToObject(payload, "iat", (double)issued_at) ||
         !cJSON_AddNumberToObject(payload, "exp", (double)(issued_at + 60))) {
@@ -480,32 +495,49 @@ wf_status wf_oauth_client_assertion_create(
     }
     header_json = cJSON_PrintUnformatted(header);
     payload_json = cJSON_PrintUnformatted(payload);
-    if (!header_json || !payload_json) { status = WF_ERR_ALLOC; goto done; }
+    if (!header_json || !payload_json) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     status = wf_oauth_base64url((const unsigned char *)header_json,
                                 strlen(header_json), &header_b64);
-    if (status == WF_OK) status = wf_oauth_base64url(
-        (const unsigned char *)payload_json, strlen(payload_json), &payload_b64);
+    if (status == WF_OK)
+        status = wf_oauth_base64url((const unsigned char *)payload_json,
+                                    strlen(payload_json), &payload_b64);
     if (status != WF_OK) goto done;
     input_len = strlen(header_b64) + 1 + strlen(payload_b64);
     signing_input = malloc(input_len + 1);
-    if (!signing_input) { status = WF_ERR_ALLOC; goto done; }
+    if (!signing_input) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     snprintf(signing_input, input_len + 1, "%s.%s", header_b64, payload_b64);
     status = wf_oauth_es256_sign(key, (const unsigned char *)signing_input,
                                  input_len, signature);
-    if (status == WF_OK) status = wf_oauth_base64url(signature, sizeof(signature),
-                                                      &signature_b64);
+    if (status == WF_OK)
+        status =
+            wf_oauth_base64url(signature, sizeof(signature), &signature_b64);
     if (status != WF_OK) goto done;
     jwt_len = input_len + 1 + strlen(signature_b64);
     jwt = malloc(jwt_len + 1);
-    if (!jwt) { status = WF_ERR_ALLOC; goto done; }
+    if (!jwt) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     snprintf(jwt, jwt_len + 1, "%s.%s", signing_input, signature_b64);
     *jwt_out = jwt;
     jwt = NULL;
 done:
-    cJSON_Delete(header); cJSON_Delete(payload);
-    free(jti); free(header_json); free(payload_json);
-    free(header_b64); free(payload_b64); free(signature_b64);
-    free(signing_input); free(jwt);
+    cJSON_Delete(header);
+    cJSON_Delete(payload);
+    free(jti);
+    free(header_json);
+    free(payload_json);
+    free(header_b64);
+    free(payload_b64);
+    free(signature_b64);
+    free(signing_input);
+    free(jwt);
     return status;
 }
 

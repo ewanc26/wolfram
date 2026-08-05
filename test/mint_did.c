@@ -20,7 +20,8 @@ static const char *default_email = "contact@ewancroft.uk";
 static const char *default_pds = "https://bear.croft.click";
 static const char *default_plc = "https://plc.directory";
 
-static int mint(const char *handle, const char *email, const char *pds_endpoint, const char *plc_url) {
+static int mint(const char *handle, const char *email, const char *pds_endpoint,
+                const char *plc_url) {
     wf_signing_key rotation_key;
     wf_signing_key acct_key;
     char *rotation_didkey = NULL;
@@ -33,11 +34,13 @@ static int mint(const char *handle, const char *email, const char *pds_endpoint,
     memset(&rotation_key, 0, sizeof(rotation_key));
     memset(&acct_key, 0, sizeof(acct_key));
 
-    if (wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &rotation_key) != WF_OK) {
+    if (wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &rotation_key) !=
+        WF_OK) {
         fprintf(stderr, "failed to generate rotation key\n");
         goto cleanup;
     }
-    if (wf_signing_key_public_didkey(&rotation_key, &rotation_didkey) != WF_OK) {
+    if (wf_signing_key_public_didkey(&rotation_key, &rotation_didkey) !=
+        WF_OK) {
         fprintf(stderr, "failed to derive rotation did:key\n");
         goto cleanup;
     }
@@ -58,13 +61,13 @@ static int mint(const char *handle, const char *email, const char *pds_endpoint,
              "\"endpoint\":\"%s\"}}",
              pds_endpoint);
 
-    const char *rotation_keys[] = { rotation_didkey };
+    const char *rotation_keys[] = {rotation_didkey};
     wf_plc_operation_update update = {
         .rotation_keys = rotation_keys,
         .rotation_keys_count = 1,
         .verification_methods_json = NULL,
         .services_json = services_buf,
-        .also_known_as = (const char *const[]){ aka_buf },
+        .also_known_as = (const char *const[]){aka_buf},
         .also_known_as_count = 1,
         .prev = NULL,
     };
@@ -79,14 +82,16 @@ static int mint(const char *handle, const char *email, const char *pds_endpoint,
         fprintf(stderr, "failed to parse unsigned operation JSON\n");
         goto cleanup;
     }
-    cJSON *verification = cJSON_GetObjectItemCaseSensitive(root, "verificationMethods");
+    cJSON *verification =
+        cJSON_GetObjectItemCaseSensitive(root, "verificationMethods");
     if (!cJSON_IsObject(verification)) {
         cJSON_Delete(root);
         fprintf(stderr, "unsigned operation missing verificationMethods\n");
         goto cleanup;
     }
     {
-        cJSON *old = cJSON_DetachItemFromObjectCaseSensitive(verification, "atproto");
+        cJSON *old =
+            cJSON_DetachItemFromObjectCaseSensitive(verification, "atproto");
         if (old) cJSON_Delete(old);
     }
     if (!cJSON_AddStringToObject(verification, "atproto", acct_didkey)) {
@@ -101,7 +106,8 @@ static int mint(const char *handle, const char *email, const char *pds_endpoint,
         goto cleanup;
     }
 
-    if (wf_plc_operation_sign(unsigned_with_key, &rotation_key, &signed_json) != WF_OK) {
+    if (wf_plc_operation_sign(unsigned_with_key, &rotation_key, &signed_json) !=
+        WF_OK) {
         fprintf(stderr, "failed to sign PLC operation\n");
         goto cleanup;
     }
@@ -133,10 +139,14 @@ cleanup:
 }
 
 int main(void) {
-    const char *handle = getenv("MINT_HANDLE") ? getenv("MINT_HANDLE") : default_handle;
-    const char *email = getenv("MINT_EMAIL") ? getenv("MINT_EMAIL") : default_email;
-    const char *pds = getenv("MINT_PDS_ENDPOINT") ? getenv("MINT_PDS_ENDPOINT") : default_pds;
-    const char *plc = getenv("MINT_PLC_URL") ? getenv("MINT_PLC_URL") : default_plc;
+    const char *handle =
+        getenv("MINT_HANDLE") ? getenv("MINT_HANDLE") : default_handle;
+    const char *email =
+        getenv("MINT_EMAIL") ? getenv("MINT_EMAIL") : default_email;
+    const char *pds =
+        getenv("MINT_PDS_ENDPOINT") ? getenv("MINT_PDS_ENDPOINT") : default_pds;
+    const char *plc =
+        getenv("MINT_PLC_URL") ? getenv("MINT_PLC_URL") : default_plc;
 
     fprintf(stderr, "Minting did:plc for handle=%s email=%s pds=%s plc=%s\n",
             handle, email, pds, plc);

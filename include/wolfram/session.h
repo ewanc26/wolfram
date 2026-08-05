@@ -20,23 +20,23 @@ extern "C" {
 
 /** Session data, populated by login/refresh and read by the caller. */
 typedef struct wf_session_data {
-    char  *access_jwt;
-    char  *refresh_jwt;
-    char  *handle;
-    char  *did;
-    char  *email;           /* NULL if not returned by server */
-    int    email_confirmed; /* -1 if unknown */
-    int    email_auth_factor; /* -1 if unknown */
-    int    active;          /* -1 if unknown */
-    char  *status;          /* NULL if not returned */
-    char  *pds_url;         /* PDS endpoint from didDoc#atproto_pds, or NULL */
+    char *access_jwt;
+    char *refresh_jwt;
+    char *handle;
+    char *did;
+    char *email;           /* NULL if not returned by server */
+    int email_confirmed;   /* -1 if unknown */
+    int email_auth_factor; /* -1 if unknown */
+    int active;            /* -1 if unknown */
+    char *status;          /* NULL if not returned */
+    char *pds_url;         /* PDS endpoint from didDoc#atproto_pds, or NULL */
 } wf_session_data;
 
 /** A session manager. Owns its XRPC client. */
 typedef struct wf_session {
-    wf_xrpc_client  *client;
-    wf_session_data  data;
-    int              has_session;
+    wf_xrpc_client *client;
+    wf_session_data data;
+    int has_session;
 } wf_session;
 
 /**
@@ -55,9 +55,8 @@ void wf_session_free(wf_session *session);
  * On WF_OK, session->data is populated and the access JWT is set
  * as the auth token on the underlying client.
  */
-wf_status wf_session_login(wf_session *session,
-                            const char *identifier,
-                            const char *password);
+wf_status wf_session_login(wf_session *session, const char *identifier,
+                           const char *password);
 
 /**
  * Optional fields for com.atproto.server.createSession beyond the

@@ -71,8 +71,7 @@ static void test_parse_job_status(void) {
     WF_CHECK(s.job_status.blob.mime_type &&
              strcmp(s.job_status.blob.mime_type, "video/mp4") == 0);
     WF_CHECK(s.job_status.blob.has_size && s.job_status.blob.size == 1234567);
-    WF_CHECK(s.job_status.message &&
-             strcmp(s.job_status.message, "done") == 0);
+    WF_CHECK(s.job_status.message && strcmp(s.job_status.message, "done") == 0);
     wf_video_job_status_free(&s);
 }
 
@@ -83,13 +82,15 @@ static void test_parse_upload_limits(void) {
     WF_CHECK(st == WF_OK);
     WF_CHECK(l.can_upload == true);
     WF_CHECK(l.has_remaining_daily_videos && l.remaining_daily_videos == 9);
-    WF_CHECK(l.has_remaining_daily_bytes && l.remaining_daily_bytes == 1073741824);
+    WF_CHECK(l.has_remaining_daily_bytes &&
+             l.remaining_daily_bytes == 1073741824);
     WF_CHECK(l.message && strcmp(l.message, "you may upload") == 0);
     wf_video_upload_limits_free(&l);
 }
 
 static void test_parse_upload_limits_cannot(void) {
-    static const char *json = "{\"canUpload\":false,\"error\":\"rate-limited\"}";
+    static const char *json =
+        "{\"canUpload\":false,\"error\":\"rate-limited\"}";
     wf_video_upload_limits l = {0};
     wf_status st = wf_video_upload_limits_parse(json, strlen(json), &l);
     WF_CHECK(st == WF_OK);
@@ -116,13 +117,12 @@ static void test_parse_upload_video(void) {
 }
 
 static void test_parse_job_status_def(void) {
-    static const char *json =
-        "{"
-        "  \"jobId\": \"j1\","
-        "  \"did\": \"did:plc:xyz\","
-        "  \"state\": \"JOB_STATE_FAILED\","
-        "  \"error\": \"boom\""
-        "}";
+    static const char *json = "{"
+                              "  \"jobId\": \"j1\","
+                              "  \"did\": \"did:plc:xyz\","
+                              "  \"state\": \"JOB_STATE_FAILED\","
+                              "  \"error\": \"boom\""
+                              "}";
     wf_video_job_status_def d = {0};
     wf_status st = wf_video_job_status_def_parse(json, strlen(json), &d);
     WF_CHECK(st == WF_OK);
@@ -250,38 +250,37 @@ static void test_parse_upload_limits_bad_optional(void) {
  * re-emitted verbatim by the builders. */
 static void test_extra_preservation(void) {
     /* Envelope-level, def-level, and blob-level unknown fields. */
-    static const char *json =
-        "{"
-        "  \"jobStatus\": {"
-        "    \"jobId\": \"j1\","
-        "    \"did\": \"did:plc:x\","
-        "    \"state\": \"JOB_STATE_COMPLETED\","
-        "    \"blob\": {"
-        "      \"$type\": \"blob\","
-        "      \"ref\": { \"$link\": \"bafycid\" },"
-        "      \"mimeType\": \"video/mp4\","
-        "      \"size\": 10,"
-        "      \"blobExtra\": \"bx\""
-        "    },"
-        "    \"defExtra\": 7"
-        "  },"
-        "  \"envExtra\": true"
-        "}";
+    static const char *json = "{"
+                              "  \"jobStatus\": {"
+                              "    \"jobId\": \"j1\","
+                              "    \"did\": \"did:plc:x\","
+                              "    \"state\": \"JOB_STATE_COMPLETED\","
+                              "    \"blob\": {"
+                              "      \"$type\": \"blob\","
+                              "      \"ref\": { \"$link\": \"bafycid\" },"
+                              "      \"mimeType\": \"video/mp4\","
+                              "      \"size\": 10,"
+                              "      \"blobExtra\": \"bx\""
+                              "    },"
+                              "    \"defExtra\": 7"
+                              "  },"
+                              "  \"envExtra\": true"
+                              "}";
     wf_video_job_status s = {0};
     wf_status st = wf_video_job_status_parse(json, strlen(json), &s);
     WF_CHECK(st == WF_OK);
     /* envelope extra */
     WF_CHECK(s.extra != NULL);
-    WF_CHECK(cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(s.extra,
-                                                           "envExtra")));
+    WF_CHECK(
+        cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(s.extra, "envExtra")));
     /* def extra */
     WF_CHECK(s.job_status.extra != NULL);
     WF_CHECK(cJSON_GetObjectItemCaseSensitive(s.job_status.extra, "defExtra") !=
              NULL);
     /* blob extra */
     WF_CHECK(s.job_status.has_blob && s.job_status.blob.extra != NULL);
-    cJSON *bx = cJSON_GetObjectItemCaseSensitive(s.job_status.blob.extra,
-                                                 "blobExtra");
+    cJSON *bx =
+        cJSON_GetObjectItemCaseSensitive(s.job_status.blob.extra, "blobExtra");
     WF_CHECK(cJSON_IsString(bx) && strcmp(bx->valuestring, "bx") == 0);
 
     /* The def builder must re-emit the def and blob extras verbatim. */

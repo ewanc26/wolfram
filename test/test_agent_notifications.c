@@ -69,14 +69,17 @@ static char *load_fixture(const char *filename, size_t *len_out) {
 int main(void) {
     /* Invalid-argument handling. */
     wf_agent_notification_list list = {0};
-    WF_CHECK(wf_agent_parse_notifications(NULL, 0, &list) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_notifications(NULL, 0, &list) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_parse_notifications("{}", 2, NULL) == WF_ERR_INVALID_ARG);
 
     /* Malformed JSON. */
-    WF_CHECK(wf_agent_parse_notifications("not json", 7, &list) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_notifications("not json", 7, &list) ==
+             WF_ERR_PARSE);
 
     /* Missing `notifications` array. */
-    WF_CHECK(wf_agent_parse_notifications("{\"cursor\":\"x\"}", 13, &list) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_notifications("{\"cursor\":\"x\"}", 13, &list) ==
+             WF_ERR_PARSE);
 
     /* Valid fixture. */
     size_t len = 0;
@@ -88,26 +91,34 @@ int main(void) {
         WF_CHECK(status == WF_OK);
         WF_CHECK(list.notification_count == 2);
         WF_CHECK(list.cursor && strcmp(list.cursor, "cursor-token-123") == 0);
-        WF_CHECK(list.seen_at && strcmp(list.seen_at, "2026-07-01T08:00:00Z") == 0);
+        WF_CHECK(list.seen_at &&
+                 strcmp(list.seen_at, "2026-07-01T08:00:00Z") == 0);
         WF_CHECK(list.has_priority == 1);
         WF_CHECK(list.priority == 1);
 
         if (list.notification_count == 2) {
             wf_agent_notification *n0 = &list.notifications[0];
             WF_CHECK(n0->uri && strstr(n0->uri, "app.bsky.feed.like") != NULL);
-            WF_CHECK(n0->author.did && strcmp(n0->author.did, "did:plc:author1") == 0);
-            WF_CHECK(n0->author.handle && strcmp(n0->author.handle, "alice.example.com") == 0);
-            WF_CHECK(n0->author.display_name && strcmp(n0->author.display_name, "Alice") == 0);
-            WF_CHECK(n0->author.avatar && strstr(n0->author.avatar, "avatar1") != NULL);
+            WF_CHECK(n0->author.did &&
+                     strcmp(n0->author.did, "did:plc:author1") == 0);
+            WF_CHECK(n0->author.handle &&
+                     strcmp(n0->author.handle, "alice.example.com") == 0);
+            WF_CHECK(n0->author.display_name &&
+                     strcmp(n0->author.display_name, "Alice") == 0);
+            WF_CHECK(n0->author.avatar &&
+                     strstr(n0->author.avatar, "avatar1") != NULL);
             WF_CHECK(n0->reason && strcmp(n0->reason, "like") == 0);
-            WF_CHECK(n0->reason_subject && strstr(n0->reason_subject, "subject1") != NULL);
+            WF_CHECK(n0->reason_subject &&
+                     strstr(n0->reason_subject, "subject1") != NULL);
             WF_CHECK(n0->is_read == 0);
             WF_CHECK(n0->record != NULL);
             WF_CHECK(cJSON_IsObject(n0->record));
             WF_CHECK(n0->label_count == 1);
             if (n0->label_count == 1) {
-                WF_CHECK(n0->labels[0].val && strcmp(n0->labels[0].val, "!no-unauthenticated") == 0);
-                WF_CHECK(n0->labels[0].src && strcmp(n0->labels[0].src, "did:plc:labeler") == 0);
+                WF_CHECK(n0->labels[0].val &&
+                         strcmp(n0->labels[0].val, "!no-unauthenticated") == 0);
+                WF_CHECK(n0->labels[0].src &&
+                         strcmp(n0->labels[0].src, "did:plc:labeler") == 0);
             }
 
             wf_agent_notification *n1 = &list.notifications[1];

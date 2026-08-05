@@ -25,8 +25,9 @@ int main(void) {
     }
 
     if (!handle || !password) {
-        fprintf(stderr,
-                "set BSKY_HANDLE and BSKY_PASSWORD (optionally BSKY_SERVICE)\n");
+        fprintf(
+            stderr,
+            "set BSKY_HANDLE and BSKY_PASSWORD (optionally BSKY_SERVICE)\n");
         return 1;
     }
 
@@ -41,7 +42,8 @@ int main(void) {
     }
 
     wf_agent_post_result out = {0};
-    status = wf_bsky_agent_post(&agent, "hello from wolfram's wf_bsky_agent", &out);
+    status =
+        wf_bsky_agent_post(&agent, "hello from wolfram's wf_bsky_agent", &out);
     if (status == WF_OK) {
         printf("posted: uri=%s cid=%s\n", out.uri ? out.uri : "(null)",
                out.cid ? out.cid : "(null)");

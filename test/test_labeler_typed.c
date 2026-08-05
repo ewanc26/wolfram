@@ -27,7 +27,8 @@ static const char *kQueryLabelsJson =
     "      \"ver\": 1,"
     "      \"src\": \"did:plc:labeler000000000000000000\","
     "      \"uri\": \"at://did:plc:bob/app.bsky.actor.profile/self\","
-    "      \"cid\": \"bafyreigh2ak3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\","
+    "      \"cid\": "
+    "\"bafyreigh2ak3aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\","
     "      \"val\": \"porn\","
     "      \"neg\": true,"
     "      \"cts\": \"2026-07-02T11:00:00.000Z\","
@@ -43,8 +44,10 @@ static const char *kGetServicesJson =
     "{"
     "  \"views\": ["
     "    {"
-    "      \"uri\": \"at://did:plc:labeler000000000000000000/app.bsky.labeler.service/self\","
-    "      \"cid\": \"bafyreilabeler1111111111111111111111111111111111111111111\","
+    "      \"uri\": "
+    "\"at://did:plc:labeler000000000000000000/app.bsky.labeler.service/self\","
+    "      \"cid\": "
+    "\"bafyreilabeler1111111111111111111111111111111111111111111\","
     "      \"creator\": {"
     "        \"did\": \"did:plc:labeler000000000000000000\","
     "        \"handle\": \"mod.bsky.social\","
@@ -85,8 +88,10 @@ static const char *kGetServicesJson =
     "      \"subjectCollections\": [\"app.bsky.feed.post\"]"
     "    },"
     "    {"
-    "      \"uri\": \"at://did:plc:labeler200000000000000000/app.bsky.labeler.service/self\","
-    "      \"cid\": \"bafyreilabeler2222222222222222222222222222222222222222222\","
+    "      \"uri\": "
+    "\"at://did:plc:labeler200000000000000000/app.bsky.labeler.service/self\","
+    "      \"cid\": "
+    "\"bafyreilabeler2222222222222222222222222222222222222222222\","
     "      \"creator\": {"
     "        \"did\": \"did:plc:labeler200000000000000000\","
     "        \"handle\": \"other.bsky.social\","
@@ -147,20 +152,20 @@ int main(void) {
     wf_labeler_label_list q = {0};
     WF_CHECK(wf_labeler_parse_query_labels(NULL, 0, &q) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_labeler_parse_query_labels(kQueryLabelsJson,
-                                           strlen(kQueryLabelsJson), NULL) ==
-             WF_ERR_INVALID_ARG);
+                                           strlen(kQueryLabelsJson),
+                                           NULL) == WF_ERR_INVALID_ARG);
 
     wf_labeler_service_list s = {0};
     WF_CHECK(wf_labeler_parse_services(NULL, 0, &s) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_labeler_parse_services(kGetServicesJson,
-                                       strlen(kGetServicesJson), NULL) ==
-             WF_ERR_INVALID_ARG);
+                                       strlen(kGetServicesJson),
+                                       NULL) == WF_ERR_INVALID_ARG);
 
     wf_labeler_temp_label_list t = {0};
     WF_CHECK(wf_labeler_parse_temp_labels(NULL, 0, &t) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_labeler_parse_temp_labels(kTempLabelsJson,
-                                          strlen(kTempLabelsJson), NULL) ==
-             WF_ERR_INVALID_ARG);
+                                          strlen(kTempLabelsJson),
+                                          NULL) == WF_ERR_INVALID_ARG);
 
     wf_labeler_service_record r = {0};
     WF_CHECK(wf_labeler_parse_service_record(NULL, 0, &r) ==
@@ -170,14 +175,12 @@ int main(void) {
                                              NULL) == WF_ERR_INVALID_ARG);
 
     /* ---- queryLabels ---- */
-    WF_CHECK(wf_labeler_parse_query_labels(kQueryLabelsJson,
-                                           strlen(kQueryLabelsJson), &q) ==
-             WF_OK);
+    WF_CHECK(wf_labeler_parse_query_labels(
+                 kQueryLabelsJson, strlen(kQueryLabelsJson), &q) == WF_OK);
     WF_CHECK(q.label_count == 2);
     WF_CHECK(q.cursor && strcmp(q.cursor, "cursor-xyz") == 0);
     WF_CHECK(q.labels[0].src &&
-             strcmp(q.labels[0].src,
-                    "did:plc:labeler000000000000000000") == 0);
+             strcmp(q.labels[0].src, "did:plc:labeler000000000000000000") == 0);
     WF_CHECK(q.labels[0].uri &&
              strcmp(q.labels[0].uri,
                     "at://did:plc:alice/app.bsky.feed.post/abc") == 0);
@@ -212,7 +215,8 @@ int main(void) {
     WF_CHECK(d->creator.display_name &&
              strcmp(d->creator.display_name, "Mod Service") == 0);
     WF_CHECK(d->creator.avatar &&
-             strcmp(d->creator.avatar, "https://cdn.bsky.app/img/mod.jpg") == 0);
+             strcmp(d->creator.avatar, "https://cdn.bsky.app/img/mod.jpg") ==
+                 0);
     WF_CHECK(d->creator.extra == NULL);
     WF_CHECK(d->has_like_count == true && d->like_count == 42);
     WF_CHECK(d->indexed_at &&
@@ -224,18 +228,15 @@ int main(void) {
              strcmp(d->policies.label_values[0], "!warn") == 0);
     WF_CHECK(d->policies.label_value_definition_count == 1);
     wf_labeler_label_value_def *def = &d->policies.label_value_definitions[0];
-    WF_CHECK(def->identifier &&
-             strcmp(def->identifier, "custom-spam") == 0);
+    WF_CHECK(def->identifier && strcmp(def->identifier, "custom-spam") == 0);
     WF_CHECK(def->severity && strcmp(def->severity, "alert") == 0);
     WF_CHECK(def->blurs && strcmp(def->blurs, "content") == 0);
     WF_CHECK(def->has_default_setting == true && def->default_setting &&
              strcmp(def->default_setting, "hide") == 0);
     WF_CHECK(def->has_adult_only == true && def->adult_only == true);
     WF_CHECK(def->locale_count == 1);
-    WF_CHECK(def->locales[0].lang &&
-             strcmp(def->locales[0].lang, "en") == 0);
-    WF_CHECK(def->locales[0].name &&
-             strcmp(def->locales[0].name, "Spam") == 0);
+    WF_CHECK(def->locales[0].lang && strcmp(def->locales[0].lang, "en") == 0);
+    WF_CHECK(def->locales[0].name && strcmp(def->locales[0].name, "Spam") == 0);
     WF_CHECK(def->locales[0].description &&
              strcmp(def->locales[0].description, "This is spam.") == 0);
     WF_CHECK(d->reason_type_count == 1 &&
@@ -259,21 +260,18 @@ int main(void) {
     WF_CHECK(s.service_count == 0 && s.services == NULL);
 
     /* ---- temp.fetchLabels ---- */
-    WF_CHECK(wf_labeler_parse_temp_labels(kTempLabelsJson,
-                                          strlen(kTempLabelsJson), &t) == WF_OK);
+    WF_CHECK(wf_labeler_parse_temp_labels(
+                 kTempLabelsJson, strlen(kTempLabelsJson), &t) == WF_OK);
     WF_CHECK(t.label_count == 1);
-    WF_CHECK(t.labels[0].val &&
-             strcmp(t.labels[0].val, "graphic-media") == 0);
+    WF_CHECK(t.labels[0].val && strcmp(t.labels[0].val, "graphic-media") == 0);
     WF_CHECK(t.labels[0].src &&
-             strcmp(t.labels[0].src,
-                    "did:plc:labeler000000000000000000") == 0);
+             strcmp(t.labels[0].src, "did:plc:labeler000000000000000000") == 0);
     wf_labeler_temp_label_list_free(&t);
     WF_CHECK(t.label_count == 0 && t.labels == NULL);
 
     /* ---- service record (raw) ---- */
-    WF_CHECK(wf_labeler_parse_service_record(kServiceRecordJson,
-                                             strlen(kServiceRecordJson),
-                                             &r) == WF_OK);
+    WF_CHECK(wf_labeler_parse_service_record(
+                 kServiceRecordJson, strlen(kServiceRecordJson), &r) == WF_OK);
     WF_CHECK(r.policies.label_value_count == 2);
     WF_CHECK(r.policies.label_values[0] &&
              strcmp(r.policies.label_values[0], "!hide") == 0);
@@ -298,8 +296,8 @@ int main(void) {
     WF_CHECK(r.subject_collection_count == 0);
     WF_CHECK(r.extra == NULL);
     wf_labeler_service_record_free(&r);
-    WF_CHECK(r.policies.label_value_count == 0 &&
-             r.self_label_count == 0 && r.created_at == NULL);
+    WF_CHECK(r.policies.label_value_count == 0 && r.self_label_count == 0 &&
+             r.created_at == NULL);
 
     /* ---- Agent wrapper NULL validation (no live session; NULL agent passed so
        the wrappers never dereference a fake pointer). ---- */
@@ -317,7 +315,8 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_labeler_services(NULL, dids, 1, true, NULL) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_fetch_labels_typed(NULL, "did:plc:labeler000000000000000000",
+    WF_CHECK(wf_agent_fetch_labels_typed(NULL,
+                                         "did:plc:labeler000000000000000000",
                                          &t) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_fetch_labels_typed(NULL, NULL, &t) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_fetch_labels_typed(NULL, "did:plc:x", NULL) ==

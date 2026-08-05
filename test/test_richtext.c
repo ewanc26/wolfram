@@ -125,7 +125,8 @@ static void test_tag_fullwidth(void) {
     wf_richtext rt;
     memset(&rt, 0, sizeof(rt));
     /* U+FF03 is EF BC 83 in UTF-8 */
-    const char *text = "test \xef\xbc\x83" "bluesky end";
+    const char *text = "test \xef\xbc\x83"
+                       "bluesky end";
     WF_CHECK(wf_richtext_init(&rt, text) == WF_OK);
     WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
     WF_CHECK(rt.facet_count == 1);
@@ -140,8 +141,8 @@ static void test_tag_trailing_punct(void) {
     WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
     WF_CHECK(rt.facet_count == 1);
     WF_CHECK(rt.facets[0].features[0].type == WF_RICHTEXT_FEATURE_TAG);
-    WF_CHECK(rt.facets[0].byte_start == 8);   /* at '#' */
-    WF_CHECK(rt.facets[0].byte_end == 12);    /* excludes the '.' */
+    WF_CHECK(rt.facets[0].byte_start == 8); /* at '#' */
+    WF_CHECK(rt.facets[0].byte_end == 12);  /* excludes the '.' */
     WF_CHECK(strcmp(rt.facets[0].features[0].tag, "foo") == 0);
     wf_richtext_free(&rt);
 }
@@ -149,11 +150,14 @@ static void test_tag_trailing_punct(void) {
 static void test_tag_non_latin(void) {
     /* non-Latin tag bodies must be accepted (was ASCII-letter-only before) */
     wf_richtext rt;
-    WF_CHECK(wf_richtext_init(&rt, "hello #\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e world") == WF_OK);
+    WF_CHECK(wf_richtext_init(
+                 &rt, "hello #\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e world") ==
+             WF_OK);
     WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
     WF_CHECK(rt.facet_count == 1);
     WF_CHECK(rt.facets[0].features[0].type == WF_RICHTEXT_FEATURE_TAG);
-    WF_CHECK(strcmp(rt.facets[0].features[0].tag, "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e") == 0);
+    WF_CHECK(strcmp(rt.facets[0].features[0].tag,
+                    "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e") == 0);
     wf_richtext_free(&rt);
 }
 

@@ -24,9 +24,9 @@ extern "C" {
 
 /* Discriminates which member of a thread node is populated. */
 typedef enum {
-    WF_AGENT_THREAD_KIND_POST,       /* a threadViewPost (post is valid) */
-    WF_AGENT_THREAD_KIND_NOT_FOUND,  /* a notFoundPost (`uri` is valid) */
-    WF_AGENT_THREAD_KIND_BLOCKED     /* a blockedPost (`uri` is valid) */
+    WF_AGENT_THREAD_KIND_POST,      /* a threadViewPost (post is valid) */
+    WF_AGENT_THREAD_KIND_NOT_FOUND, /* a notFoundPost (`uri` is valid) */
+    WF_AGENT_THREAD_KIND_BLOCKED    /* a blockedPost (`uri` is valid) */
 } wf_agent_thread_node_kind;
 
 /* A `postView` (the `post` of a threadViewPost). */
@@ -34,15 +34,15 @@ typedef struct wf_agent_thread_post {
     char *uri;
     char *cid;
     wf_agent_profile_view author;
-    cJSON *record;          /* owned parsed record; NULL when absent */
-    cJSON *embed;           /* owned parsed embed; NULL when absent */
+    cJSON *record; /* owned parsed record; NULL when absent */
+    cJSON *embed;  /* owned parsed embed; NULL when absent */
     int reply_count;
     int repost_count;
     int like_count;
     int quote_count;
     char *indexed_at;
-    char *viewer_like;       /* viewer.like record URI, or NULL */
-    char *viewer_repost;     /* viewer.repost record URI, or NULL */
+    char *viewer_like;   /* viewer.like record URI, or NULL */
+    char *viewer_repost; /* viewer.repost record URI, or NULL */
 } wf_agent_thread_post;
 
 typedef struct wf_agent_thread_node wf_agent_thread_node;
@@ -50,20 +50,21 @@ typedef struct wf_agent_thread_node wf_agent_thread_node;
 /* A single node in the thread tree. `kind` selects which fields are valid. */
 struct wf_agent_thread_node {
     wf_agent_thread_node_kind kind;
-    wf_agent_thread_post post;       /* valid when kind == POST */
-    char *uri;                       /* valid when kind != POST */
-    wf_agent_thread_node *parent;    /* single parent, or NULL */
-    wf_agent_thread_node *replies;   /* array of WF_AGENT_THREAD_KIND_* */
+    wf_agent_thread_post post;     /* valid when kind == POST */
+    char *uri;                     /* valid when kind != POST */
+    wf_agent_thread_node *parent;  /* single parent, or NULL */
+    wf_agent_thread_node *replies; /* array of WF_AGENT_THREAD_KIND_* */
     size_t replies_count;
 };
 
 /* Top-level parsed response: the root node plus an optional cursor and the
  * optional top-level threadgate view (app.bsky.feed.defs#threadgateView:
- * uri/cid/record/lists) kept as an owned raw cJSON subtree (NULL when absent). */
+ * uri/cid/record/lists) kept as an owned raw cJSON subtree (NULL when absent).
+ */
 typedef struct wf_agent_thread {
     wf_agent_thread_node root;
     char *cursor;
-    cJSON *threadgate;   /* owned #threadgateView subtree; NULL when absent */
+    cJSON *threadgate; /* owned #threadgateView subtree; NULL when absent */
 } wf_agent_thread;
 
 /*

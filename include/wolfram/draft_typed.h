@@ -28,9 +28,9 @@ extern "C" {
 
 /* A single post draft. `uri` is the draft's at-uri (or TID-wrapped id),
  * `created_at` the draft timestamp, `updated_at` the last-update timestamp
- * (required in the #draftView wire shape), `text` the primary post text, `langs`
- * an owned array of BCP-47 language tags, and `record` the full owned record
- * subtree (detached from the parsed document). */
+ * (required in the #draftView wire shape), `text` the primary post text,
+ * `langs` an owned array of BCP-47 language tags, and `record` the full owned
+ * record subtree (detached from the parsed document). */
 typedef struct wf_draft {
     char *uri;
     char *created_at;
@@ -55,7 +55,8 @@ typedef struct wf_draft_list {
  * updatedAt}]}` (uri<->id, value<->draft are tolerated interchangeably).
  * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or
  * a missing/invalid `drafts` array, WF_ERR_ALLOC on allocation failure,
- * WF_OK on success. On any error `out` is left fully reset (no partial leaks). */
+ * WF_OK on success. On any error `out` is left fully reset (no partial leaks).
+ */
 wf_status wf_draft_parse_list(const char *json, size_t len, wf_draft_list *out);
 
 /* Free a parsed draft list and every owned subtree it holds. Safe on a

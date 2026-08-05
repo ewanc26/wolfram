@@ -40,8 +40,10 @@ typedef struct wf_server_create_account_input wf_server_create_account_input;
 typedef struct wf_server_create_account_result wf_server_create_account_result;
 typedef struct wf_server_app_password wf_server_app_password;
 typedef struct wf_server_app_password_list wf_server_app_password_list;
-typedef struct wf_server_create_invite_code_result wf_server_create_invite_code_result;
-typedef struct wf_server_create_invite_codes_result wf_server_create_invite_codes_result;
+typedef struct wf_server_create_invite_code_result
+    wf_server_create_invite_code_result;
+typedef struct wf_server_create_invite_codes_result
+    wf_server_create_invite_codes_result;
 
 #include <cJSON.h>
 
@@ -66,8 +68,8 @@ typedef struct wf_server_session_info {
     bool active;
     bool has_status;
     char *status;
-    cJSON *did_doc;          /* owned detached didDoc subtree; NULL absent */
-    cJSON *extra;            /* owned detached subtree of remaining fields */
+    cJSON *did_doc; /* owned detached didDoc subtree; NULL absent */
+    cJSON *extra;   /* owned detached subtree of remaining fields */
 } wf_server_session_info;
 
 /* com.atproto.server.checkAccountStatus output. */
@@ -102,7 +104,7 @@ typedef struct wf_server_invite_code {
     char *for_account;
     char *created_by;
     char *created_at;
-    cJSON *extra;            /* owned detached subtree of unknown fields */
+    cJSON *extra; /* owned detached subtree of unknown fields */
 } wf_server_invite_code;
 
 typedef struct wf_server_invite_code_list {
@@ -110,8 +112,8 @@ typedef struct wf_server_invite_code_list {
     size_t code_count;
 } wf_server_invite_code_list;
 
-/* A service-auth / reserved-signing-key token (com.atproto.server.getServiceAuth
- * and reserveSigningKey output). */
+/* A service-auth / reserved-signing-key token
+ * (com.atproto.server.getServiceAuth and reserveSigningKey output). */
 typedef struct wf_server_auth_token {
     char *token;
 } wf_server_auth_token;
@@ -132,8 +134,8 @@ typedef struct wf_server_session_tokens {
     bool active;
     bool has_status;
     char *status;
-    cJSON *did_doc;          /* owned detached didDoc subtree; NULL absent */
-    cJSON *extra;            /* owned detached subtree of remaining fields */
+    cJSON *did_doc; /* owned detached didDoc subtree; NULL absent */
+    cJSON *extra;   /* owned detached subtree of remaining fields */
 } wf_server_session_tokens;
 
 /* com.atproto.server.requestEmailUpdate output. */
@@ -176,49 +178,50 @@ void wf_server_email_update_request_free(wf_server_email_update_request *r);
 
 /* com.atproto.server.getSession */
 wf_status wf_agent_get_session_typed(wf_agent *agent,
-                                    wf_server_session_info *out);
+                                     wf_server_session_info *out);
 
 /* com.atproto.server.getServiceAuth. `exp_or_0` <= 0 means "omit exp";
  * `lxm_or_null` may be NULL to omit the lxm binding. */
 wf_status wf_agent_get_service_auth_typed(wf_agent *agent, const char *aud,
-                                         int64_t exp_or_0,
-                                         const char *lxm_or_null,
-                                         wf_server_auth_token *out);
+                                          int64_t exp_or_0,
+                                          const char *lxm_or_null,
+                                          wf_server_auth_token *out);
 
 /* com.atproto.server.checkAccountStatus */
 wf_status wf_agent_check_account_status_typed(wf_agent *agent,
-                                             wf_server_account_status *out);
+                                              wf_server_account_status *out);
 
 /* com.atproto.server.getAccountInviteCodes */
-wf_status wf_agent_get_account_invite_codes_typed(wf_agent *agent,
-                                                 int include_used,
-                                                 int create_available,
-                                                 wf_server_invite_code_list *out);
+wf_status
+wf_agent_get_account_invite_codes_typed(wf_agent *agent, int include_used,
+                                        int create_available,
+                                        wf_server_invite_code_list *out);
 
 /* com.atproto.server.reserveSigningKey. `did_or_null` may be NULL. */
 wf_status wf_agent_reserve_signing_key_typed(wf_agent *agent,
-                                            const char *did_or_null,
-                                            wf_server_auth_token *out);
+                                             const char *did_or_null,
+                                             wf_server_auth_token *out);
 
 /* com.atproto.server.requestAccountDelete (procedure, no output) */
 wf_status wf_agent_request_account_delete_typed(wf_agent *agent);
 
 /* com.atproto.server.requestEmailUpdate */
-wf_status wf_agent_request_email_update_typed(
-    wf_agent *agent, wf_server_email_update_request *out);
+wf_status
+wf_agent_request_email_update_typed(wf_agent *agent,
+                                    wf_server_email_update_request *out);
 
 /* com.atproto.server.requestEmailConfirmation (procedure, no output) */
 wf_status wf_agent_request_email_confirmation_typed(wf_agent *agent);
 
 /* com.atproto.server.requestPasswordReset (procedure, input {email}) */
 wf_status wf_agent_request_password_reset_typed(wf_agent *agent,
-                                               const char *email);
+                                                const char *email);
 
 /* com.atproto.server.createSession */
 wf_status wf_agent_create_session_typed(wf_agent *agent, const char *identifier,
-                                       const char *password,
-                                       const char *auth_factor_token_or_null,
-                                       wf_server_session_tokens *out);
+                                        const char *password,
+                                        const char *auth_factor_token_or_null,
+                                        wf_server_session_tokens *out);
 
 /* com.atproto.server.refreshSession */
 wf_status wf_agent_refresh_session_typed(wf_agent *agent,
@@ -233,12 +236,13 @@ wf_status wf_agent_refresh_session_typed(wf_agent *agent,
 
 /* com.atproto.server.describeServer */
 wf_status wf_agent_describe_server_typed(wf_agent *agent,
-                                        wf_server_description *out);
+                                         wf_server_description *out);
 
 /* com.atproto.server.createAccount */
-wf_status wf_agent_create_account_typed(
-    wf_agent *agent, const wf_server_create_account_input *input,
-    wf_server_create_account_result *out);
+wf_status
+wf_agent_create_account_typed(wf_agent *agent,
+                              const wf_server_create_account_input *input,
+                              wf_server_create_account_result *out);
 
 /* com.atproto.server.createAppPassword. `privileged` non-zero requests a
  * privileged password. */
@@ -269,7 +273,8 @@ wf_status wf_agent_confirm_email_typed(wf_agent *agent, const char *email,
                                        const char *token);
 
 /* com.atproto.server.resetPassword (procedure, no output) */
-wf_status wf_agent_reset_password_typed(wf_agent *agent, const char *reset_token,
+wf_status wf_agent_reset_password_typed(wf_agent *agent,
+                                        const char *reset_token,
                                         const char *new_password);
 
 /* com.atproto.server.updateEmail (procedure, no output). `email_auth_factor`
@@ -278,9 +283,10 @@ wf_status wf_agent_update_email_typed(wf_agent *agent, const char *email,
                                       const char *token, int email_auth_factor);
 
 /* com.atproto.server.createInviteCode */
-wf_status wf_agent_create_invite_code_typed(
-    wf_agent *agent, int64_t use_count, const char *for_account_or_null,
-    wf_server_create_invite_code_result *out);
+wf_status
+wf_agent_create_invite_code_typed(wf_agent *agent, int64_t use_count,
+                                  const char *for_account_or_null,
+                                  wf_server_create_invite_code_result *out);
 
 /* com.atproto.server.createInviteCodes. `for_accounts`/`for_accounts_count`
  * are optional. */

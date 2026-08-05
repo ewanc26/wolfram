@@ -52,10 +52,12 @@ int main(int argc, char **argv) {
     if (desc.invite_code_required < 0) {
         printf("Invite code required: unknown\n");
     } else {
-        printf("Invite code required: %s\n", desc.invite_code_required ? "yes" : "no");
+        printf("Invite code required: %s\n",
+               desc.invite_code_required ? "yes" : "no");
     }
 
-    printf("Contact email: %s\n", desc.contact_email ? desc.contact_email : "(none)");
+    printf("Contact email: %s\n",
+           desc.contact_email ? desc.contact_email : "(none)");
 
     wf_agent_server_description_free(&desc);
     wf_agent_free(agent);

@@ -74,7 +74,8 @@ int main(void) {
     WF_CHECK(v.has_view == true);
     WF_CHECK(v.uri && strcmp(v.uri, "https://example.com/article") == 0);
     WF_CHECK(v.title && strcmp(v.title, "An Example Article") == 0);
-    WF_CHECK(v.description && strcmp(v.description, "A short description.") == 0);
+    WF_CHECK(v.description &&
+             strcmp(v.description, "A short description.") == 0);
     WF_CHECK(v.thumb &&
              strcmp(v.thumb, "https://cdn.bsky.app/img/thumb.jpg") == 0);
     /* The full "view" subtree is retained, including nested open fields. */
@@ -110,19 +111,19 @@ int main(void) {
     /* ---- Agent wrapper argument validation ---- */
     const char *uris[] = {"at://did:plc:x/site.standard.document/1"};
     const char *empty_uris[] = {""};
-    WF_CHECK(wf_agent_get_embed_external_view_typed(
-                 NULL, "https://example.com", uris, 1, &v) ==
+    WF_CHECK(wf_agent_get_embed_external_view_typed(NULL, "https://example.com",
+                                                    uris, 1,
+                                                    &v) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_embed_external_view_typed(NULL, NULL, uris, 1, &v) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_embed_external_view_typed(
-                 NULL, NULL, uris, 1, &v) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_embed_external_view_typed(
-                 NULL, "https://example.com", NULL, 0, &v) ==
-             WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_embed_external_view_typed(
-                 NULL, "https://example.com", empty_uris, 1, &v) ==
-             WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_embed_external_view_typed(
-                 NULL, "https://example.com", uris, 1, NULL) ==
+    WF_CHECK(wf_agent_get_embed_external_view_typed(NULL, "https://example.com",
+                                                    NULL, 0,
+                                                    &v) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_embed_external_view_typed(NULL, "https://example.com",
+                                                    empty_uris, 1,
+                                                    &v) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_embed_external_view_typed(NULL, "https://example.com",
+                                                    uris, 1, NULL) ==
              WF_ERR_INVALID_ARG);
 
     /* ---- Inline embed view parsers ---- */
@@ -147,7 +148,8 @@ int main(void) {
 
         wf_embed_view_images v = {0};
         WF_CHECK(wf_embed_parse_images_view(NULL, 0, &v) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_embed_parse_images_view("{}", 2, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_embed_parse_images_view("{}", 2, NULL) ==
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_embed_parse_images_view("not json", 8, &v) == WF_ERR_PARSE);
         WF_CHECK(wf_embed_parse_images_view(body, strlen(body), &v) == WF_OK);
         WF_CHECK(v.count == 1);
@@ -191,8 +193,8 @@ int main(void) {
         cJSON *bad = cJSON_CreateObject();
         cJSON_AddStringToObject(bad, "playlist", "x");
         char *bad_body = json_of(bad);
-        WF_CHECK(wf_embed_parse_video_view(bad_body, strlen(bad_body),
-                                          &v) == WF_ERR_PARSE);
+        WF_CHECK(wf_embed_parse_video_view(bad_body, strlen(bad_body), &v) ==
+                 WF_ERR_PARSE);
         free(bad_body);
         free(body);
     }
@@ -214,9 +216,9 @@ int main(void) {
 
         wf_embed_view_external v = {0};
         WF_CHECK(wf_embed_parse_external_embed_view(NULL, 0, &v) ==
-                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_embed_parse_external_embed_view(body, strlen(body),
-                                                  &v) == WF_OK);
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_embed_parse_external_embed_view(body, strlen(body), &v) ==
+                 WF_OK);
         WF_CHECK(strcmp(v.uri, "https://example.com/a") == 0);
         WF_CHECK(strcmp(v.title, "Article") == 0);
         WF_CHECK(strcmp(v.description, "desc") == 0);
@@ -233,8 +235,10 @@ int main(void) {
     {
         cJSON *root = cJSON_CreateObject();
         cJSON *rec = cJSON_CreateObject();
-        cJSON_AddStringToObject(rec, "$type", "app.bsky.embed.record#viewRecord");
-        cJSON_AddStringToObject(rec, "uri", "at://did:plc:x/app.bsky.feed.post/r1");
+        cJSON_AddStringToObject(rec, "$type",
+                                "app.bsky.embed.record#viewRecord");
+        cJSON_AddStringToObject(rec, "uri",
+                                "at://did:plc:x/app.bsky.feed.post/r1");
         cJSON_AddStringToObject(rec, "cid", "bafyrec1");
         cJSON *author = cJSON_CreateObject();
         cJSON_AddStringToObject(author, "did", "did:plc:alice");
@@ -267,7 +271,8 @@ int main(void) {
     {
         cJSON *root = cJSON_CreateObject();
         cJSON *rec = cJSON_CreateObject();
-        cJSON_AddStringToObject(rec, "uri", "at://did:plc:x/app.bsky.feed.post/missing");
+        cJSON_AddStringToObject(rec, "uri",
+                                "at://did:plc:x/app.bsky.feed.post/missing");
         cJSON_AddBoolToObject(rec, "notFound", 1);
         cJSON_AddItemToObject(root, "record", rec);
         char *body = json_of(root);
@@ -275,8 +280,8 @@ int main(void) {
         wf_embed_record_embed_view v = {0};
         WF_CHECK(wf_embed_parse_record_view(body, strlen(body), &v) == WF_OK);
         WF_CHECK(v.kind == WF_EMBED_REC_VIEW_NOT_FOUND);
-        WF_CHECK(strcmp(v.uri,
-                         "at://did:plc:x/app.bsky.feed.post/missing") == 0);
+        WF_CHECK(strcmp(v.uri, "at://did:plc:x/app.bsky.feed.post/missing") ==
+                 0);
         WF_CHECK(v.record.uri == NULL && v.extra != NULL);
         wf_embed_record_embed_view_free(&v);
         free(body);
@@ -288,7 +293,8 @@ int main(void) {
         cJSON_AddStringToObject(root, "$type",
                                 "app.bsky.embed.recordWithMedia#view");
         cJSON *rec = cJSON_CreateObject();
-        cJSON_AddStringToObject(rec, "$type", "app.bsky.embed.record#viewRecord");
+        cJSON_AddStringToObject(rec, "$type",
+                                "app.bsky.embed.record#viewRecord");
         cJSON_AddStringToObject(rec, "uri", "at://did:plc:x/post/rm");
         cJSON_AddStringToObject(rec, "cid", "bafyrm");
         cJSON_AddStringToObject(rec, "indexedAt", "2024-05-01T00:00:00Z");
@@ -305,9 +311,9 @@ int main(void) {
 
         wf_embed_record_with_media_view v = {0};
         WF_CHECK(wf_embed_parse_record_with_media_view(NULL, 0, &v) ==
-                  WF_ERR_INVALID_ARG);
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_embed_parse_record_with_media_view(body, strlen(body),
-                                                      &v) == WF_OK);
+                                                       &v) == WF_OK);
         WF_CHECK(v.record.kind == WF_EMBED_REC_VIEW_RECORD);
         WF_CHECK(strcmp(v.record.uri, "at://did:plc:x/post/rm") == 0);
         WF_CHECK(v.media != NULL);
@@ -332,7 +338,8 @@ int main(void) {
         char *body = json_of(root);
 
         wf_embed_view_gallery v = {0};
-        WF_CHECK(wf_embed_parse_gallery_view(NULL, 0, &v) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_embed_parse_gallery_view(NULL, 0, &v) ==
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_embed_parse_gallery_view(body, strlen(body), &v) == WF_OK);
         WF_CHECK(v.count == 1);
         if (v.count == 1) {

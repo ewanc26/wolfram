@@ -204,7 +204,8 @@ static char *json_queue_list(void) {
     cJSON_AddItemToObject(q, "subjectTypes", st);
     cJSON_AddStringToObject(q, "collection", "app.bsky.feed.post");
     cJSON *rt = cJSON_CreateArray();
-    cJSON_AddItemToArray(rt, cJSON_CreateString("com.atproto.moderation.defs#reasonSpam"));
+    cJSON_AddItemToArray(
+        rt, cJSON_CreateString("com.atproto.moderation.defs#reasonSpam"));
     cJSON_AddItemToObject(q, "reportTypes", rt);
     cJSON_AddStringToObject(q, "description", "default queue");
     cJSON_AddStringToObject(q, "createdBy", "did:plc:admin");
@@ -346,7 +347,8 @@ int main(void) {
         char *json = json_report_list();
         WF_CHECK(json != NULL);
         wf_ozone_ops_report_list list = {0};
-        wf_status st = wf_ozone_ops_parse_report_list(json, strlen(json), &list);
+        wf_status st =
+            wf_ozone_ops_parse_report_list(json, strlen(json), &list);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(list.report_count == 1);
@@ -358,7 +360,8 @@ int main(void) {
             WF_CHECK(r->status && strcmp(r->status, "open") == 0);
             WF_CHECK(r->report_type &&
                      strcmp(r->report_type,
-                            "com.atproto.moderation.defs#reasonViolation") == 0);
+                            "com.atproto.moderation.defs#reasonViolation") ==
+                         0);
             WF_CHECK(r->reported_by &&
                      strcmp(r->reported_by, "did:plc:reporter") == 0);
             WF_CHECK(r->comment && strcmp(r->comment, "inappropriate") == 0);
@@ -367,7 +370,8 @@ int main(void) {
             WF_CHECK(r->queued_at &&
                      strcmp(r->queued_at, "2026-01-03T00:00:00.000Z") == 0);
             WF_CHECK(r->action_note && strcmp(r->action_note, "actioned") == 0);
-            WF_CHECK(r->has_related_report_count && r->related_report_count == 2);
+            WF_CHECK(r->has_related_report_count &&
+                     r->related_report_count == 2);
             WF_CHECK(r->has_is_muted && r->is_muted == false);
             WF_CHECK(r->extra != NULL);
         }
@@ -394,7 +398,8 @@ int main(void) {
     {
         char *json = json_wrapped_report();
         wf_ozone_ops_report_view v = {0};
-        wf_status st = wf_ozone_ops_parse_wrapped_report(json, strlen(json), &v);
+        wf_status st =
+            wf_ozone_ops_parse_wrapped_report(json, strlen(json), &v);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(v.has_id && v.id == 9);
@@ -416,7 +421,8 @@ int main(void) {
             WF_CHECK(a->has_id && a->id == 11);
             WF_CHECK(a->has_report_id && a->report_id == 7);
             WF_CHECK(a->has_is_automated && a->is_automated == true);
-            WF_CHECK(a->created_by && strcmp(a->created_by, "did:plc:mod") == 0);
+            WF_CHECK(a->created_by &&
+                     strcmp(a->created_by, "did:plc:mod") == 0);
             WF_CHECK(a->internal_note &&
                      strcmp(a->internal_note, "auto-routed") == 0);
             WF_CHECK(a->public_note && strcmp(a->public_note, "thanks") == 0);
@@ -500,8 +506,8 @@ int main(void) {
     {
         char *json = json_historical_stats();
         wf_ozone_ops_historical_stats_list list = {0};
-        wf_status st = wf_ozone_ops_parse_historical_stats_list(
-            json, strlen(json), &list);
+        wf_status st =
+            wf_ozone_ops_parse_historical_stats_list(json, strlen(json), &list);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(list.stats_count == 1);
@@ -554,8 +560,8 @@ int main(void) {
     {
         char *json = json_queue_assignment_list();
         wf_ozone_ops_queue_assignment_list list = {0};
-        wf_status st = wf_ozone_ops_parse_queue_assignment_list(
-            json, strlen(json), &list);
+        wf_status st =
+            wf_ozone_ops_parse_queue_assignment_list(json, strlen(json), &list);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(list.assignment_count == 1);
@@ -654,7 +660,8 @@ int main(void) {
     {
         char *json = json_account_list();
         wf_ozone_ops_account_list list = {0};
-        wf_status st = wf_ozone_ops_parse_account_list(json, strlen(json), &list);
+        wf_status st =
+            wf_ozone_ops_parse_account_list(json, strlen(json), &list);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(list.account_count == 1);
@@ -703,12 +710,12 @@ int main(void) {
         WF_CHECK(wf_ozone_ops_report_refresh_stats(agent, NULL, &r) ==
                  WF_ERR_INVALID_ARG);
 
-wf_ozone_ops_route_reports_result rr = {0};
-WF_CHECK(wf_ozone_ops_queue_route_reports(agent, NULL, &rr) ==
-  WF_ERR_INVALID_ARG);
+        wf_ozone_ops_route_reports_result rr = {0};
+        WF_CHECK(wf_ozone_ops_queue_route_reports(agent, NULL, &rr) ==
+                 WF_ERR_INVALID_ARG);
 
-wf_ozone_ops_account_list al = {0};
-WF_CHECK(wf_ozone_ops_signature_search_accounts(agent, NULL, &al) ==
+        wf_ozone_ops_account_list al = {0};
+        WF_CHECK(wf_ozone_ops_signature_search_accounts(agent, NULL, &al) ==
                  WF_ERR_INVALID_ARG);
 
         wf_agent_free(agent);

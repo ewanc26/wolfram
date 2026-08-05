@@ -8,10 +8,12 @@
 #include <string.h>
 
 static int wf_oauth_pkce_char_valid(unsigned char value) {
-    return isalnum(value) || value == '-' || value == '.' || value == '_' || value == '~';
+    return isalnum(value) || value == '-' || value == '.' || value == '_' ||
+           value == '~';
 }
 
-wf_status wf_oauth_pkce_from_verifier(const char *verifier, wf_oauth_pkce *out) {
+wf_status wf_oauth_pkce_from_verifier(const char *verifier,
+                                      wf_oauth_pkce *out) {
     size_t len, i;
     unsigned char digest[SHA256_DIGEST_LENGTH];
     char *challenge = NULL;
@@ -20,7 +22,8 @@ wf_status wf_oauth_pkce_from_verifier(const char *verifier, wf_oauth_pkce *out) 
     len = strlen(verifier);
     if (len < 43 || len > WF_OAUTH_PKCE_VERIFIER_MAX) return WF_ERR_INVALID_ARG;
     for (i = 0; i < len; i++) {
-        if (!wf_oauth_pkce_char_valid((unsigned char)verifier[i])) return WF_ERR_INVALID_ARG;
+        if (!wf_oauth_pkce_char_valid((unsigned char)verifier[i]))
+            return WF_ERR_INVALID_ARG;
     }
     SHA256((const unsigned char *)verifier, len, digest);
     status = wf_oauth_base64url(digest, sizeof(digest), &challenge);

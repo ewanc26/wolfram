@@ -15,7 +15,10 @@ wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
 
     wf_cbor_item *obj = wf_cbor_parse(cbor, len);
     if (!obj) return WF_ERR_PARSE;
-    if (obj->type != WF_CBOR_MAP) { wf_cbor_free(obj); return WF_ERR_PARSE; }
+    if (obj->type != WF_CBOR_MAP) {
+        wf_cbor_free(obj);
+        return WF_ERR_PARSE;
+    }
 
     wf_cbor_item *did_item = wf_cbor_map_find(obj, "did", 3);
     if (!did_item || did_item->type != WF_CBOR_STRING ||
@@ -58,7 +61,7 @@ wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
         out->prev.len = 36;
         out->has_prev = 1;
     } else if (prev_item && !(prev_item->type == WF_CBOR_SIMPLE &&
-                               prev_item->simple_value == 22)) {
+                              prev_item->simple_value == 22)) {
         wf_cbor_free(obj);
         return WF_ERR_PARSE;
     }
@@ -78,10 +81,8 @@ wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
 }
 
 wf_status wf_commit_create(const char *did_str, const char *rev_str,
-                           const wf_cid *data_cid,
-                           const wf_cid *prev_cid,
-                           const wf_signing_key *key,
-                           wf_car *car,
+                           const wf_cid *data_cid, const wf_cid *prev_cid,
+                           const wf_signing_key *key, wf_car *car,
                            wf_commit *out) {
     if (!did_str || !rev_str || !data_cid || !key || !car || !out)
         return WF_ERR_INVALID_ARG;
@@ -113,7 +114,10 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
     map->type = WF_CBOR_MAP;
     map->map.count = 5;
     map->map.pairs = calloc(5, sizeof(wf_cbor_pair));
-    if (!map->map.pairs) { free(map); return WF_ERR_ALLOC; }
+    if (!map->map.pairs) {
+        free(map);
+        return WF_ERR_ALLOC;
+    }
 
     map->map.pairs[0].key = cbor_str("did");
     map->map.pairs[0].value = cbor_str(did_str);
@@ -128,16 +132,25 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
 
     size_t cbor_len;
     unsigned char *cbor = wf_cbor_serialize(map, &cbor_len);
-    if (!cbor) { wf_cbor_free(map); return WF_ERR_ALLOC; }
+    if (!cbor) {
+        wf_cbor_free(map);
+        return WF_ERR_ALLOC;
+    }
 
     wf_status s = wf_sign(key, cbor, cbor_len, out->sig, sizeof(out->sig));
     free(cbor);
-    if (s != WF_OK) { wf_cbor_free(map); return s; }
+    if (s != WF_OK) {
+        wf_cbor_free(map);
+        return s;
+    }
     out->sig_len = 64;
 
     map->map.count = 6;
     wf_cbor_pair *np = realloc(map->map.pairs, 6 * sizeof(wf_cbor_pair));
-    if (!np) { wf_cbor_free(map); return WF_ERR_ALLOC; }
+    if (!np) {
+        wf_cbor_free(map);
+        return WF_ERR_ALLOC;
+    }
     map->map.pairs = np;
     memmove(&map->map.pairs[3], &map->map.pairs[2], 3 * sizeof(wf_cbor_pair));
     map->map.pairs[2].key = cbor_str("sig");
@@ -149,11 +162,17 @@ wf_status wf_commit_create(const char *did_str, const char *rev_str,
 
     wf_cid final_cid;
     s = wf_cid_of_block(final_cbor, cbor_len, &final_cid);
-    if (s != WF_OK) { free(final_cbor); return s; }
+    if (s != WF_OK) {
+        free(final_cbor);
+        return s;
+    }
 
-    wf_car_block *blk = realloc(car->blocks,
-        (car->block_count + 1) * sizeof(wf_car_block));
-    if (!blk) { free(final_cbor); return WF_ERR_ALLOC; }
+    wf_car_block *blk =
+        realloc(car->blocks, (car->block_count + 1) * sizeof(wf_car_block));
+    if (!blk) {
+        free(final_cbor);
+        return WF_ERR_ALLOC;
+    }
     car->blocks = blk;
     car->blocks[car->block_count].cid = final_cid;
     car->blocks[car->block_count].data = final_cbor;

@@ -55,8 +55,7 @@ int main(void) {
                  strcmp(list.items[0].did, "did:plc:a") == 0);
         WF_CHECK(list.items[0].head &&
                  strcmp(list.items[0].head, "bafyhead") == 0);
-        WF_CHECK(list.items[0].rev &&
-                 strcmp(list.items[0].rev, "3lkrev") == 0);
+        WF_CHECK(list.items[0].rev && strcmp(list.items[0].rev, "3lkrev") == 0);
         WF_CHECK(list.items[0].has_active && list.items[0].active);
         WF_CHECK(list.items[0].has_status &&
                  strcmp(list.items[0].status, "deactivated") == 0);
@@ -87,8 +86,8 @@ int main(void) {
 
         wf_sync_repo_by_collection_list list;
         memset(&list, 0, sizeof(list));
-        WF_CHECK(wf_sync_parse_repo_by_collection_list(
-                     json, strlen(json), &list) == WF_OK);
+        WF_CHECK(wf_sync_parse_repo_by_collection_list(json, strlen(json),
+                                                       &list) == WF_OK);
         WF_CHECK(list.count == 2);
         WF_CHECK(list.cursor && strcmp(list.cursor, "c4") == 0);
         WF_CHECK(list.items[0].did &&
@@ -114,7 +113,8 @@ int main(void) {
 
         wf_sync_blob_cid_list list;
         memset(&list, 0, sizeof(list));
-        WF_CHECK(wf_sync_parse_blob_cid_list(json, strlen(json), &list) == WF_OK);
+        WF_CHECK(wf_sync_parse_blob_cid_list(json, strlen(json), &list) ==
+                 WF_OK);
         WF_CHECK(list.count == 2);
         WF_CHECK(list.cursor && strcmp(list.cursor, "c2") == 0);
         WF_CHECK(list.cids[0] && strcmp(list.cids[0], "bafycid1") == 0);
@@ -255,12 +255,10 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_notify_of_update_typed(agent, "") ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_request_crawl_typed(NULL, "h") ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_request_crawl_typed(NULL, "h") == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_request_crawl_typed(agent, NULL) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_request_crawl_typed(agent, "") ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_request_crawl_typed(agent, "") == WF_ERR_INVALID_ARG);
 
         unsigned char *bytes = NULL;
         size_t len = 0;

@@ -21,7 +21,7 @@
 /* Test handler                                                        */
 /* ------------------------------------------------------------------ */
 static wf_status test_query_handler(void *ctx, const wf_xrpc_request *req,
-                                     wf_xrpc_response *resp) {
+                                    wf_xrpc_response *resp) {
     (void)ctx;
     char *json;
 
@@ -33,7 +33,7 @@ static wf_status test_query_handler(void *ctx, const wf_xrpc_request *req,
 
     if (!req->params) {
         wf_xrpc_response_set_error(resp, 400, "MissingQuery",
-                                    "no params received");
+                                   "no params received");
         return WF_OK;
     }
 
@@ -59,11 +59,11 @@ static wf_status test_query_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status test_auth_handler(void *ctx, const wf_xrpc_request *req,
-                                    wf_xrpc_response *resp) {
+                                   wf_xrpc_response *resp) {
     (void)ctx;
     if (!req->auth_header) {
         wf_xrpc_response_set_error(resp, 401, "AuthRequired",
-                                    "Authorization header required");
+                                   "Authorization header required");
         return WF_OK;
     }
     char *json;
@@ -86,7 +86,7 @@ static wf_status test_auth_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status test_proc_handler(void *ctx, const wf_xrpc_request *req,
-                                    wf_xrpc_response *resp) {
+                                   wf_xrpc_response *resp) {
     (void)ctx;
     char *json;
 
@@ -109,7 +109,7 @@ static wf_status test_proc_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
-                                    wf_xrpc_response *resp) {
+                                   wf_xrpc_response *resp) {
     (void)ctx;
     if (!req->path || strncmp(req->path, "/oauth/", 7) != 0)
         return WF_ERR_INVALID_ARG;
@@ -124,15 +124,19 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
         const char expected[] = "grant_type=authorization_code&code=abc";
         if (!req->content_type ||
             strncmp(req->content_type, "application/x-www-form-urlencoded",
-                    33) != 0 || req->body_len != strlen(expected) ||
+                    33) != 0 ||
+            req->body_len != strlen(expected) ||
             memcmp(req->body, expected, strlen(expected)) != 0)
             return WF_ERR_PARSE;
         resp->http_status = 201;
         wf_xrpc_response_add_header(resp, "DPoP-Nonce", "next-nonce");
     } else {
-        cJSON *client = req->params
-            ? cJSON_GetObjectItemCaseSensitive(req->params, "client_id") : NULL;
-        if (!cJSON_IsString(client) || strcmp(client->valuestring, "native") != 0)
+        cJSON *client =
+            req->params
+                ? cJSON_GetObjectItemCaseSensitive(req->params, "client_id")
+                : NULL;
+        if (!cJSON_IsString(client) ||
+            strcmp(client->valuestring, "native") != 0)
             return WF_ERR_PARSE;
         wf_xrpc_response_add_header(resp, "Set-Cookie",
                                     "mb_device=xyz; Path=/; HttpOnly");
@@ -162,7 +166,7 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
  * (nsid, method, raw query, atproto-proxy header, body) so the test can
  * assert they arrive intact for unregistered NSIDs. */
 static wf_status test_fallback_handler(void *ctx, const wf_xrpc_request *req,
-                                        wf_xrpc_response *resp) {
+                                       wf_xrpc_response *resp) {
     (void)ctx;
     cJSON *obj = cJSON_CreateObject();
     if (!obj) return WF_ERR_ALLOC;
@@ -208,31 +212,32 @@ static int run_test(void) {
 
     /* Register routes */
     if (wf_xrpc_server_register_query(server, "io.example.ping",
-                                       test_query_handler, NULL) != WF_OK) {
+                                      test_query_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register ping\n");
         wf_xrpc_server_free(server);
         return 1;
     }
 
     if (wf_xrpc_server_register_query(server, "io.example.auth",
-                                       test_auth_handler, NULL) != WF_OK) {
+                                      test_auth_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register auth\n");
         wf_xrpc_server_free(server);
         return 1;
     }
 
     if (wf_xrpc_server_register_procedure(server, "io.example.echo",
-                                           test_proc_handler, NULL) != WF_OK) {
+                                          test_proc_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register proc\n");
         wf_xrpc_server_free(server);
         return 1;
     }
     if (wf_xrpc_server_register_http_route(server, "GET", "/oauth/test",
-            test_http_handler, NULL) != WF_OK ||
+                                           test_http_handler, NULL) != WF_OK ||
         wf_xrpc_server_register_http_route(server, "POST", "/oauth/token",
-            test_http_handler, NULL) != WF_OK ||
+                                           test_http_handler, NULL) != WF_OK ||
         wf_xrpc_server_register_http_route(server, "GET",
-            "/oauth/redirect-test", test_http_handler, NULL) != WF_OK) {
+                                           "/oauth/redirect-test",
+                                           test_http_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register generic HTTP routes\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -253,8 +258,8 @@ static int run_test(void) {
     {
         wf_xrpc_param params[] = {{"msg", "hello"}};
         wf_response_free(&res);
-        wf_status s = wf_xrpc_query_params(client, "io.example.ping",
-                                            params, 1, &res);
+        wf_status s =
+            wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
         if (s != WF_OK) {
             fprintf(stderr, "FAIL: query ping (status=%d)\n", (int)s);
             failures++;
@@ -303,9 +308,11 @@ static int run_test(void) {
             } else {
                 cJSON *auth = cJSON_GetObjectItemCaseSensitive(root, "auth");
                 cJSON *dpop = cJSON_GetObjectItemCaseSensitive(root, "dpop");
-                if (!auth || !cJSON_IsString(auth) || !strstr(auth->valuestring, "test-token")) {
+                if (!auth || !cJSON_IsString(auth) ||
+                    !strstr(auth->valuestring, "test-token")) {
                     fprintf(stderr, "FAIL: auth mismatch: %s\n",
-                            auth && auth->valuestring ? auth->valuestring : "NULL");
+                            auth && auth->valuestring ? auth->valuestring
+                                                      : "NULL");
                     failures++;
                 }
                 if (!dpop || !cJSON_IsString(dpop) ||
@@ -344,8 +351,8 @@ static int run_test(void) {
             failures++;
         } else {
             cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-            cJSON *cookie = root
-                ? cJSON_GetObjectItemCaseSensitive(root, "cookie") : NULL;
+            cJSON *cookie =
+                root ? cJSON_GetObjectItemCaseSensitive(root, "cookie") : NULL;
             if (!cookie || !cJSON_IsString(cookie) ||
                 strcmp(cookie->valuestring,
                        "mb_device=abc123; other=ignored") != 0) {
@@ -356,7 +363,8 @@ static int run_test(void) {
             }
             cJSON_Delete(root);
             if (!res.set_cookie ||
-                strcmp(res.set_cookie, "mb_device=xyz; Path=/; HttpOnly") != 0) {
+                strcmp(res.set_cookie, "mb_device=xyz; Path=/; HttpOnly") !=
+                    0) {
                 fprintf(stderr, "FAIL: captured Set-Cookie mismatch: %s\n",
                         res.set_cookie ? res.set_cookie : "NULL");
                 failures++;
@@ -387,8 +395,8 @@ static int run_test(void) {
             fprintf(stderr, "FAIL: redirect status=%ld\n", res.status);
             failures++;
         } else if (!res.location ||
-                   strcmp(res.location,
-                          "/oauth/consent?client_id=native") != 0) {
+                   strcmp(res.location, "/oauth/consent?client_id=native") !=
+                       0) {
             fprintf(stderr, "FAIL: captured Location mismatch: %s\n",
                     res.location ? res.location : "NULL");
             failures++;
@@ -400,7 +408,7 @@ static int run_test(void) {
     {
         wf_response_free(&res);
         wf_status s = wf_xrpc_procedure(client, "io.example.echo",
-                                         "{\"custom\":\"data\"}", &res);
+                                        "{\"custom\":\"data\"}", &res);
         if (s != WF_OK) {
             fprintf(stderr, "FAIL: procedure (status=%d)\n", (int)s);
             failures++;
@@ -413,7 +421,8 @@ static int run_test(void) {
                 fprintf(stderr, "FAIL: procedure parse error\n");
                 failures++;
             } else {
-                cJSON *custom = cJSON_GetObjectItemCaseSensitive(root, "custom");
+                cJSON *custom =
+                    cJSON_GetObjectItemCaseSensitive(root, "custom");
                 if (!custom || !cJSON_IsString(custom) ||
                     strcmp(custom->valuestring, "data") != 0) {
                     fprintf(stderr, "FAIL: procedure body mismatch\n");
@@ -425,15 +434,18 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    /* Test 4: Unregistered NSID returns 501 MethodNotImplemented (atproto spec) */
+    /* Test 4: Unregistered NSID returns 501 MethodNotImplemented (atproto spec)
+     */
     {
         wf_response_free(&res);
         wf_status s = wf_xrpc_query(client, "io.example.missing", NULL, &res);
         if (s != WF_ERR_HTTP) {
-            fprintf(stderr, "FAIL: missing expected WF_ERR_HTTP, got %d\n", (int)s);
+            fprintf(stderr, "FAIL: missing expected WF_ERR_HTTP, got %d\n",
+                    (int)s);
             failures++;
         } else if (res.status != 501) {
-            fprintf(stderr, "FAIL: missing expected 501, got %ld\n", res.status);
+            fprintf(stderr, "FAIL: missing expected 501, got %ld\n",
+                    res.status);
             failures++;
         }
         wf_response_free(&res);
@@ -454,15 +466,16 @@ static int run_test(void) {
         };
         wf_status s = wf_http_get_with_headers(client, url, hdrs, 1, &res);
         cJSON *root = (s == WF_OK && res.body)
-            ? cJSON_ParseWithLength(res.body, res.body_len) : NULL;
+                          ? cJSON_ParseWithLength(res.body, res.body_len)
+                          : NULL;
         if (!root) {
-            fprintf(stderr, "FAIL: fallback GET status=%d http=%ld\n",
-                    (int)s, res.status);
+            fprintf(stderr, "FAIL: fallback GET status=%d http=%ld\n", (int)s,
+                    res.status);
             failures++;
         } else {
             cJSON *raw = cJSON_GetObjectItemCaseSensitive(root, "raw_query");
-            cJSON *pxy = cJSON_GetObjectItemCaseSensitive(root,
-                                                          "atproto_proxy");
+            cJSON *pxy =
+                cJSON_GetObjectItemCaseSensitive(root, "atproto_proxy");
             if (!cJSON_IsString(raw) ||
                 strcmp(raw->valuestring, "a=1&b=two words") != 0) {
                 fprintf(stderr, "FAIL: fallback raw_query mismatch: got '%s'\n",
@@ -470,8 +483,8 @@ static int run_test(void) {
                 failures++;
             }
             if (!cJSON_IsString(pxy) ||
-                strcmp(pxy->valuestring, "did:web:svc.example#bsky_appview")
-                    != 0) {
+                strcmp(pxy->valuestring, "did:web:svc.example#bsky_appview") !=
+                    0) {
                 fprintf(stderr, "FAIL: fallback atproto_proxy mismatch\n");
                 failures++;
             }
@@ -480,15 +493,15 @@ static int run_test(void) {
         wf_response_free(&res);
 
         /* POST to an unknown NSID reaches the fallback with its body. */
-        s = wf_xrpc_procedure(client, "io.example.unknownProc",
-                              "{\"x\":1}", &res);
+        s = wf_xrpc_procedure(client, "io.example.unknownProc", "{\"x\":1}",
+                              &res);
         root = (s == WF_OK && res.body)
-            ? cJSON_ParseWithLength(res.body, res.body_len) : NULL;
-        if (!root ||
-            !cJSON_IsString(cJSON_GetObjectItemCaseSensitive(root,
-                                                             "body_len"))) {
-            fprintf(stderr, "FAIL: fallback POST status=%d http=%ld\n",
-                    (int)s, res.status);
+                   ? cJSON_ParseWithLength(res.body, res.body_len)
+                   : NULL;
+        if (!root || !cJSON_IsString(
+                         cJSON_GetObjectItemCaseSensitive(root, "body_len"))) {
+            fprintf(stderr, "FAIL: fallback POST status=%d http=%ld\n", (int)s,
+                    res.status);
             failures++;
         }
         if (root) cJSON_Delete(root);
@@ -529,7 +542,8 @@ static int run_test(void) {
 
         snprintf(url, sizeof(url), "%s/oauth/token", base_url);
         s = wf_http_post(client, url, "application/x-www-form-urlencoded",
-            "grant_type=authorization_code&code=abc", NULL, 0, &res);
+                         "grant_type=authorization_code&code=abc", NULL, 0,
+                         &res);
         if (s != WF_OK || res.status != 201 || !res.dpop_nonce ||
             strcmp(res.dpop_nonce, "next-nonce") != 0) {
             fprintf(stderr, "FAIL: generic HTTP POST status=%d http=%ld\n",
@@ -703,7 +717,7 @@ static int test_server_rate_limit(void) {
 
     /* Register handler and attach rate limiter */
     if (wf_xrpc_server_register_query(server, "io.example.ping",
-                                       test_query_handler, NULL) != WF_OK) {
+                                      test_query_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: srv rate limit register\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -746,8 +760,10 @@ static int test_server_rate_limit(void) {
     /* 3rd should get 429 */
     s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
     if (s != WF_ERR_HTTP || res.status != 429) {
-        fprintf(stderr, "FAIL: srv rate limit req 3: expected 429, "
-                "got status=%d http=%ld\n", (int)s, res.status);
+        fprintf(stderr,
+                "FAIL: srv rate limit req 3: expected 429, "
+                "got status=%d http=%ld\n",
+                (int)s, res.status);
         failures++;
     }
     wf_response_free(&res);
@@ -756,7 +772,8 @@ static int test_server_rate_limit(void) {
     wf_xrpc_server_set_rate_limiter(server, NULL);
     s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
     if (s != WF_OK || res.status != 200) {
-        fprintf(stderr, "FAIL: srv rate limit after detach: status=%d http=%ld\n",
+        fprintf(stderr,
+                "FAIL: srv rate limit after detach: status=%d http=%ld\n",
                 (int)s, res.status);
         failures++;
     }
@@ -808,13 +825,13 @@ static int test_server_route_rate_limit(void) {
         return 1;
     }
     if (wf_xrpc_server_register_query(server, "io.example.ping",
-                                       test_query_handler, NULL) != WF_OK) {
+                                      test_query_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: route rate limit register ping\n");
         wf_xrpc_server_free(server);
         return 1;
     }
     if (wf_xrpc_server_register_query(server, "io.example.pong",
-                                       test_pong_handler, NULL) != WF_OK) {
+                                      test_pong_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: route rate limit register pong\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -845,7 +862,8 @@ static int test_server_route_rate_limit(void) {
     /* ping's 1-token bucket: first request succeeds. */
     s = wf_xrpc_query_params(client, "io.example.ping", params, 1, &res);
     if (s != WF_OK || res.status != 200) {
-        fprintf(stderr, "FAIL: route rate limit ping req 1: status=%d http=%ld\n",
+        fprintf(stderr,
+                "FAIL: route rate limit ping req 1: status=%d http=%ld\n",
                 (int)s, res.status);
         failures++;
     }
@@ -926,7 +944,7 @@ static int test_request_client_ip(void) {
         return 1;
     }
     if (wf_xrpc_server_register_query(server, "io.example.whoami",
-                                       test_client_ip_handler, NULL) != WF_OK) {
+                                      test_client_ip_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: client ip register\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -944,8 +962,8 @@ static int test_request_client_ip(void) {
 
     wf_status s = wf_xrpc_query(client, "io.example.whoami", NULL, &res);
     if (s != WF_OK || res.status != 200) {
-        fprintf(stderr, "FAIL: client ip request: status=%d http=%ld\n",
-                (int)s, res.status);
+        fprintf(stderr, "FAIL: client ip request: status=%d http=%ld\n", (int)s,
+                res.status);
         failures++;
     }
     wf_response_free(&res);
@@ -969,8 +987,8 @@ static int test_request_client_ip(void) {
 /* wf_xrpc_client's wf_response only surfaces a few named headers
  * (dpop_nonce, set_cookie, location) — none of the ones under test here —
  * so this drives a raw socket instead of the client library. */
-static int raw_post_headers(uint16_t port, const char *nsid,
-                            char *out, size_t out_cap) {
+static int raw_post_headers(uint16_t port, const char *nsid, char *out,
+                            size_t out_cap) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd < 0) return -1;
     struct sockaddr_in addr = {0};
@@ -1053,7 +1071,8 @@ static int test_rate_limit_headers(void) {
         wf_xrpc_server_free(server);
         return 1;
     }
-    rl = wf_rate_limiter_new(1, 60, 0); /* 1 token: the 2nd request is limited */
+    rl =
+        wf_rate_limiter_new(1, 60, 0); /* 1 token: the 2nd request is limited */
     wf_xrpc_server_set_rate_limiter(server, rl);
 
     uint16_t port = wf_xrpc_server_port(server);
@@ -1072,12 +1091,14 @@ static int test_rate_limit_headers(void) {
             failures++;
         }
         char limit[32], remaining[32], reset[32], policy[32], retry[32];
-        int has_limit = find_header(raw, "RateLimit-Limit", limit, sizeof(limit));
+        int has_limit =
+            find_header(raw, "RateLimit-Limit", limit, sizeof(limit));
         int has_remaining = find_header(raw, "RateLimit-Remaining", remaining,
                                         sizeof(remaining));
-        int has_reset = find_header(raw, "RateLimit-Reset", reset, sizeof(reset));
-        int has_policy = find_header(raw, "RateLimit-Policy", policy,
-                                     sizeof(policy));
+        int has_reset =
+            find_header(raw, "RateLimit-Reset", reset, sizeof(reset));
+        int has_policy =
+            find_header(raw, "RateLimit-Policy", policy, sizeof(policy));
         int has_retry = find_header(raw, "Retry-After", retry, sizeof(retry));
 
         if (!has_limit || strcmp(limit, "1") != 0) {

@@ -7,7 +7,8 @@
  * Mirrors labeler_typed.c / actor_typed.c: static strdup/set_string/reset
  * helpers, owned strings, detached `extra` cJSON subtrees where shapes are
  * open/unbounded, and full cleanup on the first error. The agent wrappers call
- * the generated lex wrappers directly after syncing auth via wf_agent_sync_auth.
+ * the generated lex wrappers directly after syncing auth via
+ * wf_agent_sync_auth.
  */
 
 #include "wolfram/graph_social_typed.h"
@@ -278,7 +279,7 @@ static wf_status wf_graph_parse_list_item_view(cJSON *obj,
 }
 
 wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
-                                          wf_graph_list_item_view_list *out) {
+                                         wf_graph_list_item_view_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -334,7 +335,6 @@ wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
     }
     free(ptrs);
 
-
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
@@ -383,8 +383,8 @@ static void wf_graph_starter_pack_view_reset(wf_graph_starter_pack_view *v) {
     memset(v, 0, sizeof(*v));
 }
 
-static wf_status wf_graph_parse_starter_pack_view(cJSON *obj,
-                                                  wf_graph_starter_pack_view *v) {
+static wf_status
+wf_graph_parse_starter_pack_view(cJSON *obj, wf_graph_starter_pack_view *v) {
     wf_status status = WF_OK;
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
@@ -442,15 +442,17 @@ static wf_status wf_graph_parse_starter_pack_view(cJSON *obj,
 
     if (status == WF_OK) {
         v->labels = cJSON_DetachItemFromObject(obj, "labels");
-        v->extra = obj; /* remaining fields (list, listItemsSample, feeds, ...) */
+        v->extra =
+            obj; /* remaining fields (list, listItemsSample, feeds, ...) */
     } else {
         wf_graph_starter_pack_view_reset(v);
     }
     return status;
 }
 
-wf_status wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
-                                            wf_graph_starter_pack_view_list *out) {
+wf_status
+wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
+                                  wf_graph_starter_pack_view_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -628,8 +630,8 @@ static void wf_graph_list_membership_reset(wf_graph_list_membership *m) {
     memset(m, 0, sizeof(*m));
 }
 
-static void wf_graph_starter_pack_membership_reset(
-    wf_graph_starter_pack_membership *m) {
+static void
+wf_graph_starter_pack_membership_reset(wf_graph_starter_pack_membership *m) {
     if (!m) {
         return;
     }
@@ -687,8 +689,7 @@ wf_status wf_graph_parse_list_memberships(const char *json, size_t json_len,
         }
         wf_graph_list_membership *m = &items[i];
         cJSON *list = cJSON_GetObjectItemCaseSensitive(obj, "list");
-        cJSON *list_item =
-            cJSON_GetObjectItemCaseSensitive(obj, "listItem");
+        cJSON *list_item = cJSON_GetObjectItemCaseSensitive(obj, "listItem");
         if (!cJSON_IsObject(list)) {
             status = WF_ERR_PARSE;
             break;
@@ -761,8 +762,8 @@ wf_status wf_graph_parse_starter_pack_memberships(
     wf_graph_starter_pack_membership *items = NULL;
     cJSON **ptrs = NULL;
     if (count > 0) {
-        items = (wf_graph_starter_pack_membership *)calloc(
-            count, sizeof(*items));
+        items =
+            (wf_graph_starter_pack_membership *)calloc(count, sizeof(*items));
         ptrs = (cJSON **)calloc(count, sizeof(*ptrs));
         if (!items || !ptrs) {
             free(items);
@@ -782,10 +783,8 @@ wf_status wf_graph_parse_starter_pack_memberships(
             break;
         }
         wf_graph_starter_pack_membership *m = &items[i];
-        cJSON *pack =
-            cJSON_GetObjectItemCaseSensitive(obj, "starterPack");
-        cJSON *list_item =
-            cJSON_GetObjectItemCaseSensitive(obj, "listItem");
+        cJSON *pack = cJSON_GetObjectItemCaseSensitive(obj, "starterPack");
+        cJSON *list_item = cJSON_GetObjectItemCaseSensitive(obj, "listItem");
         if (!cJSON_IsObject(pack)) {
             status = WF_ERR_PARSE;
             break;
@@ -798,8 +797,7 @@ wf_status wf_graph_parse_starter_pack_memberships(
             }
         }
         if (status == WF_OK) {
-            m->starter_pack.extra =
-                cJSON_DetachItemViaPointer(arr, obj);
+            m->starter_pack.extra = cJSON_DetachItemViaPointer(arr, obj);
         }
         if (status != WF_OK) {
             wf_graph_starter_pack_membership_reset(m);
@@ -864,7 +862,8 @@ void wf_graph_starter_pack_view_free(wf_graph_starter_pack_view *v) {
     wf_graph_starter_pack_view_reset(v);
 }
 
-void wf_graph_starter_pack_view_list_free(wf_graph_starter_pack_view_list *list) {
+void wf_graph_starter_pack_view_list_free(
+    wf_graph_starter_pack_view_list *list) {
     if (!list) {
         return;
     }
@@ -930,8 +929,8 @@ void wf_graph_starter_pack_membership_list_free(
 /* Helper: issue a generated query call, parse the body array under `key` into
  * an owned actor list. Returns the parser status; on error `out` is reset. */
 static wf_status wf_graph_call_actor_list(
-    wf_agent *agent, wf_status (*call)(wf_xrpc_client *,
-                                       const void *, wf_response *),
+    wf_agent *agent,
+    wf_status (*call)(wf_xrpc_client *, const void *, wf_response *),
     const void *params, const char *key, wf_agent_actor_list *out) {
     wf_agent_actor_list list = {0};
     wf_agent_sync_auth(agent);
@@ -949,26 +948,26 @@ static wf_status wf_graph_call_actor_list(
     return status;
 }
 
-wf_status wf_agent_get_suggested_follows_by_actor_typed(wf_agent *agent,
-                                                        const char *actor,
-                                                        wf_agent_actor_list *out) {
+wf_status wf_agent_get_suggested_follows_by_actor_typed(
+    wf_agent *agent, const char *actor, wf_agent_actor_list *out) {
     if (!agent || !agent->client || !actor || !actor[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_params params = {0};
+    wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_params params = {
+        0};
     params.actor = actor;
     return wf_graph_call_actor_list(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_call,
         &params, "suggestions", out);
 }
 
 /* Helper: issue a generated query call, parse the body "lists" array into an
  * owned list-view list. */
 static wf_status wf_graph_call_list_views(
-    wf_agent *agent, wf_status (*call)(wf_xrpc_client *,
-                                       const void *, wf_response *),
+    wf_agent *agent,
+    wf_status (*call)(wf_xrpc_client *, const void *, wf_response *),
     const void *params, wf_graph_list_view_list *out) {
     wf_graph_list_view_list list = {0};
     wf_agent_sync_auth(agent);
@@ -987,8 +986,9 @@ static wf_status wf_graph_call_list_views(
 }
 
 static void wf_graph_fill_limit_cursor(int *limit, const char *cursor,
-                                      bool *has_limit, int64_t *out_limit,
-                                      bool *has_cursor, const char **out_cursor) {
+                                       bool *has_limit, int64_t *out_limit,
+                                       bool *has_cursor,
+                                       const char **out_cursor) {
     if (*limit > 0) {
         *has_limit = true;
         *out_limit = *limit;
@@ -1016,8 +1016,8 @@ wf_status wf_agent_get_list_mutes_typed(wf_agent *agent, int limit,
                                &params.has_cursor, &params.cursor);
     return wf_graph_call_list_views(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_get_list_mutes_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_get_list_mutes_main_call,
         &params, out);
 }
 
@@ -1038,8 +1038,8 @@ wf_status wf_agent_get_list_blocks_typed(wf_agent *agent, int limit,
                                &params.has_cursor, &params.cursor);
     return wf_graph_call_list_views(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_get_list_blocks_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_get_list_blocks_main_call,
         &params, out);
 }
 
@@ -1059,8 +1059,8 @@ wf_status wf_agent_get_actor_lists_typed(wf_agent *agent, const char *actor,
 /* Helper: issue a generated query call, parse the body "starterPacks" array
  * into an owned starter-pack list. */
 static wf_status wf_graph_call_starter_packs(
-    wf_agent *agent, wf_status (*call)(wf_xrpc_client *,
-                                       const void *, wf_response *),
+    wf_agent *agent,
+    wf_status (*call)(wf_xrpc_client *, const void *, wf_response *),
     const void *params, wf_graph_starter_pack_view_list *out) {
     wf_graph_starter_pack_view_list list = {0};
     wf_agent_sync_auth(agent);
@@ -1078,10 +1078,10 @@ static wf_status wf_graph_call_starter_packs(
     return status;
 }
 
-wf_status wf_agent_get_starter_packs_typed(wf_agent *agent,
-                                           const char *const *uris,
-                                           size_t uri_count,
-                                           wf_graph_starter_pack_view_list *out) {
+wf_status
+wf_agent_get_starter_packs_typed(wf_agent *agent, const char *const *uris,
+                                 size_t uri_count,
+                                 wf_graph_starter_pack_view_list *out) {
     if (!agent || !agent->client || !uris || uri_count == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1095,15 +1095,15 @@ wf_status wf_agent_get_starter_packs_typed(wf_agent *agent,
     params.uris.count = uri_count;
     return wf_graph_call_starter_packs(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_get_starter_packs_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_get_starter_packs_main_call,
         &params, out);
 }
 
-wf_status wf_agent_get_actor_starter_packs_typed(wf_agent *agent,
-                                                 const char *actor, int limit,
-                                                 const char *cursor,
-                                                 wf_graph_starter_pack_view_list *out) {
+wf_status
+wf_agent_get_actor_starter_packs_typed(wf_agent *agent, const char *actor,
+                                       int limit, const char *cursor,
+                                       wf_graph_starter_pack_view_list *out) {
     if (!agent || !actor || !actor[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1119,8 +1119,8 @@ wf_status wf_agent_get_actor_starter_packs_typed(wf_agent *agent,
                                &params.has_cursor, &params.cursor);
     return wf_graph_call_starter_packs(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_get_actor_starter_packs_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_get_actor_starter_packs_main_call,
         &params, out);
 }
 
@@ -1192,9 +1192,10 @@ wf_status wf_agent_search_starter_packs_v2_typed(
     return status;
 }
 
-wf_status wf_agent_get_lists_with_membership_typed(
-    wf_agent *agent, const char *actor, int limit, const char *cursor,
-    wf_graph_list_membership_list *out) {
+wf_status
+wf_agent_get_lists_with_membership_typed(wf_agent *agent, const char *actor,
+                                         int limit, const char *cursor,
+                                         wf_graph_list_membership_list *out) {
     if (!agent || !actor || !actor[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1254,7 +1255,8 @@ wf_status wf_agent_get_starter_packs_with_membership_typed(
         wf_response_free(&res);
         return status;
     }
-    status = wf_graph_parse_starter_pack_memberships(res.body, res.body_len, out);
+    status =
+        wf_graph_parse_starter_pack_memberships(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
@@ -1263,10 +1265,11 @@ wf_status wf_agent_get_starter_packs_with_membership_typed(
 /* WRITE (procedure) wrappers                                         */
 /* ------------------------------------------------------------------ */
 
-static wf_status wf_graph_call_procedure(
-    wf_agent *agent, wf_status (*call)(wf_xrpc_client *,
-                                       const void *, wf_response *),
-    const void *params) {
+static wf_status wf_graph_call_procedure(wf_agent *agent,
+                                         wf_status (*call)(wf_xrpc_client *,
+                                                           const void *,
+                                                           wf_response *),
+                                         const void *params) {
     if (!agent || !agent->client) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1285,8 +1288,8 @@ wf_status wf_agent_mute_actor_typed(wf_agent *agent, const char *actor) {
     input.actor = actor;
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_mute_actor_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_mute_actor_main_call,
         &input);
 }
 
@@ -1298,12 +1301,13 @@ wf_status wf_agent_unmute_actor_typed(wf_agent *agent, const char *actor) {
     input.actor = actor;
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_unmute_actor_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_unmute_actor_main_call,
         &input);
 }
 
-wf_status wf_agent_mute_actor_list_typed(wf_agent *agent, const char *list_uri) {
+wf_status wf_agent_mute_actor_list_typed(wf_agent *agent,
+                                         const char *list_uri) {
     if (!agent || !list_uri || !list_uri[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1311,8 +1315,8 @@ wf_status wf_agent_mute_actor_list_typed(wf_agent *agent, const char *list_uri) 
     input.list = list_uri;
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_mute_actor_list_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_mute_actor_list_main_call,
         &input);
 }
 
@@ -1325,8 +1329,8 @@ wf_status wf_agent_unmute_actor_list_typed(wf_agent *agent,
     input.list = list_uri;
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_unmute_actor_list_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_unmute_actor_list_main_call,
         &input);
 }
 

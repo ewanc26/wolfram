@@ -11,7 +11,8 @@
  *   6. Posting the record through the XRPC transport
  *
  * Usage:
- *   upload_image <service-url> <handle-or-email> <password> <image-path> [alt text...]
+ *   upload_image <service-url> <handle-or-email> <password> <image-path> [alt
+ * text...]
  */
 
 #include <cJSON.h>
@@ -28,13 +29,13 @@
 #include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
 
-#define WF_UPLOAD_BLOB_NSID   "com.atproto.repo.uploadBlob"
+#define WF_UPLOAD_BLOB_NSID "com.atproto.repo.uploadBlob"
 #define WF_CREATE_RECORD_NSID "com.atproto.repo.createRecord"
-#define WF_POST_COLLECTION    "app.bsky.feed.post"
-#define WF_POST_RECORD_TYPE   "app.bsky.feed.post"
-#define WF_IMAGE_EMBED_TYPE   "app.bsky.embed.images"
-#define WF_BLOB_TYPE          "blob"
-#define WF_POST_TEXT          "Check out this image!"
+#define WF_POST_COLLECTION "app.bsky.feed.post"
+#define WF_POST_RECORD_TYPE "app.bsky.feed.post"
+#define WF_IMAGE_EMBED_TYPE "app.bsky.embed.images"
+#define WF_BLOB_TYPE "blob"
+#define WF_POST_TEXT "Check out this image!"
 
 static char *wf_dup_span(const char *s, size_t len) {
     char *out = malloc(len + 1);
@@ -127,7 +128,8 @@ static const char *wf_image_mime_type_from_path(const char *path) {
     return NULL;
 }
 
-static wf_status wf_read_file(const char *path, unsigned char **out_data, size_t *out_len) {
+static wf_status wf_read_file(const char *path, unsigned char **out_data,
+                              size_t *out_len) {
     if (!path || !out_data || !out_len) {
         return WF_ERR_INVALID_ARG;
     }
@@ -137,7 +139,8 @@ static wf_status wf_read_file(const char *path, unsigned char **out_data, size_t
 
     FILE *f = fopen(path, "rb");
     if (!f) {
-        fprintf(stderr, "failed to open image file '%s': %s\n", path, strerror(errno));
+        fprintf(stderr, "failed to open image file '%s': %s\n", path,
+                strerror(errno));
         return WF_ERR_NOT_FOUND;
     }
 
@@ -225,18 +228,21 @@ static wf_status wf_parse_uploaded_blob_response(const wf_response *res,
     cJSON *type = blob ? cJSON_GetObjectItemCaseSensitive(blob, "$type") : NULL;
     cJSON *ref = blob ? cJSON_GetObjectItemCaseSensitive(blob, "ref") : NULL;
     cJSON *link = ref ? cJSON_GetObjectItemCaseSensitive(ref, "$link") : NULL;
-    cJSON *mime_type = blob ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType") : NULL;
+    cJSON *mime_type =
+        blob ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType") : NULL;
     cJSON *size = blob ? cJSON_GetObjectItemCaseSensitive(blob, "size") : NULL;
 
-    if (!cJSON_IsObject(blob) || !cJSON_IsString(type) || strcmp(type->valuestring, WF_BLOB_TYPE) != 0 ||
-        !cJSON_IsObject(ref) || !cJSON_IsString(link) ||
-        !cJSON_IsString(mime_type) || !cJSON_IsNumber(size) ||
-        size->valuedouble < 0.0 || size->valuedouble > (double)SIZE_MAX) {
+    if (!cJSON_IsObject(blob) || !cJSON_IsString(type) ||
+        strcmp(type->valuestring, WF_BLOB_TYPE) != 0 || !cJSON_IsObject(ref) ||
+        !cJSON_IsString(link) || !cJSON_IsString(mime_type) ||
+        !cJSON_IsNumber(size) || size->valuedouble < 0.0 ||
+        size->valuedouble > (double)SIZE_MAX) {
         goto done;
     }
 
     out->cid = wf_dup_span(link->valuestring, strlen(link->valuestring));
-    out->mime_type = wf_dup_span(mime_type->valuestring, strlen(mime_type->valuestring));
+    out->mime_type =
+        wf_dup_span(mime_type->valuestring, strlen(mime_type->valuestring));
     if (!out->cid || !out->mime_type) {
         wf_uploaded_blob_free(out);
         status = WF_ERR_ALLOC;
@@ -246,7 +252,7 @@ static wf_status wf_parse_uploaded_blob_response(const wf_response *res,
     out->size = (size_t)size->valuedouble;
     status = WF_OK;
 
- done:
+done:
     cJSON_Delete(root);
     return status;
 }
@@ -262,8 +268,9 @@ static wf_status wf_build_create_record_body(const char *repo_did,
 
     *out_json = NULL;
 
-    if (!wf_syntax_did_is_valid(repo_did) || !wf_syntax_datetime_is_valid(created_at) ||
-        !blob->cid || !blob->mime_type || blob->size == 0) {
+    if (!wf_syntax_did_is_valid(repo_did) ||
+        !wf_syntax_datetime_is_valid(created_at) || !blob->cid ||
+        !blob->mime_type || blob->size == 0) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -349,7 +356,7 @@ static wf_status wf_build_create_record_body(const char *repo_did,
     *out_json = json;
     status = WF_OK;
 
- done:
+done:
     cJSON_Delete(ref);
     cJSON_Delete(blob_json);
     cJSON_Delete(image);
@@ -379,8 +386,8 @@ static void wf_print_create_record_response(const wf_response *res) {
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
     if (cJSON_IsString(uri) && cJSON_IsString(cid)) {
-        printf("HTTP %ld\nCreated record:\n  uri: %s\n  cid: %s\n",
-               res->status, uri->valuestring, cid->valuestring);
+        printf("HTTP %ld\nCreated record:\n  uri: %s\n  cid: %s\n", res->status,
+               uri->valuestring, cid->valuestring);
     } else {
         printf("HTTP %ld\n%s\n", res->status, res->body);
     }
@@ -391,7 +398,8 @@ static void wf_print_create_record_response(const wf_response *res) {
 int main(int argc, char **argv) {
     if (argc < 5) {
         fprintf(stderr,
-                "usage: %s <service-url> <handle-or-email> <password> <image-path> [alt text...]\n",
+                "usage: %s <service-url> <handle-or-email> <password> "
+                "<image-path> [alt text...]\n",
                 argv[0]);
         return 1;
     }
@@ -410,7 +418,8 @@ int main(int argc, char **argv) {
     const char *content_type = wf_image_mime_type_from_path(image_path);
     if (!content_type) {
         fprintf(stderr,
-                "unsupported image type for '%s' (use jpg, jpeg, png, gif, or webp)\n",
+                "unsupported image type for '%s' (use jpg, jpeg, png, gif, or "
+                "webp)\n",
                 image_path);
         free(alt_text);
         return 1;
@@ -452,15 +461,13 @@ int main(int argc, char **argv) {
     printf("Logged in as %s (%s)\n",
            session->data.handle ? session->data.handle : identifier,
            session->data.did);
-    printf("Uploading %s as %s (%zu bytes)\n", image_path, content_type, image_len);
+    printf("Uploading %s as %s (%zu bytes)\n", image_path, content_type,
+           image_len);
 
     wf_response upload_res = {0};
-    status = wf_xrpc_upload_blob(session->client,
-                                 WF_UPLOAD_BLOB_NSID,
-                                 image_data,
-                                 image_len,
-                                 content_type,
-                                 &upload_res);
+    status =
+        wf_xrpc_upload_blob(session->client, WF_UPLOAD_BLOB_NSID, image_data,
+                            image_len, content_type, &upload_res);
     free(image_data);
     image_data = NULL;
 
@@ -479,7 +486,8 @@ int main(int argc, char **argv) {
     wf_uploaded_blob blob = {0};
     status = wf_parse_uploaded_blob_response(&upload_res, &blob);
     if (status != WF_OK) {
-        fprintf(stderr, "failed to parse blob upload response: %d\n", (int)status);
+        fprintf(stderr, "failed to parse blob upload response: %d\n",
+                (int)status);
         if (upload_res.body) {
             printf("HTTP %ld\n%s\n", upload_res.status, upload_res.body);
         }
@@ -491,8 +499,8 @@ int main(int argc, char **argv) {
     }
     wf_response_free(&upload_res);
 
-    printf("Uploaded blob: cid=%s, mimeType=%s, size=%zu\n",
-           blob.cid, blob.mime_type, blob.size);
+    printf("Uploaded blob: cid=%s, mimeType=%s, size=%zu\n", blob.cid,
+           blob.mime_type, blob.size);
 
     char created_at[32];
     if (!wf_make_rfc3339_timestamp(created_at, sizeof(created_at))) {
@@ -512,11 +520,8 @@ int main(int argc, char **argv) {
     }
 
     char *body_json = NULL;
-    status = wf_build_create_record_body(session->data.did,
-                                         created_at,
-                                         alt_text,
-                                         &blob,
-                                         &body_json);
+    status = wf_build_create_record_body(session->data.did, created_at,
+                                         alt_text, &blob, &body_json);
     if (status != WF_OK) {
         fprintf(stderr, "failed to build createRecord body: %d\n", (int)status);
         wf_uploaded_blob_free(&blob);
@@ -526,7 +531,8 @@ int main(int argc, char **argv) {
     }
 
     wf_response create_res = {0};
-    status = wf_xrpc_procedure(session->client, WF_CREATE_RECORD_NSID, body_json, &create_res);
+    status = wf_xrpc_procedure(session->client, WF_CREATE_RECORD_NSID,
+                               body_json, &create_res);
     free(body_json);
 
     if (status != WF_OK && status != WF_ERR_HTTP) {

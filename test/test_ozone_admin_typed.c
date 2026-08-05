@@ -2,10 +2,10 @@
  * test_ozone_admin_typed.c — offline tests for the tools.ozone.moderation.*
  * admin typed wrappers (the endpoints not covered by test_ozone_typed.c).
  *
- * Builds representative response bodies with cJSON, asserts the generated-decode
- * parse path populates the owned structs correctly, then frees them. Agent
- * wrappers require live service auth and are exercised only for NULL-argument
- * validation (which is checked before any network I/O).
+ * Builds representative response bodies with cJSON, asserts the
+ * generated-decode parse path populates the owned structs correctly, then frees
+ * them. Agent wrappers require live service auth and are exercised only for
+ * NULL-argument validation (which is checked before any network I/O).
  */
 
 #include "wolfram/ozone_admin_typed.h"
@@ -63,7 +63,8 @@ static char *build_get_account_timeline_json(void) {
     cJSON_AddItemToObject(day, "summary", sum);
     cJSON *s = cJSON_CreateObject();
     cJSON_AddStringToObject(s, "eventSubjectType", "account");
-    cJSON_AddStringToObject(s, "eventType", "tools.ozone.moderation.defs#modEventTakedown");
+    cJSON_AddStringToObject(s, "eventType",
+                            "tools.ozone.moderation.defs#modEventTakedown");
     cJSON_AddNumberToObject(s, "count", 3);
     cJSON_AddItemToArray(sum, s);
     cJSON_AddItemToArray(arr, day);
@@ -134,7 +135,8 @@ static char *build_list_scheduled_actions_json(void) {
 
     cJSON *a = cJSON_CreateObject();
     cJSON_AddNumberToObject(a, "id", 11);
-    cJSON_AddStringToObject(a, "action", "tools.ozone.moderation.defs#modEventTakedown");
+    cJSON_AddStringToObject(a, "action",
+                            "tools.ozone.moderation.defs#modEventTakedown");
     cJSON_AddStringToObject(a, "did", "did:plc:sched000000000000000000");
     cJSON_AddStringToObject(a, "createdBy", "did:plc:mod000000000000000000");
     cJSON_AddStringToObject(a, "createdAt", "2026-01-01T00:00:00.000Z");
@@ -191,9 +193,10 @@ int main(void) {
     {
         char *json = build_get_account_timeline_json();
         WF_CHECK(json != NULL);
-        wf_lex_tools_ozone_moderation_get_account_timeline_main_output *out = NULL;
-        wf_status st =
-            wf_ozone_parse_moderation_getAccountTimeline(json, strlen(json), &out);
+        wf_lex_tools_ozone_moderation_get_account_timeline_main_output *out =
+            NULL;
+        wf_status st = wf_ozone_parse_moderation_getAccountTimeline(
+            json, strlen(json), &out);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(out != NULL);
@@ -201,13 +204,16 @@ int main(void) {
             WF_CHECK(out->timeline.count == 1);
             WF_CHECK(out->timeline.items != NULL);
             if (out->timeline.items) {
-                WF_CHECK(strcmp(out->timeline.items[0]->day, "2026-01-01") == 0);
+                WF_CHECK(strcmp(out->timeline.items[0]->day, "2026-01-01") ==
+                         0);
                 WF_CHECK(out->timeline.items[0]->summary.count == 1);
                 if (out->timeline.items[0]->summary.items) {
-                    WF_CHECK(out->timeline.items[0]->summary.items[0]->count == 3);
+                    WF_CHECK(out->timeline.items[0]->summary.items[0]->count ==
+                             3);
                 }
             }
-            wf_lex_tools_ozone_moderation_get_account_timeline_main_output_free(out);
+            wf_lex_tools_ozone_moderation_get_account_timeline_main_output_free(
+                out);
         }
     }
 
@@ -257,9 +263,10 @@ int main(void) {
     {
         char *json = build_list_scheduled_actions_json();
         WF_CHECK(json != NULL);
-        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *out = NULL;
-        wf_status st =
-            wf_ozone_parse_moderation_listScheduledActions(json, strlen(json), &out);
+        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *out =
+            NULL;
+        wf_status st = wf_ozone_parse_moderation_listScheduledActions(
+            json, strlen(json), &out);
         free(json);
         WF_CHECK(st == WF_OK);
         WF_CHECK(out != NULL);
@@ -272,7 +279,8 @@ int main(void) {
                 WF_CHECK(out->actions.items[0]->did != NULL);
                 WF_CHECK(strcmp(out->actions.items[0]->status, "pending") == 0);
             }
-            wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_free(out);
+            wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_free(
+                out);
         }
     }
 
@@ -288,7 +296,8 @@ int main(void) {
         WF_CHECK(wf_ozone_parse_moderation_searchRepos(NULL, 0, &so) ==
                  WF_ERR_INVALID_ARG);
 
-        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *lo = NULL;
+        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *lo =
+            NULL;
         WF_CHECK(wf_ozone_parse_moderation_listScheduledActions(NULL, 0, &lo) ==
                  WF_ERR_INVALID_ARG);
 
@@ -305,18 +314,18 @@ int main(void) {
         WF_CHECK(agent != NULL);
 
         wf_lex_tools_ozone_moderation_get_records_main_output *o = NULL;
-        WF_CHECK(wf_ozone_moderation_getRecords(
-                     NULL, NULL, &o) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_moderation_getRecords(
-                     agent, NULL, &o) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRecords(NULL, NULL, &o) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRecords(agent, NULL, &o) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_get_repos_main_params rp = {0};
-        WF_CHECK(wf_ozone_moderation_getRepos(
-                     agent, &rp, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRepos(agent, &rp, NULL) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_search_repos_main_params sp = {0};
-        WF_CHECK(wf_ozone_moderation_searchRepos(
-                     agent, &sp, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_searchRepos(agent, &sp, NULL) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_response r = {0};
         wf_lex_tools_ozone_moderation_get_record_main_params grp = {0};
@@ -327,19 +336,20 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_get_repo_main_params grp2 = {0};
-        WF_CHECK(wf_ozone_moderation_getRepo(
-                     agent, &grp2, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRepo(agent, &grp2, NULL) ==
+                 WF_ERR_INVALID_ARG);
 
-        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *lo = NULL;
-        WF_CHECK(wf_ozone_moderation_listScheduledActions(
-                     agent, NULL, &lo) == WF_ERR_INVALID_ARG);
+        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *lo =
+            NULL;
+        WF_CHECK(wf_ozone_moderation_listScheduledActions(agent, NULL, &lo) ==
+                 WF_ERR_INVALID_ARG);
 
-        WF_CHECK(wf_ozone_moderation_cancelScheduledActions(
-                     agent, NULL, &r) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_cancelScheduledActions(agent, NULL, &r) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_schedule_action_main_input si = {0};
-        WF_CHECK(wf_ozone_moderation_scheduleAction(
-                     NULL, &si, &r) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_scheduleAction(NULL, &si, &r) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_agent_free(agent);
     }

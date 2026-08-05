@@ -9,7 +9,8 @@
  *   5. Posting the reply through the XRPC transport
  *
  * Usage:
- *   reply_post <service-url> <handle-or-email> <password> <parent-post-uri> <reply text>
+ *   reply_post <service-url> <handle-or-email> <password> <parent-post-uri>
+ * <reply text>
  */
 
 #include <cJSON.h>
@@ -27,9 +28,9 @@
 #include "wolfram/xrpc.h"
 
 #define WF_CREATE_RECORD_NSID "com.atproto.repo.createRecord"
-#define WF_GET_POSTS_NSID      "app.bsky.feed.getPosts"
-#define WF_POST_COLLECTION     "app.bsky.feed.post"
-#define WF_POST_RECORD_TYPE    "app.bsky.feed.post"
+#define WF_GET_POSTS_NSID "app.bsky.feed.getPosts"
+#define WF_POST_COLLECTION "app.bsky.feed.post"
+#define WF_POST_RECORD_TYPE "app.bsky.feed.post"
 
 static char *wf_strdup(const char *s) {
     size_t len;
@@ -50,10 +51,9 @@ static char *wf_strdup(const char *s) {
 }
 
 static int wf_is_unreserved(unsigned char c) {
-    return (c >= 'A' && c <= 'Z') ||
-           (c >= 'a' && c <= 'z') ||
-           (c >= '0' && c <= '9') ||
-           c == '-' || c == '.' || c == '_' || c == '~';
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+           (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' ||
+           c == '~';
 }
 
 static char *wf_url_encode(const char *input) {
@@ -174,7 +174,8 @@ static char *wf_build_query_2(const char *name1, const char *value1,
         name2_len = strlen(name2);
         value2_len = strlen(encoded2);
         if (name2_len > SIZE_MAX - value2_len - 2 ||
-            name1_len + value1_len + 2 > SIZE_MAX - (name2_len + value2_len + 2)) {
+            name1_len + value1_len + 2 >
+                SIZE_MAX - (name2_len + value2_len + 2)) {
             free(encoded1);
             free(encoded2);
             return NULL;
@@ -239,14 +240,16 @@ static int wf_extract_parent_refs(const cJSON *post_view,
     const cJSON *root_uri;
     const cJSON *root_cid;
 
-    if (!post_view || !out_parent_uri || !out_parent_cid || !out_root_uri || !out_root_cid) {
+    if (!post_view || !out_parent_uri || !out_parent_cid || !out_root_uri ||
+        !out_root_cid) {
         return 0;
     }
 
     uri = cJSON_GetObjectItemCaseSensitive((cJSON *)post_view, "uri");
     cid = cJSON_GetObjectItemCaseSensitive((cJSON *)post_view, "cid");
     record = cJSON_GetObjectItemCaseSensitive((cJSON *)post_view, "record");
-    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) || !cJSON_IsObject(record)) {
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
+        !cJSON_IsObject(record)) {
         return 0;
     }
 
@@ -276,14 +279,11 @@ static int wf_extract_parent_refs(const cJSON *post_view,
     return 1;
 }
 
-static wf_status wf_build_reply_record_body(const char *repo_did,
-                                            const char *text,
-                                            const char *created_at,
-                                            const char *parent_uri,
-                                            const char *parent_cid,
-                                            const char *root_uri,
-                                            const char *root_cid,
-                                            char **out_json) {
+static wf_status
+wf_build_reply_record_body(const char *repo_did, const char *text,
+                           const char *created_at, const char *parent_uri,
+                           const char *parent_cid, const char *root_uri,
+                           const char *root_cid, char **out_json) {
     cJSON *root;
     cJSON *record;
     cJSON *reply;
@@ -399,7 +399,8 @@ int main(int argc, char **argv) {
 
     if (argc != 6) {
         fprintf(stderr,
-                "usage: %s <service-url> <handle-or-email> <password> <parent-post-uri> <reply text>\n",
+                "usage: %s <service-url> <handle-or-email> <password> "
+                "<parent-post-uri> <reply text>\n",
                 argv[0]);
         return 1;
     }
@@ -414,9 +415,11 @@ int main(int argc, char **argv) {
         fprintf(stderr, "invalid parent post URI: %s\n", parent_post_uri);
         return 1;
     }
-    if (!parent_uri.collection || strcmp(parent_uri.collection, WF_POST_COLLECTION) != 0 ||
+    if (!parent_uri.collection ||
+        strcmp(parent_uri.collection, WF_POST_COLLECTION) != 0 ||
         !parent_uri.record_key) {
-        fprintf(stderr, "parent URI must reference an app.bsky.feed.post record\n");
+        fprintf(stderr,
+                "parent URI must reference an app.bsky.feed.post record\n");
         wf_syntax_aturi_free(&parent_uri);
         return 1;
     }
@@ -448,7 +451,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    status = wf_xrpc_query(session->client, WF_GET_POSTS_NSID, get_posts_query, &res);
+    status = wf_xrpc_query(session->client, WF_GET_POSTS_NSID, get_posts_query,
+                           &res);
     free(get_posts_query);
     get_posts_query = NULL;
     if (status != WF_OK && status != WF_ERR_HTTP) {
@@ -484,11 +488,9 @@ int main(int argc, char **argv) {
     }
 
     post_view = cJSON_GetArrayItem(posts, 0);
-    if (!post_view || !wf_extract_parent_refs(post_view,
-                                              &parent_uri_str,
-                                              &parent_cid,
-                                              &root_uri_str,
-                                              &root_cid)) {
+    if (!post_view ||
+        !wf_extract_parent_refs(post_view, &parent_uri_str, &parent_cid,
+                                &root_uri_str, &root_cid)) {
         fprintf(stderr, "failed to resolve parent post reference\n");
         cJSON_Delete(root);
         wf_session_free(session);
@@ -503,21 +505,17 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    status = wf_build_reply_record_body(session->data.did,
-                                        reply_text,
-                                        created_at,
-                                        parent_uri_str,
-                                        parent_cid,
-                                        root_uri_str,
-                                        root_cid,
-                                        &body_json);
+    status = wf_build_reply_record_body(session->data.did, reply_text,
+                                        created_at, parent_uri_str, parent_cid,
+                                        root_uri_str, root_cid, &body_json);
     if (status != WF_OK) {
         fprintf(stderr, "failed to build reply record body: %d\n", (int)status);
         wf_session_free(session);
         return 1;
     }
 
-    status = wf_xrpc_procedure(session->client, WF_CREATE_RECORD_NSID, body_json, &res);
+    status = wf_xrpc_procedure(session->client, WF_CREATE_RECORD_NSID,
+                               body_json, &res);
     free(body_json);
     body_json = NULL;
     if (status != WF_OK && status != WF_ERR_HTTP) {

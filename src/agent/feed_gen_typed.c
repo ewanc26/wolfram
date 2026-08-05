@@ -6,7 +6,8 @@
  * Mirrors labeler_typed.c / actor_typed.c: static strdup/set_string/reset
  * helpers, owned strings, detached `extra` cJSON subtrees where shapes are
  * open/unbounded, and full cleanup on the first error. The agent wrappers call
- * the generated lex wrappers directly after syncing auth via wf_agent_sync_auth.
+ * the generated lex wrappers directly after syncing auth via
+ * wf_agent_sync_auth.
  */
 
 #include "wolfram/feed_gen_typed.h"
@@ -66,7 +67,8 @@ static void wf_feedgen_generator_view_reset(wf_feedgen_generator_view *g) {
 /* Parse a profileView creator object into a wf_agent_profile (reuses
  * wf_agent_profile_free for cleanup). Maps the wire profileView fields we keep;
  * the full profile has additional fields unused here. */
-static wf_status wf_feedgen_parse_creator(cJSON *obj, wf_agent_profile *creator) {
+static wf_status wf_feedgen_parse_creator(cJSON *obj,
+                                          wf_agent_profile *creator) {
     wf_status status = WF_OK;
     if (!cJSON_IsObject(obj)) {
         return WF_OK;
@@ -108,8 +110,8 @@ static wf_status wf_feedgen_parse_int(cJSON *num, int64_t *dst, bool *has) {
 }
 
 /* Parse a generatorView object (already detached from any parent) into `g`.
- * On success `g->extra` takes ownership of `obj` (the remaining unknown fields).
- * On error `g` is reset and `obj` is deleted by the caller. */
+ * On success `g->extra` takes ownership of `obj` (the remaining unknown
+ * fields). On error `g` is reset and `obj` is deleted by the caller. */
 static wf_status wf_feedgen_parse_generator_view(cJSON *obj,
                                                  wf_feedgen_generator_view *g) {
     wf_status status = WF_OK;
@@ -124,7 +126,8 @@ static wf_status wf_feedgen_parse_generator_view(cJSON *obj,
     cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     cJSON *like = cJSON_GetObjectItemCaseSensitive(obj, "likeCount");
-    cJSON *accept = cJSON_GetObjectItemCaseSensitive(obj, "acceptsInteractions");
+    cJSON *accept =
+        cJSON_GetObjectItemCaseSensitive(obj, "acceptsInteractions");
     cJSON *mode = cJSON_GetObjectItemCaseSensitive(obj, "contentMode");
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
@@ -276,7 +279,8 @@ static wf_status wf_feedgen_parse_search_post(cJSON *obj,
         p->embed = cJSON_DetachItemFromObject(obj, "embed");
     }
     if (status == WF_OK && cJSON_IsNumber(reply)) {
-        status = wf_feedgen_parse_int(reply, &p->reply_count, &p->has_reply_count);
+        status =
+            wf_feedgen_parse_int(reply, &p->reply_count, &p->has_reply_count);
     }
     if (status == WF_OK && cJSON_IsNumber(repost)) {
         status = wf_feedgen_parse_int(repost, &p->repost_count,
@@ -286,7 +290,8 @@ static wf_status wf_feedgen_parse_search_post(cJSON *obj,
         status = wf_feedgen_parse_int(like, &p->like_count, &p->has_like_count);
     }
     if (status == WF_OK && cJSON_IsNumber(quote)) {
-        status = wf_feedgen_parse_int(quote, &p->quote_count, &p->has_quote_count);
+        status =
+            wf_feedgen_parse_int(quote, &p->quote_count, &p->has_quote_count);
     }
     if (status == WF_OK && cJSON_IsNumber(book)) {
         status = wf_feedgen_parse_int(book, &p->bookmark_count,
@@ -558,9 +563,9 @@ void wf_feedgen_search_result_list_free(wf_feedgen_search_result_list *list) {
 
 /* ---- Agent convenience wrappers ---- */
 
-wf_status wf_feedgen_get_feed_generator_typed(wf_agent *agent,
-                                             const char *feed_uri,
-                                             wf_feedgen_generator_detail *out) {
+wf_status
+wf_feedgen_get_feed_generator_typed(wf_agent *agent, const char *feed_uri,
+                                    wf_feedgen_generator_detail *out) {
     if (!agent || !agent->client || !feed_uri || !feed_uri[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -723,8 +728,8 @@ wf_status wf_feedgen_get_likes_typed(wf_agent *agent, const char *uri,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_app_bsky_feed_get_likes_main_call(
-        agent->client, &params, &res);
+    wf_status status =
+        wf_lex_app_bsky_feed_get_likes_main_call(agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -804,8 +809,8 @@ wf_status wf_feedgen_get_quotes_typed(wf_agent *agent, const char *uri,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_app_bsky_feed_get_quotes_main_call(
-        agent->client, &params, &res);
+    wf_status status =
+        wf_lex_app_bsky_feed_get_quotes_main_call(agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -972,9 +977,11 @@ wf_status wf_feedgen_search_posts_v2_typed(wf_agent *agent, const char *query,
 }
 
 /* TODO: app.bsky.feed.getPopularFeedGenerators is absent from the generated
- * lex wrappers. The NSID only exists as app.bsky.unspecced.getPopularFeedGenerators
+ * lex wrappers. The NSID only exists as
+ * app.bsky.unspecced.getPopularFeedGenerators
  * (wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_call). Add an
- * unspecced_typed wrapper if a typed popular-feed generator list is required. */
+ * unspecced_typed wrapper if a typed popular-feed generator list is required.
+ */
 
 wf_status wf_feedgen_send_interactions_typed(
     wf_agent *agent, const char *feed_uri,

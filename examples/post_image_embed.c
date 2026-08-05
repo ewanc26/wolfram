@@ -123,8 +123,9 @@ static wf_status wf_read_file(const char *path, unsigned char **out_data,
 }
 
 static void print_usage(const char *prog) {
-    printf("usage: %s <service-url> <handle> <password> <image-path> [text...]\n",
-           prog);
+    printf(
+        "usage: %s <service-url> <handle> <password> <image-path> [text...]\n",
+        prog);
     printf("  (no arguments: print usage and exit 0 — offline safe)\n");
 }
 
@@ -135,9 +136,9 @@ int main(int argc, char **argv) {
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
-    const char *image_path  = argv[4];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
+    const char *image_path = argv[4];
     char *post_text = wf_join_args(argc, argv, 5);
     if (!post_text) {
         fprintf(stderr, "failed to assemble post text\n");
@@ -178,15 +179,15 @@ int main(int argc, char **argv) {
     }
 
     const char *handle = wf_agent_get_handle(agent);
-    const char *did    = wf_agent_get_did(agent);
+    const char *did = wf_agent_get_did(agent);
     printf("Logged in as %s (%s)\n", handle ? handle : identifier, did);
 
     printf("Uploading %s as %s (%zu bytes)\n", image_path, content_type,
            image_len);
 
     wf_uploaded_blob blob = {0};
-    status = wf_agent_upload_blob_ex(agent, image_data, image_len,
-                                     content_type, &blob);
+    status = wf_agent_upload_blob_ex(agent, image_data, image_len, content_type,
+                                     &blob);
     free(image_data);
     if (status != WF_OK) {
         fprintf(stderr, "blob upload failed: %d\n", (int)status);
@@ -195,8 +196,8 @@ int main(int argc, char **argv) {
         free(post_text);
         return 1;
     }
-    printf("Uploaded blob: cid=%s mime=%s size=%zu\n", blob.cid,
-           blob.mime_type, blob.size);
+    printf("Uploaded blob: cid=%s mime=%s size=%zu\n", blob.cid, blob.mime_type,
+           blob.size);
 
     /* Build an app.bsky.embed.images embed. */
     cJSON *embed = cJSON_CreateObject();

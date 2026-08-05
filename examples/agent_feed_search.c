@@ -3,11 +3,13 @@
  *
  * Demonstrates:
  *   1. Agent login/session management with wf_agent
- *   2. Feed search with wf_agent_search_posts (query, limit, sort, author filter)
+ *   2. Feed search with wf_agent_search_posts (query, limit, sort, author
+ * filter)
  *   3. Parsing the JSON response
  *
  * Usage:
- *   agent_feed_search <service-url> <handle-or-email> <password> <query> [limit]
+ *   agent_feed_search <service-url> <handle-or-email> <password> <query>
+ * [limit]
  */
 
 #include <cJSON.h>
@@ -53,8 +55,10 @@ static void print_search_results(const wf_response *res) {
         cJSON *author = cJSON_GetObjectItemCaseSensitive(post, "author");
         cJSON *record = cJSON_GetObjectItemCaseSensitive(post, "record");
         cJSON *like_count = cJSON_GetObjectItemCaseSensitive(post, "likeCount");
-        cJSON *repost_count = cJSON_GetObjectItemCaseSensitive(post, "repostCount");
-        cJSON *reply_count = cJSON_GetObjectItemCaseSensitive(post, "replyCount");
+        cJSON *repost_count =
+            cJSON_GetObjectItemCaseSensitive(post, "repostCount");
+        cJSON *reply_count =
+            cJSON_GetObjectItemCaseSensitive(post, "replyCount");
 
         const char *handle = "";
         const char *display = "";
@@ -88,14 +92,17 @@ static void print_search_results(const wf_response *res) {
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        fprintf(stderr, "usage: %s <service-url> <handle-or-email> <password> <query> [limit]\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s <service-url> <handle-or-email> <password> <query> "
+                "[limit]\n",
+                argv[0]);
         return 1;
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
-    const char *query       = argv[4];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
+    const char *query = argv[4];
     int limit = 10;
     if (argc > 5) {
         long n = strtol(argv[5], NULL, 10);
@@ -124,7 +131,8 @@ int main(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    status = wf_agent_search_posts(agent, query, limit, NULL, NULL, NULL, NULL, NULL, &res);
+    status = wf_agent_search_posts(agent, query, limit, NULL, NULL, NULL, NULL,
+                                   NULL, &res);
     if (status != WF_OK && status != WF_ERR_HTTP) {
         fprintf(stderr, "searchPosts failed: %d\n", (int)status);
         wf_response_free(&res);

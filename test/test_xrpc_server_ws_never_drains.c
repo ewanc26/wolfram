@@ -36,9 +36,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define NSID         "io.example.never.drains"
-#define CHUNK_LEN    65536 /* one WS frame payload per send attempt */
-#define MAX_ATTEMPTS 512   /* generous: up to 32MB before giving up */
+#define NSID "io.example.never.drains"
+#define CHUNK_LEN 65536  /* one WS frame payload per send attempt */
+#define MAX_ATTEMPTS 512 /* generous: up to 32MB before giving up */
 
 static int test_connect_never_reading(uint16_t port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -88,7 +88,8 @@ static int test_handshake(int fd, uint16_t port) {
                       "Connection: Upgrade\r\n"
                       "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
                       "Sec-WebSocket-Version: 13\r\n"
-                      "\r\n", (unsigned)port);
+                      "\r\n",
+                      (unsigned)port);
     if (test_write_all(fd, req, (size_t)nr) != 0) return -1;
 
     /* Read only the handshake response itself; once "\r\n\r\n" arrives, stop
@@ -112,7 +113,7 @@ static int test_handshake(int fd, uint16_t port) {
 
 typedef struct {
     wf_status observed;
-    int       attempts;
+    int attempts;
 } handler_result;
 
 static handler_result g_result;
@@ -154,8 +155,8 @@ static int run_test(void) {
         wf_xrpc_server_free(server);
         return 1;
     }
-    if (wf_xrpc_server_register_ws(server, NSID, never_drains_handler,
-                                   NULL) != WF_OK) {
+    if (wf_xrpc_server_register_ws(server, NSID, never_drains_handler, NULL) !=
+        WF_OK) {
         fprintf(stderr, "FAIL: register WS endpoint\n");
         wf_xrpc_server_free(server);
         return 1;

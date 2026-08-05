@@ -16,10 +16,13 @@
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-#define MOD_CHECK(expr) \
-    do { if (!(expr)) { \
-        fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr); \
-        return 1; } } while (0)
+#define MOD_CHECK(expr)                                                        \
+    do {                                                                       \
+        if (!(expr)) {                                                         \
+            fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #expr);    \
+            return 1;                                                          \
+        }                                                                      \
+    } while (0)
 
 static wf_mod_label make_label(const char *src, const char *uri,
                                const char *val) {
@@ -31,10 +34,8 @@ static wf_mod_label make_label(const char *src, const char *uri,
     return l;
 }
 
-__attribute__((unused))
-static wf_mod_subject_profile make_profile(const char *did,
-                                           wf_mod_label *labels,
-                                           size_t label_count) {
+__attribute__((unused)) static wf_mod_subject_profile
+make_profile(const char *did, wf_mod_label *labels, size_t label_count) {
     wf_mod_subject_profile p = {0};
     p.did = did;
     p.labels = labels;
@@ -173,34 +174,46 @@ static int test_label_interpretation(void) {
     wf_mod_label_def def;
 
     /* blurs=content, severity=alert, adult_only=1 */
-    MOD_CHECK(wf_mod_interpret_label_def(&def, "porn", NULL, "content", "alert", 1, "hide") == WF_OK);
+    MOD_CHECK(wf_mod_interpret_label_def(&def, "porn", NULL, "content", "alert",
+                                         1, "hide") == WF_OK);
     MOD_CHECK(strcmp(def.identifier, "porn") == 0);
     MOD_CHECK(def.configurable == 1);
     MOD_CHECK(def.default_setting == WF_MOD_PREF_HIDE);
     MOD_CHECK(def.flags & WF_MOD_FLAG_ADULT);
     MOD_CHECK(def.flags & WF_MOD_FLAG_NO_SELF);
     /* content target should blur content_list and content_view (adult) */
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_list == WF_MOD_ACTION_BLUR);
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_view == WF_MOD_ACTION_BLUR);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_list ==
+              WF_MOD_ACTION_BLUR);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_view ==
+              WF_MOD_ACTION_BLUR);
     /* account target should alert profile_list and profile_view */
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].profile_list == WF_MOD_ACTION_ALERT);
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].profile_view == WF_MOD_ACTION_ALERT);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].profile_list ==
+              WF_MOD_ACTION_ALERT);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].profile_view ==
+              WF_MOD_ACTION_ALERT);
     wf_mod_label_def_free(&def);
 
     /* blurs=media, severity=inform, adult_only=0 */
-    MOD_CHECK(wf_mod_interpret_label_def(&def, "gore", NULL, "media", "inform", 0, "warn") == WF_OK);
+    MOD_CHECK(wf_mod_interpret_label_def(&def, "gore", NULL, "media", "inform",
+                                         0, "warn") == WF_OK);
     MOD_CHECK(def.default_setting == WF_MOD_PREF_WARN);
     MOD_CHECK(!(def.flags & WF_MOD_FLAG_ADULT));
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].avatar == WF_MOD_ACTION_BLUR);
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].banner == WF_MOD_ACTION_BLUR);
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_media == WF_MOD_ACTION_BLUR);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].avatar ==
+              WF_MOD_ACTION_BLUR);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].banner ==
+              WF_MOD_ACTION_BLUR);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_media ==
+              WF_MOD_ACTION_BLUR);
     wf_mod_label_def_free(&def);
 
     /* blurs=none, severity=NULL, default=ignore */
-    MOD_CHECK(wf_mod_interpret_label_def(&def, "spam", NULL, "none", NULL, 0, "ignore") == WF_OK);
+    MOD_CHECK(wf_mod_interpret_label_def(&def, "spam", NULL, "none", NULL, 0,
+                                         "ignore") == WF_OK);
     MOD_CHECK(def.default_setting == WF_MOD_PREF_IGNORE);
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].profile_list == WF_MOD_ACTION_NONE);
-    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_list == WF_MOD_ACTION_NONE);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_ACCOUNT].profile_list ==
+              WF_MOD_ACTION_NONE);
+    MOD_CHECK(def.behaviors[WF_MOD_TARGET_CONTENT].content_list ==
+              WF_MOD_ACTION_NONE);
     wf_mod_label_def_free(&def);
 
     return 0;
@@ -217,33 +230,31 @@ static int test_mute_word_matching(void) {
     words[1].value = strdup("hello");
     words[1].targets_content = 1;
 
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 2,
-                                      "this is spam content", NULL, 0, NULL, 0) == WF_OK);
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 2,
+                                      "this is spam content", NULL, 0, NULL,
+                                      0) == WF_OK);
     MOD_CHECK(match_count == 1);
     MOD_CHECK(strcmp(matches[0].value, "spam") == 0);
     wf_mod_mute_word_matches_free(matches, match_count);
 
     /* Tag match */
-    const char *tags[] = { "spam" };
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 2,
+    const char *tags[] = {"spam"};
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 2,
                                       "some text", tags, 1, NULL, 0) == WF_OK);
     MOD_CHECK(match_count == 1);
     MOD_CHECK(strcmp(matches[0].value, "spam") == 0);
     wf_mod_mute_word_matches_free(matches, match_count);
 
     /* No match */
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 2,
-                                      "nothing here", NULL, 0, NULL, 0) == WF_OK);
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 2,
+                                      "nothing here", NULL, 0, NULL,
+                                      0) == WF_OK);
     MOD_CHECK(match_count == 0);
 
     /* Language exception (Japanese) - substring match */
     free(words[0].value);
     words[0].value = strdup("test");
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 1,
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 1,
                                       "testing", NULL, 0, "ja", 0) == WF_OK);
     MOD_CHECK(match_count == 1);
     wf_mod_mute_word_matches_free(matches, match_count);
@@ -252,8 +263,7 @@ static int test_mute_word_matching(void) {
     free(words[0].value);
     words[0].value = strdup("spam");
     words[0].actor_target = strdup("exclude-following");
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 1,
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 1,
                                       "spam here", NULL, 0, NULL, 1) == WF_OK);
     MOD_CHECK(match_count == 0);
 
@@ -261,16 +271,14 @@ static int test_mute_word_matching(void) {
     free(words[0].actor_target);
     words[0].actor_target = NULL;
     words[0].expires_at = strdup("2999-01-01T00:00:00.000Z");
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 1,
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 1,
                                       "spam here", NULL, 0, NULL, 0) == WF_OK);
     MOD_CHECK(match_count == 1);
     wf_mod_mute_word_matches_free(matches, match_count);
 
     free(words[0].expires_at);
     words[0].expires_at = strdup("2000-01-01T00:00:00.000Z");
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      words, 1,
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, words, 1,
                                       "spam here", NULL, 0, NULL, 0) == WF_OK);
     MOD_CHECK(match_count == 0);
 
@@ -286,7 +294,8 @@ static int test_decide_account(void) {
     opts.user_did = "did:plc:me";
 
     wf_mod_label labels[1];
-    labels[0] = make_label("did:plc:labeler", "at://did:plc:other/post", "spam");
+    labels[0] =
+        make_label("did:plc:labeler", "at://did:plc:other/post", "spam");
 
     /* Set up a label def */
     wf_mod_label_def def;
@@ -360,9 +369,9 @@ static int test_decide_post_with_mute_word(void) {
     /* Test mute word matching directly first */
     wf_mod_mute_word_match *matches = NULL;
     size_t match_count = 0;
-    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count,
-                                      mw, 1, "this is spam content",
-                                      NULL, 0, NULL, 0) == WF_OK);
+    MOD_CHECK(wf_mod_match_mute_words(&matches, &match_count, mw, 1,
+                                      "this is spam content", NULL, 0, NULL,
+                                      0) == WF_OK);
     MOD_CHECK(match_count == 1);
     wf_mod_mute_word_matches_free(matches, match_count);
 
@@ -385,7 +394,7 @@ static int test_decide_post_hidden(void) {
     wf_mod_opts opts = {0};
     opts.user_did = "did:plc:me";
 
-    const char *hidden[] = { "at://did:plc:other/app.bsky.feed.post/123" };
+    const char *hidden[] = {"at://did:plc:other/app.bsky.feed.post/123"};
     opts.prefs.hidden_posts = (char **)hidden;
     opts.prefs.hidden_post_count = 1;
 
@@ -413,7 +422,8 @@ static int test_decide_negation(void) {
     opts.user_did = "did:plc:me";
 
     wf_mod_label_def def;
-    wf_mod_interpret_label_def(&def, "porn", NULL, "content", "alert", 1, "warn");
+    wf_mod_interpret_label_def(&def, "porn", NULL, "content", "alert", 1,
+                               "warn");
     opts.label_defs = &def;
     opts.label_def_count = 1;
 
@@ -472,9 +482,9 @@ static int test_decide_negation(void) {
     {
         wf_mod_label labels[2];
         labels[0] = make_label("did:plc:labeler", uri, "porn");
-        labels[1] = make_label("did:plc:labeler",
-                               "at://did:plc:other/app.bsky.feed.post/other",
-                               "porn");
+        labels[1] =
+            make_label("did:plc:labeler",
+                       "at://did:plc:other/app.bsky.feed.post/other", "porn");
         labels[1].neg = true;
 
         wf_mod_subject_post subject = {0};
@@ -519,9 +529,11 @@ static int test_decide_negation(void) {
         for (size_t i = 0; i < d.cause_count; i++) {
             if (d.causes[i].type != WF_MOD_CAUSE_LABEL) continue;
             if (d.causes[i].label.has_cid &&
-                strcmp(d.causes[i].label.cid, "cid-a") == 0) active_cid_a = 1;
+                strcmp(d.causes[i].label.cid, "cid-a") == 0)
+                active_cid_a = 1;
             if (d.causes[i].label.has_cid &&
-                strcmp(d.causes[i].label.cid, "cid-b") == 0) active_cid_b = 1;
+                strcmp(d.causes[i].label.cid, "cid-b") == 0)
+                active_cid_b = 1;
         }
         MOD_CHECK(!active_cid_a); /* revoked by cid-a negation */
         MOD_CHECK(active_cid_b);  /* cid-b untouched */
@@ -534,11 +546,21 @@ static int test_decide_negation(void) {
 }
 
 static int test_behavior_get(void) {
-    MOD_CHECK(wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) == WF_MOD_ACTION_BLUR);
-    MOD_CHECK(wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, WF_MOD_CTX_PROFILE_VIEW) == WF_MOD_ACTION_ALERT);
-    MOD_CHECK(wf_mod_behavior_get(&WF_MOD_MUTE_BEHAVIOR, WF_MOD_CTX_CONTENT_VIEW) == WF_MOD_ACTION_INFORM);
-    MOD_CHECK(wf_mod_behavior_get(&WF_MOD_MUTE_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) == WF_MOD_ACTION_BLUR);
-    MOD_CHECK(wf_mod_behavior_get(&WF_MOD_NOOP_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) == WF_MOD_ACTION_NONE);
+    MOD_CHECK(
+        wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) ==
+        WF_MOD_ACTION_BLUR);
+    MOD_CHECK(
+        wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, WF_MOD_CTX_PROFILE_VIEW) ==
+        WF_MOD_ACTION_ALERT);
+    MOD_CHECK(
+        wf_mod_behavior_get(&WF_MOD_MUTE_BEHAVIOR, WF_MOD_CTX_CONTENT_VIEW) ==
+        WF_MOD_ACTION_INFORM);
+    MOD_CHECK(
+        wf_mod_behavior_get(&WF_MOD_MUTE_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) ==
+        WF_MOD_ACTION_BLUR);
+    MOD_CHECK(
+        wf_mod_behavior_get(&WF_MOD_NOOP_BEHAVIOR, WF_MOD_CTX_CONTENT_LIST) ==
+        WF_MOD_ACTION_NONE);
     return 0;
 }
 
@@ -548,7 +570,13 @@ static int test_behavior_get(void) {
 
 int main(void) {
     int failed = 0;
-    #define RUN(t) do { printf("  " #t "..."); fflush(stdout); failed += t(); printf("ok\n"); } while(0)
+#define RUN(t)                                                                 \
+    do {                                                                       \
+        printf("  " #t "...");                                                 \
+        fflush(stdout);                                                        \
+        failed += t();                                                         \
+        printf("ok\n");                                                        \
+    } while (0)
     RUN(test_decision_init_free);
     RUN(test_decision_merge);
     RUN(test_decision_downgrade);

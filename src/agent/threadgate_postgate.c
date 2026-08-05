@@ -16,11 +16,11 @@
 #include <string.h>
 #include <time.h>
 
-#define WF_AGENT_THREADGATE_COLLECTION  "app.bsky.feed.threadgate"
-#define WF_AGENT_POSTGATE_COLLECTION   "app.bsky.feed.postgate"
+#define WF_AGENT_THREADGATE_COLLECTION "app.bsky.feed.threadgate"
+#define WF_AGENT_POSTGATE_COLLECTION "app.bsky.feed.postgate"
 #define WF_AGENT_THREADGATE_RECORD_TYPE "app.bsky.feed.threadgate"
-#define WF_AGENT_POSTGATE_RECORD_TYPE  "app.bsky.feed.postgate"
-#define WF_AGENT_DELETE_RECORD_NSID    "com.atproto.repo.deleteRecord"
+#define WF_AGENT_POSTGATE_RECORD_TYPE "app.bsky.feed.postgate"
+#define WF_AGENT_DELETE_RECORD_NSID "com.atproto.repo.deleteRecord"
 
 static int wf_tpg_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     time_t now = time(NULL);
@@ -32,9 +32,8 @@ static int wf_tpg_make_rfc3339_timestamp(char *buf, size_t buf_len) {
 }
 
 static wf_status wf_tpg_print_and_create(wf_agent *agent,
-                                          const char *collection,
-                                          cJSON *record,
-                                          wf_agent_post_result *out) {
+                                         const char *collection, cJSON *record,
+                                         wf_agent_post_result *out) {
     if (!record) return WF_ERR_INVALID_ARG;
 
     char *json = cJSON_PrintUnformatted(record);
@@ -47,7 +46,7 @@ static wf_status wf_tpg_print_and_create(wf_agent *agent,
 }
 
 static wf_status wf_tpg_add_json_array(cJSON *parent, const char *key,
-                                        const char *json_str) {
+                                       const char *json_str) {
     if (!json_str || !json_str[0]) return WF_OK;
 
     cJSON *arr = cJSON_Parse(json_str);
@@ -64,8 +63,8 @@ static wf_status wf_tpg_add_json_array(cJSON *parent, const char *key,
 }
 
 static wf_status wf_tpg_add_string_array(cJSON *parent, const char *key,
-                                          const char *const *items,
-                                          size_t count) {
+                                         const char *const *items,
+                                         size_t count) {
     if (!items || count == 0) return WF_OK;
 
     cJSON *arr = cJSON_CreateArray();
@@ -86,8 +85,7 @@ static wf_status wf_tpg_add_string_array(cJSON *parent, const char *key,
     return WF_OK;
 }
 
-wf_status wf_agent_create_threadgate(wf_agent *agent,
-                                     const char *post_uri,
+wf_status wf_agent_create_threadgate(wf_agent *agent, const char *post_uri,
                                      const char *allow_json,
                                      const char **hidden_replies,
                                      size_t hidden_count,
@@ -103,14 +101,16 @@ wf_status wf_agent_create_threadgate(wf_agent *agent,
 
     {
         wf_syntax_aturi parsed = {0};
-        if (!wf_syntax_aturi_parse(post_uri, &parsed)) return WF_ERR_INVALID_ARG;
+        if (!wf_syntax_aturi_parse(post_uri, &parsed))
+            return WF_ERR_INVALID_ARG;
         wf_syntax_aturi_free(&parsed);
     }
 
     cJSON *record = cJSON_CreateObject();
     if (!record) return WF_ERR_ALLOC;
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_THREADGATE_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_THREADGATE_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "post", post_uri) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(record);
@@ -123,19 +123,18 @@ wf_status wf_agent_create_threadgate(wf_agent *agent,
         return status;
     }
 
-    status = wf_tpg_add_string_array(record, "hiddenReplies",
-                                      hidden_replies, hidden_count);
+    status = wf_tpg_add_string_array(record, "hiddenReplies", hidden_replies,
+                                     hidden_count);
     if (status != WF_OK) {
         cJSON_Delete(record);
         return status;
     }
 
     return wf_tpg_print_and_create(agent, WF_AGENT_THREADGATE_COLLECTION,
-                                    record, out);
+                                   record, out);
 }
 
-wf_status wf_agent_create_postgate(wf_agent *agent,
-                                   const char *post_uri,
+wf_status wf_agent_create_postgate(wf_agent *agent, const char *post_uri,
                                    const char *embedding_rules_json,
                                    const char **detached_uris,
                                    size_t detached_count,
@@ -151,40 +150,42 @@ wf_status wf_agent_create_postgate(wf_agent *agent,
 
     {
         wf_syntax_aturi parsed = {0};
-        if (!wf_syntax_aturi_parse(post_uri, &parsed)) return WF_ERR_INVALID_ARG;
+        if (!wf_syntax_aturi_parse(post_uri, &parsed))
+            return WF_ERR_INVALID_ARG;
         wf_syntax_aturi_free(&parsed);
     }
 
     cJSON *record = cJSON_CreateObject();
     if (!record) return WF_ERR_ALLOC;
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_POSTGATE_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_POSTGATE_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "post", post_uri) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(record);
         return WF_ERR_ALLOC;
     }
 
-    wf_status status = wf_tpg_add_json_array(record, "embeddingRules",
-                                              embedding_rules_json);
+    wf_status status =
+        wf_tpg_add_json_array(record, "embeddingRules", embedding_rules_json);
     if (status != WF_OK) {
         cJSON_Delete(record);
         return status;
     }
 
     status = wf_tpg_add_string_array(record, "detachedEmbeddingUris",
-                                      detached_uris, detached_count);
+                                     detached_uris, detached_count);
     if (status != WF_OK) {
         cJSON_Delete(record);
         return status;
     }
 
-    return wf_tpg_print_and_create(agent, WF_AGENT_POSTGATE_COLLECTION,
-                                    record, out);
+    return wf_tpg_print_and_create(agent, WF_AGENT_POSTGATE_COLLECTION, record,
+                                   out);
 }
 
 wf_status wf_agent_delete_record_by_uri(wf_agent *agent,
-                                         const char *record_uri) {
+                                        const char *record_uri) {
     if (!agent || !record_uri) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -199,7 +200,10 @@ wf_status wf_agent_delete_record_by_uri(wf_agent *agent,
     }
 
     cJSON *root = cJSON_CreateObject();
-    if (!root) { status = WF_ERR_ALLOC; goto done; }
+    if (!root) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
 
     if (!cJSON_AddStringToObject(root, "repo", parsed.authority) ||
         !cJSON_AddStringToObject(root, "collection", parsed.collection) ||
@@ -211,12 +215,15 @@ wf_status wf_agent_delete_record_by_uri(wf_agent *agent,
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
-    if (!json) { status = WF_ERR_ALLOC; goto done; }
+    if (!json) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    status = wf_xrpc_procedure(agent->client, WF_AGENT_DELETE_RECORD_NSID,
-                               json, &res);
+    status = wf_xrpc_procedure(agent->client, WF_AGENT_DELETE_RECORD_NSID, json,
+                               &res);
     free(json);
     wf_response_free(&res);
 

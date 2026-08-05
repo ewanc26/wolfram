@@ -41,15 +41,14 @@ typedef struct wf_oauth_par_request {
 typedef struct wf_oauth_client_auth {
     const char *client_id;
     const char *authorization_server_issuer; /* required for private_key_jwt */
-    const wf_oauth_dpop_key *signing_key;     /* NULL selects `none` */
-    const char *key_id;                       /* required with signing_key */
+    const wf_oauth_dpop_key *signing_key;    /* NULL selects `none` */
+    const char *key_id;                      /* required with signing_key */
 } wf_oauth_client_auth;
 
 /** Cross-check client authentication against discovered metadata. */
-wf_status wf_oauth_client_auth_validate(
-    const wf_oauth_server_metadata *server,
-    const wf_oauth_client_metadata *client,
-    const wf_oauth_client_auth *auth);
+wf_status wf_oauth_client_auth_validate(const wf_oauth_server_metadata *server,
+                                        const wf_oauth_client_metadata *client,
+                                        const wf_oauth_client_auth *auth);
 
 wf_status wf_oauth_par_response_parse(const char *json, size_t json_len,
                                       wf_oauth_par_response *out);
@@ -66,19 +65,19 @@ wf_status wf_oauth_par(wf_xrpc_client *transport, const char *endpoint,
                        const wf_oauth_dpop_key *key,
                        const wf_oauth_par_request *request,
                        wf_oauth_par_response *out);
-wf_status wf_oauth_par_with_auth(
-    wf_xrpc_client *transport, const char *endpoint,
-    const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
-    const wf_oauth_par_request *request, wf_oauth_par_response *out);
+wf_status wf_oauth_par_with_auth(wf_xrpc_client *transport,
+                                 const char *endpoint,
+                                 const wf_oauth_dpop_key *dpop_key,
+                                 const wf_oauth_client_auth *auth,
+                                 const wf_oauth_par_request *request,
+                                 wf_oauth_par_response *out);
 
 /** Public-client authorization-code exchange with DPoP nonce retry. */
-wf_status wf_oauth_exchange_code(wf_xrpc_client *transport,
-                                 const char *token_endpoint,
-                                 const wf_oauth_dpop_key *key,
-                                 const char *client_id, const char *code,
-                                 const char *redirect_uri,
-                                 const char *code_verifier,
-                                 wf_oauth_token_response *out);
+wf_status
+wf_oauth_exchange_code(wf_xrpc_client *transport, const char *token_endpoint,
+                       const wf_oauth_dpop_key *key, const char *client_id,
+                       const char *code, const char *redirect_uri,
+                       const char *code_verifier, wf_oauth_token_response *out);
 wf_status wf_oauth_exchange_code_with_auth(
     wf_xrpc_client *transport, const char *token_endpoint,
     const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
@@ -91,34 +90,32 @@ wf_status wf_oauth_exchange_code_with_auth(
  */
 wf_status wf_oauth_refresh(wf_xrpc_client *transport,
                            const char *token_endpoint,
-                           const wf_oauth_dpop_key *key,
-                           const char *client_id,
-                           const char *refresh_token,
-                           const char *expected_sub,
+                           const wf_oauth_dpop_key *key, const char *client_id,
+                           const char *refresh_token, const char *expected_sub,
                            wf_oauth_token_response *out);
-wf_status wf_oauth_refresh_with_auth(
-    wf_xrpc_client *transport, const char *token_endpoint,
-    const wf_oauth_dpop_key *dpop_key, const wf_oauth_client_auth *auth,
-    const char *refresh_token, const char *expected_sub,
-    wf_oauth_token_response *out);
+wf_status wf_oauth_refresh_with_auth(wf_xrpc_client *transport,
+                                     const char *token_endpoint,
+                                     const wf_oauth_dpop_key *dpop_key,
+                                     const wf_oauth_client_auth *auth,
+                                     const char *refresh_token,
+                                     const char *expected_sub,
+                                     wf_oauth_token_response *out);
 
 /**
  * Refresh an existing session using its refresh token.
  * Updates `session` in-place if successful.
  */
-wf_status wf_oauth_session_refresh(
-    wf_xrpc_client *transport,
-    const wf_oauth_server_metadata *server,
-    const wf_oauth_client_auth *client_auth,
-    wf_oauth_session_state *session,
-    int64_t now);
+wf_status wf_oauth_session_refresh(wf_xrpc_client *transport,
+                                   const wf_oauth_server_metadata *server,
+                                   const wf_oauth_client_auth *client_auth,
+                                   wf_oauth_session_state *session,
+                                   int64_t now);
 
 /** Best-effort callers may ignore WF_ERR_HTTP, matching RFC 7009 semantics. */
 wf_status wf_oauth_revoke(wf_xrpc_client *transport,
                           const char *revocation_endpoint,
                           const wf_oauth_dpop_key *dpop_key,
-                          const wf_oauth_client_auth *auth,
-                          const char *token);
+                          const wf_oauth_client_auth *auth, const char *token);
 
 #ifdef __cplusplus
 }

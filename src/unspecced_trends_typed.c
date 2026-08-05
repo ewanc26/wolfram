@@ -4,9 +4,9 @@
  *
  * See include/wolfram/unspecced_trends_typed.h for the public API, the
  * authoritative wire format, and ownership rules. Mirrors labeler_typed.c /
- * actor_typed.c: static strdup/set_string/reset helpers, owned strings, detached
- * `extra` cJSON subtrees where shapes are open/unbounded, and full cleanup on
- * the first error.
+ * actor_typed.c: static strdup/set_string/reset helpers, owned strings,
+ * detached `extra` cJSON subtrees where shapes are open/unbounded, and full
+ * cleanup on the first error.
  */
 
 #include "wolfram/unspecced_trends_typed.h"
@@ -61,7 +61,8 @@ static void wf_ut_trend_view_reset(wf_unspecced_trend_view *t) {
     memset(t, 0, sizeof(*t));
 }
 
-static wf_status wf_ut_parse_trend_view(cJSON *obj, wf_unspecced_trend_view *t) {
+static wf_status wf_ut_parse_trend_view(cJSON *obj,
+                                        wf_unspecced_trend_view *t) {
     wf_status status = WF_OK;
     cJSON *topic = cJSON_GetObjectItemCaseSensitive(obj, "topic");
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
@@ -220,8 +221,9 @@ wf_status wf_unspecced_parse_suggested_users(const char *json, size_t json_len,
     return wf_agent_parse_actors(json, json_len, out);
 }
 
-wf_status wf_unspecced_parse_suggested_feeds(const char *json, size_t json_len,
-                                             wf_agent_generator_view_list *out) {
+wf_status
+wf_unspecced_parse_suggested_feeds(const char *json, size_t json_len,
+                                   wf_agent_generator_view_list *out) {
     return wf_agent_parse_generators(json, json_len, out);
 }
 
@@ -405,7 +407,8 @@ wf_status wf_agent_get_trends_typed(wf_agent *agent, int limit,
 
 wf_status wf_agent_get_suggested_users_typed(wf_agent *agent,
                                              const char *category_or_null,
-                                             int limit, wf_agent_actor_list *out) {
+                                             int limit,
+                                             wf_agent_actor_list *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -441,8 +444,9 @@ wf_status wf_agent_get_suggested_users_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_get_suggested_users_for_discover_typed(
-    wf_agent *agent, int limit, wf_agent_actor_list *out) {
+wf_status
+wf_agent_get_suggested_users_for_discover_typed(wf_agent *agent, int limit,
+                                                wf_agent_actor_list *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -453,8 +457,8 @@ wf_status wf_agent_get_suggested_users_for_discover_typed(
         return WF_ERR_INVALID_ARG;
     }
     wf_agent_actor_list list = {0};
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params params =
-        {0};
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params
+        params = {0};
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
@@ -489,8 +493,8 @@ wf_status wf_agent_get_suggested_users_for_explore_typed(
         return WF_ERR_INVALID_ARG;
     }
     wf_agent_actor_list list = {0};
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params params =
-        {0};
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params
+        params = {0};
     if (category_or_null && category_or_null[0]) {
         params.has_category = true;
         params.category = category_or_null;
@@ -529,8 +533,8 @@ wf_status wf_agent_get_suggested_users_for_see_more_typed(
         return WF_ERR_INVALID_ARG;
     }
     wf_agent_actor_list list = {0};
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params params =
-        {0};
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params
+        params = {0};
     if (category_or_null && category_or_null[0]) {
         params.has_category = true;
         params.category = category_or_null;
@@ -569,8 +573,8 @@ wf_status wf_agent_get_suggested_onboarding_users_typed(
         return WF_ERR_INVALID_ARG;
     }
     wf_agent_actor_list list = {0};
-    wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params params =
-        {0};
+    wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params
+        params = {0};
     if (category_or_null && category_or_null[0]) {
         params.has_category = true;
         params.category = category_or_null;
@@ -596,8 +600,9 @@ wf_status wf_agent_get_suggested_onboarding_users_typed(
     return status;
 }
 
-wf_status wf_agent_get_suggested_feeds_typed(wf_agent *agent, int limit,
-                                             wf_agent_generator_view_list *out) {
+wf_status
+wf_agent_get_suggested_feeds_typed(wf_agent *agent, int limit,
+                                   wf_agent_generator_view_list *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -687,8 +692,9 @@ wf_status wf_agent_get_post_thread_other_v2_typed(wf_agent *agent,
     params.anchor = anchor;
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_call(
-        agent->client, &params, &res);
+    wf_status status =
+        wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_call(
+            agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;

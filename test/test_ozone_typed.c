@@ -47,8 +47,7 @@ static char *build_team_members_json(void) {
 
     cJSON *m = cJSON_CreateObject();
     cJSON_AddStringToObject(m, "did", "did:plc:team000000000000000000");
-    cJSON_AddStringToObject(m, "role",
-                            "tools.ozone.team.defs#moderator");
+    cJSON_AddStringToObject(m, "role", "tools.ozone.team.defs#moderator");
     cJSON_AddBoolToObject(m, "disabled", 0);
     cJSON_AddStringToObject(m, "createdAt", "2026-01-01T00:00:00.000Z");
 
@@ -70,7 +69,8 @@ int main(void) {
         char *json = build_query_statuses_json();
         WF_CHECK(json != NULL);
         wf_ozone_subject_status_list list = {0};
-        wf_status st = wf_ozone_parse_subject_statuses(json, strlen(json), &list);
+        wf_status st =
+            wf_ozone_parse_subject_statuses(json, strlen(json), &list);
         free(json);
 
         WF_CHECK(st == WF_OK);
@@ -114,8 +114,8 @@ int main(void) {
             WF_CHECK(list.members[0].has_disabled);
             WF_CHECK(list.members[0].disabled == false);
             WF_CHECK(list.members[0].profile_handle != NULL);
-            WF_CHECK(strcmp(list.members[0].profile_handle,
-                            "mod.example.com") == 0);
+            WF_CHECK(
+                strcmp(list.members[0].profile_handle, "mod.example.com") == 0);
             WF_CHECK(list.members[0].extra != NULL);
         }
         WF_CHECK(list.cursor != NULL);
@@ -176,24 +176,24 @@ int main(void) {
         WF_CHECK(agent != NULL);
 
         wf_lex_tools_ozone_moderation_query_statuses_main_output *out = NULL;
-        WF_CHECK(wf_ozone_moderation_queryStatuses(
-                     NULL, NULL, &out) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_moderation_queryStatuses(
-                     agent, NULL, &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_queryStatuses(NULL, NULL, &out) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_queryStatuses(agent, NULL, &out) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_team_list_members_main_output *tout = NULL;
-        WF_CHECK(wf_ozone_team_listMembers(
-                     agent, NULL, &tout) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_team_listMembers(agent, NULL, &tout) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_communication_list_templates_main_output *c = NULL;
-        WF_CHECK(wf_ozone_communication_listTemplates(
-                     NULL, &c) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_communication_listTemplates(NULL, &c) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_response r = {0};
-        WF_CHECK(wf_ozone_moderation_emitEvent(
-                     NULL, NULL, &r) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_moderation_emitEvent(
-                     agent, NULL, &r) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_emitEvent(NULL, NULL, &r) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_emitEvent(agent, NULL, &r) ==
+                 WF_ERR_INVALID_ARG);
 
         char *js = NULL;
         WF_CHECK(wf_ozone_moderation_get_suggestions(

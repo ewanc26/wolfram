@@ -61,7 +61,8 @@ static wf_status wf_sync_json_string(const cJSON *object, const char *name,
     if (!item) {
         return required ? WF_ERR_PARSE : WF_OK;
     }
-    if (!cJSON_IsString(item) || !item->valuestring || item->valuestring[0] == '\0') {
+    if (!cJSON_IsString(item) || !item->valuestring ||
+        item->valuestring[0] == '\0') {
         return WF_ERR_PARSE;
     }
 
@@ -90,8 +91,9 @@ static wf_status wf_sync_json_bool_string(const cJSON *object, const char *name,
     return *out ? WF_OK : WF_ERR_ALLOC;
 }
 
-static wf_status wf_sync_json_string_array(const cJSON *object, const char *name,
-                                           char ***items_out, size_t *count_out) {
+static wf_status wf_sync_json_string_array(const cJSON *object,
+                                           const char *name, char ***items_out,
+                                           size_t *count_out) {
     const cJSON *array;
     const cJSON *item;
     char **items = NULL;
@@ -120,7 +122,8 @@ static wf_status wf_sync_json_string_array(const cJSON *object, const char *name
     }
 
     cJSON_ArrayForEach(item, array) {
-        if (!cJSON_IsString(item) || !item->valuestring || item->valuestring[0] == '\0') {
+        if (!cJSON_IsString(item) || !item->valuestring ||
+            item->valuestring[0] == '\0') {
             wf_sync_free_strings(items, index);
             return WF_ERR_PARSE;
         }
@@ -137,7 +140,8 @@ static wf_status wf_sync_json_string_array(const cJSON *object, const char *name
     return WF_OK;
 }
 
-static wf_status wf_sync_json_repo_entries(const cJSON *object, const char *name,
+static wf_status wf_sync_json_repo_entries(const cJSON *object,
+                                           const char *name,
                                            wf_sync_repo_entry **repos_out,
                                            size_t *count_out) {
     const cJSON *array;
@@ -204,11 +208,13 @@ static wf_status wf_sync_json_repo_entries(const cJSON *object, const char *name
     return WF_OK;
 }
 
-static wf_status wf_sync_car_from_response(const wf_response *response, wf_car *out) {
+static wf_status wf_sync_car_from_response(const wf_response *response,
+                                           wf_car *out) {
     if (!response || !out || !response->body || response->body_len == 0) {
         return WF_ERR_PARSE;
     }
-    return wf_car_parse((const unsigned char *)response->body, response->body_len, out);
+    return wf_car_parse((const unsigned char *)response->body,
+                        response->body_len, out);
 }
 
 static wf_status wf_sync_blob_from_response(const wf_response *response,
@@ -299,9 +305,9 @@ void wf_sync_repo_list_free(wf_sync_repo_list *list) {
     list->cursor = NULL;
 }
 
-wf_status wf_sync_get_blob(wf_xrpc_client *client,
-                           const char *did, const char *cid,
-                           unsigned char **out_data, size_t *out_len) {
+wf_status wf_sync_get_blob(wf_xrpc_client *client, const char *did,
+                           const char *cid, unsigned char **out_data,
+                           size_t *out_len) {
     wf_response response = {0};
     wf_xrpc_param params[2];
     wf_status status;
@@ -316,10 +322,7 @@ wf_status wf_sync_get_blob(wf_xrpc_client *client,
 
     params[0] = (wf_xrpc_param){"did", did};
     params[1] = (wf_xrpc_param){"cid", cid};
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.getBlob",
-                                  params,
-                                  2,
+    status = wf_xrpc_query_params(client, "com.atproto.sync.getBlob", params, 2,
                                   &response);
     if (status != WF_OK) {
         return status;
@@ -330,8 +333,8 @@ wf_status wf_sync_get_blob(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_get_blocks(wf_xrpc_client *client,
-                             const char *did, const char *const *cids, size_t cid_count,
+wf_status wf_sync_get_blocks(wf_xrpc_client *client, const char *did,
+                             const char *const *cids, size_t cid_count,
                              wf_car *out) {
     wf_response response = {0};
     wf_xrpc_param *params = NULL;
@@ -361,11 +364,8 @@ wf_status wf_sync_get_blocks(wf_xrpc_client *client,
         params[i + 1] = (wf_xrpc_param){"cids", cids[i]};
     }
 
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.getBlocks",
-                                  params,
-                                  cid_count + 1,
-                                  &response);
+    status = wf_xrpc_query_params(client, "com.atproto.sync.getBlocks", params,
+                                  cid_count + 1, &response);
     free(params);
     if (status != WF_OK) {
         return status;
@@ -377,26 +377,23 @@ wf_status wf_sync_get_blocks(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_get_record(wf_xrpc_client *client,
-                             const char *did, const char *collection, const char *rkey,
+wf_status wf_sync_get_record(wf_xrpc_client *client, const char *did,
+                             const char *collection, const char *rkey,
                              wf_car *out) {
     wf_response response = {0};
     wf_xrpc_param params[3];
     wf_status status;
 
-    if (!client || !did || did[0] == '\0' || !collection || collection[0] == '\0' ||
-        !rkey || rkey[0] == '\0' || !out) {
+    if (!client || !did || did[0] == '\0' || !collection ||
+        collection[0] == '\0' || !rkey || rkey[0] == '\0' || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     params[0] = (wf_xrpc_param){"did", did};
     params[1] = (wf_xrpc_param){"collection", collection};
     params[2] = (wf_xrpc_param){"rkey", rkey};
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.getRecord",
-                                  params,
-                                  3,
-                                  &response);
+    status = wf_xrpc_query_params(client, "com.atproto.sync.getRecord", params,
+                                  3, &response);
     if (status != WF_OK) {
         return status;
     }
@@ -407,9 +404,8 @@ wf_status wf_sync_get_record(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_list_blobs(wf_xrpc_client *client,
-                             const char *did, const char *since,
-                             int limit, const char *cursor,
+wf_status wf_sync_list_blobs(wf_xrpc_client *client, const char *did,
+                             const char *since, int limit, const char *cursor,
                              wf_sync_blob_list *out) {
     wf_response response = {0};
     wf_xrpc_param params[4];
@@ -439,11 +435,8 @@ wf_status wf_sync_list_blobs(wf_xrpc_client *client,
     }
 
     memset(out, 0, sizeof(*out));
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.listBlobs",
-                                  params,
-                                  param_count,
-                                  &response);
+    status = wf_xrpc_query_params(client, "com.atproto.sync.listBlobs", params,
+                                  param_count, &response);
     if (status != WF_OK) {
         wf_response_free(&response);
         return status;
@@ -456,7 +449,8 @@ wf_status wf_sync_list_blobs(wf_xrpc_client *client,
             wf_response_free(&response);
             return WF_ERR_PARSE;
         }
-        status = wf_sync_json_string_array(parsed, "cids", &out->cids, &out->cid_count);
+        status = wf_sync_json_string_array(parsed, "cids", &out->cids,
+                                           &out->cid_count);
         if (status == WF_OK) {
             status = wf_sync_json_string(parsed, "cursor", 0, &out->cursor);
         }
@@ -469,8 +463,8 @@ wf_status wf_sync_list_blobs(wf_xrpc_client *client,
     }
 }
 
-wf_status wf_sync_get_head(wf_xrpc_client *client,
-                           const char *did, wf_sync_head *out) {
+wf_status wf_sync_get_head(wf_xrpc_client *client, const char *did,
+                           wf_sync_head *out) {
     wf_response response = {0};
     wf_xrpc_param params[1];
     cJSON *root = NULL;
@@ -481,10 +475,7 @@ wf_status wf_sync_get_head(wf_xrpc_client *client,
     }
 
     params[0] = (wf_xrpc_param){"did", did};
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.getHead",
-                                  params,
-                                  1,
+    status = wf_xrpc_query_params(client, "com.atproto.sync.getHead", params, 1,
                                   &response);
     if (status != WF_OK) {
         return status;
@@ -510,8 +501,8 @@ wf_status wf_sync_get_head(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_get_latest_commit(wf_xrpc_client *client,
-                                    const char *did, wf_sync_commit_info *out) {
+wf_status wf_sync_get_latest_commit(wf_xrpc_client *client, const char *did,
+                                    wf_sync_commit_info *out) {
     wf_response response = {0};
     wf_xrpc_param params[1];
     cJSON *root = NULL;
@@ -522,11 +513,8 @@ wf_status wf_sync_get_latest_commit(wf_xrpc_client *client,
     }
 
     params[0] = (wf_xrpc_param){"did", did};
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.getLatestCommit",
-                                  params,
-                                  1,
-                                  &response);
+    status = wf_xrpc_query_params(client, "com.atproto.sync.getLatestCommit",
+                                  params, 1, &response);
     if (status != WF_OK) {
         return status;
     }
@@ -551,8 +539,8 @@ wf_status wf_sync_get_latest_commit(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_get_repo_status(wf_xrpc_client *client,
-                                  const char *did, wf_sync_repo_status *out) {
+wf_status wf_sync_get_repo_status(wf_xrpc_client *client, const char *did,
+                                  wf_sync_repo_status *out) {
     wf_response response = {0};
     wf_xrpc_param params[1];
     cJSON *root = NULL;
@@ -563,11 +551,8 @@ wf_status wf_sync_get_repo_status(wf_xrpc_client *client,
     }
 
     params[0] = (wf_xrpc_param){"did", did};
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.getRepoStatus",
-                                  params,
-                                  1,
-                                  &response);
+    status = wf_xrpc_query_params(client, "com.atproto.sync.getRepoStatus",
+                                  params, 1, &response);
     if (status != WF_OK) {
         return status;
     }
@@ -595,9 +580,8 @@ wf_status wf_sync_get_repo_status(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_list_repos(wf_xrpc_client *client,
-                             const char *cursor, int limit,
-                             wf_sync_repo_list *out) {
+wf_status wf_sync_list_repos(wf_xrpc_client *client, const char *cursor,
+                             int limit, wf_sync_repo_list *out) {
     wf_response response = {0};
     wf_xrpc_param params[2];
     char limit_buf[32];
@@ -605,8 +589,8 @@ wf_status wf_sync_list_repos(wf_xrpc_client *client,
     wf_status status;
     cJSON *root = NULL;
 
-    if (!client || !out || (cursor && cursor[0] == '\0') ||
-        limit < 0 || limit > 1000) {
+    if (!client || !out || (cursor && cursor[0] == '\0') || limit < 0 ||
+        limit > 1000) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -621,11 +605,8 @@ wf_status wf_sync_list_repos(wf_xrpc_client *client,
         params[param_count++] = (wf_xrpc_param){"cursor", cursor};
     }
 
-    status = wf_xrpc_query_params(client,
-                                  "com.atproto.sync.listRepos",
-                                  params,
-                                  param_count,
-                                  &response);
+    status = wf_xrpc_query_params(client, "com.atproto.sync.listRepos", params,
+                                  param_count, &response);
     if (status != WF_OK) {
         return status;
     }
@@ -638,7 +619,8 @@ wf_status wf_sync_list_repos(wf_xrpc_client *client,
         return WF_ERR_PARSE;
     }
 
-    status = wf_sync_json_repo_entries(root, "repos", &out->repos, &out->repo_count);
+    status =
+        wf_sync_json_repo_entries(root, "repos", &out->repos, &out->repo_count);
     if (status == WF_OK) {
         status = wf_sync_json_string(root, "cursor", 0, &out->cursor);
     }
@@ -650,10 +632,8 @@ wf_status wf_sync_list_repos(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_sync_get_repo(wf_xrpc_client *client,
-                           const char *did,
-                           const char *since,
-                           wf_car *out) {
+wf_status wf_sync_get_repo(wf_xrpc_client *client, const char *did,
+                           const char *since, wf_car *out) {
     if (!client || !did || did[0] == '\0' || !out ||
         (since && since[0] == '\0')) {
         return WF_ERR_INVALID_ARG;
@@ -667,26 +647,20 @@ wf_status wf_sync_get_repo(wf_xrpc_client *client,
     };
     size_t param_count = since ? 2 : 1;
     wf_response response = {0};
-    wf_status status = wf_xrpc_query_params(client,
-                                             "com.atproto.sync.getRepo",
-                                             params,
-                                             param_count,
-                                             &response);
+    wf_status status = wf_xrpc_query_params(client, "com.atproto.sync.getRepo",
+                                            params, param_count, &response);
     if (status != WF_OK) {
         return status;
     }
 
     status = wf_car_parse((const unsigned char *)response.body,
-                          response.body_len,
-                          out);
+                          response.body_len, out);
     wf_response_free(&response);
     return status;
 }
 
-wf_status wf_sync_verify_diff_car(const wf_car *base,
-                                  const wf_cid *base_commit,
-                                  const unsigned char *bytes,
-                                  size_t len,
+wf_status wf_sync_verify_diff_car(const wf_car *base, const wf_cid *base_commit,
+                                  const unsigned char *bytes, size_t len,
                                   const wf_repo_verify_options *options,
                                   wf_repo_diff *out) {
     if (!base || !base_commit || !bytes || len == 0 || !options || !out)

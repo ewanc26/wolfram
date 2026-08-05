@@ -189,8 +189,8 @@ static wf_status wf_chat_parse_convo_view(wf_chat_convo *out, cJSON *obj) {
     if (status == WF_OK && cJSON_IsObject(last_message)) {
         cJSON *text = cJSON_GetObjectItemCaseSensitive(last_message, "text");
         if (cJSON_IsString(text) && text->valuestring) {
-            status = wf_chat_set_string(&out->last_message_text,
-                                        text->valuestring);
+            status =
+                wf_chat_set_string(&out->last_message_text, text->valuestring);
         }
     }
     if (status == WF_OK && cJSON_IsString(kind) && kind->valuestring) {
@@ -230,7 +230,8 @@ static wf_status wf_chat_parse_message(wf_chat_message *out, cJSON *obj) {
         if (cJSON_IsString(did) && did->valuestring) {
             status = wf_chat_set_string(&out->sender, did->valuestring);
         }
-    } else if (status == WF_OK && cJSON_IsString(sender) && sender->valuestring) {
+    } else if (status == WF_OK && cJSON_IsString(sender) &&
+               sender->valuestring) {
         status = wf_chat_set_string(&out->sender, sender->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(sent_at) && sent_at->valuestring) {
@@ -424,7 +425,8 @@ void wf_chat_message_list_free(wf_chat_message_list *list) {
 
 /* ── chat.bsky.notification parses ────────────────────────────────────── */
 
-static void wf_chat_notification_pref_reset(wf_chat_notification_preference *p) {
+static void
+wf_chat_notification_pref_reset(wf_chat_notification_preference *p) {
     if (!p) {
         return;
     }
@@ -432,8 +434,9 @@ static void wf_chat_notification_pref_reset(wf_chat_notification_preference *p) 
     memset(p, 0, sizeof(*p));
 }
 
-static wf_status wf_chat_notification_pref_parse(wf_chat_notification_preference *out,
-                                                  cJSON *obj) {
+static wf_status
+wf_chat_notification_pref_parse(wf_chat_notification_preference *out,
+                                cJSON *obj) {
     wf_status status = WF_OK;
     if (!cJSON_IsObject(obj)) {
         return WF_ERR_PARSE;
@@ -453,9 +456,8 @@ static wf_status wf_chat_notification_pref_parse(wf_chat_notification_preference
     return status;
 }
 
-wf_status wf_agent_parse_chat_notification_preferences(const char *json,
-                                                        size_t json_len,
-                                                        wf_chat_notification_preferences *out) {
+wf_status wf_agent_parse_chat_notification_preferences(
+    const char *json, size_t json_len, wf_chat_notification_preferences *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -475,7 +477,8 @@ wf_status wf_agent_parse_chat_notification_preferences(const char *json,
     }
 
     cJSON *chat = cJSON_GetObjectItemCaseSensitive(prefs, "chat");
-    cJSON *chat_request = cJSON_GetObjectItemCaseSensitive(prefs, "chatRequest");
+    cJSON *chat_request =
+        cJSON_GetObjectItemCaseSensitive(prefs, "chatRequest");
     if (!cJSON_IsObject(chat) || !cJSON_IsObject(chat_request)) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
@@ -483,7 +486,8 @@ wf_status wf_agent_parse_chat_notification_preferences(const char *json,
 
     status = wf_chat_notification_pref_parse(&out->chat, chat);
     if (status == WF_OK) {
-        status = wf_chat_notification_pref_parse(&out->chat_request, chat_request);
+        status =
+            wf_chat_notification_pref_parse(&out->chat_request, chat_request);
     }
 
     if (status != WF_OK) {
@@ -496,7 +500,8 @@ wf_status wf_agent_parse_chat_notification_preferences(const char *json,
     return status;
 }
 
-void wf_chat_notification_preferences_free(wf_chat_notification_preferences *p) {
+void wf_chat_notification_preferences_free(
+    wf_chat_notification_preferences *p) {
     if (!p) {
         return;
     }
@@ -520,15 +525,15 @@ static const char *wf_chat_default_endpoint(void) {
  * reuses the shared identity resolver `wf_did_resolve_service` rather than
  * re-implementing DID-document fetching. */
 static wf_status wf_chat_resolve_did_endpoint(wf_xrpc_client *client,
-                                              const char *did,
-                                              char **out_url) {
+                                              const char *did, char **out_url) {
     *out_url = NULL;
     if (!client || !did || !out_url) {
         return WF_ERR_INVALID_ARG;
     }
 
     char *ep = NULL;
-    wf_status status = wf_did_resolve_service(client, did, "BskyChatService", &ep);
+    wf_status status =
+        wf_did_resolve_service(client, did, "BskyChatService", &ep);
     if (status == WF_ERR_NOT_FOUND) {
         status = wf_did_resolve_service(client, did, "AtprotoChatProxy", &ep);
     }
@@ -577,17 +582,16 @@ wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
     const char *endpoint = wf_chat_default_endpoint();
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(agent->client,
-                                            "com.atproto.server.describeServer",
-                                            NULL, 0, &res);
+    wf_status status = wf_xrpc_query_params(
+        agent->client, "com.atproto.server.describeServer", NULL, 0, &res);
     if (status == WF_OK) {
         char *chat_did = NULL;
         if (wf_agent_chat_service_did_from_describe(res.body, res.body_len,
                                                     &chat_did) == WF_OK &&
             chat_did) {
             char *resolved = NULL;
-            wf_status rstatus =
-                wf_chat_resolve_did_endpoint(agent->client, chat_did, &resolved);
+            wf_status rstatus = wf_chat_resolve_did_endpoint(
+                agent->client, chat_did, &resolved);
             if (rstatus == WF_OK && resolved) {
                 endpoint = resolved;
             }
@@ -673,8 +677,7 @@ wf_status wf_agent_chat_list_convos(wf_agent *agent, int limit,
 
     wf_response res = {0};
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc,
-                                            "chat.bsky.convo.listConvos",
+    wf_status status = wf_xrpc_query_params(cc, "chat.bsky.convo.listConvos",
                                             params, param_count, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -704,8 +707,7 @@ wf_status wf_agent_chat_get_convo(wf_agent *agent, const char *convo_id,
 
     wf_response res = {0};
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc,
-                                            "chat.bsky.convo.getConvo",
+    wf_status status = wf_xrpc_query_params(cc, "chat.bsky.convo.getConvo",
                                             params, param_count, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -756,8 +758,7 @@ wf_status wf_agent_chat_get_messages(wf_agent *agent, const char *convo_id,
 
     wf_response res = {0};
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc,
-                                            "chat.bsky.convo.getMessages",
+    wf_status status = wf_xrpc_query_params(cc, "chat.bsky.convo.getMessages",
                                             params, param_count, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -792,8 +793,7 @@ wf_status wf_agent_chat_send_message(wf_agent *agent, const char *convo_id,
     }
 
     cJSON *message = cJSON_CreateObject();
-    if (!message ||
-        !cJSON_AddItemToObject(root, "message", message) ||
+    if (!message || !cJSON_AddItemToObject(root, "message", message) ||
         !cJSON_AddStringToObject(message, "text", text) ||
         !cJSON_AddStringToObject(message, "$type",
                                  "chat.bsky.convo.defs#messageInput")) {
@@ -822,8 +822,8 @@ wf_status wf_agent_chat_send_message(wf_agent *agent, const char *convo_id,
 
     wf_response res = {0};
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_procedure(cc, "chat.bsky.convo.sendMessage",
-                                         json, &res);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.sendMessage", json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -839,10 +839,8 @@ wf_status wf_agent_chat_send_message(wf_agent *agent, const char *convo_id,
 }
 
 /* ── Private helper: simple one-argument chat procedure ────────────────── */
-static wf_status wf_chat_procedure_1arg(wf_agent *agent,
-                                         const char *nsid,
-                                         const char *key,
-                                         const char *value) {
+static wf_status wf_chat_procedure_1arg(wf_agent *agent, const char *nsid,
+                                        const char *key, const char *value) {
     if (!agent || !nsid || !key || !value) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
@@ -868,7 +866,7 @@ static wf_status wf_chat_procedure_1arg(wf_agent *agent,
 }
 
 wf_status wf_chat_build_accept_convo_body(const char *convo_id,
-                                            char **out_json) {
+                                          char **out_json) {
     if (!convo_id || !out_json) return WF_ERR_INVALID_ARG;
     cJSON *root = cJSON_CreateObject();
     if (!root) return WF_ERR_ALLOC;
@@ -890,11 +888,14 @@ wf_status wf_agent_chat_accept_convo(wf_agent *agent, const char *convo_id) {
     if (s != WF_OK) return s;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(cc, "chat.bsky.convo.acceptConvo",
-                                          json, &res);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.acceptConvo", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
@@ -906,8 +907,8 @@ wf_status wf_agent_chat_leave_convo(wf_agent *agent, const char *convo_id) {
 }
 
 wf_status wf_agent_chat_mute_convo(wf_agent *agent, const char *convo_id) {
-    return wf_chat_procedure_1arg(agent, "chat.bsky.convo.muteConvo",
-                                  "convoId", convo_id);
+    return wf_chat_procedure_1arg(agent, "chat.bsky.convo.muteConvo", "convoId",
+                                  convo_id);
 }
 
 wf_status wf_agent_chat_unmute_convo(wf_agent *agent, const char *convo_id) {
@@ -916,8 +917,8 @@ wf_status wf_agent_chat_unmute_convo(wf_agent *agent, const char *convo_id) {
 }
 
 wf_status wf_agent_chat_delete_message_for_self(wf_agent *agent,
-                                                  const char *convo_id,
-                                                  const char *message_id) {
+                                                const char *convo_id,
+                                                const char *message_id) {
     if (!agent || !convo_id || !message_id) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
@@ -937,18 +938,16 @@ wf_status wf_agent_chat_delete_message_for_self(wf_agent *agent,
 
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(cc,
-                                          "chat.bsky.convo.deleteMessageForSelf",
-                                          json, &res);
+    wf_status status = wf_xrpc_procedure(
+        cc, "chat.bsky.convo.deleteMessageForSelf", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
 wf_status wf_chat_build_add_reaction_body(const char *convo_id,
-                                            const char *message_id,
-                                            const char *value,
-                                            char **out_json) {
+                                          const char *message_id,
+                                          const char *value, char **out_json) {
     if (!convo_id || !message_id || !value || !out_json)
         return WF_ERR_INVALID_ARG;
     cJSON *root = cJSON_CreateObject();
@@ -966,34 +965,34 @@ wf_status wf_chat_build_add_reaction_body(const char *convo_id,
     return WF_OK;
 }
 
-wf_status wf_agent_chat_add_reaction(wf_agent *agent,
-                                      const char *convo_id,
-                                      const char *message_id,
-                                      const char *value) {
+wf_status wf_agent_chat_add_reaction(wf_agent *agent, const char *convo_id,
+                                     const char *message_id,
+                                     const char *value) {
     if (!agent || !convo_id || !message_id || !value) return WF_ERR_INVALID_ARG;
 
     char *json = NULL;
-    wf_status s = wf_chat_build_add_reaction_body(convo_id, message_id,
-                                                   value, &json);
+    wf_status s =
+        wf_chat_build_add_reaction_body(convo_id, message_id, value, &json);
     if (s != WF_OK) return s;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
 
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(cc,
-                                          "chat.bsky.convo.addReaction",
-                                          json, &res);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.addReaction", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
-wf_status wf_agent_chat_remove_reaction(wf_agent *agent,
-                                         const char *convo_id,
-                                         const char *message_id,
-                                         const char *value) {
+wf_status wf_agent_chat_remove_reaction(wf_agent *agent, const char *convo_id,
+                                        const char *message_id,
+                                        const char *value) {
     if (!agent || !convo_id || !message_id || !value) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
@@ -1014,17 +1013,15 @@ wf_status wf_agent_chat_remove_reaction(wf_agent *agent,
 
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(cc,
-                                          "chat.bsky.convo.removeReaction",
-                                          json, &res);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.removeReaction", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
-wf_status wf_agent_chat_update_read(wf_agent *agent,
-                                     const char *convo_id,
-                                     const char *message_id) {
+wf_status wf_agent_chat_update_read(wf_agent *agent, const char *convo_id,
+                                    const char *message_id) {
     if (!agent || !convo_id || !message_id) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
@@ -1044,16 +1041,14 @@ wf_status wf_agent_chat_update_read(wf_agent *agent,
 
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(cc,
-                                          "chat.bsky.convo.updateRead",
-                                          json, &res);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.updateRead", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
-wf_status wf_agent_chat_update_all_read(wf_agent *agent,
-                                         const char *convo_id) {
+wf_status wf_agent_chat_update_all_read(wf_agent *agent, const char *convo_id) {
     if (!agent || !convo_id) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
@@ -1072,42 +1067,14 @@ wf_status wf_agent_chat_update_all_read(wf_agent *agent,
 
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(cc,
-                                          "chat.bsky.convo.updateAllRead",
-                                          json, &res);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.updateAllRead", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
 wf_status wf_agent_chat_get_convo_availability(wf_agent *agent,
-                                                const char *const *member_dids,
-                                                size_t member_count,
-                                                wf_response *out) {
-    if (!agent || !member_dids || member_count == 0 || !out)
-        return WF_ERR_INVALID_ARG;
-
-    wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) return WF_ERR_INVALID_ARG;
-
-    wf_xrpc_param *params = calloc(member_count, sizeof(*params));
-    if (!params) return WF_ERR_ALLOC;
-
-    for (size_t i = 0; i < member_count; ++i) {
-        if (!member_dids[i]) { free(params); return WF_ERR_INVALID_ARG; }
-        params[i].name = "members";
-        params[i].value = member_dids[i];
-    }
-
-    wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc,
-                                             "chat.bsky.convo.getConvoAvailability",
-                                             params, member_count, out);
-    free(params);
-    return status;
-}
-
-wf_status wf_agent_chat_get_convo_for_members(wf_agent *agent,
                                                const char *const *member_dids,
                                                size_t member_count,
                                                wf_response *out) {
@@ -1121,22 +1088,52 @@ wf_status wf_agent_chat_get_convo_for_members(wf_agent *agent,
     if (!params) return WF_ERR_ALLOC;
 
     for (size_t i = 0; i < member_count; ++i) {
-        if (!member_dids[i]) { free(params); return WF_ERR_INVALID_ARG; }
+        if (!member_dids[i]) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
         params[i].name = "members";
         params[i].value = member_dids[i];
     }
 
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc,
-                                             "chat.bsky.convo.getConvoForMembers",
-                                             params, member_count, out);
+    wf_status status = wf_xrpc_query_params(
+        cc, "chat.bsky.convo.getConvoAvailability", params, member_count, out);
     free(params);
     return status;
 }
 
-wf_status wf_agent_chat_get_convo_members(wf_agent *agent,
-                                           const char *convo_id,
-                                           wf_response *out) {
+wf_status wf_agent_chat_get_convo_for_members(wf_agent *agent,
+                                              const char *const *member_dids,
+                                              size_t member_count,
+                                              wf_response *out) {
+    if (!agent || !member_dids || member_count == 0 || !out)
+        return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_client *cc = wf_agent_chat_client(agent);
+    if (!cc) return WF_ERR_INVALID_ARG;
+
+    wf_xrpc_param *params = calloc(member_count, sizeof(*params));
+    if (!params) return WF_ERR_ALLOC;
+
+    for (size_t i = 0; i < member_count; ++i) {
+        if (!member_dids[i]) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
+        params[i].name = "members";
+        params[i].value = member_dids[i];
+    }
+
+    wf_agent_sync_chat_auth(agent);
+    wf_status status = wf_xrpc_query_params(
+        cc, "chat.bsky.convo.getConvoForMembers", params, member_count, out);
+    free(params);
+    return status;
+}
+
+wf_status wf_agent_chat_get_convo_members(wf_agent *agent, const char *convo_id,
+                                          wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[1];
@@ -1147,25 +1144,24 @@ wf_status wf_agent_chat_get_convo_members(wf_agent *agent,
     if (!cc) return WF_ERR_INVALID_ARG;
 
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.convo.getConvoMembers",
-                                params, 1, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.convo.getConvoMembers", params,
+                                1, out);
 }
 
-wf_status wf_agent_chat_get_unread_counts(wf_agent *agent,
-                                           wf_response *out) {
+wf_status wf_agent_chat_get_unread_counts(wf_agent *agent, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
 
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.convo.getUnreadCounts",
-                                NULL, 0, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.convo.getUnreadCounts", NULL, 0,
+                                out);
 }
 
 wf_status wf_agent_chat_list_convo_requests(wf_agent *agent, int limit,
-                                             const char *cursor,
-                                             wf_response *out) {
+                                            const char *cursor,
+                                            wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[2];
@@ -1192,8 +1188,8 @@ wf_status wf_agent_chat_list_convo_requests(wf_agent *agent, int limit,
     if (!cc) return WF_ERR_INVALID_ARG;
 
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.convo.listConvoRequests",
-                                params, param_count, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.convo.listConvoRequests", params,
+                                param_count, out);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1216,21 +1212,24 @@ static cJSON *wf_chat_group_build_members(const char *convo_id,
         return NULL;
     }
     cJSON *arr = cJSON_AddArrayToObject(root, "members");
-    if (!arr) { cJSON_Delete(root); return NULL; }
+    if (!arr) {
+        cJSON_Delete(root);
+        return NULL;
+    }
     for (size_t i = 0; i < member_count; i++) {
         cJSON *item = cJSON_CreateString(members[i]);
         if (!item || !cJSON_AddItemToArray(arr, item)) {
-            cJSON_Delete(item); cJSON_Delete(root);
+            cJSON_Delete(item);
+            cJSON_Delete(root);
             return NULL;
         }
     }
     return root;
 }
 
-static wf_status wf_chat_group_procedure_json(wf_agent *agent,
-                                               const char *nsid,
-                                               const char *json,
-                                               wf_response *out) {
+static wf_status wf_chat_group_procedure_json(wf_agent *agent, const char *nsid,
+                                              const char *json,
+                                              wf_response *out) {
     if (!agent || !nsid || !json) return WF_ERR_INVALID_ARG;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
@@ -1241,20 +1240,23 @@ static wf_status wf_chat_group_procedure_json(wf_agent *agent,
 /* ── createGroup ─────────────────────────────────────────────────────── */
 
 wf_status wf_chat_build_create_group_body(const char *const *member_dids,
-                                           size_t member_count,
-                                           const char *name,
-                                           char **out_json) {
+                                          size_t member_count, const char *name,
+                                          char **out_json) {
     if (!member_dids || member_count == 0 || !name || !out_json)
         return WF_ERR_INVALID_ARG;
     cJSON *root = cJSON_CreateObject();
     if (!root) return WF_ERR_ALLOC;
 
     cJSON *arr = cJSON_AddArrayToObject(root, "members");
-    if (!arr) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    if (!arr) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
     for (size_t i = 0; i < member_count; i++) {
         cJSON *item = cJSON_CreateString(member_dids[i]);
         if (!item || !cJSON_AddItemToArray(arr, item)) {
-            cJSON_Delete(item); cJSON_Delete(root);
+            cJSON_Delete(item);
+            cJSON_Delete(root);
             return WF_ERR_ALLOC;
         }
     }
@@ -1271,20 +1273,19 @@ wf_status wf_chat_build_create_group_body(const char *const *member_dids,
 }
 
 wf_status wf_agent_chat_create_group(wf_agent *agent,
-                                      const char *const *member_dids,
-                                      size_t member_count,
-                                      const char *name,
-                                      wf_response *out) {
+                                     const char *const *member_dids,
+                                     size_t member_count, const char *name,
+                                     wf_response *out) {
     if (!agent || !member_dids || member_count == 0 || !name || !out)
         return WF_ERR_INVALID_ARG;
 
     char *json = NULL;
-    wf_status s = wf_chat_build_create_group_body(member_dids, member_count,
-                                                  name, &json);
+    wf_status s =
+        wf_chat_build_create_group_body(member_dids, member_count, name, &json);
     if (s != WF_OK) return s;
 
-    wf_status status = wf_chat_group_procedure_json(agent,
-                      "chat.bsky.group.createGroup", json, out);
+    wf_status status = wf_chat_group_procedure_json(
+        agent, "chat.bsky.group.createGroup", json, out);
     free(json);
     return status;
 }
@@ -1292,7 +1293,7 @@ wf_status wf_agent_chat_create_group(wf_agent *agent,
 /* ── editGroup ───────────────────────────────────────────────────────── */
 
 wf_status wf_agent_chat_edit_group(wf_agent *agent, const char *convo_id,
-                                    const char *name, wf_response *out) {
+                                   const char *name, wf_response *out) {
     if (!agent || !convo_id || !name || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_CreateObject();
@@ -1307,8 +1308,8 @@ wf_status wf_agent_chat_edit_group(wf_agent *agent, const char *convo_id,
     cJSON_Delete(root);
     if (!json) return WF_ERR_ALLOC;
 
-    wf_status status = wf_chat_group_procedure_json(agent,
-                      "chat.bsky.group.editGroup", json, out);
+    wf_status status = wf_chat_group_procedure_json(
+        agent, "chat.bsky.group.editGroup", json, out);
     free(json);
     return status;
 }
@@ -1316,43 +1317,41 @@ wf_status wf_agent_chat_edit_group(wf_agent *agent, const char *convo_id,
 /* ── addMembers / removeMembers ──────────────────────────────────────── */
 
 wf_status wf_agent_chat_add_members(wf_agent *agent, const char *convo_id,
-                                     const char *const *member_dids,
-                                     size_t member_count,
-                                     wf_response *out) {
+                                    const char *const *member_dids,
+                                    size_t member_count, wf_response *out) {
     if (!agent || !convo_id || !member_dids || member_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
 
-    cJSON *root = wf_chat_group_build_members(convo_id, member_dids,
-                                              member_count);
+    cJSON *root =
+        wf_chat_group_build_members(convo_id, member_dids, member_count);
     if (!root) return WF_ERR_ALLOC;
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (!json) return WF_ERR_ALLOC;
 
-    wf_status status = wf_chat_group_procedure_json(agent,
-                      "chat.bsky.group.addMembers", json, out);
+    wf_status status = wf_chat_group_procedure_json(
+        agent, "chat.bsky.group.addMembers", json, out);
     free(json);
     return status;
 }
 
 wf_status wf_agent_chat_remove_members(wf_agent *agent, const char *convo_id,
-                                        const char *const *member_dids,
-                                        size_t member_count,
-                                        wf_response *out) {
+                                       const char *const *member_dids,
+                                       size_t member_count, wf_response *out) {
     if (!agent || !convo_id || !member_dids || member_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
 
-    cJSON *root = wf_chat_group_build_members(convo_id, member_dids,
-                                              member_count);
+    cJSON *root =
+        wf_chat_group_build_members(convo_id, member_dids, member_count);
     if (!root) return WF_ERR_ALLOC;
 
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (!json) return WF_ERR_ALLOC;
 
-    wf_status status = wf_chat_group_procedure_json(agent,
-                      "chat.bsky.group.removeMembers", json, out);
+    wf_status status = wf_chat_group_procedure_json(
+        agent, "chat.bsky.group.removeMembers", json, out);
     free(json);
     return status;
 }
@@ -1365,7 +1364,7 @@ wf_status wf_agent_chat_request_join(wf_agent *agent, const char *convo_id) {
 }
 
 wf_status wf_agent_chat_withdraw_join_request(wf_agent *agent,
-                                               const char *convo_id) {
+                                              const char *convo_id) {
     return wf_chat_procedure_1arg(agent, "chat.bsky.group.withdrawJoinRequest",
                                   "convoId", convo_id);
 }
@@ -1373,28 +1372,6 @@ wf_status wf_agent_chat_withdraw_join_request(wf_agent *agent,
 /* ── approveJoinRequest / rejectJoinRequest ──────────────────────────── */
 
 wf_status wf_agent_chat_approve_join_request(wf_agent *agent,
-                                              const char *convo_id,
-                                              const char *user_did,
-                                              wf_response *out) {
-    if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
-
-    cJSON *root = cJSON_CreateObject();
-    if (!root) return WF_ERR_ALLOC;
-    if (        !cJSON_AddStringToObject(root, "convoId", convo_id) ||
-        !cJSON_AddStringToObject(root, "member", user_did)) {
-        cJSON_Delete(root);
-        return WF_ERR_ALLOC;
-    }
-
-    char *json = cJSON_PrintUnformatted(root);
-    cJSON_Delete(root);
-    if (!json) return WF_ERR_ALLOC;
-
-    return wf_chat_group_procedure_json(agent,
-               "chat.bsky.group.approveJoinRequest", json, out);
-}
-
-wf_status wf_agent_chat_reject_join_request(wf_agent *agent,
                                              const char *convo_id,
                                              const char *user_did,
                                              wf_response *out) {
@@ -1402,7 +1379,7 @@ wf_status wf_agent_chat_reject_join_request(wf_agent *agent,
 
     cJSON *root = cJSON_CreateObject();
     if (!root) return WF_ERR_ALLOC;
-    if (        !cJSON_AddStringToObject(root, "convoId", convo_id) ||
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
         !cJSON_AddStringToObject(root, "member", user_did)) {
         cJSON_Delete(root);
         return WF_ERR_ALLOC;
@@ -1412,16 +1389,38 @@ wf_status wf_agent_chat_reject_join_request(wf_agent *agent,
     cJSON_Delete(root);
     if (!json) return WF_ERR_ALLOC;
 
-    return wf_chat_group_procedure_json(agent,
-               "chat.bsky.group.rejectJoinRequest", json, out);
+    return wf_chat_group_procedure_json(
+        agent, "chat.bsky.group.approveJoinRequest", json, out);
+}
+
+wf_status wf_agent_chat_reject_join_request(wf_agent *agent,
+                                            const char *convo_id,
+                                            const char *user_did,
+                                            wf_response *out) {
+    if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "convoId", convo_id) ||
+        !cJSON_AddStringToObject(root, "member", user_did)) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    return wf_chat_group_procedure_json(
+        agent, "chat.bsky.group.rejectJoinRequest", json, out);
 }
 
 /* ── listJoinRequests ────────────────────────────────────────────────── */
 
 wf_status wf_agent_chat_list_join_requests(wf_agent *agent,
-                                            const char *convo_id,
-                                            int limit, const char *cursor,
-                                            wf_response *out) {
+                                           const char *convo_id, int limit,
+                                           const char *cursor,
+                                           wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[3];
@@ -1450,26 +1449,24 @@ wf_status wf_agent_chat_list_join_requests(wf_agent *agent,
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.group.listJoinRequests",
-                                params, pc, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.group.listJoinRequests", params,
+                                pc, out);
 }
 
 /* ── updateJoinRequestsRead ──────────────────────────────────────────── */
 
 wf_status wf_agent_chat_update_join_requests_read(wf_agent *agent,
-                                                    const char *convo_id) {
-    return wf_chat_procedure_1arg(agent,
-                                  "chat.bsky.group.updateJoinRequestsRead",
-                                  "convoId", convo_id);
+                                                  const char *convo_id) {
+    return wf_chat_procedure_1arg(
+        agent, "chat.bsky.group.updateJoinRequestsRead", "convoId", convo_id);
 }
 
 /* ── createJoinLink ──────────────────────────────────────────────────── */
 
-wf_status wf_agent_chat_create_join_link(wf_agent *agent,
-                                          const char *convo_id,
-                                          bool require_approval,
-                                          const char *join_rule,
-                                          wf_response *out) {
+wf_status wf_agent_chat_create_join_link(wf_agent *agent, const char *convo_id,
+                                         bool require_approval,
+                                         const char *join_rule,
+                                         wf_response *out) {
     if (!agent || !convo_id || !join_rule || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_CreateObject();
@@ -1485,16 +1482,14 @@ wf_status wf_agent_chat_create_join_link(wf_agent *agent,
     cJSON_Delete(root);
     if (!json) return WF_ERR_ALLOC;
 
-    return wf_chat_group_procedure_json(agent,
-                "chat.bsky.group.createJoinLink", json, out);
+    return wf_chat_group_procedure_json(agent, "chat.bsky.group.createJoinLink",
+                                        json, out);
 }
 
 /* ── editJoinLink ────────────────────────────────────────────────────── */
 
-wf_status wf_agent_chat_edit_join_link(wf_agent *agent,
-                                        const char *convo_id,
-                                        const char *code,
-                                        wf_response *out) {
+wf_status wf_agent_chat_edit_join_link(wf_agent *agent, const char *convo_id,
+                                       const char *code, wf_response *out) {
     if (!agent || !convo_id || !code || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_CreateObject();
@@ -1509,20 +1504,20 @@ wf_status wf_agent_chat_edit_join_link(wf_agent *agent,
     cJSON_Delete(root);
     if (!json) return WF_ERR_ALLOC;
 
-    return wf_chat_group_procedure_json(agent,
-               "chat.bsky.group.editJoinLink", json, out);
+    return wf_chat_group_procedure_json(agent, "chat.bsky.group.editJoinLink",
+                                        json, out);
 }
 
 /* ── disableJoinLink / enableJoinLink ────────────────────────────────── */
 
 wf_status wf_agent_chat_disable_join_link(wf_agent *agent,
-                                           const char *convo_id) {
+                                          const char *convo_id) {
     return wf_chat_procedure_1arg(agent, "chat.bsky.group.disableJoinLink",
                                   "convoId", convo_id);
 }
 
 wf_status wf_agent_chat_enable_join_link(wf_agent *agent,
-                                          const char *convo_id) {
+                                         const char *convo_id) {
     return wf_chat_procedure_1arg(agent, "chat.bsky.group.enableJoinLink",
                                   "convoId", convo_id);
 }
@@ -1530,26 +1525,30 @@ wf_status wf_agent_chat_enable_join_link(wf_agent *agent,
 /* ── getJoinLinkPreviews ─────────────────────────────────────────────── */
 
 wf_status wf_agent_chat_get_join_link_previews(wf_agent *agent,
-                                                 const char *const *codes,
-                                                 size_t code_count,
-                                                 wf_response *out) {
-    if (!agent || !codes || code_count == 0 || !out)
-        return WF_ERR_INVALID_ARG;
+                                               const char *const *codes,
+                                               size_t code_count,
+                                               wf_response *out) {
+    if (!agent || !codes || code_count == 0 || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param *params = calloc(code_count, sizeof(*params));
     if (!params) return WF_ERR_ALLOC;
     for (size_t i = 0; i < code_count; i++) {
-        if (!codes[i]) { free(params); return WF_ERR_INVALID_ARG; }
+        if (!codes[i]) {
+            free(params);
+            return WF_ERR_INVALID_ARG;
+        }
         params[i].name = "codes";
         params[i].value = codes[i];
     }
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(params); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(params);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc,
-                                 "chat.bsky.group.getJoinLinkPreviews",
-                                 params, code_count, out);
+    wf_status status = wf_xrpc_query_params(
+        cc, "chat.bsky.group.getJoinLinkPreviews", params, code_count, out);
     free(params);
     return status;
 }
@@ -1557,9 +1556,9 @@ wf_status wf_agent_chat_get_join_link_previews(wf_agent *agent,
 /* ── listMutualGroups ────────────────────────────────────────────────── */
 
 wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
-                                            const char *convo_id,
-                                            int limit, const char *cursor,
-                                            wf_response *out) {
+                                           const char *convo_id, int limit,
+                                           const char *cursor,
+                                           wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[3];
@@ -1588,8 +1587,8 @@ wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.group.listMutualGroups",
-                                params, pc, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.group.listMutualGroups", params,
+                                pc, out);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -1630,23 +1629,20 @@ wf_status wf_agent_chat_export_account_data(wf_agent *agent, wf_response *out) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 wf_status wf_agent_chat_mod_get_actor_metadata(wf_agent *agent,
-                                                const char *actor_did,
-                                                wf_response *out) {
+                                               const char *actor_did,
+                                               wf_response *out) {
     if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
     wf_xrpc_param params[] = {{"actor", actor_did}};
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
     return wf_xrpc_query_params(cc, "chat.bsky.moderation.getActorMetadata",
-                                 params, 1, out);
+                                params, 1, out);
 }
 
-wf_status wf_agent_chat_mod_get_message_context(wf_agent *agent,
-                                                 const char *message_id,
-                                                 const char *convo_id,
-                                                 int before, int after,
-                                                 int max_interleaved,
-                                                 wf_response *out) {
+wf_status wf_agent_chat_mod_get_message_context(
+    wf_agent *agent, const char *message_id, const char *convo_id, int before,
+    int after, int max_interleaved, wf_response *out) {
     if (!agent || !message_id || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[5];
@@ -1687,24 +1683,23 @@ wf_status wf_agent_chat_mod_get_message_context(wf_agent *agent,
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
     return wf_xrpc_query_params(cc, "chat.bsky.moderation.getMessageContext",
-                                 params, pc, out);
+                                params, pc, out);
 }
 
 wf_status wf_agent_chat_mod_get_convo(wf_agent *agent, const char *convo_id,
-                                       wf_response *out) {
+                                      wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     wf_xrpc_param params[] = {{"convoId", convo_id}};
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvo",
-                                 params, 1, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvo", params, 1,
+                                out);
 }
 
 wf_status wf_agent_chat_mod_get_convos(wf_agent *agent,
-                                        const char *const *convo_ids,
-                                        size_t convo_count,
-                                        wf_response *out) {
+                                       const char *const *convo_ids,
+                                       size_t convo_count, wf_response *out) {
     if (!agent || !convo_ids || convo_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
 
@@ -1720,16 +1715,16 @@ wf_status wf_agent_chat_mod_get_convos(wf_agent *agent,
     }
 
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvos",
-                                              params, convo_count, out);
+    wf_status status = wf_xrpc_query_params(
+        cc, "chat.bsky.moderation.getConvos", params, convo_count, out);
     free(params);
     return status;
 }
 
 wf_status wf_agent_chat_mod_get_convo_members(wf_agent *agent,
-                                               const char *convo_id,
-                                               int limit, const char *cursor,
-                                               wf_response *out) {
+                                              const char *convo_id, int limit,
+                                              const char *cursor,
+                                              wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[3];
@@ -1759,14 +1754,14 @@ wf_status wf_agent_chat_mod_get_convo_members(wf_agent *agent,
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
     return wf_xrpc_query_params(cc, "chat.bsky.moderation.getConvoMembers",
-                                 params, pc, out);
+                                params, pc, out);
 }
 
 wf_status wf_agent_chat_mod_update_actor_access(wf_agent *agent,
-                                                 const char *actor_did,
-                                                 bool allow_access,
-                                                 const char *ref,
-                                                 wf_response *out) {
+                                                const char *actor_did,
+                                                bool allow_access,
+                                                const char *ref,
+                                                wf_response *out) {
     if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_CreateObject();
@@ -1788,11 +1783,13 @@ wf_status wf_agent_chat_mod_update_actor_access(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_procedure(cc,
-                          "chat.bsky.moderation.updateActorAccess",
-                          json, out);
+    wf_status status = wf_xrpc_procedure(
+        cc, "chat.bsky.moderation.updateActorAccess", json, out);
     free(json);
     return status;
 }
@@ -1800,17 +1797,21 @@ wf_status wf_agent_chat_mod_update_actor_access(wf_agent *agent,
 /* ── remaining chat.bsky.convo wrappers ──────────────────────────────── */
 
 wf_status wf_agent_chat_send_message_batch(wf_agent *agent,
-                                            const char *items_json,
-                                            wf_response *out) {
+                                           const char *items_json,
+                                           wf_response *out) {
     if (!agent || !items_json || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_Parse(items_json);
     if (!root) return WF_ERR_PARSE;
 
     cJSON *body = cJSON_CreateObject();
-    if (!body) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    if (!body) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
     if (!cJSON_AddItemToObject(body, "items", root)) {
-        cJSON_Delete(root); cJSON_Delete(body);
+        cJSON_Delete(root);
+        cJSON_Delete(body);
         return WF_ERR_ALLOC;
     }
 
@@ -1819,17 +1820,19 @@ wf_status wf_agent_chat_send_message_batch(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_procedure(cc,
-                          "chat.bsky.convo.sendMessageBatch",
-                          json, out);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.sendMessageBatch", json, out);
     free(json);
     return status;
 }
 
 wf_status wf_agent_chat_lock_convo(wf_agent *agent, const char *convo_id,
-                                    wf_response *out) {
+                                   wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_CreateObject();
@@ -1844,17 +1847,19 @@ wf_status wf_agent_chat_lock_convo(wf_agent *agent, const char *convo_id,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_procedure(cc,
-                          "chat.bsky.convo.lockConvo",
-                          json, out);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.lockConvo", json, out);
     free(json);
     return status;
 }
 
 wf_status wf_agent_chat_unlock_convo(wf_agent *agent, const char *convo_id,
-                                      wf_response *out) {
+                                     wf_response *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *root = cJSON_CreateObject();
@@ -1869,17 +1874,19 @@ wf_status wf_agent_chat_unlock_convo(wf_agent *agent, const char *convo_id,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
-    wf_status status = wf_xrpc_procedure(cc,
-                          "chat.bsky.convo.unlockConvo",
-                          json, out);
+    wf_status status =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.unlockConvo", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
-                                 const char *cursor, wf_response *out) {
+wf_status wf_agent_chat_get_log(wf_agent *agent, int limit, const char *cursor,
+                                wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[2];
@@ -1905,16 +1912,15 @@ wf_status wf_agent_chat_get_log(wf_agent *agent, int limit,
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
     wf_agent_sync_chat_auth(agent);
-    return wf_xrpc_query_params(cc, "chat.bsky.convo.getLog",
-                                 params, pc, out);
+    return wf_xrpc_query_params(cc, "chat.bsky.convo.getLog", params, pc, out);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
  * chat.bsky.notification.*
  * ════════════════════════════════════════════════════════════════════════ */
 
-wf_status wf_agent_chat_notification_get_preferences(wf_agent *agent,
-                                                      wf_chat_notification_preferences *out) {
+wf_status wf_agent_chat_notification_get_preferences(
+    wf_agent *agent, wf_chat_notification_preferences *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -1931,7 +1937,7 @@ wf_status wf_agent_chat_notification_get_preferences(wf_agent *agent,
     }
 
     status = wf_agent_parse_chat_notification_preferences(res.body,
-                                                           res.body_len, out);
+                                                          res.body_len, out);
     wf_response_free(&res);
     if (status != WF_OK) {
         wf_chat_notification_preferences_free(out);
@@ -1939,9 +1945,9 @@ wf_status wf_agent_chat_notification_get_preferences(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_chat_notification_put_preferences(wf_agent *agent,
-                                                      const wf_chat_notification_preferences *in,
-                                                      wf_chat_notification_preferences *out) {
+wf_status wf_agent_chat_notification_put_preferences(
+    wf_agent *agent, const wf_chat_notification_preferences *in,
+    wf_chat_notification_preferences *out) {
     if (!agent || !in || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -1969,15 +1975,15 @@ wf_status wf_agent_chat_notification_put_preferences(wf_agent *agent,
 
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status status =
-        wf_lex_chat_bsky_notification_put_preferences_main_call(cc, &input, &res);
+    wf_status status = wf_lex_chat_bsky_notification_put_preferences_main_call(
+        cc, &input, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
     status = wf_agent_parse_chat_notification_preferences(res.body,
-                                                           res.body_len, out);
+                                                          res.body_len, out);
     wf_response_free(&res);
     if (status != WF_OK) {
         wf_chat_notification_preferences_free(out);
@@ -2038,17 +2044,20 @@ void wf_chat_convo_availability_free(wf_chat_convo_availability *a) {
     wf_chat_convo_availability_reset(a);
 }
 
-wf_status wf_agent_chat_get_convo_availability_typed(wf_agent *agent,
-        const char *const *member_dids, size_t member_count,
-        wf_chat_convo_availability *out) {
+wf_status wf_agent_chat_get_convo_availability_typed(
+    wf_agent *agent, const char *const *member_dids, size_t member_count,
+    wf_chat_convo_availability *out) {
     if (!agent || !member_dids || member_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
     wf_response res = {0};
     wf_status s = wf_agent_chat_get_convo_availability(agent, member_dids,
-                                                      member_count, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+                                                       member_count, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_convo_availability(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_convo_availability_free(out);
@@ -2076,17 +2085,23 @@ wf_status wf_agent_parse_convo_members(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "members");
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_agent_profile_view *items = NULL;
     if (count > 0) {
         items = (wf_agent_profile_view *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
-        status = wf_chat_parse_profile(&items[i],
-                                       cJSON_GetArrayItem(arr, (int)i));
+        status =
+            wf_chat_parse_profile(&items[i], cJSON_GetArrayItem(arr, (int)i));
         if (status != WF_OK) wf_chat_profile_reset(&items[i]);
     }
 
@@ -2112,27 +2127,35 @@ void wf_chat_convo_members_free(wf_chat_convo_members *m) {
 }
 
 wf_status wf_agent_chat_get_convo_members_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_convo_members *out) {
+                                                const char *convo_id,
+                                                wf_chat_convo_members *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_get_convo_members(agent, convo_id, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_convo_members(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_convo_members_free(out);
     return s;
 }
 
-wf_status wf_agent_chat_mod_get_convo_members_typed(wf_agent *agent,
-        const char *convo_id, int limit, const char *cursor,
-        wf_chat_convo_members *out) {
+wf_status
+wf_agent_chat_mod_get_convo_members_typed(wf_agent *agent, const char *convo_id,
+                                          int limit, const char *cursor,
+                                          wf_chat_convo_members *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_mod_get_convo_members(agent, convo_id, limit,
                                                       cursor, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_convo_members(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_convo_members_free(out);
@@ -2174,12 +2197,15 @@ void wf_chat_unread_counts_free(wf_chat_unread_counts *u) {
 }
 
 wf_status wf_agent_chat_get_unread_counts_typed(wf_agent *agent,
-        wf_chat_unread_counts *out) {
+                                                wf_chat_unread_counts *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_get_unread_counts(agent, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_unread_counts(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_unread_counts_free(out);
@@ -2198,13 +2224,19 @@ wf_status wf_agent_parse_convo_array(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, key);
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_chat_convo *items = NULL;
     if (count > 0) {
         items = (wf_chat_convo *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         status = wf_chat_parse_convo_view(&items[i],
@@ -2233,12 +2265,16 @@ wf_status wf_agent_parse_convo_requests(const char *json, size_t json_len,
 }
 
 wf_status wf_agent_chat_list_convo_requests_typed(wf_agent *agent, int limit,
-        const char *cursor, wf_chat_convo_list *out) {
+                                                  const char *cursor,
+                                                  wf_chat_convo_list *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_list_convo_requests(agent, limit, cursor, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_convo_requests(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_convo_list_free(out);
@@ -2246,14 +2282,18 @@ wf_status wf_agent_chat_list_convo_requests_typed(wf_agent *agent, int limit,
 }
 
 wf_status wf_agent_chat_list_mutual_groups_typed(wf_agent *agent,
-        const char *convo_id, int limit, const char *cursor,
-        wf_chat_convo_list *out) {
+                                                 const char *convo_id,
+                                                 int limit, const char *cursor,
+                                                 wf_chat_convo_list *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_list_mutual_groups(agent, convo_id, limit,
-                                                   cursor, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s =
+        wf_agent_chat_list_mutual_groups(agent, convo_id, limit, cursor, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_convo_array(res.body, res.body_len, "convos", out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_convo_list_free(out);
@@ -2261,15 +2301,19 @@ wf_status wf_agent_chat_list_mutual_groups_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_mod_get_convos_typed(wf_agent *agent,
-        const char *const *convo_ids, size_t convo_count,
-        wf_chat_mod_convo_list *out) {
+                                             const char *const *convo_ids,
+                                             size_t convo_count,
+                                             wf_chat_mod_convo_list *out) {
     if (!agent || !convo_ids || convo_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_mod_get_convos(agent, convo_ids, convo_count,
-                                               &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s =
+        wf_agent_chat_mod_get_convos(agent, convo_ids, convo_count, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_mod_convos(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_mod_convo_list_free(out);
@@ -2296,7 +2340,8 @@ static void wf_chat_log_reset(wf_chat_log *l) {
     memset(l, 0, sizeof(*l));
 }
 
-wf_status wf_agent_parse_log(const char *json, size_t json_len, wf_chat_log *out) {
+wf_status wf_agent_parse_log(const char *json, size_t json_len,
+                             wf_chat_log *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2305,17 +2350,26 @@ wf_status wf_agent_parse_log(const char *json, size_t json_len, wf_chat_log *out
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "logs");
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_chat_log_event *items = NULL;
     if (count > 0) {
         items = (wf_chat_log_event *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         cJSON *o = cJSON_GetArrayItem(arr, (int)i);
-        if (!cJSON_IsObject(o)) { status = WF_ERR_PARSE; break; }
+        if (!cJSON_IsObject(o)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
         cJSON *id = cJSON_GetObjectItemCaseSensitive(o, "id");
         cJSON *rev = cJSON_GetObjectItemCaseSensitive(o, "rev");
         cJSON *tp = cJSON_GetObjectItemCaseSensitive(o, "$type");
@@ -2352,12 +2406,15 @@ void wf_chat_log_free(wf_chat_log *l) {
 }
 
 wf_status wf_agent_chat_get_log_typed(wf_agent *agent, int limit,
-        const char *cursor, wf_chat_log *out) {
+                                      const char *cursor, wf_chat_log *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_get_log(agent, limit, cursor, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_log(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_log_free(out);
@@ -2382,7 +2439,7 @@ static void wf_chat_message_batch_reset(wf_chat_message_batch *b) {
 }
 
 wf_status wf_agent_parse_message_batch(const char *json, size_t json_len,
-        wf_chat_message_batch *out) {
+                                       wf_chat_message_batch *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2391,17 +2448,26 @@ wf_status wf_agent_parse_message_batch(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "items");
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_chat_message_batch_item *items = NULL;
     if (count > 0) {
         items = (wf_chat_message_batch_item *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         cJSON *o = cJSON_GetArrayItem(arr, (int)i);
-        if (!cJSON_IsObject(o)) { status = WF_ERR_PARSE; break; }
+        if (!cJSON_IsObject(o)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(o, "convoId");
         cJSON *msg = cJSON_GetObjectItemCaseSensitive(o, "message");
         if (cJSON_IsString(cid) && cid->valuestring)
@@ -2430,12 +2496,16 @@ void wf_chat_message_batch_free(wf_chat_message_batch *b) {
 }
 
 wf_status wf_agent_chat_send_message_batch_typed(wf_agent *agent,
-        const char *items_json, wf_chat_message_batch *out) {
+                                                 const char *items_json,
+                                                 wf_chat_message_batch *out) {
     if (!agent || !items_json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_send_message_batch(agent, items_json, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_message_batch(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_message_batch_free(out);
@@ -2452,7 +2522,7 @@ static void wf_chat_convo_ref_reset(wf_chat_convo_ref *r) {
 }
 
 wf_status wf_agent_parse_convo_ref(const char *json, size_t json_len,
-        wf_chat_convo_ref *out) {
+                                   wf_chat_convo_ref *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2477,7 +2547,7 @@ void wf_chat_convo_ref_free(wf_chat_convo_ref *r) {
 }
 
 wf_status wf_agent_chat_leave_convo_typed(wf_agent *agent, const char *convo_id,
-        wf_chat_convo_ref *out) {
+                                          wf_chat_convo_ref *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2486,12 +2556,18 @@ wf_status wf_agent_chat_leave_convo_typed(wf_agent *agent, const char *convo_id,
     if (s != WF_OK) return s;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
     s = wf_xrpc_procedure(cc, "chat.bsky.convo.leaveConvo", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_convo_ref(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_convo_ref_free(out);
@@ -2506,7 +2582,7 @@ static void wf_chat_updated_count_reset(wf_chat_updated_count *u) {
 }
 
 wf_status wf_agent_parse_updated_count(const char *json, size_t json_len,
-        wf_chat_updated_count *out) {
+                                       wf_chat_updated_count *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2527,7 +2603,8 @@ void wf_chat_updated_count_free(wf_chat_updated_count *u) {
 }
 
 wf_status wf_agent_chat_update_all_read_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_updated_count *out) {
+                                              const char *convo_id,
+                                              wf_chat_updated_count *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2542,13 +2619,19 @@ wf_status wf_agent_chat_update_all_read_typed(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status s = wf_xrpc_procedure(cc, "chat.bsky.convo.updateAllRead",
-                                    json, &res);
+    wf_status s =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.updateAllRead", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_updated_count(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_updated_count_free(out);
@@ -2558,14 +2641,17 @@ wf_status wf_agent_chat_update_all_read_typed(wf_agent *agent,
 /* ── addReaction / removeReaction ─────────────────────────────────────── */
 
 wf_status wf_agent_parse_message_ref(const char *json, size_t json_len,
-        wf_chat_message *out) {
+                                     wf_chat_message *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
     cJSON *root = cJSON_ParseWithLength(json, json_len);
     if (!root) return WF_ERR_PARSE;
     cJSON *m = cJSON_GetObjectItemCaseSensitive(root, "message");
-    if (!cJSON_IsObject(m)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsObject(m)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
     wf_status status = wf_chat_parse_message(out, m);
     if (status != WF_OK) wf_chat_message_reset(out);
     cJSON_Delete(root);
@@ -2573,23 +2659,31 @@ wf_status wf_agent_parse_message_ref(const char *json, size_t json_len,
 }
 
 wf_status wf_agent_chat_add_reaction_typed(wf_agent *agent,
-        const char *convo_id, const char *message_id, const char *value,
-        wf_chat_message *out) {
+                                           const char *convo_id,
+                                           const char *message_id,
+                                           const char *value,
+                                           wf_chat_message *out) {
     if (!agent || !convo_id || !message_id || !value || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
     char *json = NULL;
-    wf_status s = wf_chat_build_add_reaction_body(convo_id, message_id, value,
-                                                  &json);
+    wf_status s =
+        wf_chat_build_add_reaction_body(convo_id, message_id, value, &json);
     if (s != WF_OK) return s;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
     s = wf_xrpc_procedure(cc, "chat.bsky.convo.addReaction", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_message_ref(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_message_reset(out);
@@ -2597,24 +2691,32 @@ wf_status wf_agent_chat_add_reaction_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_remove_reaction_typed(wf_agent *agent,
-        const char *convo_id, const char *message_id, const char *value,
-        wf_chat_message *out) {
+                                              const char *convo_id,
+                                              const char *message_id,
+                                              const char *value,
+                                              wf_chat_message *out) {
     if (!agent || !convo_id || !message_id || !value || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
     /* removeReaction shares the {convoId, messageId, value} body shape. */
     char *json = NULL;
-    wf_status s = wf_chat_build_add_reaction_body(convo_id, message_id, value,
-                                                  &json);
+    wf_status s =
+        wf_chat_build_add_reaction_body(convo_id, message_id, value, &json);
     if (s != WF_OK) return s;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
     s = wf_xrpc_procedure(cc, "chat.bsky.convo.removeReaction", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_message_ref(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_message_reset(out);
@@ -2624,22 +2726,26 @@ wf_status wf_agent_chat_remove_reaction_typed(wf_agent *agent,
 /* ── convoView-returning endpoints (reuse wf_agent_parse_convo) ─────────── */
 
 /* Helper: parse a raw response's body into a convoView-owned struct. */
-static wf_status wf_chat_typed_parse_convo(wf_response *res, wf_chat_convo *out) {
+static wf_status wf_chat_typed_parse_convo(wf_response *res,
+                                           wf_chat_convo *out) {
     wf_status s = wf_agent_parse_convo(res->body, res->body_len, out);
     if (s != WF_OK) wf_chat_convo_free(out);
     return s;
 }
 
-wf_status wf_agent_chat_get_convo_for_members_typed(wf_agent *agent,
-        const char *const *member_dids, size_t member_count,
-        wf_chat_convo *out) {
+wf_status wf_agent_chat_get_convo_for_members_typed(
+    wf_agent *agent, const char *const *member_dids, size_t member_count,
+    wf_chat_convo *out) {
     if (!agent || !member_dids || member_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_get_convo_for_members(agent, member_dids,
                                                       member_count, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
@@ -2648,32 +2754,41 @@ wf_status wf_agent_chat_get_convo_for_members_typed(wf_agent *agent,
 /* Fire-and-forget convoView procedures: build the {convoId} body (reusing the
  * accept-convo body builder) and parse the returned convoView. */
 static wf_status wf_chat_typed_convo_procedure(wf_agent *agent,
-        const char *nsid, const char *convo_id, wf_chat_convo *out) {
+                                               const char *nsid,
+                                               const char *convo_id,
+                                               wf_chat_convo *out) {
     char *json = NULL;
     wf_status s = wf_chat_build_accept_convo_body(convo_id, &json);
     if (s != WF_OK) return s;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
     s = wf_xrpc_procedure(cc, nsid, json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
 }
 
 wf_status wf_agent_chat_accept_convo_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_convo *out) {
+                                           const char *convo_id,
+                                           wf_chat_convo *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     return wf_chat_typed_convo_procedure(agent, "chat.bsky.convo.acceptConvo",
                                          convo_id, out);
 }
 
-wf_status wf_agent_chat_mute_convo_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_convo *out) {
+wf_status wf_agent_chat_mute_convo_typed(wf_agent *agent, const char *convo_id,
+                                         wf_chat_convo *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     return wf_chat_typed_convo_procedure(agent, "chat.bsky.convo.muteConvo",
@@ -2681,15 +2796,16 @@ wf_status wf_agent_chat_mute_convo_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_unmute_convo_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_convo *out) {
+                                           const char *convo_id,
+                                           wf_chat_convo *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     return wf_chat_typed_convo_procedure(agent, "chat.bsky.convo.unmuteConvo",
                                          convo_id, out);
 }
 
-wf_status wf_agent_chat_lock_convo_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_convo *out) {
+wf_status wf_agent_chat_lock_convo_typed(wf_agent *agent, const char *convo_id,
+                                         wf_chat_convo *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     return wf_chat_typed_convo_procedure(agent, "chat.bsky.convo.lockConvo",
@@ -2697,15 +2813,17 @@ wf_status wf_agent_chat_lock_convo_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_unlock_convo_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_convo *out) {
+                                           const char *convo_id,
+                                           wf_chat_convo *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     return wf_chat_typed_convo_procedure(agent, "chat.bsky.convo.unlockConvo",
                                          convo_id, out);
 }
 
-wf_status wf_agent_chat_update_read_typed(wf_agent *agent,
-        const char *convo_id, const char *message_id, wf_chat_convo *out) {
+wf_status wf_agent_chat_update_read_typed(wf_agent *agent, const char *convo_id,
+                                          const char *message_id,
+                                          wf_chat_convo *out) {
     if (!agent || !convo_id || !message_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2721,12 +2839,19 @@ wf_status wf_agent_chat_update_read_typed(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status s = wf_xrpc_procedure(cc, "chat.bsky.convo.updateRead", json, &res);
+    wf_status s =
+        wf_xrpc_procedure(cc, "chat.bsky.convo.updateRead", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
@@ -2734,70 +2859,92 @@ wf_status wf_agent_chat_update_read_typed(wf_agent *agent,
 
 /* Group convoView-returning procedures delegate to the raw wrappers. */
 wf_status wf_agent_chat_create_group_typed(wf_agent *agent,
-        const char *const *member_dids, size_t member_count, const char *name,
-        wf_chat_convo *out) {
+                                           const char *const *member_dids,
+                                           size_t member_count,
+                                           const char *name,
+                                           wf_chat_convo *out) {
     if (!agent || !member_dids || member_count == 0 || !name || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_create_group(agent, member_dids, member_count,
                                              name, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
 }
 
 wf_status wf_agent_chat_edit_group_typed(wf_agent *agent, const char *convo_id,
-        const char *name, wf_chat_convo *out) {
+                                         const char *name, wf_chat_convo *out) {
     if (!agent || !convo_id || !name || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_edit_group(agent, convo_id, name, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
 }
 
 wf_status wf_agent_chat_add_members_typed(wf_agent *agent, const char *convo_id,
-        const char *const *member_dids, size_t member_count,
-        wf_chat_convo *out) {
+                                          const char *const *member_dids,
+                                          size_t member_count,
+                                          wf_chat_convo *out) {
     if (!agent || !convo_id || !member_dids || member_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_add_members(agent, convo_id, member_dids,
                                             member_count, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
 }
 
 wf_status wf_agent_chat_remove_members_typed(wf_agent *agent,
-        const char *convo_id, const char *const *member_dids,
-        size_t member_count, wf_chat_convo *out) {
+                                             const char *convo_id,
+                                             const char *const *member_dids,
+                                             size_t member_count,
+                                             wf_chat_convo *out) {
     if (!agent || !convo_id || !member_dids || member_count == 0 || !out)
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_remove_members(agent, convo_id, member_dids,
                                                member_count, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
 }
 
 wf_status wf_agent_chat_approve_join_request_typed(wf_agent *agent,
-        const char *convo_id, const char *user_did, wf_chat_convo *out) {
+                                                   const char *convo_id,
+                                                   const char *user_did,
+                                                   wf_chat_convo *out) {
     if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_approve_join_request(agent, convo_id, user_did,
-                                                     &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s =
+        wf_agent_chat_approve_join_request(agent, convo_id, user_did, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_chat_typed_parse_convo(&res, out);
     wf_response_free(&res);
     return s;
@@ -2815,7 +2962,7 @@ static void wf_chat_join_link_reset(wf_chat_join_link *j) {
 }
 
 wf_status wf_agent_parse_join_link(const char *json, size_t json_len,
-        wf_chat_join_link *out) {
+                                   wf_chat_join_link *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2824,7 +2971,10 @@ wf_status wf_agent_parse_join_link(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *jl = cJSON_GetObjectItemCaseSensitive(root, "joinLink");
-    if (!cJSON_IsObject(jl)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsObject(jl)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     cJSON *code = cJSON_GetObjectItemCaseSensitive(jl, "code");
     cJSON *es = cJSON_GetObjectItemCaseSensitive(jl, "enabledStatus");
@@ -2855,18 +3005,25 @@ void wf_chat_join_link_free(wf_chat_join_link *j) {
 }
 
 /* Issue a fire-and-forget join-link procedure and parse its joinLink body. */
-static wf_status wf_chat_join_link_typed_body(wf_agent *agent,
-        const char *nsid, const char *convo_id, wf_chat_join_link *out) {
+static wf_status wf_chat_join_link_typed_body(wf_agent *agent, const char *nsid,
+                                              const char *convo_id,
+                                              wf_chat_join_link *out) {
     char *json = NULL;
     wf_status s = wf_chat_build_accept_convo_body(convo_id, &json);
     if (s != WF_OK) return s;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
     s = wf_xrpc_procedure(cc, nsid, json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_join_link(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_join_link_free(out);
@@ -2874,15 +3031,19 @@ static wf_status wf_chat_join_link_typed_body(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_create_join_link_typed(wf_agent *agent,
-        const char *convo_id, bool require_approval, const char *join_rule,
-        wf_chat_join_link *out) {
+                                               const char *convo_id,
+                                               bool require_approval,
+                                               const char *join_rule,
+                                               wf_chat_join_link *out) {
     if (!agent || !convo_id || !join_rule || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_create_join_link(agent, convo_id,
-                                                 require_approval, join_rule,
-                                                 &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s = wf_agent_chat_create_join_link(
+        agent, convo_id, require_approval, join_rule, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_join_link(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_join_link_free(out);
@@ -2890,12 +3051,17 @@ wf_status wf_agent_chat_create_join_link_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_edit_join_link_typed(wf_agent *agent,
-        const char *convo_id, const char *code, wf_chat_join_link *out) {
+                                             const char *convo_id,
+                                             const char *code,
+                                             wf_chat_join_link *out) {
     if (!agent || !convo_id || !code || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_edit_join_link(agent, convo_id, code, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_join_link(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_join_link_free(out);
@@ -2903,15 +3069,17 @@ wf_status wf_agent_chat_edit_join_link_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_disable_join_link_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_join_link *out) {
+                                                const char *convo_id,
+                                                wf_chat_join_link *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
-    return wf_chat_join_link_typed_body(agent, "chat.bsky.group.disableJoinLink",
-                                        convo_id, out);
+    return wf_chat_join_link_typed_body(
+        agent, "chat.bsky.group.disableJoinLink", convo_id, out);
 }
 
 wf_status wf_agent_chat_enable_join_link_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_join_link *out) {
+                                               const char *convo_id,
+                                               wf_chat_join_link *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     return wf_chat_join_link_typed_body(agent, "chat.bsky.group.enableJoinLink",
@@ -2938,7 +3106,7 @@ static void wf_chat_join_link_previews_reset(wf_chat_join_link_previews *l) {
 }
 
 wf_status wf_agent_parse_join_link_previews(const char *json, size_t json_len,
-        wf_chat_join_link_previews *out) {
+                                            wf_chat_join_link_previews *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -2947,17 +3115,26 @@ wf_status wf_agent_parse_join_link_previews(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "joinLinkPreviews");
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_chat_join_link_preview *items = NULL;
     if (count > 0) {
         items = (wf_chat_join_link_preview *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         cJSON *o = cJSON_GetArrayItem(arr, (int)i);
-        if (!cJSON_IsObject(o)) { status = WF_ERR_PARSE; break; }
+        if (!cJSON_IsObject(o)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
         cJSON *tp = cJSON_GetObjectItemCaseSensitive(o, "$type");
         cJSON *code = cJSON_GetObjectItemCaseSensitive(o, "code");
         cJSON *name = cJSON_GetObjectItemCaseSensitive(o, "name");
@@ -2996,15 +3173,18 @@ void wf_chat_join_link_previews_free(wf_chat_join_link_previews *l) {
     wf_chat_join_link_previews_reset(l);
 }
 
-wf_status wf_agent_chat_get_join_link_previews_typed(wf_agent *agent,
-        const char *const *codes, size_t code_count,
-        wf_chat_join_link_previews *out) {
+wf_status wf_agent_chat_get_join_link_previews_typed(
+    wf_agent *agent, const char *const *codes, size_t code_count,
+    wf_chat_join_link_previews *out) {
     if (!agent || !codes || code_count == 0 || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_get_join_link_previews(agent, codes, code_count,
-                                                       &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s =
+        wf_agent_chat_get_join_link_previews(agent, codes, code_count, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_join_link_previews(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_join_link_previews_free(out);
@@ -3031,7 +3211,7 @@ static void wf_chat_join_requests_reset(wf_chat_join_requests *r) {
 }
 
 wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
-        wf_chat_join_requests *out) {
+                                       wf_chat_join_requests *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3040,17 +3220,26 @@ wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "requests");
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_chat_join_request *items = NULL;
     if (count > 0) {
         items = (wf_chat_join_request *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         cJSON *o = cJSON_GetArrayItem(arr, (int)i);
-        if (!cJSON_IsObject(o)) { status = WF_ERR_PARSE; break; }
+        if (!cJSON_IsObject(o)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(o, "convoId");
         cJSON *by = cJSON_GetObjectItemCaseSensitive(o, "requestedBy");
         cJSON *at = cJSON_GetObjectItemCaseSensitive(o, "requestedAt");
@@ -3059,7 +3248,8 @@ wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
         if (status == WF_OK && cJSON_IsObject(by))
             status = wf_chat_parse_profile(&items[i].requested_by, by);
         if (status == WF_OK && cJSON_IsString(at) && at->valuestring)
-            status = wf_chat_set_string(&items[i].requested_at, at->valuestring);
+            status =
+                wf_chat_set_string(&items[i].requested_at, at->valuestring);
         if (status != WF_OK) wf_chat_join_request_reset(&items[i]);
     }
     if (status == WF_OK) {
@@ -3070,7 +3260,8 @@ wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
             status = wf_chat_set_string(&out->cursor, cur->valuestring);
     }
     if (status != WF_OK) {
-        for (size_t i = 0; i < count; ++i) wf_chat_join_request_reset(&items[i]);
+        for (size_t i = 0; i < count; ++i)
+            wf_chat_join_request_reset(&items[i]);
         free(items);
         memset(out, 0, sizeof(*out));
     }
@@ -3084,14 +3275,18 @@ void wf_chat_join_requests_free(wf_chat_join_requests *r) {
 }
 
 wf_status wf_agent_chat_list_join_requests_typed(wf_agent *agent,
-        const char *convo_id, int limit, const char *cursor,
-        wf_chat_join_requests *out) {
+                                                 const char *convo_id,
+                                                 int limit, const char *cursor,
+                                                 wf_chat_join_requests *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_list_join_requests(agent, convo_id, limit,
-                                                   cursor, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s =
+        wf_agent_chat_list_join_requests(agent, convo_id, limit, cursor, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_join_requests(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_join_requests_free(out);
@@ -3108,7 +3303,7 @@ static void wf_chat_request_join_reset(wf_chat_request_join *r) {
 }
 
 wf_status wf_agent_parse_request_join(const char *json, size_t json_len,
-        wf_chat_request_join *out) {
+                                      wf_chat_request_join *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3135,7 +3330,8 @@ void wf_chat_request_join_free(wf_chat_request_join *r) {
 }
 
 wf_status wf_agent_chat_request_join_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_request_join *out) {
+                                           const char *convo_id,
+                                           wf_chat_request_join *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3145,12 +3341,18 @@ wf_status wf_agent_chat_request_join_typed(wf_agent *agent,
     wf_status s = wf_chat_build_accept_convo_body(convo_id, &json);
     if (s != WF_OK) return s;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
     s = wf_xrpc_procedure(cc, "chat.bsky.group.requestJoin", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_request_join(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_request_join_free(out);
@@ -3159,7 +3361,8 @@ wf_status wf_agent_chat_request_join_typed(wf_agent *agent,
 
 /* ── moderation.getActorMetadata ──────────────────────────────────────── */
 
-static void wf_chat_actor_metadata_period_reset(wf_chat_actor_metadata_period *p) {
+static void
+wf_chat_actor_metadata_period_reset(wf_chat_actor_metadata_period *p) {
     if (!p) return;
     memset(p, 0, sizeof(*p));
 }
@@ -3171,22 +3374,34 @@ static void wf_chat_actor_metadata_reset(wf_chat_actor_metadata *m) {
     wf_chat_actor_metadata_period_reset(&m->all);
 }
 
-static wf_status wf_chat_parse_metadata_period(cJSON *obj,
-        wf_chat_actor_metadata_period *out) {
+static wf_status
+wf_chat_parse_metadata_period(cJSON *obj, wf_chat_actor_metadata_period *out) {
     if (!cJSON_IsObject(obj)) return WF_ERR_PARSE;
     cJSON *ms = cJSON_GetObjectItemCaseSensitive(obj, "messagesSent");
     cJSON *mr = cJSON_GetObjectItemCaseSensitive(obj, "messagesReceived");
     cJSON *cv = cJSON_GetObjectItemCaseSensitive(obj, "convos");
     cJSON *cs = cJSON_GetObjectItemCaseSensitive(obj, "convosStarted");
-    if (cJSON_IsNumber(ms)) { out->messages_sent = (int)ms->valuedouble; out->has_messages_sent = 1; }
-    if (cJSON_IsNumber(mr)) { out->messages_received = (int)mr->valuedouble; out->has_messages_received = 1; }
-    if (cJSON_IsNumber(cv)) { out->convos = (int)cv->valuedouble; out->has_convos = 1; }
-    if (cJSON_IsNumber(cs)) { out->convos_started = (int)cs->valuedouble; out->has_convos_started = 1; }
+    if (cJSON_IsNumber(ms)) {
+        out->messages_sent = (int)ms->valuedouble;
+        out->has_messages_sent = 1;
+    }
+    if (cJSON_IsNumber(mr)) {
+        out->messages_received = (int)mr->valuedouble;
+        out->has_messages_received = 1;
+    }
+    if (cJSON_IsNumber(cv)) {
+        out->convos = (int)cv->valuedouble;
+        out->has_convos = 1;
+    }
+    if (cJSON_IsNumber(cs)) {
+        out->convos_started = (int)cs->valuedouble;
+        out->has_convos_started = 1;
+    }
     return WF_OK;
 }
 
 wf_status wf_agent_parse_actor_metadata(const char *json, size_t json_len,
-        wf_chat_actor_metadata *out) {
+                                        wf_chat_actor_metadata *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3197,7 +3412,8 @@ wf_status wf_agent_parse_actor_metadata(const char *json, size_t json_len,
     cJSON *day = cJSON_GetObjectItemCaseSensitive(root, "day");
     cJSON *month = cJSON_GetObjectItemCaseSensitive(root, "month");
     cJSON *all = cJSON_GetObjectItemCaseSensitive(root, "all");
-    if (cJSON_IsObject(day)) status = wf_chat_parse_metadata_period(day, &out->day);
+    if (cJSON_IsObject(day))
+        status = wf_chat_parse_metadata_period(day, &out->day);
     if (status == WF_OK && cJSON_IsObject(month))
         status = wf_chat_parse_metadata_period(month, &out->month);
     if (status == WF_OK && cJSON_IsObject(all))
@@ -3213,13 +3429,16 @@ void wf_chat_actor_metadata_free(wf_chat_actor_metadata *m) {
     wf_chat_actor_metadata_reset(m);
 }
 
-wf_status wf_agent_chat_mod_get_actor_metadata_typed(wf_agent *agent,
-        const char *actor_did, wf_chat_actor_metadata *out) {
+wf_status wf_agent_chat_mod_get_actor_metadata_typed(
+    wf_agent *agent, const char *actor_did, wf_chat_actor_metadata *out) {
     if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_mod_get_actor_metadata(agent, actor_did, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_actor_metadata(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_actor_metadata_free(out);
@@ -3244,7 +3463,8 @@ static void wf_chat_mod_convo_list_reset(wf_chat_mod_convo_list *l) {
     memset(l, 0, sizeof(*l));
 }
 
-static wf_status wf_chat_parse_mod_convo_obj(cJSON *obj, wf_chat_mod_convo *out) {
+static wf_status wf_chat_parse_mod_convo_obj(cJSON *obj,
+                                             wf_chat_mod_convo *out) {
     wf_status status = WF_OK;
     cJSON *id = cJSON_GetObjectItemCaseSensitive(obj, "id");
     cJSON *rev = cJSON_GetObjectItemCaseSensitive(obj, "rev");
@@ -3262,7 +3482,7 @@ static wf_status wf_chat_parse_mod_convo_obj(cJSON *obj, wf_chat_mod_convo *out)
 }
 
 wf_status wf_agent_parse_mod_convo(const char *json, size_t json_len,
-        wf_chat_mod_convo *out) {
+                                   wf_chat_mod_convo *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3280,7 +3500,7 @@ void wf_chat_mod_convo_free(wf_chat_mod_convo *c) {
 }
 
 wf_status wf_agent_parse_mod_convos(const char *json, size_t json_len,
-        wf_chat_mod_convo_list *out) {
+                                    wf_chat_mod_convo_list *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3289,13 +3509,19 @@ wf_status wf_agent_parse_mod_convos(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "convos");
-    if (!cJSON_IsArray(arr)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
     size_t count = (size_t)cJSON_GetArraySize(arr);
     wf_chat_mod_convo *items = NULL;
     if (count > 0) {
         items = (wf_chat_mod_convo *)calloc(count, sizeof(*items));
-        if (!items) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+        if (!items) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
     }
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         status = wf_chat_parse_mod_convo_obj(cJSON_GetArrayItem(arr, (int)i),
@@ -3321,28 +3547,34 @@ void wf_chat_mod_convo_list_free(wf_chat_mod_convo_list *l) {
 }
 
 wf_status wf_agent_chat_mod_get_convo_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_mod_convo *out) {
+                                            const char *convo_id,
+                                            wf_chat_mod_convo *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_mod_get_convo(agent, convo_id, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_mod_convo(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_mod_convo_free(out);
     return s;
 }
 
-wf_status wf_agent_chat_mod_get_message_context_typed(wf_agent *agent,
-        const char *message_id, const char *convo_id, int before, int after,
-        int max_interleaved, wf_chat_message_list *out) {
+wf_status wf_agent_chat_mod_get_message_context_typed(
+    wf_agent *agent, const char *message_id, const char *convo_id, int before,
+    int after, int max_interleaved, wf_chat_message_list *out) {
     if (!agent || !message_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_mod_get_message_context(agent, message_id,
-                                                        convo_id, before, after,
-                                                        max_interleaved, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s = wf_agent_chat_mod_get_message_context(
+        agent, message_id, convo_id, before, after, max_interleaved, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_messages(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_message_list_free(out);
@@ -3357,7 +3589,7 @@ static void wf_chat_actor_status_reset(wf_chat_actor_status *s) {
 }
 
 wf_status wf_agent_parse_actor_status(const char *json, size_t json_len,
-        wf_chat_actor_status *out) {
+                                      wf_chat_actor_status *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3365,11 +3597,20 @@ wf_status wf_agent_parse_actor_status(const char *json, size_t json_len,
     if (!root) return WF_ERR_PARSE;
 
     cJSON *cd = cJSON_GetObjectItemCaseSensitive(root, "chatDisabled");
-    if (cJSON_IsBool(cd)) { out->chat_disabled = cJSON_IsTrue(cd); out->has_chat_disabled = 1; }
+    if (cJSON_IsBool(cd)) {
+        out->chat_disabled = cJSON_IsTrue(cd);
+        out->has_chat_disabled = 1;
+    }
     cJSON *cg = cJSON_GetObjectItemCaseSensitive(root, "canCreateGroups");
-    if (cJSON_IsBool(cg)) { out->can_create_groups = cJSON_IsTrue(cg); out->has_can_create_groups = 1; }
+    if (cJSON_IsBool(cg)) {
+        out->can_create_groups = cJSON_IsTrue(cg);
+        out->has_can_create_groups = 1;
+    }
     cJSON *gl = cJSON_GetObjectItemCaseSensitive(root, "groupMemberLimit");
-    if (cJSON_IsNumber(gl)) { out->group_member_limit = (int64_t)gl->valuedouble; out->has_group_member_limit = 1; }
+    if (cJSON_IsNumber(gl)) {
+        out->group_member_limit = (int64_t)gl->valuedouble;
+        out->has_group_member_limit = 1;
+    }
     cJSON_Delete(root);
     return WF_OK;
 }
@@ -3380,12 +3621,15 @@ void wf_chat_actor_status_free(wf_chat_actor_status *s) {
 }
 
 wf_status wf_agent_chat_get_status_typed(wf_agent *agent,
-        wf_chat_actor_status *out) {
+                                         wf_chat_actor_status *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_get_status(agent, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_actor_status(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_actor_status_free(out);
@@ -3402,8 +3646,10 @@ wf_status wf_agent_chat_get_status_typed(wf_agent *agent,
 /* Perform a single-arg chat procedure and capture the response body (so the
  * empty `{}` result can be parsed into a wf_chat_ok). */
 static wf_status wf_chat_procedure_1arg_response(wf_agent *agent,
-        const char *nsid, const char *key, const char *value,
-        wf_response *out) {
+                                                 const char *nsid,
+                                                 const char *key,
+                                                 const char *value,
+                                                 wf_response *out) {
     if (!agent || !nsid || !key || !value || !out) return WF_ERR_INVALID_ARG;
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
     if (!cc) return WF_ERR_INVALID_ARG;
@@ -3436,7 +3682,10 @@ wf_status wf_agent_parse_chat_ok(const char *json, size_t json_len,
     }
     cJSON *root = cJSON_ParseWithLength(json, json_len);
     if (!root) return WF_ERR_PARSE;
-    if (!cJSON_IsObject(root)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
     out->ok = 1;
     cJSON_Delete(root);
     return WF_OK;
@@ -3448,7 +3697,9 @@ void wf_chat_ok_free(wf_chat_ok *o) {
 }
 
 wf_status wf_agent_chat_reject_join_request_typed(wf_agent *agent,
-        const char *convo_id, const char *user_did, wf_chat_ok *out) {
+                                                  const char *convo_id,
+                                                  const char *user_did,
+                                                  wf_chat_ok *out) {
     if (!agent || !convo_id || !user_did || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3464,13 +3715,19 @@ wf_status wf_agent_chat_reject_join_request_typed(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_xrpc_client *cc = wf_agent_chat_client(agent);
-    if (!cc) { free(json); return WF_ERR_INVALID_ARG; }
+    if (!cc) {
+        free(json);
+        return WF_ERR_INVALID_ARG;
+    }
     wf_agent_sync_chat_auth(agent);
     wf_response res = {0};
-    wf_status s = wf_xrpc_procedure(cc, "chat.bsky.group.rejectJoinRequest",
-                                    json, &res);
+    wf_status s =
+        wf_xrpc_procedure(cc, "chat.bsky.group.rejectJoinRequest", json, &res);
     free(json);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_ok_free(out);
@@ -3478,13 +3735,18 @@ wf_status wf_agent_chat_reject_join_request_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_update_join_requests_read_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_ok *out) {
+                                                        const char *convo_id,
+                                                        wf_chat_ok *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_chat_procedure_1arg_response(agent,
-            "chat.bsky.group.updateJoinRequestsRead", "convoId", convo_id, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s = wf_chat_procedure_1arg_response(
+        agent, "chat.bsky.group.updateJoinRequestsRead", "convoId", convo_id,
+        &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_ok_free(out);
@@ -3492,26 +3754,33 @@ wf_status wf_agent_chat_update_join_requests_read_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_withdraw_join_request_typed(wf_agent *agent,
-        const char *convo_id, wf_chat_ok *out) {
+                                                    const char *convo_id,
+                                                    wf_chat_ok *out) {
     if (!agent || !convo_id || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_chat_procedure_1arg_response(agent,
-            "chat.bsky.group.withdrawJoinRequest", "convoId", convo_id, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s = wf_chat_procedure_1arg_response(
+        agent, "chat.bsky.group.withdrawJoinRequest", "convoId", convo_id,
+        &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_ok_free(out);
     return s;
 }
 
-wf_status wf_agent_chat_delete_account_typed(wf_agent *agent,
-        wf_chat_ok *out) {
+wf_status wf_agent_chat_delete_account_typed(wf_agent *agent, wf_chat_ok *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_delete_account(agent, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_ok_free(out);
@@ -3519,14 +3788,19 @@ wf_status wf_agent_chat_delete_account_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_chat_mod_update_actor_access_typed(wf_agent *agent,
-        const char *actor_did, bool allow_access, const char *ref,
-        wf_chat_ok *out) {
+                                                      const char *actor_did,
+                                                      bool allow_access,
+                                                      const char *ref,
+                                                      wf_chat_ok *out) {
     if (!agent || !actor_did || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
-    wf_status s = wf_agent_chat_mod_update_actor_access(agent, actor_did,
-                                                         allow_access, ref, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    wf_status s = wf_agent_chat_mod_update_actor_access(
+        agent, actor_did, allow_access, ref, &res);
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_chat_ok(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_ok_free(out);
@@ -3550,7 +3824,7 @@ static void wf_chat_export_account_data_reset(wf_chat_export_account_data *e) {
 }
 
 wf_status wf_agent_parse_export_account_data(const char *json, size_t json_len,
-        wf_chat_export_account_data *out) {
+                                             wf_chat_export_account_data *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3573,13 +3847,19 @@ wf_status wf_agent_parse_export_account_data(const char *json, size_t json_len,
         if (n == cap) {
             size_t ncap = cap ? cap * 2 : 4;
             wf_chat_export_record *nr = realloc(recs, ncap * sizeof(*nr));
-            if (!nr) { status = WF_ERR_ALLOC; break; }
+            if (!nr) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
             recs = nr;
             cap = ncap;
         }
         memset(&recs[n], 0, sizeof(recs[n]));
         char *copy = malloc(llen + 1);
-        if (!copy) { status = WF_ERR_ALLOC; break; }
+        if (!copy) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
         memcpy(copy, line_start, llen);
         copy[llen] = '\0';
         recs[n].json = copy;
@@ -3602,13 +3882,17 @@ void wf_chat_export_account_data_free(wf_chat_export_account_data *e) {
     wf_chat_export_account_data_reset(e);
 }
 
-wf_status wf_agent_chat_export_account_data_typed(wf_agent *agent,
-        wf_chat_export_account_data *out) {
+wf_status
+wf_agent_chat_export_account_data_typed(wf_agent *agent,
+                                        wf_chat_export_account_data *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     wf_response res = {0};
     wf_status s = wf_agent_chat_export_account_data(agent, &res);
-    if (s != WF_OK) { wf_response_free(&res); return s; }
+    if (s != WF_OK) {
+        wf_response_free(&res);
+        return s;
+    }
     s = wf_agent_parse_export_account_data(res.body, res.body_len, out);
     wf_response_free(&res);
     if (s != WF_OK) wf_chat_export_account_data_free(out);
@@ -3629,7 +3913,7 @@ static void wf_chat_mod_event_reset(wf_chat_mod_event *e) {
 }
 
 wf_status wf_agent_parse_mod_event(const char *json, size_t json_len,
-        wf_chat_mod_event *out) {
+                                   wf_chat_mod_event *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -3731,11 +4015,15 @@ static wf_status wf_chat_mod_event_from_cbor(cbor_item_t *body,
         out->type = t;
     }
 
-    if (s == WF_OK) s = wf_chat_cbor_copy_string(body, "convoId", &out->convo_id);
+    if (s == WF_OK)
+        s = wf_chat_cbor_copy_string(body, "convoId", &out->convo_id);
     if (s == WF_OK) s = wf_chat_cbor_copy_string(body, "rev", &out->rev);
-    if (s == WF_OK) s = wf_chat_cbor_copy_string(body, "createdAt", &out->created_at);
-    if (s == WF_OK) s = wf_chat_cbor_copy_string(body, "actorDid", &out->actor_did);
-    if (s == WF_OK) s = wf_chat_cbor_copy_string(body, "subjectDid", &out->subject_did);
+    if (s == WF_OK)
+        s = wf_chat_cbor_copy_string(body, "createdAt", &out->created_at);
+    if (s == WF_OK)
+        s = wf_chat_cbor_copy_string(body, "actorDid", &out->actor_did);
+    if (s == WF_OK)
+        s = wf_chat_cbor_copy_string(body, "subjectDid", &out->subject_did);
 
     if (s != WF_OK) wf_chat_mod_event_reset(out);
     return s;
@@ -3765,7 +4053,8 @@ wf_status wf_chat_mod_frame_parse_cbor(const unsigned char *frame, size_t len,
 
     int64_t op_val = 0;
     cbor_item_t *op_item = wf_chat_cbor_map_find(header, "op");
-    int is_error = op_item && wf_chat_cbor_item_int(op_item, &op_val) && op_val < 0;
+    int is_error =
+        op_item && wf_chat_cbor_item_int(op_item, &op_val) && op_val < 0;
 
     wf_status s;
     if (is_error) {
@@ -3778,7 +4067,8 @@ wf_status wf_chat_mod_frame_parse_cbor(const unsigned char *frame, size_t len,
             /* An error frame must carry a code. */
             s = WF_ERR_PARSE;
         }
-        if (s == WF_OK) s = wf_chat_cbor_copy_string(body, "message", &out->message);
+        if (s == WF_OK)
+            s = wf_chat_cbor_copy_string(body, "message", &out->message);
     } else {
         cbor_item_t *t_item = wf_chat_cbor_map_find(header, "t");
         size_t t_len = 0;
@@ -3791,7 +4081,8 @@ wf_status wf_chat_mod_frame_parse_cbor(const unsigned char *frame, size_t len,
         if (s == WF_OK) {
             int64_t seq = 0;
             cbor_item_t *seq_item = wf_chat_cbor_map_find(body, "seq");
-            if (seq_item && wf_chat_cbor_item_int(seq_item, &seq)) out->seq = seq;
+            if (seq_item && wf_chat_cbor_item_int(seq_item, &seq))
+                out->seq = seq;
         }
     }
 
@@ -3819,13 +4110,17 @@ wf_status wf_chat_mod_events_build_url(const char *service, const char *cursor,
     const char *scheme = NULL;
     const char *body = NULL;
     if (strncmp(service, "wss://", 6) == 0) {
-        scheme = "wss://"; body = service + 6;
+        scheme = "wss://";
+        body = service + 6;
     } else if (strncmp(service, "ws://", 5) == 0) {
-        scheme = "ws://"; body = service + 5;
+        scheme = "ws://";
+        body = service + 5;
     } else if (strncmp(service, "https://", 8) == 0) {
-        scheme = "wss://"; body = service + 8;
+        scheme = "wss://";
+        body = service + 8;
     } else if (strncmp(service, "http://", 7) == 0) {
-        scheme = "ws://"; body = service + 7;
+        scheme = "ws://";
+        body = service + 7;
     } else {
         return WF_ERR_INVALID_ARG;
     }
@@ -3845,23 +4140,36 @@ wf_status wf_chat_mod_events_build_url(const char *service, const char *cursor,
     size_t cursor_len = 0;
     if (cursor && cursor[0]) {
         const char *separator = query ? "&cursor=" : "?cursor=";
-        int n = snprintf(cursor_part, sizeof(cursor_part), "%s%s",
-                         separator, cursor);
-        if (n < 0 || (size_t)n >= sizeof(cursor_part)) return WF_ERR_INVALID_ARG;
+        int n = snprintf(cursor_part, sizeof(cursor_part), "%s%s", separator,
+                         cursor);
+        if (n < 0 || (size_t)n >= sizeof(cursor_part))
+            return WF_ERR_INVALID_ARG;
         cursor_len = (size_t)n;
     }
 
     size_t scheme_len = strlen(scheme);
-    size_t total = scheme_len + body_len + path_len + query_tail_len + cursor_len + 1;
+    size_t total =
+        scheme_len + body_len + path_len + query_tail_len + cursor_len + 1;
     char *url = malloc(total);
     if (!url) return WF_ERR_ALLOC;
 
     char *p = url;
-    memcpy(p, scheme, scheme_len); p += scheme_len;
-    memcpy(p, body, body_len); p += body_len;
-    if (path_len) { memcpy(p, path, path_len); p += path_len; }
-    if (query_tail_len) { memcpy(p, query, query_tail_len); p += query_tail_len; }
-    if (cursor_len) { memcpy(p, cursor_part, cursor_len); p += cursor_len; }
+    memcpy(p, scheme, scheme_len);
+    p += scheme_len;
+    memcpy(p, body, body_len);
+    p += body_len;
+    if (path_len) {
+        memcpy(p, path, path_len);
+        p += path_len;
+    }
+    if (query_tail_len) {
+        memcpy(p, query, query_tail_len);
+        p += query_tail_len;
+    }
+    if (cursor_len) {
+        memcpy(p, cursor_part, cursor_len);
+        p += cursor_len;
+    }
     *p = '\0';
     *out_url = url;
     return WF_OK;
@@ -3877,11 +4185,11 @@ struct wf_chat_mod_events_handle {
     wf_chat_mod_events_options opts;
     wf_websocket *socket;
     char *service_copy;
-    char *cursor_copy;      /* initial cursor string (from opts.cursor) */
+    char *cursor_copy; /* initial cursor string (from opts.cursor) */
     char
         *token_copy; /* optional bearer access token (from opts.access_token) */
-    int64_t last_seq;       /* highest seq observed on this stream */
-    int have_seq;           /* whether last_seq is meaningful */
+    int64_t last_seq; /* highest seq observed on this stream */
+    int have_seq;     /* whether last_seq is meaningful */
     uint32_t initial_retry_delay_ms;
     uint32_t retry_delay_ms;
     volatile int stopped;
@@ -3889,8 +4197,8 @@ struct wf_chat_mod_events_handle {
 
 static void wf_chat_mod_sleep_ms(wf_chat_mod_events_handle *h, uint32_t ms) {
     while (h && !h->stopped && ms > 0) {
-        uint32_t slice = ms > WF_CHAT_MOD_SLEEP_SLICE_MS
-                             ? WF_CHAT_MOD_SLEEP_SLICE_MS : ms;
+        uint32_t slice =
+            ms > WF_CHAT_MOD_SLEEP_SLICE_MS ? WF_CHAT_MOD_SLEEP_SLICE_MS : ms;
         struct timespec ts;
         ts.tv_sec = (time_t)(slice / 1000u);
         ts.tv_nsec = (long)(slice % 1000u) * 1000000L;
@@ -3904,7 +4212,8 @@ static wf_status wf_chat_mod_open(wf_chat_mod_events_handle *h) {
     char cursor_buf[32];
     const char *cursor = h->cursor_copy;
     if (h->have_seq) {
-        snprintf(cursor_buf, sizeof(cursor_buf), "%lld", (long long)h->last_seq);
+        snprintf(cursor_buf, sizeof(cursor_buf), "%lld",
+                 (long long)h->last_seq);
         cursor = cursor_buf;
     }
     char *url = NULL;
@@ -3957,7 +4266,8 @@ static wf_status wf_chat_mod_reconnect(wf_chat_mod_events_handle *h) {
 static void wf_chat_mod_dispatch(wf_chat_mod_events_handle *h,
                                  wf_chat_mod_frame *frame) {
     if (frame->is_error) {
-        /* Server-sent error frame (op == -1), e.g. FutureCursor / ConsumerTooSlow. */
+        /* Server-sent error frame (op == -1), e.g. FutureCursor /
+         * ConsumerTooSlow. */
         if (h->opts.on_error)
             h->opts.on_error(WF_ERR_HTTP, frame->error, h->opts.userdata);
         return;
@@ -3988,11 +4298,18 @@ wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
     h->retry_delay_ms = h->initial_retry_delay_ms;
 
     h->service_copy = wf_chat_strdup(opts->service);
-    if (!h->service_copy) { free(h); return WF_ERR_ALLOC; }
+    if (!h->service_copy) {
+        free(h);
+        return WF_ERR_ALLOC;
+    }
     h->opts.service = h->service_copy;
     if (opts->cursor && opts->cursor[0]) {
         h->cursor_copy = wf_chat_strdup(opts->cursor);
-        if (!h->cursor_copy) { free(h->service_copy); free(h); return WF_ERR_ALLOC; }
+        if (!h->cursor_copy) {
+            free(h->service_copy);
+            free(h);
+            return WF_ERR_ALLOC;
+        }
         h->opts.cursor = h->cursor_copy;
     }
     if (opts->access_token && opts->access_token[0]) {
@@ -4021,7 +4338,8 @@ wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
             status = wf_chat_mod_reconnect(h);
             if (status != WF_OK) {
                 if (h->opts.on_error)
-                    h->opts.on_error(status, "reconnect failed", h->opts.userdata);
+                    h->opts.on_error(status, "reconnect failed",
+                                     h->opts.userdata);
                 continue;
             }
         }
@@ -4077,11 +4395,9 @@ void wf_chat_mod_events_stop(wf_chat_mod_events_handle *handle) {
     handle->stopped = 1;
 }
 
-wf_status wf_agent_chat_subscribe_mod_events_typed(wf_agent *agent,
-        const char *cursor,
-        wf_chat_mod_event_cb on_event,
-        wf_chat_mod_events_error_cb on_error,
-        void *userdata) {
+wf_status wf_agent_chat_subscribe_mod_events_typed(
+    wf_agent *agent, const char *cursor, wf_chat_mod_event_cb on_event,
+    wf_chat_mod_events_error_cb on_error, void *userdata) {
     if (!agent || !on_event) return WF_ERR_INVALID_ARG;
 
     /* Resolve the chat-service endpoint exactly as the other chat wrappers do,

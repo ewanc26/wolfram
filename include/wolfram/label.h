@@ -59,11 +59,12 @@ typedef struct wf_label_message {
 
 typedef void (*wf_label_cb)(const wf_label *label, void *userdata);
 typedef void (*wf_label_info_cb)(const wf_label_info *info, void *userdata);
-typedef void (*wf_label_error_cb)(wf_status status, const char *message, void *userdata);
+typedef void (*wf_label_error_cb)(wf_status status, const char *message,
+                                  void *userdata);
 
 typedef struct wf_label_subscribe_options {
-    const char *service;      /* absolute ws(s) or http(s) service URL */
-    int64_t cursor;           /* last seen sequence number; 0 omits the query */
+    const char *service; /* absolute ws(s) or http(s) service URL */
+    int64_t cursor;      /* last seen sequence number; 0 omits the query */
     int has_cursor;
     uint32_t reconnect_delay_ms; /* 0 selects the default 3000ms backoff */
     wf_label_cb on_label;
@@ -118,10 +119,10 @@ void wf_label_subscribe_stop(wf_label_subscribe_handle *handle);
  * `wf_lex_com_atproto_label_query_labels_main_call`. On WF_OK `out` is
  * populated and must be released with wf_response_free. NULL client/uris or
  * a zero `uri_count` returns WF_ERR_INVALID_ARG. */
-wf_status wf_label_query_labels(wf_xrpc_client *client,
-                                const char *const *uris, size_t uri_count,
-                                const char *const *sources, size_t source_count,
-                                int limit, wf_response *out);
+wf_status wf_label_query_labels(wf_xrpc_client *client, const char *const *uris,
+                                size_t uri_count, const char *const *sources,
+                                size_t source_count, int limit,
+                                wf_response *out);
 
 /* Fetch labels applied to a single URI (com.atproto.label.getLabels).
  *
@@ -130,8 +131,7 @@ wf_status wf_label_query_labels(wf_xrpc_client *client,
  * so it is issued as a direct authenticated XRPC GET via wf_xrpc_query_params.
  * On WF_OK `out` is populated and must be released with wf_response_free. NULL
  * client/uri or a NULL `out` returns WF_ERR_INVALID_ARG. */
-wf_status wf_label_get_labels(wf_xrpc_client *client,
-                              const char *uri,
+wf_status wf_label_get_labels(wf_xrpc_client *client, const char *uri,
                               const char *const *sources, size_t source_count,
                               wf_response *out);
 

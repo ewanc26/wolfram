@@ -41,7 +41,8 @@ typedef struct wf_blob_store wf_blob_store;
  */
 wf_blob_store *wf_blob_store_new(const char *path);
 
-/** Free the store. File-backed blobs are left on disk (caller removes `path`). */
+/** Free the store. File-backed blobs are left on disk (caller removes `path`).
+ */
 void wf_blob_store_free(wf_blob_store *store);
 
 /**
@@ -50,8 +51,8 @@ void wf_blob_store_free(wf_blob_store *store);
  * WF_ERR_INTERNAL on file IO failure.
  */
 wf_status wf_blob_store_put(wf_blob_store *store, const char *cid,
-                            const char *mime_type,
-                            const unsigned char *data, size_t len);
+                            const char *mime_type, const unsigned char *data,
+                            size_t len);
 
 /**
  * Retrieve a blob. On WF_OK, out_data/out_len/out_mime are set to owned
@@ -88,7 +89,7 @@ void wf_blob_store_list_free(char **cids, size_t count);
  */
 typedef struct wf_xrpc_server wf_xrpc_server;
 wf_status wf_xrpc_server_register_blob_store(wf_xrpc_server *server,
-                                              wf_blob_store *store);
+                                             wf_blob_store *store);
 
 /*
  * Per-request resolver for multi-tenant PDS deployments. Given the

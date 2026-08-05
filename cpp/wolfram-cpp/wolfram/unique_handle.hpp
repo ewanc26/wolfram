@@ -8,15 +8,16 @@ namespace wolfram {
 // RAII owner of a pointer released by a free function `Free` (signature
 // `void (*)(T*)`), mirroring wolfram's uniform `wf_T` + `wf_T_free` contract.
 // The pointed-to type may be incomplete; it is only ever passed to `Free`.
-template <typename T, void (*Free)(T *)>
-class unique_handle {
-public:
+template <typename T, void (*Free)(T *)> class unique_handle {
+  public:
     using element_type = T;
 
     unique_handle() noexcept : ptr_(nullptr) {}
     explicit unique_handle(T *p) noexcept : ptr_(p) {}
 
-    ~unique_handle() { reset(); }
+    ~unique_handle() {
+        reset();
+    }
 
     unique_handle(const unique_handle &) = delete;
     unique_handle &operator=(const unique_handle &) = delete;
@@ -29,10 +30,18 @@ public:
         return *this;
     }
 
-    T *get() const noexcept { return ptr_; }
-    T *operator->() const noexcept { return ptr_; }
-    T &operator*() const noexcept { return *ptr_; }
-    explicit operator bool() const noexcept { return ptr_ != nullptr; }
+    T *get() const noexcept {
+        return ptr_;
+    }
+    T *operator->() const noexcept {
+        return ptr_;
+    }
+    T &operator*() const noexcept {
+        return *ptr_;
+    }
+    explicit operator bool() const noexcept {
+        return ptr_ != nullptr;
+    }
 
     T *release() noexcept {
         T *p = ptr_;
@@ -47,7 +56,7 @@ public:
         ptr_ = p;
     }
 
-private:
+  private:
     T *ptr_;
 };
 

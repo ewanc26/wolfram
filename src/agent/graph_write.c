@@ -4,9 +4,10 @@
  * See include/wolfram/graph_write.h for the public API, the authoritative
  * wire format, ownership rules, and the conventions this follows. Record
  * writes route through the generic com.atproto.repo create/put/delete-record
- * transport (wf_agent_create_record / wf_agent_put_record / wf_agent_delete_record,
- * mirroring post.c's follow/like/block helpers); the mute/unmute procedures
- * route through the generated lex wrappers in atproto_lex.h.
+ * transport (wf_agent_create_record / wf_agent_put_record /
+ * wf_agent_delete_record, mirroring post.c's follow/like/block helpers); the
+ * mute/unmute procedures route through the generated lex wrappers in
+ * atproto_lex.h.
  */
 
 #include "wolfram/graph_write.h"
@@ -74,7 +75,8 @@ static wf_status wf_graph_create_record(wf_agent *agent, const char *collection,
 /* Validate an at-uri and return the parsed components. On success the caller
  * must wf_syntax_aturi_free the parse; on failure returns WF_ERR_PARSE with the
  * parse left reset. */
-static wf_status wf_graph_require_aturi(const char *uri, wf_syntax_aturi *parsed) {
+static wf_status wf_graph_require_aturi(const char *uri,
+                                        wf_syntax_aturi *parsed) {
     if (!uri || !uri[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -106,12 +108,14 @@ static wf_status wf_graph_delete_by_uri(wf_agent *agent, const char *uri,
         return status;
     }
 
-    if (!parsed.authority || !wf_graph_authority_is_session(agent, parsed.authority) ||
+    if (!parsed.authority ||
+        !wf_graph_authority_is_session(agent, parsed.authority) ||
         !parsed.collection || !parsed.record_key ||
         strcmp(parsed.collection, expected_collection) != 0) {
         status = WF_ERR_INVALID_ARG;
     } else {
-        status = wf_agent_delete_record(agent, parsed.collection, parsed.record_key);
+        status =
+            wf_agent_delete_record(agent, parsed.collection, parsed.record_key);
     }
 
     wf_syntax_aturi_free(&parsed);
@@ -122,10 +126,11 @@ static wf_status wf_graph_delete_by_uri(wf_agent *agent, const char *uri,
 /* Procedure writes: mute / unmute (thread + actor list)               */
 /* ------------------------------------------------------------------ */
 
-static wf_status wf_graph_call_procedure(
-    wf_agent *agent,
-    wf_status (*call)(wf_xrpc_client *, const void *, wf_response *),
-    const void *input) {
+static wf_status wf_graph_call_procedure(wf_agent *agent,
+                                         wf_status (*call)(wf_xrpc_client *,
+                                                           const void *,
+                                                           wf_response *),
+                                         const void *input) {
     if (!agent || !agent->client) {
         return WF_ERR_INVALID_ARG;
     }
@@ -150,11 +155,11 @@ wf_status wf_agent_graph_mute_thread(wf_agent *agent, const char *root_uri) {
         return status;
     }
 
-    wf_lex_app_bsky_graph_mute_thread_main_input in = { .root = root_uri };
+    wf_lex_app_bsky_graph_mute_thread_main_input in = {.root = root_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_mute_thread_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_mute_thread_main_call,
         &in);
 }
 
@@ -172,15 +177,16 @@ wf_status wf_agent_graph_unmute_thread(wf_agent *agent, const char *root_uri) {
         return status;
     }
 
-    wf_lex_app_bsky_graph_unmute_thread_main_input in = { .root = root_uri };
+    wf_lex_app_bsky_graph_unmute_thread_main_input in = {.root = root_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_unmute_thread_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_unmute_thread_main_call,
         &in);
 }
 
-wf_status wf_agent_graph_mute_actor_list(wf_agent *agent, const char *list_uri) {
+wf_status wf_agent_graph_mute_actor_list(wf_agent *agent,
+                                         const char *list_uri) {
     if (!agent || !list_uri || !list_uri[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -194,11 +200,11 @@ wf_status wf_agent_graph_mute_actor_list(wf_agent *agent, const char *list_uri) 
         return status;
     }
 
-    wf_lex_app_bsky_graph_mute_actor_list_main_input in = { .list = list_uri };
+    wf_lex_app_bsky_graph_mute_actor_list_main_input in = {.list = list_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_mute_actor_list_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_mute_actor_list_main_call,
         &in);
 }
 
@@ -217,11 +223,11 @@ wf_status wf_agent_graph_unmute_actor_list(wf_agent *agent,
         return status;
     }
 
-    wf_lex_app_bsky_graph_unmute_actor_list_main_input in = { .list = list_uri };
+    wf_lex_app_bsky_graph_unmute_actor_list_main_input in = {.list = list_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status(*)(wf_xrpc_client *, const void *,
-                      wf_response *))wf_lex_app_bsky_graph_unmute_actor_list_main_call,
+        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+            wf_lex_app_bsky_graph_unmute_actor_list_main_call,
         &in);
 }
 
@@ -359,10 +365,10 @@ wf_status wf_agent_graph_delete_list_item(wf_agent *agent,
 /* ------------------------------------------------------------------ */
 
 wf_status wf_agent_graph_create_starter_pack(wf_agent *agent, const char *name,
-                                              const char *list_uri,
-                                              const char *description,
-                                              const char *feeds_json,
-                                              wf_agent_post_result *out) {
+                                             const char *list_uri,
+                                             const char *description,
+                                             const char *feeds_json,
+                                             wf_agent_post_result *out) {
     if (!agent || !name || !name[0] || !list_uri || !list_uri[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }

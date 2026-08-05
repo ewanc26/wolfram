@@ -56,11 +56,11 @@ static void populate_label_defs(wf_mod_label_def **out_defs,
         int adult;
         const char *def;
     } spec[] = {
-        {"porn",    "content", "alert", 1, "hide"},
-        {"sexual",  "content", "alert", 1, "hide"},
-        {"gore",    "content", "alert", 1, "hide"},
-        {"spam",    "none",    "alert", 0, "warn"},
-        {" nudity", "media",   "inform", 0, "warn"},
+        {"porn", "content", "alert", 1, "hide"},
+        {"sexual", "content", "alert", 1, "hide"},
+        {"gore", "content", "alert", 1, "hide"},
+        {"spam", "none", "alert", 0, "warn"},
+        {" nudity", "media", "inform", 0, "warn"},
     };
 
     size_t n = sizeof(spec) / sizeof(spec[0]);
@@ -265,7 +265,8 @@ static int run_online(const char *service_url, const char *handle,
             if (cJSON_IsArray(feed)) {
                 for (int i = 0; i < cJSON_GetArraySize(feed); ++i) {
                     cJSON *item = cJSON_GetArrayItem(feed, i);
-                    cJSON *post = cJSON_GetObjectItemCaseSensitive(item, "post");
+                    cJSON *post =
+                        cJSON_GetObjectItemCaseSensitive(item, "post");
                     if (!cJSON_IsObject(post)) {
                         continue;
                     }
@@ -292,7 +293,8 @@ static int run_online(const char *service_url, const char *handle,
                         cJSON_GetObjectItemCaseSensitive(post, "labels");
                     if (cJSON_IsArray(labels)) {
                         int n = cJSON_GetArraySize(labels);
-                        wf_mod_label *lbls = calloc((size_t)n, sizeof(wf_mod_label));
+                        wf_mod_label *lbls =
+                            calloc((size_t)n, sizeof(wf_mod_label));
                         int got = 0;
                         for (int j = 0; j < n; ++j) {
                             cJSON *l = cJSON_GetArrayItem(labels, j);
@@ -313,8 +315,8 @@ static int run_online(const char *service_url, const char *handle,
                         if (wf_mod_decision_init(&dec) == WF_OK &&
                             wf_mod_decide_post(&dec, &sp, &opts) == WF_OK) {
                             char title[128];
-                            snprintf(title, sizeof(title), "timeline[%d] %s",
-                                     i, sp.uri ? sp.uri : "?");
+                            snprintf(title, sizeof(title), "timeline[%d] %s", i,
+                                     sp.uri ? sp.uri : "?");
                             print_decision(title, &dec);
                             ++moderated;
                             wf_mod_decision_free(&dec);
@@ -325,8 +327,8 @@ static int run_online(const char *service_url, const char *handle,
                         if (wf_mod_decision_init(&dec) == WF_OK &&
                             wf_mod_decide_post(&dec, &sp, &opts) == WF_OK) {
                             char title[128];
-                            snprintf(title, sizeof(title), "timeline[%d] %s",
-                                     i, sp.uri ? sp.uri : "?");
+                            snprintf(title, sizeof(title), "timeline[%d] %s", i,
+                                     sp.uri ? sp.uri : "?");
                             print_decision(title, &dec);
                             ++moderated;
                             wf_mod_decision_free(&dec);

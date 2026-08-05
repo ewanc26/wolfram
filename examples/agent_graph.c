@@ -7,7 +7,8 @@
  *   3. Relationship query with wf_agent_get_relationships
  *
  * Usage:
- *   agent_graph <service-url> <handle-or-email> <password> <target-did-or-handle>
+ *   agent_graph <service-url> <handle-or-email> <password>
+ * <target-did-or-handle>
  */
 
 #include <cJSON.h>
@@ -21,14 +22,12 @@
 static void print_profile(const wf_agent_profile *p) {
     if (!p) return;
     printf("Profile: @%s", p->handle ? p->handle : "?");
-    if (p->display_name && p->display_name[0])
-        printf(" (%s)", p->display_name);
+    if (p->display_name && p->display_name[0]) printf(" (%s)", p->display_name);
     printf("\n");
-    if (p->description)
-        printf("  Bio: %s\n", p->description);
+    if (p->description) printf("  Bio: %s\n", p->description);
     printf("  DID: %s\n", p->did);
-    printf("  Posts: %d | Followers: %d | Following: %d\n",
-           p->posts_count, p->followers_count, p->follows_count);
+    printf("  Posts: %d | Followers: %d | Following: %d\n", p->posts_count,
+           p->followers_count, p->follows_count);
 }
 
 static void print_relationship(const wf_response *res) {
@@ -41,8 +40,10 @@ static void print_relationship(const wf_response *res) {
         cJSON *item;
         cJSON_ArrayForEach(item, rel) {
             cJSON *did = cJSON_GetObjectItemCaseSensitive(item, "did");
-            cJSON *following = cJSON_GetObjectItemCaseSensitive(item, "following");
-            cJSON *followed_by = cJSON_GetObjectItemCaseSensitive(item, "followedBy");
+            cJSON *following =
+                cJSON_GetObjectItemCaseSensitive(item, "following");
+            cJSON *followed_by =
+                cJSON_GetObjectItemCaseSensitive(item, "followedBy");
             const char *d = did && cJSON_IsString(did) ? did->valuestring : "?";
             printf("  %s: following=%s followed_by=%s\n", d,
                    cJSON_IsString(following) ? "yes" : "no",
@@ -54,17 +55,23 @@ static void print_relationship(const wf_response *res) {
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        fprintf(stderr, "usage: %s <service-url> <handle-or-email> <password> <target-did-or-handle>\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s <service-url> <handle-or-email> <password> "
+                "<target-did-or-handle>\n",
+                argv[0]);
         return 1;
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
-    const char *target      = argv[4];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
+    const char *target = argv[4];
 
     wf_agent *agent = wf_agent_new(service_url);
-    if (!agent) { fprintf(stderr, "failed to create agent\n"); return 1; }
+    if (!agent) {
+        fprintf(stderr, "failed to create agent\n");
+        return 1;
+    }
 
     wf_status status = wf_agent_login(agent, identifier, password);
     if (status != WF_OK) {

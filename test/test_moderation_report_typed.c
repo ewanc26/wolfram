@@ -27,8 +27,8 @@ int main(void) {
     /* ---- happy path: parse a full report record ---- */
     {
         wf_moderation_report_record r = {0};
-        wf_status s = wf_moderation_report_record_parse(k_report_json,
-                                                 strlen(k_report_json), &r);
+        wf_status s = wf_moderation_report_record_parse(
+            k_report_json, strlen(k_report_json), &r);
         WF_CHECK(s == WF_OK);
         WF_CHECK(r.id == 42);
         WF_CHECK(r.reason_type &&
@@ -51,8 +51,8 @@ int main(void) {
         WF_CHECK(wf_moderation_report_record_parse(NULL, 0, &r) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_moderation_report_record_parse(k_report_json,
-                                            strlen(k_report_json),
-                                            NULL) == WF_ERR_INVALID_ARG);
+                                                   strlen(k_report_json),
+                                                   NULL) == WF_ERR_INVALID_ARG);
     }
 
     /* ---- malformed JSON rejected ---- */
@@ -69,37 +69,37 @@ int main(void) {
 
         /* NULL agent */
         WF_CHECK(wf_agent_report(NULL, "at://x", NULL,
-                                 "com.atproto.moderation.defs#reasonSpam",
-                                 NULL, &out) == WF_ERR_INVALID_ARG);
+                                 "com.atproto.moderation.defs#reasonSpam", NULL,
+                                 &out) == WF_ERR_INVALID_ARG);
 
         /* empty subject_uri */
         WF_CHECK(wf_agent_report((wf_agent *)1, "", NULL,
-                                 "com.atproto.moderation.defs#reasonSpam",
-                                 NULL, &out) == WF_ERR_INVALID_ARG);
+                                 "com.atproto.moderation.defs#reasonSpam", NULL,
+                                 &out) == WF_ERR_INVALID_ARG);
 
         /* NULL reason_type */
         WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL, NULL, NULL,
                                  &out) == WF_ERR_INVALID_ARG);
 
         /* empty reason_type */
-        WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL, "",
-                                 NULL, &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL, "", NULL,
+                                 &out) == WF_ERR_INVALID_ARG);
 
         /* NULL out */
         WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL,
-                                 "com.atproto.moderation.defs#reasonSpam",
-                                 NULL, NULL) == WF_ERR_INVALID_ARG);
+                                 "com.atproto.moderation.defs#reasonSpam", NULL,
+                                 NULL) == WF_ERR_INVALID_ARG);
 
         /* Strong refs require CID; obsolete reason_subject_uri is rejected. */
         WF_CHECK(wf_agent_report((wf_agent *)1, "at://x", NULL,
-                                 "com.atproto.moderation.defs#reasonSpam",
-                                 NULL, &out) == WF_ERR_INVALID_ARG);
+                                 "com.atproto.moderation.defs#reasonSpam", NULL,
+                                 &out) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_report((wf_agent *)1, "did:plc:x", NULL,
                                  "com.atproto.moderation.defs#reasonSpam",
                                  "at://ignored", &out) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_report_typed(NULL, "did:plc:x", NULL, NULL,
-                                       "reason", NULL, NULL, NULL, &out) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_report_typed(NULL, "did:plc:x", NULL, NULL, "reason",
+                                       NULL, NULL, NULL,
+                                       &out) == WF_ERR_INVALID_ARG);
     }
 
     WF_TEST_SUMMARY();

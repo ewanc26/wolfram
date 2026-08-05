@@ -34,9 +34,15 @@ static char *read_file(const char *path) {
     fseek(f, 0, SEEK_END);
     long len = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (len < 0) { fclose(f); return NULL; }
+    if (len < 0) {
+        fclose(f);
+        return NULL;
+    }
     char *data = malloc((size_t)len + 1);
-    if (!data) { fclose(f); return NULL; }
+    if (!data) {
+        fclose(f);
+        return NULL;
+    }
     size_t n = fread(data, 1, (size_t)len, f);
     fclose(f);
     data[n] = '\0';
@@ -64,7 +70,10 @@ static void parse_callback_url(const char *url,
         size_t pair_len = amp ? (size_t)(amp - q) : strlen(q);
 
         const char *eq = memchr(q, '=', pair_len);
-        if (!eq) { q = amp ? amp + 1 : q + pair_len; continue; }
+        if (!eq) {
+            q = amp ? amp + 1 : q + pair_len;
+            continue;
+        }
 
         size_t name_len = (size_t)(eq - q);
         size_t val_len = pair_len - name_len - 1;
@@ -85,7 +94,9 @@ static void parse_callback_url(const char *url,
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        fprintf(stderr, "usage: %s <pds-base-url> <handle-or-did> [session-file]\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s <pds-base-url> <handle-or-did> [session-file]\n",
+                argv[0]);
         return 1;
     }
 
@@ -119,7 +130,8 @@ int main(int argc, char **argv) {
             wf_oauth_server_metadata server = {0};
             wf_oauth_client_metadata client = {0};
 
-            s = wf_oauth_discover(transport, session.issuer, &resource, &server);
+            s = wf_oauth_discover(transport, session.issuer, &resource,
+                                  &server);
             if (s == WF_OK)
                 s = wf_oauth_client_metadata_get(transport, client_id, &client);
 
@@ -156,8 +168,8 @@ int main(int argc, char **argv) {
                 printf("Session refreshed.\n");
             }
 
-            wf_auth_client *auth = wf_auth_client_new(transport, &session,
-                                                       &server, &client_auth);
+            wf_auth_client *auth =
+                wf_auth_client_new(transport, &session, &server, &client_auth);
             if (!auth) {
                 fprintf(stderr, "failed to create auth client\n");
                 wf_oauth_session_state_free(&session);
@@ -217,8 +229,8 @@ int main(int argc, char **argv) {
     };
 
     wf_oauth_authorization_begin_result begin = {0};
-    s = wf_oauth_authorization_begin(transport, &server, &client,
-                                     &client_auth, &opts, &begin);
+    s = wf_oauth_authorization_begin(transport, &server, &client, &client_auth,
+                                     &opts, &begin);
     if (s != WF_OK) {
         fprintf(stderr, "authorization begin failed: %d\n", s);
         goto done;
@@ -243,9 +255,9 @@ int main(int argc, char **argv) {
 
     wf_oauth_authorization_complete_result complete = {0};
     s = wf_oauth_authorization_complete(
-        transport, &server, &client, &client_auth,
-        &cb_params, begin.state, begin.state_json, strlen(begin.state_json),
-        redirect_uri, time(NULL), &complete);
+        transport, &server, &client, &client_auth, &cb_params, begin.state,
+        begin.state_json, strlen(begin.state_json), redirect_uri, time(NULL),
+        &complete);
 
     wf_oauth_authorization_begin_result_free(&begin);
     free(cb_params.state);
@@ -256,8 +268,9 @@ int main(int argc, char **argv) {
     if (s != WF_OK) {
         fprintf(stderr, "authorization complete failed: %d\n", s);
         if (complete.error)
-            fprintf(stderr, "server error: %s: %s\n",
-                    complete.error, complete.error_description ? complete.error_description : "");
+            fprintf(stderr, "server error: %s: %s\n", complete.error,
+                    complete.error_description ? complete.error_description
+                                               : "");
         wf_oauth_authorization_complete_result_free(&complete);
         goto done;
     }
@@ -267,8 +280,8 @@ int main(int argc, char **argv) {
         printf("Session saved to %s\n", session_path);
     }
 
-    wf_auth_client *auth = wf_auth_client_new(transport, &complete.session,
-                                               &server, &client_auth);
+    wf_auth_client *auth =
+        wf_auth_client_new(transport, &complete.session, &server, &client_auth);
     if (!auth) {
         fprintf(stderr, "failed to create auth client\n");
         wf_oauth_authorization_complete_result_free(&complete);
@@ -295,7 +308,8 @@ int main(int argc, char **argv) {
     wf_response res = {0};
     char query[512];
     snprintf(query, sizeof(query), "repo=%s", repo_did);
-    s = wf_auth_client_query(auth, "com.atproto.repo.describeRepo", query, &res);
+    s = wf_auth_client_query(auth, "com.atproto.repo.describeRepo", query,
+                             &res);
 
     if (s == WF_OK || s == WF_ERR_HTTP)
         printf("HTTP %ld\n%s\n", res.status, res.body ? res.body : "(empty)");

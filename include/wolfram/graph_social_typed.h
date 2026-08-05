@@ -83,7 +83,8 @@ extern "C" {
 /* A parsed list view. `creator` is the app.bsky.actor.defs#profileView (reused
  * wf_agent_profile_view). Open/complex fields (descriptionFacets, labels,
  * viewer/listViewerState) are kept as owned detached cJSON subtrees in `extra`
- * unless a dedicated field is provided. `extra` captures any unmapped fields. */
+ * unless a dedicated field is provided. `extra` captures any unmapped fields.
+ */
 typedef struct wf_graph_list_view {
     char *uri;
     char *cid;
@@ -91,17 +92,18 @@ typedef struct wf_graph_list_view {
     char *name;
     char *purpose;
     char *description;
-    cJSON *description_facets;   /* owned detached descriptionFacets subtree */
+    cJSON *description_facets; /* owned detached descriptionFacets subtree */
     char *avatar;
     bool has_list_item_count;
     int64_t list_item_count;
-    cJSON *labels;               /* owned detached labels subtree */
-    cJSON *viewer;               /* owned detached listViewerState subtree */
+    cJSON *labels; /* owned detached labels subtree */
+    cJSON *viewer; /* owned detached listViewerState subtree */
     char *indexed_at;
-    cJSON *extra;                /* owned detached trailing subtree; NULL absent */
+    cJSON *extra; /* owned detached trailing subtree; NULL absent */
 } wf_graph_list_view;
 
-/* A parsed list of list views (getListMutes / getListBlocks / getActorLists). */
+/* A parsed list of list views (getListMutes / getListBlocks / getActorLists).
+ */
 typedef struct wf_graph_list_view_list {
     wf_graph_list_view *lists;
     size_t list_count;
@@ -114,7 +116,7 @@ typedef struct wf_graph_list_view_list {
 typedef struct wf_graph_list_item_view {
     char *uri;
     wf_agent_profile_view subject;
-    cJSON *extra;                /* owned detached trailing subtree; NULL absent */
+    cJSON *extra; /* owned detached trailing subtree; NULL absent */
 } wf_graph_list_item_view;
 
 /* A parsed list of list-item views. */
@@ -138,20 +140,20 @@ typedef struct wf_graph_list_item_view_list {
 typedef struct wf_graph_starter_pack_view {
     char *uri;
     char *cid;
-    char *name;                  /* from record.name when present */
-    char *description;           /* from record.description when present */
+    char *name;        /* from record.name when present */
+    char *description; /* from record.description when present */
     wf_agent_profile_view creator;
-    char *created_at;            /* from record.createdAt when present */
+    char *created_at; /* from record.createdAt when present */
     bool has_list_item_count;
     int64_t list_item_count;
     bool has_joined_week_count;
     int64_t joined_week_count;
     bool has_joined_all_time_count;
     int64_t joined_all_time_count;
-    cJSON *labels;               /* owned detached labels subtree */
+    cJSON *labels; /* owned detached labels subtree */
     char *indexed_at;
-    cJSON *record;               /* owned detached raw record subtree */
-    cJSON *extra;                /* owned detached trailing subtree; NULL absent */
+    cJSON *record; /* owned detached raw record subtree */
+    cJSON *extra;  /* owned detached trailing subtree; NULL absent */
 } wf_graph_starter_pack_view;
 
 /* A parsed list of starter pack views (getStarterPacks / getActorStarterPacks /
@@ -199,9 +201,10 @@ typedef struct wf_graph_list_membership_list {
 } wf_graph_list_membership_list;
 
 /* A parsed starter-pack-with-membership entry
- * (app.bsky.graph.getStarterPacksWithMembership). `starter_pack` reuses the full
- * starterPackView (wf_graph_starter_pack_view); `list_item` (when
- * `has_list_item`) carries the viewer's membership record into the pack's list. */
+ * (app.bsky.graph.getStarterPacksWithMembership). `starter_pack` reuses the
+ * full starterPackView (wf_graph_starter_pack_view); `list_item` (when
+ * `has_list_item`) carries the viewer's membership record into the pack's list.
+ */
 typedef struct wf_graph_starter_pack_membership {
     wf_graph_starter_pack_view starter_pack;
     bool has_list_item;
@@ -233,8 +236,9 @@ wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
 
 /* Parse a JSON body containing a "starterPacks" array of starterPackViewBasic /
  * starterPackView into owned structs. Same ownership/error rules. */
-wf_status wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
-                                            wf_graph_starter_pack_view_list *out);
+wf_status
+wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
+                                  wf_graph_starter_pack_view_list *out);
 
 /* Parse a JSON body containing "starterPacks" (starterPackView[]), optional
  * "cursor", and optional "hitsTotal" — the app.bsky.graph.searchStarterPacksV2
@@ -250,7 +254,8 @@ void wf_graph_list_view_free(wf_graph_list_view *v);
 void wf_graph_list_view_list_free(wf_graph_list_view_list *list);
 void wf_graph_list_item_view_list_free(wf_graph_list_item_view_list *list);
 void wf_graph_starter_pack_view_free(wf_graph_starter_pack_view *v);
-void wf_graph_starter_pack_view_list_free(wf_graph_starter_pack_view_list *list);
+void wf_graph_starter_pack_view_list_free(
+    wf_graph_starter_pack_view_list *list);
 void wf_graph_search_starter_packs_v2_result_free(
     wf_graph_search_starter_packs_v2_result *r);
 
@@ -305,16 +310,16 @@ wf_status wf_agent_get_actor_lists_typed(wf_agent *agent, const char *actor,
 
 /* app.bsky.graph.getStarterPacks -> wf_graph_starter_pack_view_list. `uris` is
  * an array of at-uri strings (non-empty, count > 0). */
-wf_status wf_agent_get_starter_packs_typed(wf_agent *agent,
-                                           const char *const *uris,
-                                           size_t uri_count,
-                                           wf_graph_starter_pack_view_list *out);
+wf_status
+wf_agent_get_starter_packs_typed(wf_agent *agent, const char *const *uris,
+                                 size_t uri_count,
+                                 wf_graph_starter_pack_view_list *out);
 
 /* app.bsky.graph.getActorStarterPacks -> wf_graph_starter_pack_view_list. */
-wf_status wf_agent_get_actor_starter_packs_typed(wf_agent *agent,
-                                                 const char *actor, int limit,
-                                                 const char *cursor,
-                                                 wf_graph_starter_pack_view_list *out);
+wf_status
+wf_agent_get_actor_starter_packs_typed(wf_agent *agent, const char *actor,
+                                       int limit, const char *cursor,
+                                       wf_graph_starter_pack_view_list *out);
 
 /* app.bsky.graph.getStarterPack -> single wf_graph_starter_pack_view. */
 wf_status wf_agent_get_starter_pack_typed(wf_agent *agent,
@@ -323,16 +328,15 @@ wf_status wf_agent_get_starter_pack_typed(wf_agent *agent,
 
 /* app.bsky.graph.getSuggestedFollowsByActor -> wf_agent_actor_list
  * ("suggestions"). */
-wf_status wf_agent_get_suggested_follows_by_actor_typed(wf_agent *agent,
-                                                        const char *actor,
-                                                        wf_agent_actor_list *out);
+wf_status wf_agent_get_suggested_follows_by_actor_typed(
+    wf_agent *agent, const char *actor, wf_agent_actor_list *out);
 
 /* app.bsky.graph.getListsWithMembership -> wf_graph_list_membership_list
  * ("listsWithMembership"). `actor` is required (a valid AT-identifier). */
-wf_status wf_agent_get_lists_with_membership_typed(wf_agent *agent,
-                                                   const char *actor, int limit,
-                                                   const char *cursor,
-                                                   wf_graph_list_membership_list *out);
+wf_status
+wf_agent_get_lists_with_membership_typed(wf_agent *agent, const char *actor,
+                                         int limit, const char *cursor,
+                                         wf_graph_list_membership_list *out);
 
 /* app.bsky.graph.getStarterPacksWithMembership -> wf_graph_starter_pack_
  * membership_list ("starterPacksWithMembership"). `actor` is required. The
@@ -368,7 +372,8 @@ wf_status wf_agent_unmute_actor_typed(wf_agent *agent, const char *actor);
 
 /* app.bsky.graph.muteActorList / unmuteActorList. */
 wf_status wf_agent_mute_actor_list_typed(wf_agent *agent, const char *list_uri);
-wf_status wf_agent_unmute_actor_list_typed(wf_agent *agent, const char *list_uri);
+wf_status wf_agent_unmute_actor_list_typed(wf_agent *agent,
+                                           const char *list_uri);
 
 /* NOT IMPLEMENTED — both return WF_ERR_NOT_IMPLEMENTED.
  * atproto has no blockActor/unblockActor procedures. Blocking is a record
@@ -380,8 +385,10 @@ wf_status wf_agent_unblock_actor_typed(wf_agent *agent, const char *actor);
 /* NOT IMPLEMENTED — both return WF_ERR_NOT_IMPLEMENTED.
  * As above: blocking a moderation list is an app.bsky.graph.listblock record,
  * not a procedure. See graph_write.h. */
-wf_status wf_agent_block_actor_list_typed(wf_agent *agent, const char *list_uri);
-wf_status wf_agent_unblock_actor_list_typed(wf_agent *agent, const char *list_uri);
+wf_status wf_agent_block_actor_list_typed(wf_agent *agent,
+                                          const char *list_uri);
+wf_status wf_agent_unblock_actor_list_typed(wf_agent *agent,
+                                            const char *list_uri);
 
 #ifdef __cplusplus
 }

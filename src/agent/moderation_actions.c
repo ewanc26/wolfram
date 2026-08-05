@@ -77,7 +77,8 @@ static void wf_mod_list_view_result_reset(wf_mod_list_view_result *r) {
 /* Parse the `subject` union of a createReport output. The union is either a
  * repoRef `{ "repo": did }` or a strongRef `{ "uri": at-uri, "cid": ... }`.
  * We capture whichever string is present into `out->subject_uri`. */
-static wf_status wf_mod_parse_subject(wf_moderation_report *out, cJSON *subject) {
+static wf_status wf_mod_parse_subject(wf_moderation_report *out,
+                                      cJSON *subject) {
     if (!cJSON_IsObject(subject)) {
         return WF_OK;
     }
@@ -110,8 +111,7 @@ wf_status wf_agent_parse_report(const char *json, size_t json_len,
     cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id");
     if (cJSON_IsNumber(id)) {
         char buf[32];
-        int n = snprintf(buf, sizeof(buf), "%lld",
-                         (long long)id->valuedouble);
+        int n = snprintf(buf, sizeof(buf), "%lld", (long long)id->valuedouble);
         if (n > 0 && n < (int)sizeof(buf)) {
             status = wf_mod_set_string(&out->id, buf);
         } else {
@@ -165,7 +165,8 @@ static wf_status wf_mod_parse_list_view(wf_mod_list_view *v, cJSON *obj) {
     if (status == WF_OK && cJSON_IsString(purpose) && purpose->valuestring) {
         status = wf_mod_set_string(&v->purpose, purpose->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(description) && description->valuestring) {
+    if (status == WF_OK && cJSON_IsString(description) &&
+        description->valuestring) {
         status = wf_mod_set_string(&v->description, description->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
@@ -307,9 +308,8 @@ wf_status wf_agent_create_report(wf_agent *agent, const char *reason,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                         "com.atproto.moderation.createReport",
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.moderation.createReport", json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -328,7 +328,7 @@ wf_status wf_agent_mute_actor_list(wf_agent *agent, const char *list_at_uri,
 }
 
 wf_status wf_agent_block_actor_list(wf_agent *agent, const char *list_at_uri,
-                                   wf_mod_list_view_result *out) {
+                                    wf_mod_list_view_result *out) {
     return wf_mod_actor_list_action(agent, "app.bsky.graph.blockActorList",
                                     list_at_uri, out);
 }

@@ -36,8 +36,7 @@ wf_status wf_mst_node_build(unsigned layer, const wf_cid *left,
 wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car);
 void wf_mst_node_free(wf_mst_node *node);
 wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
-                      const unsigned char *key, size_t key_len,
-                      wf_cid *out);
+                      const unsigned char *key, size_t key_len, wf_cid *out);
 wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
                      const unsigned char *key, size_t key_len,
                      const wf_cid *value, wf_cid *new_root);
@@ -72,8 +71,8 @@ wf_status wf_mst_walk_from(wf_car *car, const wf_cid *root,
  * Collect every leaf (key + value CID) in sorted order.
  * Ownership: *out is caller-owned; free it with wf_mst_leaf_list_free.
  */
-wf_status wf_mst_list(wf_car *car, const wf_cid *root,
-                      wf_mst_leaf **out, size_t *out_count);
+wf_status wf_mst_list(wf_car *car, const wf_cid *root, wf_mst_leaf **out,
+                      size_t *out_count);
 void wf_mst_leaf_list_free(wf_mst_leaf *list, size_t count);
 
 /**
@@ -90,8 +89,8 @@ wf_status wf_mst_paths(wf_car *car, const wf_cid *root,
  * intermediate subtree CIDs — each collected exactly once (the MST is a DAG).
  * Ownership: *out is caller-owned; free it with wf_mst_cid_list_free.
  */
-wf_status wf_mst_get_all_cids(wf_car *car, const wf_cid *root,
-                              wf_cid **out, size_t *out_count);
+wf_status wf_mst_get_all_cids(wf_car *car, const wf_cid *root, wf_cid **out,
+                              size_t *out_count);
 void wf_mst_cid_list_free(wf_cid *list, size_t count);
 
 /**
@@ -105,8 +104,8 @@ wf_status wf_mst_get_covering_proof(wf_car *car, const wf_cid *root,
                                     const unsigned char *from_key,
                                     size_t from_key_len,
                                     const unsigned char *to_key,
-                                    size_t to_key_len,
-                                    wf_cid **out, size_t *out_count);
+                                    size_t to_key_len, wf_cid **out,
+                                    size_t *out_count);
 
 #ifdef __cplusplus
 }

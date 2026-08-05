@@ -66,7 +66,8 @@ static void wf_us_profile_view_reset(wf_agent_profile_view *p) {
     memset(p, 0, sizeof(*p));
 }
 
-static wf_status wf_us_parse_profile_view(wf_agent_profile_view *author, cJSON *obj) {
+static wf_status wf_us_parse_profile_view(wf_agent_profile_view *author,
+                                          cJSON *obj) {
     wf_status status = WF_OK;
     if (!cJSON_IsObject(obj)) {
         return WF_OK;
@@ -91,7 +92,8 @@ static wf_status wf_us_parse_profile_view(wf_agent_profile_view *author, cJSON *
 }
 
 /* Parse `arr` (a cJSON array of strings) into an owned `char **`/`count`. */
-static wf_status wf_us_parse_string_array(cJSON *arr, char ***dst, size_t *count) {
+static wf_status wf_us_parse_string_array(cJSON *arr, char ***dst,
+                                          size_t *count) {
     *dst = NULL;
     *count = 0;
     size_t n = (size_t)cJSON_GetArraySize(arr);
@@ -150,7 +152,8 @@ static void wf_us_trending_topics_reset_list(wf_agent_trending_topic *items,
     free(items);
 }
 
-static wf_status wf_us_parse_trending_topic(wf_agent_trending_topic *t, cJSON *obj) {
+static wf_status wf_us_parse_trending_topic(wf_agent_trending_topic *t,
+                                            cJSON *obj) {
     if (!cJSON_IsObject(obj)) {
         return WF_ERR_PARSE;
     }
@@ -222,11 +225,11 @@ wf_status wf_agent_parse_trending_topics(const char *json, size_t json_len,
         return WF_ERR_PARSE;
     }
 
-    wf_status status = wf_us_parse_trending_array("topics", root,
-                                                  &out->topics, &out->topic_count);
+    wf_status status = wf_us_parse_trending_array("topics", root, &out->topics,
+                                                  &out->topic_count);
     if (status == WF_OK) {
-        status = wf_us_parse_trending_array("suggested", root,
-                                            &out->suggested, &out->suggested_count);
+        status = wf_us_parse_trending_array("suggested", root, &out->suggested,
+                                            &out->suggested_count);
     }
 
     if (status != WF_OK) {
@@ -291,18 +294,25 @@ wf_status wf_agent_parse_tagged_suggestions(const char *json, size_t json_len,
                         break;
                     }
                     cJSON *tag = cJSON_GetObjectItemCaseSensitive(item, "tag");
-                    cJSON *stype = cJSON_GetObjectItemCaseSensitive(item, "subjectType");
-                    cJSON *subject = cJSON_GetObjectItemCaseSensitive(item, "subject");
+                    cJSON *stype =
+                        cJSON_GetObjectItemCaseSensitive(item, "subjectType");
+                    cJSON *subject =
+                        cJSON_GetObjectItemCaseSensitive(item, "subject");
                     if (cJSON_IsString(tag) && tag->valuestring) {
-                        status = wf_us_set_string(&items[i].tag, tag->valuestring);
+                        status =
+                            wf_us_set_string(&items[i].tag, tag->valuestring);
                     } else {
                         status = WF_ERR_PARSE;
                     }
-                    if (status == WF_OK && cJSON_IsString(stype) && stype->valuestring) {
-                        status = wf_us_set_string(&items[i].subject_type, stype->valuestring);
+                    if (status == WF_OK && cJSON_IsString(stype) &&
+                        stype->valuestring) {
+                        status = wf_us_set_string(&items[i].subject_type,
+                                                  stype->valuestring);
                     }
-                    if (status == WF_OK && cJSON_IsString(subject) && subject->valuestring) {
-                        status = wf_us_set_string(&items[i].subject, subject->valuestring);
+                    if (status == WF_OK && cJSON_IsString(subject) &&
+                        subject->valuestring) {
+                        status = wf_us_set_string(&items[i].subject,
+                                                  subject->valuestring);
                     }
                     if (status != WF_OK) {
                         for (size_t j = 0; j <= i; ++j) {
@@ -350,15 +360,17 @@ static void wf_us_skeleton_actor_reset(wf_agent_skeleton_actor *a) {
     memset(a, 0, sizeof(*a));
 }
 
-static void wf_us_skeleton_actors_reset(wf_agent_skeleton_actor *items, size_t n) {
+static void wf_us_skeleton_actors_reset(wf_agent_skeleton_actor *items,
+                                        size_t n) {
     for (size_t i = 0; i < n; ++i) {
         wf_us_skeleton_actor_reset(&items[i]);
     }
     free(items);
 }
 
-wf_status wf_agent_parse_suggestions_skeleton(const char *json, size_t json_len,
-                                              wf_agent_suggestions_skeleton *out) {
+wf_status
+wf_agent_parse_suggestions_skeleton(const char *json, size_t json_len,
+                                    wf_agent_suggestions_skeleton *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -389,7 +401,8 @@ wf_status wf_agent_parse_suggestions_skeleton(const char *json, size_t json_len,
                     }
                     cJSON *did = cJSON_GetObjectItemCaseSensitive(item, "did");
                     if (cJSON_IsString(did) && did->valuestring) {
-                        status = wf_us_set_string(&items[i].did, did->valuestring);
+                        status =
+                            wf_us_set_string(&items[i].did, did->valuestring);
                     } else {
                         status = WF_ERR_PARSE;
                     }
@@ -460,7 +473,8 @@ static void wf_us_live_now_reset(wf_agent_live_now_config *c) {
     memset(c, 0, sizeof(*c));
 }
 
-static void wf_us_live_now_list_reset(wf_agent_live_now_config *items, size_t n) {
+static void wf_us_live_now_list_reset(wf_agent_live_now_config *items,
+                                      size_t n) {
     for (size_t i = 0; i < n; ++i) {
         wf_us_live_now_reset(&items[i]);
     }
@@ -480,7 +494,8 @@ wf_status wf_agent_parse_config(const char *json, size_t json_len,
     }
 
     wf_status status = WF_OK;
-    cJSON *check = cJSON_GetObjectItemCaseSensitive(root, "checkEmailConfirmed");
+    cJSON *check =
+        cJSON_GetObjectItemCaseSensitive(root, "checkEmailConfirmed");
     if (cJSON_IsBool(check)) {
         out->has_check_email_confirmed = 1;
         out->check_email_confirmed = cJSON_IsTrue(check) ? 1 : 0;
@@ -502,15 +517,17 @@ wf_status wf_agent_parse_config(const char *json, size_t json_len,
                         break;
                     }
                     cJSON *did = cJSON_GetObjectItemCaseSensitive(item, "did");
-                    cJSON *domains = cJSON_GetObjectItemCaseSensitive(item, "domains");
+                    cJSON *domains =
+                        cJSON_GetObjectItemCaseSensitive(item, "domains");
                     if (cJSON_IsString(did) && did->valuestring) {
-                        status = wf_us_set_string(&items[i].did, did->valuestring);
+                        status =
+                            wf_us_set_string(&items[i].did, did->valuestring);
                     } else {
                         status = WF_ERR_PARSE;
                     }
                     if (status == WF_OK && cJSON_IsArray(domains)) {
-                        status = wf_us_parse_string_array(domains, &items[i].domains,
-                                                          &items[i].domain_count);
+                        status = wf_us_parse_string_array(
+                            domains, &items[i].domains, &items[i].domain_count);
                     }
                 }
                 if (status == WF_OK) {
@@ -548,8 +565,9 @@ void wf_agent_unspecced_config_free(wf_agent_unspecced_config *cfg) {
 
 /* ---------------------------- Age assurance state ------------------------- */
 
-wf_status wf_agent_parse_age_assurance_state(const char *json, size_t json_len,
-                                             wf_agent_age_assurance_state *out) {
+wf_status
+wf_agent_parse_age_assurance_state(const char *json, size_t json_len,
+                                   wf_agent_age_assurance_state *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -568,7 +586,8 @@ wf_status wf_agent_parse_age_assurance_state(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *last = cJSON_GetObjectItemCaseSensitive(root, "lastInitiatedAt");
         if (cJSON_IsString(last) && last->valuestring) {
-            status = wf_us_set_string(&out->last_initiated_at, last->valuestring);
+            status =
+                wf_us_set_string(&out->last_initiated_at, last->valuestring);
             if (status == WF_OK) {
                 out->has_last_initiated_at = 1;
             }
@@ -610,16 +629,18 @@ static void wf_us_starter_pack_view_reset(wf_agent_starter_pack_view *v) {
     memset(v, 0, sizeof(*v));
 }
 
-static void wf_us_starter_pack_view_list_reset(wf_agent_starter_pack_view *items,
-                                               size_t n) {
+static void
+wf_us_starter_pack_view_list_reset(wf_agent_starter_pack_view *items,
+                                   size_t n) {
     for (size_t i = 0; i < n; ++i) {
         wf_us_starter_pack_view_reset(&items[i]);
     }
     free(items);
 }
 
-wf_status wf_agent_parse_onboarding_starter_packs(const char *json, size_t json_len,
-                                                  wf_agent_starter_pack_view_list *out) {
+wf_status
+wf_agent_parse_onboarding_starter_packs(const char *json, size_t json_len,
+                                        wf_agent_starter_pack_view_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -650,35 +671,48 @@ wf_status wf_agent_parse_onboarding_starter_packs(const char *json, size_t json_
                     }
                     cJSON *uri = cJSON_GetObjectItemCaseSensitive(item, "uri");
                     cJSON *cid = cJSON_GetObjectItemCaseSensitive(item, "cid");
-                    cJSON *indexed = cJSON_GetObjectItemCaseSensitive(item, "indexedAt");
-                    cJSON *creator = cJSON_GetObjectItemCaseSensitive(item, "creator");
-                    cJSON *week = cJSON_GetObjectItemCaseSensitive(item, "joinedWeekCount");
-                    cJSON *all = cJSON_GetObjectItemCaseSensitive(item, "joinedAllTimeCount");
+                    cJSON *indexed =
+                        cJSON_GetObjectItemCaseSensitive(item, "indexedAt");
+                    cJSON *creator =
+                        cJSON_GetObjectItemCaseSensitive(item, "creator");
+                    cJSON *week = cJSON_GetObjectItemCaseSensitive(
+                        item, "joinedWeekCount");
+                    cJSON *all = cJSON_GetObjectItemCaseSensitive(
+                        item, "joinedAllTimeCount");
 
                     if (cJSON_IsString(uri) && uri->valuestring) {
-                        status = wf_us_set_string(&items[i].uri, uri->valuestring);
+                        status =
+                            wf_us_set_string(&items[i].uri, uri->valuestring);
                     } else {
                         status = WF_ERR_PARSE;
                     }
-                    if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-                        status = wf_us_set_string(&items[i].cid, cid->valuestring);
+                    if (status == WF_OK && cJSON_IsString(cid) &&
+                        cid->valuestring) {
+                        status =
+                            wf_us_set_string(&items[i].cid, cid->valuestring);
                     }
-                    if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-                        status = wf_us_set_string(&items[i].indexed_at, indexed->valuestring);
+                    if (status == WF_OK && cJSON_IsString(indexed) &&
+                        indexed->valuestring) {
+                        status = wf_us_set_string(&items[i].indexed_at,
+                                                  indexed->valuestring);
                     }
                     if (status == WF_OK && cJSON_IsObject(creator)) {
-                        status = wf_us_parse_profile_view(&items[i].creator, creator);
+                        status = wf_us_parse_profile_view(&items[i].creator,
+                                                          creator);
                     }
                     if (status == WF_OK) {
-                        status = wf_us_parse_int(week, &items[i].joined_week_count,
-                                                 &items[i].has_joined_week_count);
+                        status =
+                            wf_us_parse_int(week, &items[i].joined_week_count,
+                                            &items[i].has_joined_week_count);
                     }
                     if (status == WF_OK) {
-                        status = wf_us_parse_int(all, &items[i].joined_all_time_count,
-                                                 &items[i].has_joined_all_time_count);
+                        status = wf_us_parse_int(
+                            all, &items[i].joined_all_time_count,
+                            &items[i].has_joined_all_time_count);
                     }
                     if (status == WF_OK) {
-                        cJSON *record = cJSON_DetachItemFromObject(item, "record");
+                        cJSON *record =
+                            cJSON_DetachItemFromObject(item, "record");
                         if (record) {
                             items[i].record = record;
                         }
@@ -702,7 +736,8 @@ wf_status wf_agent_parse_onboarding_starter_packs(const char *json, size_t json_
     return status;
 }
 
-void wf_agent_starter_pack_view_list_free(wf_agent_starter_pack_view_list *list) {
+void wf_agent_starter_pack_view_list_free(
+    wf_agent_starter_pack_view_list *list) {
     if (!list) {
         return;
     }
@@ -713,7 +748,8 @@ void wf_agent_starter_pack_view_list_free(wf_agent_starter_pack_view_list *list)
 /* ------------------- Onboarding starter packs (skeleton) ------------------ */
 
 wf_status wf_agent_parse_onboarding_starter_packs_skeleton(
-    const char *json, size_t json_len, wf_agent_starter_pack_skeleton_list *out) {
+    const char *json, size_t json_len,
+    wf_agent_starter_pack_skeleton_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -740,7 +776,8 @@ wf_status wf_agent_parse_onboarding_starter_packs_skeleton(
     return status;
 }
 
-void wf_agent_starter_pack_skeleton_list_free(wf_agent_starter_pack_skeleton_list *list) {
+void wf_agent_starter_pack_skeleton_list_free(
+    wf_agent_starter_pack_skeleton_list *list) {
     if (!list) {
         return;
     }
@@ -761,16 +798,18 @@ static void wf_us_search_starter_pack_reset(wf_agent_search_starter_pack *s) {
     memset(s, 0, sizeof(*s));
 }
 
-static void wf_us_search_starter_packs_reset(wf_agent_search_starter_pack *items,
-                                             size_t n) {
+static void
+wf_us_search_starter_packs_reset(wf_agent_search_starter_pack *items,
+                                 size_t n) {
     for (size_t i = 0; i < n; ++i) {
         wf_us_search_starter_pack_reset(&items[i]);
     }
     free(items);
 }
 
-wf_status wf_agent_parse_search_starter_packs(const char *json, size_t json_len,
-                                              wf_agent_search_starter_packs_list *out) {
+wf_status
+wf_agent_parse_search_starter_packs(const char *json, size_t json_len,
+                                    wf_agent_search_starter_packs_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -801,7 +840,8 @@ wf_status wf_agent_parse_search_starter_packs(const char *json, size_t json_len,
                     }
                     cJSON *uri = cJSON_GetObjectItemCaseSensitive(item, "uri");
                     if (cJSON_IsString(uri) && uri->valuestring) {
-                        status = wf_us_set_string(&items[i].uri, uri->valuestring);
+                        status =
+                            wf_us_set_string(&items[i].uri, uri->valuestring);
                     } else {
                         status = WF_ERR_PARSE;
                     }
@@ -839,7 +879,8 @@ wf_status wf_agent_parse_search_starter_packs(const char *json, size_t json_len,
     return status;
 }
 
-void wf_agent_search_starter_packs_free(wf_agent_search_starter_packs_list *list) {
+void wf_agent_search_starter_packs_free(
+    wf_agent_search_starter_packs_list *list) {
     if (!list) {
         return;
     }
@@ -850,8 +891,8 @@ void wf_agent_search_starter_packs_free(wf_agent_search_starter_packs_list *list
 
 /* --------------------------- Typed agent wrappers ------------------------- */
 
-wf_status wf_agent_get_trending_topics_typed(wf_agent *agent, const char *viewer,
-                                             int limit,
+wf_status wf_agent_get_trending_topics_typed(wf_agent *agent,
+                                             const char *viewer, int limit,
                                              wf_agent_trending_topics *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
@@ -873,9 +914,8 @@ wf_status wf_agent_get_trending_topics_typed(wf_agent *agent, const char *viewer
     }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_app_bsky_unspecced_get_trending_topics_main_call(agent->client,
-                                                               &params, &res);
+    wf_status status = wf_lex_app_bsky_unspecced_get_trending_topics_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -885,8 +925,9 @@ wf_status wf_agent_get_trending_topics_typed(wf_agent *agent, const char *viewer
     return status;
 }
 
-wf_status wf_agent_get_tagged_suggestions_typed(wf_agent *agent,
-                                                wf_agent_tagged_suggestions *out) {
+wf_status
+wf_agent_get_tagged_suggestions_typed(wf_agent *agent,
+                                      wf_agent_tagged_suggestions *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -897,8 +938,8 @@ wf_status wf_agent_get_tagged_suggestions_typed(wf_agent *agent,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =
-        wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_call(agent->client,
-                                                                  &params, &res);
+        wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_call(
+            agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -908,11 +949,9 @@ wf_status wf_agent_get_tagged_suggestions_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_get_suggestions_skeleton_typed(wf_agent *agent,
-                                                  const char *viewer, int limit,
-                                                  const char *cursor,
-                                                  const char *relative_to_did,
-                                                  wf_agent_suggestions_skeleton *out) {
+wf_status wf_agent_get_suggestions_skeleton_typed(
+    wf_agent *agent, const char *viewer, int limit, const char *cursor,
+    const char *relative_to_did, wf_agent_suggestions_skeleton *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -942,8 +981,8 @@ wf_status wf_agent_get_suggestions_skeleton_typed(wf_agent *agent,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =
-        wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_call(agent->client,
-                                                                   &params, &res);
+        wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_call(
+            agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -974,8 +1013,9 @@ wf_status wf_agent_get_config_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_get_age_assurance_state_typed(wf_agent *agent,
-                                                 wf_agent_age_assurance_state *out) {
+wf_status
+wf_agent_get_age_assurance_state_typed(wf_agent *agent,
+                                       wf_agent_age_assurance_state *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -985,8 +1025,8 @@ wf_status wf_agent_get_age_assurance_state_typed(wf_agent *agent,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =
-        wf_lex_app_bsky_unspecced_get_age_assurance_state_main_call(agent->client,
-                                                                   &res);
+        wf_lex_app_bsky_unspecced_get_age_assurance_state_main_call(
+            agent->client, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -1007,7 +1047,8 @@ wf_status wf_agent_get_onboarding_suggested_starter_packs_typed(
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_params params = {0};
+    wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_params
+        params = {0};
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
@@ -1021,7 +1062,8 @@ wf_status wf_agent_get_onboarding_suggested_starter_packs_typed(
         wf_response_free(&res);
         return status;
     }
-    status = wf_agent_parse_onboarding_starter_packs(res.body, res.body_len, out);
+    status =
+        wf_agent_parse_onboarding_starter_packs(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
@@ -1040,7 +1082,8 @@ wf_status wf_agent_get_suggested_starter_packs_typed(
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params params = {0};
+    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params params = {
+        0};
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
@@ -1054,7 +1097,8 @@ wf_status wf_agent_get_suggested_starter_packs_typed(
         wf_response_free(&res);
         return status;
     }
-    status = wf_agent_parse_onboarding_starter_packs(res.body, res.body_len, out);
+    status =
+        wf_agent_parse_onboarding_starter_packs(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
@@ -1071,7 +1115,8 @@ wf_status wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_params params = {0};
+    wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_params
+        params = {0};
     if (viewer && viewer[0]) {
         params.has_viewer = true;
         params.viewer = viewer;
@@ -1089,8 +1134,8 @@ wf_status wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(
         wf_response_free(&res);
         return status;
     }
-    status = wf_agent_parse_onboarding_starter_packs_skeleton(res.body, res.body_len,
-                                                              out);
+    status = wf_agent_parse_onboarding_starter_packs_skeleton(
+        res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
@@ -1107,7 +1152,8 @@ wf_status wf_agent_search_starter_packs_typed(
     if (!agent->client) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params params = {0};
+    wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params params =
+        {0};
     params.q = q;
     if (viewer && viewer[0]) {
         params.has_viewer = true;
@@ -1141,17 +1187,20 @@ wf_status wf_agent_search_starter_packs_typed(
 
 wf_status wf_unspecced_get_onboarding_suggested_users_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_onboarding_suggested_users_skeleton_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output
+        **out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1165,12 +1214,14 @@ wf_status wf_unspecced_get_onboarding_suggested_users_skeleton_parse(
 
 wf_status wf_unspecced_get_popular_feed_generators(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_popular_feed_generators_parse(
@@ -1189,12 +1240,14 @@ wf_status wf_unspecced_get_popular_feed_generators_parse(
 
 wf_status wf_unspecced_get_post_thread_other_v2(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_post_thread_other_v2_parse(
@@ -1218,7 +1271,8 @@ wf_status wf_unspecced_get_post_thread_v2(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_post_thread_v2_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_post_thread_v2_main_call(client,
+                                                                  params, out);
 }
 
 wf_status wf_unspecced_get_post_thread_v2_parse(
@@ -1242,7 +1296,8 @@ wf_status wf_unspecced_get_suggested_feeds(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_feeds_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_feeds_main_call(client,
+                                                                   params, out);
 }
 
 wf_status wf_unspecced_get_suggested_feeds_parse(
@@ -1261,12 +1316,14 @@ wf_status wf_unspecced_get_suggested_feeds_parse(
 
 wf_status wf_unspecced_get_suggested_feeds_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_feeds_skeleton_parse(
@@ -1285,17 +1342,20 @@ wf_status wf_unspecced_get_suggested_feeds_skeleton_parse(
 
 wf_status wf_unspecced_get_suggested_onboarding_users(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_onboarding_users_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output *
+        *out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1309,12 +1369,14 @@ wf_status wf_unspecced_get_suggested_onboarding_users_parse(
 
 wf_status wf_unspecced_get_suggested_starter_packs(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_starter_packs_parse(
@@ -1333,17 +1395,20 @@ wf_status wf_unspecced_get_suggested_starter_packs_parse(
 
 wf_status wf_unspecced_get_suggested_starter_packs_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_starter_packs_skeleton_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output *
+        *out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1362,7 +1427,8 @@ wf_status wf_unspecced_get_suggested_users(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_main_call(client,
+                                                                   params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_parse(
@@ -1381,17 +1447,20 @@ wf_status wf_unspecced_get_suggested_users_parse(
 
 wf_status wf_unspecced_get_suggested_users_for_discover(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_for_discover_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output *
+        *out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1405,17 +1474,20 @@ wf_status wf_unspecced_get_suggested_users_for_discover_parse(
 
 wf_status wf_unspecced_get_suggested_users_for_discover_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_for_discover_skeleton_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output
+        **out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1429,17 +1501,20 @@ wf_status wf_unspecced_get_suggested_users_for_discover_skeleton_parse(
 
 wf_status wf_unspecced_get_suggested_users_for_explore(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_for_explore_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output *
+        *out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1453,17 +1528,20 @@ wf_status wf_unspecced_get_suggested_users_for_explore_parse(
 
 wf_status wf_unspecced_get_suggested_users_for_explore_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_for_explore_skeleton_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output
+        **out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1477,17 +1555,20 @@ wf_status wf_unspecced_get_suggested_users_for_explore_skeleton_parse(
 
 wf_status wf_unspecced_get_suggested_users_for_see_more(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_for_see_more_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output *
+        *out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1501,17 +1582,20 @@ wf_status wf_unspecced_get_suggested_users_for_see_more_parse(
 
 wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton_parse(
     const wf_response *resp,
-    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output **out) {
+    wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output
+        **out) {
     if (!resp || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1525,12 +1609,14 @@ wf_status wf_unspecced_get_suggested_users_for_see_more_skeleton_parse(
 
 wf_status wf_unspecced_get_suggested_users_skeleton(
     wf_xrpc_client *client,
-    const wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_params *params,
+    const wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_get_suggested_users_skeleton_parse(
@@ -1578,7 +1664,8 @@ wf_status wf_unspecced_get_trends_skeleton(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_get_trends_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_get_trends_skeleton_main_call(client,
+                                                                   params, out);
 }
 
 wf_status wf_unspecced_get_trends_skeleton_parse(
@@ -1602,7 +1689,8 @@ wf_status wf_unspecced_init_age_assurance(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_init_age_assurance_main_call(client, input, out);
+    return wf_lex_app_bsky_unspecced_init_age_assurance_main_call(client, input,
+                                                                  out);
 }
 
 wf_status wf_unspecced_search_actors_skeleton(
@@ -1612,7 +1700,8 @@ wf_status wf_unspecced_search_actors_skeleton(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_search_actors_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_search_actors_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_search_actors_skeleton_parse(
@@ -1636,7 +1725,8 @@ wf_status wf_unspecced_search_posts_skeleton(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_app_bsky_unspecced_search_posts_skeleton_main_call(client, params, out);
+    return wf_lex_app_bsky_unspecced_search_posts_skeleton_main_call(
+        client, params, out);
 }
 
 wf_status wf_unspecced_search_posts_skeleton_parse(

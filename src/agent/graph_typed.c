@@ -119,26 +119,33 @@ wf_status wf_agent_parse_likes(const char *json, size_t json_len,
         if (cJSON_IsObject(actor)) {
             cJSON *did = cJSON_GetObjectItemCaseSensitive(actor, "did");
             cJSON *handle = cJSON_GetObjectItemCaseSensitive(actor, "handle");
-            cJSON *name = cJSON_GetObjectItemCaseSensitive(actor, "displayName");
+            cJSON *name =
+                cJSON_GetObjectItemCaseSensitive(actor, "displayName");
             cJSON *avatar = cJSON_GetObjectItemCaseSensitive(actor, "avatar");
             if (cJSON_IsString(did) && did->valuestring) {
                 status = wf_graph_set_string(&l->actor.did, did->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-                status = wf_graph_set_string(&l->actor.handle, handle->valuestring);
+            if (status == WF_OK && cJSON_IsString(handle) &&
+                handle->valuestring) {
+                status =
+                    wf_graph_set_string(&l->actor.handle, handle->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
                 status = wf_graph_set_string(&l->actor.display_name,
                                              name->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-                status = wf_graph_set_string(&l->actor.avatar, avatar->valuestring);
+            if (status == WF_OK && cJSON_IsString(avatar) &&
+                avatar->valuestring) {
+                status =
+                    wf_graph_set_string(&l->actor.avatar, avatar->valuestring);
             }
         }
-        if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
+        if (status == WF_OK && cJSON_IsString(created) &&
+            created->valuestring) {
             status = wf_graph_set_string(&l->created_at, created->valuestring);
         }
-        if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
+        if (status == WF_OK && cJSON_IsString(indexed) &&
+            indexed->valuestring) {
             status = wf_graph_set_string(&l->indexed_at, indexed->valuestring);
         }
 
@@ -198,8 +205,8 @@ wf_status wf_agent_get_follows_typed(wf_agent *agent, const char *actor,
 }
 
 wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
-                                        int limit, const char *cursor,
-                                        wf_agent_actor_list *out) {
+                                       int limit, const char *cursor,
+                                       wf_agent_actor_list *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -208,7 +215,8 @@ wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_followers(agent, actor, limit, cursor, &res);
+    wf_status status =
+        wf_agent_get_followers(agent, actor, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -305,27 +313,33 @@ wf_status wf_agent_parse_relationships(const char *json, size_t json_len,
             break;
         }
         if (status == WF_OK) {
-            status = wf_graph_set_opt_aturi(&r->following,
+            status = wf_graph_set_opt_aturi(
+                &r->following,
                 cJSON_GetObjectItemCaseSensitive(obj, "following"));
         }
         if (status == WF_OK) {
-            status = wf_graph_set_opt_aturi(&r->followed_by,
+            status = wf_graph_set_opt_aturi(
+                &r->followed_by,
                 cJSON_GetObjectItemCaseSensitive(obj, "followedBy"));
         }
         if (status == WF_OK) {
-            status = wf_graph_set_opt_aturi(&r->blocking,
+            status = wf_graph_set_opt_aturi(
+                &r->blocking,
                 cJSON_GetObjectItemCaseSensitive(obj, "blocking"));
         }
         if (status == WF_OK) {
-            status = wf_graph_set_opt_aturi(&r->blocked_by,
+            status = wf_graph_set_opt_aturi(
+                &r->blocked_by,
                 cJSON_GetObjectItemCaseSensitive(obj, "blockedBy"));
         }
         if (status == WF_OK) {
-            status = wf_graph_set_opt_aturi(&r->blocking_by_list,
+            status = wf_graph_set_opt_aturi(
+                &r->blocking_by_list,
                 cJSON_GetObjectItemCaseSensitive(obj, "blockingByList"));
         }
         if (status == WF_OK) {
-            status = wf_graph_set_opt_aturi(&r->blocked_by_list,
+            status = wf_graph_set_opt_aturi(
+                &r->blocked_by_list,
                 cJSON_GetObjectItemCaseSensitive(obj, "blockedByList"));
         }
         if (status != WF_OK) {
@@ -353,16 +367,16 @@ void wf_agent_relationship_list_free(wf_agent_relationship_list *list) {
 }
 
 wf_status wf_agent_get_relationships_typed(wf_agent *agent, const char *actor,
-                                            const char *const *others,
-                                            size_t others_count,
-                                            wf_agent_relationship_list *out) {
+                                           const char *const *others,
+                                           size_t others_count,
+                                           wf_agent_relationship_list *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_relationships(agent, actor, others,
-                                                  others_count, &res);
+    wf_status status =
+        wf_agent_get_relationships(agent, actor, others, others_count, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;

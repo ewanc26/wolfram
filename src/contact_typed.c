@@ -251,7 +251,8 @@ wf_status wf_contact_parse_sync_status(const char *json, size_t json_len,
     cJSON *status_obj = cJSON_GetObjectItemCaseSensitive(root, "syncStatus");
     if (cJSON_IsObject(status_obj)) {
         out->has_status = 1;
-        cJSON *synced = cJSON_GetObjectItemCaseSensitive(status_obj, "syncedAt");
+        cJSON *synced =
+            cJSON_GetObjectItemCaseSensitive(status_obj, "syncedAt");
         cJSON *matches =
             cJSON_GetObjectItemCaseSensitive(status_obj, "matchesCount");
         if (cJSON_IsString(synced) && synced->valuestring) {
@@ -310,8 +311,8 @@ wf_status wf_agent_get_contact_matches_typed(wf_agent *agent, int limit,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status =
-        wf_lex_app_bsky_contact_get_matches_main_call(agent->client, &params, &res);
+    wf_status status = wf_lex_app_bsky_contact_get_matches_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -415,14 +416,14 @@ wf_status wf_agent_contact_start_phone_verification(wf_agent *agent,
     wf_agent_sync_auth(agent);
     wf_response res = {0};
     wf_status status =
-        wf_lex_app_bsky_contact_start_phone_verification_main_call(agent->client,
-                                                                   &input, &res);
+        wf_lex_app_bsky_contact_start_phone_verification_main_call(
+            agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
 
 wf_status wf_contact_parse_verify_phone(const char *json, size_t json_len,
-                                         wf_contact_verify_phone_result *out) {
+                                        wf_contact_verify_phone_result *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -458,9 +459,9 @@ void wf_contact_verify_phone_result_free(wf_contact_verify_phone_result *out) {
 }
 
 wf_status wf_agent_contact_verify_phone(wf_agent *agent,
-                                         const char *phone_number,
-                                         const char *code,
-                                         wf_contact_verify_phone_result *out) {
+                                        const char *phone_number,
+                                        const char *code,
+                                        wf_contact_verify_phone_result *out) {
     if (!agent || !agent->client || !phone_number || !code) {
         return WF_ERR_INVALID_ARG;
     }

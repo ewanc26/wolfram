@@ -89,8 +89,7 @@ wf_status wf_bsky_agent_post(wf_bsky_agent *b, const char *text,
 
 /* Fetch a profile by handle or DID. Forwards to wf_agent_get_profile.
  * NULL b or handle_or_did or out -> WF_ERR_INVALID_ARG. */
-wf_status wf_bsky_agent_get_profile(wf_bsky_agent *b,
-                                    const char *handle_or_did,
+wf_status wf_bsky_agent_get_profile(wf_bsky_agent *b, const char *handle_or_did,
                                     wf_agent_profile *out);
 
 /* Fetch the authenticated user's timeline (typed). Forwards to

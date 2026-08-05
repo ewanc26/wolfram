@@ -14,18 +14,20 @@
 namespace {
 
 struct cjson_deleter {
-    void operator()(cJSON *p) const noexcept { cJSON_Delete(p); }
+    void operator()(cJSON *p) const noexcept {
+        cJSON_Delete(p);
+    }
 };
 
 using cjson_ptr = std::unique_ptr<cJSON, cjson_deleter>;
 
 static bool wf_json_type_matches(const char *type, const cJSON *node) {
-    if (std::strcmp(type, "object") == 0)  return cJSON_IsObject(node);
-    if (std::strcmp(type, "array") == 0)   return cJSON_IsArray(node);
-    if (std::strcmp(type, "string") == 0)  return cJSON_IsString(node);
-    if (std::strcmp(type, "number") == 0)  return cJSON_IsNumber(node);
+    if (std::strcmp(type, "object") == 0) return cJSON_IsObject(node);
+    if (std::strcmp(type, "array") == 0) return cJSON_IsArray(node);
+    if (std::strcmp(type, "string") == 0) return cJSON_IsString(node);
+    if (std::strcmp(type, "number") == 0) return cJSON_IsNumber(node);
     if (std::strcmp(type, "boolean") == 0) return cJSON_IsBool(node);
-    if (std::strcmp(type, "null") == 0)    return cJSON_IsNull(node);
+    if (std::strcmp(type, "null") == 0) return cJSON_IsNull(node);
     return true;
 }
 
@@ -111,8 +113,7 @@ static bool wf_json_format_hostname(const char *s) {
 static bool wf_json_check_format(const char *format, const char *value) {
     if (std::strcmp(format, "date-time") == 0)
         return wf_syntax_datetime_is_valid(value) != 0;
-    if (std::strcmp(format, "email") == 0)
-        return wf_json_format_email(value);
+    if (std::strcmp(format, "email") == 0) return wf_json_format_email(value);
     if (std::strcmp(format, "uri") == 0)
         return std::strstr(value, "://") != nullptr;
     if (std::strcmp(format, "hostname") == 0)
@@ -125,7 +126,9 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
     cJSON *type = cJSON_GetObjectItem(schema, "type");
     if (type && cJSON_IsString(type)) {
         if (!wf_json_type_matches(type->valuestring, doc)) {
-            wf_json_fail(out_error, path, "expected type \"%s\" but found different type", type->valuestring);
+            wf_json_fail(out_error, path,
+                         "expected type \"%s\" but found different type",
+                         type->valuestring);
             return false;
         }
     }
@@ -135,10 +138,14 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
         bool found = false;
         cJSON *cand;
         cJSON_ArrayForEach(cand, en) {
-            if (wf_json_deep_equal(cand, doc)) { found = true; break; }
+            if (wf_json_deep_equal(cand, doc)) {
+                found = true;
+                break;
+            }
         }
         if (!found) {
-            wf_json_fail(out_error, path, "value does not match any element of enum");
+            wf_json_fail(out_error, path,
+                         "value does not match any element of enum");
             return false;
         }
     }
@@ -154,7 +161,8 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
     cJSON *fmt = cJSON_GetObjectItem(schema, "format");
     if (fmt && cJSON_IsString(fmt) && cJSON_IsString(doc)) {
         if (!wf_json_check_format(fmt->valuestring, doc->valuestring)) {
-            wf_json_fail(out_error, path, "value does not match format \"%s\"", fmt->valuestring);
+            wf_json_fail(out_error, path, "value does not match format \"%s\"",
+                         fmt->valuestring);
             return false;
         }
     }
@@ -166,7 +174,9 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
             cJSON_ArrayForEach(req, required) {
                 if (!cJSON_IsString(req)) continue;
                 if (!cJSON_HasObjectItem(doc, req->valuestring)) {
-                    wf_json_fail(out_error, path, "missing required property \"%s\"", req->valuestring);
+                    wf_json_fail(out_error, path,
+                                 "missing required property \"%s\"",
+                                 req->valuestring);
                     return false;
                 }
             }
@@ -179,7 +189,9 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
                 cJSON *child = cJSON_GetObjectItem(doc, prop_schema->string);
                 if (!child) continue;
                 std::string child_path = path + "." + prop_schema->string;
-                if (!wf_json_validate_rec(prop_schema, child, child_path, out_error)) return false;
+                if (!wf_json_validate_rec(prop_schema, child, child_path,
+                                          out_error))
+                    return false;
             }
         }
 
@@ -187,17 +199,22 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
         if (ap && cJSON_IsObject(ap)) {
             cJSON *child;
             cJSON_ArrayForEach(child, doc) {
-                if (properties && cJSON_HasObjectItem(properties, child->string))
+                if (properties &&
+                    cJSON_HasObjectItem(properties, child->string))
                     continue;
                 std::string child_path = path + "." + child->string;
-                if (!wf_json_validate_rec(ap, child, child_path, out_error)) return false;
+                if (!wf_json_validate_rec(ap, child, child_path, out_error))
+                    return false;
             }
         } else if (ap && cJSON_IsFalse(ap)) {
             cJSON *child;
             cJSON_ArrayForEach(child, doc) {
-                if (properties && cJSON_HasObjectItem(properties, child->string))
+                if (properties &&
+                    cJSON_HasObjectItem(properties, child->string))
                     continue;
-                wf_json_fail(out_error, path, "additional property \"%s\" is not allowed", child->string);
+                wf_json_fail(out_error, path,
+                             "additional property \"%s\" is not allowed",
+                             child->string);
                 return false;
             }
         }
@@ -208,21 +225,27 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
             cJSON *elem;
             cJSON_ArrayForEach(elem, doc) {
                 char child_path[32];
-                std::snprintf(child_path, sizeof(child_path), "%s[%d]", path.c_str(), idx);
-                if (!wf_json_validate_rec(items, elem, child_path, out_error)) return false;
+                std::snprintf(child_path, sizeof(child_path), "%s[%d]",
+                              path.c_str(), idx);
+                if (!wf_json_validate_rec(items, elem, child_path, out_error))
+                    return false;
                 idx++;
             }
         }
 
         int n = cJSON_GetArraySize(doc);
         cJSON *min_items = cJSON_GetObjectItem(schema, "minItems");
-        if (min_items && cJSON_IsNumber(min_items) && n < static_cast<int>(min_items->valuedouble)) {
-            wf_json_fail(out_error, path, "array has fewer than %d items", static_cast<int>(min_items->valuedouble));
+        if (min_items && cJSON_IsNumber(min_items) &&
+            n < static_cast<int>(min_items->valuedouble)) {
+            wf_json_fail(out_error, path, "array has fewer than %d items",
+                         static_cast<int>(min_items->valuedouble));
             return false;
         }
         cJSON *max_items = cJSON_GetObjectItem(schema, "maxItems");
-        if (max_items && cJSON_IsNumber(max_items) && n > static_cast<int>(max_items->valuedouble)) {
-            wf_json_fail(out_error, path, "array has more than %d items", static_cast<int>(max_items->valuedouble));
+        if (max_items && cJSON_IsNumber(max_items) &&
+            n > static_cast<int>(max_items->valuedouble)) {
+            wf_json_fail(out_error, path, "array has more than %d items",
+                         static_cast<int>(max_items->valuedouble));
             return false;
         }
         cJSON *unique = cJSON_GetObjectItem(schema, "uniqueItems");
@@ -232,7 +255,8 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
                 for (int j = i + 1; j < n; j++) {
                     cJSON *b = cJSON_GetArrayItem(doc, j);
                     if (wf_json_deep_equal(a, b)) {
-                        wf_json_fail(out_error, path, "array contains duplicate items");
+                        wf_json_fail(out_error, path,
+                                     "array contains duplicate items");
                         return false;
                     }
                 }
@@ -244,25 +268,31 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
         cJSON *minimum = cJSON_GetObjectItem(schema, "minimum");
         if (minimum && cJSON_IsNumber(minimum) &&
             doc->valuedouble < minimum->valuedouble) {
-            wf_json_fail(out_error, path, "value is less than minimum %g", minimum->valuedouble);
+            wf_json_fail(out_error, path, "value is less than minimum %g",
+                         minimum->valuedouble);
             return false;
         }
         cJSON *maximum = cJSON_GetObjectItem(schema, "maximum");
         if (maximum && cJSON_IsNumber(maximum) &&
             doc->valuedouble > maximum->valuedouble) {
-            wf_json_fail(out_error, path, "value is greater than maximum %g", maximum->valuedouble);
+            wf_json_fail(out_error, path, "value is greater than maximum %g",
+                         maximum->valuedouble);
             return false;
         }
         cJSON *exmin = cJSON_GetObjectItem(schema, "exclusiveMinimum");
         if (exmin && cJSON_IsNumber(exmin) &&
             doc->valuedouble <= exmin->valuedouble) {
-            wf_json_fail(out_error, path, "value is not greater than exclusiveMinimum %g", exmin->valuedouble);
+            wf_json_fail(out_error, path,
+                         "value is not greater than exclusiveMinimum %g",
+                         exmin->valuedouble);
             return false;
         }
         cJSON *exmax = cJSON_GetObjectItem(schema, "exclusiveMaximum");
         if (exmax && cJSON_IsNumber(exmax) &&
             doc->valuedouble >= exmax->valuedouble) {
-            wf_json_fail(out_error, path, "value is not less than exclusiveMaximum %g", exmax->valuedouble);
+            wf_json_fail(out_error, path,
+                         "value is not less than exclusiveMaximum %g",
+                         exmax->valuedouble);
             return false;
         }
         cJSON *mult = cJSON_GetObjectItem(schema, "multipleOf");
@@ -270,7 +300,8 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
             double r = std::fmod(doc->valuedouble, mult->valuedouble);
             if (r < 0) r += mult->valuedouble;
             if (r > 1e-9 && (mult->valuedouble - r) > 1e-9) {
-                wf_json_fail(out_error, path, "value is not a multiple of %g", mult->valuedouble);
+                wf_json_fail(out_error, path, "value is not a multiple of %g",
+                             mult->valuedouble);
                 return false;
             }
         }
@@ -279,13 +310,17 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
     if (cJSON_IsString(doc)) {
         size_t blen = std::strlen(doc->valuestring);
         cJSON *minlen = cJSON_GetObjectItem(schema, "minLength");
-        if (minlen && cJSON_IsNumber(minlen) && blen < static_cast<size_t>(minlen->valuedouble)) {
-            wf_json_fail(out_error, path, "string is shorter than minLength %d", static_cast<int>(minlen->valuedouble));
+        if (minlen && cJSON_IsNumber(minlen) &&
+            blen < static_cast<size_t>(minlen->valuedouble)) {
+            wf_json_fail(out_error, path, "string is shorter than minLength %d",
+                         static_cast<int>(minlen->valuedouble));
             return false;
         }
         cJSON *maxlen = cJSON_GetObjectItem(schema, "maxLength");
-        if (maxlen && cJSON_IsNumber(maxlen) && blen > static_cast<size_t>(maxlen->valuedouble)) {
-            wf_json_fail(out_error, path, "string is longer than maxLength %d", static_cast<int>(maxlen->valuedouble));
+        if (maxlen && cJSON_IsNumber(maxlen) &&
+            blen > static_cast<size_t>(maxlen->valuedouble)) {
+            wf_json_fail(out_error, path, "string is longer than maxLength %d",
+                         static_cast<int>(maxlen->valuedouble));
             return false;
         }
         cJSON *pat = cJSON_GetObjectItem(schema, "pattern");
@@ -311,8 +346,10 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
         cJSON *sub;
         cJSON_ArrayForEach(sub, any) {
             char *se = nullptr;
-            if (wf_json_validate_rec(sub, doc, path, &se)) passes++;
-            else std::free(se);
+            if (wf_json_validate_rec(sub, doc, path, &se))
+                passes++;
+            else
+                std::free(se);
         }
         if (passes == 0) {
             wf_json_fail(out_error, path, "no subschema in anyOf matched");
@@ -326,11 +363,16 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
         cJSON *sub;
         cJSON_ArrayForEach(sub, one) {
             char *se = nullptr;
-            if (wf_json_validate_rec(sub, doc, path, &se)) passes++;
-            else std::free(se);
+            if (wf_json_validate_rec(sub, doc, path, &se))
+                passes++;
+            else
+                std::free(se);
         }
         if (passes != 1) {
-            wf_json_fail(out_error, path, "expected exactly one subschema in oneOf to match, got %d", passes);
+            wf_json_fail(
+                out_error, path,
+                "expected exactly one subschema in oneOf to match, got %d",
+                passes);
             return false;
         }
     }
@@ -363,9 +405,8 @@ wf_status wf_json_canonicalize(const char *in, size_t len, char **out) {
     }
     if (parse_end) {
         const char *end = in + len;
-        while (parse_end < end &&
-               (*parse_end == ' ' || *parse_end == '\t' ||
-                *parse_end == '\n' || *parse_end == '\r')) {
+        while (parse_end < end && (*parse_end == ' ' || *parse_end == '\t' ||
+                                   *parse_end == '\n' || *parse_end == '\r')) {
             parse_end++;
         }
         if (parse_end < end) {

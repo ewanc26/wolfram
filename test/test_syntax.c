@@ -7,12 +7,15 @@
 static void test_did_valid(void) {
     WF_CHECK(wf_syntax_did_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur"));
     WF_CHECK(wf_syntax_did_is_valid("did:web:bluesky-social.github.io"));
-    WF_CHECK(wf_syntax_did_is_valid("did:key:zQ3shokFTS3brHcDQrn82T5NnV2A5ZDeSjs2zQ4n2QmFJkfY3"));
+    WF_CHECK(wf_syntax_did_is_valid(
+        "did:key:zQ3shokFTS3brHcDQrn82T5NnV2A5ZDeSjs2zQ4n2QmFJkfY3"));
     WF_CHECK(wf_syntax_did_is_valid("did:plc:ewvi7nxzyq6n7qoy7fe2v4ji"));
     WF_CHECK(wf_syntax_did_is_valid("did:example:123"));
     WF_CHECK(wf_syntax_did_is_valid("did:method:abc.def.ghi%FF"));
-    WF_CHECK(!wf_syntax_did_is_valid("did:123:abc"));       /* method must be letters only */
-    WF_CHECK(!wf_syntax_did_is_valid("did:m123:val"));      /* method must be letters only */
+    WF_CHECK(!wf_syntax_did_is_valid(
+        "did:123:abc")); /* method must be letters only */
+    WF_CHECK(!wf_syntax_did_is_valid(
+        "did:m123:val")); /* method must be letters only */
 }
 
 /*
@@ -31,8 +34,10 @@ static void test_did_plc(void) {
 
     /* Wrong length — the regression that motivated this. */
     WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:bearbootstrap"));
-    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvu"));   /* 23 */
-    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvurx")); /* 25 */
+    WF_CHECK(!wf_syntax_did_plc_is_valid(
+        "did:plc:z72i7hdynmk6r22z27h6tvu")); /* 23 */
+    WF_CHECK(!wf_syntax_did_plc_is_valid(
+        "did:plc:z72i7hdynmk6r22z27h6tvurx")); /* 25 */
     WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:"));
 
     /* Characters outside the base32 alphabet: 0, 1, 8, 9 and uppercase. */
@@ -49,10 +54,13 @@ static void test_did_plc(void) {
     WF_CHECK(!wf_syntax_did_plc_is_valid(NULL));
 
     /* No trailing path, query or fragment. */
-    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur#atproto"));
-    WF_CHECK(!wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur/foo"));
+    WF_CHECK(!wf_syntax_did_plc_is_valid(
+        "did:plc:z72i7hdynmk6r22z27h6tvur#atproto"));
+    WF_CHECK(
+        !wf_syntax_did_plc_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur/foo"));
 
-    /* The generic validator accepts this; that difference is the whole point. */
+    /* The generic validator accepts this; that difference is the whole point.
+     */
     WF_CHECK(wf_syntax_did_is_valid("did:plc:bearbootstrap"));
 }
 
@@ -96,7 +104,8 @@ static void test_handle_invalid(void) {
 /* ── at-identifier ───────────────────────────────────────────────────── */
 
 static void test_at_identifier_valid(void) {
-    WF_CHECK(wf_syntax_at_identifier_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur"));
+    WF_CHECK(
+        wf_syntax_at_identifier_is_valid("did:plc:z72i7hdynmk6r22z27h6tvur"));
     WF_CHECK(wf_syntax_at_identifier_is_valid("alice.bsky.social"));
     WF_CHECK(!wf_syntax_at_identifier_is_valid("did:123:abc"));
     WF_CHECK(!wf_syntax_at_identifier_is_valid("did:m123:val"));
@@ -187,18 +196,21 @@ static void test_tid_invalid(void) {
 
 static void test_aturi_valid(void) {
     wf_syntax_aturi parsed = {0};
-    WF_CHECK(wf_syntax_aturi_parse(
-        "at://did:plc:z72i7hdynmk6r22z27h6tvur", &parsed));
+    WF_CHECK(wf_syntax_aturi_parse("at://did:plc:z72i7hdynmk6r22z27h6tvur",
+                                   &parsed));
     wf_syntax_aturi_free(&parsed);
     WF_CHECK(wf_syntax_aturi_parse(
         "at://alice.bsky.social/com.example.post/self", &parsed));
-    WF_CHECK(parsed.authority && strcmp(parsed.authority, "alice.bsky.social") == 0);
-    WF_CHECK(parsed.collection && strcmp(parsed.collection, "com.example.post") == 0);
+    WF_CHECK(parsed.authority &&
+             strcmp(parsed.authority, "alice.bsky.social") == 0);
+    WF_CHECK(parsed.collection &&
+             strcmp(parsed.collection, "com.example.post") == 0);
     WF_CHECK(parsed.record_key && strcmp(parsed.record_key, "self") == 0);
     wf_syntax_aturi_free(&parsed);
-    WF_CHECK(wf_syntax_aturi_parse(
-        "at://did:plc:abc/com.example.post", &parsed));
-    WF_CHECK(parsed.collection && strcmp(parsed.collection, "com.example.post") == 0);
+    WF_CHECK(
+        wf_syntax_aturi_parse("at://did:plc:abc/com.example.post", &parsed));
+    WF_CHECK(parsed.collection &&
+             strcmp(parsed.collection, "com.example.post") == 0);
     WF_CHECK(parsed.record_key == NULL);
     wf_syntax_aturi_free(&parsed);
 }
@@ -266,14 +278,24 @@ static void test_language_invalid(void) {
 /* ── Main ────────────────────────────────────────────────────────────── */
 
 int main(void) {
-    test_did_valid(); test_did_invalid(); test_did_plc();
-    test_handle_valid(); test_handle_invalid();
-    test_at_identifier_valid(); test_at_identifier_invalid();
-    test_nsid_valid(); test_nsid_invalid();
-    test_record_key_valid(); test_record_key_invalid();
-    test_tid_valid(); test_tid_invalid();
-    test_aturi_valid(); test_aturi_invalid();
-    test_datetime_valid(); test_datetime_invalid();
-    test_language_valid(); test_language_invalid();
+    test_did_valid();
+    test_did_invalid();
+    test_did_plc();
+    test_handle_valid();
+    test_handle_invalid();
+    test_at_identifier_valid();
+    test_at_identifier_invalid();
+    test_nsid_valid();
+    test_nsid_invalid();
+    test_record_key_valid();
+    test_record_key_invalid();
+    test_tid_valid();
+    test_tid_invalid();
+    test_aturi_valid();
+    test_aturi_invalid();
+    test_datetime_valid();
+    test_datetime_invalid();
+    test_language_valid();
+    test_language_invalid();
     WF_TEST_SUMMARY();
 }

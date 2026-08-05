@@ -35,7 +35,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define NSID        "io.example.slow.subscribe"
+#define NSID "io.example.slow.subscribe"
 #define FRAME_COUNT 8
 #define PAYLOAD_FMT "slow-frame-%d"
 
@@ -83,8 +83,8 @@ static int test_write_all(int fd, const void *buf, size_t len) {
  * was delivered perfectly — the very failure it exists to detect. `leftover`
  * receives those bytes and the caller counts them alongside the rest.
  */
-static int test_handshake(int fd, uint16_t port,
-                          unsigned char *leftover, size_t *leftover_len) {
+static int test_handshake(int fd, uint16_t port, unsigned char *leftover,
+                          size_t *leftover_len) {
     char req[256];
     char hdr[2048];
     size_t hoff = 0;
@@ -96,11 +96,12 @@ static int test_handshake(int fd, uint16_t port,
                       "Connection: Upgrade\r\n"
                       "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
                       "Sec-WebSocket-Version: 13\r\n"
-                      "\r\n", (unsigned)port);
+                      "\r\n",
+                      (unsigned)port);
     if (test_write_all(fd, req, (size_t)nr) != 0) return -1;
 
     while (!got_eoh && hoff < sizeof(hdr) - 1) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         if (poll(&pfd, 1, 3000) <= 0) break;
         ssize_t n = read(fd, hdr + hoff, sizeof(hdr) - 1 - hoff);
         if (n <= 0) break;
@@ -127,10 +128,13 @@ static int test_handshake(int fd, uint16_t port,
 static ssize_t drain_all(int fd, unsigned char *buf, size_t cap) {
     size_t off = 0;
     for (;;) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         int pr = poll(&pfd, 1, 2000);
-        if (pr < 0) { if (errno == EINTR) continue; return -1; }
-        if (pr == 0) break;                    /* quiet: nothing more coming */
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        if (pr == 0) break; /* quiet: nothing more coming */
         ssize_t n = read(fd, buf + off, cap - off);
         if (n < 0) {
             if (errno == EINTR) continue;
@@ -140,7 +144,7 @@ static ssize_t drain_all(int fd, unsigned char *buf, size_t cap) {
             }
             return -1;
         }
-        if (n == 0) break;                     /* clean EOF (FIN) */
+        if (n == 0) break; /* clean EOF (FIN) */
         off += (size_t)n;
         if (off == cap) break;
     }
@@ -201,7 +205,7 @@ static int run_test(void) {
     uint16_t port;
     int fd;
     unsigned char buf[8192];
-    size_t pre = 0;          /* bytes the handshake read past the headers */
+    size_t pre = 0; /* bytes the handshake read past the headers */
     ssize_t got;
     int frames;
 
@@ -216,7 +220,8 @@ static int run_test(void) {
         wf_xrpc_server_free(server);
         return 1;
     }
-    if (wf_xrpc_server_register_ws(server, NSID, slow_ws_handler, NULL) != WF_OK) {
+    if (wf_xrpc_server_register_ws(server, NSID, slow_ws_handler, NULL) !=
+        WF_OK) {
         fprintf(stderr, "FAIL: register WS endpoint\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -239,7 +244,7 @@ static int run_test(void) {
      * data queued is what makes the kernel send RST rather than FIN, so this
      * is the condition the fix has to survive — a masked 1-byte ping. */
     {
-        unsigned char ping[7] = { 0x89, 0x81, 0x01, 0x02, 0x03, 0x04, 0x41 };
+        unsigned char ping[7] = {0x89, 0x81, 0x01, 0x02, 0x03, 0x04, 0x41};
         if (test_write_all(fd, ping, sizeof(ping)) != 0) {
             fprintf(stderr, "FAIL: could not send client ping\n");
             close(fd);
@@ -254,7 +259,7 @@ static int run_test(void) {
 
     got = drain_all(fd, buf + pre, sizeof(buf) - pre);
     if (got >= 0) {
-        got += (ssize_t)pre;   /* the handshake's over-read counts too */
+        got += (ssize_t)pre; /* the handshake's over-read counts too */
     }
     if (got < 0) {
         fprintf(stderr,
@@ -277,7 +282,8 @@ static int run_test(void) {
     }
 
     printf("PASS: slow client received all %d frames despite immediate "
-           "server close\n", FRAME_COUNT);
+           "server close\n",
+           FRAME_COUNT);
     return 0;
 }
 

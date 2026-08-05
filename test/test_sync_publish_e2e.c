@@ -42,7 +42,8 @@ static void test_base64_encode(const unsigned char *in, size_t len, char *out) {
     size_t i, o = 0;
     for (i = 0; i + 3 <= len; i += 3) {
         unsigned int n = ((unsigned int)in[i] << 16) |
-                         ((unsigned int)in[i + 1] << 8) | (unsigned int)in[i + 2];
+                         ((unsigned int)in[i + 1] << 8) |
+                         (unsigned int)in[i + 2];
         out[o++] = tab[(n >> 18) & 0x3f];
         out[o++] = tab[(n >> 12) & 0x3f];
         out[o++] = tab[(n >> 6) & 0x3f];
@@ -86,7 +87,7 @@ static int test_write_all(int fd, const void *buf, size_t len) {
         if (n < 0) {
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                struct pollfd pfd = { fd, POLLOUT, 0 };
+                struct pollfd pfd = {fd, POLLOUT, 0};
                 if (poll(&pfd, 1, 2000) <= 0) return -1;
                 continue;
             }
@@ -105,8 +106,8 @@ static int test_write_all(int fd, const void *buf, size_t len) {
  * than dropped — otherwise the reader waits for bytes it already holds.
  */
 static unsigned char test_pending[8192];
-static size_t        test_pending_len;
-static size_t        test_pending_off;
+static size_t test_pending_len;
+static size_t test_pending_off;
 
 static void test_pushback(const void *data, size_t len) {
     if (len > sizeof(test_pending)) len = sizeof(test_pending);
@@ -125,12 +126,18 @@ static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
     }
 
     while (off < len) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         int pr = poll(&pfd, 1, remaining > 0 ? remaining : 1000);
-        if (pr < 0) { if (errno == EINTR) continue; return -1; }
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (pr == 0) return -1;
         ssize_t n = read(fd, p + off, len - off);
-        if (n < 0) { if (errno == EINTR) continue; return -1; }
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (n == 0) return -1;
         off += (size_t)n;
     }
@@ -191,17 +198,21 @@ static wf_subscribe_event build_labels_event(void) {
     ev.data.labels.labels = calloc(2, sizeof(wf_label));
 
     wf_label *a = &ev.data.labels.labels[0];
-    a->ver = 1; a->has_ver = 1;
+    a->ver = 1;
+    a->has_ver = 1;
     a->src = strdup("did:plc:labeler");
     a->uri = strdup("at://did:plc:alice/app.bsky.feed.post/abc");
-    a->cid = strdup("bafyreictrgtcg7wph56xjgu3ke7c2tjjgbj5dssviw6staozglsfg5nlu");
+    a->cid =
+        strdup("bafyreictrgtcg7wph56xjgu3ke7c2tjjgbj5dssviw6staozglsfg5nlu");
     a->has_cid = 1;
     a->val = strdup("!no-unauthenticated");
-    a->neg = 1; a->has_neg = 1;
+    a->neg = 1;
+    a->has_neg = 1;
     a->cts = strdup("2024-01-02T03:04:05.000Z");
     a->exp = strdup("2025-01-02T03:04:05.000Z");
     a->has_exp = 1;
-    unsigned char sig_bytes[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    unsigned char sig_bytes[8] = {0x01, 0x02, 0x03, 0x04,
+                                  0x05, 0x06, 0x07, 0x08};
     (void)wf_crypto_base64url_encode(sig_bytes, sizeof(sig_bytes), &a->sig);
     a->has_sig = 1;
 
@@ -220,7 +231,8 @@ static wf_subscribe_event build_commit_event(void) {
     ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
     ev.seq = 7;
     ev.data.commit.seq = 7;
-    snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:e2ecommit");
+    snprintf(ev.data.commit.did, sizeof(ev.data.commit.did),
+             "did:plc:e2ecommit");
     ev.data.commit.commit_cid = sample_cid(1);
     snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2e2e");
     snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2e2e1");
@@ -254,8 +266,13 @@ static wf_subscribe_event build_commit_event(void) {
 static void free_labels_event(wf_subscribe_event *ev) {
     for (size_t i = 0; i < ev->data.labels.labels_count; i++) {
         wf_label *lab = &ev->data.labels.labels[i];
-        free(lab->src); free(lab->uri); free(lab->cid); free(lab->val);
-        free(lab->cts); free(lab->exp); free(lab->sig);
+        free(lab->src);
+        free(lab->uri);
+        free(lab->cid);
+        free(lab->val);
+        free(lab->cts);
+        free(lab->exp);
+        free(lab->sig);
     }
     free(ev->data.labels.labels);
 }
@@ -268,7 +285,8 @@ static void free_commit_event(wf_subscribe_event *ev) {
 }
 
 /* Field-level equality over the two event shapes this test publishes. */
-static int event_equal(const wf_subscribe_event *a, const wf_subscribe_event *b) {
+static int event_equal(const wf_subscribe_event *a,
+                       const wf_subscribe_event *b) {
     if (a->type != b->type) return 0;
     if (a->seq != b->seq) return 0;
 
@@ -303,17 +321,19 @@ static int event_equal(const wf_subscribe_event *a, const wf_subscribe_event *b)
         if (strcmp(x->time, y->time)) return 0;
         if (!cid_equal(&x->commit_cid, &y->commit_cid)) return 0;
         if (x->blocks_len != y->blocks_len) return 0;
-        if (x->blocks_len && memcmp(x->blocks, y->blocks, x->blocks_len)) return 0;
+        if (x->blocks_len && memcmp(x->blocks, y->blocks, x->blocks_len))
+            return 0;
         if (x->ops_count != y->ops_count) return 0;
         for (size_t i = 0; i < x->ops_count; i++) {
             if (strcmp(x->ops[i].action, y->ops[i].action)) return 0;
             if (strcmp(x->ops[i].path, y->ops[i].path)) return 0;
             if (x->ops[i].has_cid != y->ops[i].has_cid) return 0;
-            if (x->ops[i].has_cid &&
-                !cid_equal(&x->ops[i].cid, &y->ops[i].cid)) return 0;
+            if (x->ops[i].has_cid && !cid_equal(&x->ops[i].cid, &y->ops[i].cid))
+                return 0;
             if (x->ops[i].has_prev != y->ops[i].has_prev) return 0;
             if (x->ops[i].has_prev &&
-                !cid_equal(&x->ops[i].prev, &y->ops[i].prev)) return 0;
+                !cid_equal(&x->ops[i].prev, &y->ops[i].prev))
+                return 0;
         }
         return 1;
     }
@@ -334,7 +354,8 @@ static void *ws_publisher(void *arg) {
     struct ws_thread_arg *a = (struct ws_thread_arg *)arg;
 
     /* Frame 0: #labels batch built by wf_sync_publish_event. */
-    unsigned char *buf0 = NULL; size_t len0 = 0;
+    unsigned char *buf0 = NULL;
+    size_t len0 = 0;
     if (wf_sync_publish_event(a->labels, &buf0, &len0) == WF_OK && buf0) {
         if (wf_xrpc_server_ws_send(a->stream, buf0, len0) != WF_OK)
             fprintf(stderr, "WARN: ws_send labels frame failed\n");
@@ -344,7 +365,8 @@ static void *ws_publisher(void *arg) {
     }
 
     /* Frame 1: #commit built by wf_sync_publish_event. */
-    unsigned char *buf1 = NULL; size_t len1 = 0;
+    unsigned char *buf1 = NULL;
+    size_t len1 = 0;
     if (wf_sync_publish_event(a->commit, &buf1, &len1) == WF_OK && buf1) {
         if (wf_xrpc_server_ws_send(a->stream, buf1, len1) != WF_OK)
             fprintf(stderr, "WARN: ws_send commit frame failed\n");
@@ -398,19 +420,21 @@ static int run_test(void) {
     wf_subscribe_event labels = build_labels_event();
     wf_subscribe_event commit = build_commit_event();
 
-    struct ws_thread_arg handler_ctx = { NULL, &labels, &commit };
+    struct ws_thread_arg handler_ctx = {NULL, &labels, &commit};
 
     server = wf_xrpc_server_start("127.0.0.1", 0, 1);
     if (!server) {
         fprintf(stderr, "FAIL: wf_xrpc_server_start returned NULL\n");
-        free_labels_event(&labels); free_commit_event(&commit);
+        free_labels_event(&labels);
+        free_commit_event(&commit);
         return 1;
     }
     port = wf_xrpc_server_port(server);
     if (port == 0) {
         fprintf(stderr, "FAIL: server port is 0\n");
         wf_xrpc_server_free(server);
-        free_labels_event(&labels); free_commit_event(&commit);
+        free_labels_event(&labels);
+        free_commit_event(&commit);
         return 1;
     }
 
@@ -418,7 +442,8 @@ static int run_test(void) {
                                    ws_handler, &handler_ctx) != WF_OK) {
         fprintf(stderr, "FAIL: register WS endpoint\n");
         wf_xrpc_server_free(server);
-        free_labels_event(&labels); free_commit_event(&commit);
+        free_labels_event(&labels);
+        free_commit_event(&commit);
         return 1;
     }
 
@@ -427,7 +452,8 @@ static int run_test(void) {
     if (fd < 0) {
         fprintf(stderr, "FAIL: connect to server\n");
         wf_xrpc_server_free(server);
-        free_labels_event(&labels); free_commit_event(&commit);
+        free_labels_event(&labels);
+        free_commit_event(&commit);
         return 1;
     }
 
@@ -439,12 +465,14 @@ static int run_test(void) {
                       "Connection: Upgrade\r\n"
                       "Sec-WebSocket-Key: " WS_KEY "\r\n"
                       "Sec-WebSocket-Version: 13\r\n"
-                      "\r\n", (unsigned)port);
+                      "\r\n",
+                      (unsigned)port);
     if (test_write_all(fd, req, (size_t)nr) != 0) {
         fprintf(stderr, "FAIL: write handshake request\n");
         close(fd);
         wf_xrpc_server_free(server);
-        free_labels_event(&labels); free_commit_event(&commit);
+        free_labels_event(&labels);
+        free_commit_event(&commit);
         return 1;
     }
 
@@ -452,7 +480,7 @@ static int run_test(void) {
     size_t hoff = 0;
     int got_eoh = 0;
     while (!got_eoh && hoff < sizeof(hdr) - 1) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         if (poll(&pfd, 1, 3000) <= 0) break;
         ssize_t n = read(fd, hdr + hoff, sizeof(hdr) - 1 - hoff);
         if (n <= 0) break;
@@ -498,7 +526,8 @@ static int run_test(void) {
     SHA1((const unsigned char *)concat, strlen(concat), digest);
     test_base64_encode(digest, SHA_DIGEST_LENGTH, expect);
     if (strcmp(got_accept, expect) != 0) {
-        fprintf(stderr, "FAIL: Sec-WebSocket-Accept mismatch: got '%s' want '%s'\n",
+        fprintf(stderr,
+                "FAIL: Sec-WebSocket-Accept mismatch: got '%s' want '%s'\n",
                 got_accept, expect);
         failures++;
         goto cleanup;
@@ -506,11 +535,12 @@ static int run_test(void) {
     printf("PASS: Sec-WebSocket-Accept verified\n");
 
     /* Frame 0: #labels. */
-    unsigned char *f0 = NULL; size_t f0len = 0;
+    unsigned char *f0 = NULL;
+    size_t f0len = 0;
     int op0 = test_read_ws_frame(fd, &f0, &f0len, 3000);
     if (op0 != 0x2) {
-        fprintf(stderr, "FAIL: expected binary frame 0 (labels), got opcode %d\n",
-                op0);
+        fprintf(stderr,
+                "FAIL: expected binary frame 0 (labels), got opcode %d\n", op0);
         failures++;
         goto cleanup;
     }
@@ -521,7 +551,8 @@ static int run_test(void) {
         goto cleanup;
     }
     if (!event_equal(&labels, &dec_labels)) {
-        fprintf(stderr, "FAIL: decoded #labels event does not match published\n");
+        fprintf(stderr,
+                "FAIL: decoded #labels event does not match published\n");
         failures++;
     } else {
         printf("PASS: published #labels frame round-trips through server\n");
@@ -530,11 +561,12 @@ static int run_test(void) {
     free(f0);
 
     /* Frame 1: #commit. */
-    unsigned char *f1 = NULL; size_t f1len = 0;
+    unsigned char *f1 = NULL;
+    size_t f1len = 0;
     int op1 = test_read_ws_frame(fd, &f1, &f1len, 3000);
     if (op1 != 0x2) {
-        fprintf(stderr, "FAIL: expected binary frame 1 (commit), got opcode %d\n",
-                op1);
+        fprintf(stderr,
+                "FAIL: expected binary frame 1 (commit), got opcode %d\n", op1);
         failures++;
         goto cleanup;
     }
@@ -545,7 +577,8 @@ static int run_test(void) {
         goto cleanup;
     }
     if (!event_equal(&commit, &dec_commit)) {
-        fprintf(stderr, "FAIL: decoded #commit event does not match published\n");
+        fprintf(stderr,
+                "FAIL: decoded #commit event does not match published\n");
         failures++;
     } else {
         printf("PASS: published #commit frame round-trips through server\n");
@@ -554,7 +587,8 @@ static int run_test(void) {
     free(f1);
 
     /* Stream should terminate with a close frame. */
-    unsigned char *cf = NULL; size_t cf_len = 0;
+    unsigned char *cf = NULL;
+    size_t cf_len = 0;
     int opc = test_read_ws_frame(fd, &cf, &cf_len, 3000);
     if (opc == 0x8) {
         printf("PASS: stream terminated with a close frame\n");

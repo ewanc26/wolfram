@@ -34,7 +34,8 @@ static char *wf_label_strdup(const char *s) {
 
 static void wf_label_sleep_ms(wf_label_subscribe_handle *handle, uint32_t ms) {
     while (handle && !handle->stopped && ms > 0) {
-        uint32_t slice = ms > WF_LABEL_SLEEP_SLICE_MS ? WF_LABEL_SLEEP_SLICE_MS : ms;
+        uint32_t slice =
+            ms > WF_LABEL_SLEEP_SLICE_MS ? WF_LABEL_SLEEP_SLICE_MS : ms;
         struct timespec ts;
         ts.tv_sec = (time_t)(slice / 1000u);
         ts.tv_nsec = (long)(slice % 1000u) * 1000000L;
@@ -46,7 +47,8 @@ static void wf_label_sleep_ms(wf_label_subscribe_handle *handle, uint32_t ms) {
 
 static int wf_label_json_integer(cJSON *item, int64_t *out) {
     if (!item || !cJSON_IsNumber(item)) return 0;
-    if (item->valuedouble < (double)INT64_MIN || item->valuedouble > (double)INT64_MAX)
+    if (item->valuedouble < (double)INT64_MIN ||
+        item->valuedouble > (double)INT64_MAX)
         return 0;
     int64_t value = (int64_t)item->valuedouble;
     if ((double)value != item->valuedouble) return 0;
@@ -95,7 +97,8 @@ static wf_status wf_label_parse_record(cJSON *node, wf_label *label,
     }
 
     member = cJSON_GetObjectItemCaseSensitive(node, "src");
-    if (!member || !cJSON_IsString(member) || !wf_syntax_did_is_valid(member->valuestring))
+    if (!member || !cJSON_IsString(member) ||
+        !wf_syntax_did_is_valid(member->valuestring))
         goto invalid;
     label->src = wf_label_strdup(member->valuestring);
     if (!label->src) goto alloc_fail;
@@ -168,7 +171,8 @@ static wf_status wf_label_parse_labels(cJSON *root, int force_neg,
     cJSON *seq_member = cJSON_GetObjectItemCaseSensitive(root, "seq");
     cJSON *labels_member = cJSON_GetObjectItemCaseSensitive(root, "labels");
     int64_t seq = 0;
-    if (!wf_label_json_integer(seq_member, &seq) || !cJSON_IsArray(labels_member))
+    if (!wf_label_json_integer(seq_member, &seq) ||
+        !cJSON_IsArray(labels_member))
         return WF_ERR_INVALID_ARG;
 
     size_t count = (size_t)cJSON_GetArraySize(labels_member);
@@ -177,7 +181,8 @@ static wf_status wf_label_parse_labels(cJSON *root, int force_neg,
 
     for (size_t i = 0; i < count; ++i) {
         cJSON *entry = cJSON_GetArrayItem(labels_member, (int)i);
-        wf_status status = wf_label_parse_record(entry, &items[i], seq, force_neg);
+        wf_status status =
+            wf_label_parse_record(entry, &items[i], seq, force_neg);
         if (status != WF_OK) {
             for (size_t j = 0; j <= i; ++j) wf_label_clear(&items[j]);
             free(items);
@@ -223,9 +228,8 @@ static wf_status wf_label_parse_info(cJSON *root, wf_label_message *out) {
 /* The eight schema fields of com.atproto.label#label, in the order they are
  * declared in the lexicon. The DRISL serializer re-sorts the map keys by their
  * canonical byte encoding, so this declaration order only documents intent. */
-static const char *k_label_field_names[8] = {
-    "ver", "src", "uri", "cid", "val", "neg", "cts", "exp"
-};
+static const char *k_label_field_names[8] = {"ver", "src", "uri", "cid",
+                                             "val", "neg", "cts", "exp"};
 
 static wf_cbor_item *wf_label_cbor_str(const char *s) {
     if (!s) return NULL;
@@ -298,22 +302,25 @@ static wf_status wf_label_build_signed_cbor(const wf_label *label,
     keys[2] = wf_label_cbor_str(k_label_field_names[2]);
     vals[2] = wf_label_cbor_str(label->uri);
     keys[3] = wf_label_cbor_str(k_label_field_names[3]);
-    vals[3] = label->has_cid ? wf_label_cbor_str(label->cid)
-                             : wf_label_cbor_null();
+    vals[3] =
+        label->has_cid ? wf_label_cbor_str(label->cid) : wf_label_cbor_null();
     keys[4] = wf_label_cbor_str(k_label_field_names[4]);
     vals[4] = wf_label_cbor_str(label->val);
     keys[5] = wf_label_cbor_str(k_label_field_names[5]);
-    vals[5] = label->has_neg ? wf_label_cbor_bool(label->neg)
-                             : wf_label_cbor_null();
+    vals[5] =
+        label->has_neg ? wf_label_cbor_bool(label->neg) : wf_label_cbor_null();
     keys[6] = wf_label_cbor_str(k_label_field_names[6]);
     vals[6] = wf_label_cbor_str(label->cts);
     keys[7] = wf_label_cbor_str(k_label_field_names[7]);
-    vals[7] = label->has_exp ? wf_label_cbor_str(label->exp)
-                             : wf_label_cbor_null();
+    vals[7] =
+        label->has_exp ? wf_label_cbor_str(label->exp) : wf_label_cbor_null();
 
     wf_status status = WF_OK;
     for (size_t i = 0; i < 8; ++i) {
-        if (!keys[i] || !vals[i]) { status = WF_ERR_ALLOC; goto done; }
+        if (!keys[i] || !vals[i]) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
     }
 
     wf_cbor_item map;
@@ -321,7 +328,10 @@ static wf_status wf_label_build_signed_cbor(const wf_label *label,
     map.type = WF_CBOR_MAP;
     map.map.count = 8;
     map.map.pairs = calloc(8, sizeof(wf_cbor_pair));
-    if (!map.map.pairs) { status = WF_ERR_ALLOC; goto done; }
+    if (!map.map.pairs) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     for (size_t i = 0; i < 8; ++i) {
         map.map.pairs[i].key = keys[i];
         map.map.pairs[i].value = vals[i];
@@ -329,7 +339,10 @@ static wf_status wf_label_build_signed_cbor(const wf_label *label,
 
     unsigned char *cbor = wf_cbor_serialize(&map, out_len);
     free(map.map.pairs);
-    if (!cbor) { status = WF_ERR_ALLOC; goto done; }
+    if (!cbor) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     *out = cbor;
 
 done:
@@ -390,16 +403,17 @@ wf_status wf_label_verify_signature(wf_xrpc_client *client,
     return status;
 }
 
-static wf_status wf_label_dispatch_record(const wf_label_subscribe_handle *handle,
-                                           const wf_label *label) {
+static wf_status
+wf_label_dispatch_record(const wf_label_subscribe_handle *handle,
+                         const wf_label *label) {
     if (!handle || !label) return WF_ERR_INVALID_ARG;
 
     /* Best-effort, non-fatal signature verification. When enabled the result
      * is surfaced through on_error so the caller can decide what to do; the
      * label is still dispatched regardless of the outcome. */
     if (handle->opts.verify_signatures && handle->opts.verify_client) {
-        wf_status vs = wf_label_verify_signature(handle->opts.verify_client,
-                                                 label);
+        wf_status vs =
+            wf_label_verify_signature(handle->opts.verify_client, label);
         if (vs != WF_OK && handle->opts.on_error) {
             handle->opts.on_error(vs, "label signature verification failed",
                                   handle->opts.userdata);
@@ -407,11 +421,15 @@ static wf_status wf_label_dispatch_record(const wf_label_subscribe_handle *handl
     }
 
     if (label->neg) {
-        if (handle->opts.on_neg) handle->opts.on_neg(label, handle->opts.userdata);
-        else if (handle->opts.on_label) handle->opts.on_label(label, handle->opts.userdata);
+        if (handle->opts.on_neg)
+            handle->opts.on_neg(label, handle->opts.userdata);
+        else if (handle->opts.on_label)
+            handle->opts.on_label(label, handle->opts.userdata);
     } else {
-        if (handle->opts.on_label) handle->opts.on_label(label, handle->opts.userdata);
-        else if (handle->opts.on_neg) handle->opts.on_neg(label, handle->opts.userdata);
+        if (handle->opts.on_label)
+            handle->opts.on_label(label, handle->opts.userdata);
+        else if (handle->opts.on_neg)
+            handle->opts.on_neg(label, handle->opts.userdata);
     }
     return WF_OK;
 }
@@ -420,7 +438,8 @@ static void wf_label_dispatch_message(wf_label_subscribe_handle *handle,
                                       wf_label_message *message) {
     if (!handle || !message) return;
     if (message->type == WF_LABEL_MESSAGE_LABELS) {
-        for (size_t i = 0; i < message->data.labels.count && !handle->stopped; ++i) {
+        for (size_t i = 0; i < message->data.labels.count && !handle->stopped;
+             ++i) {
             wf_label_dispatch_record(handle, &message->data.labels.items[i]);
             if (message->data.labels.items[i].seq > handle->cursor)
                 handle->cursor = message->data.labels.items[i].seq;
@@ -453,7 +472,8 @@ wf_status wf_label_message_parse(const char *json, size_t json_len,
     }
 
     cJSON *type_member = cJSON_GetObjectItemCaseSensitive(root, "$type");
-    if (!type_member) type_member = cJSON_GetObjectItemCaseSensitive(root, "type");
+    if (!type_member)
+        type_member = cJSON_GetObjectItemCaseSensitive(root, "type");
     if (!cJSON_IsString(type_member)) {
         cJSON_Delete(root);
         return WF_ERR_INVALID_ARG;
@@ -476,21 +496,22 @@ wf_status wf_label_message_parse(const char *json, size_t json_len,
 void wf_label_message_free(wf_label_message *message) {
     if (!message) return;
     switch (message->type) {
-    case WF_LABEL_MESSAGE_LABELS:
-        wf_label_batch_clear(&message->data.labels);
-        break;
-    case WF_LABEL_MESSAGE_INFO:
-        wf_label_info_clear(&message->data.info);
-        break;
-    default:
-        break;
+        case WF_LABEL_MESSAGE_LABELS:
+            wf_label_batch_clear(&message->data.labels);
+            break;
+        case WF_LABEL_MESSAGE_INFO:
+            wf_label_info_clear(&message->data.info);
+            break;
+        default:
+            break;
     }
     memset(message, 0, sizeof(*message));
 }
 
 wf_status wf_label_build_url(const char *service, int64_t cursor,
                              char **out_url) {
-    if (!service || !service[0] || !out_url || cursor < 0) return WF_ERR_INVALID_ARG;
+    if (!service || !service[0] || !out_url || cursor < 0)
+        return WF_ERR_INVALID_ARG;
     *out_url = NULL;
 
     const char *scheme = NULL;
@@ -529,7 +550,8 @@ wf_status wf_label_build_url(const char *service, int64_t cursor,
                                       "%s%lld", separator, (long long)cursor);
     }
 
-    size_t total = strlen(scheme) + body_len + path_len + query_tail_len + cursor_len + 1;
+    size_t total =
+        strlen(scheme) + body_len + path_len + query_tail_len + cursor_len + 1;
     char *url = malloc(total);
     if (!url) return WF_ERR_ALLOC;
 
@@ -559,7 +581,8 @@ wf_status wf_label_build_url(const char *service, int64_t cursor,
 static wf_status wf_label_open(wf_label_subscribe_handle *handle) {
     if (!handle) return WF_ERR_INVALID_ARG;
     char *url = NULL;
-    wf_status status = wf_label_build_url(handle->opts.service, handle->cursor, &url);
+    wf_status status =
+        wf_label_build_url(handle->opts.service, handle->cursor, &url);
     if (status != WF_OK) return status;
     status = wf_websocket_connect(url, &handle->socket);
     free(url);
@@ -668,7 +691,8 @@ wf_status wf_label_subscribe_start(const wf_label_subscribe_options *opts,
         }
 
         wf_label_message message = {0};
-        status = wf_label_message_parse((const char *)msg.data, msg.len, &message);
+        status =
+            wf_label_message_parse((const char *)msg.data, msg.len, &message);
         wf_websocket_message_free(&msg);
         if (status != WF_OK) {
             if (handle->opts.on_error) {

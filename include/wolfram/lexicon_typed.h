@@ -32,9 +32,9 @@ extern "C" {
  * lexicon schema object is kept as an owned detached cJSON subtree since its
  * shape is large and open. */
 typedef struct wf_lexicon_resolved {
-    char *cid;            /* owned; required resolved record CID */
-    char *uri;            /* owned; required AT-URI of the schema record */
-    cJSON *schema;        /* owned detached schema object; NULL absent */
+    char *cid;     /* owned; required resolved record CID */
+    char *uri;     /* owned; required AT-URI of the schema record */
+    cJSON *schema; /* owned detached schema object; NULL absent */
 } wf_lexicon_resolved;
 
 /* Parse a resolveLexicon JSON body ("cid", "schema", "uri"). Returns

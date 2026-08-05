@@ -5,7 +5,8 @@
 
 #include "_internal.h"
 
-wf_status wf_get_notif_endpoint(wf_agent *agent, const char *service_did, char **out_endpoint) {
+wf_status wf_get_notif_endpoint(wf_agent *agent, const char *service_did,
+                                char **out_endpoint) {
     if (!agent || !service_did || !out_endpoint) return WF_ERR_INVALID_ARG;
     wf_did_document doc = {0};
     wf_status status = wf_did_resolve(agent->client, service_did, &doc);

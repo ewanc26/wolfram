@@ -1,5 +1,6 @@
 /**
- * auth_client.h — Authenticated XRPC client with automatic DPoP and session management.
+ * auth_client.h — Authenticated XRPC client with automatic DPoP and session
+ * management.
  *
  * This module provides a high-level wrapper around `wf_xrpc_client` that
  * automatically attaches DPoP proofs to requests and handles session
@@ -28,9 +29,9 @@ typedef struct wf_auth_client wf_auth_client;
  * Returns NULL on allocation failure.
  */
 wf_auth_client *wf_auth_client_new(wf_xrpc_client *client,
-                                  wf_oauth_session_state *session,
-                                  const wf_oauth_server_metadata *server,
-                                  const wf_oauth_client_auth *client_auth);
+                                   wf_oauth_session_state *session,
+                                   const wf_oauth_server_metadata *server,
+                                   const wf_oauth_client_auth *client_auth);
 
 /**
  * Free the authenticated client.
@@ -47,10 +48,8 @@ void wf_auth_client_free(wf_auth_client *auth_client);
  *
  * On WF_OK, `out` is populated and must be released with `wf_response_free`.
  */
-wf_status wf_auth_client_query(wf_auth_client *auth_client,
-                               const char *nsid,
-                               const char *query_string,
-                               wf_response *out);
+wf_status wf_auth_client_query(wf_auth_client *auth_client, const char *nsid,
+                               const char *query_string, wf_response *out);
 
 /**
  * Issue an authenticated XRPC query (GET) with structured parameters.
@@ -61,8 +60,7 @@ wf_status wf_auth_client_query(wf_auth_client *auth_client,
 wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
                                       const char *nsid,
                                       const wf_xrpc_param *params,
-                                      size_t param_count,
-                                      wf_response *out);
+                                      size_t param_count, wf_response *out);
 
 /**
  * Issue an authenticated XRPC procedure (POST).
@@ -73,8 +71,7 @@ wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
  * On WF_OK, `out` is populated and must be released with `wf_response_free`.
  */
 wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
-                                   const char *nsid,
-                                   const char *json_body,
+                                   const char *nsid, const char *json_body,
                                    wf_response *out);
 
 /**
@@ -85,11 +82,9 @@ wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
  * re-issuing with the new token).
  */
 wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
-                                      const char *nsid,
-                                      const void *data,
-                                      size_t data_len,
-                                      const char *content_type,
-                                      wf_response *out);
+                                     const char *nsid, const void *data,
+                                     size_t data_len, const char *content_type,
+                                     wf_response *out);
 
 /**
  * Best-effort refresh of the bound session.

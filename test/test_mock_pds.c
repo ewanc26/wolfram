@@ -17,8 +17,7 @@
 
 #include <cJSON.h>
 
-static int
-json_str_eq(const char *json, const char *key, const char *expect) {
+static int json_str_eq(const char *json, const char *key, const char *expect) {
     cJSON *root = cJSON_Parse(json);
     if (root == NULL) {
         return 0;
@@ -39,9 +38,11 @@ int main(void) {
 
     const char *session_json =
         "{\"handle\":\"alice.test\",\"did\":\"did:plc:abc123\","
-        "\"accessJwt\":\"eyJ.fake.access\",\"refreshJwt\":\"eyJ.fake.refresh\"}";
+        "\"accessJwt\":\"eyJ.fake.access\",\"refreshJwt\":\"eyJ.fake."
+        "refresh\"}";
     const char *timeline_json =
-        "{\"feed\":[{\"post\":{\"uri\":\"at://did:plc:abc123/app.bsky.feed.post/1\","
+        "{\"feed\":[{\"post\":{\"uri\":\"at://did:plc:abc123/"
+        "app.bsky.feed.post/1\","
         "\"text\":\"hello offline world\"}}],\"cursor\":\"c1\"}";
 
     WF_CHECK(wf_mock_pds_register(pds, "com.atproto.server.createSession",
@@ -57,8 +58,7 @@ int main(void) {
 
     /* Procedure: createSession returns the canned session. */
     wf_response res = {0};
-    wf_status st = wf_xrpc_procedure(client,
-                                     "com.atproto.server.createSession",
+    wf_status st = wf_xrpc_procedure(client, "com.atproto.server.createSession",
                                      "{\"identifier\":\"alice.test\","
                                      "\"password\":\"hunter2\"}",
                                      &res);

@@ -130,14 +130,16 @@ static wf_status wf_agent_thread_parse_post(cJSON *obj,
             st = wf_agent_thread_set_string(&out->author.did, d->valuestring);
         }
         if (st == WF_OK && cJSON_IsString(h) && h->valuestring) {
-            st = wf_agent_thread_set_string(&out->author.handle, h->valuestring);
+            st =
+                wf_agent_thread_set_string(&out->author.handle, h->valuestring);
         }
         if (st == WF_OK && cJSON_IsString(n) && n->valuestring) {
             st = wf_agent_thread_set_string(&out->author.display_name,
                                             n->valuestring);
         }
         if (st == WF_OK && cJSON_IsString(a) && a->valuestring) {
-            st = wf_agent_thread_set_string(&out->author.avatar, a->valuestring);
+            st =
+                wf_agent_thread_set_string(&out->author.avatar, a->valuestring);
         }
     }
     if (st == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
@@ -231,9 +233,8 @@ static wf_status wf_agent_thread_parse_node(cJSON *obj, int depth,
             if (cJSON_IsArray(replies)) {
                 int n = cJSON_GetArraySize(replies);
                 if (n > 0) {
-                    out->replies =
-                        (wf_agent_thread_node *)calloc((size_t)n,
-                                                       sizeof(*out->replies));
+                    out->replies = (wf_agent_thread_node *)calloc(
+                        (size_t)n, sizeof(*out->replies));
                     if (!out->replies) {
                         wf_agent_thread_node_reset(out);
                         return WF_ERR_ALLOC;
@@ -315,7 +316,8 @@ wf_status wf_agent_parse_thread(const char *json, size_t json_len,
     if (st == WF_OK) {
         /* Capture the optional top-level threadgate view (#threadgateView) as
          * an owned raw cJSON subtree; a full parse is heavy and unnecessary. */
-        cJSON *threadgate = cJSON_GetObjectItemCaseSensitive(root, "threadgate");
+        cJSON *threadgate =
+            cJSON_GetObjectItemCaseSensitive(root, "threadgate");
         if (cJSON_IsObject(threadgate)) {
             out->threadgate = cJSON_DetachItemFromObject(root, "threadgate");
         }
@@ -351,7 +353,8 @@ void wf_agent_thread_free(wf_agent_thread *thread) {
     memset(thread, 0, sizeof(*thread));
 }
 
-/* Typed high-level wrapper — call the raw agent endpoint, then parse the body. */
+/* Typed high-level wrapper — call the raw agent endpoint, then parse the body.
+ */
 wf_status wf_agent_get_post_thread_typed(wf_agent *agent, const char *uri,
                                          int depth, wf_agent_thread *out) {
     if (!agent || !uri || !out) {

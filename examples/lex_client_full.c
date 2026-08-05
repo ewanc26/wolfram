@@ -92,8 +92,7 @@ static void show_timeline(wf_xrpc_client *client) {
         const char *author = fv->post->author ? fv->post->author->handle : "?";
         printf("  [%zu] %s  by @%s\n", i, fv->post->uri, author);
     }
-    if (out->has_cursor)
-        printf("cursor: %s\n", out->cursor);
+    if (out->has_cursor) printf("cursor: %s\n", out->cursor);
 
     wf_lex_app_bsky_feed_get_timeline_main_output_free(out);
 }
@@ -106,8 +105,8 @@ static void show_moderation_statuses(wf_xrpc_client *client) {
     params.limit = 3;
 
     wf_response res = {0};
-    wf_status status =
-        wf_lex_tools_ozone_moderation_query_statuses_main_call(client, &params, &res);
+    wf_status status = wf_lex_tools_ozone_moderation_query_statuses_main_call(
+        client, &params, &res);
     if (status != WF_OK && status != WF_ERR_HTTP) {
         fprintf(stderr, "queryStatuses failed: %d\n", (int)status);
         wf_response_free(&res);
@@ -115,8 +114,9 @@ static void show_moderation_statuses(wf_xrpc_client *client) {
     }
 
     wf_lex_tools_ozone_moderation_query_statuses_main_output *out = NULL;
-    status = wf_lex_tools_ozone_moderation_query_statuses_main_output_decode_json(
-        res.body, res.body_len, &out);
+    status =
+        wf_lex_tools_ozone_moderation_query_statuses_main_output_decode_json(
+            res.body, res.body_len, &out);
     wf_response_free(&res);
     if (status != WF_OK) {
         fprintf(stderr, "queryStatuses decode failed: %d\n", (int)status);
@@ -132,8 +132,7 @@ static void show_moderation_statuses(wf_xrpc_client *client) {
         printf("  [%zu] id=%lld handle=%s\n", i, (long long)s->id,
                s->subject_repo_handle ? s->subject_repo_handle : "?");
     }
-    if (out->has_cursor)
-        printf("cursor: %s\n", out->cursor);
+    if (out->has_cursor) printf("cursor: %s\n", out->cursor);
 
     wf_lex_tools_ozone_moderation_query_statuses_main_output_free(out);
 }

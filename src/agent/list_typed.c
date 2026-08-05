@@ -100,7 +100,8 @@ static wf_status wf_list_parse_view(cJSON *obj, wf_agent_list_view *v) {
     if (status == WF_OK && cJSON_IsString(purpose) && purpose->valuestring) {
         status = wf_list_set_string(&v->purpose, purpose->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(description) && description->valuestring) {
+    if (status == WF_OK && cJSON_IsString(description) &&
+        description->valuestring) {
         status = wf_list_set_string(&v->description, description->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
@@ -266,7 +267,8 @@ wf_status wf_agent_parse_list_items(const char *json, size_t json_len,
         if (cJSON_IsString(uri) && uri->valuestring) {
             status = wf_list_set_string(&it->uri, uri->valuestring);
         }
-        if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
+        if (status == WF_OK && cJSON_IsString(created) &&
+            created->valuestring) {
             status = wf_list_set_string(&it->created_at, created->valuestring);
         }
         if (status == WF_OK) {

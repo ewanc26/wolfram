@@ -3,7 +3,8 @@
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s <service_url> [identifier password]\n", argv[0]);
+        fprintf(stderr, "Usage: %s <service_url> [identifier password]\n",
+                argv[0]);
         return 1;
     }
     const char *service_url = argv[1];

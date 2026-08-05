@@ -18,43 +18,38 @@ static int check_uint(const wf_cbor_item *item, uint64_t expected) {
 }
 
 static int check_nint(const wf_cbor_item *item, uint64_t expected_neg) {
-    return item && item->type == WF_CBOR_NEGATIVE && item->neginteger == expected_neg;
+    return item && item->type == WF_CBOR_NEGATIVE &&
+           item->neginteger == expected_neg;
 }
 
-static int check_bytes(const wf_cbor_item *item,
-                       const unsigned char *expected, size_t len) {
-    return item && item->type == WF_CBOR_BYTES &&
-           item->bytes.len == len &&
+static int check_bytes(const wf_cbor_item *item, const unsigned char *expected,
+                       size_t len) {
+    return item && item->type == WF_CBOR_BYTES && item->bytes.len == len &&
            memcmp(item->bytes.data, expected, len) == 0;
 }
 
-static int check_link(const wf_cbor_item *item,
-                      const unsigned char *expected, size_t len) {
-    return item && item->type == WF_CBOR_LINK &&
-           item->bytes.len == len &&
+static int check_link(const wf_cbor_item *item, const unsigned char *expected,
+                      size_t len) {
+    return item && item->type == WF_CBOR_LINK && item->bytes.len == len &&
            memcmp(item->bytes.data, expected, len) == 0;
 }
 
 static int check_string(const wf_cbor_item *item, const char *expected) {
     size_t len = strlen(expected);
-    return item && item->type == WF_CBOR_STRING &&
-           item->string.len == len &&
+    return item && item->type == WF_CBOR_STRING && item->string.len == len &&
            strcmp(item->string.str, expected) == 0;
 }
 
 static int check_simple(const wf_cbor_item *item, int which) {
-    return item && item->type == WF_CBOR_SIMPLE &&
-           item->simple_value == which;
+    return item && item->type == WF_CBOR_SIMPLE && item->simple_value == which;
 }
 
 static int check_array_len(const wf_cbor_item *item, size_t n) {
-    return item && item->type == WF_CBOR_ARRAY &&
-           item->children.count == n;
+    return item && item->type == WF_CBOR_ARRAY && item->children.count == n;
 }
 
 static int check_map_len(const wf_cbor_item *item, size_t n) {
-    return item && item->type == WF_CBOR_MAP &&
-           item->map.count == n;
+    return item && item->type == WF_CBOR_MAP && item->map.count == n;
 }
 
 static int check_cid(const wf_cid *left, const wf_cid *right) {
@@ -81,7 +76,9 @@ static int find_key_with_layer(unsigned layer, unsigned long long salt,
 /* Count leaves visited during an MST walk. */
 static wf_status mst_walk_count_cb(void *ctx, const unsigned char *key,
                                    size_t key_len, const wf_cid *value) {
-    (void)key; (void)key_len; (void)value;
+    (void)key;
+    (void)key_len;
+    (void)value;
     size_t *c = ctx;
     (*c)++;
     return WF_OK;
@@ -227,7 +224,7 @@ int main(void) {
     {
         /* {"test": "root"} — matches atproto test vector */
         unsigned char one[] = {0xA1, 0x64, 't', 'e', 's', 't',
-                               0x64, 'r', 'o', 'o', 't'};
+                               0x64, 'r',  'o', 'o', 't'};
         wf_cbor_item *item = wf_cbor_parse(one, 11);
         WF_CHECK(check_map_len(item, 1));
         WF_CHECK(check_string(item->map.pairs[0].key, "test"));
@@ -236,8 +233,7 @@ int main(void) {
     }
     {
         /* DAG-CBOR map keys must be strings. */
-        unsigned char sorted[] = {0xA2, 0x01, 0x61, 0x61,
-                                  0x02, 0x61, 0x62};
+        unsigned char sorted[] = {0xA2, 0x01, 0x61, 0x61, 0x02, 0x61, 0x62};
         WF_CHECK(wf_cbor_parse(sorted, 7) == NULL);
     }
 
@@ -264,8 +260,7 @@ int main(void) {
     /* ── nested structures ── */
     {
         /* [1, [2, 3], {"a": 4}] */
-        unsigned char nested[] = {0x83, 0x01,
-                                  0x82, 0x02, 0x03,
+        unsigned char nested[] = {0x83, 0x01, 0x82, 0x02, 0x03,
                                   0xA1, 0x61, 0x61, 0x04};
         wf_cbor_item *item = wf_cbor_parse(nested, sizeof(nested));
         WF_CHECK(check_array_len(item, 3));
@@ -332,15 +327,13 @@ int main(void) {
 
     /* Unsorted map keys: {2: "b", 1: "a"} */
     {
-        unsigned char unsorted[] = {0xA2, 0x02, 0x61, 0x62,
-                                    0x01, 0x61, 0x61};
+        unsigned char unsorted[] = {0xA2, 0x02, 0x61, 0x62, 0x01, 0x61, 0x61};
         WF_CHECK(wf_cbor_parse(unsorted, 7) == NULL);
     }
 
     /* Duplicate keys are invalid even when adjacent. */
     {
-        unsigned char duplicate[] = {0xA2, 0x61, 'a', 0x01,
-                                     0x61, 'a', 0x02};
+        unsigned char duplicate[] = {0xA2, 0x61, 'a', 0x01, 0x61, 'a', 0x02};
         WF_CHECK(wf_cbor_parse(duplicate, sizeof(duplicate)) == NULL);
     }
 
@@ -389,21 +382,23 @@ int main(void) {
     /* Test vector from bluesky-social/atproto car-file-fixtures.json.
      * Input: CBOR {"test": "root"} encoded as:
      *   a1 64 74 65 73 74 64 72 6f 6f 74
-     * Expected CID string: bafyreiapldaco7m23c7qzc4w42r7kxmcswm64nkindtuh4vwztrpoe7m5m
+     * Expected CID string:
+     * bafyreiapldaco7m23c7qzc4w42r7kxmcswm64nkindtuh4vwztrpoe7m5m
      */
     {
         unsigned char cbor[] = {0xa1, 0x64, 't', 'e', 's', 't',
-                                0x64, 'r', 'o', 'o', 't'};
+                                0x64, 'r',  'o', 'o', 't'};
         wf_cid cid = {{0}, 0};
         wf_status status = wf_cid_of_block(cbor, sizeof(cbor), &cid);
         WF_CHECK(status == WF_OK);
         WF_CHECK(cid.len == 36);
-        WF_CHECK(cid.bytes[0] == 0x01);  /* CIDv1 */
-        WF_CHECK(cid.bytes[1] == 0x71);  /* dag-cbor */
+        WF_CHECK(cid.bytes[0] == 0x01); /* CIDv1 */
+        WF_CHECK(cid.bytes[1] == 0x71); /* dag-cbor */
 
         char *str = wf_cid_to_string(&cid);
         WF_CHECK(str != NULL);
-        WF_CHECK(strcmp(str, "bafyreiapldaco7m23c7qzc4w42r7kxmcswm64nkindtuh4vwztrpoe7m5m") == 0);
+        WF_CHECK(strcmp(str, "bafyreiapldaco7m23c7qzc4w42r7kxmcswm64nkindtuh4vw"
+                             "ztrpoe7m5m") == 0);
         free(str);
     }
 
@@ -411,8 +406,10 @@ int main(void) {
     {
         wf_cid cid = {{0}, 0};
         WF_CHECK(wf_cid_of_block(NULL, 5, &cid) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_cid_of_block((unsigned char*)"", 0, &cid) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_cid_of_block((unsigned char*)"\x01", 1, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_cid_of_block((unsigned char *)"", 0, &cid) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_cid_of_block((unsigned char *)"\x01", 1, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* wf_cid_to_string rejects NULL / zeroed CID */
@@ -427,8 +424,8 @@ int main(void) {
         unsigned char data[] = {0xde, 0xad, 0xbe, 0xef, 0x01, 0x02, 0x03, 0x04};
         wf_cid raw = {{0}, 0};
         WF_CHECK(wf_cid_of_bytes(data, sizeof(data), &raw) == WF_OK);
-        WF_CHECK(raw.bytes[0] == 0x01);   /* CIDv1 */
-        WF_CHECK(raw.bytes[1] == 0x55);   /* raw multicodec */
+        WF_CHECK(raw.bytes[0] == 0x01); /* CIDv1 */
+        WF_CHECK(raw.bytes[1] == 0x55); /* raw multicodec */
         WF_CHECK(raw.bytes[2] == 0x12 && raw.bytes[3] == 0x20); /* sha2-256 */
         char *str = wf_cid_to_string(&raw);
         WF_CHECK(str != NULL);
@@ -439,7 +436,7 @@ int main(void) {
 
         /* dag-cbor (0x71) CIDs still parse after the relaxation */
         unsigned char cbor[] = {0xa1, 0x64, 't', 'e', 's', 't',
-                                0x64, 'r', 'o', 'o', 't'};
+                                0x64, 'r',  'o', 'o', 't'};
         wf_cid dc = {{0}, 0};
         WF_CHECK(wf_cid_of_block(cbor, sizeof(cbor), &dc) == WF_OK);
         char *dc_str = wf_cid_to_string(&dc);
@@ -455,38 +452,47 @@ int main(void) {
     /* Build a CAR for {"test": "root"} and verify round-trip */
     {
         unsigned char block_data[] = {0xa1, 0x64, 't', 'e', 's', 't',
-                                      0x64, 'r', 'o', 'o', 't'};
+                                      0x64, 'r',  'o', 'o', 't'};
 
         wf_cid block_cid = {{0}, 0};
-        WF_CHECK(wf_cid_of_block(block_data, sizeof(block_data),
-                                  &block_cid) == WF_OK);
+        WF_CHECK(wf_cid_of_block(block_data, sizeof(block_data), &block_cid) ==
+                 WF_OK);
 
         /* Build header CBOR: {"version": 1, "roots": [tag42(cid_bytes)]}
          * DAG-CBOR requires sorted map keys: "roots" < "version" */
         unsigned char hdr_cbor[256];
         size_t hp = 0;
-        hdr_cbor[hp++] = 0xA2;                              /* map(2) */
-        hdr_cbor[hp++] = 0x65;                               /* text(5) "roots" */
-        memcpy(hdr_cbor + hp, "roots", 5); hp += 5;
-        hdr_cbor[hp++] = 0x81;                               /* array(1) */
-        hdr_cbor[hp++] = 0xD8; hdr_cbor[hp++] = 0x2A;       /* tag(42) */
-        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x25;       /* bytes(37) */
+        hdr_cbor[hp++] = 0xA2; /* map(2) */
+        hdr_cbor[hp++] = 0x65; /* text(5) "roots" */
+        memcpy(hdr_cbor + hp, "roots", 5);
+        hp += 5;
+        hdr_cbor[hp++] = 0x81; /* array(1) */
+        hdr_cbor[hp++] = 0xD8;
+        hdr_cbor[hp++] = 0x2A; /* tag(42) */
+        hdr_cbor[hp++] = 0x58;
+        hdr_cbor[hp++] = 0x25; /* bytes(37) */
         hdr_cbor[hp++] = 0x00;
-        memcpy(hdr_cbor + hp, block_cid.bytes, 36); hp += 36;
-        hdr_cbor[hp++] = 0x67;                               /* text(7) "version" */
-        memcpy(hdr_cbor + hp, "version", 7); hp += 7;
-        hdr_cbor[hp++] = 0x01;                               /* unsigned(1) */
+        memcpy(hdr_cbor + hp, block_cid.bytes, 36);
+        hp += 36;
+        hdr_cbor[hp++] = 0x67; /* text(7) "version" */
+        memcpy(hdr_cbor + hp, "version", 7);
+        hp += 7;
+        hdr_cbor[hp++] = 0x01; /* unsigned(1) */
 
-        /* Full CAR: [varint hdr_len] [header] [varint blk_total] [cid] [data] */
+        /* Full CAR: [varint hdr_len] [header] [varint blk_total] [cid] [data]
+         */
         unsigned char car[512];
         size_t cp = 0;
-        car[cp++] = (unsigned char)hp;                     /* varint */
-        memcpy(car + cp, hdr_cbor, hp); cp += hp;
+        car[cp++] = (unsigned char)hp; /* varint */
+        memcpy(car + cp, hdr_cbor, hp);
+        cp += hp;
 
         size_t blk_total = 36 + sizeof(block_data);
-        car[cp++] = (unsigned char)blk_total;              /* varint */
-        memcpy(car + cp, block_cid.bytes, 36); cp += 36;
-        memcpy(car + cp, block_data, sizeof(block_data)); cp += sizeof(block_data);
+        car[cp++] = (unsigned char)blk_total; /* varint */
+        memcpy(car + cp, block_cid.bytes, 36);
+        cp += 36;
+        memcpy(car + cp, block_data, sizeof(block_data));
+        cp += sizeof(block_data);
 
         wf_car parsed;
         memset(&parsed, 0, sizeof(parsed));
@@ -496,8 +502,8 @@ int main(void) {
         WF_CHECK(parsed.block_count == 1);
         WF_CHECK(cid_equal(&parsed.blocks[0].cid, &block_cid));
         WF_CHECK(parsed.blocks[0].data_len == sizeof(block_data));
-        WF_CHECK(memcmp(parsed.blocks[0].data, block_data,
-                        sizeof(block_data)) == 0);
+        WF_CHECK(
+            memcmp(parsed.blocks[0].data, block_data, sizeof(block_data)) == 0);
         wf_car_free(&parsed);
     }
 
@@ -506,7 +512,8 @@ int main(void) {
     {
         wf_car c;
         memset(&c, 0, sizeof(c));
-        WF_CHECK(wf_car_parse((unsigned char*) "", 0, &c) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_car_parse((unsigned char *)"", 0, &c) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* Truncated header */
@@ -528,28 +535,38 @@ int main(void) {
     /* CAR write round-trip: parse → write → parse */
     {
         unsigned char block_data[] = {0xa1, 0x64, 't', 'e', 's', 't',
-                                      0x64, 'r', 'o', 'o', 't'};
+                                      0x64, 'r',  'o', 'o', 't'};
         wf_cid block_cid = {{0}, 0};
-        WF_CHECK(wf_cid_of_block(block_data, sizeof(block_data),
-                                  &block_cid) == WF_OK);
+        WF_CHECK(wf_cid_of_block(block_data, sizeof(block_data), &block_cid) ==
+                 WF_OK);
 
-        unsigned char hdr[256]; size_t hp = 0;
-        hdr[hp++] = 0xA2; hdr[hp++] = 0x65;
-        memcpy(hdr + hp, "roots", 5); hp += 5;
+        unsigned char hdr[256];
+        size_t hp = 0;
+        hdr[hp++] = 0xA2;
+        hdr[hp++] = 0x65;
+        memcpy(hdr + hp, "roots", 5);
+        hp += 5;
         hdr[hp++] = 0x81;
-        hdr[hp++] = 0xD8; hdr[hp++] = 0x2A;
-        hdr[hp++] = 0x58; hdr[hp++] = 0x25;
+        hdr[hp++] = 0xD8;
+        hdr[hp++] = 0x2A;
+        hdr[hp++] = 0x58;
+        hdr[hp++] = 0x25;
         hdr[hp++] = 0x00;
-        memcpy(hdr + hp, block_cid.bytes, 36); hp += 36;
+        memcpy(hdr + hp, block_cid.bytes, 36);
+        hp += 36;
         hdr[hp++] = 0x67;
-        memcpy(hdr + hp, "version", 7); hp += 7;
+        memcpy(hdr + hp, "version", 7);
+        hp += 7;
         hdr[hp++] = 0x01;
 
-        unsigned char car[512]; size_t cp = 0;
+        unsigned char car[512];
+        size_t cp = 0;
         car[cp++] = (unsigned char)hp;
-        memcpy(car + cp, hdr, hp); cp += hp;
+        memcpy(car + cp, hdr, hp);
+        cp += hp;
         car[cp++] = (unsigned char)(36 + sizeof(block_data));
-        memcpy(car + cp, block_cid.bytes, 36); cp += 36;
+        memcpy(car + cp, block_cid.bytes, 36);
+        cp += 36;
         memcpy(car + cp, block_data, sizeof(block_data));
         cp += sizeof(block_data);
 
@@ -580,14 +597,16 @@ int main(void) {
     /* ── MST key layer ── */
 
     /* Known test vectors from atproto repo/mst */
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"2653ae71", 8) == 0);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"asdf", 4) == 0);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"blue", 4) == 1);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"88bfafc7", 8) == 2);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"2a92d355", 8) == 4);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"884976f5", 8) == 6);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"app.bsky.feed.post/454397e440ec", 31) == 4);
-    WF_CHECK(wf_mst_key_layer((unsigned char*)"app.bsky.feed.post/9adeb165882c", 31) == 8);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"2653ae71", 8) == 0);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"asdf", 4) == 0);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"blue", 4) == 1);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"88bfafc7", 8) == 2);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"2a92d355", 8) == 4);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"884976f5", 8) == 6);
+    WF_CHECK(wf_mst_key_layer(
+                 (unsigned char *)"app.bsky.feed.post/454397e440ec", 31) == 4);
+    WF_CHECK(wf_mst_key_layer(
+                 (unsigned char *)"app.bsky.feed.post/9adeb165882c", 31) == 8);
 
     /* ── MST node parse ── */
 
@@ -601,38 +620,52 @@ int main(void) {
         wf_mst_node_free(&node);
     }
 
-    /* Node with 1 entry: full-key "test", value CID is all-zeros, no subtrees */
+    /* Node with 1 entry: full-key "test", value CID is all-zeros, no subtrees
+     */
     {
         unsigned char cid_bytes[36] = {0};
-        cid_bytes[0] = 0x01; cid_bytes[1] = 0x71;
-        cid_bytes[2] = 0x12; cid_bytes[3] = 0x20;
+        cid_bytes[0] = 0x01;
+        cid_bytes[1] = 0x71;
+        cid_bytes[2] = 0x12;
+        cid_bytes[3] = 0x20;
 
-        /* CBOR: {"e": [{"k": h'74657374', "p": 0, "v": tag42(cid), "t": null}], "l": null}
-         * Sorted entry keys: "k" < "p" < "t" < "v" */
+        /* CBOR: {"e": [{"k": h'74657374', "p": 0, "v": tag42(cid), "t": null}],
+         * "l": null} Sorted entry keys: "k" < "p" < "t" < "v" */
         unsigned char entry[200];
         size_t ep = 0;
-        entry[ep++] = 0xA4;                              /* map(4) */
-        entry[ep++] = 0x61; entry[ep++] = 0x6B;          /* text(1) "k" */
-        entry[ep++] = 0x44;                               /* bytes(4) "test" */
-        memcpy(entry + ep, "test", 4); ep += 4;
-        entry[ep++] = 0x61; entry[ep++] = 0x70;          /* text(1) "p" */
-        entry[ep++] = 0x00;                               /* unsigned(0) */
-        entry[ep++] = 0x61; entry[ep++] = 0x74;          /* text(1) "t" */
-        entry[ep++] = 0xF6;                               /* null */
-        entry[ep++] = 0x61; entry[ep++] = 0x76;          /* text(1) "v" */
-        entry[ep++] = 0xD8; entry[ep++] = 0x2A;          /* tag(42) */
-        entry[ep++] = 0x58; entry[ep++] = 0x25;          /* bytes(37) */
+        entry[ep++] = 0xA4; /* map(4) */
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x6B; /* text(1) "k" */
+        entry[ep++] = 0x44; /* bytes(4) "test" */
+        memcpy(entry + ep, "test", 4);
+        ep += 4;
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x70; /* text(1) "p" */
+        entry[ep++] = 0x00; /* unsigned(0) */
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x74; /* text(1) "t" */
+        entry[ep++] = 0xF6; /* null */
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x76; /* text(1) "v" */
+        entry[ep++] = 0xD8;
+        entry[ep++] = 0x2A; /* tag(42) */
+        entry[ep++] = 0x58;
+        entry[ep++] = 0x25; /* bytes(37) */
         entry[ep++] = 0x00;
-        memcpy(entry + ep, cid_bytes, 36); ep += 36;
+        memcpy(entry + ep, cid_bytes, 36);
+        ep += 36;
 
         unsigned char node_cbor[300];
         size_t np = 0;
-        node_cbor[np++] = 0xA2;                          /* map(2) */
-        node_cbor[np++] = 0x61; node_cbor[np++] = 0x65;  /* text(1) "e" */
-        node_cbor[np++] = 0x81;                           /* array(1) */
-        memcpy(node_cbor + np, entry, ep); np += ep;
-        node_cbor[np++] = 0x61; node_cbor[np++] = 0x6C;  /* text(1) "l" */
-        node_cbor[np++] = 0xF6;                           /* null */
+        node_cbor[np++] = 0xA2; /* map(2) */
+        node_cbor[np++] = 0x61;
+        node_cbor[np++] = 0x65; /* text(1) "e" */
+        node_cbor[np++] = 0x81; /* array(1) */
+        memcpy(node_cbor + np, entry, ep);
+        np += ep;
+        node_cbor[np++] = 0x61;
+        node_cbor[np++] = 0x6C; /* text(1) "l" */
+        node_cbor[np++] = 0xF6; /* null */
 
         wf_mst_node node;
         WF_CHECK(wf_mst_node_parse(node_cbor, np, NULL, &node) == WF_OK);
@@ -651,47 +684,64 @@ int main(void) {
     {
         unsigned char cid_bytes[36];
         memset(cid_bytes, 0, 36);
-        cid_bytes[0] = 0x01; cid_bytes[1] = 0x71;
-        cid_bytes[2] = 0x12; cid_bytes[3] = 0x20;
-        cid_bytes[4] = 0xAA;  /* distinguish data vs prev */
+        cid_bytes[0] = 0x01;
+        cid_bytes[1] = 0x71;
+        cid_bytes[2] = 0x12;
+        cid_bytes[3] = 0x20;
+        cid_bytes[4] = 0xAA; /* distinguish data vs prev */
 
-        /* Commit CBOR: {"data": tag42(cid), "did": "did:plc:test", "prev": tag42(other), "rev": "3jui7kd54zh2y", "version": 3}
-         * Sorted by CBOR-encoded bytes: "did"(0x63) < "rev"(0x63) < "data"(0x64) < "prev"(0x64) < "version"(0x67) */
+        /* Commit CBOR: {"data": tag42(cid), "did": "did:plc:test", "prev":
+         * tag42(other), "rev": "3jui7kd54zh2y", "version": 3} Sorted by
+         * CBOR-encoded bytes: "did"(0x63) < "rev"(0x63) < "data"(0x64) <
+         * "prev"(0x64) < "version"(0x67) */
         unsigned char prev_cid[36];
         memcpy(prev_cid, cid_bytes, 36);
         prev_cid[4] = 0xBB;
 
         unsigned char commit_cbor[500];
         size_t cp2 = 0;
-        commit_cbor[cp2++] = 0xA5;                       /* map(5) */
+        commit_cbor[cp2++] = 0xA5; /* map(5) */
 
-        commit_cbor[cp2++] = 0x63;                        /* text(3) "did" */
-        memcpy(commit_cbor + cp2, "did", 3); cp2 += 3;
-        commit_cbor[cp2++] = 0x6D;                        /* text(13) "did:plc:test" */
-        memcpy(commit_cbor + cp2, "did:plc:test", 13); cp2 += 13;
+        commit_cbor[cp2++] = 0x63; /* text(3) "did" */
+        memcpy(commit_cbor + cp2, "did", 3);
+        cp2 += 3;
+        commit_cbor[cp2++] = 0x6D; /* text(13) "did:plc:test" */
+        memcpy(commit_cbor + cp2, "did:plc:test", 13);
+        cp2 += 13;
 
-        commit_cbor[cp2++] = 0x63;                        /* text(3) "rev" */
-        memcpy(commit_cbor + cp2, "rev", 3); cp2 += 3;
-        commit_cbor[cp2++] = 0x6D;                        /* text(13) "3jui7kd54zh2y" */
-        memcpy(commit_cbor + cp2, "3jui7kd54zh2y", 13); cp2 += 13;
+        commit_cbor[cp2++] = 0x63; /* text(3) "rev" */
+        memcpy(commit_cbor + cp2, "rev", 3);
+        cp2 += 3;
+        commit_cbor[cp2++] = 0x6D; /* text(13) "3jui7kd54zh2y" */
+        memcpy(commit_cbor + cp2, "3jui7kd54zh2y", 13);
+        cp2 += 13;
 
-        commit_cbor[cp2++] = 0x64;                        /* text(4) "data" */
-        memcpy(commit_cbor + cp2, "data", 4); cp2 += 4;
-        commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A; /* tag(42) */
-        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x25; /* bytes(37) */
+        commit_cbor[cp2++] = 0x64; /* text(4) "data" */
+        memcpy(commit_cbor + cp2, "data", 4);
+        cp2 += 4;
+        commit_cbor[cp2++] = 0xD8;
+        commit_cbor[cp2++] = 0x2A; /* tag(42) */
+        commit_cbor[cp2++] = 0x58;
+        commit_cbor[cp2++] = 0x25; /* bytes(37) */
         commit_cbor[cp2++] = 0x00;
-        memcpy(commit_cbor + cp2, cid_bytes, 36); cp2 += 36;
+        memcpy(commit_cbor + cp2, cid_bytes, 36);
+        cp2 += 36;
 
-        commit_cbor[cp2++] = 0x64;                        /* text(4) "prev" */
-        memcpy(commit_cbor + cp2, "prev", 4); cp2 += 4;
-        commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A;
-        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x25;
+        commit_cbor[cp2++] = 0x64; /* text(4) "prev" */
+        memcpy(commit_cbor + cp2, "prev", 4);
+        cp2 += 4;
+        commit_cbor[cp2++] = 0xD8;
+        commit_cbor[cp2++] = 0x2A;
+        commit_cbor[cp2++] = 0x58;
+        commit_cbor[cp2++] = 0x25;
         commit_cbor[cp2++] = 0x00;
-        memcpy(commit_cbor + cp2, prev_cid, 36); cp2 += 36;
+        memcpy(commit_cbor + cp2, prev_cid, 36);
+        cp2 += 36;
 
-        commit_cbor[cp2++] = 0x67;                        /* text(7) "version" */
-        memcpy(commit_cbor + cp2, "version", 7); cp2 += 7;
-        commit_cbor[cp2++] = 0x03;                        /* unsigned(3) */
+        commit_cbor[cp2++] = 0x67; /* text(7) "version" */
+        memcpy(commit_cbor + cp2, "version", 7);
+        cp2 += 7;
+        commit_cbor[cp2++] = 0x03; /* unsigned(3) */
 
         wf_commit commit;
         memset(&commit, 0, sizeof(commit));
@@ -708,8 +758,10 @@ int main(void) {
 
     {
         wf_cid test_cid = {{0}, 0};
-        test_cid.bytes[0] = 0x01; test_cid.bytes[1] = 0x71;
-        test_cid.bytes[2] = 0x12; test_cid.bytes[3] = 0x20;
+        test_cid.bytes[0] = 0x01;
+        test_cid.bytes[1] = 0x71;
+        test_cid.bytes[2] = 0x12;
+        test_cid.bytes[3] = 0x20;
         test_cid.len = 36;
 
         wf_car car;
@@ -727,7 +779,8 @@ int main(void) {
         WF_CHECK(memcmp(found->cid.bytes, test_cid.bytes, 36) == 0);
 
         wf_cid missing = {{0}, 0};
-        missing.bytes[0] = 0x01; missing.len = 1;
+        missing.bytes[0] = 0x01;
+        missing.len = 1;
         WF_CHECK(wf_car_find_block(&car, &missing) == NULL);
 
         free(car.blocks);
@@ -736,66 +789,88 @@ int main(void) {
 
     /* ── MST find in minimal CAR ── */
 
-    /* Build a CAR with a single MST node containing {"test": "root"} as the record.
-     * The MST node: {"e": [{"k": h"test", "p": 0, "v": <record_cid>, "t": null}], "l": null}
-     * The record: CBOR {"test": "root"}
-     * Commit points to the MST root. */
+    /* Build a CAR with a single MST node containing {"test": "root"} as the
+     * record. The MST node: {"e": [{"k": h"test", "p": 0, "v": <record_cid>,
+     * "t": null}], "l": null} The record: CBOR {"test": "root"} Commit points
+     * to the MST root. */
     {
         unsigned char record_data[] = {0xa1, 0x64, 't', 'e', 's', 't',
-                                        0x64, 'r', 'o', 'o', 't'};
+                                       0x64, 'r',  'o', 'o', 't'};
         wf_cid record_cid = {{0}, 0};
-        WF_CHECK(wf_cid_of_block(record_data, sizeof(record_data), &record_cid) == WF_OK);
+        WF_CHECK(wf_cid_of_block(record_data, sizeof(record_data),
+                                 &record_cid) == WF_OK);
 
         /* MST node CBOR (same as previous test) */
         unsigned char entry[200], ep = 0;
         entry[ep++] = 0xA4;
-        entry[ep++] = 0x61; entry[ep++] = 0x6B;
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x6B;
         entry[ep++] = 0x44;
-        memcpy(entry + ep, "test", 4); ep += 4;
-        entry[ep++] = 0x61; entry[ep++] = 0x70;
+        memcpy(entry + ep, "test", 4);
+        ep += 4;
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x70;
         entry[ep++] = 0x00;
-        entry[ep++] = 0x61; entry[ep++] = 0x74;
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x74;
         entry[ep++] = 0xF6;
-        entry[ep++] = 0x61; entry[ep++] = 0x76;
-        entry[ep++] = 0xD8; entry[ep++] = 0x2A;
-        entry[ep++] = 0x58; entry[ep++] = 0x25;
+        entry[ep++] = 0x61;
+        entry[ep++] = 0x76;
+        entry[ep++] = 0xD8;
+        entry[ep++] = 0x2A;
+        entry[ep++] = 0x58;
+        entry[ep++] = 0x25;
         entry[ep++] = 0x00;
-        memcpy(entry + ep, record_cid.bytes, 36); ep += 36;
+        memcpy(entry + ep, record_cid.bytes, 36);
+        ep += 36;
 
         unsigned char node_cbor[300], np = 0;
         node_cbor[np++] = 0xA2;
-        node_cbor[np++] = 0x61; node_cbor[np++] = 0x65;
+        node_cbor[np++] = 0x61;
+        node_cbor[np++] = 0x65;
         node_cbor[np++] = 0x81;
-        memcpy(node_cbor + np, entry, ep); np += ep;
-        node_cbor[np++] = 0x61; node_cbor[np++] = 0x6C;
+        memcpy(node_cbor + np, entry, ep);
+        np += ep;
+        node_cbor[np++] = 0x61;
+        node_cbor[np++] = 0x6C;
         node_cbor[np++] = 0xF6;
 
         wf_cid mst_cid = {{0}, 0};
         WF_CHECK(wf_cid_of_block(node_cbor, np, &mst_cid) == WF_OK);
 
-        /* Build commit (sorted by CBOR-encoded bytes: "did", "rev", "data", "version") */
+        /* Build commit (sorted by CBOR-encoded bytes: "did", "rev", "data",
+         * "version") */
         unsigned char commit_cbor[500], cp2 = 0;
-        commit_cbor[cp2++] = 0xA4;                           /* map(4) */
+        commit_cbor[cp2++] = 0xA4; /* map(4) */
 
-        commit_cbor[cp2++] = 0x63;                           /* text(3) "did" */
-        memcpy(commit_cbor + cp2, "did", 3); cp2 += 3;
+        commit_cbor[cp2++] = 0x63; /* text(3) "did" */
+        memcpy(commit_cbor + cp2, "did", 3);
+        cp2 += 3;
         commit_cbor[cp2++] = 0x6D;
-        memcpy(commit_cbor + cp2, "did:plc:test", 13); cp2 += 13;
+        memcpy(commit_cbor + cp2, "did:plc:test", 13);
+        cp2 += 13;
 
-        commit_cbor[cp2++] = 0x63;                           /* text(3) "rev" */
-        memcpy(commit_cbor + cp2, "rev", 3); cp2 += 3;
+        commit_cbor[cp2++] = 0x63; /* text(3) "rev" */
+        memcpy(commit_cbor + cp2, "rev", 3);
+        cp2 += 3;
         commit_cbor[cp2++] = 0x6D;
-        memcpy(commit_cbor + cp2, "3jui7kd54zh2y", 13); cp2 += 13;
+        memcpy(commit_cbor + cp2, "3jui7kd54zh2y", 13);
+        cp2 += 13;
 
-        commit_cbor[cp2++] = 0x64;                           /* text(4) "data" */
-        memcpy(commit_cbor + cp2, "data", 4); cp2 += 4;
-        commit_cbor[cp2++] = 0xD8; commit_cbor[cp2++] = 0x2A;
-        commit_cbor[cp2++] = 0x58; commit_cbor[cp2++] = 0x25;
+        commit_cbor[cp2++] = 0x64; /* text(4) "data" */
+        memcpy(commit_cbor + cp2, "data", 4);
+        cp2 += 4;
+        commit_cbor[cp2++] = 0xD8;
+        commit_cbor[cp2++] = 0x2A;
+        commit_cbor[cp2++] = 0x58;
+        commit_cbor[cp2++] = 0x25;
         commit_cbor[cp2++] = 0x00;
-        memcpy(commit_cbor + cp2, mst_cid.bytes, 36); cp2 += 36;
+        memcpy(commit_cbor + cp2, mst_cid.bytes, 36);
+        cp2 += 36;
 
-        commit_cbor[cp2++] = 0x67;                           /* text(7) "version" */
-        memcpy(commit_cbor + cp2, "version", 7); cp2 += 7;
+        commit_cbor[cp2++] = 0x67; /* text(7) "version" */
+        memcpy(commit_cbor + cp2, "version", 7);
+        cp2 += 7;
         commit_cbor[cp2++] = 0x03;
 
         wf_cid commit_cid = {{0}, 0};
@@ -804,36 +879,50 @@ int main(void) {
         /* Build CAR: header + 3 blocks (MST node, record, commit) */
         unsigned char hdr_cbor[256], hp = 0;
         hdr_cbor[hp++] = 0xA2;
-        hdr_cbor[hp++] = 0x65; memcpy(hdr_cbor + hp, "roots", 5); hp += 5;
+        hdr_cbor[hp++] = 0x65;
+        memcpy(hdr_cbor + hp, "roots", 5);
+        hp += 5;
         hdr_cbor[hp++] = 0x81;
-        hdr_cbor[hp++] = 0xD8; hdr_cbor[hp++] = 0x2A;
-        hdr_cbor[hp++] = 0x58; hdr_cbor[hp++] = 0x25;
+        hdr_cbor[hp++] = 0xD8;
+        hdr_cbor[hp++] = 0x2A;
+        hdr_cbor[hp++] = 0x58;
+        hdr_cbor[hp++] = 0x25;
         hdr_cbor[hp++] = 0x00;
-        memcpy(hdr_cbor + hp, commit_cid.bytes, 36); hp += 36;
-        hdr_cbor[hp++] = 0x67; memcpy(hdr_cbor + hp, "version", 7); hp += 7;
+        memcpy(hdr_cbor + hp, commit_cid.bytes, 36);
+        hp += 36;
+        hdr_cbor[hp++] = 0x67;
+        memcpy(hdr_cbor + hp, "version", 7);
+        hp += 7;
         hdr_cbor[hp++] = 0x01;
 
         unsigned char car[1024];
         size_t cpos = 0;
         car[cpos++] = (unsigned char)hp;
-        memcpy(car + cpos, hdr_cbor, hp); cpos += hp;
+        memcpy(car + cpos, hdr_cbor, hp);
+        cpos += hp;
 
         /* Block 1: MST node */
         car[cpos++] = (unsigned char)(36 + np);
-        memcpy(car + cpos, mst_cid.bytes, 36); cpos += 36;
-        memcpy(car + cpos, node_cbor, np); cpos += np;
+        memcpy(car + cpos, mst_cid.bytes, 36);
+        cpos += 36;
+        memcpy(car + cpos, node_cbor, np);
+        cpos += np;
 
         /* Block 2: record */
         car[cpos++] = (unsigned char)(36 + sizeof(record_data));
-        memcpy(car + cpos, record_cid.bytes, 36); cpos += 36;
-        memcpy(car + cpos, record_data, sizeof(record_data)); cpos += sizeof(record_data);
+        memcpy(car + cpos, record_cid.bytes, 36);
+        cpos += 36;
+        memcpy(car + cpos, record_data, sizeof(record_data));
+        cpos += sizeof(record_data);
 
         /* Block 3: commit */
         /* 36 + cp2 is 128 after the required CID link prefix. */
         car[cpos++] = 0x80;
         car[cpos++] = 0x01;
-        memcpy(car + cpos, commit_cid.bytes, 36); cpos += 36;
-        memcpy(car + cpos, commit_cbor, cp2); cpos += cp2;
+        memcpy(car + cpos, commit_cid.bytes, 36);
+        cpos += 36;
+        memcpy(car + cpos, commit_cbor, cp2);
+        cpos += cp2;
 
         wf_car parsed;
         memset(&parsed, 0, sizeof(parsed));
@@ -846,18 +935,24 @@ int main(void) {
         memset(&commit, 0, sizeof(commit));
         wf_car_block *commit_block = wf_car_find_block(&parsed, &commit_cid);
         WF_CHECK(commit_block != NULL);
-        if (!commit_block) { wf_car_free(&parsed); return 1; }
-        WF_CHECK(wf_commit_parse(commit_block->data, commit_block->data_len, &commit) == WF_OK);
+        if (!commit_block) {
+            wf_car_free(&parsed);
+            return 1;
+        }
+        WF_CHECK(wf_commit_parse(commit_block->data, commit_block->data_len,
+                                 &commit) == WF_OK);
         WF_CHECK(memcmp(&commit.data, &mst_cid, sizeof(wf_cid)) == 0);
 
         /* Find "test" in MST */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char*)"test", 4, &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char *)"test", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &record_cid, sizeof(wf_cid)) == 0);
 
         /* Find missing key */
-        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char*)"nope", 4, &found) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char *)"nope", 4,
+                             &found) == WF_ERR_NOT_FOUND);
 
         wf_car_free(&parsed);
     }
@@ -881,8 +976,8 @@ int main(void) {
         memset(&parsed, 0, sizeof(parsed));
         wf_car_block *block = wf_car_find_block(&car, &node.cid);
         WF_CHECK(block != NULL);
-        WF_CHECK(wf_mst_node_parse(block->data, block->data_len,
-                                    &node.cid, &parsed) == WF_OK);
+        WF_CHECK(wf_mst_node_parse(block->data, block->data_len, &node.cid,
+                                   &parsed) == WF_OK);
         WF_CHECK(parsed.count == 0);
         WF_CHECK(parsed.left.len == 0);
         wf_mst_node_free(&parsed);
@@ -896,8 +991,10 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid value_cid = {{0}, 0};
-        value_cid.bytes[0] = 0x01; value_cid.bytes[1] = 0x71;
-        value_cid.bytes[2] = 0x12; value_cid.bytes[3] = 0x20;
+        value_cid.bytes[0] = 0x01;
+        value_cid.bytes[1] = 0x71;
+        value_cid.bytes[2] = 0x12;
+        value_cid.bytes[3] = 0x20;
         value_cid.len = 36;
 
         wf_mst_entry entry;
@@ -922,12 +1019,13 @@ int main(void) {
         memset(&parsed, 0, sizeof(parsed));
         wf_car_block *block = wf_car_find_block(&car, &node.cid);
         WF_CHECK(block != NULL);
-        WF_CHECK(wf_mst_node_parse(block->data, block->data_len,
-                                    &node.cid, &parsed) == WF_OK);
+        WF_CHECK(wf_mst_node_parse(block->data, block->data_len, &node.cid,
+                                   &parsed) == WF_OK);
         WF_CHECK(parsed.count == 1);
         WF_CHECK(parsed.entries[0].key_len == 4);
         WF_CHECK(memcmp(parsed.entries[0].key, "test", 4) == 0);
-        WF_CHECK(memcmp(&parsed.entries[0].value, &value_cid, sizeof(wf_cid)) == 0);
+        WF_CHECK(memcmp(&parsed.entries[0].value, &value_cid, sizeof(wf_cid)) ==
+                 0);
         wf_mst_node_free(&parsed);
         wf_mst_node_free(&node);
         wf_car_free(&car);
@@ -939,31 +1037,30 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid value_cid = {{0}, 0};
-        value_cid.bytes[0] = 0x01; value_cid.bytes[1] = 0x71;
-        value_cid.bytes[2] = 0x12; value_cid.bytes[3] = 0x20;
+        value_cid.bytes[0] = 0x01;
+        value_cid.bytes[1] = 0x71;
+        value_cid.bytes[2] = 0x12;
+        value_cid.bytes[3] = 0x20;
         value_cid.len = 36;
 
         wf_cid root = {{0}, 0};
         wf_cid new_root;
         memset(&new_root, 0, sizeof(new_root));
 
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"asdf", 4,
-                             &value_cid, &new_root) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &value_cid,
+                            &new_root) == WF_OK);
         WF_CHECK(new_root.len == 36);
 
         /* Find it back */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &new_root,
-                              (unsigned char*)"asdf", 4,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &new_root, (unsigned char *)"asdf", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &value_cid, sizeof(wf_cid)) == 0);
 
         /* Missing key */
-        WF_CHECK(wf_mst_find(&car, &new_root,
-                              (unsigned char*)"nope", 4,
-                              &found) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_mst_find(&car, &new_root, (unsigned char *)"nope", 4,
+                             &found) == WF_ERR_NOT_FOUND);
 
         wf_car_free(&car);
     }
@@ -974,14 +1071,18 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val_a = {{0}, 0};
-        val_a.bytes[0] = 0x01; val_a.bytes[1] = 0x71;
-        val_a.bytes[2] = 0x12; val_a.bytes[3] = 0x20;
+        val_a.bytes[0] = 0x01;
+        val_a.bytes[1] = 0x71;
+        val_a.bytes[2] = 0x12;
+        val_a.bytes[3] = 0x20;
         val_a.bytes[4] = 0xAA;
         val_a.len = 36;
 
         wf_cid val_b = {{0}, 0};
-        val_b.bytes[0] = 0x01; val_b.bytes[1] = 0x71;
-        val_b.bytes[2] = 0x12; val_b.bytes[3] = 0x20;
+        val_b.bytes[0] = 0x01;
+        val_b.bytes[1] = 0x71;
+        val_b.bytes[2] = 0x12;
+        val_b.bytes[3] = 0x20;
         val_b.bytes[4] = 0xBB;
         val_b.len = 36;
 
@@ -989,123 +1090,125 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid root_a;
         memset(&root_a, 0, sizeof(root_a));
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"asdf", 4,
-                             &val_a, &root_a) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val_a,
+                            &root_a) == WF_OK);
 
         wf_cid root_b;
         memset(&root_b, 0, sizeof(root_b));
-        WF_CHECK(wf_mst_add(&car, &root_a,
-                             (unsigned char*)"2653ae71", 8,
-                             &val_b, &root_b) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root_a, (unsigned char *)"2653ae71", 8,
+                            &val_b, &root_b) == WF_OK);
 
         /* Both keys should be findable */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &root_b,
-                              (unsigned char*)"asdf", 4,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &root_b, (unsigned char *)"asdf", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_a, sizeof(wf_cid)) == 0);
 
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &root_b,
-                              (unsigned char*)"2653ae71", 8,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &root_b, (unsigned char *)"2653ae71", 8,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_b, sizeof(wf_cid)) == 0);
 
         wf_car_free(&car);
     }
 
-    /* Add key at higher layer (key_layer > node.layer): "blue" (layer 1) to "asdf" (layer 0) */
+    /* Add key at higher layer (key_layer > node.layer): "blue" (layer 1) to
+     * "asdf" (layer 0) */
     {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
         wf_cid val_asdf = {{0}, 0};
-        val_asdf.bytes[0] = 0x01; val_asdf.bytes[1] = 0x71;
-        val_asdf.bytes[2] = 0x12; val_asdf.bytes[3] = 0x20; val_asdf.bytes[4] = 0xAA;
+        val_asdf.bytes[0] = 0x01;
+        val_asdf.bytes[1] = 0x71;
+        val_asdf.bytes[2] = 0x12;
+        val_asdf.bytes[3] = 0x20;
+        val_asdf.bytes[4] = 0xAA;
         val_asdf.len = 36;
 
         wf_cid val_blue = {{0}, 0};
-        val_blue.bytes[0] = 0x01; val_blue.bytes[1] = 0x71;
-        val_blue.bytes[2] = 0x12; val_blue.bytes[3] = 0x20; val_blue.bytes[4] = 0xBB;
+        val_blue.bytes[0] = 0x01;
+        val_blue.bytes[1] = 0x71;
+        val_blue.bytes[2] = 0x12;
+        val_blue.bytes[3] = 0x20;
+        val_blue.bytes[4] = 0xBB;
         val_blue.len = 36;
 
-        WF_CHECK(wf_mst_key_layer((unsigned char*)"asdf", 4) == 0);
-        WF_CHECK(wf_mst_key_layer((unsigned char*)"blue", 4) == 1);
+        WF_CHECK(wf_mst_key_layer((unsigned char *)"asdf", 4) == 0);
+        WF_CHECK(wf_mst_key_layer((unsigned char *)"blue", 4) == 1);
 
         wf_cid root = {{0}, 0};
         wf_cid after_asdf;
         memset(&after_asdf, 0, sizeof(after_asdf));
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"asdf", 4,
-                             &val_asdf, &after_asdf) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val_asdf,
+                            &after_asdf) == WF_OK);
 
         /* Now add "blue" (layer 1) — triggers add_at_higher_layer */
         wf_cid after_blue;
         memset(&after_blue, 0, sizeof(after_blue));
-        WF_CHECK(wf_mst_add(&car, &after_asdf,
-                             (unsigned char*)"blue", 4,
-                             &val_blue, &after_blue) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &after_asdf, (unsigned char *)"blue", 4,
+                            &val_blue, &after_blue) == WF_OK);
 
         /* Both keys findable */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_blue,
-                              (unsigned char*)"asdf", 4,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &after_blue, (unsigned char *)"asdf", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_asdf, sizeof(wf_cid)) == 0);
 
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_blue,
-                              (unsigned char*)"blue", 4,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &after_blue, (unsigned char *)"blue", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_blue, sizeof(wf_cid)) == 0);
 
         wf_car_free(&car);
     }
 
-    /* Add key at lower layer (key_layer < node.layer): "asdf" (layer 0) to "blue" (layer 1) root */
+    /* Add key at lower layer (key_layer < node.layer): "asdf" (layer 0) to
+     * "blue" (layer 1) root */
     {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
         wf_cid val_blue = {{0}, 0};
-        val_blue.bytes[0] = 0x01; val_blue.bytes[1] = 0x71;
-        val_blue.bytes[2] = 0x12; val_blue.bytes[3] = 0x20; val_blue.bytes[4] = 0xAA;
+        val_blue.bytes[0] = 0x01;
+        val_blue.bytes[1] = 0x71;
+        val_blue.bytes[2] = 0x12;
+        val_blue.bytes[3] = 0x20;
+        val_blue.bytes[4] = 0xAA;
         val_blue.len = 36;
 
         wf_cid val_asdf = {{0}, 0};
-        val_asdf.bytes[0] = 0x01; val_asdf.bytes[1] = 0x71;
-        val_asdf.bytes[2] = 0x12; val_asdf.bytes[3] = 0x20; val_asdf.bytes[4] = 0xBB;
+        val_asdf.bytes[0] = 0x01;
+        val_asdf.bytes[1] = 0x71;
+        val_asdf.bytes[2] = 0x12;
+        val_asdf.bytes[3] = 0x20;
+        val_asdf.bytes[4] = 0xBB;
         val_asdf.len = 36;
 
         wf_cid root = {{0}, 0};
         wf_cid after_blue;
         memset(&after_blue, 0, sizeof(after_blue));
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"blue", 4,
-                             &val_blue, &after_blue) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"blue", 4, &val_blue,
+                            &after_blue) == WF_OK);
 
         /* Now add "asdf" (layer 0) — triggers add_at_lower_layer */
         wf_cid after_asdf;
         memset(&after_asdf, 0, sizeof(after_asdf));
-        WF_CHECK(wf_mst_add(&car, &after_blue,
-                             (unsigned char*)"asdf", 4,
-                             &val_asdf, &after_asdf) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &after_blue, (unsigned char *)"asdf", 4,
+                            &val_asdf, &after_asdf) == WF_OK);
 
         /* Both keys findable */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_asdf,
-                              (unsigned char*)"blue", 4,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &after_asdf, (unsigned char *)"blue", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_blue, sizeof(wf_cid)) == 0);
 
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_asdf,
-                              (unsigned char*)"asdf", 4,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &after_asdf, (unsigned char *)"asdf", 4,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_asdf, sizeof(wf_cid)) == 0);
 
         wf_car_free(&car);
@@ -1119,22 +1222,23 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val = {{0}, 0};
-        val.bytes[0] = 0x01; val.bytes[1] = 0x71;
-        val.bytes[2] = 0x12; val.bytes[3] = 0x20; val.bytes[4] = 0xAA;
+        val.bytes[0] = 0x01;
+        val.bytes[1] = 0x71;
+        val.bytes[2] = 0x12;
+        val.bytes[3] = 0x20;
+        val.bytes[4] = 0xAA;
         val.len = 36;
 
         wf_cid root = {{0}, 0};
         wf_cid after_add;
         memset(&after_add, 0, sizeof(after_add));
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"asdf", 4,
-                             &val, &after_add) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val,
+                            &after_add) == WF_OK);
 
         wf_cid after_del;
         memset(&after_del, 0, sizeof(after_del));
-        WF_CHECK(wf_mst_delete(&car, &after_add,
-                                (unsigned char*)"asdf", 4,
-                                &after_del) == WF_OK);
+        WF_CHECK(wf_mst_delete(&car, &after_add, (unsigned char *)"asdf", 4,
+                               &after_del) == WF_OK);
         WF_CHECK(after_del.len == 0); /* tree is empty */
 
         wf_car_free(&car);
@@ -1146,48 +1250,49 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val_a = {{0}, 0};
-        val_a.bytes[0] = 0x01; val_a.bytes[1] = 0x71;
-        val_a.bytes[2] = 0x12; val_a.bytes[3] = 0x20; val_a.bytes[4] = 0xAA;
+        val_a.bytes[0] = 0x01;
+        val_a.bytes[1] = 0x71;
+        val_a.bytes[2] = 0x12;
+        val_a.bytes[3] = 0x20;
+        val_a.bytes[4] = 0xAA;
         val_a.len = 36;
 
         wf_cid val_b = {{0}, 0};
-        val_b.bytes[0] = 0x01; val_b.bytes[1] = 0x71;
-        val_b.bytes[2] = 0x12; val_b.bytes[3] = 0x20; val_b.bytes[4] = 0xBB;
+        val_b.bytes[0] = 0x01;
+        val_b.bytes[1] = 0x71;
+        val_b.bytes[2] = 0x12;
+        val_b.bytes[3] = 0x20;
+        val_b.bytes[4] = 0xBB;
         val_b.len = 36;
 
         wf_cid root = {{0}, 0};
         wf_cid after_a;
         memset(&after_a, 0, sizeof(after_a));
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"asdf", 4,
-                             &val_a, &after_a) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val_a,
+                            &after_a) == WF_OK);
 
         wf_cid after_both;
         memset(&after_both, 0, sizeof(after_both));
-        WF_CHECK(wf_mst_add(&car, &after_a,
-                             (unsigned char*)"2653ae71", 8,
-                             &val_b, &after_both) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &after_a, (unsigned char *)"2653ae71", 8,
+                            &val_b, &after_both) == WF_OK);
 
         /* Delete "asdf" */
         wf_cid after_del;
         memset(&after_del, 0, sizeof(after_del));
-        WF_CHECK(wf_mst_delete(&car, &after_both,
-                                (unsigned char*)"asdf", 4,
-                                &after_del) == WF_OK);
+        WF_CHECK(wf_mst_delete(&car, &after_both, (unsigned char *)"asdf", 4,
+                               &after_del) == WF_OK);
         WF_CHECK(after_del.len > 0); /* tree not empty */
 
         /* "asdf" should be gone */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_del,
-                              (unsigned char*)"asdf", 4,
-                              &found) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_mst_find(&car, &after_del, (unsigned char *)"asdf", 4,
+                             &found) == WF_ERR_NOT_FOUND);
 
         /* "2653ae71" should remain */
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_del,
-                              (unsigned char*)"2653ae71", 8,
-                              &found) == WF_OK);
+        WF_CHECK(wf_mst_find(&car, &after_del, (unsigned char *)"2653ae71", 8,
+                             &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_b, sizeof(wf_cid)) == 0);
 
         wf_car_free(&car);
@@ -1203,8 +1308,8 @@ int main(void) {
         for (unsigned i = 0; i < 1000000 && matched < 7; i++) {
             char candidate[32];
             int n = snprintf(candidate, sizeof(candidate), "merge-%06u", i);
-            unsigned layer = wf_mst_key_layer((unsigned char *)candidate,
-                                               (size_t)n);
+            unsigned layer =
+                wf_mst_key_layer((unsigned char *)candidate, (size_t)n);
             if (layer == wanted_layers[matched]) {
                 memcpy(keys[matched], candidate, (size_t)n + 1);
                 matched++;
@@ -1254,15 +1359,13 @@ int main(void) {
         WF_CHECK(memcmp(after_delete.bytes, rebuilt.bytes, rebuilt.len) == 0);
 
         wf_cid found = {{0}, 0};
-        WF_CHECK(wf_mst_find(&car, &after_delete,
-                             (unsigned char *)keys[3], strlen(keys[3]),
-                             &found) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_mst_find(&car, &after_delete, (unsigned char *)keys[3],
+                             strlen(keys[3]), &found) == WF_ERR_NOT_FOUND);
         for (size_t i = 0; i < 7; i++) {
             if (i == 3) continue;
             memset(&found, 0, sizeof(found));
-            WF_CHECK(wf_mst_find(&car, &after_delete,
-                                 (unsigned char *)keys[i], strlen(keys[i]),
-                                 &found) == WF_OK);
+            WF_CHECK(wf_mst_find(&car, &after_delete, (unsigned char *)keys[i],
+                                 strlen(keys[i]), &found) == WF_OK);
             WF_CHECK(memcmp(&found, &values[i], sizeof(found)) == 0);
         }
         wf_car_free(&car);
@@ -1274,22 +1377,23 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid val = {{0}, 0};
-        val.bytes[0] = 0x01; val.bytes[1] = 0x71;
-        val.bytes[2] = 0x12; val.bytes[3] = 0x20; val.bytes[4] = 0xAA;
+        val.bytes[0] = 0x01;
+        val.bytes[1] = 0x71;
+        val.bytes[2] = 0x12;
+        val.bytes[3] = 0x20;
+        val.bytes[4] = 0xAA;
         val.len = 36;
 
         wf_cid root = {{0}, 0};
         wf_cid after_add;
         memset(&after_add, 0, sizeof(after_add));
-        WF_CHECK(wf_mst_add(&car, &root,
-                             (unsigned char*)"asdf", 4,
-                             &val, &after_add) == WF_OK);
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val,
+                            &after_add) == WF_OK);
 
         wf_cid after_del;
         memset(&after_del, 0, sizeof(after_del));
-        WF_CHECK(wf_mst_delete(&car, &after_add,
-                                (unsigned char*)"nope", 4,
-                                &after_del) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_mst_delete(&car, &after_add, (unsigned char *)"nope", 4,
+                               &after_del) == WF_ERR_NOT_FOUND);
 
         wf_car_free(&car);
     }
@@ -1301,9 +1405,8 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid result;
         memset(&result, 0, sizeof(result));
-        WF_CHECK(wf_mst_delete(&car, &root,
-                                (unsigned char*)"asdf", 4,
-                                &result) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"asdf", 4,
+                               &result) == WF_ERR_NOT_FOUND);
         wf_car_free(&car);
     }
 
@@ -1313,21 +1416,16 @@ int main(void) {
         memset(&car, 0, sizeof(car));
         wf_cid root = {{0}, 0};
         wf_cid result;
-        WF_CHECK(wf_mst_delete(NULL, &root,
-                                (unsigned char*)"asdf", 4,
-                                &result) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, NULL,
-                                (unsigned char*)"asdf", 4,
-                                &result) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, &root,
-                                NULL, 4,
-                                &result) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, &root,
-                                (unsigned char*)"asdf", 0,
-                                &result) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, &root,
-                                (unsigned char*)"asdf", 4,
-                                NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(NULL, &root, (unsigned char *)"asdf", 4,
+                               &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, NULL, (unsigned char *)"asdf", 4,
+                               &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, &root, NULL, 4, &result) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"asdf", 0,
+                               &result) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"asdf", 4, NULL) ==
+                 WF_ERR_INVALID_ARG);
         wf_car_free(&car);
     }
 
@@ -1337,13 +1435,9 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         const char *keys[] = {
-            "app.bsky.feed.post/aaa",
-            "app.bsky.feed.post/bbb",
-            "app.bsky.feed.post/ccc",
-            "app.bsky.graph.follow/xxx",
-            "app.bsky.graph.follow/yyy",
-            "chat.bsky.convo/zzz"
-        };
+            "app.bsky.feed.post/aaa",    "app.bsky.feed.post/bbb",
+            "app.bsky.feed.post/ccc",    "app.bsky.graph.follow/xxx",
+            "app.bsky.graph.follow/yyy", "chat.bsky.convo/zzz"};
         size_t nkeys = sizeof(keys) / sizeof(keys[0]);
 
         wf_cid root = {{0}, 0};
@@ -1370,7 +1464,8 @@ int main(void) {
         WF_CHECK(n == nkeys);
         for (size_t i = 1; i < n; i++) {
             size_t min = leaves[i - 1].key_len < leaves[i].key_len
-                         ? leaves[i - 1].key_len : leaves[i].key_len;
+                             ? leaves[i - 1].key_len
+                             : leaves[i].key_len;
             int cmp = memcmp(leaves[i - 1].key, leaves[i].key, min);
             if (cmp == 0)
                 cmp = (int)leaves[i - 1].key_len - (int)leaves[i].key_len;
@@ -1396,8 +1491,7 @@ int main(void) {
         WF_CHECK(nf == 3);
         for (size_t i = 0; i < nf; i++) {
             size_t clen = strlen(coll);
-            WF_CHECK(feed[i].key_len > clen &&
-                     feed[i].key[clen] == '/' &&
+            WF_CHECK(feed[i].key_len > clen && feed[i].key[clen] == '/' &&
                      memcmp(feed[i].key, coll, clen) == 0);
         }
         wf_mst_leaf_list_free(feed, nf);
@@ -1412,8 +1506,8 @@ int main(void) {
 
         /* walk_from: NULL lower bound walks everything */
         size_t all = 0;
-        WF_CHECK(wf_mst_walk_from(&car, &cur, NULL, 0,
-                                  mst_walk_count_cb, &all) == WF_OK);
+        WF_CHECK(wf_mst_walk_from(&car, &cur, NULL, 0, mst_walk_count_cb,
+                                  &all) == WF_OK);
         WF_CHECK(all == nkeys);
 
         /* get_all_cids: every value CID plus node CIDs */
@@ -1429,7 +1523,10 @@ int main(void) {
                                      &expected) == WF_OK);
             int found_val = 0;
             for (size_t j = 0; j < nc; j++)
-                if (check_cid(&cids[j], &expected)) { found_val = 1; break; }
+                if (check_cid(&cids[j], &expected)) {
+                    found_val = 1;
+                    break;
+                }
             WF_CHECK(found_val);
         }
         wf_mst_cid_list_free(cids, nc);
@@ -1437,24 +1534,24 @@ int main(void) {
         /* get_covering_proof: feed.post collection range only */
         wf_cid *proof = NULL;
         size_t np = 0;
-        WF_CHECK(wf_mst_get_covering_proof(&car, &cur,
-                        (unsigned char *)"app.bsky.feed.post/",
-                        strlen("app.bsky.feed.post/"),
-                        (unsigned char *)"app.bsky.feed.post0",
-                        strlen("app.bsky.feed.post0"),
-                        &proof, &np) == WF_OK);
+        WF_CHECK(wf_mst_get_covering_proof(
+                     &car, &cur, (unsigned char *)"app.bsky.feed.post/",
+                     strlen("app.bsky.feed.post/"),
+                     (unsigned char *)"app.bsky.feed.post0",
+                     strlen("app.bsky.feed.post0"), &proof, &np) == WF_OK);
         WF_CHECK(np > 0);
         wf_mst_cid_list_free(proof, np);
 
         /* empty tree: traversal yields nothing without error */
         wf_cid empty_root = {{0}, 0};
-        wf_mst_leaf *e = NULL; size_t en = 0;
+        wf_mst_leaf *e = NULL;
+        size_t en = 0;
         WF_CHECK(wf_mst_list(&car, &empty_root, &e, &en) == WF_OK);
         WF_CHECK(en == 0);
         wf_mst_leaf_list_free(e, en);
         size_t ew = 0;
-        WF_CHECK(wf_mst_walk_from(&car, &empty_root, NULL, 0,
-                                  mst_walk_count_cb, &ew) == WF_OK);
+        WF_CHECK(wf_mst_walk_from(&car, &empty_root, NULL, 0, mst_walk_count_cb,
+                                  &ew) == WF_OK);
         WF_CHECK(ew == 0);
 
         wf_car_free(&car);
@@ -1472,15 +1569,17 @@ int main(void) {
             memset(&car, 0, sizeof(car));
 
             wf_cid mst_root = {{0}, 0};
-            mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
-            mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+            mst_root.bytes[0] = 0x01;
+            mst_root.bytes[1] = 0x71;
+            mst_root.bytes[2] = 0x12;
+            mst_root.bytes[3] = 0x20;
             mst_root.len = 36;
 
             wf_commit commit;
             memset(&commit, 0, sizeof(commit));
             WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
-                                       &mst_root, NULL, &key,
-                                       &car, &commit) == WF_OK);
+                                      &mst_root, NULL, &key, &car,
+                                      &commit) == WF_OK);
             WF_CHECK(commit.cid.len == 36);
             WF_CHECK(commit.sig_len == 64);
             WF_CHECK(strcmp(commit.did, "did:plc:test") == 0);
@@ -1495,8 +1594,8 @@ int main(void) {
             memset(&parsed, 0, sizeof(parsed));
             wf_car_block *block = wf_car_find_block(&car, &commit.cid);
             WF_CHECK(block != NULL);
-            WF_CHECK(wf_commit_parse(block->data, block->data_len,
-                                      &parsed) == WF_OK);
+            WF_CHECK(wf_commit_parse(block->data, block->data_len, &parsed) ==
+                     WF_OK);
             WF_CHECK(strcmp(parsed.did, "did:plc:test") == 0);
             WF_CHECK(strcmp(parsed.rev, "3jui7kd54zh2y") == 0);
             WF_CHECK(parsed.version == 3);
@@ -1517,21 +1616,25 @@ int main(void) {
             memset(&car, 0, sizeof(car));
 
             wf_cid mst_root = {{0}, 0};
-            mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
-            mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+            mst_root.bytes[0] = 0x01;
+            mst_root.bytes[1] = 0x71;
+            mst_root.bytes[2] = 0x12;
+            mst_root.bytes[3] = 0x20;
             mst_root.len = 36;
 
             wf_cid prev_cid = {{0}, 0};
-            prev_cid.bytes[0] = 0x01; prev_cid.bytes[1] = 0x71;
-            prev_cid.bytes[2] = 0x12; prev_cid.bytes[3] = 0x20;
+            prev_cid.bytes[0] = 0x01;
+            prev_cid.bytes[1] = 0x71;
+            prev_cid.bytes[2] = 0x12;
+            prev_cid.bytes[3] = 0x20;
             prev_cid.bytes[4] = 0xAA;
             prev_cid.len = 36;
 
             wf_commit commit;
             memset(&commit, 0, sizeof(commit));
             WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
-                                       &mst_root, &prev_cid, &key,
-                                       &car, &commit) == WF_OK);
+                                      &mst_root, &prev_cid, &key, &car,
+                                      &commit) == WF_OK);
             /* v3 writes prev as null whatever the caller passes: the spec
              * says the field "must exist ... but is virtually always null",
              * and no other implementation emits a CID there. */
@@ -1555,15 +1658,16 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid mst_root = {{0}, 0};
-        mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
-        mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+        mst_root.bytes[0] = 0x01;
+        mst_root.bytes[1] = 0x71;
+        mst_root.bytes[2] = 0x12;
+        mst_root.bytes[3] = 0x20;
         mst_root.len = 36;
 
         wf_commit commit;
         memset(&commit, 0, sizeof(commit));
-        WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
-                                   &mst_root, NULL, &key,
-                                   &car, &commit) == WF_OK);
+        WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y", &mst_root,
+                                  NULL, &key, &car, &commit) == WF_OK);
         WF_CHECK(commit.cid.len == 36);
         WF_CHECK(commit.sig_len == 64);
         WF_CHECK(strcmp(commit.did, "did:plc:test") == 0);
@@ -1578,8 +1682,8 @@ int main(void) {
         memset(&parsed, 0, sizeof(parsed));
         wf_car_block *block = wf_car_find_block(&car, &commit.cid);
         WF_CHECK(block != NULL);
-        WF_CHECK(wf_commit_parse(block->data, block->data_len,
-                                  &parsed) == WF_OK);
+        WF_CHECK(wf_commit_parse(block->data, block->data_len, &parsed) ==
+                 WF_OK);
         WF_CHECK(strcmp(parsed.did, "did:plc:test") == 0);
         WF_CHECK(strcmp(parsed.rev, "3jui7kd54zh2y") == 0);
         WF_CHECK(parsed.version == 3);
@@ -1599,21 +1703,24 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         wf_cid mst_root = {{0}, 0};
-        mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
-        mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+        mst_root.bytes[0] = 0x01;
+        mst_root.bytes[1] = 0x71;
+        mst_root.bytes[2] = 0x12;
+        mst_root.bytes[3] = 0x20;
         mst_root.len = 36;
 
         wf_cid prev_cid = {{0}, 0};
-        prev_cid.bytes[0] = 0x01; prev_cid.bytes[1] = 0x71;
-        prev_cid.bytes[2] = 0x12; prev_cid.bytes[3] = 0x20;
+        prev_cid.bytes[0] = 0x01;
+        prev_cid.bytes[1] = 0x71;
+        prev_cid.bytes[2] = 0x12;
+        prev_cid.bytes[3] = 0x20;
         prev_cid.bytes[4] = 0xAA;
         prev_cid.len = 36;
 
         wf_commit commit;
         memset(&commit, 0, sizeof(commit));
-        WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y",
-                                   &mst_root, &prev_cid, &key,
-                                   &car, &commit) == WF_OK);
+        WF_CHECK(wf_commit_create("did:plc:test", "3jui7kd54zh2y", &mst_root,
+                                  &prev_cid, &key, &car, &commit) == WF_OK);
         /* See above: v3 commits carry a null prev. */
         WF_CHECK(commit.has_prev == 0);
 
@@ -1629,18 +1736,18 @@ int main(void) {
         memset(&car, 0, sizeof(car));
         wf_commit commit;
 
-        WF_CHECK(wf_commit_create(NULL, "rev", &cid, NULL, &key,
-                                   &car, &commit) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_commit_create("did", NULL, &cid, NULL, &key,
-                                   &car, &commit) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_commit_create("did", "rev", NULL, NULL, &key,
-                                   &car, &commit) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, NULL,
-                                   &car, &commit) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, &key,
-                                   NULL, &commit) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, &key,
-                                   &car, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_commit_create(NULL, "rev", &cid, NULL, &key, &car,
+                                  &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_commit_create("did", NULL, &cid, NULL, &key, &car,
+                                  &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_commit_create("did", "rev", NULL, NULL, &key, &car,
+                                  &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, NULL, &car,
+                                  &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, &key, NULL,
+                                  &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_commit_create("did", "rev", &cid, NULL, &key, &car, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* ── Record creation and retrieval ── */
@@ -1655,17 +1762,15 @@ int main(void) {
         memset(&car, 0, sizeof(car));
 
         /* Create a record: {test: 123} -> CBOR */
-        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
-                                  0x18, 0x7B};
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x18, 0x7B};
         wf_cid out_commit, out_record;
         memset(&out_commit, 0, sizeof(out_commit));
         memset(&out_record, 0, sizeof(out_record));
 
         WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                        "com.example.posts",
-                                        "3jui7kd54zh2y",
-                                        record, sizeof(record),
-                                        &key, &out_commit, &out_record) == WF_OK);
+                                       "com.example.posts", "3jui7kd54zh2y",
+                                       record, sizeof(record), &key,
+                                       &out_commit, &out_record) == WF_OK);
         WF_CHECK(out_commit.len == 36);
         WF_CHECK(out_record.len == 36);
         WF_CHECK(car.block_count >= 2);
@@ -1675,9 +1780,9 @@ int main(void) {
         size_t got_len = 0;
         wf_cid got_cid;
         memset(&got_cid, 0, sizeof(got_cid));
-        WF_CHECK(wf_repo_get_record(&car, &out_commit,
-                                     "com.example.posts", "3jui7kd54zh2y",
-                                     &got_data, &got_len, &got_cid) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&car, &out_commit, "com.example.posts",
+                                    "3jui7kd54zh2y", &got_data, &got_len,
+                                    &got_cid) == WF_OK);
         WF_CHECK(got_len == sizeof(record));
         WF_CHECK(memcmp(got_data, record, sizeof(record)) == 0);
         WF_CHECK(memcmp(&got_cid, &out_record, sizeof(wf_cid)) == 0);
@@ -1695,40 +1800,39 @@ int main(void) {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
-        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
-                                  0x18, 0x7B};
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x18, 0x7B};
         wf_cid commit1, rec1;
         memset(&commit1, 0, sizeof(commit1));
         memset(&rec1, 0, sizeof(rec1));
-        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                        "com.example.posts", "rec1",
-                                        record, sizeof(record),
-                                        &key, &commit1, &rec1) == WF_OK);
+        WF_CHECK(wf_repo_create_record(
+                     &car, NULL, "did:plc:test", "com.example.posts", "rec1",
+                     record, sizeof(record), &key, &commit1, &rec1) == WF_OK);
 
-        unsigned char record2[] = {0xA1, 0x64, 'n', 'a', 'm', 'e',
-                                   0x63, 'b', 'o', 'b'};
+        unsigned char record2[] = {0xA1, 0x64, 'n', 'a', 'm',
+                                   'e',  0x63, 'b', 'o', 'b'};
         wf_cid commit2, rec2;
         memset(&commit2, 0, sizeof(commit2));
         memset(&rec2, 0, sizeof(rec2));
         WF_CHECK(wf_repo_create_record(&car, &commit1, "did:plc:test",
-                                        "com.example.posts", "rec2",
-                                        record2, sizeof(record2),
-                                        &key, &commit2, &rec2) == WF_OK);
+                                       "com.example.posts", "rec2", record2,
+                                       sizeof(record2), &key, &commit2,
+                                       &rec2) == WF_OK);
 
         /* Both records retrievable */
-        unsigned char *data = NULL; size_t dlen = 0; wf_cid c;
+        unsigned char *data = NULL;
+        size_t dlen = 0;
+        wf_cid c;
         memset(&c, 0, sizeof(c));
-        WF_CHECK(wf_repo_get_record(&car, &commit2,
-                                     "com.example.posts", "rec1",
-                                     &data, &dlen, &c) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&car, &commit2, "com.example.posts", "rec1",
+                                    &data, &dlen, &c) == WF_OK);
         WF_CHECK(dlen == sizeof(record));
         WF_CHECK(memcmp(data, record, sizeof(record)) == 0);
-        free(data); data = NULL;
+        free(data);
+        data = NULL;
 
         memset(&c, 0, sizeof(c));
-        WF_CHECK(wf_repo_get_record(&car, &commit2,
-                                     "com.example.posts", "rec2",
-                                     &data, &dlen, &c) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&car, &commit2, "com.example.posts", "rec2",
+                                    &data, &dlen, &c) == WF_OK);
         WF_CHECK(dlen == sizeof(record2));
         WF_CHECK(memcmp(data, record2, sizeof(record2)) == 0);
         free(data);
@@ -1743,10 +1847,10 @@ int main(void) {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
-        WF_CHECK(wf_repo_create_record(NULL, NULL, NULL, NULL, NULL,
-                                        NULL, 0, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_repo_get_record(NULL, NULL, NULL, NULL,
-                                     NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_create_record(NULL, NULL, NULL, NULL, NULL, NULL, 0,
+                                       NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_get_record(NULL, NULL, NULL, NULL, NULL, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* ── Record update ── */
@@ -1762,20 +1866,20 @@ int main(void) {
         wf_cid commit1, record1, commit2, record2;
 
         WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                        "com.example.posts", "rec1",
-                                        original, sizeof(original), &key,
-                                        &commit1, &record1) == WF_OK);
+                                       "com.example.posts", "rec1", original,
+                                       sizeof(original), &key, &commit1,
+                                       &record1) == WF_OK);
         WF_CHECK(wf_repo_update_record(&car, &commit1, "did:plc:test",
-                                        "com.example.posts", "rec1",
-                                        replacement, sizeof(replacement), &key,
-                                        &commit2, &record2) == WF_OK);
+                                       "com.example.posts", "rec1", replacement,
+                                       sizeof(replacement), &key, &commit2,
+                                       &record2) == WF_OK);
         WF_CHECK(memcmp(record1.bytes, record2.bytes, record1.len) != 0);
 
         unsigned char *data = NULL;
         size_t data_len = 0;
         wf_cid found;
-        WF_CHECK(wf_repo_get_record(&car, &commit2, "com.example.posts",
-                                     "rec1", &data, &data_len, &found) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&car, &commit2, "com.example.posts", "rec1",
+                                    &data, &data_len, &found) == WF_OK);
         WF_CHECK(data_len == sizeof(replacement));
         WF_CHECK(memcmp(data, replacement, sizeof(replacement)) == 0);
         WF_CHECK(found.len == record2.len &&
@@ -1783,12 +1887,11 @@ int main(void) {
         free(data);
 
         WF_CHECK(wf_repo_update_record(&car, &commit2, "did:plc:test",
-                                        "com.example.posts", "missing",
-                                        replacement, sizeof(replacement), &key,
-                                        &commit1, &record1) == WF_ERR_NOT_FOUND);
-        WF_CHECK(wf_repo_update_record(NULL, NULL, NULL, NULL, NULL,
-                                        NULL, 0, NULL, NULL, NULL) ==
-                 WF_ERR_INVALID_ARG);
+                                       "com.example.posts", "missing",
+                                       replacement, sizeof(replacement), &key,
+                                       &commit1, &record1) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_repo_update_record(NULL, NULL, NULL, NULL, NULL, NULL, 0,
+                                       NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
         wf_car_free(&car);
     }
 
@@ -1803,30 +1906,29 @@ int main(void) {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
-        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
-                                  0x18, 0x7B};
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x18, 0x7B};
         wf_cid commit1, rec1;
         memset(&commit1, 0, sizeof(commit1));
         memset(&rec1, 0, sizeof(rec1));
-        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                        "com.example.posts", "rec1",
-                                        record, sizeof(record),
-                                        &key, &commit1, &rec1) == WF_OK);
+        WF_CHECK(wf_repo_create_record(
+                     &car, NULL, "did:plc:test", "com.example.posts", "rec1",
+                     record, sizeof(record), &key, &commit1, &rec1) == WF_OK);
 
         /* Delete the record */
         wf_cid commit2;
         memset(&commit2, 0, sizeof(commit2));
         WF_CHECK(wf_repo_delete_record(&car, &commit1, "did:plc:test",
-                                         "com.example.posts", "rec1",
-                                         &key, &commit2) == WF_OK);
+                                       "com.example.posts", "rec1", &key,
+                                       &commit2) == WF_OK);
         WF_CHECK(commit2.len == 36);
 
         /* Record should be gone */
-        unsigned char *data = NULL; size_t dlen = 0; wf_cid c;
+        unsigned char *data = NULL;
+        size_t dlen = 0;
+        wf_cid c;
         memset(&c, 0, sizeof(c));
-        WF_CHECK(wf_repo_get_record(&car, &commit2,
-                                     "com.example.posts", "rec1",
-                                     &data, &dlen, &c) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_repo_get_record(&car, &commit2, "com.example.posts", "rec1",
+                                    &data, &dlen, &c) == WF_ERR_NOT_FOUND);
 
         wf_car_free(&car);
     }
@@ -1840,47 +1942,47 @@ int main(void) {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
-        unsigned char record_a[] = {0xA1, 0x64, 't', 'e', 's', 't',
-                                    0x18, 0x7B};
-        unsigned char record_b[] = {0xA1, 0x64, 'n', 'a', 'm', 'e',
-                                    0x63, 'b', 'o', 'b'};
+        unsigned char record_a[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x18, 0x7B};
+        unsigned char record_b[] = {0xA1, 0x64, 'n', 'a', 'm',
+                                    'e',  0x63, 'b', 'o', 'b'};
 
         wf_cid commit1, rec1;
         memset(&commit1, 0, sizeof(commit1));
         memset(&rec1, 0, sizeof(rec1));
         WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                        "com.example.posts", "rec1",
-                                        record_a, sizeof(record_a),
-                                        &key, &commit1, &rec1) == WF_OK);
+                                       "com.example.posts", "rec1", record_a,
+                                       sizeof(record_a), &key, &commit1,
+                                       &rec1) == WF_OK);
 
         wf_cid commit2, rec2;
         memset(&commit2, 0, sizeof(commit2));
         memset(&rec2, 0, sizeof(rec2));
         WF_CHECK(wf_repo_create_record(&car, &commit1, "did:plc:test",
-                                        "com.example.posts", "rec2",
-                                        record_b, sizeof(record_b),
-                                        &key, &commit2, &rec2) == WF_OK);
+                                       "com.example.posts", "rec2", record_b,
+                                       sizeof(record_b), &key, &commit2,
+                                       &rec2) == WF_OK);
 
         /* Delete rec1 */
         wf_cid commit3;
         memset(&commit3, 0, sizeof(commit3));
         WF_CHECK(wf_repo_delete_record(&car, &commit2, "did:plc:test",
-                                         "com.example.posts", "rec1",
-                                         &key, &commit3) == WF_OK);
+                                       "com.example.posts", "rec1", &key,
+                                       &commit3) == WF_OK);
 
         /* rec1 should be gone */
-        unsigned char *data = NULL; size_t dlen = 0; wf_cid c;
+        unsigned char *data = NULL;
+        size_t dlen = 0;
+        wf_cid c;
         memset(&c, 0, sizeof(c));
-        WF_CHECK(wf_repo_get_record(&car, &commit3,
-                                     "com.example.posts", "rec1",
-                                     &data, &dlen, &c) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_repo_get_record(&car, &commit3, "com.example.posts", "rec1",
+                                    &data, &dlen, &c) == WF_ERR_NOT_FOUND);
 
         /* rec2 should survive */
         memset(&c, 0, sizeof(c));
-        data = NULL; dlen = 0;
-        WF_CHECK(wf_repo_get_record(&car, &commit3,
-                                     "com.example.posts", "rec2",
-                                     &data, &dlen, &c) == WF_OK);
+        data = NULL;
+        dlen = 0;
+        WF_CHECK(wf_repo_get_record(&car, &commit3, "com.example.posts", "rec2",
+                                    &data, &dlen, &c) == WF_OK);
         WF_CHECK(dlen == sizeof(record_b));
         WF_CHECK(memcmp(data, record_b, sizeof(record_b)) == 0);
         free(data);
@@ -1897,22 +1999,20 @@ int main(void) {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
-        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't',
-                                  0x18, 0x7B};
+        unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x18, 0x7B};
         wf_cid commit1, rec1;
         memset(&commit1, 0, sizeof(commit1));
         memset(&rec1, 0, sizeof(rec1));
-        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                        "com.example.posts", "rec1",
-                                        record, sizeof(record),
-                                        &key, &commit1, &rec1) == WF_OK);
+        WF_CHECK(wf_repo_create_record(
+                     &car, NULL, "did:plc:test", "com.example.posts", "rec1",
+                     record, sizeof(record), &key, &commit1, &rec1) == WF_OK);
 
         /* Try to delete a non-existent rkey */
         wf_cid commit2;
         memset(&commit2, 0, sizeof(commit2));
         WF_CHECK(wf_repo_delete_record(&car, &commit1, "did:plc:test",
-                                         "com.example.posts", "nope",
-                                         &key, &commit2) == WF_ERR_NOT_FOUND);
+                                       "com.example.posts", "nope", &key,
+                                       &commit2) == WF_ERR_NOT_FOUND);
 
         wf_car_free(&car);
     }
@@ -1924,10 +2024,10 @@ int main(void) {
         wf_car car;
         memset(&car, 0, sizeof(car));
 
-        WF_CHECK(wf_repo_delete_record(NULL, NULL, NULL, NULL, NULL,
-                                        NULL, NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_repo_delete_record(&car, NULL, "did", "col", "rkey",
-                                        &key, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_delete_record(NULL, NULL, NULL, NULL, NULL, NULL,
+                                       NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_delete_record(&car, NULL, "did", "col", "rkey", &key,
+                                       NULL) == WF_ERR_INVALID_ARG);
     }
 
     /* Verify and import a repository CAR with a resolved P-256 did:key. */
@@ -1941,10 +2041,9 @@ int main(void) {
         unsigned char record[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
         wf_car car = {0};
         wf_cid commit1 = {0}, record_cid = {0};
-        WF_CHECK(wf_repo_create_record(&car, NULL, did,
-                                        "com.example.posts", "one",
-                                        record, sizeof(record), &key,
-                                        &commit1, &record_cid) == WF_OK);
+        WF_CHECK(wf_repo_create_record(&car, NULL, did, "com.example.posts",
+                                       "one", record, sizeof(record), &key,
+                                       &commit1, &record_cid) == WF_OK);
         car.roots = malloc(sizeof(wf_cid));
         WF_CHECK(car.roots != NULL);
         car.roots[0] = commit1;
@@ -2003,14 +2102,13 @@ int main(void) {
         wf_cid commit_one = {0}, commit_base = {0}, commit_update = {0};
         wf_cid old_keep = {0}, old_delete = {0};
         wf_cid new_keep = {0}, new_add = {0};
-        WF_CHECK(wf_repo_create_record(&working, NULL, did,
-                                        "com.example.posts", "keep",
-                                        record_one, sizeof(record_one), &key,
-                                        &commit_one, &old_keep) == WF_OK);
+        WF_CHECK(wf_repo_create_record(&working, NULL, did, "com.example.posts",
+                                       "keep", record_one, sizeof(record_one),
+                                       &key, &commit_one, &old_keep) == WF_OK);
         WF_CHECK(wf_repo_create_record(&working, &commit_one, did,
-                                        "com.example.posts", "remove",
-                                        record_two, sizeof(record_two), &key,
-                                        &commit_base, &old_delete) == WF_OK);
+                                       "com.example.posts", "remove",
+                                       record_two, sizeof(record_two), &key,
+                                       &commit_base, &old_delete) == WF_OK);
         working.roots = malloc(sizeof(wf_cid));
         WF_CHECK(working.roots != NULL);
         working.roots[0] = commit_base;
@@ -2026,17 +2124,17 @@ int main(void) {
 
         wf_cid intermediate = {0};
         WF_CHECK(wf_repo_update_record(&working, &commit_base, did,
-                                        "com.example.posts", "keep",
-                                        record_three, sizeof(record_three),
-                                        &key, &intermediate, &new_keep) == WF_OK);
+                                       "com.example.posts", "keep",
+                                       record_three, sizeof(record_three), &key,
+                                       &intermediate, &new_keep) == WF_OK);
         wf_cid after_delete = {0};
         WF_CHECK(wf_repo_delete_record(&working, &intermediate, did,
-                                        "com.example.posts", "remove", &key,
-                                        &after_delete) == WF_OK);
+                                       "com.example.posts", "remove", &key,
+                                       &after_delete) == WF_OK);
         WF_CHECK(wf_repo_create_record(&working, &after_delete, did,
-                                        "com.example.posts", "added",
-                                        record_four, sizeof(record_four), &key,
-                                        &commit_update, &new_add) == WF_OK);
+                                       "com.example.posts", "added",
+                                       record_four, sizeof(record_four), &key,
+                                       &commit_update, &new_add) == WF_OK);
 
         wf_car update = {0};
         update.roots = &commit_update;
@@ -2052,12 +2150,13 @@ int main(void) {
                     break;
                 }
             }
-            if (!duplicate) update.blocks[update.block_count++] = working.blocks[i];
+            if (!duplicate)
+                update.blocks[update.block_count++] = working.blocks[i];
         }
         wf_repo_verify_options options = {did, did_key, NULL};
         wf_repo_diff diff = {0};
-        wf_status diff_status = wf_repo_diff_verify(&base, &commit_base,
-                                                     &update, &options, &diff);
+        wf_status diff_status =
+            wf_repo_diff_verify(&base, &commit_base, &update, &options, &diff);
         WF_CHECK(diff_status == WF_OK);
         WF_CHECK(diff.operation_count == 3);
         WF_CHECK(check_cid(&diff.previous_commit, &commit_base));
@@ -2083,9 +2182,8 @@ int main(void) {
                  check_cid(&remove->cid, &old_delete));
 
         wf_repo_operation *inverse = NULL;
-        WF_CHECK(wf_repo_operations_invert(diff.operations,
-                                            diff.operation_count,
-                                            &inverse) == WF_OK);
+        WF_CHECK(wf_repo_operations_invert(
+                     diff.operations, diff.operation_count, &inverse) == WF_OK);
         WF_CHECK(inverse != NULL);
         for (size_t i = 0; i < diff.operation_count; i++) {
             const wf_repo_operation *original =
@@ -2107,19 +2205,19 @@ int main(void) {
         wf_repo_diff checked_prev = {0};
         options.expected_prev = &after_delete;
         WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &update, &options,
-                                      &checked_prev) == WF_OK);
+                                     &checked_prev) == WF_OK);
         wf_repo_diff_free(&checked_prev);
         /* Same as above: a null prev cannot contradict expected_prev. */
         options.expected_prev = &commit_base;
         WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &update, &options,
-                                      &checked_prev) == WF_OK);
+                                     &checked_prev) == WF_OK);
         wf_repo_diff_free(&checked_prev);
         options.expected_prev = NULL;
 
         /* Like consumer.ts ensureLeaves, changed leaves must be in update. */
         wf_car missing_leaf = update;
-        missing_leaf.blocks = calloc(update.block_count,
-                                     sizeof(*missing_leaf.blocks));
+        missing_leaf.blocks =
+            calloc(update.block_count, sizeof(*missing_leaf.blocks));
         WF_CHECK(missing_leaf.blocks != NULL);
         missing_leaf.block_count = 0;
         for (size_t i = 0; i < update.block_count; i++) {
@@ -2128,7 +2226,7 @@ int main(void) {
         }
         wf_repo_diff rejected = {0};
         WF_CHECK(wf_repo_diff_verify(&base, &commit_base, &missing_leaf,
-                                      &options, &rejected) == WF_ERR_NOT_FOUND);
+                                     &options, &rejected) == WF_ERR_NOT_FOUND);
         WF_CHECK(rejected.operations == NULL);
         free(missing_leaf.blocks);
 
@@ -2137,15 +2235,15 @@ int main(void) {
         unsigned char *found_data = NULL;
         size_t found_len = 0;
         wf_cid found_cid = {0};
-        WF_CHECK(wf_repo_get_record(&base, &commit_update,
-                                    "com.example.posts", "keep", &found_data,
-                                    &found_len, &found_cid) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&base, &commit_update, "com.example.posts",
+                                    "keep", &found_data, &found_len,
+                                    &found_cid) == WF_OK);
         WF_CHECK(found_len == sizeof(record_three));
         WF_CHECK(memcmp(found_data, record_three, found_len) == 0);
         free(found_data);
-        WF_CHECK(wf_repo_get_record(&base, &commit_update,
-                                    "com.example.posts", "remove", &found_data,
-                                    &found_len, &found_cid) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_repo_get_record(&base, &commit_update, "com.example.posts",
+                                    "remove", &found_data, &found_len,
+                                    &found_cid) == WF_ERR_NOT_FOUND);
 
         /* Applying twice is rejected without mutating the current root. */
         WF_CHECK(wf_repo_diff_apply(&base, &diff) == WF_ERR_INVALID_ARG);
@@ -2186,8 +2284,10 @@ int main(void) {
             unsigned char k[8];
             memcpy(k, &salt, 8);
             unsigned L = wf_mst_key_layer(k, 8);
-            if (L == 1 && n1 < 80) memcpy(pool1[n1++], k, 8);
-            else if (L == 2 && n2 < 80) memcpy(pool2[n2++], k, 8);
+            if (L == 1 && n1 < 80)
+                memcpy(pool1[n1++], k, 8);
+            else if (L == 2 && n2 < 80)
+                memcpy(pool2[n2++], k, 8);
             salt++;
         }
         WF_CHECK(n1 > 0 && n2 > 1);
@@ -2213,15 +2313,22 @@ int main(void) {
 
         wf_cid root = {{0}, 0}, cur = root, next;
         memset(&next, 0, sizeof(next));
-        WF_CHECK(wf_mst_add(&car, &cur, P, 8, &valP, &next) == WF_OK); cur = next;
-        WF_CHECK(wf_mst_add(&car, &cur, Q, 8, &valQ, &next) == WF_OK); cur = next;
-        WF_CHECK(wf_mst_add(&car, &cur, R, 8, &valR, &next) == WF_OK); cur = next;
+        WF_CHECK(wf_mst_add(&car, &cur, P, 8, &valP, &next) == WF_OK);
+        cur = next;
+        WF_CHECK(wf_mst_add(&car, &cur, Q, 8, &valQ, &next) == WF_OK);
+        cur = next;
+        WF_CHECK(wf_mst_add(&car, &cur, R, 8, &valR, &next) == WF_OK);
+        cur = next;
 
         wf_cid f = {{0}, 0};
-        WF_CHECK(wf_mst_find(&car, &cur, P, 8, &f) == WF_OK && check_cid(&f, &valP));
-        WF_CHECK(wf_mst_find(&car, &cur, R, 8, &f) == WF_OK && check_cid(&f, &valR));
-        /* The key nested inside P's (now split) subtree must remain reachable. */
-        WF_CHECK(wf_mst_find(&car, &cur, Q, 8, &f) == WF_OK && check_cid(&f, &valQ));
+        WF_CHECK(wf_mst_find(&car, &cur, P, 8, &f) == WF_OK &&
+                 check_cid(&f, &valP));
+        WF_CHECK(wf_mst_find(&car, &cur, R, 8, &f) == WF_OK &&
+                 check_cid(&f, &valR));
+        /* The key nested inside P's (now split) subtree must remain reachable.
+         */
+        WF_CHECK(wf_mst_find(&car, &cur, Q, 8, &f) == WF_OK &&
+                 check_cid(&f, &valQ));
 
         /* Internal consistency: every value CID is reachable via get_all_cids
          * and the full tree lists exactly the inserted leaves in order. */
@@ -2262,8 +2369,10 @@ int main(void) {
             unsigned char k[8];
             memcpy(k, &salt, 8);
             unsigned L = wf_mst_key_layer(k, 8);
-            if (L == 1 && n1 < 200) memcpy(p1[n1++], k, 8);
-            else if (L == 2 && n2 < 200) memcpy(p2[n2++], k, 8);
+            if (L == 1 && n1 < 200)
+                memcpy(p1[n1++], k, 8);
+            else if (L == 2 && n2 < 200)
+                memcpy(p2[n2++], k, 8);
             salt++;
         }
         WF_CHECK(n1 > 0 && n2 > 3);
@@ -2281,7 +2390,8 @@ int main(void) {
         for (int a = 0; a < 3; a++)
             for (int b = a + 1; b < 4; b++)
                 if (memcmp(anchors[a], anchors[b], 8) > 0) {
-                    unsigned char t[8]; memcpy(t, anchors[a], 8);
+                    unsigned char t[8];
+                    memcpy(t, anchors[a], 8);
                     memcpy(anchors[a], anchors[b], 8);
                     memcpy(anchors[b], t, 8);
                 }
@@ -2314,9 +2424,18 @@ int main(void) {
         unsigned char allk[10][8];
         wf_cid allv[10];
         int n = 0;
-        for (int i = 0; i < 4; i++) { memcpy(allk[n], anchors[i], 8); n++; }
-        for (int i = 0; i < 3; i++) { memcpy(allk[n], q[i], 8); n++; }
-        for (int i = 0; i < 3; i++) { memcpy(allk[n], r[i], 8); n++; }
+        for (int i = 0; i < 4; i++) {
+            memcpy(allk[n], anchors[i], 8);
+            n++;
+        }
+        for (int i = 0; i < 3; i++) {
+            memcpy(allk[n], q[i], 8);
+            n++;
+        }
+        for (int i = 0; i < 3; i++) {
+            memcpy(allk[n], r[i], 8);
+            n++;
+        }
         for (int i = 0; i < n; i++)
             WF_CHECK(wf_cid_of_bytes(allk[i], 8, &allv[i]) == WF_OK);
 
@@ -2324,23 +2443,23 @@ int main(void) {
         memset(&next, 0, sizeof(next));
         /* anchors first (same layer), then each gap's (q, r) */
         for (int i = 0; i < 4; i++) {
-            WF_CHECK(wf_mst_add(&car, &cur, anchors[i], 8, &allv[i],
-                                &next) == WF_OK);
+            WF_CHECK(wf_mst_add(&car, &cur, anchors[i], 8, &allv[i], &next) ==
+                     WF_OK);
             cur = next;
         }
         for (int g = 0; g < 3; g++) {
-            WF_CHECK(wf_mst_add(&car, &cur, q[g], 8,
-                                &allv[4 + g], &next) == WF_OK);
+            WF_CHECK(wf_mst_add(&car, &cur, q[g], 8, &allv[4 + g], &next) ==
+                     WF_OK);
             cur = next;
-            WF_CHECK(wf_mst_add(&car, &cur, r[g], 8,
-                                &allv[7 + g], &next) == WF_OK);
+            WF_CHECK(wf_mst_add(&car, &cur, r[g], 8, &allv[7 + g], &next) ==
+                     WF_OK);
             cur = next;
         }
 
         for (int i = 0; i < n; i++) {
             wf_cid f = {{0}, 0};
             WF_CHECK(wf_mst_find(&car, &cur, allk[i], 8, &f) == WF_OK &&
-                    check_cid(&f, &allv[i]));
+                     check_cid(&f, &allv[i]));
         }
 
         wf_mst_leaf *leaves = NULL;
@@ -2349,7 +2468,8 @@ int main(void) {
         WF_CHECK(nl == (size_t)n);
         for (size_t i = 1; i < nl; i++) {
             size_t min = leaves[i - 1].key_len < leaves[i].key_len
-                         ? leaves[i - 1].key_len : leaves[i].key_len;
+                             ? leaves[i - 1].key_len
+                             : leaves[i].key_len;
             int cmp = memcmp(leaves[i - 1].key, leaves[i].key, min);
             if (cmp == 0)
                 cmp = (int)leaves[i - 1].key_len - (int)leaves[i].key_len;
@@ -2364,7 +2484,10 @@ int main(void) {
         for (int i = 0; i < n; i++) {
             int saw = 0;
             for (size_t j = 0; j < nc; j++)
-                if (check_cid(&cids[j], &allv[i])) { saw = 1; break; }
+                if (check_cid(&cids[j], &allv[i])) {
+                    saw = 1;
+                    break;
+                }
             WF_CHECK(saw);
         }
         wf_mst_cid_list_free(cids, nc);
@@ -2388,11 +2511,14 @@ int main(void) {
         wf_repo_write batch[3];
         memset(batch, 0, sizeof(batch));
         batch[0] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
-                                   "3jui7kd54zh2a", ra, sizeof(ra), {{0}, 0}};
+                                   "3jui7kd54zh2a",      ra,
+                                   sizeof(ra),           {{0}, 0}};
         batch[1] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
-                                   "3jui7kd54zh2b", rb, sizeof(rb), {{0}, 0}};
+                                   "3jui7kd54zh2b",      rb,
+                                   sizeof(rb),           {{0}, 0}};
         batch[2] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
-                                   "3jui7kd54zh2c", rc, sizeof(rc), {{0}, 0}};
+                                   "3jui7kd54zh2c",      rc,
+                                   sizeof(rc),           {{0}, 0}};
 
         wf_cid commit1;
         memset(&commit1, 0, sizeof(commit1));
@@ -2430,9 +2556,14 @@ int main(void) {
         wf_repo_write bad[2];
         memset(bad, 0, sizeof(bad));
         bad[0] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
-                                 "3jui7kd54zh2d", ra, sizeof(ra), {{0}, 0}};
-        bad[1] = (wf_repo_write){WF_REPO_WRITE_DELETE, "com.example.b",
-                                 "3jui7kd54zh2z", NULL, 0, {{0}, 0}};
+                                 "3jui7kd54zh2d",      ra,
+                                 sizeof(ra),           {{0}, 0}};
+        bad[1] = (wf_repo_write){WF_REPO_WRITE_DELETE,
+                                 "com.example.b",
+                                 "3jui7kd54zh2z",
+                                 NULL,
+                                 0,
+                                 {{0}, 0}};
         wf_cid commit2;
         memset(&commit2, 0, sizeof(commit2));
         WF_CHECK(wf_repo_apply_writes(&car, &commit1, "did:plc:test", bad, 2,
@@ -2453,7 +2584,8 @@ int main(void) {
         wf_repo_write dup[1];
         memset(dup, 0, sizeof(dup));
         dup[0] = (wf_repo_write){WF_REPO_WRITE_CREATE, "com.example.b",
-                                 "3jui7kd54zh2a", rb, sizeof(rb), {{0}, 0}};
+                                 "3jui7kd54zh2a",      rb,
+                                 sizeof(rb),           {{0}, 0}};
         wf_cid commit3;
         memset(&commit3, 0, sizeof(commit3));
         WF_CHECK(wf_repo_apply_writes(&car, &commit1, "did:plc:test", dup, 1,
@@ -2475,19 +2607,19 @@ int main(void) {
         unsigned char same[] = {0xA1, 0x61, 's', 0x09};
 
         wf_cid c1, r1, c2, r2;
-        memset(&c1, 0, sizeof(c1)); memset(&r1, 0, sizeof(r1));
-        memset(&c2, 0, sizeof(c2)); memset(&r2, 0, sizeof(r2));
+        memset(&c1, 0, sizeof(c1));
+        memset(&r1, 0, sizeof(r1));
+        memset(&c2, 0, sizeof(c2));
+        memset(&r2, 0, sizeof(r2));
         WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
-                                       "com.example.d", "3jui7kd54zh2a",
-                                       same, sizeof(same), &key, &c1,
-                                       &r1) == WF_OK);
+                                       "com.example.d", "3jui7kd54zh2a", same,
+                                       sizeof(same), &key, &c1, &r1) == WF_OK);
         WF_CHECK(c1.len == 36);
         WF_CHECK(wf_repo_create_record(&car, &c1, "did:plc:test",
-                                       "com.example.d", "3jui7kd54zh2b",
-                                       same, sizeof(same), &key, &c2,
-                                       &r2) == WF_OK);
-        WF_CHECK(c2.len == 36);          /* a real second commit */
-        WF_CHECK(check_cid(&r1, &r2));   /* same content, same record CID */
+                                       "com.example.d", "3jui7kd54zh2b", same,
+                                       sizeof(same), &key, &c2, &r2) == WF_OK);
+        WF_CHECK(c2.len == 36);        /* a real second commit */
+        WF_CHECK(check_cid(&r1, &r2)); /* same content, same record CID */
 
         unsigned char *got = NULL;
         size_t got_len = 0;

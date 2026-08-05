@@ -20,9 +20,8 @@ static const char *FIXTURE_FEED =
 
 /* Our skeleton callback: return two fixture posts. */
 static wf_status fixture_skeleton_cb(void *ctx, const char *feed,
-                                      const char *cursor, size_t limit,
-                                      cJSON **out_feed,
-                                      char **out_cursor) {
+                                     const char *cursor, size_t limit,
+                                     cJSON **out_feed, char **out_cursor) {
     cJSON *arr;
     (void)ctx;
     (void)cursor;
@@ -37,11 +36,11 @@ static wf_status fixture_skeleton_cb(void *ctx, const char *feed,
         return WF_ERR_ALLOC;
     }
     cJSON_AddItemToArray(
-        arr, cJSON_CreateString(
-                 "at://did:plc:abc123/app.bsky.feed.post/aaa111"));
+        arr,
+        cJSON_CreateString("at://did:plc:abc123/app.bsky.feed.post/aaa111"));
     cJSON_AddItemToArray(
-        arr, cJSON_CreateString(
-                 "at://did:plc:abc123/app.bsky.feed.post/bbb222"));
+        arr,
+        cJSON_CreateString("at://did:plc:abc123/app.bsky.feed.post/bbb222"));
 
     *out_feed = arr;
     *out_cursor = NULL;
@@ -98,8 +97,7 @@ static int run_test(void) {
         wf_feedgen_server_free(fg);
         return 1;
     }
-    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u",
-             (unsigned)port);
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
 
     client = wf_xrpc_client_new(base_url);
     if (!client) {
@@ -129,16 +127,14 @@ static int run_test(void) {
             } else {
                 const char *p0 = feed_item_at(root, 0);
                 const char *p1 = feed_item_at(root, 1);
-                if (!p0 || strcmp(p0,
-                                  "at://did:plc:abc123/app.bsky.feed.post/"
-                                  "aaa111") != 0) {
+                if (!p0 || strcmp(p0, "at://did:plc:abc123/app.bsky.feed.post/"
+                                      "aaa111") != 0) {
                     fprintf(stderr, "FAIL: skeleton post[0] = %s\n",
                             p0 ? p0 : "NULL");
                     failures++;
                 }
-                if (!p1 || strcmp(p1,
-                                  "at://did:plc:abc123/app.bsky.feed.post/"
-                                  "bbb222") != 0) {
+                if (!p1 || strcmp(p1, "at://did:plc:abc123/app.bsky.feed.post/"
+                                      "bbb222") != 0) {
                     fprintf(stderr, "FAIL: skeleton post[1] = %s\n",
                             p1 ? p1 : "NULL");
                     failures++;
@@ -165,18 +161,16 @@ static int run_test(void) {
                 fprintf(stderr, "FAIL: getFeedGenerator parse\n");
                 failures++;
             } else {
-                cJSON *view =
-                    cJSON_GetObjectItemCaseSensitive(root, "view");
-                cJSON *name = cJSON_GetObjectItemCaseSensitive(view,
-                                                              "displayName");
-                cJSON *desc = cJSON_GetObjectItemCaseSensitive(view,
-                                                               "description");
+                cJSON *view = cJSON_GetObjectItemCaseSensitive(root, "view");
+                cJSON *name =
+                    cJSON_GetObjectItemCaseSensitive(view, "displayName");
+                cJSON *desc =
+                    cJSON_GetObjectItemCaseSensitive(view, "description");
                 cJSON *online =
                     cJSON_GetObjectItemCaseSensitive(root, "isOnline");
                 cJSON *valid =
                     cJSON_GetObjectItemCaseSensitive(root, "isValid");
-                cJSON *uri =
-                    cJSON_GetObjectItemCaseSensitive(view, "uri");
+                cJSON *uri = cJSON_GetObjectItemCaseSensitive(view, "uri");
                 if (!view || !name || !cJSON_IsString(name) ||
                     strcmp(name->valuestring, "My Fixture Feed") != 0) {
                     fprintf(stderr, "FAIL: generator displayName\n");
@@ -192,13 +186,11 @@ static int run_test(void) {
                     fprintf(stderr, "FAIL: generator uri\n");
                     failures++;
                 }
-                if (!online || !cJSON_IsBool(online) ||
-                    !cJSON_IsTrue(online)) {
+                if (!online || !cJSON_IsBool(online) || !cJSON_IsTrue(online)) {
                     fprintf(stderr, "FAIL: generator isOnline\n");
                     failures++;
                 }
-                if (!valid || !cJSON_IsBool(valid) ||
-                    !cJSON_IsTrue(valid)) {
+                if (!valid || !cJSON_IsBool(valid) || !cJSON_IsTrue(valid)) {
                     fprintf(stderr, "FAIL: generator isValid\n");
                     failures++;
                 }
@@ -211,9 +203,8 @@ static int run_test(void) {
     /* Test 3: missing feed param -> 400 UnknownFeed */
     {
         wf_response_free(&res);
-        wf_status s = wf_xrpc_query(client,
-                                     "app.bsky.feed.getFeedSkeleton",
-                                     NULL, &res);
+        wf_status s =
+            wf_xrpc_query(client, "app.bsky.feed.getFeedSkeleton", NULL, &res);
         if (s != WF_ERR_HTTP || res.status != 400) {
             fprintf(stderr,
                     "FAIL: missing feed expected 400, got status=%d "

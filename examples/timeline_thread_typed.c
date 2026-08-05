@@ -18,8 +18,7 @@
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        fprintf(stderr,
-                "usage: %s <service-url> <handle> <password>\n",
+        fprintf(stderr, "usage: %s <service-url> <handle> <password>\n",
                 argv[0]);
         return 1;
     }
@@ -53,11 +52,9 @@ int main(int argc, char **argv) {
     printf("Timeline (%zu items):\n", feed.item_count);
     for (size_t i = 0; i < feed.item_count; ++i) {
         wf_agent_post_view *post = &feed.items[i].post;
-        printf("  [%zu] %s  %s  likes=%d\n",
-               i,
+        printf("  [%zu] %s  %s  likes=%d\n", i,
                post->author.handle ? post->author.handle : "?",
-               post->uri ? post->uri : "?",
-               post->like_count);
+               post->uri ? post->uri : "?", post->like_count);
     }
 
     if (feed.item_count == 0 || !feed.items[0].post.uri) {
@@ -83,7 +80,8 @@ int main(int argc, char **argv) {
     if (thread.root.kind == WF_AGENT_THREAD_KIND_POST) {
         printf("  root: %s by %s\n",
                thread.root.post.uri ? thread.root.post.uri : "?",
-               thread.root.post.author.handle ? thread.root.post.author.handle : "?");
+               thread.root.post.author.handle ? thread.root.post.author.handle
+                                              : "?");
     } else if (thread.root.uri) {
         printf("  root node (not a post): %s\n", thread.root.uri);
     }

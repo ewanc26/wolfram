@@ -92,12 +92,12 @@ int main(void) {
     wf_identity_resolve_did rd = {0};
     WF_CHECK(wf_identity_parse_resolve_did(NULL, 0, &rd) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_identity_parse_resolve_did(kResolveDidJson,
-                                           strlen(kResolveDidJson), NULL) ==
-             WF_ERR_INVALID_ARG);
+                                           strlen(kResolveDidJson),
+                                           NULL) == WF_ERR_INVALID_ARG);
 
     wf_identity_recommended_credentials rc = {0};
-    WF_CHECK(wf_identity_parse_get_recommended_did_credentials(
-                 NULL, 0, &rc) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_identity_parse_get_recommended_did_credentials(NULL, 0, &rc) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_identity_parse_get_recommended_did_credentials(
                  kRecommendedJson, strlen(kRecommendedJson), NULL) ==
              WF_ERR_INVALID_ARG);
@@ -120,32 +120,31 @@ int main(void) {
     WF_CHECK(wf_identity_parse_resolve_handle(
                  kResolveHandleJson, strlen(kResolveHandleJson), &rh) == WF_OK);
     WF_CHECK(rh.did &&
-              strcmp(rh.did, "did:plc:alice00000000000000000000") == 0);
+             strcmp(rh.did, "did:plc:alice00000000000000000000") == 0);
     wf_identity_resolve_handle_free(&rh);
     WF_CHECK(rh.did == NULL);
 
     /* ---- resolveDid ---- */
-    WF_CHECK(wf_identity_parse_resolve_did(kResolveDidJson,
-                                           strlen(kResolveDidJson), &rd) ==
-             WF_OK);
+    WF_CHECK(wf_identity_parse_resolve_did(
+                 kResolveDidJson, strlen(kResolveDidJson), &rd) == WF_OK);
     WF_CHECK(rd.handle && strcmp(rd.handle, "alice.bsky.social") == 0);
     WF_CHECK(rd.verification_method_count == 1);
     WF_CHECK(rd.verification_methods[0].id &&
-              strcmp(rd.verification_methods[0].id,
-                     "did:plc:alice00000000000000000000#atproto") == 0);
+             strcmp(rd.verification_methods[0].id,
+                    "did:plc:alice00000000000000000000#atproto") == 0);
     WF_CHECK(rd.verification_methods[0].type &&
-              strcmp(rd.verification_methods[0].type, "Multikey") == 0);
+             strcmp(rd.verification_methods[0].type, "Multikey") == 0);
     WF_CHECK(rd.verification_methods[0].public_key_multibase &&
-              strcmp(rd.verification_methods[0].public_key_multibase,
-                     "zAliceMultibaseValue") == 0);
+             strcmp(rd.verification_methods[0].public_key_multibase,
+                    "zAliceMultibaseValue") == 0);
     WF_CHECK(rd.service_count == 1);
     WF_CHECK(rd.services[0].id &&
-              strcmp(rd.services[0].id, "#atproto_pds") == 0);
+             strcmp(rd.services[0].id, "#atproto_pds") == 0);
     WF_CHECK(rd.services[0].type &&
-              strcmp(rd.services[0].type, "AtprotoPds") == 0);
+             strcmp(rd.services[0].type, "AtprotoPds") == 0);
     WF_CHECK(rd.services[0].service_endpoint_json &&
-              strcmp(rd.services[0].service_endpoint_json,
-                     "\"https://pds.example.com\"") == 0);
+             strcmp(rd.services[0].service_endpoint_json,
+                    "\"https://pds.example.com\"") == 0);
     wf_identity_resolve_did_free(&rd);
     WF_CHECK(rd.handle == NULL && rd.verification_methods == NULL &&
              rd.services == NULL && rd.verification_method_count == 0 &&
@@ -156,16 +155,16 @@ int main(void) {
                  kRecommendedJson, strlen(kRecommendedJson), &rc) == WF_OK);
     WF_CHECK(rc.rotation_key_count == 1);
     WF_CHECK(rc.rotation_keys[0] &&
-              strcmp(rc.rotation_keys[0], "did:key:zRotationKey") == 0);
+             strcmp(rc.rotation_keys[0], "did:key:zRotationKey") == 0);
     WF_CHECK(rc.also_known_as_count == 1);
     WF_CHECK(rc.also_known_as[0] &&
-              strcmp(rc.also_known_as[0], "at://alice.bsky.social") == 0);
+             strcmp(rc.also_known_as[0], "at://alice.bsky.social") == 0);
     WF_CHECK(rc.verification_methods_json &&
-              strcmp(rc.verification_methods_json,
-                     "{\"atproto\":\"did:key:zVerifyKey\"}") == 0);
+             strcmp(rc.verification_methods_json,
+                    "{\"atproto\":\"did:key:zVerifyKey\"}") == 0);
     WF_CHECK(rc.services_json &&
-              strcmp(rc.services_json,
-                     "{\"atproto_pds\":\"https://pds.example.com\"}") == 0);
+             strcmp(rc.services_json,
+                    "{\"atproto_pds\":\"https://pds.example.com\"}") == 0);
     wf_identity_recommended_credentials_free(&rc);
     WF_CHECK(rc.rotation_keys == NULL && rc.also_known_as == NULL &&
              rc.verification_methods_json == NULL && rc.services_json == NULL);
@@ -179,11 +178,11 @@ int main(void) {
     WF_CHECK(so.operation_json == NULL);
 
     /* ---- resolveIdentity ---- */
-    WF_CHECK(wf_identity_parse_resolve_identity(
-                 kResolveIdentityJson, strlen(kResolveIdentityJson), &ri) ==
-             WF_OK);
+    WF_CHECK(wf_identity_parse_resolve_identity(kResolveIdentityJson,
+                                                strlen(kResolveIdentityJson),
+                                                &ri) == WF_OK);
     WF_CHECK(ri.did &&
-              strcmp(ri.did, "did:plc:alice00000000000000000000") == 0);
+             strcmp(ri.did, "did:plc:alice00000000000000000000") == 0);
     WF_CHECK(ri.handle && strcmp(ri.handle, "alice.bsky.social") == 0);
     WF_CHECK(ri.did_doc_json && strstr(ri.did_doc_json, "did:plc:alice"));
     wf_identity_resolve_identity_free(&ri);
@@ -199,12 +198,16 @@ int main(void) {
     wf_identity_signed_operation so2 = {0};
     wf_identity_resolve_identity ri2 = {0};
 
-    WF_CHECK(wf_agent_resolve_handle_typed(NULL, "h", &rh2) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_resolve_handle_typed(NULL, NULL, &rh2) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_resolve_handle_typed(NULL, "h", NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_handle_typed(NULL, "h", &rh2) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_handle_typed(NULL, NULL, &rh2) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_handle_typed(NULL, "h", NULL) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_resolve_did_typed(NULL, "did:plc:x", &rd2) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_resolve_did_typed(NULL, NULL, &rd2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_did_typed(NULL, NULL, &rd2) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_resolve_did_typed(NULL, "did:plc:x", NULL) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_update_handle_typed(NULL, "h") == WF_ERR_INVALID_ARG);
@@ -213,23 +216,23 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_recommended_did_credentials_typed(NULL, NULL) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_request_plc_operation_signature_typed(NULL, "did:plc:x") ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_request_plc_operation_signature_typed(
+                 NULL, "did:plc:x") == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_request_plc_operation_signature_typed(NULL, NULL) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_sign_plc_operation_typed(NULL, "tok", keys, 1, akas, 1,
-                                         "{}", "{}", &so2) ==
+                                               "{}", "{}",
+                                               &so2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_sign_plc_operation_typed(NULL, NULL, NULL, 0, NULL, 0,
+                                               NULL, NULL,
+                                               NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_submit_plc_operation_typed(NULL, "{}") ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_sign_plc_operation_typed(NULL, NULL, NULL, 0, NULL, 0, NULL,
-                                         NULL, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_submit_plc_operation_typed(NULL, "{}") == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_submit_plc_operation_typed(NULL, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_resolve_identity(NULL, "id", &ri2) ==
+    WF_CHECK(wf_agent_submit_plc_operation_typed(NULL, NULL) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_resolve_identity(NULL, NULL, &ri2) ==
-             WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_resolve_identity(NULL, "id", NULL) ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_identity(NULL, "id", &ri2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_identity(NULL, NULL, &ri2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_resolve_identity(NULL, "id", NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_refresh_identity(NULL, "id") == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_refresh_identity(NULL, NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_identity_rotate_handle(NULL, "h", "tok") ==
@@ -282,8 +285,8 @@ int main(void) {
                            cJSON_GetArraySize(rkeys) == 1;
                 const cJSON *aka_arr =
                     cJSON_GetObjectItemCaseSensitive(op, "alsoKnownAs");
-                ok_aka = aka_arr && cJSON_IsArray(aka_arr) &&
-                         aka_arr->child && cJSON_IsString(aka_arr->child) &&
+                ok_aka = aka_arr && cJSON_IsArray(aka_arr) && aka_arr->child &&
+                         cJSON_IsString(aka_arr->child) &&
                          strcmp(aka_arr->child->valuestring,
                                 "at://new.example.com") == 0;
                 ok_unsigned =

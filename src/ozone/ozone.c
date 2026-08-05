@@ -88,7 +88,8 @@ char *wf_labeler_build_service_record(const char *labeler_did,
     cJSON *policies = cJSON_CreateObject();
     cJSON *defs = cJSON_CreateArray();
 
-    add_label_value_def(defs, "!no-unauthenticated", "inform", "none", 0, "warn");
+    add_label_value_def(defs, "!no-unauthenticated", "inform", "none", 0,
+                        "warn");
     add_label_value_def(defs, "!hide", "inform", "none", 0, "warn");
     add_label_value_def(defs, "spam", "alert", "content", 0, "warn");
     add_label_value_def(defs, "porn", "alert", "content", 1, "hide");
@@ -103,12 +104,9 @@ char *wf_labeler_build_service_record(const char *labeler_did,
     return json;
 }
 
-wf_status wf_ozone_report_subject(wf_xrpc_client *client,
-                                  const char *repo_did,
-                                  const char *collection,
-                                  const char *rkey,
-                                  const char *reason_type,
-                                  const char *reason,
+wf_status wf_ozone_report_subject(wf_xrpc_client *client, const char *repo_did,
+                                  const char *collection, const char *rkey,
+                                  const char *reason_type, const char *reason,
                                   wf_response *out) {
     if (!client || !repo_did || !reason_type || !out) {
         return WF_ERR_INVALID_ARG;
@@ -139,8 +137,7 @@ wf_status wf_ozone_report_subject(wf_xrpc_client *client,
             cJSON_Delete(root);
             return WF_ERR_INVALID_ARG;
         }
-        cJSON_AddStringToObject(subject, "$type",
-                                "com.atproto.repo.strongRef");
+        cJSON_AddStringToObject(subject, "$type", "com.atproto.repo.strongRef");
         cJSON_AddStringToObject(subject, "uri", uri);
         /* No cid is available to the caller; a verified record reference
          * should extend this object with the record CID before sending. */
@@ -163,10 +160,8 @@ wf_status wf_ozone_report_subject(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_ozone_query_statuses(wf_xrpc_client *client,
-                                  const char **subjects,
-                                  size_t n,
-                                  wf_response *out) {
+wf_status wf_ozone_query_statuses(wf_xrpc_client *client, const char **subjects,
+                                  size_t n, wf_response *out) {
     if (!client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -183,16 +178,14 @@ wf_status wf_ozone_query_statuses(wf_xrpc_client *client,
         }
     }
 
-    wf_status status = wf_xrpc_query_params(client, WF_OZONE_QUERY_STATUSES_NSID,
-                                            params, n, out);
+    wf_status status = wf_xrpc_query_params(
+        client, WF_OZONE_QUERY_STATUSES_NSID, params, n, out);
     free(params);
     return status;
 }
 
-wf_status wf_ozone_get_label_defs(wf_xrpc_client *client,
-                                  const char **uris,
-                                  size_t n,
-                                  wf_response *out) {
+wf_status wf_ozone_get_label_defs(wf_xrpc_client *client, const char **uris,
+                                  size_t n, wf_response *out) {
     if (!client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -248,7 +241,8 @@ wf_status wf_ozone_emit_event(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_emit_event_main_call(client, input, out);
+    return wf_lex_tools_ozone_moderation_emit_event_main_call(client, input,
+                                                              out);
 }
 
 wf_status wf_ozone_query_events(
@@ -277,7 +271,7 @@ wf_status wf_ozone_query_events_parse(
 }
 
 wf_status wf_ozone_list_events(wf_xrpc_client *client, int64_t limit,
-                                const char *cursor, wf_response *out) {
+                               const char *cursor, wf_response *out) {
     if (!client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -307,8 +301,8 @@ wf_status wf_ozone_get_event(wf_xrpc_client *client, int64_t id,
                                                              out);
 }
 
-wf_status wf_ozone_get_reporter_stats(
-    wf_xrpc_client *client, const char **dids, size_t n, wf_response *out) {
+wf_status wf_ozone_get_reporter_stats(wf_xrpc_client *client, const char **dids,
+                                      size_t n, wf_response *out) {
     if (!client || !dids || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -316,8 +310,8 @@ wf_status wf_ozone_get_reporter_stats(
     memset(&params, 0, sizeof(params));
     params.dids.items = dids;
     params.dids.count = n;
-    return wf_lex_tools_ozone_moderation_get_reporter_stats_main_call(client,
-                                                                      &params, out);
+    return wf_lex_tools_ozone_moderation_get_reporter_stats_main_call(
+        client, &params, out);
 }
 
 wf_status wf_ozone_get_reporter_stats_parse(
@@ -353,13 +347,13 @@ static char *ozone_dup_body(const wf_response *resp) {
 }
 
 wf_status wf_ozone_scan_verdicts(wf_xrpc_client *client, const char *body_json,
-                                  char **out_json) {
+                                 char **out_json) {
     if (!client || !body_json || !out_json) {
         return WF_ERR_INVALID_ARG;
     }
     wf_response resp;
-    wf_status status =
-        wf_xrpc_procedure(client, WF_OZONE_SCAN_VERDICTS_NSID, body_json, &resp);
+    wf_status status = wf_xrpc_procedure(client, WF_OZONE_SCAN_VERDICTS_NSID,
+                                         body_json, &resp);
     if (status != WF_OK) {
         return status;
     }
@@ -407,8 +401,8 @@ wf_status wf_ozone_query_tags(wf_xrpc_client *client, int64_t limit,
         ++n;
     }
     wf_response resp;
-    wf_status status =
-        wf_xrpc_query_params(client, WF_OZONE_QUERY_TAGS_NSID, params, n, &resp);
+    wf_status status = wf_xrpc_query_params(client, WF_OZONE_QUERY_TAGS_NSID,
+                                            params, n, &resp);
     if (status != WF_OK) {
         return status;
     }
@@ -511,8 +505,8 @@ wf_status wf_ozone_create_communication_template(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_communication_create_template_main_call(client,
-                                                                      input, out);
+    return wf_lex_tools_ozone_communication_create_template_main_call(
+        client, input, out);
 }
 
 wf_status wf_ozone_update_communication_template(
@@ -522,8 +516,8 @@ wf_status wf_ozone_update_communication_template(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_communication_update_template_main_call(client,
-                                                                      input, out);
+    return wf_lex_tools_ozone_communication_update_template_main_call(
+        client, input, out);
 }
 
 wf_status wf_ozone_delete_communication_template(
@@ -533,15 +527,16 @@ wf_status wf_ozone_delete_communication_template(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_communication_delete_template_main_call(client,
-                                                                      input, out);
+    return wf_lex_tools_ozone_communication_delete_template_main_call(
+        client, input, out);
 }
 
 /* --- Set values --------------------------------------------------- */
 
 wf_status wf_ozone_set_add_values(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_set_add_values_main_input *input, wf_response *out) {
+    const wf_lex_tools_ozone_set_add_values_main_input *input,
+    wf_response *out) {
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -596,12 +591,14 @@ wf_status wf_ozone_set_upsert_values(
 
 wf_status wf_ozone_get_account_timeline(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_moderation_get_account_timeline_main_params *params,
+    const wf_lex_tools_ozone_moderation_get_account_timeline_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_get_account_timeline_main_call(client, params, out);
+    return wf_lex_tools_ozone_moderation_get_account_timeline_main_call(
+        client, params, out);
 }
 
 wf_status wf_ozone_get_account_timeline_parse(
@@ -625,7 +622,8 @@ wf_status wf_ozone_get_records(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_get_records_main_call(client, params, out);
+    return wf_lex_tools_ozone_moderation_get_records_main_call(client, params,
+                                                               out);
 }
 
 wf_status wf_ozone_get_records_parse(
@@ -649,7 +647,8 @@ wf_status wf_ozone_get_repo(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_get_repo_main_call(client, params, out);
+    return wf_lex_tools_ozone_moderation_get_repo_main_call(client, params,
+                                                            out);
 }
 
 wf_status wf_ozone_get_repos(
@@ -659,7 +658,8 @@ wf_status wf_ozone_get_repos(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_get_repos_main_call(client, params, out);
+    return wf_lex_tools_ozone_moderation_get_repos_main_call(client, params,
+                                                             out);
 }
 
 wf_status wf_ozone_get_repos_parse(
@@ -683,7 +683,8 @@ wf_status wf_ozone_search_repos(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_search_repos_main_call(client, params, out);
+    return wf_lex_tools_ozone_moderation_search_repos_main_call(client, params,
+                                                                out);
 }
 
 wf_status wf_ozone_search_repos_parse(
@@ -702,12 +703,14 @@ wf_status wf_ozone_search_repos_parse(
 
 wf_status wf_ozone_cancel_scheduled_actions(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input *input,
+    const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input
+        *input,
     wf_response *out) {
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_call(client, input, out);
+    return wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_call(
+        client, input, out);
 }
 
 wf_status wf_ozone_schedule_action(
@@ -717,17 +720,20 @@ wf_status wf_ozone_schedule_action(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_schedule_action_main_call(client, input, out);
+    return wf_lex_tools_ozone_moderation_schedule_action_main_call(client,
+                                                                   input, out);
 }
 
 wf_status wf_ozone_list_scheduled_actions(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_moderation_list_scheduled_actions_main_input *input,
+    const wf_lex_tools_ozone_moderation_list_scheduled_actions_main_input
+        *input,
     wf_response *out) {
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_moderation_list_scheduled_actions_main_call(client, input, out);
+    return wf_lex_tools_ozone_moderation_list_scheduled_actions_main_call(
+        client, input, out);
 }
 
 wf_status wf_ozone_list_scheduled_actions_parse(
@@ -753,7 +759,8 @@ wf_status wf_ozone_queue_assign_moderator(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_queue_assign_moderator_main_call(client, input, out);
+    return wf_lex_tools_ozone_queue_assign_moderator_main_call(client, input,
+                                                               out);
 }
 
 wf_status wf_ozone_queue_create_queue(
@@ -811,7 +818,8 @@ wf_status wf_ozone_queue_get_assignments(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_queue_get_assignments_main_call(client, params, out);
+    return wf_lex_tools_ozone_queue_get_assignments_main_call(client, params,
+                                                              out);
 }
 
 wf_status wf_ozone_queue_get_assignments_parse(
@@ -883,7 +891,8 @@ wf_status wf_ozone_queue_unassign_moderator(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_queue_unassign_moderator_main_call(client, input, out);
+    return wf_lex_tools_ozone_queue_unassign_moderator_main_call(client, input,
+                                                                 out);
 }
 
 wf_status wf_ozone_queue_update_queue(
@@ -919,7 +928,8 @@ wf_status wf_ozone_report_assign_moderator(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_assign_moderator_main_call(client, input, out);
+    return wf_lex_tools_ozone_report_assign_moderator_main_call(client, input,
+                                                                out);
 }
 
 wf_status wf_ozone_report_create_activity(
@@ -929,7 +939,8 @@ wf_status wf_ozone_report_create_activity(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_create_activity_main_call(client, input, out);
+    return wf_lex_tools_ozone_report_create_activity_main_call(client, input,
+                                                               out);
 }
 
 wf_status wf_ozone_report_create_activity_parse(
@@ -953,7 +964,8 @@ wf_status wf_ozone_report_get_assignments(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_get_assignments_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_get_assignments_main_call(client, params,
+                                                               out);
 }
 
 wf_status wf_ozone_report_get_assignments_parse(
@@ -977,7 +989,8 @@ wf_status wf_ozone_report_get_historical_stats(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_get_historical_stats_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_get_historical_stats_main_call(
+        client, params, out);
 }
 
 wf_status wf_ozone_report_get_historical_stats_parse(
@@ -1001,7 +1014,8 @@ wf_status wf_ozone_report_get_latest_report(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_get_latest_report_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_get_latest_report_main_call(client, params,
+                                                                 out);
 }
 
 wf_status wf_ozone_report_get_latest_report_parse(
@@ -1025,7 +1039,8 @@ wf_status wf_ozone_report_get_live_stats(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_get_live_stats_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_get_live_stats_main_call(client, params,
+                                                              out);
 }
 
 wf_status wf_ozone_report_get_live_stats_parse(
@@ -1059,7 +1074,8 @@ wf_status wf_ozone_report_list_activities(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_list_activities_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_list_activities_main_call(client, params,
+                                                               out);
 }
 
 wf_status wf_ozone_report_list_activities_parse(
@@ -1083,7 +1099,8 @@ wf_status wf_ozone_report_query_activities(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_query_activities_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_query_activities_main_call(client, params,
+                                                                out);
 }
 
 wf_status wf_ozone_report_query_activities_parse(
@@ -1107,7 +1124,8 @@ wf_status wf_ozone_report_query_reports(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_query_reports_main_call(client, params, out);
+    return wf_lex_tools_ozone_report_query_reports_main_call(client, params,
+                                                             out);
 }
 
 wf_status wf_ozone_report_query_reports_parse(
@@ -1131,7 +1149,8 @@ wf_status wf_ozone_report_reassign_queue(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_reassign_queue_main_call(client, input, out);
+    return wf_lex_tools_ozone_report_reassign_queue_main_call(client, input,
+                                                              out);
 }
 
 wf_status wf_ozone_report_reassign_queue_parse(
@@ -1155,7 +1174,8 @@ wf_status wf_ozone_report_refresh_stats(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_refresh_stats_main_call(client, input, out);
+    return wf_lex_tools_ozone_report_refresh_stats_main_call(client, input,
+                                                             out);
 }
 
 wf_status wf_ozone_report_refresh_stats_parse(
@@ -1179,7 +1199,8 @@ wf_status wf_ozone_report_unassign_moderator(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_report_unassign_moderator_main_call(client, input, out);
+    return wf_lex_tools_ozone_report_unassign_moderator_main_call(client, input,
+                                                                  out);
 }
 
 /* --- Team ---------------------------------------------------------- */
@@ -1247,7 +1268,8 @@ wf_status wf_ozone_verification_grant(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_verification_grant_verifications_main_call(client, input, out);
+    return wf_lex_tools_ozone_verification_grant_verifications_main_call(
+        client, input, out);
 }
 
 wf_status wf_ozone_verification_grant_parse(
@@ -1266,12 +1288,14 @@ wf_status wf_ozone_verification_grant_parse(
 
 wf_status wf_ozone_verification_list(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_verification_list_verifications_main_params *params,
+    const wf_lex_tools_ozone_verification_list_verifications_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_verification_list_verifications_main_call(client, params, out);
+    return wf_lex_tools_ozone_verification_list_verifications_main_call(
+        client, params, out);
 }
 
 wf_status wf_ozone_verification_list_parse(
@@ -1290,12 +1314,14 @@ wf_status wf_ozone_verification_list_parse(
 
 wf_status wf_ozone_verification_revoke(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_verification_revoke_verifications_main_input *input,
+    const wf_lex_tools_ozone_verification_revoke_verifications_main_input
+        *input,
     wf_response *out) {
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_verification_revoke_verifications_main_call(client, input, out);
+    return wf_lex_tools_ozone_verification_revoke_verifications_main_call(
+        client, input, out);
 }
 
 wf_status wf_ozone_verification_revoke_parse(
@@ -1321,7 +1347,8 @@ wf_status wf_ozone_signature_find_correlation(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_signature_find_correlation_main_call(client, params, out);
+    return wf_lex_tools_ozone_signature_find_correlation_main_call(client,
+                                                                   params, out);
 }
 
 wf_status wf_ozone_signature_find_correlation_parse(
@@ -1340,12 +1367,14 @@ wf_status wf_ozone_signature_find_correlation_parse(
 
 wf_status wf_ozone_signature_find_related_accounts(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_signature_find_related_accounts_main_params *params,
+    const wf_lex_tools_ozone_signature_find_related_accounts_main_params
+        *params,
     wf_response *out) {
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_signature_find_related_accounts_main_call(client, params, out);
+    return wf_lex_tools_ozone_signature_find_related_accounts_main_call(
+        client, params, out);
 }
 
 wf_status wf_ozone_signature_find_related_accounts_parse(
@@ -1369,7 +1398,8 @@ wf_status wf_ozone_signature_search_accounts(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_signature_search_accounts_main_call(client, params, out);
+    return wf_lex_tools_ozone_signature_search_accounts_main_call(client,
+                                                                  params, out);
 }
 
 wf_status wf_ozone_signature_search_accounts_parse(
@@ -1395,7 +1425,8 @@ wf_status wf_ozone_setting_list_options(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_setting_list_options_main_call(client, params, out);
+    return wf_lex_tools_ozone_setting_list_options_main_call(client, params,
+                                                             out);
 }
 
 wf_status wf_ozone_setting_list_options_parse(
@@ -1419,7 +1450,8 @@ wf_status wf_ozone_setting_remove_options(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_setting_remove_options_main_call(client, input, out);
+    return wf_lex_tools_ozone_setting_remove_options_main_call(client, input,
+                                                               out);
 }
 
 wf_status wf_ozone_setting_remove_options_parse(
@@ -1443,7 +1475,8 @@ wf_status wf_ozone_setting_upsert_option(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_setting_upsert_option_main_call(client, input, out);
+    return wf_lex_tools_ozone_setting_upsert_option_main_call(client, input,
+                                                              out);
 }
 
 wf_status wf_ozone_setting_upsert_option_parse(
@@ -1469,7 +1502,8 @@ wf_status wf_ozone_hosting_get_account_history(
     if (!client || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_hosting_get_account_history_main_call(client, params, out);
+    return wf_lex_tools_ozone_hosting_get_account_history_main_call(
+        client, params, out);
 }
 
 wf_status wf_ozone_hosting_get_account_history_parse(
@@ -1488,9 +1522,7 @@ wf_status wf_ozone_hosting_get_account_history_parse(
 
 /* --- Server -------------------------------------------------------- */
 
-wf_status wf_ozone_server_get_config(
-    wf_xrpc_client *client,
-    wf_response *out) {
+wf_status wf_ozone_server_get_config(wf_xrpc_client *client, wf_response *out) {
     if (!client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1530,7 +1562,8 @@ wf_status wf_ozone_safelink_query_events(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_safelink_query_events_main_call(client, input, out);
+    return wf_lex_tools_ozone_safelink_query_events_main_call(client, input,
+                                                              out);
 }
 
 wf_status wf_ozone_safelink_query_events_parse(
@@ -1554,7 +1587,8 @@ wf_status wf_ozone_safelink_query_rules(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_safelink_query_rules_main_call(client, input, out);
+    return wf_lex_tools_ozone_safelink_query_rules_main_call(client, input,
+                                                             out);
 }
 
 wf_status wf_ozone_safelink_query_rules_parse(
@@ -1578,7 +1612,8 @@ wf_status wf_ozone_safelink_remove_rule(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_safelink_remove_rule_main_call(client, input, out);
+    return wf_lex_tools_ozone_safelink_remove_rule_main_call(client, input,
+                                                             out);
 }
 
 wf_status wf_ozone_safelink_update_rule(
@@ -1588,5 +1623,6 @@ wf_status wf_ozone_safelink_update_rule(
     if (!client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    return wf_lex_tools_ozone_safelink_update_rule_main_call(client, input, out);
+    return wf_lex_tools_ozone_safelink_update_rule_main_call(client, input,
+                                                             out);
 }

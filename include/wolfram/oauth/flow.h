@@ -33,8 +33,7 @@ typedef struct wf_oauth_authorization_begin_result {
  * The caller owns `state_json` persistence and must consume it on callback.
  */
 wf_status wf_oauth_authorization_begin(
-    wf_xrpc_client *transport,
-    const wf_oauth_server_metadata *server,
+    wf_xrpc_client *transport, const wf_oauth_server_metadata *server,
     const wf_oauth_client_metadata *client,
     const wf_oauth_client_auth *client_auth,
     const wf_oauth_authorization_begin_options *options,
@@ -55,24 +54,20 @@ typedef struct wf_oauth_authorization_complete_result {
  * Finish an authorization callback and create a verified durable session.
  */
 wf_status wf_oauth_authorization_complete(
-    wf_xrpc_client *transport,
-    const wf_oauth_server_metadata *server,
+    wf_xrpc_client *transport, const wf_oauth_server_metadata *server,
     const wf_oauth_client_metadata *client,
     const wf_oauth_client_auth *client_auth,
-    const wf_oauth_callback_params *params,
-    const char *expected_state,
-    const char *state_json,
-    size_t state_json_len,
-    const char *redirect_uri,
-    int64_t now,
-    wf_oauth_authorization_complete_result *out);
+    const wf_oauth_callback_params *params, const char *expected_state,
+    const char *state_json, size_t state_json_len, const char *redirect_uri,
+    int64_t now, wf_oauth_authorization_complete_result *out);
 void wf_oauth_authorization_complete_result_free(
     wf_oauth_authorization_complete_result *result);
 
 /** Construct the browser URL for an already-created PAR request URI. */
-wf_status wf_oauth_authorization_url_create(
-    const char *authorization_endpoint, const char *client_id,
-    const char *request_uri, char **url_out);
+wf_status wf_oauth_authorization_url_create(const char *authorization_endpoint,
+                                            const char *client_id,
+                                            const char *request_uri,
+                                            char **url_out);
 
 #ifdef __cplusplus
 }

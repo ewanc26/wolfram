@@ -13,8 +13,7 @@
 /* Build a repository CAR containing a single signed commit whose MST root is
  * an empty tree, mirroring test_verify_record.c's construction. */
 static int build_signed_car(const wf_signing_key *key, const char *did,
-                            unsigned char **out, size_t *out_len)
-{
+                            unsigned char **out, size_t *out_len) {
     wf_car car;
     memset(&car, 0, sizeof(car));
 
@@ -34,8 +33,8 @@ static int build_signed_car(const wf_signing_key *key, const char *did,
 
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
-    if (wf_commit_create(did, "3abcdefghijklmnop", &mst_root, NULL,
-                         key, &car, &commit) != WF_OK) {
+    if (wf_commit_create(did, "3abcdefghijklmnop", &mst_root, NULL, key, &car,
+                         &commit) != WF_OK) {
         wf_car_free(&car);
         return 0;
     }
@@ -57,51 +56,42 @@ static int build_signed_car(const wf_signing_key *key, const char *did,
     return 1;
 }
 
-static char *dup_str(const char *s)
-{
+static char *dup_str(const char *s) {
     size_t n = strlen(s) + 1;
     char *c = malloc(n);
-    if (c)
-        memcpy(c, s, n);
+    if (c) memcpy(c, s, n);
     return c;
 }
 
 /* ── fake resolvers ── */
 
 typedef struct fake_resolver_ctx {
-    const char *did;     /* DID this resolver knows about */
-    const char *key;     /* did:key to return for `did` (may be NULL) */
-    int unavailable;     /* when 1, report WF_ERR_NOT_FOUND */
+    const char *did; /* DID this resolver knows about */
+    const char *key; /* did:key to return for `did` (may be NULL) */
+    int unavailable; /* when 1, report WF_ERR_NOT_FOUND */
 } fake_resolver_ctx;
 
 static wf_status fake_resolver(const char *did, const char *key_id,
-                               void *userdata, char **out_key)
-{
+                               void *userdata, char **out_key) {
     (void)key_id;
     fake_resolver_ctx *ctx = (fake_resolver_ctx *)userdata;
-    if (out_key)
-        *out_key = NULL;
-    if (ctx->unavailable)
-        return WF_ERR_NOT_FOUND;
-    if (strcmp(did, ctx->did) != 0)
-        return WF_ERR_NOT_FOUND;
-    if (!ctx->key)
-        return WF_ERR_NOT_FOUND;
+    if (out_key) *out_key = NULL;
+    if (ctx->unavailable) return WF_ERR_NOT_FOUND;
+    if (strcmp(did, ctx->did) != 0) return WF_ERR_NOT_FOUND;
+    if (!ctx->key) return WF_ERR_NOT_FOUND;
     *out_key = dup_str(ctx->key);
     return *out_key ? WF_OK : WF_ERR_ALLOC;
 }
 
 /* ── resolver: happy + wrong-key + unavailable ── */
 
-static void test_resolved_happy_wrong_unavailable(void)
-{
+static void test_resolved_happy_wrong_unavailable(void) {
     wf_signing_key key1, key2;
     memset(&key1, 0, sizeof(key1));
     memset(&key2, 0, sizeof(key2));
     if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key1) != WF_OK)
         return; /* P-256 crypto unavailable — skip gracefully */
-    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key2) != WF_OK)
-        return;
+    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key2) != WF_OK) return;
 
     char *didkey1 = NULL;
     char *didkey2 = NULL;
@@ -122,24 +112,27 @@ static void test_resolved_happy_wrong_unavailable(void)
     int valid = 0;
 
     /* Resolver returns the correct key for the DID -> verifies OK. */
-    fake_resolver_ctx ctx = { didkey1, didkey1, 0 };
+    fake_resolver_ctx ctx = {didkey1, didkey1, 0};
     wf_verify_set_key_resolver(fake_resolver, &ctx);
-    WF_CHECK(wf_verify_record_commit_resolved(didkey1, car, len, &valid) == WF_OK);
+    WF_CHECK(wf_verify_record_commit_resolved(didkey1, car, len, &valid) ==
+             WF_OK);
     WF_CHECK(valid == 1);
 
     /* Resolver returns the WRONG key -> signature check fails honestly. */
-    fake_resolver_ctx wrong = { didkey1, didkey2, 0 };
+    fake_resolver_ctx wrong = {didkey1, didkey2, 0};
     wf_verify_set_key_resolver(fake_resolver, &wrong);
     valid = 1;
     wf_status s = wf_verify_record_commit_resolved(didkey1, car, len, &valid);
     WF_CHECK(s != WF_OK || valid == 0);
     WF_CHECK(valid == 0);
 
-    /* Resolver reports the key unavailable -> honest error, no crash, no pass. */
-    fake_resolver_ctx gone = { didkey1, NULL, 1 };
+    /* Resolver reports the key unavailable -> honest error, no crash, no pass.
+     */
+    fake_resolver_ctx gone = {didkey1, NULL, 1};
     wf_verify_set_key_resolver(fake_resolver, &gone);
     valid = 1;
-    WF_CHECK(wf_verify_record_commit_resolved(didkey1, car, len, &valid) == WF_ERR_NOT_FOUND);
+    WF_CHECK(wf_verify_record_commit_resolved(didkey1, car, len, &valid) ==
+             WF_ERR_NOT_FOUND);
     WF_CHECK(valid == 0);
 
     wf_verify_set_key_resolver(NULL, NULL);
@@ -150,16 +143,13 @@ static void test_resolved_happy_wrong_unavailable(void)
 
 /* ── tampered commit fails even with the correct resolver ── */
 
-static void test_resolved_tampered(void)
-{
+static void test_resolved_tampered(void) {
     wf_signing_key key;
     memset(&key, 0, sizeof(key));
-    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK)
-        return;
+    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK) return;
 
     char *didkey = NULL;
-    if (wf_signing_key_public_didkey(&key, &didkey) != WF_OK)
-        return;
+    if (wf_signing_key_public_didkey(&key, &didkey) != WF_OK) return;
 
     unsigned char *car = NULL;
     size_t len = 0;
@@ -181,7 +171,7 @@ static void test_resolved_tampered(void)
     bad[off] ^= 0xFF;
 
     int valid = 0;
-    fake_resolver_ctx ctx = { didkey, didkey, 0 };
+    fake_resolver_ctx ctx = {didkey, didkey, 0};
     wf_verify_set_key_resolver(fake_resolver, &ctx);
     wf_status s = wf_verify_record_commit_resolved(didkey, bad, len, &valid);
     WF_CHECK(s != WF_OK || valid == 0);
@@ -195,16 +185,13 @@ static void test_resolved_tampered(void)
 
 /* ── no resolver installed: honest WF_ERR_INVALID_ARG, never a false pass ── */
 
-static void test_no_resolver_honest_error(void)
-{
+static void test_no_resolver_honest_error(void) {
     wf_signing_key key;
     memset(&key, 0, sizeof(key));
-    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK)
-        return;
+    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK) return;
 
     char *didkey = NULL;
-    if (wf_signing_key_public_didkey(&key, &didkey) != WF_OK)
-        return;
+    if (wf_signing_key_public_didkey(&key, &didkey) != WF_OK) return;
 
     unsigned char *car = NULL;
     size_t len = 0;
@@ -216,7 +203,8 @@ static void test_no_resolver_honest_error(void)
     wf_verify_set_key_resolver(NULL, NULL);
 
     int valid = 1;
-    WF_CHECK(wf_verify_record_commit_resolved(didkey, car, len, &valid) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_verify_record_commit_resolved(didkey, car, len, &valid) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(valid == 0);
 
     /* The agent wrapper must also refuse honestly when no resolver is set. */
@@ -233,22 +221,19 @@ static void test_no_resolver_honest_error(void)
 
 /* ── agent wrapper consults the resolver (no network reached on failure) ── */
 
-static void test_agent_wrapper_consults_resolver(void)
-{
+static void test_agent_wrapper_consults_resolver(void) {
     wf_signing_key key;
     memset(&key, 0, sizeof(key));
-    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK)
-        return;
+    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK) return;
 
     char *didkey = NULL;
-    if (wf_signing_key_public_didkey(&key, &didkey) != WF_OK)
-        return;
+    if (wf_signing_key_public_didkey(&key, &didkey) != WF_OK) return;
 
     wf_agent *agent = wf_agent_new("https://bsky.social");
 
     /* Resolver unavailable: agent wrapper returns the resolver's error
      * before any network fetch — proves the resolver is wired in. */
-    fake_resolver_ctx gone = { didkey, NULL, 1 };
+    fake_resolver_ctx gone = {didkey, NULL, 1};
     wf_verify_set_key_resolver(fake_resolver, &gone);
     int valid = 1;
     WF_CHECK(wf_agent_verify_record(agent, didkey, "app.bsky.feed.post",
@@ -260,15 +245,13 @@ static void test_agent_wrapper_consults_resolver(void)
     free(didkey);
 }
 
-static void test_builtin_resolver_rejects_non_atproto_key_id(void)
-{
+static void test_builtin_resolver_rejects_non_atproto_key_id(void) {
     wf_xrpc_client *client = wf_xrpc_client_new("https://example.invalid");
     char *key = (char *)0x1;
     WF_CHECK(client != NULL);
     if (client) {
-        WF_CHECK(wf_verify_resolve_via_did(
-                     "did:plc:alice", "#unrelated", client, &key) ==
-                 WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_verify_resolve_via_did("did:plc:alice", "#unrelated",
+                                           client, &key) == WF_ERR_NOT_FOUND);
         WF_CHECK(key == NULL);
         key = (char *)0x1;
         WF_CHECK(wf_verify_resolve_signing_key(
@@ -279,8 +262,7 @@ static void test_builtin_resolver_rejects_non_atproto_key_id(void)
     }
 }
 
-int main(void)
-{
+int main(void) {
     test_resolved_happy_wrong_unavailable();
     test_resolved_tampered();
     test_no_resolver_honest_error();

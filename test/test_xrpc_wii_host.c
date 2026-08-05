@@ -6,7 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct wii_tls_conn { int unused; };
+struct wii_tls_conn {
+    int unused;
+};
 
 static struct wii_tls_conn connection;
 static const char *response_bytes;
@@ -37,7 +39,9 @@ static size_t occurrences(const char *haystack, const char *needle) {
     return count;
 }
 
-wf_status wii_tls_global_init(void) { return WF_OK; }
+wf_status wii_tls_global_init(void) {
+    return WF_OK;
+}
 wf_status wii_tls_add_ca_pem(const char *pem) {
     return pem ? WF_OK : WF_ERR_INVALID_ARG;
 }
@@ -74,14 +78,15 @@ long wii_tls_recv(wii_tls_conn *conn, void *buf, size_t cap) {
     return (long)count;
 }
 
-void wii_tls_close(wii_tls_conn *conn) { (void)conn; }
+void wii_tls_close(wii_tls_conn *conn) {
+    (void)conn;
+}
 
 static void test_authenticated_query(void) {
-    static const char response[] =
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Length: 11\r\n"
-        "DPoP-Nonce: nonce-1\r\n\r\n"
-        "{\"ok\":true}";
+    static const char response[] = "HTTP/1.1 200 OK\r\n"
+                                   "Content-Length: 11\r\n"
+                                   "DPoP-Nonce: nonce-1\r\n\r\n"
+                                   "{\"ok\":true}";
     wf_xrpc_param params[] = {{"actor", "alice test"}, {"limit", "20"}};
     wf_response out = {0};
     wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social/");
@@ -89,12 +94,14 @@ static void test_authenticated_query(void) {
     wf_xrpc_client_set_auth(client, "token");
     fake_response(response);
 
-    assert(wf_xrpc_query_params(client, "app.bsky.actor.getProfile",
-                                params, 2, &out) == WF_OK);
+    assert(wf_xrpc_query_params(client, "app.bsky.actor.getProfile", params, 2,
+                                &out) == WF_OK);
     assert(strcmp(connected_host, "bsky.social") == 0 && connected_port == 443);
-    assert(strstr(request_bytes,
-                  "GET /xrpc/app.bsky.actor.getProfile?actor=alice%20test&limit=20 "
-                  "HTTP/1.1\r\n") != NULL);
+    assert(
+        strstr(
+            request_bytes,
+            "GET /xrpc/app.bsky.actor.getProfile?actor=alice%20test&limit=20 "
+            "HTTP/1.1\r\n") != NULL);
     assert(occurrences(request_bytes, "Authorization: Bearer token\r\n") == 1);
     assert(out.status == 200 && out.body_len == 11);
     assert(strcmp(out.body, "{\"ok\":true}") == 0);
@@ -113,7 +120,8 @@ static void test_json_procedure_headers(void) {
 
     assert(wf_xrpc_procedure(client, "com.atproto.server.createSession",
                              "{\"x\":1}", &out) == WF_OK);
-    assert(occurrences(request_bytes, "Content-Type: application/json\r\n") == 1);
+    assert(occurrences(request_bytes, "Content-Type: application/json\r\n") ==
+           1);
     assert(occurrences(request_bytes, "Content-Length: 7\r\n") == 1);
     assert(strstr(request_bytes, "\r\n\r\n{\"x\":1}") != NULL);
     wf_response_free(&out);

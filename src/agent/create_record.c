@@ -10,9 +10,9 @@
 
 /* Internal helper replicating the logic of the original static function */
 static wf_status wf_agent_create_record_internal(wf_agent *agent,
-                                                const char *collection,
-                                                cJSON *record,
-                                                wf_agent_post_result *out) {
+                                                 const char *collection,
+                                                 cJSON *record,
+                                                 wf_agent_post_result *out) {
     if (!wf_agent_is_logged_in(agent) || !collection || !record || !out) {
         cJSON_Delete(record);
         return WF_ERR_INVALID_ARG;
@@ -51,15 +51,16 @@ static wf_status wf_agent_create_record_internal(wf_agent *agent,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client, WF_LEX_COM_ATPROTO_REPO_CREATE_RECORD_NSID,
-                                          json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, WF_LEX_COM_ATPROTO_REPO_CREATE_RECORD_NSID, json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
-    out->uri = NULL; out->cid = NULL;
+    out->uri = NULL;
+    out->cid = NULL;
 
     cJSON *resp_root = cJSON_ParseWithLength(res.body, res.body_len);
     if (!resp_root) {
@@ -69,8 +70,8 @@ static wf_status wf_agent_create_record_internal(wf_agent *agent,
 
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(resp_root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(resp_root, "cid");
-    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
-        !uri->valuestring || !cid->valuestring) {
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) || !uri->valuestring ||
+        !cid->valuestring) {
         cJSON_Delete(resp_root);
         wf_response_free(&res);
         return WF_ERR_PARSE;
@@ -95,7 +96,8 @@ static wf_status wf_agent_create_record_internal(wf_agent *agent,
 
 /* Public wrapper – parses JSON string and delegates to internal helper */
 wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
-                               const char *record_json, wf_agent_post_result *out) {
+                                 const char *record_json,
+                                 wf_agent_post_result *out) {
     if (!agent || !collection || !record_json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -107,7 +109,8 @@ wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
         cJSON_Delete(record);
         return WF_ERR_INVALID_ARG;
     }
-    wf_status status = wf_agent_create_record_internal(agent, collection, record, out);
+    wf_status status =
+        wf_agent_create_record_internal(agent, collection, record, out);
     if (status != WF_OK) {
         cJSON_Delete(record);
     }
@@ -120,9 +123,9 @@ wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
  * wf_agent_put_record (caller-supplied key) unchanged.
  */
 wf_status wf_agent_create_record_with_tid(wf_agent *agent,
-                                         const char *collection,
-                                         const char *record_json,
-                                         wf_agent_post_result *out) {
+                                          const char *collection,
+                                          const char *record_json,
+                                          wf_agent_post_result *out) {
     if (!agent || !collection || !record_json || !out) {
         return WF_ERR_INVALID_ARG;
     }

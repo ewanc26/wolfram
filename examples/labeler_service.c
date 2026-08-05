@@ -95,8 +95,9 @@ static void add_label_value_def(cJSON *defs, const char *identifier,
 }
 
 static void print_usage(const char *prog) {
-    printf("usage: %s <service-url> <handle-or-email> <password> <labeler-did>\n",
-           prog);
+    printf(
+        "usage: %s <service-url> <handle-or-email> <password> <labeler-did>\n",
+        prog);
     printf("  (no arguments: print usage and exit 0 — offline safe)\n");
 }
 
@@ -107,8 +108,8 @@ int main(int argc, char **argv) {
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
     const char *labeler_did = argv[4];
 
     wf_agent *agent = wf_agent_new(service_url);
@@ -125,7 +126,7 @@ int main(int argc, char **argv) {
     }
 
     const char *handle = wf_agent_get_handle(agent);
-    const char *did    = wf_agent_get_did(agent);
+    const char *did = wf_agent_get_did(agent);
     printf("Logged in as %s (%s)\n", handle ? handle : identifier, did);
 
     /* Build the app.bsky.labeler.service record value. */
@@ -195,8 +196,8 @@ int main(int argc, char **argv) {
     }
 
     wf_response get_res = {0};
-    status = wf_agent_get_record(agent, "app.bsky.labeler.service", rkey,
-                                 &get_res);
+    status =
+        wf_agent_get_record(agent, "app.bsky.labeler.service", rkey, &get_res);
     if (status != WF_OK) {
         fprintf(stderr, "getRecord failed: %d\n", (int)status);
         free(rkey);
@@ -224,8 +225,8 @@ int main(int argc, char **argv) {
                        cJSON_GetArraySize(defs_out));
                 for (int i = 0; i < cJSON_GetArraySize(defs_out); ++i) {
                     cJSON *d = cJSON_GetArrayItem(defs_out, i);
-                    cJSON *id = cJSON_GetObjectItemCaseSensitive(
-                        d, "identifier");
+                    cJSON *id =
+                        cJSON_GetObjectItemCaseSensitive(d, "identifier");
                     if (cJSON_IsString(id)) {
                         printf("    - %s\n", id->valuestring);
                     }

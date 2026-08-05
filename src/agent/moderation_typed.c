@@ -29,8 +29,8 @@ wf_status wf_agent_get_blocks_typed(wf_agent *agent, int limit,
         return status;
     }
 
-    status = wf_agent_parse_profile_views(res.body, res.body_len, "blocks",
-                                          out);
+    status =
+        wf_agent_parse_profile_views(res.body, res.body_len, "blocks", out);
     wf_response_free(&res);
     return status;
 }
@@ -49,8 +49,7 @@ wf_status wf_agent_get_mutes_typed(wf_agent *agent, int limit,
         return status;
     }
 
-    status = wf_agent_parse_profile_views(res.body, res.body_len, "mutes",
-                                          out);
+    status = wf_agent_parse_profile_views(res.body, res.body_len, "mutes", out);
     wf_response_free(&res);
     return status;
 }
@@ -63,15 +62,15 @@ wf_status wf_agent_get_known_followers_typed(wf_agent *agent, const char *actor,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_known_followers(agent, actor, limit,
-                                                    cursor, &res);
+    wf_status status =
+        wf_agent_get_known_followers(agent, actor, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
-    status = wf_agent_parse_profile_views(res.body, res.body_len, "followers",
-                                          out);
+    status =
+        wf_agent_parse_profile_views(res.body, res.body_len, "followers", out);
     wf_response_free(&res);
     return status;
 }

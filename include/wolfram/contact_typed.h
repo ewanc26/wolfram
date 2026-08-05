@@ -11,8 +11,8 @@
  *     invalid }.
  *   - importContacts input is `{ token, contacts: [E.164 phones] }`, NOT a list
  *     of at-uris.
- *   - getSyncStatus output is `{ syncStatus?: { syncedAt, matchesCount } }`, NOT
- *     { uptodate, syncing, lastSyncedAt }.
+ *   - getSyncStatus output is `{ syncStatus?: { syncedAt, matchesCount } }`,
+ * NOT { uptodate, syncing, lastSyncedAt }.
  *
  * All output structs are caller-owned and released with the matching `_free`.
  * Parse functions take the raw JSON body (as returned by the agent wrappers)
@@ -92,8 +92,8 @@ wf_status wf_agent_get_contact_matches_typed(wf_agent *agent, int limit,
                                              wf_contact_match_list *out);
 
 /**
- * app.bsky.contact.importContacts — import E.164 `contacts` using a verification
- * `token` obtained from app.bsky.contact.verifyPhone.
+ * app.bsky.contact.importContacts — import E.164 `contacts` using a
+ * verification `token` obtained from app.bsky.contact.verifyPhone.
  */
 wf_status wf_agent_import_contacts(wf_agent *agent, const char *token,
                                    const char *const *contacts,
@@ -107,16 +107,18 @@ wf_status wf_agent_get_contact_sync_status(wf_agent *agent,
 /** app.bsky.contact.sendNotification — notify `did` that you imported them. */
 wf_status wf_agent_contact_send_notification(wf_agent *agent, const char *did);
 
-/** app.bsky.contact.startPhoneVerification — begin SMS code flow for `phone`. */
+/** app.bsky.contact.startPhoneVerification — begin SMS code flow for `phone`.
+ */
 wf_status wf_agent_contact_start_phone_verification(wf_agent *agent,
                                                     const char *phone_number);
 
 /**
  * Owned result of app.bsky.contact.verifyPhone. `token` is the single-use JWT
- * import token (defs#main output `token`) consumed by app.bsky.contact.importContacts.
+ * import token (defs#main output `token`) consumed by
+ * app.bsky.contact.importContacts.
  */
 typedef struct wf_contact_verify_phone_result {
-    char *token;   /* owned JWT import token; NULL when absent */
+    char *token; /* owned JWT import token; NULL when absent */
     bool has_token;
 } wf_contact_verify_phone_result;
 
@@ -127,11 +129,12 @@ wf_status wf_contact_parse_verify_phone(const char *json, size_t json_len,
 /** Free a verifyPhone result and its owned token string. */
 void wf_contact_verify_phone_result_free(wf_contact_verify_phone_result *out);
 
-/** app.bsky.contact.verifyPhone — verify `code` for `phone`, mint an import token. */
+/** app.bsky.contact.verifyPhone — verify `code` for `phone`, mint an import
+ * token. */
 wf_status wf_agent_contact_verify_phone(wf_agent *agent,
-                                         const char *phone_number,
-                                         const char *code,
-                                         wf_contact_verify_phone_result *out);
+                                        const char *phone_number,
+                                        const char *code,
+                                        wf_contact_verify_phone_result *out);
 
 /** app.bsky.contact.dismissMatch — permanently dismiss the match for `did`. */
 wf_status wf_agent_contact_dismiss_match(wf_agent *agent, const char *did);

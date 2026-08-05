@@ -32,15 +32,29 @@ static char *read_entire_file(const char *path, size_t *len_out) {
     char *buffer;
     if (len_out) *len_out = 0;
     if (!fp) return NULL;
-    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return NULL; }
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return NULL;
+    }
     size_long = ftell(fp);
-    if (size_long < 0) { fclose(fp); return NULL; }
-    if (fseek(fp, 0, SEEK_SET) != 0) { fclose(fp); return NULL; }
+    if (size_long < 0) {
+        fclose(fp);
+        return NULL;
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return NULL;
+    }
     size = (size_t)size_long;
     buffer = malloc(size + 1);
-    if (!buffer) { fclose(fp); return NULL; }
+    if (!buffer) {
+        fclose(fp);
+        return NULL;
+    }
     if (size > 0 && fread(buffer, 1, size, fp) != size) {
-        free(buffer); fclose(fp); return NULL;
+        free(buffer);
+        fclose(fp);
+        return NULL;
     }
     buffer[size] = '\0';
     fclose(fp);
@@ -50,16 +64,16 @@ static char *read_entire_file(const char *path, size_t *len_out) {
 
 /* Add every key in `arr` (a cJSON array of strings) to the MST, threading
  * `root` through each call. Returns WF_OK on success. */
-static wf_status add_all(wf_car *car, const wf_cid *leaf,
-                          cJSON *arr, wf_cid *root) {
+static wf_status add_all(wf_car *car, const wf_cid *leaf, cJSON *arr,
+                         wf_cid *root) {
     int n = cJSON_GetArraySize(arr);
     for (int i = 0; i < n; i++) {
         cJSON *item = cJSON_GetArrayItem(arr, i);
         if (!cJSON_IsString(item)) return WF_ERR_INVALID_ARG;
         wf_cid new_root;
-        wf_status st = wf_mst_add(car, root,
-                                  (const unsigned char *)item->valuestring,
-                                  strlen(item->valuestring), leaf, &new_root);
+        wf_status st =
+            wf_mst_add(car, root, (const unsigned char *)item->valuestring,
+                       strlen(item->valuestring), leaf, &new_root);
         if (st != WF_OK) return st;
         *root = new_root;
     }
@@ -72,9 +86,9 @@ static wf_status del_all(wf_car *car, cJSON *arr, wf_cid *root) {
         cJSON *item = cJSON_GetArrayItem(arr, i);
         if (!cJSON_IsString(item)) return WF_ERR_INVALID_ARG;
         wf_cid new_root;
-        wf_status st = wf_mst_delete(car, root,
-                                     (const unsigned char *)item->valuestring,
-                                     strlen(item->valuestring), &new_root);
+        wf_status st =
+            wf_mst_delete(car, root, (const unsigned char *)item->valuestring,
+                          strlen(item->valuestring), &new_root);
         if (st != WF_OK) return st;
         *root = new_root;
     }
@@ -106,8 +120,8 @@ int main(void) {
             cJSON_GetObjectItemCaseSensitive(fx, "rootBeforeCommit");
         cJSON *root_after =
             cJSON_GetObjectItemCaseSensitive(fx, "rootAfterCommit");
-        if (!comment || !leaf_val || !keys || !adds || !dels ||
-            !root_before || !root_after) {
+        if (!comment || !leaf_val || !keys || !adds || !dels || !root_before ||
+            !root_after) {
             WF_CHECK(0);
             continue;
         }
@@ -122,8 +136,8 @@ int main(void) {
         WF_CHECK(add_all(&car, &leaf, keys, &root) == WF_OK);
         char *before_str = wf_cid_to_string(&root);
         if (!before_str || strcmp(before_str, root_before->valuestring) != 0) {
-            fprintf(stderr, "[%s] BEFORE got=%s exp=%s\n",
-                    comment->valuestring, before_str ? before_str : "(null)",
+            fprintf(stderr, "[%s] BEFORE got=%s exp=%s\n", comment->valuestring,
+                    before_str ? before_str : "(null)",
                     root_before->valuestring);
         }
         WF_CHECK(before_str &&
@@ -134,12 +148,10 @@ int main(void) {
         WF_CHECK(del_all(&car, dels, &root) == WF_OK);
         char *after_str = wf_cid_to_string(&root);
         if (!after_str || strcmp(after_str, root_after->valuestring) != 0) {
-            fprintf(stderr, "[%s] AFTER got=%s exp=%s\n",
-                    comment->valuestring, after_str ? after_str : "(null)",
-                    root_after->valuestring);
+            fprintf(stderr, "[%s] AFTER got=%s exp=%s\n", comment->valuestring,
+                    after_str ? after_str : "(null)", root_after->valuestring);
         }
-        WF_CHECK(after_str &&
-                 strcmp(after_str, root_after->valuestring) == 0);
+        WF_CHECK(after_str && strcmp(after_str, root_after->valuestring) == 0);
         free(after_str);
 
         wf_car_free(&car);

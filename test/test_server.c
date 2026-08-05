@@ -32,18 +32,23 @@ static void test_create_account_invalid(void) {
     wf_server_create_account_result out = {0};
     wf_server_create_account_input input = {0};
 
-    WF_CHECK(wf_server_create_account(NULL, &input, &out) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_create_account(NULL, &input, &out) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_server_create_account(NULL, NULL, &out) == WF_ERR_INVALID_ARG);
 
     wf_xrpc_client *client = new_client();
 
-    WF_CHECK(wf_server_create_account(client, NULL, &out) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_server_create_account(client, &input, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_create_account(client, NULL, &out) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_create_account(client, &input, NULL) ==
+             WF_ERR_INVALID_ARG);
 
-    WF_CHECK(wf_server_create_account(client, &input, &out) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_create_account(client, &input, &out) ==
+             WF_ERR_INVALID_ARG);
 
     input.handle = "";
-    WF_CHECK(wf_server_create_account(client, &input, &out) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_create_account(client, &input, &out) ==
+             WF_ERR_INVALID_ARG);
 
     wf_xrpc_client_free(client);
 }
@@ -113,10 +118,12 @@ static void test_revoke_app_password_invalid(void) {
     wf_xrpc_client *client = new_client();
 
     WF_CHECK(wf_server_revoke_app_password(client, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_server_revoke_app_password(client, &input) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_revoke_app_password(client, &input) ==
+             WF_ERR_INVALID_ARG);
 
     input.name = "";
-    WF_CHECK(wf_server_revoke_app_password(client, &input) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_revoke_app_password(client, &input) ==
+             WF_ERR_INVALID_ARG);
 
     wf_xrpc_client_free(client);
 }
@@ -148,12 +155,15 @@ static void test_delete_account_invalid(void) {
 static void test_request_password_reset_invalid(void) {
     wf_server_request_password_reset_input input = {0};
 
-    WF_CHECK(wf_server_request_password_reset(NULL, &input) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_server_request_password_reset(NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_request_password_reset(NULL, &input) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_request_password_reset(NULL, NULL) ==
+             WF_ERR_INVALID_ARG);
 
     wf_xrpc_client *client = new_client();
 
-    WF_CHECK(wf_server_request_password_reset(client, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_request_password_reset(client, NULL) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_server_request_password_reset(client, &input) ==
              WF_ERR_INVALID_ARG);
 

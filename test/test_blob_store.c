@@ -63,9 +63,8 @@ static int raw_http(const char *host, uint16_t port, const char *method,
     }
 
     char req[1024];
-    int rh = snprintf(req, sizeof(req),
-                      "%s %s HTTP/1.1\r\nHost: %s:%u\r\n", method, path, host,
-                      (unsigned)port);
+    int rh = snprintf(req, sizeof(req), "%s %s HTTP/1.1\r\nHost: %s:%u\r\n",
+                      method, path, host, (unsigned)port);
     if (body && body_len > 0 && content_type) {
         rh += snprintf(req + rh, sizeof(req) - (size_t)rh,
                        "Content-Type: %s\r\n", content_type);
@@ -89,12 +88,19 @@ static int raw_http(const char *host, uint16_t port, const char *method,
     /* Read the entire response (Connection: close => EOF terminates it). */
     size_t cap = 65536, got = 0;
     unsigned char *buf = (unsigned char *)malloc(cap);
-    if (!buf) { close(sock); return -1; }
+    if (!buf) {
+        close(sock);
+        return -1;
+    }
     for (;;) {
         if (got == cap) {
             cap *= 2;
             unsigned char *nb = (unsigned char *)realloc(buf, cap);
-            if (!nb) { free(buf); close(sock); return -1; }
+            if (!nb) {
+                free(buf);
+                close(sock);
+                return -1;
+            }
             buf = nb;
         }
         ssize_t n = recv(sock, buf + got, cap - got, 0);
@@ -106,13 +112,16 @@ static int raw_http(const char *host, uint16_t port, const char *method,
     /* Split headers from body. */
     const char *sep = NULL;
     for (size_t i = 0; i + 3 < got; i++) {
-        if (buf[i] == '\r' && buf[i + 1] == '\n' &&
-            buf[i + 2] == '\r' && buf[i + 3] == '\n') {
+        if (buf[i] == '\r' && buf[i + 1] == '\n' && buf[i + 2] == '\r' &&
+            buf[i + 3] == '\n') {
             sep = (const char *)&buf[i + 4];
             break;
         }
     }
-    if (!sep) { free(buf); return -1; }
+    if (!sep) {
+        free(buf);
+        return -1;
+    }
 
     size_t head_len = (size_t)(sep - (char *)buf);
     sscanf((const char *)buf, "HTTP/%*s %ld", out_status);
@@ -128,7 +137,11 @@ static int raw_http(const char *host, uint16_t port, const char *method,
             while (ve < end && *ve != '\r' && *ve != '\n') ve++;
             size_t vl = (size_t)(ve - v);
             char *ct = (char *)malloc(vl + 1);
-            if (ct) { memcpy(ct, v, vl); ct[vl] = '\0'; *out_content_type = ct; }
+            if (ct) {
+                memcpy(ct, v, vl);
+                ct[vl] = '\0';
+                *out_content_type = ct;
+            }
             break;
         }
         p++;
@@ -136,7 +149,11 @@ static int raw_http(const char *host, uint16_t port, const char *method,
 
     size_t blen = got - (size_t)(sep - (char *)buf);
     unsigned char *body_out = (unsigned char *)malloc(blen ? blen : 1);
-    if (!body_out) { free(buf); free(*out_content_type); return -1; }
+    if (!body_out) {
+        free(buf);
+        free(*out_content_type);
+        return -1;
+    }
     memcpy(body_out, sep, blen);
     *out_body = body_out;
     *out_len = blen;
@@ -155,12 +172,13 @@ static int test_unit_memory(void) {
         return 1;
     }
 
-    const unsigned char payload[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a,
-                                     0x0a, 0xde, 0xad, 0xbe, 0xef};
+    const unsigned char payload[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a,
+                                     0x1a, 0x0a, 0xde, 0xad, 0xbe, 0xef};
     const char *mime = "image/png";
     const char *cid = "bafytestcidmemory";
 
-    if (wf_blob_store_put(store, cid, mime, payload, sizeof(payload)) != WF_OK) {
+    if (wf_blob_store_put(store, cid, mime, payload, sizeof(payload)) !=
+        WF_OK) {
         fprintf(stderr, "FAIL: put (memory)\n");
         wf_blob_store_free(store);
         return 1;
@@ -197,8 +215,7 @@ static int test_unit_memory(void) {
         return 1;
     }
     int fail = 0;
-    if (len != sizeof(payload) ||
-        memcmp(data, payload, len) != 0) {
+    if (len != sizeof(payload) || memcmp(data, payload, len) != 0) {
         fprintf(stderr, "FAIL: get bytes mismatch\n");
         fail = 1;
     }
@@ -223,14 +240,17 @@ static int test_unit_memory(void) {
         fprintf(stderr, "FAIL: put overwrite\n");
         fail = 1;
     } else {
-        unsigned char *d2 = NULL; size_t l2 = 0; char *m2 = NULL;
+        unsigned char *d2 = NULL;
+        size_t l2 = 0;
+        char *m2 = NULL;
         if (wf_blob_store_get(store, cid, &d2, &l2, &m2) == WF_OK) {
             if (l2 != sizeof(repl) || memcmp(d2, repl, l2) != 0 ||
                 strcmp(m2, "application/octet-stream") != 0) {
                 fprintf(stderr, "FAIL: overwrite not applied\n");
                 fail = 1;
             }
-            free(d2); free(m2);
+            free(d2);
+            free(m2);
         }
     }
 
@@ -301,12 +321,15 @@ static int test_file_backed(void) {
         return 1;
     }
 
-    const unsigned char payload[] = {'h', 'e', 'l', 'l', 'o', ' ', 'b', 'l',
-                                      'o', 'b'};
+    const unsigned char payload[] = {'h', 'e', 'l', 'l', 'o',
+                                     ' ', 'b', 'l', 'o', 'b'};
     const char *cid = "bafytestcidfilebacked";
 
     wf_blob_store *s1 = wf_blob_store_new(dir);
-    if (!s1) { fprintf(stderr, "FAIL: new (file)\n"); return 1; }
+    if (!s1) {
+        fprintf(stderr, "FAIL: new (file)\n");
+        return 1;
+    }
     if (wf_blob_store_put(s1, cid, "text/plain", payload, sizeof(payload)) !=
         WF_OK) {
         fprintf(stderr, "FAIL: put (file)\n");
@@ -317,9 +340,14 @@ static int test_file_backed(void) {
 
     /* Re-open the same directory; the blob must be reloaded from disk. */
     wf_blob_store *s2 = wf_blob_store_new(dir);
-    if (!s2) { fprintf(stderr, "FAIL: reopen (file)\n"); return 1; }
+    if (!s2) {
+        fprintf(stderr, "FAIL: reopen (file)\n");
+        return 1;
+    }
     int fail = 0;
-    unsigned char *data = NULL; size_t len = 0; char *mime = NULL;
+    unsigned char *data = NULL;
+    size_t len = 0;
+    char *mime = NULL;
     if (wf_blob_store_get(s2, cid, &data, &len, &mime) != WF_OK) {
         fprintf(stderr, "FAIL: get after reopen\n");
         fail = 1;
@@ -329,7 +357,8 @@ static int test_file_backed(void) {
             fprintf(stderr, "FAIL: persisted content mismatch\n");
             fail = 1;
         }
-        free(data); free(mime);
+        free(data);
+        free(mime);
     }
     if (wf_blob_store_delete(s2, cid) != WF_OK ||
         wf_blob_store_exists(s2, cid) != WF_ERR_NOT_FOUND) {
@@ -389,7 +418,10 @@ static int test_file_backed(void) {
 
 static int test_server_roundtrip(void) {
     wf_blob_store *store = wf_blob_store_new(NULL);
-    if (!store) { fprintf(stderr, "FAIL: store (server)\n"); return 1; }
+    if (!store) {
+        fprintf(stderr, "FAIL: store (server)\n");
+        return 1;
+    }
 
     wf_xrpc_server *server = wf_xrpc_server_start("127.0.0.1", 0, 1);
     if (!server) {
@@ -414,12 +446,15 @@ static int test_server_roundtrip(void) {
     /* Upload via raw HTTP POST (body = bytes, Content-Type = image/jpeg). */
     char up_path[128];
     snprintf(up_path, sizeof(up_path), "/xrpc/com.atproto.repo.uploadBlob");
-    unsigned char *up_body = NULL; size_t up_len = 0; char *up_ct = NULL;
+    unsigned char *up_body = NULL;
+    size_t up_len = 0;
+    char *up_ct = NULL;
     long up_status = 0;
     if (raw_http(host, port, "POST", up_path, payload, sizeof(payload), mime,
                  &up_body, &up_len, &up_ct, &up_status) != 0) {
         fprintf(stderr, "FAIL: upload request\n");
-        wf_xrpc_server_free(server); wf_blob_store_free(store);
+        wf_xrpc_server_free(server);
+        wf_blob_store_free(store);
         return 1;
     }
     int fail = 0;
@@ -437,12 +472,13 @@ static int test_server_roundtrip(void) {
             fail = 1;
         } else {
             cJSON *blob = cJSON_GetObjectItemCaseSensitive(root, "blob");
-            cJSON *ref = blob ? cJSON_GetObjectItemCaseSensitive(blob, "ref")
-                              : NULL;
-            cJSON *link = ref ? cJSON_GetObjectItemCaseSensitive(ref, "$link")
-                              : NULL;
-            cJSON *mm = blob ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType")
-                             : NULL;
+            cJSON *ref =
+                blob ? cJSON_GetObjectItemCaseSensitive(blob, "ref") : NULL;
+            cJSON *link =
+                ref ? cJSON_GetObjectItemCaseSensitive(ref, "$link") : NULL;
+            cJSON *mm = blob
+                            ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType")
+                            : NULL;
             if (!cJSON_IsString(link) || !link->valuestring ||
                 !cJSON_IsString(mm)) {
                 fprintf(stderr, "FAIL: upload response shape\n");
@@ -454,7 +490,8 @@ static int test_server_roundtrip(void) {
             cJSON_Delete(root);
         }
     }
-    free(up_body); free(up_ct);
+    free(up_body);
+    free(up_ct);
 
     if (!fail && cid) {
         /* Verify the CID matches wolfram's own raw-codec computation. */
@@ -481,18 +518,19 @@ static int test_server_roundtrip(void) {
         snprintf(get_path, sizeof(get_path),
                  "/xrpc/com.atproto.sync.getBlob?did=did:example:alice&cid=%s",
                  cid);
-        unsigned char *gb = NULL; size_t gl = 0; char *gct = NULL;
+        unsigned char *gb = NULL;
+        size_t gl = 0;
+        char *gct = NULL;
         long gstatus = 0;
-        if (raw_http(host, port, "GET", get_path, NULL, 0, NULL, &gb, &gl,
-                     &gct, &gstatus) != 0) {
+        if (raw_http(host, port, "GET", get_path, NULL, 0, NULL, &gb, &gl, &gct,
+                     &gstatus) != 0) {
             fprintf(stderr, "FAIL: get request\n");
             fail = 1;
         } else {
             if (gstatus != 200) {
                 fprintf(stderr, "FAIL: get status=%ld\n", gstatus);
                 fail = 1;
-            } else if (gl != sizeof(payload) ||
-                       memcmp(gb, payload, gl) != 0) {
+            } else if (gl != sizeof(payload) || memcmp(gb, payload, gl) != 0) {
                 fprintf(stderr, "FAIL: get body mismatch\n");
                 fail = 1;
             } else if (!gct || strcmp(gct, mime) != 0) {
@@ -500,11 +538,13 @@ static int test_server_roundtrip(void) {
                         gct ? gct : "NULL", mime);
                 fail = 1;
             }
-            free(gb); free(gct);
+            free(gb);
+            free(gct);
         }
     }
 
-    free(cid); free(resp_mime);
+    free(cid);
+    free(resp_mime);
     wf_xrpc_server_free(server);
     wf_blob_store_free(store);
 

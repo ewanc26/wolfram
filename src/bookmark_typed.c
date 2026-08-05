@@ -179,8 +179,7 @@ static wf_status wf_bookmark_resolve_cid(wf_agent *agent, const char *post_uri,
     wf_syntax_aturi_free(&parsed);
 
     wf_response res = {0};
-    wf_status status =
-        wf_agent_get_record(agent, collection, rkey, &res);
+    wf_status status = wf_agent_get_record(agent, collection, rkey, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -231,7 +230,7 @@ wf_status wf_agent_create_bookmark(wf_agent *agent, const char *post_uri,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     status = wf_lex_app_bsky_bookmark_create_bookmark_main_call(agent->client,
-                                                               &input, &res);
+                                                                &input, &res);
     free(cid);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -310,8 +309,8 @@ wf_status wf_agent_get_bookmarks_typed(wf_agent *agent, int limit,
 /* ── createBookmark / deleteBookmark output parsers ──
  *
  * Both procedures return an empty body on success; the owned results carry only
- * an `ok` flag. Any valid JSON object (including `{}`) is accepted so the parser
- * is tolerant of an empty body and of incidental extra fields. */
+ * an `ok` flag. Any valid JSON object (including `{}`) is accepted so the
+ * parser is tolerant of an empty body and of incidental extra fields. */
 
 wf_status wf_bookmark_create_parse(const char *json, size_t len,
                                    wf_bookmark_create_result *out) {
@@ -401,7 +400,7 @@ wf_status wf_agent_bookmark_create_typed(wf_agent *agent, const char *uri,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     status = wf_lex_app_bsky_bookmark_create_bookmark_main_call(agent->client,
-                                                               &input, &res);
+                                                                &input, &res);
     free(cid);
     if (status != WF_OK) {
         wf_response_free(&res);

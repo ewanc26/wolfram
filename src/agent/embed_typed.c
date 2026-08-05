@@ -15,7 +15,8 @@ wf_status wf_embed_images_init(wf_embed_images_t *imgs) {
     return WF_OK;
 }
 
-wf_status wf_embed_images_add(wf_embed_images_t *imgs, const wf_uploaded_blob *blob, const char *alt) {
+wf_status wf_embed_images_add(wf_embed_images_t *imgs,
+                              const wf_uploaded_blob *blob, const char *alt) {
     if (!imgs || !blob) return WF_ERR_INVALID_ARG;
     if (imgs->capacity == 0) {
         imgs->capacity = 4;
@@ -23,7 +24,8 @@ wf_status wf_embed_images_add(wf_embed_images_t *imgs, const wf_uploaded_blob *b
         if (!imgs->items) return WF_ERR_ALLOC;
     } else if (imgs->count == imgs->capacity) {
         size_t new_cap = imgs->capacity * 2;
-        wf_embed_image_t *new_items = realloc(imgs->items, new_cap * sizeof(wf_embed_image_t));
+        wf_embed_image_t *new_items =
+            realloc(imgs->items, new_cap * sizeof(wf_embed_image_t));
         if (!new_items) return WF_ERR_ALLOC;
         imgs->items = new_items;
         imgs->capacity = new_cap;
@@ -45,7 +47,10 @@ wf_status wf_embed_images_add(wf_embed_images_t *imgs, const wf_uploaded_blob *b
     return WF_OK;
 }
 
-wf_status wf_embed_images_add_with_aspect(wf_embed_images_t *imgs, const wf_uploaded_blob *blob, const char *alt, int width, int height) {
+wf_status wf_embed_images_add_with_aspect(wf_embed_images_t *imgs,
+                                          const wf_uploaded_blob *blob,
+                                          const char *alt, int width,
+                                          int height) {
     wf_status s = wf_embed_images_add(imgs, blob, alt);
     if (s != WF_OK) return s;
     wf_embed_image_t *img = &imgs->items[imgs->count - 1];
@@ -72,7 +77,8 @@ cJSON *wf_embed_images_build(const wf_embed_images_t *imgs) {
     if (!embed) return NULL;
     for (size_t i = 0; i < imgs->count; ++i) {
         const wf_embed_image_t *img = &imgs->items[i];
-        wf_uploaded_blob tmp = { .cid = img->cid, .mime_type = img->mime_type, .size = img->size };
+        wf_uploaded_blob tmp = {
+            .cid = img->cid, .mime_type = img->mime_type, .size = img->size};
         wf_status s = wf_embed_images_add_image(embed, &tmp, img->alt);
         if (s != WF_OK) {
             cJSON_Delete(embed);
@@ -86,15 +92,24 @@ cJSON *wf_embed_images_build(const wf_embed_images_t *imgs) {
                 return NULL;
             }
             cJSON *ar = cJSON_CreateObject();
-            if (!ar) { cJSON_Delete(embed); return NULL; }
+            if (!ar) {
+                cJSON_Delete(embed);
+                return NULL;
+            }
             if (!cJSON_AddNumberToObject(ar, "width", img->width)) {
-                cJSON_Delete(ar); cJSON_Delete(embed); return NULL;
+                cJSON_Delete(ar);
+                cJSON_Delete(embed);
+                return NULL;
             }
             if (!cJSON_AddNumberToObject(ar, "height", img->height)) {
-                cJSON_Delete(ar); cJSON_Delete(embed); return NULL;
+                cJSON_Delete(ar);
+                cJSON_Delete(embed);
+                return NULL;
             }
             if (!cJSON_AddItemToObject(image_obj, "aspectRatio", ar)) {
-                cJSON_Delete(ar); cJSON_Delete(embed); return NULL;
+                cJSON_Delete(ar);
+                cJSON_Delete(embed);
+                return NULL;
             }
         }
     }
@@ -102,7 +117,8 @@ cJSON *wf_embed_images_build(const wf_embed_images_t *imgs) {
 }
 
 /* ----- Video ----- */
-wf_status wf_embed_video_init(wf_embed_video_t *vid, const wf_uploaded_blob *blob, const char *alt) {
+wf_status wf_embed_video_init(wf_embed_video_t *vid,
+                              const wf_uploaded_blob *blob, const char *alt) {
     if (!vid || !blob) return WF_ERR_INVALID_ARG;
     vid->cid = wf_dup_span(blob->cid, strlen(blob->cid));
     vid->mime_type = wf_dup_span(blob->mime_type, strlen(blob->mime_type));
@@ -119,7 +135,8 @@ wf_status wf_embed_video_init(wf_embed_video_t *vid, const wf_uploaded_blob *blo
 
 cJSON *wf_embed_video_build(const wf_embed_video_t *vid) {
     if (!vid) return NULL;
-    wf_uploaded_blob tmp = { .cid = vid->cid, .mime_type = vid->mime_type, .size = vid->size };
+    wf_uploaded_blob tmp = {
+        .cid = vid->cid, .mime_type = vid->mime_type, .size = vid->size};
     return wf_embed_video_new(&tmp, vid->alt);
 }
 
@@ -133,7 +150,8 @@ void wf_embed_video_free(wf_embed_video_t *vid) {
 }
 
 /* ----- Record ----- */
-wf_status wf_embed_record_init(wf_embed_record_t *rec, const char *uri, const char *cid) {
+wf_status wf_embed_record_init(wf_embed_record_t *rec, const char *uri,
+                               const char *cid) {
     if (!rec || !uri || !cid) return WF_ERR_INVALID_ARG;
     rec->uri = wf_dup_span(uri, strlen(uri));
     rec->cid = wf_dup_span(cid, strlen(cid));
@@ -158,7 +176,8 @@ void wf_embed_record_free(wf_embed_record_t *rec) {
 }
 
 /* ----- Record with Media ----- */
-cJSON *wf_embed_record_with_media_build(const wf_embed_record_t *record, const cJSON *media) {
+cJSON *wf_embed_record_with_media_build(const wf_embed_record_t *record,
+                                        const cJSON *media) {
     if (!record || !media) return NULL;
     cJSON *rec_json = wf_embed_record_new(record->uri, record->cid);
     if (!rec_json) return NULL;
@@ -244,13 +263,16 @@ wf_status wf_embed_parse_external_view(const char *json, size_t json_len,
             if (cJSON_IsString(uri) && uri->valuestring) {
                 status = wf_embed_set_string(&out->uri, uri->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(title) && title->valuestring) {
+            if (status == WF_OK && cJSON_IsString(title) &&
+                title->valuestring) {
                 status = wf_embed_set_string(&out->title, title->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-                status = wf_embed_set_string(&out->description, desc->valuestring);
+                status =
+                    wf_embed_set_string(&out->description, desc->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(thumb) && thumb->valuestring) {
+            if (status == WF_OK && cJSON_IsString(thumb) &&
+                thumb->valuestring) {
                 status = wf_embed_set_string(&out->thumb, thumb->valuestring);
             }
         }
@@ -485,7 +507,8 @@ wf_status wf_embed_parse_video_view(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *thumbnail = cJSON_GetObjectItemCaseSensitive(root, "thumbnail");
         if (cJSON_IsString(thumbnail) && thumbnail->valuestring) {
-            status = wf_embed_set_string(&out->thumbnail, thumbnail->valuestring);
+            status =
+                wf_embed_set_string(&out->thumbnail, thumbnail->valuestring);
         }
     }
     if (status == WF_OK) {
@@ -572,8 +595,7 @@ wf_status wf_embed_parse_external_embed_view(const char *json, size_t json_len,
     if (cJSON_IsObject(external)) {
         cJSON *uri = cJSON_GetObjectItemCaseSensitive(external, "uri");
         cJSON *title = cJSON_GetObjectItemCaseSensitive(external, "title");
-        cJSON *desc =
-            cJSON_GetObjectItemCaseSensitive(external, "description");
+        cJSON *desc = cJSON_GetObjectItemCaseSensitive(external, "description");
         if (cJSON_IsString(uri) && uri->valuestring) {
             status = wf_embed_set_string(&out->uri, uri->valuestring);
         }
@@ -581,8 +603,7 @@ wf_status wf_embed_parse_external_embed_view(const char *json, size_t json_len,
             status = wf_embed_set_string(&out->title, title->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-            status =
-                wf_embed_set_string(&out->description, desc->valuestring);
+            status = wf_embed_set_string(&out->description, desc->valuestring);
         }
         if (status == WF_OK) {
             cJSON *thumb = cJSON_GetObjectItemCaseSensitive(external, "thumb");
@@ -635,8 +656,7 @@ void wf_embed_view_external_free(wf_embed_view_external *v) {
 
 /* ----- Record view (union) ----- */
 
-static void wf_embed_view_record_record_reset(
-    wf_embed_view_record_record *r) {
+static void wf_embed_view_record_record_reset(wf_embed_view_record_record *r) {
     if (!r) {
         return;
     }
@@ -707,8 +727,8 @@ static wf_embed_rec_view_kind wf_embed_rec_view_kind_of(cJSON *rec) {
 /* Parse the inner record#view object `rec` (already validated as an object and
  * owned/detached) into `out`. Handles the uri + kind, then either parses the
  * viewRecord fields in full or keeps the whole object in `extra`. */
-static wf_status wf_embed_parse_record_view_inner(
-    cJSON *rec, wf_embed_record_embed_view *out) {
+static wf_status
+wf_embed_parse_record_view_inner(cJSON *rec, wf_embed_record_embed_view *out) {
     wf_status status = WF_OK;
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(rec, "uri");
     if (cJSON_IsString(uri) && uri->valuestring) {
@@ -720,11 +740,9 @@ static wf_status wf_embed_parse_record_view_inner(
 
     if (status == WF_OK && kind == WF_EMBED_REC_VIEW_RECORD) {
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(rec, "cid");
-        cJSON *indexed =
-            cJSON_GetObjectItemCaseSensitive(rec, "indexedAt");
+        cJSON *indexed = cJSON_GetObjectItemCaseSensitive(rec, "indexedAt");
         if (cJSON_IsString(cid) && cid->valuestring) {
-            status =
-                wf_embed_set_string(&out->record.cid, cid->valuestring);
+            status = wf_embed_set_string(&out->record.cid, cid->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(indexed) &&
             indexed->valuestring) {
@@ -732,33 +750,29 @@ static wf_status wf_embed_parse_record_view_inner(
                                          indexed->valuestring);
         }
         if (status == WF_OK) {
-            cJSON *rc =
-                cJSON_GetObjectItemCaseSensitive(rec, "replyCount");
-            cJSON *rpc =
-                cJSON_GetObjectItemCaseSensitive(rec, "repostCount");
+            cJSON *rc = cJSON_GetObjectItemCaseSensitive(rec, "replyCount");
+            cJSON *rpc = cJSON_GetObjectItemCaseSensitive(rec, "repostCount");
             cJSON *lc = cJSON_GetObjectItemCaseSensitive(rec, "likeCount");
             cJSON *qc = cJSON_GetObjectItemCaseSensitive(rec, "quoteCount");
             wf_embed_parse_i64(rc, &out->record.reply_count,
-                                &out->record.has_reply_count);
+                               &out->record.has_reply_count);
             wf_embed_parse_i64(rpc, &out->record.repost_count,
-                                &out->record.has_repost_count);
+                               &out->record.has_repost_count);
             wf_embed_parse_i64(lc, &out->record.like_count,
-                                &out->record.has_like_count);
+                               &out->record.has_like_count);
             wf_embed_parse_i64(qc, &out->record.quote_count,
-                                &out->record.has_quote_count);
+                               &out->record.has_quote_count);
         }
         if (status == WF_OK) {
             cJSON *author = cJSON_GetObjectItemCaseSensitive(rec, "author");
             if (cJSON_IsObject(author)) {
-                out->record.author =
-                    cJSON_DetachItemFromObject(rec, "author");
+                out->record.author = cJSON_DetachItemFromObject(rec, "author");
             }
             cJSON *value = cJSON_GetObjectItemCaseSensitive(rec, "value");
             if (cJSON_IsObject(value)) {
                 out->record.value = cJSON_DetachItemFromObject(rec, "value");
             }
-            out->record.labels =
-                cJSON_DetachItemFromObject(rec, "labels");
+            out->record.labels = cJSON_DetachItemFromObject(rec, "labels");
             out->record.embeds = cJSON_DetachItemFromObject(rec, "embeds");
         }
     } else if (status == WF_OK) {
@@ -771,7 +785,7 @@ static wf_status wf_embed_parse_record_view_inner(
 }
 
 wf_status wf_embed_parse_record_view(const char *json, size_t json_len,
-                                      wf_embed_record_embed_view *out) {
+                                     wf_embed_record_embed_view *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -807,8 +821,8 @@ void wf_embed_record_embed_view_free(wf_embed_record_embed_view *v) {
 
 /* ----- Record with media view ----- */
 
-static void wf_embed_record_with_media_reset(
-    wf_embed_record_with_media_view *v) {
+static void
+wf_embed_record_with_media_reset(wf_embed_record_with_media_view *v) {
     if (!v) {
         return;
     }
@@ -819,8 +833,9 @@ static void wf_embed_record_with_media_reset(
     memset(v, 0, sizeof(*v));
 }
 
-wf_status wf_embed_parse_record_with_media_view(
-    const char *json, size_t json_len, wf_embed_record_with_media_view *out) {
+wf_status
+wf_embed_parse_record_with_media_view(const char *json, size_t json_len,
+                                      wf_embed_record_with_media_view *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -856,8 +871,7 @@ wf_status wf_embed_parse_record_with_media_view(
     return status;
 }
 
-void wf_embed_record_with_media_view_free(
-    wf_embed_record_with_media_view *v) {
+void wf_embed_record_with_media_view_free(wf_embed_record_with_media_view *v) {
     wf_embed_record_with_media_reset(v);
 }
 
@@ -934,7 +948,7 @@ void wf_embed_view_gallery_free(wf_embed_view_gallery *v) {
 /* ----- Dispatcher over every embed view shape ----- */
 
 wf_status wf_embed_parse_view(const char *json, size_t json_len,
-                               wf_embed_view *out) {
+                              wf_embed_view *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -972,29 +986,30 @@ wf_status wf_embed_parse_view(const char *json, size_t json_len,
 
     wf_status status = WF_OK;
     switch (kind) {
-    case WF_EMBED_VIEW_IMAGES:
-        status = wf_embed_parse_images_view(json, json_len, &out->u.images);
-        break;
-    case WF_EMBED_VIEW_VIDEO:
-        status = wf_embed_parse_video_view(json, json_len, &out->u.video);
-        break;
-    case WF_EMBED_VIEW_EXTERNAL:
-        status =
-            wf_embed_parse_external_embed_view(json, json_len, &out->u.external);
-        break;
-    case WF_EMBED_VIEW_RECORD:
-        status = wf_embed_parse_record_view(json, json_len, &out->u.record);
-        break;
-    case WF_EMBED_VIEW_RECORD_WITH_MEDIA:
-        status = wf_embed_parse_record_with_media_view(
-            json, json_len, &out->u.record_with_media);
-        break;
-    case WF_EMBED_VIEW_GALLERY:
-        status = wf_embed_parse_gallery_view(json, json_len, &out->u.gallery);
-        break;
-    default:
-        status = WF_ERR_PARSE;
-        break;
+        case WF_EMBED_VIEW_IMAGES:
+            status = wf_embed_parse_images_view(json, json_len, &out->u.images);
+            break;
+        case WF_EMBED_VIEW_VIDEO:
+            status = wf_embed_parse_video_view(json, json_len, &out->u.video);
+            break;
+        case WF_EMBED_VIEW_EXTERNAL:
+            status = wf_embed_parse_external_embed_view(json, json_len,
+                                                        &out->u.external);
+            break;
+        case WF_EMBED_VIEW_RECORD:
+            status = wf_embed_parse_record_view(json, json_len, &out->u.record);
+            break;
+        case WF_EMBED_VIEW_RECORD_WITH_MEDIA:
+            status = wf_embed_parse_record_with_media_view(
+                json, json_len, &out->u.record_with_media);
+            break;
+        case WF_EMBED_VIEW_GALLERY:
+            status =
+                wf_embed_parse_gallery_view(json, json_len, &out->u.gallery);
+            break;
+        default:
+            status = WF_ERR_PARSE;
+            break;
     }
 
     if (status == WF_OK) {
@@ -1010,26 +1025,26 @@ void wf_embed_view_free(wf_embed_view *v) {
         return;
     }
     switch (v->kind) {
-    case WF_EMBED_VIEW_IMAGES:
-        wf_embed_view_images_free(&v->u.images);
-        break;
-    case WF_EMBED_VIEW_VIDEO:
-        wf_embed_view_video_free(&v->u.video);
-        break;
-    case WF_EMBED_VIEW_EXTERNAL:
-        wf_embed_view_external_free(&v->u.external);
-        break;
-    case WF_EMBED_VIEW_RECORD:
-        wf_embed_record_embed_view_free(&v->u.record);
-        break;
-    case WF_EMBED_VIEW_RECORD_WITH_MEDIA:
-        wf_embed_record_with_media_view_free(&v->u.record_with_media);
-        break;
-    case WF_EMBED_VIEW_GALLERY:
-        wf_embed_view_gallery_free(&v->u.gallery);
-        break;
-    default:
-        break;
+        case WF_EMBED_VIEW_IMAGES:
+            wf_embed_view_images_free(&v->u.images);
+            break;
+        case WF_EMBED_VIEW_VIDEO:
+            wf_embed_view_video_free(&v->u.video);
+            break;
+        case WF_EMBED_VIEW_EXTERNAL:
+            wf_embed_view_external_free(&v->u.external);
+            break;
+        case WF_EMBED_VIEW_RECORD:
+            wf_embed_record_embed_view_free(&v->u.record);
+            break;
+        case WF_EMBED_VIEW_RECORD_WITH_MEDIA:
+            wf_embed_record_with_media_view_free(&v->u.record_with_media);
+            break;
+        case WF_EMBED_VIEW_GALLERY:
+            wf_embed_view_gallery_free(&v->u.gallery);
+            break;
+        default:
+            break;
     }
     memset(v, 0, sizeof(*v));
 }

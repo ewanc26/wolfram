@@ -30,7 +30,8 @@
 int main(int argc, char **argv) {
     if (argc < 5) {
         fprintf(stderr,
-                "usage: %s <service-url> <handle> <password> <new-handle> [token]\n",
+                "usage: %s <service-url> <handle> <password> <new-handle> "
+                "[token]\n",
                 argv[0]);
         return 0;
     }
@@ -59,9 +60,11 @@ int main(int argc, char **argv) {
            session->data.did ? session->data.did : "");
 
     wf_identity_recommended_did_credentials creds = {0};
-    status = wf_identity_get_recommended_did_credentials(session->client, &creds);
+    status =
+        wf_identity_get_recommended_did_credentials(session->client, &creds);
     if (status != WF_OK) {
-        fprintf(stderr, "getRecommendedDidCredentials failed: %d\n", (int)status);
+        fprintf(stderr, "getRecommendedDidCredentials failed: %d\n",
+                (int)status);
         wf_session_free(session);
         return 1;
     }
@@ -74,7 +77,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     snprintf(aka_buf, strlen(new_handle) + 6, "at://%s", new_handle);
-    const char *aka[1] = { aka_buf };
+    const char *aka[1] = {aka_buf};
 
     wf_plc_operation_update update = {0};
     update.rotation_keys = (const char *const *)creds.rotation_keys;
@@ -96,9 +99,10 @@ int main(int argc, char **argv) {
     printf("Built operation:\n%s\n", op_json);
 
     status = wf_identity_request_plc_operation_signature(session->client,
-                                                        session->data.did);
+                                                         session->data.did);
     if (status != WF_OK) {
-        fprintf(stderr, "requestPlcOperationSignature failed: %d\n", (int)status);
+        fprintf(stderr, "requestPlcOperationSignature failed: %d\n",
+                (int)status);
         wf_plc_operation_free(op_json);
         free(aka_buf);
         wf_session_free(session);
@@ -137,22 +141,27 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    wf_lex_com_atproto_identity_sign_plc_operation_main_output *signed_op = NULL;
-    status = wf_lex_com_atproto_identity_sign_plc_operation_main_output_decode_json(
-        sign_res.body, sign_res.body_len, &signed_op);
+    wf_lex_com_atproto_identity_sign_plc_operation_main_output *signed_op =
+        NULL;
+    status =
+        wf_lex_com_atproto_identity_sign_plc_operation_main_output_decode_json(
+            sign_res.body, sign_res.body_len, &signed_op);
     wf_response_free(&sign_res);
     if (status != WF_OK || !signed_op || !signed_op->operation.data) {
-        fprintf(stderr, "failed to decode signPlcOperation response: %d\n", (int)status);
-        wf_lex_com_atproto_identity_sign_plc_operation_main_output_free(signed_op);
+        fprintf(stderr, "failed to decode signPlcOperation response: %d\n",
+                (int)status);
+        wf_lex_com_atproto_identity_sign_plc_operation_main_output_free(
+            signed_op);
         wf_plc_operation_free(op_json);
         free(aka_buf);
         wf_session_free(session);
         return 1;
     }
-    printf("Signed operation:\n%.*s\n",
-           (int)signed_op->operation.length, signed_op->operation.data);
+    printf("Signed operation:\n%.*s\n", (int)signed_op->operation.length,
+           signed_op->operation.data);
 
-    wf_lex_com_atproto_identity_submit_plc_operation_main_input submit_input = {0};
+    wf_lex_com_atproto_identity_submit_plc_operation_main_input submit_input = {
+        0};
     submit_input.operation.data = signed_op->operation.data;
     submit_input.operation.length = signed_op->operation.length;
 

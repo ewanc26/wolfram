@@ -72,7 +72,7 @@ static char *wf_rkey_from_aturi(const char *uri) {
 }
 
 static char *wf_read_file(const char *path, unsigned char **out_data,
-                           size_t *out_len) {
+                          size_t *out_len) {
     FILE *f = fopen(path, "rb");
     if (!f) {
         return NULL;
@@ -141,11 +141,11 @@ int main(int argc, char **argv) {
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
-    const char *gen_did     = argv[4];
-    const char *display     = argv[5];
-    const char *desc        = argv[6];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
+    const char *gen_did = argv[4];
+    const char *display = argv[5];
+    const char *desc = argv[6];
     const char *avatar_path = (argc >= 8) ? argv[7] : NULL;
 
     wf_agent *agent = wf_agent_new(service_url);
@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
     }
 
     const char *handle = wf_agent_get_handle(agent);
-    const char *did    = wf_agent_get_did(agent);
+    const char *did = wf_agent_get_did(agent);
     printf("Logged in as %s (%s)\n", handle ? handle : identifier, did);
 
     /* Build the app.bsky.feed.generator record value. */
@@ -263,8 +263,8 @@ int main(int argc, char **argv) {
     }
 
     wf_response get_res = {0};
-    status = wf_agent_get_record(agent, "app.bsky.feed.generator", rkey,
-                                 &get_res);
+    status =
+        wf_agent_get_record(agent, "app.bsky.feed.generator", rkey, &get_res);
     if (status != WF_OK) {
         fprintf(stderr, "getRecord failed: %d\n", (int)status);
         free(rkey);
@@ -309,7 +309,8 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < feeds.generator_count; ++i) {
             printf("  [%zu] %s — %s\n", i,
                    feeds.generators[i].display_name
-                       ? feeds.generators[i].display_name : "?",
+                       ? feeds.generators[i].display_name
+                       : "?",
                    feeds.generators[i].uri ? feeds.generators[i].uri : "?");
         }
         wf_agent_generator_view_list_free(&feeds);

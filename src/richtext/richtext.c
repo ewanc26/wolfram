@@ -12,11 +12,16 @@ size_t wf_richtext_grapheme_len(const char *utf8_text, size_t utf8_len) {
     size_t i = 0;
     while (i < utf8_len) {
         unsigned char c = (unsigned char)utf8_text[i];
-        if (c <= 0x7f) i += 1;
-        else if (c <= 0xdf) i += 2;
-        else if (c <= 0xef) i += 3;
-        else if (c <= 0xf7) i += 4;
-        else i++;
+        if (c <= 0x7f)
+            i += 1;
+        else if (c <= 0xdf)
+            i += 2;
+        else if (c <= 0xef)
+            i += 3;
+        else if (c <= 0xf7)
+            i += 4;
+        else
+            i++;
         count++;
     }
     return count;
@@ -38,8 +43,7 @@ wf_status wf_richtext_init(wf_richtext *rt, const char *text) {
 void wf_richtext_free(wf_richtext *rt) {
     if (!rt) return;
     if (rt->owns_text) free(rt->text);
-    for (size_t i = 0; i < rt->facet_count; i++)
-        free(rt->facets[i].features);
+    for (size_t i = 0; i < rt->facet_count; i++) free(rt->facets[i].features);
     free(rt->facets);
     memset(rt, 0, sizeof(*rt));
 }
@@ -67,7 +71,8 @@ size_t wf_richtext_segment_count(const wf_richtext *rt) {
     return count;
 }
 
-wf_richtext_segment wf_richtext_get_segment(const wf_richtext *rt, size_t index) {
+wf_richtext_segment wf_richtext_get_segment(const wf_richtext *rt,
+                                            size_t index) {
     wf_richtext_segment seg = {0};
     if (!rt) return seg;
 
@@ -94,7 +99,8 @@ wf_richtext_segment wf_richtext_get_segment(const wf_richtext *rt, size_t index)
         }
         if (seg_idx == index) {
             size_t flen = rt->facets[i].byte_end - rt->facets[i].byte_start;
-            if (flen > 0 && !is_whitespace_only(rt->text + rt->facets[i].byte_start, flen)) {
+            if (flen > 0 && !is_whitespace_only(
+                                rt->text + rt->facets[i].byte_start, flen)) {
                 seg.text = rt->text + rt->facets[i].byte_start;
                 seg.text_len = flen;
                 seg.facet = &rt->facets[i];
@@ -115,7 +121,8 @@ wf_richtext_segment wf_richtext_get_segment(const wf_richtext *rt, size_t index)
 
 /* ── mutation: insert ── */
 
-wf_status wf_richtext_insert(wf_richtext *rt, uint32_t offset, const char *text) {
+wf_status wf_richtext_insert(wf_richtext *rt, uint32_t offset,
+                             const char *text) {
     if (!rt || !text || offset > rt->text_len) return WF_ERR_INVALID_ARG;
     size_t ilen = strlen(text);
 
@@ -123,7 +130,8 @@ wf_status wf_richtext_insert(wf_richtext *rt, uint32_t offset, const char *text)
     if (!new_text) return WF_ERR_ALLOC;
     memcpy(new_text, rt->text, offset);
     memcpy(new_text + offset, text, ilen);
-    memcpy(new_text + offset + ilen, rt->text + offset, rt->text_len - offset + 1);
+    memcpy(new_text + offset + ilen, rt->text + offset,
+           rt->text_len - offset + 1);
 
     if (rt->owns_text) free(rt->text);
     rt->text = new_text;
@@ -132,10 +140,8 @@ wf_status wf_richtext_insert(wf_richtext *rt, uint32_t offset, const char *text)
 
     for (size_t i = 0; i < rt->facet_count; i++) {
         wf_richtext_facet *f = &rt->facets[i];
-        if (offset <= f->byte_start)
-            f->byte_start += ilen;
-        if (offset < f->byte_end)
-            f->byte_end += ilen;
+        if (offset <= f->byte_start) f->byte_start += ilen;
+        if (offset < f->byte_end) f->byte_end += ilen;
     }
 
     return WF_OK;
@@ -170,7 +176,8 @@ wf_status wf_richtext_delete(wf_richtext *rt, uint32_t start, uint32_t end) {
             /* keep offsets unchanged */
         }
         /* scenario C (removal partially after: truncate the end) */
-        else if (start > f->byte_start && start <= f->byte_end && end > f->byte_end) {
+        else if (start > f->byte_start && start <= f->byte_end &&
+                 end > f->byte_end) {
             f->byte_end = start;
         }
         /* scenario D (removal entirely inside the facet): shrink the end */
@@ -178,7 +185,8 @@ wf_status wf_richtext_delete(wf_richtext *rt, uint32_t start, uint32_t end) {
             f->byte_end -= removed;
         }
         /* scenario E (removal partially before: move start, shrink end) */
-        else if (start < f->byte_start && end >= f->byte_start && end <= f->byte_end) {
+        else if (start < f->byte_start && end >= f->byte_start &&
+                 end <= f->byte_end) {
             f->byte_start = start;
             f->byte_end -= removed;
         }
@@ -206,7 +214,8 @@ static int wf_richtext_is_sanitize_newline(char c) {
     return c == '\r' || c == '\n';
 }
 
-static int wf_richtext_skip_sanitize_separator(const char *text, size_t len, size_t *index) {
+static int wf_richtext_skip_sanitize_separator(const char *text, size_t len,
+                                               size_t *index) {
     if (!text || !index || *index >= len) return 0;
 
     switch ((unsigned char)text[*index]) {
@@ -241,8 +250,10 @@ static int wf_richtext_skip_sanitize_separator(const char *text, size_t len, siz
     return 0;
 }
 
-static size_t wf_richtext_find_newline_run_end(const char *text, size_t len, size_t start) {
-    if (!text || start >= len || !wf_richtext_is_sanitize_newline(text[start])) return 0;
+static size_t wf_richtext_find_newline_run_end(const char *text, size_t len,
+                                               size_t start) {
+    if (!text || start >= len || !wf_richtext_is_sanitize_newline(text[start]))
+        return 0;
 
     size_t pos = start + 1;
     size_t newline_count = 1;
@@ -266,9 +277,11 @@ wf_status wf_richtext_sanitize(wf_richtext *rt, int clean_newlines) {
 
     size_t i = 0;
     while (i < rt->text_len) {
-        size_t match_end = wf_richtext_find_newline_run_end(rt->text, rt->text_len, i);
+        size_t match_end =
+            wf_richtext_find_newline_run_end(rt->text, rt->text_len, i);
         if (match_end > i) {
-            wf_status status = wf_richtext_delete(rt, (uint32_t)i, (uint32_t)match_end);
+            wf_status status =
+                wf_richtext_delete(rt, (uint32_t)i, (uint32_t)match_end);
             if (status != WF_OK) return status;
             status = wf_richtext_insert(rt, (uint32_t)i, "\n\n");
             if (status != WF_OK) return status;
@@ -284,16 +297,14 @@ wf_status wf_richtext_sanitize(wf_richtext *rt, int clean_newlines) {
 /* ── domain/TLD validation helpers ── */
 
 static const char *known_tlds[] = {
-    "com", "org", "net", "edu", "gov", "mil", "int",
-    "uk", "de", "jp", "fr", "au", "us", "ca", "ch", "it",
-    "nl", "se", "no", "dk", "fi", "es", "at", "be", "pl",
-    "br", "in", "cn", "ru", "za", "mx", "kr", "sg", "hk",
-    "io", "app", "dev", "co", "me", "xyz", "info", "biz",
-    "name", "pro", "tv", "cc", "ws", "cloud", "tech", "site",
-    "online", "club", "world", "life", "blog", "design",
-    "tools", "social", "video", "wiki", "media", "news",
-    "test", NULL
-};
+    "com",   "org",    "net",    "edu",  "gov",   "mil",  "int",  "uk",
+    "de",    "jp",     "fr",     "au",   "us",    "ca",   "ch",   "it",
+    "nl",    "se",     "no",     "dk",   "fi",    "es",   "at",   "be",
+    "pl",    "br",     "in",     "cn",   "ru",    "za",   "mx",   "kr",
+    "sg",    "hk",     "io",     "app",  "dev",   "co",   "me",   "xyz",
+    "info",  "biz",    "name",   "pro",  "tv",    "cc",   "ws",   "cloud",
+    "tech",  "site",   "online", "club", "world", "life", "blog", "design",
+    "tools", "social", "video",  "wiki", "media", "news", "test", NULL};
 
 int wf_richtext_is_valid_tld(const char *tld) {
     if (!tld || !*tld) return 0;

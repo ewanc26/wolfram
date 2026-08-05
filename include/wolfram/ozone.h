@@ -12,12 +12,14 @@
  *   - wf_ozone_report_subject         : file a moderation report
  *     (com.atproto.moderation.createReport).
  *   - wf_ozone_query_statuses         : tools.ozone.moderation.queryStatuses.
- *   - wf_ozone_get_label_defs         : tools.ozone.moderation.getLabelDefinitions.
+ *   - wf_ozone_get_label_defs         :
+ * tools.ozone.moderation.getLabelDefinitions.
  *   - wf_ozone_emit_event             : tools.ozone.moderation.emitEvent.
  *   - wf_ozone_query_events /
  *     wf_ozone_list_events            : tools.ozone.moderation.queryEvents.
  *   - wf_ozone_get_event              : tools.ozone.moderation.getEvent.
- *   - wf_ozone_get_reporter_stats     : tools.ozone.moderation.getReporterStats.
+ *   - wf_ozone_get_reporter_stats     :
+ * tools.ozone.moderation.getReporterStats.
  *   - wf_ozone_scan_verdicts          : tools.ozone.moderation.scanVerdicts
  *     (JSON-in/JSON-out; lexicon not in the local snapshot — see TODO).
  *   - wf_ozone_get_subjects           : tools.ozone.moderation.getSubjects.
@@ -59,98 +61,120 @@ extern "C" {
 #endif
 
 /* NSIDs used by this module. */
-#define WF_OZONE_QUERY_STATUSES_NSID       "tools.ozone.moderation.queryStatuses"
-#define WF_OZONE_GET_LABEL_DEFS_NSID       "tools.ozone.moderation.getLabelDefinitions"
-#define WF_OZONE_GET_SUGGESTIONS_NSID      "tools.ozone.moderation.getSuggestions"
-#define WF_ATPROTO_CREATE_REPORT_NSID      "com.atproto.moderation.createReport"
+#define WF_OZONE_QUERY_STATUSES_NSID "tools.ozone.moderation.queryStatuses"
+#define WF_OZONE_GET_LABEL_DEFS_NSID                                           \
+    "tools.ozone.moderation.getLabelDefinitions"
+#define WF_OZONE_GET_SUGGESTIONS_NSID "tools.ozone.moderation.getSuggestions"
+#define WF_ATPROTO_CREATE_REPORT_NSID "com.atproto.moderation.createReport"
 
-#define WF_OZONE_EMIT_EVENT_NSID           "tools.ozone.moderation.emitEvent"
-#define WF_OZONE_QUERY_EVENTS_NSID         "tools.ozone.moderation.queryEvents"
-#define WF_OZONE_GET_EVENT_NSID            "tools.ozone.moderation.getEvent"
-#define WF_OZONE_GET_REPORTER_STATS_NSID   "tools.ozone.moderation.getReporterStats"
-#define WF_OZONE_SCAN_VERDICTS_NSID        "tools.ozone.moderation.scanVerdicts"
-#define WF_OZONE_GET_SUBJECTS_NSID         "tools.ozone.moderation.getSubjects"
-#define WF_OZONE_GET_TAG_NSID              "tools.ozone.moderation.getTag"
-#define WF_OZONE_QUERY_TAGS_NSID           "tools.ozone.moderation.queryTags"
+#define WF_OZONE_EMIT_EVENT_NSID "tools.ozone.moderation.emitEvent"
+#define WF_OZONE_QUERY_EVENTS_NSID "tools.ozone.moderation.queryEvents"
+#define WF_OZONE_GET_EVENT_NSID "tools.ozone.moderation.getEvent"
+#define WF_OZONE_GET_REPORTER_STATS_NSID                                       \
+    "tools.ozone.moderation.getReporterStats"
+#define WF_OZONE_SCAN_VERDICTS_NSID "tools.ozone.moderation.scanVerdicts"
+#define WF_OZONE_GET_SUBJECTS_NSID "tools.ozone.moderation.getSubjects"
+#define WF_OZONE_GET_TAG_NSID "tools.ozone.moderation.getTag"
+#define WF_OZONE_QUERY_TAGS_NSID "tools.ozone.moderation.queryTags"
 
-#define WF_OZONE_COMM_LIST_TEMPLATES_NSID  "tools.ozone.communication.listTemplates"
-#define WF_OZONE_COMM_CREATE_TEMPLATE_NSID "tools.ozone.communication.createTemplate"
-#define WF_OZONE_COMM_UPDATE_TEMPLATE_NSID "tools.ozone.communication.updateTemplate"
-#define WF_OZONE_COMM_DELETE_TEMPLATE_NSID "tools.ozone.communication.deleteTemplate"
+#define WF_OZONE_COMM_LIST_TEMPLATES_NSID                                      \
+    "tools.ozone.communication.listTemplates"
+#define WF_OZONE_COMM_CREATE_TEMPLATE_NSID                                     \
+    "tools.ozone.communication.createTemplate"
+#define WF_OZONE_COMM_UPDATE_TEMPLATE_NSID                                     \
+    "tools.ozone.communication.updateTemplate"
+#define WF_OZONE_COMM_DELETE_TEMPLATE_NSID                                     \
+    "tools.ozone.communication.deleteTemplate"
 
-#define WF_OZONE_SET_ADD_VALUES_NSID       "tools.ozone.set.addValues"
-#define WF_OZONE_SET_DELETE_VALUES_NSID    "tools.ozone.set.deleteValues"
-#define WF_OZONE_SET_GET_VALUES_NSID       "tools.ozone.set.getValues"
-#define WF_OZONE_SET_UPSERT_SET_NSID       "tools.ozone.set.upsertSet"
+#define WF_OZONE_SET_ADD_VALUES_NSID "tools.ozone.set.addValues"
+#define WF_OZONE_SET_DELETE_VALUES_NSID "tools.ozone.set.deleteValues"
+#define WF_OZONE_SET_GET_VALUES_NSID "tools.ozone.set.getValues"
+#define WF_OZONE_SET_UPSERT_SET_NSID "tools.ozone.set.upsertSet"
 
 /* tools.ozone.moderation — additional query/procedure endpoints */
-#define WF_OZONE_GET_ACCOUNT_TIMELINE_NSID    "tools.ozone.moderation.getAccountTimeline"
-#define WF_OZONE_GET_RECORDS_NSID             "tools.ozone.moderation.getRecords"
-#define WF_OZONE_GET_REPO_NSID                "tools.ozone.moderation.getRepo"
-#define WF_OZONE_GET_REPOS_NSID               "tools.ozone.moderation.getRepos"
-#define WF_OZONE_SEARCH_REPOS_NSID            "tools.ozone.moderation.searchRepos"
-#define WF_OZONE_CANCEL_SCHEDULED_ACTIONS_NSID "tools.ozone.moderation.cancelScheduledActions"
-#define WF_OZONE_SCHEDULE_ACTION_NSID         "tools.ozone.moderation.scheduleAction"
-#define WF_OZONE_LIST_SCHEDULED_ACTIONS_NSID  "tools.ozone.moderation.listScheduledActions"
+#define WF_OZONE_GET_ACCOUNT_TIMELINE_NSID                                     \
+    "tools.ozone.moderation.getAccountTimeline"
+#define WF_OZONE_GET_RECORDS_NSID "tools.ozone.moderation.getRecords"
+#define WF_OZONE_GET_REPO_NSID "tools.ozone.moderation.getRepo"
+#define WF_OZONE_GET_REPOS_NSID "tools.ozone.moderation.getRepos"
+#define WF_OZONE_SEARCH_REPOS_NSID "tools.ozone.moderation.searchRepos"
+#define WF_OZONE_CANCEL_SCHEDULED_ACTIONS_NSID                                 \
+    "tools.ozone.moderation.cancelScheduledActions"
+#define WF_OZONE_SCHEDULE_ACTION_NSID "tools.ozone.moderation.scheduleAction"
+#define WF_OZONE_LIST_SCHEDULED_ACTIONS_NSID                                   \
+    "tools.ozone.moderation.listScheduledActions"
 
 /* tools.ozone.queue.* */
-#define WF_OZONE_QUEUE_ASSIGN_MODERATOR_NSID    "tools.ozone.queue.assignModerator"
-#define WF_OZONE_QUEUE_CREATE_QUEUE_NSID        "tools.ozone.queue.createQueue"
-#define WF_OZONE_QUEUE_DELETE_QUEUE_NSID        "tools.ozone.queue.deleteQueue"
-#define WF_OZONE_QUEUE_GET_ASSIGNMENTS_NSID     "tools.ozone.queue.getAssignments"
-#define WF_OZONE_QUEUE_LIST_QUEUES_NSID         "tools.ozone.queue.listQueues"
-#define WF_OZONE_QUEUE_ROUTE_REPORTS_NSID       "tools.ozone.queue.routeReports"
-#define WF_OZONE_QUEUE_UNASSIGN_MODERATOR_NSID  "tools.ozone.queue.unassignModerator"
-#define WF_OZONE_QUEUE_UPDATE_QUEUE_NSID        "tools.ozone.queue.updateQueue"
+#define WF_OZONE_QUEUE_ASSIGN_MODERATOR_NSID "tools.ozone.queue.assignModerator"
+#define WF_OZONE_QUEUE_CREATE_QUEUE_NSID "tools.ozone.queue.createQueue"
+#define WF_OZONE_QUEUE_DELETE_QUEUE_NSID "tools.ozone.queue.deleteQueue"
+#define WF_OZONE_QUEUE_GET_ASSIGNMENTS_NSID "tools.ozone.queue.getAssignments"
+#define WF_OZONE_QUEUE_LIST_QUEUES_NSID "tools.ozone.queue.listQueues"
+#define WF_OZONE_QUEUE_ROUTE_REPORTS_NSID "tools.ozone.queue.routeReports"
+#define WF_OZONE_QUEUE_UNASSIGN_MODERATOR_NSID                                 \
+    "tools.ozone.queue.unassignModerator"
+#define WF_OZONE_QUEUE_UPDATE_QUEUE_NSID "tools.ozone.queue.updateQueue"
 
 /* tools.ozone.report.* */
-#define WF_OZONE_REPORT_ASSIGN_MODERATOR_NSID       "tools.ozone.report.assignModerator"
-#define WF_OZONE_REPORT_CREATE_ACTIVITY_NSID         "tools.ozone.report.createActivity"
-#define WF_OZONE_REPORT_GET_ASSIGNMENTS_NSID         "tools.ozone.report.getAssignments"
-#define WF_OZONE_REPORT_GET_HISTORICAL_STATS_NSID    "tools.ozone.report.getHistoricalStats"
-#define WF_OZONE_REPORT_GET_LATEST_REPORT_NSID       "tools.ozone.report.getLatestReport"
-#define WF_OZONE_REPORT_GET_LIVE_STATS_NSID          "tools.ozone.report.getLiveStats"
-#define WF_OZONE_REPORT_GET_REPORT_NSID              "tools.ozone.report.getReport"
-#define WF_OZONE_REPORT_LIST_ACTIVITIES_NSID         "tools.ozone.report.listActivities"
-#define WF_OZONE_REPORT_QUERY_ACTIVITIES_NSID        "tools.ozone.report.queryActivities"
-#define WF_OZONE_REPORT_QUERY_REPORTS_NSID           "tools.ozone.report.queryReports"
-#define WF_OZONE_REPORT_REASSIGN_QUEUE_NSID          "tools.ozone.report.reassignQueue"
-#define WF_OZONE_REPORT_REFRESH_STATS_NSID           "tools.ozone.report.refreshStats"
-#define WF_OZONE_REPORT_UNASSIGN_MODERATOR_NSID      "tools.ozone.report.unassignModerator"
+#define WF_OZONE_REPORT_ASSIGN_MODERATOR_NSID                                  \
+    "tools.ozone.report.assignModerator"
+#define WF_OZONE_REPORT_CREATE_ACTIVITY_NSID "tools.ozone.report.createActivity"
+#define WF_OZONE_REPORT_GET_ASSIGNMENTS_NSID "tools.ozone.report.getAssignments"
+#define WF_OZONE_REPORT_GET_HISTORICAL_STATS_NSID                              \
+    "tools.ozone.report.getHistoricalStats"
+#define WF_OZONE_REPORT_GET_LATEST_REPORT_NSID                                 \
+    "tools.ozone.report.getLatestReport"
+#define WF_OZONE_REPORT_GET_LIVE_STATS_NSID "tools.ozone.report.getLiveStats"
+#define WF_OZONE_REPORT_GET_REPORT_NSID "tools.ozone.report.getReport"
+#define WF_OZONE_REPORT_LIST_ACTIVITIES_NSID "tools.ozone.report.listActivities"
+#define WF_OZONE_REPORT_QUERY_ACTIVITIES_NSID                                  \
+    "tools.ozone.report.queryActivities"
+#define WF_OZONE_REPORT_QUERY_REPORTS_NSID "tools.ozone.report.queryReports"
+#define WF_OZONE_REPORT_REASSIGN_QUEUE_NSID "tools.ozone.report.reassignQueue"
+#define WF_OZONE_REPORT_REFRESH_STATS_NSID "tools.ozone.report.refreshStats"
+#define WF_OZONE_REPORT_UNASSIGN_MODERATOR_NSID                                \
+    "tools.ozone.report.unassignModerator"
 
 /* tools.ozone.team.* */
-#define WF_OZONE_TEAM_ADD_MEMBER_NSID       "tools.ozone.team.addMember"
-#define WF_OZONE_TEAM_DELETE_MEMBER_NSID    "tools.ozone.team.deleteMember"
-#define WF_OZONE_TEAM_LIST_MEMBERS_NSID     "tools.ozone.team.listMembers"
-#define WF_OZONE_TEAM_UPDATE_MEMBER_NSID    "tools.ozone.team.updateMember"
+#define WF_OZONE_TEAM_ADD_MEMBER_NSID "tools.ozone.team.addMember"
+#define WF_OZONE_TEAM_DELETE_MEMBER_NSID "tools.ozone.team.deleteMember"
+#define WF_OZONE_TEAM_LIST_MEMBERS_NSID "tools.ozone.team.listMembers"
+#define WF_OZONE_TEAM_UPDATE_MEMBER_NSID "tools.ozone.team.updateMember"
 
 /* tools.ozone.verification.* */
-#define WF_OZONE_VERIFICATION_GRANT_NSID      "tools.ozone.verification.grantVerifications"
-#define WF_OZONE_VERIFICATION_LIST_NSID       "tools.ozone.verification.listVerifications"
-#define WF_OZONE_VERIFICATION_REVOKE_NSID     "tools.ozone.verification.revokeVerifications"
+#define WF_OZONE_VERIFICATION_GRANT_NSID                                       \
+    "tools.ozone.verification.grantVerifications"
+#define WF_OZONE_VERIFICATION_LIST_NSID                                        \
+    "tools.ozone.verification.listVerifications"
+#define WF_OZONE_VERIFICATION_REVOKE_NSID                                      \
+    "tools.ozone.verification.revokeVerifications"
 
 /* tools.ozone.signature.* */
-#define WF_OZONE_SIGNATURE_FIND_CORRELATION_NSID       "tools.ozone.signature.findCorrelation"
-#define WF_OZONE_SIGNATURE_FIND_RELATED_ACCOUNTS_NSID  "tools.ozone.signature.findRelatedAccounts"
-#define WF_OZONE_SIGNATURE_SEARCH_ACCOUNTS_NSID        "tools.ozone.signature.searchAccounts"
+#define WF_OZONE_SIGNATURE_FIND_CORRELATION_NSID                               \
+    "tools.ozone.signature.findCorrelation"
+#define WF_OZONE_SIGNATURE_FIND_RELATED_ACCOUNTS_NSID                          \
+    "tools.ozone.signature.findRelatedAccounts"
+#define WF_OZONE_SIGNATURE_SEARCH_ACCOUNTS_NSID                                \
+    "tools.ozone.signature.searchAccounts"
 
 /* tools.ozone.setting.* */
-#define WF_OZONE_SETTING_LIST_OPTIONS_NSID     "tools.ozone.setting.listOptions"
-#define WF_OZONE_SETTING_REMOVE_OPTIONS_NSID   "tools.ozone.setting.removeOptions"
-#define WF_OZONE_SETTING_UPSERT_OPTION_NSID    "tools.ozone.setting.upsertOption"
+#define WF_OZONE_SETTING_LIST_OPTIONS_NSID "tools.ozone.setting.listOptions"
+#define WF_OZONE_SETTING_REMOVE_OPTIONS_NSID "tools.ozone.setting.removeOptions"
+#define WF_OZONE_SETTING_UPSERT_OPTION_NSID "tools.ozone.setting.upsertOption"
 
 /* tools.ozone.hosting.* */
-#define WF_OZONE_HOSTING_GET_ACCOUNT_HISTORY_NSID "tools.ozone.hosting.getAccountHistory"
+#define WF_OZONE_HOSTING_GET_ACCOUNT_HISTORY_NSID                              \
+    "tools.ozone.hosting.getAccountHistory"
 
 /* tools.ozone.server.* */
-#define WF_OZONE_SERVER_GET_CONFIG_NSID       "tools.ozone.server.getConfig"
+#define WF_OZONE_SERVER_GET_CONFIG_NSID "tools.ozone.server.getConfig"
 
 /* tools.ozone.safelink.* */
-#define WF_OZONE_SAFELINK_ADD_RULE_NSID       "tools.ozone.safelink.addRule"
-#define WF_OZONE_SAFELINK_QUERY_EVENTS_NSID   "tools.ozone.safelink.queryEvents"
-#define WF_OZONE_SAFELINK_QUERY_RULES_NSID    "tools.ozone.safelink.queryRules"
-#define WF_OZONE_SAFELINK_REMOVE_RULE_NSID    "tools.ozone.safelink.removeRule"
-#define WF_OZONE_SAFELINK_UPDATE_RULE_NSID    "tools.ozone.safelink.updateRule"
+#define WF_OZONE_SAFELINK_ADD_RULE_NSID "tools.ozone.safelink.addRule"
+#define WF_OZONE_SAFELINK_QUERY_EVENTS_NSID "tools.ozone.safelink.queryEvents"
+#define WF_OZONE_SAFELINK_QUERY_RULES_NSID "tools.ozone.safelink.queryRules"
+#define WF_OZONE_SAFELINK_REMOVE_RULE_NSID "tools.ozone.safelink.removeRule"
+#define WF_OZONE_SAFELINK_UPDATE_RULE_NSID "tools.ozone.safelink.updateRule"
 
 /*
  * Build an `app.bsky.labeler.service` record value as a JSON string, in
@@ -166,8 +190,8 @@ extern "C" {
  * NULL.
  */
 char *wf_labeler_build_service_record(const char *labeler_did,
-                                       const char *creator,
-                                       const char *created_at);
+                                      const char *creator,
+                                      const char *created_at);
 
 /*
  * File a moderation report about a repo or a specific record.
@@ -189,13 +213,10 @@ char *wf_labeler_build_service_record(const char *labeler_did,
  * need a verified record reference should extend the request JSON with the
  * record CID before sending.
  */
-wf_status wf_ozone_report_subject(wf_xrpc_client *client,
-                                   const char *repo_did,
-                                   const char *collection,
-                                   const char *rkey,
-                                   const char *reason_type,
-                                   const char *reason,
-                                   wf_response *out);
+wf_status wf_ozone_report_subject(wf_xrpc_client *client, const char *repo_did,
+                                  const char *collection, const char *rkey,
+                                  const char *reason_type, const char *reason,
+                                  wf_response *out);
 
 /*
  * Query moderation subject statuses via tools.ozone.moderation.queryStatuses.
@@ -207,10 +228,8 @@ wf_status wf_ozone_report_subject(wf_xrpc_client *client,
  * On WF_OK, *out is populated and must be released with wf_response_free.
  * Returns WF_ERR_INVALID_ARG for NULL client/out, or a transport error.
  */
-wf_status wf_ozone_query_statuses(wf_xrpc_client *client,
-                                   const char **subjects,
-                                   size_t n,
-                                   wf_response *out);
+wf_status wf_ozone_query_statuses(wf_xrpc_client *client, const char **subjects,
+                                  size_t n, wf_response *out);
 
 /*
  * Fetch label value definitions via tools.ozone.moderation.getLabelDefinitions
@@ -221,10 +240,8 @@ wf_status wf_ozone_query_statuses(wf_xrpc_client *client,
  * On WF_OK, *out is populated and must be released with wf_response_free.
  * Returns WF_ERR_INVALID_ARG for NULL client/out, or a transport error.
  */
-wf_status wf_ozone_get_label_defs(wf_xrpc_client *client,
-                                   const char **uris,
-                                   size_t n,
-                                   wf_response *out);
+wf_status wf_ozone_get_label_defs(wf_xrpc_client *client, const char **uris,
+                                  size_t n, wf_response *out);
 
 /* ------------------------------------------------------------------ */
 /* Emit / query moderation events                                     */
@@ -294,11 +311,8 @@ wf_status wf_ozone_query_events_parse(
  * On WF_OK, *out is populated with the raw server response freed with
  * wf_response_free. Decode with wf_ozone_query_events_parse.
  */
-wf_status wf_ozone_list_events(
-    wf_xrpc_client *client,
-    int64_t limit,
-    const char *cursor,
-    wf_response *out);
+wf_status wf_ozone_list_events(wf_xrpc_client *client, int64_t limit,
+                               const char *cursor, wf_response *out);
 
 /*
  * Fetch a single moderation event by id via tools.ozone.moderation.getEvent.
@@ -307,9 +321,8 @@ wf_status wf_ozone_list_events(
  * server response and must be released with wf_response_free. The lexicon
  * defines no output decoder, so the body is returned verbatim.
  */
-wf_status wf_ozone_get_event(wf_xrpc_client *client,
-                              int64_t id,
-                              wf_response *out);
+wf_status wf_ozone_get_event(wf_xrpc_client *client, int64_t id,
+                             wf_response *out);
 
 /*
  * Fetch reporter statistics via tools.ozone.moderation.getReporterStats.
@@ -319,11 +332,8 @@ wf_status wf_ozone_get_event(wf_xrpc_client *client,
  * reply with wf_ozone_get_reporter_stats_parse. Returns WF_ERR_INVALID_ARG for
  * NULL client/dids/out, or a transport error.
  */
-wf_status wf_ozone_get_reporter_stats(
-    wf_xrpc_client *client,
-    const char **dids,
-    size_t n,
-    wf_response *out);
+wf_status wf_ozone_get_reporter_stats(wf_xrpc_client *client, const char **dids,
+                                      size_t n, wf_response *out);
 
 /*
  * Decode a successful wf_ozone_get_reporter_stats reply into an owning typed
@@ -345,9 +355,8 @@ wf_status wf_ozone_get_reporter_stats_parse(
  * owned NUL-terminated JSON string freed with free(). Returns
  * WF_ERR_INVALID_ARG for NULL client/body_json/out_json, or a transport error.
  */
-wf_status wf_ozone_scan_verdicts(wf_xrpc_client *client,
-                                  const char *body_json,
-                                  char **out_json);
+wf_status wf_ozone_scan_verdicts(wf_xrpc_client *client, const char *body_json,
+                                 char **out_json);
 
 /* ------------------------------------------------------------------ */
 /* Subjects / suggestions                                             */
@@ -361,11 +370,8 @@ wf_status wf_ozone_scan_verdicts(wf_xrpc_client *client,
  * successful reply with wf_ozone_get_subjects_parse. Returns
  * WF_ERR_INVALID_ARG for NULL client/subjects/out, or a transport error.
  */
-wf_status wf_ozone_get_subjects(
-    wf_xrpc_client *client,
-    const char **subjects,
-    size_t n,
-    wf_response *out);
+wf_status wf_ozone_get_subjects(wf_xrpc_client *client, const char **subjects,
+                                size_t n, wf_response *out);
 
 /*
  * Decode a successful wf_ozone_get_subjects reply into an owning typed value.
@@ -383,14 +389,13 @@ wf_status wf_ozone_get_subjects_parse(
  * so no generated params struct exists. This wrapper builds the best-effort
  * query parameters (`limit`, `cursor`, repeated `ignoreSubjects`) and returns
  * the raw response. Confirm the exact parameter names against the deployment.
- * On WF_OK, *out is populated with the raw response freed with wf_response_free.
+ * On WF_OK, *out is populated with the raw response freed with
+ * wf_response_free.
  */
 wf_status wf_ozone_get_suggestions(wf_xrpc_client *client,
-                                    const char **ignore_subjects,
-                                    size_t n,
-                                    int64_t limit,
-                                    const char *cursor,
-                                    wf_response *out);
+                                   const char **ignore_subjects, size_t n,
+                                   int64_t limit, const char *cursor,
+                                   wf_response *out);
 
 /*
  * Look up a single tag via tools.ozone.moderation.getTag.
@@ -401,9 +406,8 @@ wf_status wf_ozone_get_suggestions(wf_xrpc_client *client,
  * string freed with free(). Returns WF_ERR_INVALID_ARG for NULL client/tag/
  * out_json, or a transport error.
  */
-wf_status wf_ozone_get_tag(wf_xrpc_client *client,
-                            const char *tag,
-                            char **out_json);
+wf_status wf_ozone_get_tag(wf_xrpc_client *client, const char *tag,
+                           char **out_json);
 
 /*
  * Query tags via tools.ozone.moderation.queryTags.
@@ -412,10 +416,8 @@ wf_status wf_ozone_get_tag(wf_xrpc_client *client,
  * NSID is taken from the current upstream lexicon and should be confirmed.
  * On WF_OK *out_json is an owned NUL-terminated JSON string freed with free().
  */
-wf_status wf_ozone_query_tags(wf_xrpc_client *client,
-                               int64_t limit,
-                               const char *cursor,
-                               char **out_json);
+wf_status wf_ozone_query_tags(wf_xrpc_client *client, int64_t limit,
+                              const char *cursor, char **out_json);
 
 /* ------------------------------------------------------------------ */
 /* Communication templates (tools.ozone.communication.*)             */
@@ -429,9 +431,8 @@ wf_status wf_ozone_query_tags(wf_xrpc_client *client,
  * wf_ozone_list_communication_templates_parse. Returns WF_ERR_INVALID_ARG for
  * NULL client/out, or a transport error.
  */
-wf_status wf_ozone_list_communication_templates(
-    wf_xrpc_client *client,
-    wf_response *out);
+wf_status wf_ozone_list_communication_templates(wf_xrpc_client *client,
+                                                wf_response *out);
 
 /*
  * Decode a successful wf_ozone_list_communication_templates reply into an
@@ -515,8 +516,9 @@ wf_status wf_ozone_set_delete_values(
  * `params` is the borrowed generated params struct
  * (wf_lex_tools_ozone_set_get_values_main_params: name, limit, cursor). On
  * WF_OK, *out is populated with the raw server response freed with
- * wf_response_free. Decode a successful reply with wf_ozone_set_query_values_parse.
- * Returns WF_ERR_INVALID_ARG for NULL client/params/out, or a transport error.
+ * wf_response_free. Decode a successful reply with
+ * wf_ozone_set_query_values_parse. Returns WF_ERR_INVALID_ARG for NULL
+ * client/params/out, or a transport error.
  */
 wf_status wf_ozone_set_query_values(
     wf_xrpc_client *client,
@@ -554,7 +556,8 @@ wf_status wf_ozone_set_upsert_values(
 
 wf_status wf_ozone_get_account_timeline(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_moderation_get_account_timeline_main_params *params,
+    const wf_lex_tools_ozone_moderation_get_account_timeline_main_params
+        *params,
     wf_response *out);
 wf_status wf_ozone_get_account_timeline_parse(
     const wf_response *resp,
@@ -591,7 +594,8 @@ wf_status wf_ozone_search_repos_parse(
 
 wf_status wf_ozone_cancel_scheduled_actions(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input *input,
+    const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input
+        *input,
     wf_response *out);
 
 wf_status wf_ozone_schedule_action(
@@ -601,7 +605,8 @@ wf_status wf_ozone_schedule_action(
 
 wf_status wf_ozone_list_scheduled_actions(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_moderation_list_scheduled_actions_main_input *input,
+    const wf_lex_tools_ozone_moderation_list_scheduled_actions_main_input
+        *input,
     wf_response *out);
 wf_status wf_ozone_list_scheduled_actions_parse(
     const wf_response *resp,
@@ -809,7 +814,8 @@ wf_status wf_ozone_verification_grant_parse(
 
 wf_status wf_ozone_verification_list(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_verification_list_verifications_main_params *params,
+    const wf_lex_tools_ozone_verification_list_verifications_main_params
+        *params,
     wf_response *out);
 wf_status wf_ozone_verification_list_parse(
     const wf_response *resp,
@@ -817,7 +823,8 @@ wf_status wf_ozone_verification_list_parse(
 
 wf_status wf_ozone_verification_revoke(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_verification_revoke_verifications_main_input *input,
+    const wf_lex_tools_ozone_verification_revoke_verifications_main_input
+        *input,
     wf_response *out);
 wf_status wf_ozone_verification_revoke_parse(
     const wf_response *resp,
@@ -837,7 +844,8 @@ wf_status wf_ozone_signature_find_correlation_parse(
 
 wf_status wf_ozone_signature_find_related_accounts(
     wf_xrpc_client *client,
-    const wf_lex_tools_ozone_signature_find_related_accounts_main_params *params,
+    const wf_lex_tools_ozone_signature_find_related_accounts_main_params
+        *params,
     wf_response *out);
 wf_status wf_ozone_signature_find_related_accounts_parse(
     const wf_response *resp,
@@ -895,9 +903,7 @@ wf_status wf_ozone_hosting_get_account_history_parse(
 /* Server (tools.ozone.server.*)                                       */
 /* ------------------------------------------------------------------ */
 
-wf_status wf_ozone_server_get_config(
-    wf_xrpc_client *client,
-    wf_response *out);
+wf_status wf_ozone_server_get_config(wf_xrpc_client *client, wf_response *out);
 wf_status wf_ozone_server_get_config_parse(
     const wf_response *resp,
     wf_lex_tools_ozone_server_get_config_main_output **out);

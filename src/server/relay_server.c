@@ -22,8 +22,8 @@
 /* Relay handle (owns the deep-copied config)                          */
 /* ------------------------------------------------------------------ */
 struct wf_relay_server {
-    char    *nsid;               /* owned copy of downstream NSID */
-    char    *upstream_url;       /* owned copy of absolute ws(s):// URL */
+    char *nsid;                  /* owned copy of downstream NSID */
+    char *upstream_url;          /* owned copy of absolute ws(s):// URL */
     uint32_t reconnect_delay_ms; /* 0 disables reconnect */
 };
 
@@ -47,14 +47,15 @@ static char *relay_strdup(const char *s) {
 /** Reason a single upstream session ended (drives reconnect policy). */
 typedef enum {
     RELAY_END_DOWNSTREAM_CLOSED = 0, /* client went away; never reconnect */
-    RELAY_END_UPSTREAM_CLOSED   = 1, /* upstream dropped; reconnect if enabled */
-    RELAY_END_CONNECT_FAILED    = 2, /* upstream connect failed; reconnect if enabled */
+    RELAY_END_UPSTREAM_CLOSED = 1, /* upstream dropped; reconnect if enabled */
+    RELAY_END_CONNECT_FAILED =
+        2, /* upstream connect failed; reconnect if enabled */
 } relay_end_reason;
 
 /** State handed to the forward worker thread. */
 struct relay_fwd {
-    wf_relay_server    *relay;
-    wf_xrpc_ws_stream  *stream;
+    wf_relay_server *relay;
+    wf_xrpc_ws_stream *stream;
 };
 
 /**
@@ -68,9 +69,9 @@ struct relay_fwd {
  */
 static relay_end_reason relay_run_session(struct relay_fwd *fwd,
                                           wf_websocket **up_out) {
-    wf_relay_server   *relay = fwd->relay;
+    wf_relay_server *relay = fwd->relay;
     wf_xrpc_ws_stream *stream = fwd->stream;
-    wf_websocket      *up = NULL;
+    wf_websocket *up = NULL;
 
     *up_out = NULL;
 
@@ -102,12 +103,12 @@ static relay_end_reason relay_run_session(struct relay_fwd *fwd,
  * upgrade worker thread proceeds to its control-frame loop in parallel.
  */
 static void *relay_forward(void *arg) {
-    struct relay_fwd  *fwd = (struct relay_fwd *)arg;
-    wf_relay_server   *relay = fwd->relay;
+    struct relay_fwd *fwd = (struct relay_fwd *)arg;
+    wf_relay_server *relay = fwd->relay;
     wf_xrpc_ws_stream *stream = fwd->stream;
 
     for (;;) {
-        wf_websocket    *up = NULL;
+        wf_websocket *up = NULL;
         relay_end_reason reason = relay_run_session(fwd, &up);
         if (up) {
             wf_websocket_free(up);
@@ -140,9 +141,9 @@ static void *relay_forward(void *arg) {
 
 static wf_status relay_ws_handler(void *ctx, const wf_xrpc_request *req,
                                   wf_xrpc_ws_stream *stream) {
-    wf_relay_server  *relay = (wf_relay_server *)ctx;
+    wf_relay_server *relay = (wf_relay_server *)ctx;
     struct relay_fwd *fwd;
-    pthread_t         tid;
+    pthread_t tid;
     (void)req;
 
     fwd = (struct relay_fwd *)malloc(sizeof(*fwd));
@@ -190,8 +191,8 @@ wf_relay_server *wf_xrpc_server_register_relay(wf_xrpc_server *server,
         return NULL;
     }
 
-    if (wf_xrpc_server_register_ws(server, relay->nsid,
-                                   relay_ws_handler, relay) != WF_OK) {
+    if (wf_xrpc_server_register_ws(server, relay->nsid, relay_ws_handler,
+                                   relay) != WF_OK) {
         wf_relay_server_free(relay);
         return NULL;
     }

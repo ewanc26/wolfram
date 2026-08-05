@@ -98,8 +98,7 @@ static wf_status wf_video_parse_blob(cJSON *obj, wf_video_blob *b) {
 
 static wf_status wf_video_build_blob(const wf_video_blob *b, cJSON *out) {
     if (!cJSON_AddItemToObject(
-            out, "$type",
-            cJSON_CreateString(b->type ? b->type : "blob"))) {
+            out, "$type", cJSON_CreateString(b->type ? b->type : "blob"))) {
         return WF_ERR_ALLOC;
     }
     cJSON *ref = cJSON_CreateObject();
@@ -115,9 +114,9 @@ static wf_status wf_video_build_blob(const wf_video_blob *b, cJSON *out) {
         cJSON_Delete(ref);
         return WF_ERR_ALLOC;
     }
-    if (!cJSON_AddItemToObject(out, "mimeType",
-                               cJSON_CreateString(b->mime_type ? b->mime_type
-                                                              : ""))) {
+    if (!cJSON_AddItemToObject(
+            out, "mimeType",
+            cJSON_CreateString(b->mime_type ? b->mime_type : ""))) {
         return WF_ERR_ALLOC;
     }
     if (!cJSON_AddNumberToObject(out, "size",
@@ -260,7 +259,8 @@ wf_status wf_video_job_status_parse(const char *json, size_t json_len,
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
-    wf_status status = wf_video_parse_job_status_def(job_status, &out->job_status);
+    wf_status status =
+        wf_video_parse_job_status_def(job_status, &out->job_status);
     if (status == WF_OK) {
         cJSON_DetachItemFromObject(root, "jobStatus");
         out->extra = root;
@@ -282,9 +282,8 @@ wf_status wf_video_job_status_def_build(const wf_video_job_status_def *in,
         return WF_ERR_ALLOC;
     }
     wf_status status = WF_OK;
-    if (!cJSON_AddItemToObject(obj, "jobId",
-                               cJSON_CreateString(in->job_id ? in->job_id
-                                                            : ""))) {
+    if (!cJSON_AddItemToObject(
+            obj, "jobId", cJSON_CreateString(in->job_id ? in->job_id : ""))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK &&
@@ -293,9 +292,8 @@ wf_status wf_video_job_status_def_build(const wf_video_job_status_def *in,
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK &&
-        !cJSON_AddItemToObject(obj, "state",
-                               cJSON_CreateString(in->state ? in->state
-                                                           : ""))) {
+        !cJSON_AddItemToObject(
+            obj, "state", cJSON_CreateString(in->state ? in->state : ""))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->has_progress) {
@@ -320,8 +318,7 @@ wf_status wf_video_job_status_def_build(const wf_video_job_status_def *in,
         }
     }
     if (status == WF_OK && in->error &&
-        !cJSON_AddItemToObject(obj, "error",
-                               cJSON_CreateString(in->error))) {
+        !cJSON_AddItemToObject(obj, "error", cJSON_CreateString(in->error))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->message &&
@@ -472,8 +469,7 @@ wf_status wf_video_upload_limits_build(const wf_video_upload_limits *in,
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->error &&
-        !cJSON_AddItemToObject(obj, "error",
-                               cJSON_CreateString(in->error))) {
+        !cJSON_AddItemToObject(obj, "error", cJSON_CreateString(in->error))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->extra) {

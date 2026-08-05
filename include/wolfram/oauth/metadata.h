@@ -102,8 +102,7 @@ wf_status wf_oauth_client_metadata_get(wf_xrpc_client *transport,
  * Discover and cross-check the authorization server for a protected resource.
  * Both outputs are owned and must be freed with their matching free functions.
  */
-wf_status wf_oauth_discover(wf_xrpc_client *transport,
-                            const char *resource,
+wf_status wf_oauth_discover(wf_xrpc_client *transport, const char *resource,
                             wf_oauth_resource_metadata *resource_out,
                             wf_oauth_server_metadata *server_out);
 

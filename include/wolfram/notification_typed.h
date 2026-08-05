@@ -35,21 +35,22 @@
 extern "C" {
 #endif
 
-/* A rich notification view (app.bsky.notification.listNotifications#notification
- * plus a few context fields). `author` is a profileView core view; `record` is
- * the embedded record kept verbatim (its shape varies by `reason`); `labels`
- * and `extra` capture open/unbounded fields. */
+/* A rich notification view
+ * (app.bsky.notification.listNotifications#notification plus a few context
+ * fields). `author` is a profileView core view; `record` is the embedded record
+ * kept verbatim (its shape varies by `reason`); `labels` and `extra` capture
+ * open/unbounded fields. */
 typedef struct wf_notification_view {
     char *uri;
     char *cid;
-    wf_agent_profile_view author;   /* did/handle/displayName/avatar */
-    char *reason;                   /* owned reason string (like/repost/... ) */
-    char *reason_subject;           /* AT-URI subject; NULL when absent */
-    cJSON *record;                  /* owned detached record subtree; NULL absent */
+    wf_agent_profile_view author; /* did/handle/displayName/avatar */
+    char *reason;                 /* owned reason string (like/repost/... ) */
+    char *reason_subject;         /* AT-URI subject; NULL when absent */
+    cJSON *record; /* owned detached record subtree; NULL absent */
     bool is_read;
     char *indexed_at;
-    cJSON *labels;                  /* owned detached labels array; NULL absent */
-    cJSON *extra;                   /* owned detached subtree of other fields */
+    cJSON *labels; /* owned detached labels array; NULL absent */
+    cJSON *extra;  /* owned detached subtree of other fields */
 } wf_notification_view;
 
 /* A list of rich notification views (listNotifications output). */
@@ -98,8 +99,8 @@ wf_status wf_agent_list_notifications_rich_typed(wf_agent *agent, int limit,
                                                  wf_notification_list *out);
 
 /* getUnreadCount — writes the int64 `count`. NOTE: this is intentionally named
- * `_rich_typed` to avoid colliding with the existing `wf_agent_get_unread_count_typed`
- * (agent.h) which writes an `int`. */
+ * `_rich_typed` to avoid colliding with the existing
+ * `wf_agent_get_unread_count_typed` (agent.h) which writes an `int`. */
 wf_status wf_agent_get_unread_count_rich_typed(wf_agent *agent,
                                                int64_t *out_count);
 
@@ -112,13 +113,16 @@ wf_status wf_agent_update_seen_typed(wf_agent *agent, const char *seen_at);
  * optional. Returns WF_OK on success. */
 wf_status wf_agent_register_push_typed(wf_agent *agent, const char *service_did,
                                        const char *token, const char *platform,
-                                       const char *app_id, bool has_age_restricted,
+                                       const char *app_id,
+                                       bool has_age_restricted,
                                        bool age_restricted);
 
 /* unregisterPush — the inverse of registerPush for the given `token` /
  * `service_did` / `platform` / `app_id`. Returns WF_OK on success. */
-wf_status wf_agent_unregister_push_typed(wf_agent *agent, const char *service_did,
-                                         const char *token, const char *platform,
+wf_status wf_agent_unregister_push_typed(wf_agent *agent,
+                                         const char *service_did,
+                                         const char *token,
+                                         const char *platform,
                                          const char *app_id);
 
 #ifdef __cplusplus

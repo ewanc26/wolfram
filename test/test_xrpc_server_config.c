@@ -22,7 +22,8 @@ static int test_parse_valid(void) {
         "{"
         "  \"host\": \"127.0.0.1\","
         "  \"port\": 9876,"
-        "  \"cors\": { \"enabled\": true, \"allowed_origin\": \"https://app.example\" },"
+        "  \"cors\": { \"enabled\": true, \"allowed_origin\": "
+        "\"https://app.example\" },"
         "  \"rate_limit\": { \"max_tokens\": 100, \"refill_per_second\": 10 },"
         "  \"routes\": ["
         "    { \"nsid\": \"io.example.ping\", \"method\": \"query\" },"
@@ -45,8 +46,7 @@ static int test_parse_valid(void) {
 
     int failures = 0;
     if (strcmp(cfg->host, "127.0.0.1") != 0) {
-        fprintf(stderr, "FAIL: host = %s\n",
-                cfg->host ? cfg->host : "NULL");
+        fprintf(stderr, "FAIL: host = %s\n", cfg->host ? cfg->host : "NULL");
         failures++;
     }
     if (cfg->port != 9876) {
@@ -57,7 +57,8 @@ static int test_parse_valid(void) {
         fprintf(stderr, "FAIL: cors_enabled should be true\n");
         failures++;
     }
-    if (!cfg->cors_origin || strcmp(cfg->cors_origin, "https://app.example") != 0) {
+    if (!cfg->cors_origin ||
+        strcmp(cfg->cors_origin, "https://app.example") != 0) {
         fprintf(stderr, "FAIL: cors_origin = %s\n",
                 cfg->cors_origin ? cfg->cors_origin : "NULL");
         failures++;
@@ -79,11 +80,13 @@ static int test_parse_valid(void) {
     }
     if (cfg->route_count >= 3) {
         if (cfg->routes[0].method != WF_XRPC_CONFIG_METHOD_QUERY) {
-            fprintf(stderr, "FAIL: route0 method (%d)\n", cfg->routes[0].method);
+            fprintf(stderr, "FAIL: route0 method (%d)\n",
+                    cfg->routes[0].method);
             failures++;
         }
         if (cfg->routes[1].method != WF_XRPC_CONFIG_METHOD_PROCEDURE) {
-            fprintf(stderr, "FAIL: route1 method (%d)\n", cfg->routes[1].method);
+            fprintf(stderr, "FAIL: route1 method (%d)\n",
+                    cfg->routes[1].method);
             failures++;
         }
         if (cfg->routes[2].method != WF_XRPC_CONFIG_METHOD_QUERY) {
@@ -109,8 +112,8 @@ static int test_parse_defaults(void) {
     wf_xrpc_server_config *cfg = NULL;
     wf_status s = wf_xrpc_server_config_parse(json, strlen(json), &cfg);
     if (s != WF_OK || !cfg) {
-        fprintf(stderr, "FAIL: parse defaults returned %d / %p\n",
-                (int)s, (void *)cfg);
+        fprintf(stderr, "FAIL: parse defaults returned %d / %p\n", (int)s,
+                (void *)cfg);
         return 1;
     }
     int failures = 0;
@@ -132,7 +135,8 @@ static int test_parse_defaults(void) {
                 cfg->cors_origin ? cfg->cors_origin : "NULL");
         failures++;
     }
-    if (cfg->rate_limit.max_tokens != 0 || cfg->rate_limit.refill_per_second != 0) {
+    if (cfg->rate_limit.max_tokens != 0 ||
+        cfg->rate_limit.refill_per_second != 0) {
         fprintf(stderr, "FAIL: default rate_limit should be 0/0\n");
         failures++;
     }
@@ -151,21 +155,14 @@ static int test_parse_defaults(void) {
 /* Malformed JSON returns an error, no crash                            */
 /* ------------------------------------------------------------------ */
 static int test_parse_malformed(void) {
-    static const char *bad[] = {
-        "{ this is not json",
-        "{\"port\": }",
-        "[1, 2, 3]",                 /* valid JSON but not an object */
-        NULL
-    };
+    static const char *bad[] = {"{ this is not json", "{\"port\": }",
+                                "[1, 2, 3]", /* valid JSON but not an object */
+                                NULL};
     /* Valid JSON with wrong-typed sub-fields: ignored, falls back to defaults
      * (no error, no crash, no leak). */
-    static const char *ignored[] = {
-        "{\"routes\": \"not-an-array\"}",
-        "{\"cors\": 42}",
-        "{\"rate_limit\": \"x\"}",
-        "{\"extra_unknown_field\": 123}",
-        NULL
-    };
+    static const char *ignored[] = {"{\"routes\": \"not-an-array\"}",
+                                    "{\"cors\": 42}", "{\"rate_limit\": \"x\"}",
+                                    "{\"extra_unknown_field\": 123}", NULL};
     int failures = 0;
 
     for (int i = 0; bad[i]; i++) {
@@ -186,8 +183,8 @@ static int test_parse_malformed(void) {
     /* Wrong-typed sub-fields are ignored and fall back to defaults. */
     for (int i = 0; ignored[i]; i++) {
         wf_xrpc_server_config *cfg = NULL;
-        wf_status s = wf_xrpc_server_config_parse(ignored[i],
-                                                   strlen(ignored[i]), &cfg);
+        wf_status s =
+            wf_xrpc_server_config_parse(ignored[i], strlen(ignored[i]), &cfg);
         if (s != WF_OK) {
             fprintf(stderr, "FAIL: ignored[%d] should parse, got %d\n", i,
                     (int)s);
@@ -226,11 +223,13 @@ static int test_round_trip(void) {
         "{"
         "  \"host\": \"127.0.0.1\","
         "  \"port\": 0,"
-        "  \"cors\": { \"enabled\": true, \"allowed_origin\": \"https://x.example\" },"
+        "  \"cors\": { \"enabled\": true, \"allowed_origin\": "
+        "\"https://x.example\" },"
         "  \"rate_limit\": { \"max_tokens\": 50, \"refill_per_second\": 25 },"
         "  \"routes\": ["
         "    { \"nsid\": \"io.example.config.ping\", \"method\": \"query\" },"
-        "    { \"nsid\": \"io.example.config.echo\", \"method\": \"procedure\" }"
+        "    { \"nsid\": \"io.example.config.echo\", \"method\": \"procedure\" "
+        "}"
         "  ]"
         "}";
 
@@ -248,8 +247,8 @@ static int test_round_trip(void) {
 
     wf_status s = wf_xrpc_server_new_with_config(cfg, &server);
     if (s != WF_OK || !server) {
-        fprintf(stderr, "FAIL: new_with_config returned %d / %p\n",
-                (int)s, (void *)server);
+        fprintf(stderr, "FAIL: new_with_config returned %d / %p\n", (int)s,
+                (void *)server);
         wf_xrpc_server_config_free(cfg);
         return 1;
     }
@@ -277,8 +276,8 @@ static int test_round_trip(void) {
     {
         wf_xrpc_param params[] = {{"msg", "hello"}};
         wf_response_free(&res);
-        s = wf_xrpc_query_params(client, "io.example.config.ping",
-                                  params, 1, &res);
+        s = wf_xrpc_query_params(client, "io.example.config.ping", params, 1,
+                                 &res);
         if (s != WF_OK) {
             fprintf(stderr, "FAIL: config ping status=%d\n", (int)s);
             failures++;
@@ -294,9 +293,10 @@ static int test_round_trip(void) {
                 cJSON *nsid = cJSON_GetObjectItemCaseSensitive(root, "nsid");
                 cJSON *params_obj =
                     cJSON_GetObjectItemCaseSensitive(root, "params");
-                cJSON *msg = params_obj
-                                 ? cJSON_GetObjectItemCaseSensitive(params_obj, "msg")
-                                 : NULL;
+                cJSON *msg =
+                    params_obj
+                        ? cJSON_GetObjectItemCaseSensitive(params_obj, "msg")
+                        : NULL;
                 if (!nsid || !cJSON_IsString(nsid) ||
                     strcmp(nsid->valuestring, "io.example.config.ping") != 0) {
                     fprintf(stderr, "FAIL: config ping nsid mismatch\n");
@@ -317,7 +317,7 @@ static int test_round_trip(void) {
     {
         wf_response_free(&res);
         s = wf_xrpc_procedure(client, "io.example.config.echo",
-                                "{\"custom\":\"data\"}", &res);
+                              "{\"custom\":\"data\"}", &res);
         if (s != WF_OK) {
             fprintf(stderr, "FAIL: config echo status=%d\n", (int)s);
             failures++;
@@ -328,7 +328,8 @@ static int test_round_trip(void) {
         wf_response_free(&res);
     }
 
-    /* Unknown NSID returns 501 MethodNotImplemented (rate limiter does not block this request). */
+    /* Unknown NSID returns 501 MethodNotImplemented (rate limiter does not
+     * block this request). */
     {
         wf_response_free(&res);
         s = wf_xrpc_query(client, "io.example.config.missing", NULL, &res);

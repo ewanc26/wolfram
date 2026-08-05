@@ -56,9 +56,14 @@ static wf_cbor_item *mk_map2(wf_cbor_item *k0, wf_cbor_item *v0,
     m->type = WF_CBOR_MAP;
     m->map.count = 2;
     m->map.pairs = calloc(2, sizeof(wf_cbor_pair));
-    if (!m->map.pairs) { free(m); return NULL; }
-    m->map.pairs[0].key = k0;   m->map.pairs[0].value = v0;
-    m->map.pairs[1].key = k1;   m->map.pairs[1].value = v1;
+    if (!m->map.pairs) {
+        free(m);
+        return NULL;
+    }
+    m->map.pairs[0].key = k0;
+    m->map.pairs[0].value = v0;
+    m->map.pairs[1].key = k1;
+    m->map.pairs[1].value = v1;
     return m;
 }
 
@@ -67,15 +72,14 @@ int main(void) {
      * Build {"b": 2, "a": 1} with keys out of order; DRISL requires the
      * serialized form to be {"a": 1, "b": 2}. */
     {
-        wf_cbor_item *map = mk_map2(mk_str("b"), mk_uint(2),
-                                    mk_str("a"), mk_uint(1));
+        wf_cbor_item *map =
+            mk_map2(mk_str("b"), mk_uint(2), mk_str("a"), mk_uint(1));
         WF_CHECK(map != NULL);
         unsigned char *out = NULL;
         size_t out_len = 0;
         if (map) out = wf_cbor_serialize(map, &out_len);
-        static const unsigned char expect[] = {
-            0xA2, 0x61, 0x61, 0x01, 0x61, 0x62, 0x02
-        };
+        static const unsigned char expect[] = {0xA2, 0x61, 0x61, 0x01,
+                                               0x61, 0x62, 0x02};
         WF_CHECK(out != NULL);
         WF_CHECK(out_len == sizeof(expect));
         WF_CHECK(out && memcmp(out, expect, sizeof(expect)) == 0);
@@ -87,15 +91,20 @@ int main(void) {
 
     /* ── (2) shortest-form integers ── */
     {
-        struct { uint64_t v; int neg; unsigned char bytes[9]; size_t n; } t[] = {
-            {   0, 0, {0x00}, 1 },
-            {  23, 0, {0x17}, 1 },
-            {  24, 0, {0x18, 0x18}, 2 },
-            { 255, 0, {0x18, 0xFF}, 2 },
-            { 256, 0, {0x19, 0x01, 0x00}, 3 },
-            {   0, 1, {0x20}, 1 },   /* -1 */
-            {  23, 1, {0x37}, 1 },   /* -24 */
-            {  24, 1, {0x38, 0x18}, 2 }, /* -25 */
+        struct {
+            uint64_t v;
+            int neg;
+            unsigned char bytes[9];
+            size_t n;
+        } t[] = {
+            {0, 0, {0x00}, 1},
+            {23, 0, {0x17}, 1},
+            {24, 0, {0x18, 0x18}, 2},
+            {255, 0, {0x18, 0xFF}, 2},
+            {256, 0, {0x19, 0x01, 0x00}, 3},
+            {0, 1, {0x20}, 1},        /* -1 */
+            {23, 1, {0x37}, 1},       /* -24 */
+            {24, 1, {0x38, 0x18}, 2}, /* -25 */
         };
         for (size_t i = 0; i < sizeof(t) / sizeof(t[0]); i++) {
             wf_cbor_item *it = t[i].neg ? mk_nint(t[i].v) : mk_uint(t[i].v);
@@ -125,7 +134,10 @@ int main(void) {
     {
         unsigned char cid[36];
         memset(cid, 0, sizeof(cid));
-        cid[0] = 0x01; cid[1] = 0x71; cid[2] = 0x12; cid[3] = 0x20;
+        cid[0] = 0x01;
+        cid[1] = 0x71;
+        cid[2] = 0x12;
+        cid[3] = 0x20;
 
         unsigned char link[41] = {0xD8, 0x2A, 0x58, 0x25, 0x00};
         memcpy(link + 5, cid, sizeof(cid));

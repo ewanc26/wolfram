@@ -63,16 +63,16 @@ static int post_buf_append(post_buf *b, const char *data, size_t len) {
 
 /** A single token-bucket entry keyed by an arbitrary string. */
 typedef struct wf_rate_bucket {
-    char                  *key;
-    double                 tokens;
-    time_t                 last_refill;
+    char *key;
+    double tokens;
+    time_t last_refill;
     struct wf_rate_bucket *next;
 } wf_rate_bucket;
 
 /** A single route whose rate limiting configuration was attached */
 typedef struct wf_rate_limit_entry {
-    char *route_key;            /* "GET:/xrpc/io.example.ping" */
-    wf_rate_limiter *rl;       /* owned reference */
+    char *route_key;     /* "GET:/xrpc/io.example.ping" */
+    wf_rate_limiter *rl; /* owned reference */
     struct wf_rate_limit_entry *next;
 } wf_rate_limit_entry;
 
@@ -80,14 +80,15 @@ typedef struct wf_rate_limit_entry {
  * wf_xrpc_server_set_route_rate_limiter, or NULL if none was set — declared
  * here so the request-dispatch path (well above where entries are managed)
  * can see it. */
-static wf_rate_limiter *wf_server_find_route_rate_limiter(
-    wf_xrpc_server *server, const char *method, const char *url);
+static wf_rate_limiter *
+wf_server_find_route_rate_limiter(wf_xrpc_server *server, const char *method,
+                                  const char *url);
 
 struct wf_rate_limiter {
-    unsigned int     points;          /* Max tokens (burst capacity) */
-    unsigned int     duration_seconds;/* Refill window */
-    unsigned int     bucket_count;    /* Hash table size */
-    wf_rate_bucket **buckets;         /* Hash table array, owned */
+    unsigned int points;           /* Max tokens (burst capacity) */
+    unsigned int duration_seconds; /* Refill window */
+    unsigned int bucket_count;     /* Hash table size */
+    wf_rate_bucket **buckets;      /* Hash table array, owned */
 };
 
 /** FNV-1a hash for a NUL-terminated string. */
@@ -101,8 +102,8 @@ static unsigned int wf_rl_hash(const char *key, unsigned int mod) {
 }
 
 wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
-                                      unsigned int duration_seconds,
-                                      unsigned int bucket_count) {
+                                     unsigned int duration_seconds,
+                                     unsigned int bucket_count) {
     wf_rate_limiter *rl;
 
     if (points == 0 || duration_seconds == 0) {
@@ -118,7 +119,8 @@ wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
     rl->points = points;
     rl->duration_seconds = duration_seconds;
     rl->bucket_count = bucket_count;
-    rl->buckets = (wf_rate_bucket **)calloc(bucket_count, sizeof(wf_rate_bucket *));
+    rl->buckets =
+        (wf_rate_bucket **)calloc(bucket_count, sizeof(wf_rate_bucket *));
     if (!rl->buckets) {
         free(rl);
         return NULL;
@@ -148,11 +150,10 @@ void wf_rate_limiter_free(wf_rate_limiter *rl) {
  * `out_status` is filled whenever non-NULL, on both WF_OK and
  * WF_ERR_RATE_LIMIT — a caller setting RateLimit-* headers needs bucket
  * state on a successful consume too, not just a rejected one. */
-static wf_status wf_rate_limiter_consume_core(wf_rate_limiter *rl,
-                                              const char *key,
-                                              unsigned int cost,
-                                              unsigned int *out_retry_after,
-                                              wf_rate_limit_status *out_status) {
+static wf_status
+wf_rate_limiter_consume_core(wf_rate_limiter *rl, const char *key,
+                             unsigned int cost, unsigned int *out_retry_after,
+                             wf_rate_limit_status *out_status) {
     unsigned int idx;
     wf_rate_bucket *b;
     time_t now;
@@ -232,24 +233,22 @@ static wf_status wf_rate_limiter_consume_core(wf_rate_limiter *rl,
         /* Full bucket, nothing pending: report the window itself as when
          * a fresh cycle would complete, rather than "now". */
         double wait = (double)rl->points > b->tokens
-            ? ((double)rl->points - b->tokens) / refill_rate
-            : (double)rl->duration_seconds;
+                          ? ((double)rl->points - b->tokens) / refill_rate
+                          : (double)rl->duration_seconds;
         out_status->reset_at = (unsigned int)now + (unsigned int)(wait + 0.5);
     }
     return WF_OK;
 }
 
-wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
-                                   const char *key,
-                                   unsigned int cost,
-                                   unsigned int *out_retry_after) {
+wf_status wf_rate_limiter_consume(wf_rate_limiter *rl, const char *key,
+                                  unsigned int cost,
+                                  unsigned int *out_retry_after) {
     return wf_rate_limiter_consume_core(rl, key, cost, out_retry_after, NULL);
 }
 
-wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl,
-                                          const char *key,
-                                          unsigned int cost,
-                                          wf_rate_limit_status *out_status) {
+wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl, const char *key,
+                                         unsigned int cost,
+                                         wf_rate_limit_status *out_status) {
     return wf_rate_limiter_consume_core(rl, key, cost, NULL, out_status);
 }
 
@@ -262,18 +261,18 @@ typedef enum {
 } wf_route_kind;
 
 typedef struct wf_route {
-    char                     *nsid;
-    wf_route_kind             kind;
-    bool                      is_sse; /* true if this route uses Server-Sent Events */
-    bool                      is_ws;  /* true if this route is a WebSocket subscription */
+    char *nsid;
+    wf_route_kind kind;
+    bool is_sse; /* true if this route uses Server-Sent Events */
+    bool is_ws;  /* true if this route is a WebSocket subscription */
     union {
-        wf_xrpc_query_handler      query;
-        wf_xrpc_procedure_handler  procedure;
-        wf_xrpc_sse_handler        sse;
-        wf_xrpc_ws_handler         ws;
+        wf_xrpc_query_handler query;
+        wf_xrpc_procedure_handler procedure;
+        wf_xrpc_sse_handler sse;
+        wf_xrpc_ws_handler ws;
     } handler;
-    void                     *ctx;
-    struct wf_route          *next;   /* linked list */
+    void *ctx;
+    struct wf_route *next; /* linked list */
 } wf_route;
 
 typedef struct wf_static_route {
@@ -314,52 +313,52 @@ struct wf_xrpc_response_header {
  * fallback stores / resolver ctx remain caller-owned.
  */
 struct wf_owned_ctx {
-    void                   *ptr;
-    void                  (*free_fn)(void *);
-    struct wf_owned_ctx    *next;
+    void *ptr;
+    void (*free_fn)(void *);
+    struct wf_owned_ctx *next;
 };
 
 /* ------------------------------------------------------------------ */
 /* Server struct                                                       */
 /* ------------------------------------------------------------------ */
 struct wf_xrpc_server {
-    struct MHD_Daemon   *daemon;
-    uint16_t             port;
-    wf_route            *routes;
-    wf_static_route     *static_routes;
-    wf_http_route       *http_routes;
-    struct wf_owned_ctx *owned_ctxs;       /* heap allocations freed on server free */
-    wf_xrpc_auth_cb      auth_cb;
-    void                *auth_ctx;
+    struct MHD_Daemon *daemon;
+    uint16_t port;
+    wf_route *routes;
+    wf_static_route *static_routes;
+    wf_http_route *http_routes;
+    struct wf_owned_ctx *owned_ctxs; /* heap allocations freed on server free */
+    wf_xrpc_auth_cb auth_cb;
+    void *auth_ctx;
     /* Optional handler for NSIDs with no registered route (see
      * wf_xrpc_server_set_fallback). ctx is borrowed, not owned. */
     wf_xrpc_fallback_handler fallback;
-    void                *fallback_ctx;
+    void *fallback_ctx;
     /* Owned context installed by wf_xrpc_server_set_auth_middleware; the
      * server frees it (via auth_mw_free) in wf_xrpc_server_free. Cleared when
      * an external auth callback replaces the middleware. */
-    void                *auth_mw_ctx;
-    void               (*auth_mw_free)(void *);
-    wf_xrpc_request_observer observer;         /* optional, not owned */
-    void                *observer_ctx;
-    wf_rate_limiter     *rate_limiter;        /* global IP-based limiter */
-    wf_rate_limiter     *rate_limiter_owned;  /* non-NULL => server frees it */
-    wf_rate_limit_entry *rate_limit_entries;   /* per-route list */
-    wf_xrpc_sse_stream  *sse_streams;          /* open SSE connections */
-    pthread_mutex_t      sse_mutex;            /* guards sse_streams */
-    wf_xrpc_ws_stream   *ws_streams;           /* open WebSocket connections */
-    pthread_mutex_t      ws_mutex;             /* guards ws_streams + ws_stopping */
+    void *auth_mw_ctx;
+    void (*auth_mw_free)(void *);
+    wf_xrpc_request_observer observer; /* optional, not owned */
+    void *observer_ctx;
+    wf_rate_limiter *rate_limiter;           /* global IP-based limiter */
+    wf_rate_limiter *rate_limiter_owned;     /* non-NULL => server frees it */
+    wf_rate_limit_entry *rate_limit_entries; /* per-route list */
+    wf_xrpc_sse_stream *sse_streams;         /* open SSE connections */
+    pthread_mutex_t sse_mutex;               /* guards sse_streams */
+    wf_xrpc_ws_stream *ws_streams;           /* open WebSocket connections */
+    pthread_mutex_t ws_mutex; /* guards ws_streams + ws_stopping */
     /* Set once teardown has begun. A stream linked after the join loop has
      * drained the list would never be joined, so upgrades are refused from
      * here on rather than accepted into a server that is going away. */
-    bool                 ws_stopping;
+    bool ws_stopping;
     /* Upgrades queued but not yet handed to wf_ws_upgrade_handler. MHD gives
      * no callback when a response is destroyed without upgrading, so a client
      * that disappears between the 101 and the handover would otherwise strand
      * the context and stream forever. Guarded by ws_mutex. */
     struct wf_ws_pending *ws_pending;
-    bool                 cors_enabled;          /* emit CORS headers when true */
-    char                *cors_origin;           /* owned Allow-Origin value */
+    bool cors_enabled; /* emit CORS headers when true */
+    char *cors_origin; /* owned Allow-Origin value */
 };
 
 /* Apply the server's CORS policy to an outgoing MHD response (no-op when
@@ -371,8 +370,8 @@ struct wf_xrpc_server {
  * X-Bsky-*) without the server maintaining the full set; a fixed list is only
  * the fallback for non-preflight responses. */
 static void wf_server_apply_cors(wf_xrpc_server *server,
-                                  struct MHD_Connection *conn,
-                                  struct MHD_Response *resp) {
+                                 struct MHD_Connection *conn,
+                                 struct MHD_Response *resp) {
     const char *origin;
     const char *req_headers;
     if (!server || !server->cors_enabled) {
@@ -380,21 +379,21 @@ static void wf_server_apply_cors(wf_xrpc_server *server,
     }
     origin = server->cors_origin ? server->cors_origin : "*";
     MHD_add_response_header(resp, "Access-Control-Allow-Origin", origin);
-    req_headers = MHD_lookup_connection_value(
-        conn, MHD_HEADER_KIND, "Access-Control-Request-Headers");
+    req_headers = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
+                                              "Access-Control-Request-Headers");
     MHD_add_response_header(resp, "Access-Control-Allow-Headers",
-                             req_headers && req_headers[0]
-                                 ? req_headers
-                                 : "Authorization, Content-Type, DPoP, Accept, "
-                                   "atproto-proxy, atproto-accept-labelers, "
-                                   "X-Bsky-Content-Checksum, "
-                                   "X-Bsky-Post-Verification");
+                            req_headers && req_headers[0]
+                                ? req_headers
+                                : "Authorization, Content-Type, DPoP, Accept, "
+                                  "atproto-proxy, atproto-accept-labelers, "
+                                  "X-Bsky-Content-Checksum, "
+                                  "X-Bsky-Post-Verification");
     MHD_add_response_header(resp, "Access-Control-Allow-Methods",
-                             "GET, POST, OPTIONS");
+                            "GET, POST, OPTIONS");
     MHD_add_response_header(resp, "Access-Control-Expose-Headers",
-                             "Content-Type, Retry-After, RateLimit-Limit, "
-                             "RateLimit-Reset, RateLimit-Remaining, "
-                             "RateLimit-Policy");
+                            "Content-Type, Retry-After, RateLimit-Limit, "
+                            "RateLimit-Reset, RateLimit-Remaining, "
+                            "RateLimit-Policy");
 }
 
 /* ------------------------------------------------------------------ */
@@ -403,32 +402,32 @@ static void wf_server_apply_cors(wf_xrpc_server *server,
 
 /** A buffered chunk of bytes queued for the SSE connection. */
 typedef struct wf_sse_chunk {
-    char                 *data;
-    size_t                len;
-    size_t                off;        /* bytes already copied out */
-    struct wf_sse_chunk  *next;
+    char *data;
+    size_t len;
+    size_t off; /* bytes already copied out */
+    struct wf_sse_chunk *next;
 } wf_sse_chunk;
 
 struct wf_xrpc_sse_stream {
-    struct MHD_Connection *conn;       /* owning MHD connection */
-    wf_xrpc_server        *server;     /* back-pointer for teardown */
-    char                  *nsid;       /* route NSID (for diagnostics) */
-    pthread_mutex_t        mutex;      /* guards chunks / closed / started */
-    wf_sse_chunk          *chunks;     /* pending output, head */
-    wf_sse_chunk          *chunks_tail;/* pending output, tail */
-    bool                   closed;     /* end-of-stream requested */
-    bool                   started;    /* at least one frame queued */
-    struct wf_xrpc_sse_stream *next;   /* global list in server */
+    struct MHD_Connection *conn;     /* owning MHD connection */
+    wf_xrpc_server *server;          /* back-pointer for teardown */
+    char *nsid;                      /* route NSID (for diagnostics) */
+    pthread_mutex_t mutex;           /* guards chunks / closed / started */
+    wf_sse_chunk *chunks;            /* pending output, head */
+    wf_sse_chunk *chunks_tail;       /* pending output, tail */
+    bool closed;                     /* end-of-stream requested */
+    bool started;                    /* at least one frame queued */
+    struct wf_xrpc_sse_stream *next; /* global list in server */
 };
 
 /** Fallback definitions for libmicrohttpd versions lacking these macros. */
 #ifndef MHD_CONTENT_READER_END_OF_STREAM
-#define MHD_CONTENT_READER_END_OF_STREAM ((ssize_t)-1)
+#define MHD_CONTENT_READER_END_OF_STREAM ((ssize_t) - 1)
 #endif
 
 /** Append a byte range to the stream's pending queue. Caller holds mutex. */
-static wf_status wf_sse_append_locked(wf_xrpc_sse_stream *s,
-                                      const char *data, size_t len) {
+static wf_status wf_sse_append_locked(wf_xrpc_sse_stream *s, const char *data,
+                                      size_t len) {
     wf_sse_chunk *c;
     if (len == 0) {
         return WF_OK;
@@ -570,8 +569,8 @@ static void wf_sse_register(wf_xrpc_server *server, wf_xrpc_sse_stream *s) {
     pthread_mutex_unlock(&server->sse_mutex);
 }
 
-wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
-                                  const char *event, const char *data) {
+wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream, const char *event,
+                                  const char *data) {
     wf_xrpc_sse_stream *s = stream;
     char *frame = NULL;
     size_t frame_cap = 0, frame_len = 0;
@@ -590,7 +589,10 @@ wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
         size_t need = strlen("event: ") + strlen(event) + strlen("\n");
         if (frame_len + need + 1 > frame_cap) {
             char *tmp = (char *)realloc(frame, frame_len + need + 1);
-            if (!tmp) { rc = WF_ERR_ALLOC; goto out; }
+            if (!tmp) {
+                rc = WF_ERR_ALLOC;
+                goto out;
+            }
             frame = tmp;
             frame_cap = frame_len + need + 1;
         }
@@ -608,13 +610,16 @@ wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
             size_t need = strlen("data: ") + llen + strlen("\n");
             if (frame_len + need + 1 > frame_cap) {
                 char *tmp = (char *)realloc(frame, frame_len + need + 16);
-                if (!tmp) { rc = WF_ERR_ALLOC; goto out; }
+                if (!tmp) {
+                    rc = WF_ERR_ALLOC;
+                    goto out;
+                }
                 frame = tmp;
                 frame_cap = frame_len + need + 16;
             }
-            frame_len += (size_t)snprintf(frame + frame_len,
-                                          frame_cap - frame_len,
-                                          "data: %.*s\n", (int)llen, line);
+            frame_len +=
+                (size_t)snprintf(frame + frame_len, frame_cap - frame_len,
+                                 "data: %.*s\n", (int)llen, line);
             if (!nl) {
                 break;
             }
@@ -628,12 +633,15 @@ wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
         size_t need = strlen("\n");
         if (frame_len + need + 1 > frame_cap) {
             char *tmp = (char *)realloc(frame, frame_len + need + 1);
-            if (!tmp) { rc = WF_ERR_ALLOC; goto out; }
+            if (!tmp) {
+                rc = WF_ERR_ALLOC;
+                goto out;
+            }
             frame = tmp;
             frame_cap = frame_len + need + 1;
         }
-        frame_len += (size_t)snprintf(frame + frame_len, frame_cap - frame_len,
-                                      "\n");
+        frame_len +=
+            (size_t)snprintf(frame + frame_len, frame_cap - frame_len, "\n");
     }
 
     pthread_mutex_lock(&s->mutex);
@@ -691,50 +699,52 @@ wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream) {
 
 /** A live WebSocket connection, created after a successful upgrade. */
 struct wf_xrpc_ws_stream {
-    struct MHD_Connection        *conn;   /* owning MHD connection */
-    struct MHD_UpgradeResponseHandle *urh;/* upgrade handle (for close) */
-    wf_xrpc_server               *server; /* back-pointer for teardown */
-    char                         *nsid;   /* route NSID (diagnostics) */
-    int                           sock;   /* raw socket fd (server→client) */
-    pthread_t                     thread; /* upgrade worker thread */
-    pthread_mutex_t               mutex;  /* guards closed + serialises writes */
-    pthread_cond_t                worker_cond; /* signalled when refs reach zero */
-    unsigned int                  worker_refs; /* retained producer workers */
-    bool                          closed; /* end-of-stream requested */
+    struct MHD_Connection *conn;           /* owning MHD connection */
+    struct MHD_UpgradeResponseHandle *urh; /* upgrade handle (for close) */
+    wf_xrpc_server *server;                /* back-pointer for teardown */
+    char *nsid;                            /* route NSID (diagnostics) */
+    int sock;                              /* raw socket fd (server→client) */
+    pthread_t thread;                      /* upgrade worker thread */
+    pthread_mutex_t mutex;      /* guards closed + serialises writes */
+    pthread_cond_t worker_cond; /* signalled when refs reach zero */
+    unsigned int worker_refs;   /* retained producer workers */
+    bool closed;                /* end-of-stream requested */
     /* Set once the spawning thread has recorded `thread`. The worker must not
      * touch (or free) the stream until then — see wf_ws_upgrade_handler. */
-    bool                          thread_ready;
+    bool thread_ready;
     /* Set under ws_mutex by wf_xrpc_server_stop when it takes responsibility
      * for joining this worker. The worker detaches itself when this is false,
      * so a connection that ends on its own leaves nothing to reap. Guarded by
      * ws_mutex, not mutex: it is decided at the same moment as list removal. */
-    bool                          reaped;
-    struct wf_xrpc_ws_stream     *next;   /* global list in server */
+    bool reaped;
+    struct wf_xrpc_ws_stream *next; /* global list in server */
 };
 
 /** An upgrade that has been queued but not yet handed over. */
 typedef struct wf_ws_pending {
-    struct MHD_Connection    *conn;
+    struct MHD_Connection *conn;
     struct wf_ws_upgrade_ctx *uc;
-    struct wf_ws_pending     *next;
+    struct wf_ws_pending *next;
 } wf_ws_pending;
 
 /** Closure handed to libmicrohttpd's upgrade handler. */
 typedef struct wf_ws_upgrade_ctx {
-    wf_xrpc_server      *server;
-    wf_route            *route;
-    wf_xrpc_ws_stream   *stream;
-    wf_xrpc_request      req;     /* request copy for the user handler */
+    wf_xrpc_server *server;
+    wf_route *route;
+    wf_xrpc_ws_stream *stream;
+    wf_xrpc_request req; /* request copy for the user handler */
 } wf_ws_upgrade_ctx;
 
 /** RFC 4648 standard base64 with '=' padding (for Sec-WebSocket-Accept). */
-static void wf_ws_base64_encode(const unsigned char *in, size_t len, char *out) {
+static void wf_ws_base64_encode(const unsigned char *in, size_t len,
+                                char *out) {
     static const char tab[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     size_t i, o = 0;
     for (i = 0; i + 3 <= len; i += 3) {
         unsigned int n = ((unsigned int)in[i] << 16) |
-                         ((unsigned int)in[i + 1] << 8) | (unsigned int)in[i + 2];
+                         ((unsigned int)in[i + 1] << 8) |
+                         (unsigned int)in[i + 2];
         out[o++] = tab[(n >> 18) & 0x3f];
         out[o++] = tab[(n >> 12) & 0x3f];
         out[o++] = tab[(n >> 6) & 0x3f];
@@ -764,7 +774,7 @@ static int wf_ws_write_all(int sock, const void *buf, size_t len) {
         if (n < 0) {
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                struct pollfd pfd = { sock, POLLOUT, 0 };
+                struct pollfd pfd = {sock, POLLOUT, 0};
                 int pr = poll(&pfd, 1, 2000);
                 if (pr == 0) return -2;
                 if (pr < 0) return -1;
@@ -778,17 +788,24 @@ static int wf_ws_write_all(int sock, const void *buf, size_t len) {
     return 0;
 }
 
-/** Read exactly `len` bytes with a per-read timeout; 0 ok, -1 error/EOF/timeout. */
+/** Read exactly `len` bytes with a per-read timeout; 0 ok, -1
+ * error/EOF/timeout. */
 static int wf_ws_read_exact(int sock, void *buf, size_t len, int timeout_ms) {
     char *p = (char *)buf;
     size_t off = 0;
     while (off < len) {
-        struct pollfd pfd = { sock, POLLIN, 0 };
+        struct pollfd pfd = {sock, POLLIN, 0};
         int pr = poll(&pfd, 1, timeout_ms);
-        if (pr < 0) { if (errno == EINTR) continue; return -1; }
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (pr == 0) return -1;
         ssize_t n = read(sock, p + off, len - off);
-        if (n < 0) { if (errno == EINTR) continue; return -1; }
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (n == 0) return -1;
         off += (size_t)n;
     }
@@ -847,7 +864,7 @@ static void wf_ws_shutdown_gracefully(int sock) {
     shutdown(sock, SHUT_WR);
 
     while (remaining > 0) {
-        struct pollfd pfd = { sock, POLLIN, 0 };
+        struct pollfd pfd = {sock, POLLIN, 0};
         int step = remaining < 50 ? remaining : 50;
         int pr = poll(&pfd, 1, step);
         if (pr < 0) {
@@ -893,7 +910,7 @@ static void wf_ws_pending_add(wf_xrpc_server *server,
                               struct MHD_Connection *conn,
                               wf_ws_upgrade_ctx *uc) {
     wf_ws_pending *node = calloc(1, sizeof(*node));
-    if (!node) return;   /* Losing the record only costs us the safety net. */
+    if (!node) return; /* Losing the record only costs us the safety net. */
     node->conn = conn;
     node->uc = uc;
     pthread_mutex_lock(&server->ws_mutex);
@@ -916,8 +933,7 @@ static wf_ws_upgrade_ctx *wf_ws_pending_take(wf_xrpc_server *server,
     pthread_mutex_lock(&server->ws_mutex);
     wf_ws_pending **pp = &server->ws_pending;
     while (*pp) {
-        if ((uc && (*pp)->uc == uc) ||
-            (!uc && conn && (*pp)->conn == conn) ||
+        if ((uc && (*pp)->uc == uc) || (!uc && conn && (*pp)->conn == conn) ||
             (!uc && !conn)) {
             wf_ws_pending *node = *pp;
             *pp = node->next;
@@ -985,7 +1001,7 @@ static void *wf_ws_serve_thread(void *arg) {
             break;
         }
 
-        struct pollfd pfd = { s->sock, POLLIN, 0 };
+        struct pollfd pfd = {s->sock, POLLIN, 0};
         int pr = poll(&pfd, 1, 250);
         if (pr < 0) {
             if (errno == EINTR) continue;
@@ -1010,7 +1026,7 @@ static void *wf_ws_serve_thread(void *arg) {
             plen = 0;
             for (int i = 0; i < 8; i++) plen = (plen << 8) | (uint64_t)e[i];
         }
-        unsigned char mask[4] = { 0, 0, 0, 0 };
+        unsigned char mask[4] = {0, 0, 0, 0};
         if (masked) {
             if (wf_ws_read_exact(s->sock, mask, 4, 1000) != 0) break;
         }
@@ -1028,11 +1044,11 @@ static void *wf_ws_serve_thread(void *arg) {
             }
         }
 
-        if (opcode == 0x9) {                 /* ping → pong */
+        if (opcode == 0x9) { /* ping → pong */
             pthread_mutex_lock(&s->mutex);
             wf_ws_write_frame_locked(s, 0xA, payload, (size_t)plen);
             pthread_mutex_unlock(&s->mutex);
-        } else if (opcode == 0x8) {          /* close */
+        } else if (opcode == 0x8) { /* close */
             pthread_mutex_lock(&s->mutex);
             if (!s->closed) {
                 s->closed = true;
@@ -1080,7 +1096,10 @@ static void *wf_ws_serve_thread(void *arg) {
         pthread_mutex_lock(&s->server->ws_mutex);
         wf_xrpc_ws_stream **pp = &s->server->ws_streams;
         while (*pp) {
-            if (*pp == s) { *pp = s->next; break; }
+            if (*pp == s) {
+                *pp = s->next;
+                break;
+            }
             pp = &(*pp)->next;
         }
         reaped = s->reaped;
@@ -1107,12 +1126,9 @@ static void *wf_ws_serve_thread(void *arg) {
 }
 
 /** libmicrohttpd upgrade callback: hand off the raw socket to a worker. */
-static void wf_ws_upgrade_handler(void *cls,
-                                  struct MHD_Connection *connection,
-                                  void *req_cls,
-                                  const char *extra_in,
-                                  size_t extra_in_size,
-                                  MHD_socket sock,
+static void wf_ws_upgrade_handler(void *cls, struct MHD_Connection *connection,
+                                  void *req_cls, const char *extra_in,
+                                  size_t extra_in_size, MHD_socket sock,
                                   struct MHD_UpgradeResponseHandle *urh) {
     (void)connection;
     (void)req_cls;
@@ -1224,12 +1240,12 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
                                               struct MHD_Connection *conn,
                                               const wf_xrpc_request *request) {
     const char *nsid = request ? request->nsid : NULL;
-    const char *upgrade = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
-                                                       "Upgrade");
-    const char *connection = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
-                                                          "Connection");
-    const char *key = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
-                                                  "Sec-WebSocket-Key");
+    const char *upgrade =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Upgrade");
+    const char *connection =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Connection");
+    const char *key =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Sec-WebSocket-Key");
     const char *version = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
                                                       "Sec-WebSocket-Version");
     wf_xrpc_ws_stream *stream;
@@ -1251,8 +1267,8 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
     if (!version || strcmp(version, "13") != 0) return MHD_NO;
     if (!key || key[0] == '\0') return MHD_NO;
 
-    snprintf(concat, sizeof(concat),
-             "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11", key);
+    snprintf(concat, sizeof(concat), "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+             key);
 #if defined(WOLFRAM_WIIU)
     mbedtls_sha1((const unsigned char *)concat, strlen(concat), digest);
     wf_ws_base64_encode(digest, 20, accept);
@@ -1294,18 +1310,19 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
     uc->stream = stream;
     uc->req.nsid = nsid ? strdup(nsid) : NULL;
     uc->req.method = "GET";
-    uc->req.auth_header = request && request->auth_header
-                              ? strdup(request->auth_header) : NULL;
-    uc->req.dpop_header = request && request->dpop_header
-                              ? strdup(request->dpop_header) : NULL;
+    uc->req.auth_header =
+        request && request->auth_header ? strdup(request->auth_header) : NULL;
+    uc->req.dpop_header =
+        request && request->dpop_header ? strdup(request->dpop_header) : NULL;
     uc->req.params = request && request->params
-                         ? cJSON_Duplicate(request->params, true) : NULL;
+                         ? cJSON_Duplicate(request->params, true)
+                         : NULL;
     uc->req.handler_ctx = route->ctx;
     uc->req.authed_subject = request && request->authed_subject
-                                 ? strdup(request->authed_subject) : NULL;
-    uc->req.authed_principal_kind = request
-                                        ? request->authed_principal_kind
-                                        : WF_XRPC_PRINCIPAL_NONE;
+                                 ? strdup(request->authed_subject)
+                                 : NULL;
+    uc->req.authed_principal_kind =
+        request ? request->authed_principal_kind : WF_XRPC_PRINCIPAL_NONE;
     if ((nsid && !uc->req.nsid) ||
         (request && request->auth_header && !uc->req.auth_header) ||
         (request && request->dpop_header && !uc->req.dpop_header) ||
@@ -1348,8 +1365,8 @@ static enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server,
     return MHD_YES;
 }
 
-wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
-                                 const void *data, size_t len) {
+wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream, const void *data,
+                                 size_t len) {
     wf_xrpc_ws_stream *s = stream;
     if (!s) {
         return WF_ERR_INVALID_ARG;
@@ -1358,9 +1375,9 @@ wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
         return WF_ERR_INVALID_ARG;
     }
     pthread_mutex_lock(&s->mutex);
-    wf_status rc = s->closed
-                       ? WF_ERR_INVALID_ARG
-                       : wf_ws_write_frame_locked(s, 0x2, data ? data : "", len);
+    wf_status rc =
+        s->closed ? WF_ERR_INVALID_ARG
+                  : wf_ws_write_frame_locked(s, 0x2, data ? data : "", len);
     pthread_mutex_unlock(&s->mutex);
     return rc;
 }
@@ -1424,10 +1441,8 @@ wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code) {
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
-                                     const char *nsid,
-                                     wf_xrpc_ws_handler handler,
-                                     void *ctx) {
+wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server, const char *nsid,
+                                     wf_xrpc_ws_handler handler, void *ctx) {
     wf_route *r;
     if (!server || !nsid || !handler) {
         return WF_ERR_INVALID_ARG;
@@ -1454,8 +1469,8 @@ wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
 /* Response helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-void wf_xrpc_response_set_body(wf_xrpc_response *resp,
-                               const char *body, size_t body_len) {
+void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
+                               size_t body_len) {
     if (!resp) {
         return;
     }
@@ -1473,12 +1488,10 @@ void wf_xrpc_response_set_body(wf_xrpc_response *resp,
     }
 }
 
-void wf_xrpc_response_set_error(wf_xrpc_response *resp,
-                                int http_status,
-                                const char *error,
-                                const char *message) {
+void wf_xrpc_response_set_error(wf_xrpc_response *resp, int http_status,
+                                const char *error, const char *message) {
     cJSON *obj;
-    char  *json;
+    char *json;
 
     if (!resp) {
         return;
@@ -1506,9 +1519,8 @@ void wf_xrpc_response_set_error(wf_xrpc_response *resp,
     }
 }
 
-void wf_xrpc_response_set_error_body(wf_xrpc_response *resp,
-                                      int http_status,
-                                      const char *body, size_t body_len) {
+void wf_xrpc_response_set_error_body(wf_xrpc_response *resp, int http_status,
+                                     const char *body, size_t body_len) {
     if (!resp) {
         return;
     }
@@ -1518,7 +1530,7 @@ void wf_xrpc_response_set_error_body(wf_xrpc_response *resp,
 }
 
 void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
-                                        const char *content_type) {
+                                       const char *content_type) {
     if (!resp) {
         return;
     }
@@ -1526,8 +1538,8 @@ void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
     resp->content_type = content_type ? strdup(content_type) : NULL;
 }
 
-wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp,
-                                      const char *name, const char *value) {
+wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
+                                      const char *value) {
     if (!resp || !name || !name[0] || !value || strchr(name, ':') ||
         strchr(name, '\r') || strchr(name, '\n') || strchr(value, '\r') ||
         strchr(value, '\n'))
@@ -1591,10 +1603,8 @@ struct qs_ctx {
     cJSON *obj;
 };
 
-static enum MHD_Result wf_server_qs_iter(void *cls,
-                                          enum MHD_ValueKind kind,
-                                          const char *key,
-                                          const char *value) {
+static enum MHD_Result wf_server_qs_iter(void *cls, enum MHD_ValueKind kind,
+                                         const char *key, const char *value) {
     (void)kind;
     struct qs_ctx *ctx = (struct qs_ctx *)cls;
     if (key && value) {
@@ -1604,9 +1614,9 @@ static enum MHD_Result wf_server_qs_iter(void *cls,
 }
 
 static enum MHD_Result wf_server_qs_build_iter(void *cls,
-                                                enum MHD_ValueKind kind,
-                                                const char *key,
-                                                const char *value) {
+                                               enum MHD_ValueKind kind,
+                                               const char *key,
+                                               const char *value) {
     (void)kind;
     struct qs_build_ctx {
         char *buf;
@@ -1652,8 +1662,8 @@ static cJSON *wf_server_get_query_params(struct MHD_Connection *conn) {
     if (!ctx.obj) {
         return NULL;
     }
-    MHD_get_connection_values(conn, MHD_GET_ARGUMENT_KIND,
-                               &wf_server_qs_iter, &ctx);
+    MHD_get_connection_values(conn, MHD_GET_ARGUMENT_KIND, &wf_server_qs_iter,
+                              &ctx);
     if (cJSON_GetArraySize(ctx.obj) == 0) {
         cJSON_Delete(ctx.obj);
         return NULL;
@@ -1665,8 +1675,7 @@ static cJSON *wf_server_get_query_params(struct MHD_Connection *conn) {
 /* Route lookup                                                        */
 /* ------------------------------------------------------------------ */
 static wf_route *wf_server_find_route(const wf_xrpc_server *server,
-                                       const char *nsid,
-                                       wf_route_kind kind) {
+                                      const char *nsid, wf_route_kind kind) {
     for (wf_route *r = server->routes; r; r = r->next) {
         if (r->kind == kind && strcmp(r->nsid, nsid) == 0) {
             return r;
@@ -1675,16 +1684,17 @@ static wf_route *wf_server_find_route(const wf_xrpc_server *server,
     return NULL;
 }
 
-static wf_static_route *wf_server_find_static_route(
-        const wf_xrpc_server *server, const char *path) {
+static wf_static_route *
+wf_server_find_static_route(const wf_xrpc_server *server, const char *path) {
     for (wf_static_route *route = server->static_routes; route;
          route = route->next)
         if (strcmp(route->path, path) == 0) return route;
     return NULL;
 }
 
-static wf_http_route *wf_server_find_http_route(
-        const wf_xrpc_server *server, const char *method, const char *path) {
+static wf_http_route *wf_server_find_http_route(const wf_xrpc_server *server,
+                                                const char *method,
+                                                const char *path) {
     wf_http_route *best_prefix = NULL;
     size_t best_len = 0;
     for (wf_http_route *route = server->http_routes; route;
@@ -1706,8 +1716,7 @@ static wf_http_route *wf_server_find_http_route(
 
 static bool wf_server_has_http_path(const wf_xrpc_server *server,
                                     const char *path) {
-    for (wf_http_route *route = server->http_routes; route;
-         route = route->next)
+    for (wf_http_route *route = server->http_routes; route; route = route->next)
         if (strcmp(route->path, path) == 0) return true;
     return false;
 }
@@ -1717,14 +1726,11 @@ static bool wf_server_has_http_path(const wf_xrpc_server *server,
 /* ------------------------------------------------------------------ */
 
 /* Forward declaration — defined later (CORS preflight). */
-static enum MHD_Result wf_server_mhd_options(void *cls,
-                                              struct MHD_Connection *conn,
-                                              const char *url,
-                                              const char *method,
-                                              const char *version,
-                                              const char *upload_data,
-                                              size_t *upload_data_size,
-                                              void **con_cls);
+static enum MHD_Result
+wf_server_mhd_options(void *cls, struct MHD_Connection *conn, const char *url,
+                      const char *method, const char *version,
+                      const char *upload_data, size_t *upload_data_size,
+                      void **con_cls);
 
 /* Report a finished request to the observer, if one is installed. Called
  * from every path that decides a status, the rate limiter's 429 included —
@@ -1747,14 +1753,14 @@ static void wf_server_client_ip(struct MHD_Connection *conn, char *out,
     if (ci && ci->client_addr) {
         if (ci->client_addr->sa_family == AF_INET) {
             inet_ntop(AF_INET,
-                      &((struct sockaddr_in *)ci->client_addr)->sin_addr,
-                      out, out_len);
+                      &((struct sockaddr_in *)ci->client_addr)->sin_addr, out,
+                      out_len);
             return;
 #if !defined(WOLFRAM_WIIU)
         } else if (ci->client_addr->sa_family == AF_INET6) {
             inet_ntop(AF_INET6,
-                      &((struct sockaddr_in6 *)ci->client_addr)->sin6_addr,
-                      out, out_len);
+                      &((struct sockaddr_in6 *)ci->client_addr)->sin6_addr, out,
+                      out_len);
             return;
 #endif
         }
@@ -1762,14 +1768,11 @@ static void wf_server_client_ip(struct MHD_Connection *conn, char *out,
     (void)snprintf(out, out_len, "unknown");
 }
 
-static enum MHD_Result wf_server_mhd_handler(void *cls,
-                                              struct MHD_Connection *conn,
-                                              const char *url,
-                                              const char *method,
-                                              const char *version,
-                                              const char *upload_data,
-                                              size_t *upload_data_size,
-                                              void **con_cls) {
+static enum MHD_Result
+wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
+                      const char *method, const char *version,
+                      const char *upload_data, size_t *upload_data_size,
+                      void **con_cls) {
     (void)version;
     wf_xrpc_server *server = (wf_xrpc_server *)cls;
     enum MHD_Result ret;
@@ -1784,8 +1787,8 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     const char *auth_header;
     const char *dpop_header;
     const char *cookie_header;
-    post_buf *raw_pb = NULL;   /* Kept alive past parsing so handlers can read
-                                  the raw POST body (e.g. blob uploads). */
+    post_buf *raw_pb = NULL; /* Kept alive past parsing so handlers can read
+                                the raw POST body (e.g. blob uploads). */
 
     /* CORS preflight (OPTIONS) — handled directly, no route lookup. */
     if (strcmp(method, "OPTIONS") == 0) {
@@ -1824,8 +1827,7 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
         /* upload_data_size == 0 means upload complete — process now */
         http_route = wf_server_find_http_route(server, method, url);
         if (http_route) {
-            if (pb->len > 0)
-                params = cJSON_ParseWithLength(pb->data, pb->len);
+            if (pb->len > 0) params = cJSON_ParseWithLength(pb->data, pb->len);
             raw_pb = pb;
             *con_cls = NULL;
             goto process;
@@ -1840,7 +1842,7 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
         nsid = wf_server_extract_nsid(url);
         if (!nsid) {
             wf_xrpc_response_set_error(&resp, 400, "InvalidRequest",
-                                        "URL must be /xrpc/<nsid>");
+                                       "URL must be /xrpc/<nsid>");
             free(pb->data);
             free(pb);
             *con_cls = NULL;
@@ -1883,7 +1885,7 @@ static enum MHD_Result wf_server_mhd_handler(void *cls,
     nsid = wf_server_extract_nsid(url);
     if (!nsid) {
         wf_xrpc_response_set_error(&resp, 400, "InvalidRequest",
-                                    "URL must be /xrpc/<nsid>");
+                                   "URL must be /xrpc/<nsid>");
         goto send;
     }
     kind = WF_ROUTE_QUERY;
@@ -1904,9 +1906,8 @@ process:
      * the canonical XRPC error names and status codes. */
     if (!http_route) route = wf_server_find_route(server, nsid, kind);
     if (!http_route && !route) {
-        wf_route_kind other = (kind == WF_ROUTE_QUERY)
-                                  ? WF_ROUTE_PROCEDURE
-                                  : WF_ROUTE_QUERY;
+        wf_route_kind other =
+            (kind == WF_ROUTE_QUERY) ? WF_ROUTE_PROCEDURE : WF_ROUTE_QUERY;
         if (wf_server_find_route(server, nsid, other)) {
             wf_xrpc_response_set_error(
                 &resp, 400, "InvalidRequest",
@@ -1923,8 +1924,8 @@ process:
             freq.method = method;
             freq.auth_header = MHD_lookup_connection_value(
                 conn, MHD_HEADER_KIND, "Authorization");
-            freq.dpop_header = MHD_lookup_connection_value(
-                conn, MHD_HEADER_KIND, "DPoP");
+            freq.dpop_header =
+                MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
             freq.params = params;
             freq.client_ip = client_ip_str;
             freq.handler_ctx = server->fallback_ctx;
@@ -1933,17 +1934,16 @@ process:
                 conn, MHD_HEADER_KIND, "atproto-proxy");
             freq.content_type = MHD_lookup_connection_value(
                 conn, MHD_HEADER_KIND, "Content-Type");
-            freq.host_header = MHD_lookup_connection_value(
-                conn, MHD_HEADER_KIND, "Host");
+            freq.host_header =
+                MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
             if (raw_pb) {
                 freq.body = (const unsigned char *)raw_pb->data;
                 freq.body_len = raw_pb->len;
             }
             server->fallback(server->fallback_ctx, &freq, &resp);
         } else {
-            wf_xrpc_response_set_error(
-                &resp, 501, "MethodNotImplemented",
-                "No handler registered for this NSID");
+            wf_xrpc_response_set_error(&resp, 501, "MethodNotImplemented",
+                                       "No handler registered for this NSID");
         }
         goto send;
     }
@@ -1981,11 +1981,11 @@ process:
                          retry_after);
             if (n < 0 || (size_t)n >= sizeof(body)) n = (int)sizeof(body) - 1;
 
-            mhd_rl = MHD_create_response_from_buffer(
-                (size_t)n, body, MHD_RESPMEM_MUST_COPY);
+            mhd_rl = MHD_create_response_from_buffer((size_t)n, body,
+                                                     MHD_RESPMEM_MUST_COPY);
             if (mhd_rl) {
                 MHD_add_response_header(mhd_rl, "Content-Type",
-                                         "application/json");
+                                        "application/json");
                 snprintf(num, sizeof(num), "%u", retry_after);
                 MHD_add_response_header(mhd_rl, "Retry-After", num);
                 /* RateLimit-*, matching the reference PDS's
@@ -1997,7 +1997,7 @@ process:
                 snprintf(num, sizeof(num), "%u", rl_status.remaining);
                 MHD_add_response_header(mhd_rl, "RateLimit-Remaining", num);
                 snprintf(num, sizeof(num), "%u;w=%u", rl_status.limit,
-                        rl_status.duration_seconds);
+                         rl_status.duration_seconds);
                 MHD_add_response_header(mhd_rl, "RateLimit-Policy", num);
                 wf_server_apply_cors(server, conn, mhd_rl);
                 MHD_queue_response(conn, 429, mhd_rl);
@@ -2010,10 +2010,11 @@ process:
     }
 
     /* Auth callback */
-    auth_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
-                                                "Authorization");
+    auth_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Authorization");
     dpop_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
-    cookie_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
+    cookie_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
     char *authed_subject = NULL;
     wf_xrpc_principal_kind authed_kind = WF_XRPC_PRINCIPAL_NONE;
     if (!http_route && server->auth_cb) {
@@ -2027,7 +2028,8 @@ process:
         auth_req.cookie_header = cookie_header;
         auth_req.params = params;
         auth_req.handler_ctx = route->ctx;
-        auth_req.host_header = MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+        auth_req.host_header =
+            MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
         auth_req.client_ip = client_ip_str;
         wf_status auth_status = server->auth_cb(&auth_req, server->auth_ctx);
         if (auth_status != WF_OK) {
@@ -2035,8 +2037,7 @@ process:
                 wf_xrpc_response_set_error(&resp, 400, "RepoDeactivated",
                                            "Repository is deactivated");
             else
-                wf_xrpc_response_set_error(&resp, 401,
-                                           "AuthenticationRequired",
+                wf_xrpc_response_set_error(&resp, 401, "AuthenticationRequired",
                                            "Authentication required");
             goto send;
         }
@@ -2092,12 +2093,9 @@ process:
     }
 
     if (route && !http_route && !static_route) {
-        WF_LOG_DEBUG("xrpc",
-            "REQ %s %s nsid=%s auth=%s host=%s",
-            method, url,
-            nsid ? nsid : "-",
-            auth_header ? "yes" : "no",
-            req.host_header ? req.host_header : "-");
+        WF_LOG_DEBUG("xrpc", "REQ %s %s nsid=%s auth=%s host=%s", method, url,
+                     nsid ? nsid : "-", auth_header ? "yes" : "no",
+                     req.host_header ? req.host_header : "-");
     }
 
     if (http_route) {
@@ -2115,7 +2113,7 @@ send:
         resp.body_len = 0;
     }
     mhd_resp = MHD_create_response_from_buffer(resp.body_len, resp.body,
-                                                MHD_RESPMEM_MUST_FREE);
+                                               MHD_RESPMEM_MUST_FREE);
     /* Body ownership transferred to MHD — prevent double-free */
     resp.body = NULL;
 
@@ -2143,60 +2141,58 @@ send:
 
     goto cleanup;
 
-sse_stream:
-    {
-        wf_xrpc_sse_stream *stream;
-        struct MHD_Response *mhd_resp_sse;
+sse_stream: {
+    wf_xrpc_sse_stream *stream;
+    struct MHD_Response *mhd_resp_sse;
 
-        stream = wf_sse_stream_new(server, conn, nsid);
-        if (!stream) {
-            wf_xrpc_response_set_error(&resp, 500, "InternalServerError",
-                                       "Failed to allocate SSE stream");
-            goto send;
-        }
-        wf_sse_register(server, stream);
-
-        /* Hand the stream to the user handler. The handler should return
-         * promptly and stream from a worker thread (see header docs). */
-        route->handler.sse(route->ctx, &req, stream);
-
-        mhd_resp_sse = MHD_create_response_from_callback(
-            MHD_SIZE_UNKNOWN, 4096,
-            wf_sse_content_reader, stream, wf_sse_stream_free);
-        if (!mhd_resp_sse) {
-            /* Detach and release the stream; report an error. */
-            pthread_mutex_lock(&server->sse_mutex);
-            if (server->sse_streams == stream) {
-                server->sse_streams = stream->next;
-            } else {
-                wf_xrpc_sse_stream *pr = server->sse_streams;
-                while (pr && pr->next != stream) {
-                    pr = pr->next;
-                }
-                if (pr) {
-                    pr->next = stream->next;
-                }
-            }
-            pthread_mutex_unlock(&server->sse_mutex);
-            wf_sse_stream_free(stream);
-            wf_xrpc_response_set_error(&resp, 500, "InternalServerError",
-                                       "Failed to create SSE response");
-            goto send;
-        }
-
-        MHD_add_response_header(mhd_resp_sse, "Content-Type",
-                                "text/event-stream");
-        MHD_add_response_header(mhd_resp_sse, "Cache-Control", "no-cache");
-        MHD_add_response_header(mhd_resp_sse, "Connection", "keep-alive");
-        MHD_add_response_header(mhd_resp_sse, "X-Accel-Buffering", "no");
-        wf_server_apply_cors(server, conn, mhd_resp_sse);
-
-        ret = MHD_queue_response(conn, MHD_HTTP_OK, mhd_resp_sse);
-        MHD_destroy_response(mhd_resp_sse);
-        /* The connection is left open: wf_sse_content_reader suspends it
-         * whenever the buffer is empty, and SSE sends resume it. */
-        goto cleanup;
+    stream = wf_sse_stream_new(server, conn, nsid);
+    if (!stream) {
+        wf_xrpc_response_set_error(&resp, 500, "InternalServerError",
+                                   "Failed to allocate SSE stream");
+        goto send;
     }
+    wf_sse_register(server, stream);
+
+    /* Hand the stream to the user handler. The handler should return
+     * promptly and stream from a worker thread (see header docs). */
+    route->handler.sse(route->ctx, &req, stream);
+
+    mhd_resp_sse = MHD_create_response_from_callback(
+        MHD_SIZE_UNKNOWN, 4096, wf_sse_content_reader, stream,
+        wf_sse_stream_free);
+    if (!mhd_resp_sse) {
+        /* Detach and release the stream; report an error. */
+        pthread_mutex_lock(&server->sse_mutex);
+        if (server->sse_streams == stream) {
+            server->sse_streams = stream->next;
+        } else {
+            wf_xrpc_sse_stream *pr = server->sse_streams;
+            while (pr && pr->next != stream) {
+                pr = pr->next;
+            }
+            if (pr) {
+                pr->next = stream->next;
+            }
+        }
+        pthread_mutex_unlock(&server->sse_mutex);
+        wf_sse_stream_free(stream);
+        wf_xrpc_response_set_error(&resp, 500, "InternalServerError",
+                                   "Failed to create SSE response");
+        goto send;
+    }
+
+    MHD_add_response_header(mhd_resp_sse, "Content-Type", "text/event-stream");
+    MHD_add_response_header(mhd_resp_sse, "Cache-Control", "no-cache");
+    MHD_add_response_header(mhd_resp_sse, "Connection", "keep-alive");
+    MHD_add_response_header(mhd_resp_sse, "X-Accel-Buffering", "no");
+    wf_server_apply_cors(server, conn, mhd_resp_sse);
+
+    ret = MHD_queue_response(conn, MHD_HTTP_OK, mhd_resp_sse);
+    MHD_destroy_response(mhd_resp_sse);
+    /* The connection is left open: wf_sse_content_reader suspends it
+     * whenever the buffer is empty, and SSE sends resume it. */
+    goto cleanup;
+}
 
 cleanup:
     free(nsid);
@@ -2223,14 +2219,11 @@ cleanup:
 /* ------------------------------------------------------------------ */
 /* OPTIONS handler (CORS preflight)                                     */
 /* ------------------------------------------------------------------ */
-static enum MHD_Result wf_server_mhd_options(void *cls,
-                                              struct MHD_Connection *conn,
-                                              const char *url,
-                                              const char *method,
-                                              const char *version,
-                                              const char *upload_data,
-                                              size_t *upload_data_size,
-                                              void **con_cls) {
+static enum MHD_Result
+wf_server_mhd_options(void *cls, struct MHD_Connection *conn, const char *url,
+                      const char *method, const char *version,
+                      const char *upload_data, size_t *upload_data_size,
+                      void **con_cls) {
     wf_xrpc_server *server = (wf_xrpc_server *)cls;
     (void)url;
     (void)method;
@@ -2257,7 +2250,7 @@ static enum MHD_Result wf_server_mhd_options(void *cls,
 /* ------------------------------------------------------------------ */
 
 wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
-                                      unsigned int thread_count) {
+                                     unsigned int thread_count) {
     wf_xrpc_server *server;
 
     if (!address) {
@@ -2289,21 +2282,19 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
     server->daemon = MHD_start_daemon(
         MHD_USE_INTERNAL_POLLING_THREAD | MHD_ALLOW_SUSPEND_RESUME |
             MHD_ALLOW_UPGRADE,
-        port,
-        NULL, NULL,                       /* Accept policy */
-        &wf_server_mhd_handler, server,   /* Main handler */
-        MHD_OPTION_NOTIFY_COMPLETED, NULL, NULL,
-        MHD_OPTION_NOTIFY_CONNECTION, &wf_ws_notify_connection, server,
-        MHD_OPTION_EXTERNAL_LOGGER, NULL, NULL,
-        MHD_OPTION_END);
+        port, NULL, NULL,               /* Accept policy */
+        &wf_server_mhd_handler, server, /* Main handler */
+        MHD_OPTION_NOTIFY_COMPLETED, NULL, NULL, MHD_OPTION_NOTIFY_CONNECTION,
+        &wf_ws_notify_connection, server, MHD_OPTION_EXTERNAL_LOGGER, NULL,
+        NULL, MHD_OPTION_END);
     if (!server->daemon) {
         free(server);
         return NULL;
     }
 
     /* Query the bound port (in case port == 0) */
-    const union MHD_DaemonInfo *info = MHD_get_daemon_info(
-        server->daemon, MHD_DAEMON_INFO_BIND_PORT);
+    const union MHD_DaemonInfo *info =
+        MHD_get_daemon_info(server->daemon, MHD_DAEMON_INFO_BIND_PORT);
     if (info) {
         server->port = info->port;
     }
@@ -2458,8 +2449,7 @@ uint16_t wf_xrpc_server_port(const wf_xrpc_server *server) {
 wf_status wf_xrpc_server_own_ctx(wf_xrpc_server *server, void *ptr,
                                  void (*free_fn)(void *)) {
     if (!server || !ptr) return WF_ERR_INVALID_ARG;
-    struct wf_owned_ctx *node =
-        (struct wf_owned_ctx *)malloc(sizeof(*node));
+    struct wf_owned_ctx *node = (struct wf_owned_ctx *)malloc(sizeof(*node));
     if (!node) return WF_ERR_ALLOC;
     node->ptr = ptr;
     node->free_fn = free_fn;
@@ -2499,8 +2489,7 @@ wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
 }
 
 static wf_status wf_server_add_http_route(wf_xrpc_server *server,
-                                          const char *method,
-                                          const char *path,
+                                          const char *method, const char *path,
                                           bool prefix,
                                           wf_http_route_handler handler,
                                           void *ctx) {
@@ -2549,9 +2538,9 @@ wf_status wf_xrpc_server_register_http_prefix(wf_xrpc_server *server,
 /* ------------------------------------------------------------------ */
 
 wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
-                                         const char *nsid,
-                                         wf_xrpc_query_handler handler,
-                                         void *ctx) {
+                                        const char *nsid,
+                                        wf_xrpc_query_handler handler,
+                                        void *ctx) {
     wf_route *r;
 
     if (!server || !nsid || !handler) {
@@ -2575,9 +2564,9 @@ wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
 }
 
 wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
-                                             const char *nsid,
-                                             wf_xrpc_procedure_handler handler,
-                                             void *ctx) {
+                                            const char *nsid,
+                                            wf_xrpc_procedure_handler handler,
+                                            void *ctx) {
     wf_route *r;
 
     if (!server || !nsid || !handler) {
@@ -2604,10 +2593,8 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
    and frames are pushed with wf_xrpc_server_sse_send until closed with
    wf_xrpc_server_sse_close. A handler that sends a single frame and closes
    produces a single-shot SSE response. */
-wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
-                                       const char *nsid,
-                                       wf_xrpc_sse_handler handler,
-                                       void *ctx) {
+wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server, const char *nsid,
+                                      wf_xrpc_sse_handler handler, void *ctx) {
     wf_route *r;
     if (!server || !nsid || !handler) {
         return WF_ERR_INVALID_ARG;
@@ -2631,7 +2618,7 @@ wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
 }
 
 void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
-                              const char *origin) {
+                             const char *origin) {
     if (!server) {
         return;
     }
@@ -2649,7 +2636,7 @@ void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
 }
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
-                                        wf_xrpc_auth_cb cb, void *ctx) {
+                                      wf_xrpc_auth_cb cb, void *ctx) {
     if (!server) {
         return;
     }
@@ -2701,8 +2688,9 @@ static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
     }
 }
 
-static wf_rate_limiter *wf_server_find_route_rate_limiter(
-    wf_xrpc_server *server, const char *method, const char *url) {
+static wf_rate_limiter *
+wf_server_find_route_rate_limiter(wf_xrpc_server *server, const char *method,
+                                  const char *url) {
     if (!server || !method || !url) return NULL;
     char key[512];
     int n = snprintf(key, sizeof(key), "%s:%s", method, url);
@@ -2716,8 +2704,7 @@ static wf_rate_limiter *wf_server_find_route_rate_limiter(
 /* Add a per-route rate limiter (method+url)
    Transfers ownership of 'rl' to the server */
 wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
-                                           const char *method,
-                                           const char *url,
+                                           const char *method, const char *url,
                                            wf_rate_limiter *rl) {
     wf_rate_limit_entry *entry;
 
@@ -2752,8 +2739,7 @@ wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
 }
 
 void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
-                                           const char *method,
-                                           const char *url,
+                                           const char *method, const char *url,
                                            wf_rate_limiter *rl) {
     if (!server) return;
     if (wf_server_set_route_rate_limiter(server, method, url, rl) != WF_OK) {
@@ -2765,7 +2751,7 @@ void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
    server: the caller retains ownership and is responsible for freeing it
    (typically after the server is destroyed). Passing NULL detaches it. */
 void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
-                                      wf_rate_limiter *rl) {
+                                     wf_rate_limiter *rl) {
     if (!server) {
         return;
     }
@@ -2778,12 +2764,11 @@ void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
  * wf_xrpc_server_free. Passing NULL is a no-op.
  */
 void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
-                                            wf_rate_limiter *rl) {
+                                           wf_rate_limiter *rl) {
     if (!server || !rl) {
         return;
     }
-    if (server->rate_limiter_owned &&
-        server->rate_limiter_owned != rl) {
+    if (server->rate_limiter_owned && server->rate_limiter_owned != rl) {
         wf_rate_limiter_free(server->rate_limiter_owned);
     }
     server->rate_limiter_owned = rl;

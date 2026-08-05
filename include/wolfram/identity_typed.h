@@ -61,9 +61,9 @@ typedef struct wf_identity_service {
 typedef struct wf_identity_resolve_did {
     char *handle;
     wf_identity_verification_method *verification_methods;
-    size_t                          verification_method_count;
-    wf_identity_service            *services;
-    size_t                          service_count;
+    size_t verification_method_count;
+    wf_identity_service *services;
+    size_t service_count;
 } wf_identity_resolve_did;
 
 /* getRecommendedDidCredentials output: recommended rotation keys, alsoKnownAs,
@@ -73,8 +73,8 @@ typedef struct wf_identity_recommended_credentials {
     size_t rotation_key_count;
     char **also_known_as;
     size_t also_known_as_count;
-    char  *verification_methods_json;
-    char  *services_json;
+    char *verification_methods_json;
+    char *services_json;
 } wf_identity_recommended_credentials;
 
 /* signPlcOperation output: the signed PLC operation (owned JSON string). */
@@ -109,8 +109,9 @@ wf_status wf_identity_parse_get_recommended_did_credentials(
     wf_identity_recommended_credentials *out);
 
 /* Parse a signPlcOperation JSON body ("operation"). */
-wf_status wf_identity_parse_sign_plc_operation(
-    const char *json, size_t json_len, wf_identity_signed_operation *out);
+wf_status
+wf_identity_parse_sign_plc_operation(const char *json, size_t json_len,
+                                     wf_identity_signed_operation *out);
 
 /* Parse a resolveIdentity JSON body ("did", "handle", "didDoc"). */
 wf_status wf_identity_parse_resolve_identity(const char *json, size_t json_len,
@@ -137,7 +138,7 @@ void wf_identity_resolve_identity_free(wf_identity_resolve_identity *v);
  * handle, char**)` already exists in agent.h, so the owned-struct variant is
  * suffixed to avoid a symbol collision. */
 wf_status wf_agent_resolve_handle_typed(wf_agent *agent, const char *handle,
-                                       wf_identity_resolve_handle *out);
+                                        wf_identity_resolve_handle *out);
 
 /* did -> DID document fields (query). Note: a raw-JSON
  * `wf_agent_resolve_did(agent, did, wf_response*)` already exists in agent.h,
@@ -160,21 +161,21 @@ wf_status wf_agent_get_recommended_did_credentials_typed(
  * Note: a raw-JSON `wf_agent_request_plc_operation_signature(agent,
  * wf_response*)` already exists in agent.h, suffixed to avoid collision. */
 wf_status wf_agent_request_plc_operation_signature_typed(wf_agent *agent,
-                                                        const char *did);
+                                                         const char *did);
 
 /* Sign a PLC operation (procedure). All value arrays/JSON are optional. Note:
- * a raw-JSON `wf_agent_sign_plc_operation(agent, json..., wf_response*)` already
- * exists in agent.h, suffixed to avoid collision. */
+ * a raw-JSON `wf_agent_sign_plc_operation(agent, json..., wf_response*)`
+ * already exists in agent.h, suffixed to avoid collision. */
 wf_status wf_agent_sign_plc_operation_typed(
-    wf_agent *agent, const char *token,
-    const char *const *rotation_keys, size_t rotation_keys_count,
-    const char *const *also_known_as, size_t also_known_as_count,
-    const char *verification_methods_json, const char *services_json,
-    wf_identity_signed_operation *out);
+    wf_agent *agent, const char *token, const char *const *rotation_keys,
+    size_t rotation_keys_count, const char *const *also_known_as,
+    size_t also_known_as_count, const char *verification_methods_json,
+    const char *services_json, wf_identity_signed_operation *out);
 
 /* Submit a signed PLC operation (procedure). `operation_json` is the full
  * signed operation JSON. Note: a raw-JSON `wf_agent_submit_plc_operation(agent,
- * json, wf_response*)` already exists in agent.h, suffixed to avoid collision. */
+ * json, wf_response*)` already exists in agent.h, suffixed to avoid collision.
+ */
 wf_status wf_agent_submit_plc_operation_typed(wf_agent *agent,
                                               const char *operation_json);
 

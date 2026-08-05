@@ -65,7 +65,9 @@ void wf_platform_shutdown(void) {
  * on this platform, it is recursive for the owning thread, and it needs no
  * explicit destroy call.
  */
-struct wf_platform_mutex { OSMutex handle; };
+struct wf_platform_mutex {
+    OSMutex handle;
+};
 
 wf_platform_mutex *wf_platform_mutex_new(void) {
     wf_platform_mutex *mutex = calloc(1, sizeof(*mutex));
@@ -114,6 +116,6 @@ uint64_t wf_platform_time_micros(void) {
     const uint64_t seconds = ticks / ticks_per_second;
     const uint64_t remainder = ticks % ticks_per_second;
 
-    return (seconds + WF_WIIU_EPOCH_OFFSET_SECONDS) * 1000000ull
-           + (remainder * 1000000ull) / ticks_per_second;
+    return (seconds + WF_WIIU_EPOCH_OFFSET_SECONDS) * 1000000ull +
+           (remainder * 1000000ull) / ticks_per_second;
 }

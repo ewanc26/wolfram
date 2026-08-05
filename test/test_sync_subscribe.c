@@ -26,8 +26,7 @@ static void on_error(wf_status status, const char *msg, void *userdata) {
     (void)msg;
     (void)userdata;
     g_errored = 1;
-    if (g_handle_ptr && *g_handle_ptr)
-        wf_subscribe_stop(*g_handle_ptr);
+    if (g_handle_ptr && *g_handle_ptr) wf_subscribe_stop(*g_handle_ptr);
 }
 
 static void test_firehose_connect_and_receive(void) {

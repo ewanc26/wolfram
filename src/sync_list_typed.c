@@ -78,7 +78,8 @@ static wf_status wf_sync_parse_repo_ref(cJSON *obj, wf_sync_repo_ref *r) {
         r->has_active = true;
         r->active = cJSON_IsTrue(active);
     }
-    if (status == WF_OK && cJSON_IsString(status_node) && status_node->valuestring) {
+    if (status == WF_OK && cJSON_IsString(status_node) &&
+        status_node->valuestring) {
         r->has_status = true;
         status = wf_sync_set_string(&r->status, status_node->valuestring);
     }
@@ -95,8 +96,8 @@ static void wf_sync_repo_by_collection_reset(wf_sync_repo_by_collection *r) {
     memset(r, 0, sizeof(*r));
 }
 
-static wf_status wf_sync_parse_repo_by_collection(cJSON *obj,
-                                                 wf_sync_repo_by_collection *r) {
+static wf_status
+wf_sync_parse_repo_by_collection(cJSON *obj, wf_sync_repo_by_collection *r) {
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
     if (cJSON_IsString(did) && did->valuestring) {
@@ -120,7 +121,8 @@ static wf_status wf_sync_parse_host_obj(cJSON *obj, wf_sync_host *h) {
     wf_status status = WF_OK;
     cJSON *hostname = cJSON_GetObjectItemCaseSensitive(obj, "hostname");
     cJSON *seq = cJSON_GetObjectItemCaseSensitive(obj, "seq");
-    cJSON *account_count = cJSON_GetObjectItemCaseSensitive(obj, "accountCount");
+    cJSON *account_count =
+        cJSON_GetObjectItemCaseSensitive(obj, "accountCount");
     cJSON *status_node = cJSON_GetObjectItemCaseSensitive(obj, "status");
 
     if (cJSON_IsString(hostname) && hostname->valuestring) {
@@ -134,7 +136,8 @@ static wf_status wf_sync_parse_host_obj(cJSON *obj, wf_sync_host *h) {
         h->has_account_count = true;
         h->account_count = (int64_t)account_count->valuedouble;
     }
-    if (status == WF_OK && cJSON_IsString(status_node) && status_node->valuestring) {
+    if (status == WF_OK && cJSON_IsString(status_node) &&
+        status_node->valuestring) {
         h->has_status = true;
         status = wf_sync_set_string(&h->status, status_node->valuestring);
     }
@@ -249,8 +252,9 @@ wf_status wf_sync_parse_repo_list(const char *json, size_t json_len,
     return status;
 }
 
-wf_status wf_sync_parse_repo_by_collection_list(
-    const char *json, size_t json_len, wf_sync_repo_by_collection_list *out) {
+wf_status
+wf_sync_parse_repo_by_collection_list(const char *json, size_t json_len,
+                                      wf_sync_repo_by_collection_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -332,7 +336,8 @@ wf_status wf_sync_parse_blob_cid_list(const char *json, size_t json_len,
     }
 
     wf_status status = wf_sync_parse_string_array(
-        cJSON_GetObjectItemCaseSensitive(root, "cids"), &out->cids, &out->count);
+        cJSON_GetObjectItemCaseSensitive(root, "cids"), &out->cids,
+        &out->count);
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
@@ -538,9 +543,10 @@ wf_status wf_agent_list_repos_typed(wf_agent *agent, int limit,
     return status;
 }
 
-wf_status wf_agent_list_repos_by_collection_typed(
-    wf_agent *agent, const char *collection, int limit, const char *cursor,
-    wf_sync_repo_by_collection_list *out) {
+wf_status
+wf_agent_list_repos_by_collection_typed(wf_agent *agent, const char *collection,
+                                        int limit, const char *cursor,
+                                        wf_sync_repo_by_collection_list *out) {
     if (!agent || !agent->client || !collection || !collection[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -562,13 +568,15 @@ wf_status wf_agent_list_repos_by_collection_typed(
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_sync_list_repos_by_collection_main_call(
-        agent->client, &params, &res);
+    wf_status status =
+        wf_lex_com_atproto_sync_list_repos_by_collection_main_call(
+            agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
-    status = wf_sync_parse_repo_by_collection_list(res.body, res.body_len, &list);
+    status =
+        wf_sync_parse_repo_by_collection_list(res.body, res.body_len, &list);
     wf_response_free(&res);
     if (status == WF_OK) {
         *out = list;
@@ -682,7 +690,8 @@ wf_status wf_agent_get_host_status_typed(wf_agent *agent, const char *hostname,
     return status;
 }
 
-wf_status wf_agent_notify_of_update_typed(wf_agent *agent, const char *hostname) {
+wf_status wf_agent_notify_of_update_typed(wf_agent *agent,
+                                          const char *hostname) {
     if (!agent || !agent->client || !hostname || !hostname[0]) {
         return WF_ERR_INVALID_ARG;
     }

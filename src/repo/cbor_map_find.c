@@ -2,8 +2,8 @@
 
 #include <string.h>
 
-wf_cbor_item *wf_cbor_map_find(wf_cbor_item *item,
-                               const char *key, size_t key_len) {
+wf_cbor_item *wf_cbor_map_find(wf_cbor_item *item, const char *key,
+                               size_t key_len) {
     if (!item || item->type != WF_CBOR_MAP) return NULL;
     for (size_t i = 0; i < item->map.count; i++) {
         wf_cbor_item *k = item->map.pairs[i].key;

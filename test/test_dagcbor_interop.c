@@ -49,7 +49,10 @@ static wf_cbor_item *make_link(const char *cid_str) {
     item->type = WF_CBOR_LINK;
     item->bytes.len = cid.len;
     item->bytes.data = malloc(cid.len ? cid.len : 1);
-    if (!item->bytes.data) { free(item); return NULL; }
+    if (!item->bytes.data) {
+        free(item);
+        return NULL;
+    }
     memcpy(item->bytes.data, cid.bytes, cid.len);
     return item;
 }
@@ -73,26 +76,35 @@ static wf_cbor_item *cbor_from_json(const cJSON *j) {
     wf_cbor_item *item;
     if (cJSON_IsNull(j)) {
         item = new_item();
-        if (item) { item->type = WF_CBOR_SIMPLE; item->simple_value = 22; }
+        if (item) {
+            item->type = WF_CBOR_SIMPLE;
+            item->simple_value = 22;
+        }
         return item;
     }
     if (cJSON_IsBool(j)) {
         item = new_item();
-        if (item) { item->type = WF_CBOR_SIMPLE;
-                    item->simple_value = cJSON_IsTrue(j) ? 21 : 20; }
+        if (item) {
+            item->type = WF_CBOR_SIMPLE;
+            item->simple_value = cJSON_IsTrue(j) ? 21 : 20;
+        }
         return item;
     }
     if (cJSON_IsNumber(j)) {
         double d = j->valuedouble;
         if (d < 0) {
             item = new_item();
-            if (item) { item->type = WF_CBOR_NEGATIVE;
-                        item->neginteger = (uint64_t)(-d); }
+            if (item) {
+                item->type = WF_CBOR_NEGATIVE;
+                item->neginteger = (uint64_t)(-d);
+            }
             return item;
         }
         item = new_item();
-        if (item) { item->type = WF_CBOR_UNSIGNED;
-                    item->uinteger = (uint64_t)d; }
+        if (item) {
+            item->type = WF_CBOR_UNSIGNED;
+            item->uinteger = (uint64_t)d;
+        }
         return item;
     }
     if (cJSON_IsString(j)) {
@@ -101,7 +113,10 @@ static wf_cbor_item *cbor_from_json(const cJSON *j) {
             item->type = WF_CBOR_STRING;
             item->string.len = strlen(j->valuestring);
             item->string.str = malloc(item->string.len + 1);
-            if (!item->string.str) { free(item); return NULL; }
+            if (!item->string.str) {
+                free(item);
+                return NULL;
+            }
             memcpy(item->string.str, j->valuestring, item->string.len);
             item->string.str[item->string.len] = '\0';
         }
@@ -114,7 +129,10 @@ static wf_cbor_item *cbor_from_json(const cJSON *j) {
         item->type = WF_CBOR_ARRAY;
         item->children.count = n;
         item->children.items = calloc(n ? n : 1, sizeof(*item->children.items));
-        if (!item->children.items) { free(item); return NULL; }
+        if (!item->children.items) {
+            free(item);
+            return NULL;
+        }
         for (k = 0; k < n; k++)
             item->children.items[k] = cbor_from_json(cJSON_GetArrayItem(j, k));
         return item;
@@ -133,7 +151,10 @@ static wf_cbor_item *cbor_from_json(const cJSON *j) {
         item->type = WF_CBOR_MAP;
         item->map.count = n;
         item->map.pairs = calloc(n ? n : 1, sizeof(*item->map.pairs));
-        if (!item->map.pairs) { free(item); return NULL; }
+        if (!item->map.pairs) {
+            free(item);
+            return NULL;
+        }
         for (size_t k = 0; k < n; k++) {
             cJSON *pair = cJSON_GetArrayItem(j, k);
             wf_cbor_item *key = new_item();
@@ -141,7 +162,10 @@ static wf_cbor_item *cbor_from_json(const cJSON *j) {
             key->type = WF_CBOR_STRING;
             key->string.len = strlen(pair->string);
             key->string.str = malloc(key->string.len + 1);
-            if (!key->string.str) { free(key); return item; }
+            if (!key->string.str) {
+                free(key);
+                return item;
+            }
             memcpy(key->string.str, pair->string, key->string.len);
             key->string.str[key->string.len] = '\0';
             item->map.pairs[k].key = key;
@@ -171,15 +195,29 @@ static char *read_entire_file(const char *path, size_t *len_out) {
     char *buffer;
     if (len_out) *len_out = 0;
     if (!fp) return NULL;
-    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return NULL; }
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return NULL;
+    }
     size_long = ftell(fp);
-    if (size_long < 0) { fclose(fp); return NULL; }
-    if (fseek(fp, 0, SEEK_SET) != 0) { fclose(fp); return NULL; }
+    if (size_long < 0) {
+        fclose(fp);
+        return NULL;
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return NULL;
+    }
     size = (size_t)size_long;
     buffer = malloc(size + 1);
-    if (!buffer) { fclose(fp); return NULL; }
+    if (!buffer) {
+        fclose(fp);
+        return NULL;
+    }
     if (size > 0 && fread(buffer, 1, size, fp) != size) {
-        free(buffer); fclose(fp); return NULL;
+        free(buffer);
+        fclose(fp);
+        return NULL;
     }
     buffer[size] = '\0';
     fclose(fp);
@@ -189,7 +227,8 @@ static char *read_entire_file(const char *path, size_t *len_out) {
 
 int main(void) {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/dag-cbor-vectors.json", WF_TEST_FIXTURE_DIR);
+    snprintf(path, sizeof(path), "%s/dag-cbor-vectors.json",
+             WF_TEST_FIXTURE_DIR);
     char *json = read_entire_file(path, NULL);
     WF_CHECK(json != NULL);
     if (!json) WF_TEST_SUMMARY();
@@ -206,7 +245,10 @@ int main(void) {
         cJSON *jv = cJSON_GetObjectItemCaseSensitive(v, "json");
         cJSON *exp_cbor = cJSON_GetObjectItemCaseSensitive(v, "cbor");
         cJSON *exp_cid = cJSON_GetObjectItemCaseSensitive(v, "cid");
-        if (!name || !jv || !exp_cbor || !exp_cid) { WF_CHECK(0); continue; }
+        if (!name || !jv || !exp_cbor || !exp_cid) {
+            WF_CHECK(0);
+            continue;
+        }
 
         wf_cbor_item *tree = cbor_from_json(jv);
         WF_CHECK(tree != NULL);

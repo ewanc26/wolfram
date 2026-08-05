@@ -6,7 +6,7 @@
 /* ── LEB128 varint reader ─────────────────────────────────── */
 
 static uint64_t wf_read_varint(const unsigned char *data, size_t len,
-                                size_t *used) {
+                               size_t *used) {
     uint64_t value = 0;
     size_t i;
     for (i = 0; i < len && i < 10; i++) {
@@ -41,7 +41,10 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
     if (!hdr) return WF_ERR_INVALID_ARG;
     pos += (size_t)hdr_len;
 
-    if (hdr->type != WF_CBOR_MAP) { wf_cbor_free(hdr); return WF_ERR_INVALID_ARG; }
+    if (hdr->type != WF_CBOR_MAP) {
+        wf_cbor_free(hdr);
+        return WF_ERR_INVALID_ARG;
+    }
 
     int found_roots = 0;
     wf_cbor_item *roots_arr = NULL;
@@ -67,12 +70,18 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
         }
     }
 
-    if (!found_roots) { wf_cbor_free(hdr); return WF_ERR_INVALID_ARG; }
+    if (!found_roots) {
+        wf_cbor_free(hdr);
+        return WF_ERR_INVALID_ARG;
+    }
 
     out->root_count = roots_arr->children.count;
     if (out->root_count > 0) {
         out->roots = calloc(out->root_count, sizeof(wf_cid));
-        if (!out->roots) { wf_cbor_free(hdr); return WF_ERR_ALLOC; }
+        if (!out->roots) {
+            wf_cbor_free(hdr);
+            return WF_ERR_ALLOC;
+        }
     }
 
     for (size_t i = 0; i < out->root_count; i++) {
@@ -94,17 +103,29 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
 
     while (pos < len) {
         uint64_t section_len = wf_read_varint(data + pos, len - pos, &used);
-        if (used == 0) { wf_car_free(out); return WF_ERR_INVALID_ARG; }
+        if (used == 0) {
+            wf_car_free(out);
+            return WF_ERR_INVALID_ARG;
+        }
         pos += used;
-        if (pos + section_len > len) { wf_car_free(out); return WF_ERR_INVALID_ARG; }
+        if (pos + section_len > len) {
+            wf_car_free(out);
+            return WF_ERR_INVALID_ARG;
+        }
 
-        if (section_len < 36) { wf_car_free(out); return WF_ERR_INVALID_ARG; }
+        if (section_len < 36) {
+            wf_car_free(out);
+            return WF_ERR_INVALID_ARG;
+        }
 
         /* Reallocate block array */
         size_t new_count = out->block_count + 1;
-        wf_car_block *new_blocks = realloc(out->blocks,
-                                          new_count * sizeof(wf_car_block));
-        if (!new_blocks) { wf_car_free(out); return WF_ERR_ALLOC; }
+        wf_car_block *new_blocks =
+            realloc(out->blocks, new_count * sizeof(wf_car_block));
+        if (!new_blocks) {
+            wf_car_free(out);
+            return WF_ERR_ALLOC;
+        }
         out->blocks = new_blocks;
 
         wf_car_block *blk = &out->blocks[out->block_count];
@@ -116,7 +137,10 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
         blk->data_len = data_len;
         if (data_len > 0) {
             blk->data = malloc(data_len);
-            if (!blk->data) { wf_car_free(out); return WF_ERR_ALLOC; }
+            if (!blk->data) {
+                wf_car_free(out);
+                return WF_ERR_ALLOC;
+            }
             memcpy(blk->data, data + pos + 36, data_len);
         }
 
@@ -129,8 +153,7 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
 
 void wf_car_free(wf_car *car) {
     if (!car) return;
-    for (size_t i = 0; i < car->block_count; i++)
-        free(car->blocks[i].data);
+    for (size_t i = 0; i < car->block_count; i++) free(car->blocks[i].data);
     free(car->blocks);
     free(car->roots);
     car->roots = NULL;
@@ -150,8 +173,8 @@ wf_car_block *wf_car_find_block(wf_car *car, const wf_cid *cid) {
     return NULL;
 }
 
-wf_status wf_car_write(const wf_car *car,
-                        unsigned char **out, size_t *out_len) {
+wf_status wf_car_write(const wf_car *car, unsigned char **out,
+                       size_t *out_len) {
     if (!car || !out || !out_len) return WF_ERR_INVALID_ARG;
 
     *out = NULL;
@@ -167,7 +190,7 @@ wf_status wf_car_write(const wf_car *car,
     if (car->root_count <= 23) {
         hdr_cbor += 1;
     } else {
-        hdr_cbor += 2;  /* 0x98 + count */
+        hdr_cbor += 2; /* 0x98 + count */
     }
     /* tag(42) + bytes(37) + historical 0x00 prefix + CID */
     hdr_cbor += car->root_count * (4 + 1 + 36);
@@ -177,7 +200,10 @@ wf_status wf_car_write(const wf_car *car,
     /* ── Calculate header varint size ── */
     uint64_t hv = (uint64_t)hdr_cbor;
     size_t hdr_vint = 0;
-    do { hdr_vint++; hv >>= 7; } while (hv > 0);
+    do {
+        hdr_vint++;
+        hv >>= 7;
+    } while (hv > 0);
 
     /* ── Calculate total size ── */
     size_t total = hdr_vint + hdr_cbor;
@@ -185,7 +211,10 @@ wf_status wf_car_write(const wf_car *car,
         size_t blk_total = 36 + car->blocks[i].data_len;
         uint64_t bv = (uint64_t)blk_total;
         size_t blk_vint = 0;
-        do { blk_vint++; bv >>= 7; } while (bv > 0);
+        do {
+            blk_vint++;
+            bv >>= 7;
+        } while (bv > 0);
         total += blk_vint + blk_total;
     }
 
@@ -204,9 +233,10 @@ wf_status wf_car_write(const wf_car *car,
     } while (hv > 0);
 
     /* ── Write header CBOR ── */
-    *pos++ = 0xA2;                               /* map(2) */
-    *pos++ = 0x65;                                /* text(5) */
-    memcpy(pos, "roots", 5); pos += 5;
+    *pos++ = 0xA2; /* map(2) */
+    *pos++ = 0x65; /* text(5) */
+    memcpy(pos, "roots", 5);
+    pos += 5;
 
     if (car->root_count <= 23) {
         *pos++ = (unsigned char)(0x80 | car->root_count);
@@ -216,16 +246,19 @@ wf_status wf_car_write(const wf_car *car,
     }
 
     for (size_t i = 0; i < car->root_count; i++) {
-        *pos++ = 0xD8; *pos++ = 0x2A;            /* tag(42) */
-        *pos++ = 0x58; *pos++ = 0x25;            /* bytes(37) */
+        *pos++ = 0xD8;
+        *pos++ = 0x2A; /* tag(42) */
+        *pos++ = 0x58;
+        *pos++ = 0x25; /* bytes(37) */
         *pos++ = 0x00;
         memcpy(pos, car->roots[i].bytes, 36);
         pos += 36;
     }
 
-    *pos++ = 0x67;                                /* text(7) */
-    memcpy(pos, "version", 7); pos += 7;
-    *pos++ = 0x01;                                /* unsigned(1) */
+    *pos++ = 0x67; /* text(7) */
+    memcpy(pos, "version", 7);
+    pos += 7;
+    *pos++ = 0x01; /* unsigned(1) */
 
     /* ── Write blocks ── */
     for (size_t i = 0; i < car->block_count; i++) {

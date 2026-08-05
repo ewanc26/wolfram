@@ -34,11 +34,11 @@
 
 /* ── Global TLS state ───────────────────────────────────────────────── */
 
-static int               g_init       = 0;
+static int g_init = 0;
 static mbedtls_entropy_context g_entropy;
-static mbedtls_ctr_drbg_context  g_ctr;
-static mbedtls_x509_crt    g_ca;       /* trusted root store */
-static mbedtls_ssl_config  g_conf;     /* shared client config */
+static mbedtls_ctr_drbg_context g_ctr;
+static mbedtls_x509_crt g_ca;     /* trusted root store */
+static mbedtls_ssl_config g_conf; /* shared client config */
 
 /* ── Provisioned entropy source ─────────────────────────────────────── */
 
@@ -107,7 +107,8 @@ static int wii_tls_net_send(void *ctx, const unsigned char *buf, size_t len) {
     wii_tls_conn *c = (wii_tls_conn *)ctx;
     int ret = (int)net_send(c->fd, (const void *)buf, (int)len, 0);
     if (ret >= 0) return ret;
-    if (errno == EAGAIN || errno == EWOULDBLOCK) return MBEDTLS_ERR_SSL_WANT_WRITE;
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+        return MBEDTLS_ERR_SSL_WANT_WRITE;
     return MBEDTLS_ERR_NET_SEND_FAILED;
 }
 
@@ -115,7 +116,8 @@ static int wii_tls_net_recv(void *ctx, unsigned char *buf, size_t len) {
     wii_tls_conn *c = (wii_tls_conn *)ctx;
     int ret = (int)net_recv(c->fd, (void *)buf, (int)len, 0);
     if (ret >= 0) return ret;
-    if (errno == EAGAIN || errno == EWOULDBLOCK) return MBEDTLS_ERR_SSL_WANT_READ;
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+        return MBEDTLS_ERR_SSL_WANT_READ;
     return MBEDTLS_ERR_NET_RECV_FAILED;
 }
 
@@ -131,18 +133,17 @@ wf_status wii_tls_global_init(void) {
     mbedtls_ssl_config_init(&g_conf);
 
     /* Seed the DRBG from our Wii entropy source. */
-    int rc = mbedtls_entropy_add_source(&g_entropy, wii_entropy_poll, NULL,
-                                        64, MBEDTLS_ENTROPY_SOURCE_STRONG);
+    int rc = mbedtls_entropy_add_source(&g_entropy, wii_entropy_poll, NULL, 64,
+                                        MBEDTLS_ENTROPY_SOURCE_STRONG);
     if (rc != 0) return WF_ERR_CRYPTO;
 
     static const unsigned char pers[] = "wolfram-wii-xrpc";
-    rc = mbedtls_ctr_drbg_seed(&g_ctr, mbedtls_entropy_func, &g_entropy,
-                               pers, sizeof(pers) - 1);
+    rc = mbedtls_ctr_drbg_seed(&g_ctr, mbedtls_entropy_func, &g_entropy, pers,
+                               sizeof(pers) - 1);
     if (rc != 0) return WF_ERR_CRYPTO;
 
     /* Parse the bundled root CAs into the trust store. */
-    rc = mbedtls_x509_crt_parse(&g_ca,
-                                (const unsigned char *)WII_TLS_CA_BUNDLE,
+    rc = mbedtls_x509_crt_parse(&g_ca, (const unsigned char *)WII_TLS_CA_BUNDLE,
                                 sizeof(WII_TLS_CA_BUNDLE));
     /* A positive return is the number of certificates mbedTLS could not
      * parse; successfully parsed roots remain in the chain and are usable.
@@ -194,21 +195,24 @@ wii_tls_conn *wii_tls_connect(const char *host, uint16_t port) {
     }
 
     c->fd = net_socket(AF_INET, SOCK_STREAM, 0);
-    if (c->fd < 0) { free(c); return NULL; }
+    if (c->fd < 0) {
+        free(c);
+        return NULL;
+    }
 
     /* IOS networking can otherwise block forever on a weak or lost WiFi
      * connection. These timeouts bound each socket operation; the TLS loops
      * below also cap consecutive WANT_READ/WANT_WRITE retries. */
     struct timeval timeout = {10, 0};
-    (void)net_setsockopt(c->fd, SOL_SOCKET, SO_RCVTIMEO,
-                         &timeout, sizeof(timeout));
-    (void)net_setsockopt(c->fd, SOL_SOCKET, SO_SNDTIMEO,
-                         &timeout, sizeof(timeout));
+    (void)net_setsockopt(c->fd, SOL_SOCKET, SO_RCVTIMEO, &timeout,
+                         sizeof(timeout));
+    (void)net_setsockopt(c->fd, SOL_SOCKET, SO_SNDTIMEO, &timeout,
+                         sizeof(timeout));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port   = htons(port);
+    addr.sin_port = htons(port);
     memcpy(&addr.sin_addr, he->h_addr_list[0], (size_t)he->h_length);
 
     if (net_connect(c->fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
@@ -237,8 +241,9 @@ wii_tls_conn *wii_tls_connect(const char *host, uint16_t port) {
 
     int retries = 0;
     int rc = mbedtls_ssl_handshake(&c->ssl);
-    while ((rc == MBEDTLS_ERR_SSL_WANT_READ ||
-            rc == MBEDTLS_ERR_SSL_WANT_WRITE) && retries++ < 2) {
+    while (
+        (rc == MBEDTLS_ERR_SSL_WANT_READ || rc == MBEDTLS_ERR_SSL_WANT_WRITE) &&
+        retries++ < 2) {
         rc = mbedtls_ssl_handshake(&c->ssl);
     }
     if (rc != 0) {
@@ -267,7 +272,8 @@ long wii_tls_send(wii_tls_conn *c, const void *buf, size_t len) {
     while (sent < len) {
         int n = mbedtls_ssl_write(&c->ssl, p + sent, len - sent);
         if ((n == MBEDTLS_ERR_SSL_WANT_READ ||
-             n == MBEDTLS_ERR_SSL_WANT_WRITE) && retries++ < 2)
+             n == MBEDTLS_ERR_SSL_WANT_WRITE) &&
+            retries++ < 2)
             continue;
         if (n < 0) return -WF_ERR_NETWORK;
         retries = 0;
@@ -282,8 +288,9 @@ long wii_tls_recv(wii_tls_conn *c, void *buf, size_t cap) {
     int n;
     do {
         n = mbedtls_ssl_read(&c->ssl, (unsigned char *)buf, cap);
-    } while ((n == MBEDTLS_ERR_SSL_WANT_READ ||
-              n == MBEDTLS_ERR_SSL_WANT_WRITE) && retries++ < 2);
+    } while (
+        (n == MBEDTLS_ERR_SSL_WANT_READ || n == MBEDTLS_ERR_SSL_WANT_WRITE) &&
+        retries++ < 2);
     if (n > 0) return n;
     if (n == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY) return 0; /* clean EOF */
     return -WF_ERR_NETWORK;
@@ -304,7 +311,8 @@ int wii_tls_random(void *p, unsigned char *out, size_t len) {
     (void)p;
     if (g_rotation_pending) return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
     if (!g_init) {
-        if (wii_tls_global_init() != WF_OK) return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+        if (wii_tls_global_init() != WF_OK)
+            return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
     }
     return mbedtls_ctr_drbg_random(&g_ctr, out, len);
 }
@@ -317,7 +325,7 @@ int wii_tls_pending(wii_tls_conn *c) {
     if (mbedtls_ssl_get_bytes_avail(&c->ssl) > 0) return 1;
 
     fd_set rfds;
-    struct timeval tv = {0, 0};  /* zero-timeout poll, never blocks */
+    struct timeval tv = {0, 0}; /* zero-timeout poll, never blocks */
     FD_ZERO(&rfds);
     FD_SET(c->fd, &rfds);
     int rc = net_select(c->fd + 1, &rfds, NULL, NULL, &tv);

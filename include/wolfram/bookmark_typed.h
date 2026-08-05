@@ -33,16 +33,16 @@ extern "C" {
  * #notFoundPost, or #postView), kept as an owned detached cJSON subtree so the
  * parser stays bounded regardless of the view shape. */
 typedef struct wf_bookmark {
-    char *uri;          /* at-uri of the bookmarked record; NULL when absent */
-    char *created_at;   /* RFC 3339 datetime; NULL when absent */
-    cJSON *item;        /* owned #bookmarkView.item view; NULL when absent */
+    char *uri;        /* at-uri of the bookmarked record; NULL when absent */
+    char *created_at; /* RFC 3339 datetime; NULL when absent */
+    cJSON *item;      /* owned #bookmarkView.item view; NULL when absent */
 } wf_bookmark;
 
 /* The parsed getBookmarks response. */
 typedef struct wf_bookmark_list {
     wf_bookmark *items; /* owned array of `count` bookmarks; NULL when empty */
     size_t count;
-    char *cursor;       /* pagination cursor; NULL when absent */
+    char *cursor; /* pagination cursor; NULL when absent */
 } wf_bookmark_list;
 
 /* Parse a raw app.bsky.bookmark.getBookmarks JSON body into owned structs.
@@ -79,8 +79,9 @@ void wf_bookmark_create_result_free(wf_bookmark_create_result *out);
 
 /* ── deleteBookmark ──
  *
- * `app.bsky.bookmark.deleteBookmark` is a procedure taking `{uri}` and returning
- * an empty body on success; the owned result carries only an `ok` flag. */
+ * `app.bsky.bookmark.deleteBookmark` is a procedure taking `{uri}` and
+ * returning an empty body on success; the owned result carries only an `ok`
+ * flag. */
 typedef struct wf_bookmark_delete_result {
     bool ok; /* true when the server acknowledged the delete */
 } wf_bookmark_delete_result;
@@ -114,8 +115,8 @@ wf_status wf_agent_delete_bookmark(wf_agent *agent, const char *post_uri);
  * (<=0 uses the server default) and `cursor` (NULL/empty to start). Parses the
  * response body into `out`. */
 wf_status wf_agent_get_bookmarks_typed(wf_agent *agent, int limit,
-                                        const char *cursor,
-                                        wf_bookmark_list *out);
+                                       const char *cursor,
+                                       wf_bookmark_list *out);
 
 /* Create a private bookmark for the record at `uri` (an at-uri). On success
  * `*out` is set with `ok = true`; the cid is resolved internally via

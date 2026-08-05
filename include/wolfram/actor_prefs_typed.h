@@ -97,7 +97,8 @@ typedef struct wf_actor_pref_declared_age {
     bool over_18;
 } wf_actor_pref_declared_age;
 
-/* feedViewPref: { feed, hideReplies?, hideRepliesByUnfollowed?, ... } — multiple */
+/* feedViewPref: { feed, hideReplies?, hideRepliesByUnfollowed?, ... } —
+ * multiple */
 typedef struct wf_actor_pref_feed_view {
     char *feed;
     bool has_hide_replies;
@@ -144,7 +145,7 @@ typedef struct wf_actor_pref_bsky_app_state {
     char *active_progress_guide;
     char **queued_nudges;
     size_t queued_nudge_count;
-    cJSON *nuxs;          /* owned detached array of nux objects; NULL absent */
+    cJSON *nuxs; /* owned detached array of nux objects; NULL absent */
 } wf_actor_pref_bsky_app_state;
 
 /* labelersPref: { labelers[] } */
@@ -153,11 +154,12 @@ typedef struct wf_actor_pref_labelers {
     size_t labeler_count;
 } wf_actor_pref_labelers;
 
-/* postInteractionSettingsPref: { threadgateAllowRules[]?, postgateEmbeddingRules[]? }
- * Both are unions of other record shapes; kept as owned detached cJSON arrays. */
+/* postInteractionSettingsPref: { threadgateAllowRules[]?,
+ * postgateEmbeddingRules[]? } Both are unions of other record shapes; kept as
+ * owned detached cJSON arrays. */
 typedef struct wf_actor_pref_post_interaction_settings {
-    cJSON *threadgate_allow_rules;     /* owned array; NULL absent */
-    cJSON *postgate_embedding_rules;   /* owned array; NULL absent */
+    cJSON *threadgate_allow_rules;   /* owned array; NULL absent */
+    cJSON *postgate_embedding_rules; /* owned array; NULL absent */
 } wf_actor_pref_post_interaction_settings;
 
 /* verificationPrefs: { hideBadges? } */
@@ -201,14 +203,14 @@ typedef struct wf_actor_preferences {
     wf_actor_pref_post_interaction_settings post_interaction_settings;
     wf_actor_pref_verification verification;
     wf_actor_pref_live_events live_events;
-    cJSON *extra;          /* owned detached array of unknown raw pref objects */
+    cJSON *extra; /* owned detached array of unknown raw pref objects */
 } wf_actor_preferences;
 
 /* Parse a getPreferences body. Accepts either the full
  * {"preferences":[...]} envelope or a bare JSON array of preference objects.
- * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or a
- * missing/invalid shape, WF_ERR_ALLOC on allocation failure, WF_OK on success.
- * On any error `out` is left fully reset. */
+ * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or
+ * a missing/invalid shape, WF_ERR_ALLOC on allocation failure, WF_OK on
+ * success. On any error `out` is left fully reset. */
 wf_status wf_actor_parse_preferences(const char *json, size_t json_len,
                                      wf_actor_preferences *out);
 
@@ -235,7 +237,7 @@ typedef struct wf_actor_declaration {
     char *actor_type;
     char *since;
     char *password;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_actor_declaration;
 
 /* Parse an app.bsky.actor.declaration record JSON body. Same ownership/error
@@ -247,8 +249,9 @@ wf_status wf_actor_parse_declaration(const char *json, size_t json_len,
 void wf_actor_declaration_free(wf_actor_declaration *out);
 
 /* Build a declaration JSON object string from `decl`. On success `*out_json` is
- * owned by the caller and must be released with free(). Returns WF_ERR_INVALID_ARG
- * on NULL inputs, WF_ERR_ALLOC on allocation failure, WF_OK on success. */
+ * owned by the caller and must be released with free(). Returns
+ * WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_ALLOC on allocation failure, WF_OK
+ * on success. */
 wf_status wf_actor_build_declaration(const wf_actor_declaration *decl,
                                      char **out_json);
 
@@ -258,7 +261,8 @@ wf_status wf_actor_build_declaration(const wf_actor_declaration *decl,
 
 /* app.bsky.actor.getPreferences — fetch and parse the full preferences union.
  * NOTE: distinct from the existing wf_agent_get_preferences_typed in agent.h
- * (which returns the generated lex output); this is the richer typed variant. */
+ * (which returns the generated lex output); this is the richer typed variant.
+ */
 wf_status wf_agent_get_actor_prefs_typed(wf_agent *agent,
                                          wf_actor_preferences *out);
 
@@ -266,8 +270,8 @@ wf_status wf_agent_get_actor_prefs_typed(wf_agent *agent,
 wf_status wf_agent_put_actor_prefs_typed(wf_agent *agent,
                                          const wf_actor_preferences *prefs);
 
-/* app.bsky.actor.getSuggestions — actor profile views (+ cursor, recId/recIdStr).
- * Reuses wf_agent_actor_list from actor_typed.h. */
+/* app.bsky.actor.getSuggestions — actor profile views (+ cursor,
+ * recId/recIdStr). Reuses wf_agent_actor_list from actor_typed.h. */
 wf_status wf_agent_get_suggestions_typed(wf_agent *agent, int limit,
                                          const char *cursor,
                                          wf_agent_actor_list *out);

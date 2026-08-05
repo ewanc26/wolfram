@@ -6,18 +6,15 @@
 #include <string.h>
 
 wf_status wf_sync_verify_commit(const wf_subscribe_commit *commit,
-                                 wf_xrpc_client *client,
-                                 int *out_verified,
-                                 wf_commit *out_commit)
-{
+                                wf_xrpc_client *client, int *out_verified,
+                                wf_commit *out_commit) {
     if (!commit || !client || !out_verified || !out_commit)
         return WF_ERR_INVALID_ARG;
 
     *out_verified = 0;
     memset(out_commit, 0, sizeof(*out_commit));
 
-    if (!commit->blocks || commit->blocks_len == 0)
-        return WF_ERR_INVALID_ARG;
+    if (!commit->blocks || commit->blocks_len == 0) return WF_ERR_INVALID_ARG;
 
     /* Parse the CAR from the commit blocks */
     wf_car car;
@@ -42,8 +39,7 @@ wf_status wf_sync_verify_commit(const wf_subscribe_commit *commit,
     opts.signing_key = signing_key;
 
     s = wf_repo_verify(&car, &opts, out_commit);
-    if (s == WF_OK)
-        *out_verified = 1;
+    if (s == WF_OK) *out_verified = 1;
 
     free(signing_key);
     wf_car_free(&car);

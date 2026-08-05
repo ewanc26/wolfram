@@ -82,11 +82,14 @@ static wf_status fake_handler(void *ud, const char *method, const char *url,
             "{\"issuer\":\"https://auth.example\","
             "\"authorization_endpoint\":\"https://auth.example/authorize\","
             "\"token_endpoint\":\"https://auth.example/token\","
-            "\"pushed_authorization_request_endpoint\":\"https://auth.example/par\","
+            "\"pushed_authorization_request_endpoint\":\"https://auth.example/"
+            "par\","
             "\"response_types_supported\":[\"code\"],"
-            "\"grant_types_supported\":[\"authorization_code\",\"refresh_token\"],"
+            "\"grant_types_supported\":[\"authorization_code\",\"refresh_"
+            "token\"],"
             "\"code_challenge_methods_supported\":[\"S256\"],"
-            "\"token_endpoint_auth_methods_supported\":[\"none\",\"private_key_jwt\"],"
+            "\"token_endpoint_auth_methods_supported\":[\"none\",\"private_key_"
+            "jwt\"],"
             "\"token_endpoint_auth_signing_alg_values_supported\":[\"ES256\"],"
             "\"scopes_supported\":[\"atproto\"],"
             "\"dpop_signing_alg_values_supported\":[\"ES256\"],"
@@ -147,10 +150,12 @@ static void scenario_init(scenario *sc, fake_state *st) {
     sc->session.audience = strdup("https://pds.example");
     sc->session.access_token = strdup("OLDTOKEN");
     sc->session.refresh_token = strdup("refresh");
-    sc->session.expires_at = 2000000000; /* far future: not preemptively refreshed */
+    sc->session.expires_at =
+        2000000000; /* far future: not preemptively refreshed */
     sc->session.dpop_key = sc->key;
 
-    sc->ac = wf_auth_client_new(sc->client, &sc->session, &sc->server, &sc->auth);
+    sc->ac =
+        wf_auth_client_new(sc->client, &sc->session, &sc->server, &sc->auth);
 }
 
 static void scenario_free(scenario *sc) {
@@ -231,8 +236,8 @@ static void test_refresh_on_401_procedure(void) {
     scenario_init(&sc, &st);
 
     wf_response out = {0};
-    wf_status s = wf_auth_client_procedure(sc.ac, "com.atproto.repo.createRecord",
-                                          "{}", &out);
+    wf_status s = wf_auth_client_procedure(
+        sc.ac, "com.atproto.repo.createRecord", "{}", &out);
 
     WF_CHECK(s == WF_OK);
     WF_CHECK(st.resource_calls == 2);
