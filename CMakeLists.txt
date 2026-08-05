@@ -418,7 +418,20 @@ elseif(WOLFRAM_BUILD_3DS)
                                  src/openssl_compat.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_3DS)
   target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-  message(STATUS "Building for Nintendo 3DS (WOLFRAM_BUILD_3DS=ON)")
+  if(DEFINED ENV{DEVKITPRO})
+    set(DEVKITPRO "$ENV{DEVKITPRO}")
+  else()
+    set(DEVKITPRO /opt/devkitpro)
+  endif()
+  set(LIBCTRU "${DEVKITPRO}/libctru")
+  set(PORTLIBS "${DEVKITPRO}/portlibs/3ds")
+  target_include_directories(wolfram PRIVATE ${LIBCTRU}/include
+                                             ${PORTLIBS}/include)
+  target_link_libraries(wolfram PUBLIC ${LIBCTRU}/lib/libctru.a
+                                       ${PORTLIBS}/lib/libmbedtls.a
+                                       ${PORTLIBS}/lib/libmbedx509.a
+                                       ${PORTLIBS}/lib/libmbedcrypto.a)
+  message(STATUS "Building for Nintendo 3DS (WOLFRAM_BUILD_3DS=ON), libctru + mbedtls linked")
 elseif(WOLFRAM_BUILD_WINDOWS)
   target_sources(wolfram PRIVATE src/platform/windows_platform.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_WINDOWS)

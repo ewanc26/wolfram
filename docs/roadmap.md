@@ -139,7 +139,9 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     parsers + a record builder for status records/views following the
     labeler/actor ownership model. The `getActorStatus`/`getStatus`/`putStatus`
     agent wrappers are honest stubs (`WF_ERR_INVALID_ARG` + `TODO`) because the
-    local lexicon snapshot lacks generated bindings for those endpoints. Tested.
+    local lexicon snapshot lacks generated bindings for those endpoints.
+    Replace these stubs with real implementations in the next major 0.x.0
+    update when the upstream lexicon adds query/procedure defs. Tested.
  40. `tools.ozone.*` typed coverage (`ozone.h`/`ozone.c`) — initial batch of
      typed convenience wrappers for moderation (queryStatuses, getLabelDefs,
      emitEvent, queryEvents, getEvent, getReporterStats, getSubjects,
@@ -387,11 +389,10 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       The Wii platform primitives use libogc (`net_init`, LWP mutexes, and the
       timebase clock); Wii U platform primitives use wut (`socket_lib_init`,
       `OSMutex`, `OSGetTime`, divide-first tick conversion). Wii HTTPS
-      (mbedTLS, verified certificate chain, fail-closed entropy) and P-256/
-      did:key crypto are real; secp256k1 remains an honest stub on both
-      consoles — no libsecp256k1 port exists for either. 3DS platform,
-      transport, and crypto backends remain honest `WF_ERR_NOT_IMPLEMENTED`
-      stubs.
+      (mbedTLS, verified certificate chain, fail-closed entropy), P-256/
+      did:key crypto, and secp256k1 (did:key) crypto via mbedTLS are real.
+      3DS platform primitives (LightLock mutex, osGetTime clock, httpc
+      transport) and mbedtls-based P-256/did:key crypto are real.
 
   60. Wii WebSocket client (`src/transport/websocket_wii.c`) — a real RFC 6455
       implementation replacing the prior honest stub, built on `wii_tls`
@@ -559,17 +560,17 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   `wf_agent_put_notification_priority` transmits that exact schema.
 - Wii HTTPS and WebSocket, and Wii U platform/transport, are real and
   cross-build-verified (though unverified on physical hardware — see items 59
-  and 60). Remaining console gaps: secp256k1 on Wii/Wii U (no libsecp256k1
-  port for either — a hand-rolled implementation is off the table per this
-  project's crypto policy, so this stays an honest stub unless/until a port
-  appears), and the 3DS platform/transport/crypto backends, which are still
-  full `WF_ERR_NOT_IMPLEMENTED` stubs (devkitARM is not available in this
-  environment to verify a cross-build). See the `TODO` markers in
-  `src/platform/3ds_platform.c`.
+  and 60). Wii secp256k1 is now implemented via mbedTLS (which supports
+  secp256k1 natively). 3DS platform primitives (LightLock mutex, osGetTime
+  clock, httpc transport) and mbedtls-based P-256/did:key crypto are real.
+  Remaining gaps: 3DS transport (httpc-based HTTPS) and 3DS crypto
+  (mbedtls-based P-256 and secp256k1) need cross-build verification since
+  devkitARM is not available in this environment. See the `TODO` markers in
+  `src/platform/3ds_platform.c` and `src/crypto/crypto_3ds.c`.
 
 ## Dependencies
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
 - OpenSSL (libcrypto) — for SHA-256 hashing.
-- [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing. Without it, crypto functions gracefully stub to `WF_ERR_INVALID_ARG`.
+- [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing on desktop. Console targets use mbedTLS's built-in secp256k1 support instead.
