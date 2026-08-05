@@ -12346,6 +12346,64 @@ typedef struct wf_lex_tools_ozone_verification_revoke_verifications_revoke_error
 
 typedef wf_lex_tools_ozone_set_defs_set wf_lex_tools_ozone_set_upsert_set_main_input;
 
+typedef wf_lex_app_bsky_actor_defs_profile_view_detailed wf_lex_app_bsky_actor_get_profile_main_output;
+
+typedef wf_lex_app_bsky_ageassurance_defs_state wf_lex_app_bsky_ageassurance_begin_main_output;
+
+typedef wf_lex_app_bsky_ageassurance_defs_config wf_lex_app_bsky_ageassurance_get_config_main_output;
+
+typedef wf_lex_app_bsky_unspecced_defs_age_assurance_state wf_lex_app_bsky_unspecced_get_age_assurance_state_main_output;
+
+typedef wf_lex_app_bsky_unspecced_defs_age_assurance_state wf_lex_app_bsky_unspecced_init_age_assurance_main_output;
+
+typedef wf_lex_chat_bsky_convo_defs_deleted_message_view wf_lex_chat_bsky_convo_delete_message_for_self_main_output;
+
+typedef wf_lex_chat_bsky_convo_defs_message_view wf_lex_chat_bsky_convo_send_message_main_output;
+
+typedef wf_lex_com_atproto_admin_defs_account_view wf_lex_com_atproto_admin_get_account_info_main_output;
+
+typedef wf_lex_com_atproto_identity_defs_identity_info wf_lex_com_atproto_identity_refresh_identity_main_output;
+
+typedef wf_lex_com_atproto_identity_defs_identity_info wf_lex_com_atproto_identity_resolve_identity_main_output;
+
+typedef wf_lex_com_atproto_server_create_app_password_app_password wf_lex_com_atproto_server_create_app_password_main_output;
+
+typedef wf_lex_tools_ozone_communication_defs_template_view wf_lex_tools_ozone_communication_create_template_main_output;
+
+typedef wf_lex_tools_ozone_communication_defs_template_view wf_lex_tools_ozone_communication_update_template_main_output;
+
+typedef wf_lex_tools_ozone_moderation_cancel_scheduled_actions_cancellation_results wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_output;
+
+typedef wf_lex_tools_ozone_moderation_defs_mod_event_view wf_lex_tools_ozone_moderation_emit_event_main_output;
+
+typedef wf_lex_tools_ozone_moderation_defs_mod_event_view_detail wf_lex_tools_ozone_moderation_get_event_main_output;
+
+typedef wf_lex_tools_ozone_moderation_defs_record_view_detail wf_lex_tools_ozone_moderation_get_record_main_output;
+
+typedef wf_lex_tools_ozone_moderation_defs_repo_view_detail wf_lex_tools_ozone_moderation_get_repo_main_output;
+
+typedef wf_lex_tools_ozone_moderation_schedule_action_scheduled_action_results wf_lex_tools_ozone_moderation_schedule_action_main_output;
+
+typedef wf_lex_tools_ozone_queue_defs_assignment_view wf_lex_tools_ozone_queue_assign_moderator_main_output;
+
+typedef wf_lex_tools_ozone_report_defs_assignment_view wf_lex_tools_ozone_report_assign_moderator_main_output;
+
+typedef wf_lex_tools_ozone_report_defs_report_view wf_lex_tools_ozone_report_get_report_main_output;
+
+typedef wf_lex_tools_ozone_report_defs_assignment_view wf_lex_tools_ozone_report_unassign_moderator_main_output;
+
+typedef wf_lex_tools_ozone_safelink_defs_event wf_lex_tools_ozone_safelink_add_rule_main_output;
+
+typedef wf_lex_tools_ozone_safelink_defs_event wf_lex_tools_ozone_safelink_remove_rule_main_output;
+
+typedef wf_lex_tools_ozone_safelink_defs_event wf_lex_tools_ozone_safelink_update_rule_main_output;
+
+typedef wf_lex_tools_ozone_set_defs_set_view wf_lex_tools_ozone_set_upsert_set_main_output;
+
+typedef wf_lex_tools_ozone_team_defs_member wf_lex_tools_ozone_team_add_member_main_output;
+
+typedef wf_lex_tools_ozone_team_defs_member wf_lex_tools_ozone_team_update_member_main_output;
+
 /** Decode an owning output value; free it with the matching function. */
 wf_status wf_lex_app_bsky_actor_get_preferences_main_output_decode_json(
     const char *json, size_t length, wf_lex_app_bsky_actor_get_preferences_main_output **out_value);
@@ -12355,6 +12413,10 @@ wf_status wf_lex_app_bsky_actor_get_preferences_main_call(wf_xrpc_client *client
 wf_status wf_lex_app_bsky_actor_get_preferences_main_call_auth(wf_auth_client *client,
     const wf_lex_app_bsky_actor_get_preferences_main_params *params, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_actor_get_profile_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_actor_get_profile_main_output **out_value);
+void wf_lex_app_bsky_actor_get_profile_main_output_free(wf_lex_app_bsky_actor_get_profile_main_output *value);
 wf_status wf_lex_app_bsky_actor_get_profile_main_call(wf_xrpc_client *client,
     const wf_lex_app_bsky_actor_get_profile_main_params *params, wf_response *out);
 wf_status wf_lex_app_bsky_actor_get_profile_main_call_auth(wf_auth_client *client,
@@ -12409,11 +12471,19 @@ wf_status wf_lex_app_bsky_ageassurance_begin_main_input_encode_json(
     const wf_lex_app_bsky_ageassurance_begin_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_app_bsky_ageassurance_begin_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_ageassurance_begin_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_ageassurance_begin_main_output **out_value);
+void wf_lex_app_bsky_ageassurance_begin_main_output_free(wf_lex_app_bsky_ageassurance_begin_main_output *value);
 wf_status wf_lex_app_bsky_ageassurance_begin_main_call(wf_xrpc_client *client,
     const wf_lex_app_bsky_ageassurance_begin_main_input *input, wf_response *out);
 wf_status wf_lex_app_bsky_ageassurance_begin_main_call_auth(wf_auth_client *client,
     const wf_lex_app_bsky_ageassurance_begin_main_input *input, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_ageassurance_get_config_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_ageassurance_get_config_main_output **out_value);
+void wf_lex_app_bsky_ageassurance_get_config_main_output_free(wf_lex_app_bsky_ageassurance_get_config_main_output *value);
 wf_status wf_lex_app_bsky_ageassurance_get_config_main_call(wf_xrpc_client *client,
     wf_response *out);
 wf_status wf_lex_app_bsky_ageassurance_get_config_main_call_auth(wf_auth_client *client,
@@ -13098,6 +13168,10 @@ wf_status wf_lex_app_bsky_notification_update_seen_main_call(wf_xrpc_client *cli
 wf_status wf_lex_app_bsky_notification_update_seen_main_call_auth(wf_auth_client *client,
     const wf_lex_app_bsky_notification_update_seen_main_input *input, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_unspecced_get_age_assurance_state_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_unspecced_get_age_assurance_state_main_output **out_value);
+void wf_lex_app_bsky_unspecced_get_age_assurance_state_main_output_free(wf_lex_app_bsky_unspecced_get_age_assurance_state_main_output *value);
 wf_status wf_lex_app_bsky_unspecced_get_age_assurance_state_main_call(wf_xrpc_client *client,
     wf_response *out);
 wf_status wf_lex_app_bsky_unspecced_get_age_assurance_state_main_call_auth(wf_auth_client *client,
@@ -13332,6 +13406,10 @@ wf_status wf_lex_app_bsky_unspecced_init_age_assurance_main_input_encode_json(
     const wf_lex_app_bsky_unspecced_init_age_assurance_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_app_bsky_unspecced_init_age_assurance_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_unspecced_init_age_assurance_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_unspecced_init_age_assurance_main_output **out_value);
+void wf_lex_app_bsky_unspecced_init_age_assurance_main_output_free(wf_lex_app_bsky_unspecced_init_age_assurance_main_output *value);
 wf_status wf_lex_app_bsky_unspecced_init_age_assurance_main_call(wf_xrpc_client *client,
     const wf_lex_app_bsky_unspecced_init_age_assurance_main_input *input, wf_response *out);
 wf_status wf_lex_app_bsky_unspecced_init_age_assurance_main_call_auth(wf_auth_client *client,
@@ -13440,6 +13518,10 @@ wf_status wf_lex_chat_bsky_convo_delete_message_for_self_main_input_encode_json(
     const wf_lex_chat_bsky_convo_delete_message_for_self_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_chat_bsky_convo_delete_message_for_self_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_chat_bsky_convo_delete_message_for_self_main_output_decode_json(
+    const char *json, size_t length, wf_lex_chat_bsky_convo_delete_message_for_self_main_output **out_value);
+void wf_lex_chat_bsky_convo_delete_message_for_self_main_output_free(wf_lex_chat_bsky_convo_delete_message_for_self_main_output *value);
 wf_status wf_lex_chat_bsky_convo_delete_message_for_self_main_call(wf_xrpc_client *client,
     const wf_lex_chat_bsky_convo_delete_message_for_self_main_input *input, wf_response *out);
 wf_status wf_lex_chat_bsky_convo_delete_message_for_self_main_call_auth(wf_auth_client *client,
@@ -13582,6 +13664,10 @@ wf_status wf_lex_chat_bsky_convo_send_message_main_input_encode_json(
     const wf_lex_chat_bsky_convo_send_message_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_chat_bsky_convo_send_message_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_chat_bsky_convo_send_message_main_output_decode_json(
+    const char *json, size_t length, wf_lex_chat_bsky_convo_send_message_main_output **out_value);
+void wf_lex_chat_bsky_convo_send_message_main_output_free(wf_lex_chat_bsky_convo_send_message_main_output *value);
 wf_status wf_lex_chat_bsky_convo_send_message_main_call(wf_xrpc_client *client,
     const wf_lex_chat_bsky_convo_send_message_main_input *input, wf_response *out);
 wf_status wf_lex_chat_bsky_convo_send_message_main_call_auth(wf_auth_client *client,
@@ -13960,6 +14046,10 @@ wf_status wf_lex_com_atproto_admin_enable_account_invites_main_call(wf_xrpc_clie
 wf_status wf_lex_com_atproto_admin_enable_account_invites_main_call_auth(wf_auth_client *client,
     const wf_lex_com_atproto_admin_enable_account_invites_main_input *input, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_com_atproto_admin_get_account_info_main_output_decode_json(
+    const char *json, size_t length, wf_lex_com_atproto_admin_get_account_info_main_output **out_value);
+void wf_lex_com_atproto_admin_get_account_info_main_output_free(wf_lex_com_atproto_admin_get_account_info_main_output *value);
 wf_status wf_lex_com_atproto_admin_get_account_info_main_call(wf_xrpc_client *client,
     const wf_lex_com_atproto_admin_get_account_info_main_params *params, wf_response *out);
 wf_status wf_lex_com_atproto_admin_get_account_info_main_call_auth(wf_auth_client *client,
@@ -14076,6 +14166,10 @@ wf_status wf_lex_com_atproto_identity_refresh_identity_main_input_encode_json(
     const wf_lex_com_atproto_identity_refresh_identity_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_com_atproto_identity_refresh_identity_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_com_atproto_identity_refresh_identity_main_output_decode_json(
+    const char *json, size_t length, wf_lex_com_atproto_identity_refresh_identity_main_output **out_value);
+void wf_lex_com_atproto_identity_refresh_identity_main_output_free(wf_lex_com_atproto_identity_refresh_identity_main_output *value);
 wf_status wf_lex_com_atproto_identity_refresh_identity_main_call(wf_xrpc_client *client,
     const wf_lex_com_atproto_identity_refresh_identity_main_input *input, wf_response *out);
 wf_status wf_lex_com_atproto_identity_refresh_identity_main_call_auth(wf_auth_client *client,
@@ -14102,6 +14196,10 @@ wf_status wf_lex_com_atproto_identity_resolve_handle_main_call(wf_xrpc_client *c
 wf_status wf_lex_com_atproto_identity_resolve_handle_main_call_auth(wf_auth_client *client,
     const wf_lex_com_atproto_identity_resolve_handle_main_params *params, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_com_atproto_identity_resolve_identity_main_output_decode_json(
+    const char *json, size_t length, wf_lex_com_atproto_identity_resolve_identity_main_output **out_value);
+void wf_lex_com_atproto_identity_resolve_identity_main_output_free(wf_lex_com_atproto_identity_resolve_identity_main_output *value);
 wf_status wf_lex_com_atproto_identity_resolve_identity_main_call(wf_xrpc_client *client,
     const wf_lex_com_atproto_identity_resolve_identity_main_params *params, wf_response *out);
 wf_status wf_lex_com_atproto_identity_resolve_identity_main_call_auth(wf_auth_client *client,
@@ -14305,6 +14403,10 @@ wf_status wf_lex_com_atproto_server_create_app_password_main_input_encode_json(
     const wf_lex_com_atproto_server_create_app_password_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_com_atproto_server_create_app_password_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_com_atproto_server_create_app_password_main_output_decode_json(
+    const char *json, size_t length, wf_lex_com_atproto_server_create_app_password_main_output **out_value);
+void wf_lex_com_atproto_server_create_app_password_main_output_free(wf_lex_com_atproto_server_create_app_password_main_output *value);
 wf_status wf_lex_com_atproto_server_create_app_password_main_call(wf_xrpc_client *client,
     const wf_lex_com_atproto_server_create_app_password_main_input *input, wf_response *out);
 wf_status wf_lex_com_atproto_server_create_app_password_main_call_auth(wf_auth_client *client,
@@ -14679,6 +14781,10 @@ wf_status wf_lex_tools_ozone_communication_create_template_main_input_encode_jso
     const wf_lex_tools_ozone_communication_create_template_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_communication_create_template_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_communication_create_template_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_communication_create_template_main_output **out_value);
+void wf_lex_tools_ozone_communication_create_template_main_output_free(wf_lex_tools_ozone_communication_create_template_main_output *value);
 wf_status wf_lex_tools_ozone_communication_create_template_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_communication_create_template_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_communication_create_template_main_call_auth(wf_auth_client *client,
@@ -14706,6 +14812,10 @@ wf_status wf_lex_tools_ozone_communication_update_template_main_input_encode_jso
     const wf_lex_tools_ozone_communication_update_template_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_communication_update_template_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_communication_update_template_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_communication_update_template_main_output **out_value);
+void wf_lex_tools_ozone_communication_update_template_main_output_free(wf_lex_tools_ozone_communication_update_template_main_output *value);
 wf_status wf_lex_tools_ozone_communication_update_template_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_communication_update_template_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_communication_update_template_main_call_auth(wf_auth_client *client,
@@ -14724,6 +14834,10 @@ wf_status wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input_enco
     const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_output **out_value);
+void wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_output_free(wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_output *value);
 wf_status wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_call_auth(wf_auth_client *client,
@@ -14733,6 +14847,10 @@ wf_status wf_lex_tools_ozone_moderation_emit_event_main_input_encode_json(
     const wf_lex_tools_ozone_moderation_emit_event_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_moderation_emit_event_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_moderation_emit_event_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_moderation_emit_event_main_output **out_value);
+void wf_lex_tools_ozone_moderation_emit_event_main_output_free(wf_lex_tools_ozone_moderation_emit_event_main_output *value);
 wf_status wf_lex_tools_ozone_moderation_emit_event_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_moderation_emit_event_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_moderation_emit_event_main_call_auth(wf_auth_client *client,
@@ -14747,11 +14865,19 @@ wf_status wf_lex_tools_ozone_moderation_get_account_timeline_main_call(wf_xrpc_c
 wf_status wf_lex_tools_ozone_moderation_get_account_timeline_main_call_auth(wf_auth_client *client,
     const wf_lex_tools_ozone_moderation_get_account_timeline_main_params *params, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_moderation_get_event_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_moderation_get_event_main_output **out_value);
+void wf_lex_tools_ozone_moderation_get_event_main_output_free(wf_lex_tools_ozone_moderation_get_event_main_output *value);
 wf_status wf_lex_tools_ozone_moderation_get_event_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_moderation_get_event_main_params *params, wf_response *out);
 wf_status wf_lex_tools_ozone_moderation_get_event_main_call_auth(wf_auth_client *client,
     const wf_lex_tools_ozone_moderation_get_event_main_params *params, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_moderation_get_record_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_moderation_get_record_main_output **out_value);
+void wf_lex_tools_ozone_moderation_get_record_main_output_free(wf_lex_tools_ozone_moderation_get_record_main_output *value);
 wf_status wf_lex_tools_ozone_moderation_get_record_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_moderation_get_record_main_params *params, wf_response *out);
 wf_status wf_lex_tools_ozone_moderation_get_record_main_call_auth(wf_auth_client *client,
@@ -14766,6 +14892,10 @@ wf_status wf_lex_tools_ozone_moderation_get_records_main_call(wf_xrpc_client *cl
 wf_status wf_lex_tools_ozone_moderation_get_records_main_call_auth(wf_auth_client *client,
     const wf_lex_tools_ozone_moderation_get_records_main_params *params, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_moderation_get_repo_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_moderation_get_repo_main_output **out_value);
+void wf_lex_tools_ozone_moderation_get_repo_main_output_free(wf_lex_tools_ozone_moderation_get_repo_main_output *value);
 wf_status wf_lex_tools_ozone_moderation_get_repo_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_moderation_get_repo_main_params *params, wf_response *out);
 wf_status wf_lex_tools_ozone_moderation_get_repo_main_call_auth(wf_auth_client *client,
@@ -14833,6 +14963,10 @@ wf_status wf_lex_tools_ozone_moderation_schedule_action_main_input_encode_json(
     const wf_lex_tools_ozone_moderation_schedule_action_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_moderation_schedule_action_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_moderation_schedule_action_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_moderation_schedule_action_main_output **out_value);
+void wf_lex_tools_ozone_moderation_schedule_action_main_output_free(wf_lex_tools_ozone_moderation_schedule_action_main_output *value);
 wf_status wf_lex_tools_ozone_moderation_schedule_action_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_moderation_schedule_action_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_moderation_schedule_action_main_call_auth(wf_auth_client *client,
@@ -14851,6 +14985,10 @@ wf_status wf_lex_tools_ozone_queue_assign_moderator_main_input_encode_json(
     const wf_lex_tools_ozone_queue_assign_moderator_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_queue_assign_moderator_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_queue_assign_moderator_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_queue_assign_moderator_main_output **out_value);
+void wf_lex_tools_ozone_queue_assign_moderator_main_output_free(wf_lex_tools_ozone_queue_assign_moderator_main_output *value);
 wf_status wf_lex_tools_ozone_queue_assign_moderator_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_queue_assign_moderator_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_queue_assign_moderator_main_call_auth(wf_auth_client *client,
@@ -14939,6 +15077,10 @@ wf_status wf_lex_tools_ozone_report_assign_moderator_main_input_encode_json(
     const wf_lex_tools_ozone_report_assign_moderator_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_report_assign_moderator_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_report_assign_moderator_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_report_assign_moderator_main_output **out_value);
+void wf_lex_tools_ozone_report_assign_moderator_main_output_free(wf_lex_tools_ozone_report_assign_moderator_main_output *value);
 wf_status wf_lex_tools_ozone_report_assign_moderator_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_report_assign_moderator_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_report_assign_moderator_main_call_auth(wf_auth_client *client,
@@ -15006,6 +15148,10 @@ wf_status wf_lex_tools_ozone_report_get_live_stats_main_call(wf_xrpc_client *cli
 wf_status wf_lex_tools_ozone_report_get_live_stats_main_call_auth(wf_auth_client *client,
     const wf_lex_tools_ozone_report_get_live_stats_main_params *params, wf_response *out);
 
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_report_get_report_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_report_get_report_main_output **out_value);
+void wf_lex_tools_ozone_report_get_report_main_output_free(wf_lex_tools_ozone_report_get_report_main_output *value);
 wf_status wf_lex_tools_ozone_report_get_report_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_report_get_report_main_params *params, wf_response *out);
 wf_status wf_lex_tools_ozone_report_get_report_main_call_auth(wf_auth_client *client,
@@ -15068,6 +15214,10 @@ wf_status wf_lex_tools_ozone_report_unassign_moderator_main_input_encode_json(
     const wf_lex_tools_ozone_report_unassign_moderator_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_report_unassign_moderator_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_report_unassign_moderator_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_report_unassign_moderator_main_output **out_value);
+void wf_lex_tools_ozone_report_unassign_moderator_main_output_free(wf_lex_tools_ozone_report_unassign_moderator_main_output *value);
 wf_status wf_lex_tools_ozone_report_unassign_moderator_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_report_unassign_moderator_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_report_unassign_moderator_main_call_auth(wf_auth_client *client,
@@ -15077,6 +15227,10 @@ wf_status wf_lex_tools_ozone_safelink_add_rule_main_input_encode_json(
     const wf_lex_tools_ozone_safelink_add_rule_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_safelink_add_rule_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_safelink_add_rule_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_safelink_add_rule_main_output **out_value);
+void wf_lex_tools_ozone_safelink_add_rule_main_output_free(wf_lex_tools_ozone_safelink_add_rule_main_output *value);
 wf_status wf_lex_tools_ozone_safelink_add_rule_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_safelink_add_rule_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_safelink_add_rule_main_call_auth(wf_auth_client *client,
@@ -15112,6 +15266,10 @@ wf_status wf_lex_tools_ozone_safelink_remove_rule_main_input_encode_json(
     const wf_lex_tools_ozone_safelink_remove_rule_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_safelink_remove_rule_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_safelink_remove_rule_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_safelink_remove_rule_main_output **out_value);
+void wf_lex_tools_ozone_safelink_remove_rule_main_output_free(wf_lex_tools_ozone_safelink_remove_rule_main_output *value);
 wf_status wf_lex_tools_ozone_safelink_remove_rule_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_safelink_remove_rule_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_safelink_remove_rule_main_call_auth(wf_auth_client *client,
@@ -15121,6 +15279,10 @@ wf_status wf_lex_tools_ozone_safelink_update_rule_main_input_encode_json(
     const wf_lex_tools_ozone_safelink_update_rule_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_safelink_update_rule_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_safelink_update_rule_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_safelink_update_rule_main_output **out_value);
+void wf_lex_tools_ozone_safelink_update_rule_main_output_free(wf_lex_tools_ozone_safelink_update_rule_main_output *value);
 wf_status wf_lex_tools_ozone_safelink_update_rule_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_safelink_update_rule_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_safelink_update_rule_main_call_auth(wf_auth_client *client,
@@ -15188,6 +15350,10 @@ wf_status wf_lex_tools_ozone_set_upsert_set_main_input_encode_json(
     const wf_lex_tools_ozone_set_upsert_set_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_set_upsert_set_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_set_upsert_set_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_set_upsert_set_main_output **out_value);
+void wf_lex_tools_ozone_set_upsert_set_main_output_free(wf_lex_tools_ozone_set_upsert_set_main_output *value);
 wf_status wf_lex_tools_ozone_set_upsert_set_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_set_upsert_set_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_set_upsert_set_main_call_auth(wf_auth_client *client,
@@ -15259,6 +15425,10 @@ wf_status wf_lex_tools_ozone_team_add_member_main_input_encode_json(
     const wf_lex_tools_ozone_team_add_member_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_team_add_member_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_team_add_member_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_team_add_member_main_output **out_value);
+void wf_lex_tools_ozone_team_add_member_main_output_free(wf_lex_tools_ozone_team_add_member_main_output *value);
 wf_status wf_lex_tools_ozone_team_add_member_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_team_add_member_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_team_add_member_main_call_auth(wf_auth_client *client,
@@ -15286,6 +15456,10 @@ wf_status wf_lex_tools_ozone_team_update_member_main_input_encode_json(
     const wf_lex_tools_ozone_team_update_member_main_input *value, char **out_json);
 /** Free JSON returned by the matching encoder. */
 void wf_lex_tools_ozone_team_update_member_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_team_update_member_main_output_decode_json(
+    const char *json, size_t length, wf_lex_tools_ozone_team_update_member_main_output **out_value);
+void wf_lex_tools_ozone_team_update_member_main_output_free(wf_lex_tools_ozone_team_update_member_main_output *value);
 wf_status wf_lex_tools_ozone_team_update_member_main_call(wf_xrpc_client *client,
     const wf_lex_tools_ozone_team_update_member_main_input *input, wf_response *out);
 wf_status wf_lex_tools_ozone_team_update_member_main_call_auth(wf_auth_client *client,

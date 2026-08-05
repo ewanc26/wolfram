@@ -24,7 +24,9 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iostream>
+#include <map>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -430,6 +432,130 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
               << " endpoints\n";
 }
 
+// Issue #18: every callable endpoint whose output is actually JSON-object
+// shaped (an inline `object` schema, or a `ref` that resolves to one) must
+// have a matching `_output_decode_json` / `_output_free` pair in the
+// generated header — not just a raw `_call`/`_call_auth` wrapper. Endpoints
+// with no output schema (most `procedure`s that reply with an empty body)
+// or a non-JSON encoding (CAR/JSONL/arbitrary-blob downloads such as
+// `com.atproto.sync.getRepo` or `getBlob`) are excluded: there is no JSON
+// object for `wf_lexgen` to decode, and those already have dedicated
+// raw-bytes wrappers elsewhere (`sync_typed.h`, `blob.h`). This mirrors
+// `resolve_ref` in tools/wf_lexgen.cpp closely enough to catch the case
+// that motivated this test: a `ref`-typed output being silently skipped.
+static void test_output_decoders_cover_object_shaped_endpoints() {
+    std::string header = read_file(ROOT + "/include/wolfram/atproto_lex.h");
+
+    // Parse every bundled lexicon document up front so refs can be resolved
+    // across files, the same two-phase approach wf_lexgen.cpp's own
+    // resolve_ref relies on (a ref may point at a def in another document).
+    std::map<std::string, cJSON*> docs_by_nsid;
+    std::vector<cJSON*> owned;
+    for (const fs::directory_entry& entry :
+         fs::recursive_directory_iterator(ROOT + "/lexicons")) {
+        if (!entry.is_regular_file() || entry.path().extension().string() != ".json")
+            continue;
+        std::string text = read_file(entry.path());
+        cJSON* document = cJSON_Parse(text.c_str());
+        if (!document)
+            throw std::runtime_error("cannot parse " + entry.path().string());
+        owned.push_back(document);
+        cJSON* id_item = cJSON_GetObjectItemCaseSensitive(document, "id");
+        std::string nsid = (id_item && cJSON_IsString(id_item) && id_item->valuestring)
+                               ? id_item->valuestring
+                               : "";
+        docs_by_nsid[nsid] = document;
+    }
+
+    auto cleanup = [&]() {
+        for (cJSON* document : owned)
+            cJSON_Delete(document);
+    };
+
+    try {
+        auto schema_kind = [](cJSON* schema) -> std::string {
+            if (!schema)
+                return "";
+            cJSON* type_item = cJSON_GetObjectItemCaseSensitive(schema, "type");
+            return (type_item && cJSON_IsString(type_item) && type_item->valuestring)
+                       ? type_item->valuestring
+                       : "";
+        };
+
+        // Resolves a `ref` string ("#name" for the same document, or
+        // "nsid#name" / bare "nsid" for another) to its target def, mirroring
+        // wf_lexgen.cpp's own resolve_ref/ref_type helpers.
+        auto resolve_ref = [&](const std::string& nsid, const std::string& ref) -> cJSON* {
+            std::string target_nsid = nsid, def_name = "main";
+            if (!ref.empty() && ref[0] == '#') {
+                def_name = ref.substr(1);
+            } else {
+                size_t hash = ref.find('#');
+                if (hash != std::string::npos) {
+                    target_nsid = ref.substr(0, hash);
+                    def_name = ref.substr(hash + 1);
+                } else {
+                    target_nsid = ref;
+                }
+            }
+            auto doc_it = docs_by_nsid.find(target_nsid);
+            if (doc_it == docs_by_nsid.end())
+                return nullptr;
+            cJSON* defs = cJSON_GetObjectItemCaseSensitive(doc_it->second, "defs");
+            return defs ? cJSON_GetObjectItemCaseSensitive(defs, def_name.c_str()) : nullptr;
+        };
+
+        int expected_decoders = 0;
+        for (const auto& kv : docs_by_nsid) {
+            const std::string& nsid = kv.first;
+            cJSON* defs = cJSON_GetObjectItemCaseSensitive(kv.second, "defs");
+            if (!defs || !cJSON_IsObject(defs))
+                continue;
+            for (cJSON* def = defs->child; def; def = def->next) {
+                if (!def->string)
+                    continue;
+                cJSON* type_item = cJSON_GetObjectItemCaseSensitive(def, "type");
+                std::string kind = (type_item && cJSON_IsString(type_item) && type_item->valuestring)
+                                       ? type_item->valuestring
+                                       : "";
+                if (kind != "query" && kind != "procedure")
+                    continue;
+                cJSON* output = cJSON_GetObjectItemCaseSensitive(def, "output");
+                cJSON* schema = output ? cJSON_GetObjectItemCaseSensitive(output, "schema") : nullptr;
+                std::string stype = schema_kind(schema);
+                bool object_shaped = false;
+                if (stype == "object") {
+                    object_shaped = true;
+                } else if (stype == "ref") {
+                    cJSON* ref_item = cJSON_GetObjectItemCaseSensitive(schema, "ref");
+                    if (ref_item && cJSON_IsString(ref_item) && ref_item->valuestring) {
+                        cJSON* target = resolve_ref(nsid, ref_item->valuestring);
+                        if (target && schema_kind(target) == "object")
+                            object_shaped = true;
+                    }
+                }
+                if (!object_shaped)
+                    continue;
+                ++expected_decoders;
+                std::string symbol = type_name(nsid, def->string);
+                assert_contains(header, "wf_status " + symbol + "_output_decode_json(",
+                                "output decoder " + symbol);
+                assert_contains(header, "void " + symbol + "_output_free(",
+                                "output free " + symbol);
+            }
+        }
+        assert_true(expected_decoders == 260,
+                    "object-shaped output count is " + std::to_string(expected_decoders) +
+                        ", expected 260 (231 inline-object + 29 ref-to-object outputs)");
+        std::cout << "    object-shaped outputs covered by a decoder: " << expected_decoders
+                  << " endpoints\n";
+    } catch (...) {
+        cleanup();
+        throw;
+    }
+    cleanup();
+}
+
 static void test_generated_header_compiles_as_c11() {
     TempDir dir;
     fs::path header = dir.path / "generated.h";
@@ -764,6 +890,8 @@ int main() {
         {"output_is_deterministic", test_output_is_deterministic},
         {"generated_client_covers_bundled_endpoint_lexicons",
          test_generated_client_covers_bundled_endpoint_lexicons},
+        {"output_decoders_cover_object_shaped_endpoints",
+         test_output_decoders_cover_object_shaped_endpoints},
         {"generated_header_compiles_as_c11", test_generated_header_compiles_as_c11},
         {"union_array_cleanup_casts_away_borrowed_view_const",
          test_union_array_cleanup_casts_away_borrowed_view_const},
