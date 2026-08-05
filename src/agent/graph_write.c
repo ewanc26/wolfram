@@ -158,7 +158,7 @@ wf_status wf_agent_graph_mute_thread(wf_agent *agent, const char *root_uri) {
     wf_lex_app_bsky_graph_mute_thread_main_input in = {.root = root_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_mute_thread_main_call,
         &in);
 }
@@ -180,7 +180,7 @@ wf_status wf_agent_graph_unmute_thread(wf_agent *agent, const char *root_uri) {
     wf_lex_app_bsky_graph_unmute_thread_main_input in = {.root = root_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_unmute_thread_main_call,
         &in);
 }
@@ -203,7 +203,7 @@ wf_status wf_agent_graph_mute_actor_list(wf_agent *agent,
     wf_lex_app_bsky_graph_mute_actor_list_main_input in = {.list = list_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_mute_actor_list_main_call,
         &in);
 }
@@ -226,7 +226,7 @@ wf_status wf_agent_graph_unmute_actor_list(wf_agent *agent,
     wf_lex_app_bsky_graph_unmute_actor_list_main_input in = {.list = list_uri};
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_unmute_actor_list_main_call,
         &in);
 }

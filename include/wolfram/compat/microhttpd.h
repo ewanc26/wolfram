@@ -26,7 +26,7 @@ extern "C" {
 
 typedef int MHD_socket;
 #define MHD_INVALID_SOCKET (-1)
-#define MHD_SIZE_UNKNOWN ((uint64_t)-1LL)
+#define MHD_SIZE_UNKNOWN ((uint64_t) - 1LL)
 #define MHD_CONTENT_READER_END_OF_STREAM ((ssize_t) - 1)
 
 enum MHD_Result { MHD_NO = 0, MHD_YES = 1 };
