@@ -11,7 +11,7 @@
 
 # wolfram
 
-A primarily C SDK for the AT Protocol — a client-side, wire-level implementation of the
+A C/C++ SDK for the AT Protocol — a client-side, wire-level implementation of the
 protocol, not a port of the upstream `atproto` service backends.
 
 ![version](https://img.shields.io/github/v/release/ewanc26/wolfram?label=version)
