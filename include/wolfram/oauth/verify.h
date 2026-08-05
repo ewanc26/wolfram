@@ -32,6 +32,12 @@ extern "C" {
 /** Maximum acceptable age of a DPoP proof `iat` (seconds). */
 #define WF_OAUTH_DPOP_MAX_AGE 300
 
+/**
+ * Maximum acceptable age of an RFC 7523 client_assertion `iat` (seconds).
+ * Mirrors the reference PDS's CLIENT_ASSERTION_MAX_AGE (1 minute).
+ */
+#define WF_OAUTH_CLIENT_ASSERTION_MAX_AGE 60
+
 /** Clock-skew tolerance applied to `iat`/`exp` checks (seconds). */
 #define WF_OAUTH_CLOCK_SKEW 30
 
@@ -164,6 +170,56 @@ wf_status wf_oauth_verify_request(const char *authorization,
                                   const wf_oauth_trusted_keys *keys,
                                   wf_oauth_dpop_replay_cache *replay,
                                   wf_oauth_verified_token **out);
+
+/* ------------------------------------------------------------------ */
+/* RFC 7523 client assertion (private_key_jwt) verification           */
+/*                                                                     */
+/* The authorization-server side of `wf_oauth_client_assertion_create` */
+/* (wolfram/oauth/dpop.h): verifies a confidential client's JWT bearer */
+/* assertion presented to the token endpoint. The signing public key   */
+/* comes from the client's published metadata document (jwks), which   */
+/* the caller resolves and loads into a wf_oauth_trusted_keys set.     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A verified client assertion. All string fields are heap-owned and
+ * released by wf_oauth_client_assertion_verified_free. `client_id` is the
+ * identity the assertion authenticates (its `sub`/`iss`); `kid` is the
+ * signing key's id from the JWT header; `jti` the assertion's ID.
+ */
+typedef struct wf_oauth_client_assertion_verified {
+    char *client_id; /* owned */
+    char *kid;       /* owned */
+    char *jti;       /* owned */
+    int64_t exp;     /* 0 when absent */
+} wf_oauth_client_assertion_verified;
+
+/** Free a verified client assertion and all strings it owns. Safe with NULL. */
+void wf_oauth_client_assertion_verified_free(
+    wf_oauth_client_assertion_verified *assertion);
+
+/**
+ * Verify an RFC 7523 private_key_jwt client assertion.
+ *
+ * Checks (mirroring the reference oauth-provider's Client.authenticate):
+ * ES256 signature against one of `keys` (matched by the header `kid`, which
+ * is required), `alg` must be ES256, `iss` and `sub` must equal
+ * `expected_client_id`, `aud` must equal `expected_audience` (the issuer),
+ * `jti` required, `iat` present and no older than
+ * WF_OAUTH_CLIENT_ASSERTION_MAX_AGE (with clock skew), and `exp` (when
+ * present) not expired.
+ *
+ * On WF_OK, *out is heap-allocated and must be freed with
+ * wf_oauth_client_assertion_verified_free. Returns WF_ERR_PARSE on a bad
+ * signature or malformed JWT, WF_ERR_INVALID_ARG on a failed claim or
+ * non-ES256 algorithm.
+ */
+wf_status wf_oauth_verify_client_assertion(
+    const char *assertion,
+    const char *expected_client_id,
+    const char *expected_audience,
+    const wf_oauth_trusted_keys *keys,
+    wf_oauth_client_assertion_verified **out);
 
 #ifdef __cplusplus
 }

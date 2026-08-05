@@ -23,6 +23,15 @@ void wf_oauth_dpop_key_free(wf_oauth_dpop_key *key);
 wf_status wf_oauth_dpop_key_thumbprint(const wf_oauth_dpop_key *key,
                                        char thumbprint_out[44]);
 
+/**
+ * Derive the key's public JWK as a NUL-terminated JSON string
+ * ({"kty":"EC","crv":"P-256","x":"...","y":"..."}). `*out_jwk` is
+ * heap-owned and freed with wf_oauth_string_free. Useful for publishing the
+ * key in a client metadata document's `jwks` array.
+ */
+wf_status wf_oauth_dpop_jwk_json(const wf_oauth_dpop_key *key,
+                                 char **out_jwk);
+
 typedef struct wf_oauth_dpop_proof_options {
     const char *http_method;
     const char *http_uri;
