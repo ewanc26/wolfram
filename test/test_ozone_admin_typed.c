@@ -95,6 +95,35 @@ static char *build_search_repos_json(void) {
     return out;
 }
 
+/* Build a tools.ozone.moderation.getRecord body via cJSON. Its output.schema
+ * is a `ref` to tools.ozone.moderation.defs#recordViewDetail, so the JSON
+ * body IS the recordViewDetail object directly (no wrapper key) — required
+ * fields: uri, cid, value (unknown), blobs (array), indexedAt, moderation
+ * (#moderationDetail, no required fields of its own), repo (#repoView). */
+static char *build_get_record_json(void) {
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "uri",
+                            "at://did:plc:rec0000000000000000/app.bsky.feed.post/abc123");
+    cJSON_AddStringToObject(root, "cid",
+                            "bafyreirecordviewdetailcid0000000000000000000000000000");
+    cJSON_AddItemToObject(root, "value", cJSON_CreateObject());
+    cJSON_AddItemToObject(root, "blobs", cJSON_CreateArray());
+    cJSON_AddStringToObject(root, "indexedAt", "2026-01-01T00:00:00.000Z");
+    cJSON_AddItemToObject(root, "moderation", cJSON_CreateObject());
+
+    cJSON *repo = cJSON_CreateObject();
+    cJSON_AddStringToObject(repo, "did", "did:plc:rec0000000000000000000");
+    cJSON_AddStringToObject(repo, "handle", "rec.example.com");
+    cJSON_AddItemToObject(repo, "relatedRecords", cJSON_CreateArray());
+    cJSON_AddStringToObject(repo, "indexedAt", "2026-01-01T00:00:00.000Z");
+    cJSON_AddItemToObject(repo, "moderation", cJSON_CreateObject());
+    cJSON_AddItemToObject(root, "repo", repo);
+
+    char *out = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return out;
+}
+
 /* Build a tools.ozone.moderation.listScheduledActions body via cJSON. */
 static char *build_list_scheduled_actions_json(void) {
     cJSON *root = cJSON_CreateObject();
@@ -202,6 +231,27 @@ int main(void) {
         }
     }
 
+    /* ---- generated-decode path: getRecord (ref-typed output; #18/#17) ---- */
+    {
+        char *json = build_get_record_json();
+        WF_CHECK(json != NULL);
+        wf_lex_tools_ozone_moderation_get_record_main_output *out = NULL;
+        wf_status st =
+            wf_ozone_parse_moderation_getRecord(json, strlen(json), &out);
+        free(json);
+        WF_CHECK(st == WF_OK);
+        WF_CHECK(out != NULL);
+        if (out) {
+            WF_CHECK(out->uri != NULL &&
+                     strcmp(out->uri,
+                            "at://did:plc:rec0000000000000000/app.bsky.feed.post/abc123") == 0);
+            WF_CHECK(out->cid != NULL);
+            WF_CHECK(out->blobs.count == 0);
+            WF_CHECK(out->repo != NULL && out->repo->did != NULL);
+            wf_lex_tools_ozone_moderation_get_record_main_output_free(out);
+        }
+    }
+
     /* ---- generated-decode path: listScheduledActions ---- */
     {
         char *json = build_list_scheduled_actions_json();
@@ -240,6 +290,12 @@ int main(void) {
         wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *lo = NULL;
         WF_CHECK(wf_ozone_parse_moderation_listScheduledActions(NULL, 0, &lo) ==
                  WF_ERR_INVALID_ARG);
+
+        wf_lex_tools_ozone_moderation_get_record_main_output *gro = NULL;
+        WF_CHECK(wf_ozone_parse_moderation_getRecord(NULL, 0, &gro) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_parse_moderation_getRecord("{}", 2, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* ---- agent wrappers: NULL-argument validation (offline) ---- */
@@ -263,10 +319,11 @@ int main(void) {
 
         wf_response r = {0};
         wf_lex_tools_ozone_moderation_get_record_main_params grp = {0};
+        wf_lex_tools_ozone_moderation_get_record_main_output *gro2 = NULL;
         WF_CHECK(wf_ozone_moderation_getRecord(
-                     NULL, &grp, &r) == WF_ERR_INVALID_ARG);
+                     NULL, &grp, &gro2) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_ozone_moderation_getRecord(
-                     agent, NULL, &r) == WF_ERR_INVALID_ARG);
+                     agent, NULL, &gro2) == WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_get_repo_main_params grp2 = {0};
         WF_CHECK(wf_ozone_moderation_getRepo(

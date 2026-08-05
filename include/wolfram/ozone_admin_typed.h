@@ -20,8 +20,13 @@
  *   - moderation.getAccountTimeline (Q, owning output)
  *   - moderation.searchRepos (Q, owning output)
  *   - moderation.listScheduledActions (P, owning output)
- *   - moderation.getRecord  (QR, raw wf_response output)
- *   - moderation.getRepo    (QR, raw wf_response output)
+ *   - moderation.getRecord  (Q, owning output — its output.schema is a `ref`
+ *     to tools.ozone.moderation.defs#recordViewDetail; wf_lexgen only
+ *     generates a decoder for that shape as of the ref-output-decoder fix, so
+ *     this was QR/raw wf_response until then)
+ *   - moderation.getRepo    (QR, raw wf_response output — its output.schema
+ *     is also a `ref` to a def with an owning decoder now, but upgrading it
+ *     is not part of this pass; left as a follow-up)
  *   - moderation.cancelScheduledActions (PR, raw wf_response output)
  *   - moderation.scheduleAction (PR, raw wf_response output)
  *
@@ -91,7 +96,7 @@ extern "C" {
     X(moderation, getAccountTimeline, get_account_timeline, Q)            \
     X(moderation, searchRepos, search_repos, Q)                            \
     X(moderation, listScheduledActions, list_scheduled_actions, P)         \
-    X(moderation, getRecord, get_record, QR)                              \
+    X(moderation, getRecord, get_record, Q)                                \
     X(moderation, getRepo, get_repo, QR)                                    \
     X(moderation, cancelScheduledActions, cancel_scheduled_actions, PR)    \
     X(moderation, scheduleAction, schedule_action, PR)
