@@ -17,7 +17,6 @@
 #include "wolfram/plc.h"
 #include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
-#include "wolfram/version.h"
 
 #include <cJSON.h>
 #include <ctype.h>

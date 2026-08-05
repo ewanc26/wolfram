@@ -20,7 +20,6 @@
  */
 
 #include "wolfram/websocket.h"
-#include "wolfram/version.h"
 #include "wii_tls.h"
 
 #include <mbedtls/sha1.h>

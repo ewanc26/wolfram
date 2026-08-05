@@ -65,7 +65,6 @@
 #include "wolfram/oauth.h"
 #include "wolfram/server.h"
 #include "wolfram/syntax.h"
-#include "wolfram/version.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/thread_typed.h"
 #include "wolfram/feed_typed.h"
