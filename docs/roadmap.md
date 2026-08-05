@@ -470,6 +470,40 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       getProfiles` stays unwrapped by design (internal namespace, excluded
       from the reference codegen too).
 
+  63. Authenticated WebSocket connections (`websocket.h`/`.c`,
+      `websocket_wii.c`) — `wf_websocket_connect_with_headers(url, headers,
+      header_count, out)` sends extra HTTP header lines with the WS upgrade
+      request on both real backends (desktop libcurl via `CURLOPT_HTTPHEADER`;
+      Wii's hand-built RFC 6455 client splices them into the request text).
+      `wf_websocket_connect` is now defined in terms of it (NULL/0 headers),
+      so every existing caller is unaffected. Used to fix
+      `chat.bsky.moderation.subscribeModEvents`
+      (`chat_typed.h`/`.c`): this is a documented "private endpoint" requiring
+      moderator authentication, but the WS connection previously had no way
+      to carry a credential at all — `wf_chat_mod_events_options.access_token`
+      is now sent as `Authorization: Bearer <token>` on every (re)connect,
+      with `wf_agent_chat_subscribe_mod_events_typed` supplying the agent's
+      current session token via `wf_agent_get_session_data` (a session with
+      none connects unauthenticated, matching the prior behavior). This was
+      investigated for issue #19, which also claimed a missing `filter`
+      parameter and said the hand-rolled path should use "the generated
+      `_main_call`" — neither holds up: the bundled `subscribeModEvents`
+      lexicon (verified byte-identical to the upstream checkout) has no
+      `filter` parameter, only `cursor`, and `wf_lexgen` never generates a
+      `_main_call` for `subscription`-kind defs at all (only `query`/
+      `procedure`), matching `subscribeRepos` and `subscribeLabels`, which
+      hand-build their WS URLs the same way `subscribeModEvents` already did.
+      The requested offline frame-decode round-trip test also already existed
+      (`test_chat_modevents_sub.c`). Fixing the real gap (authentication)
+      surfaced a separate, unrelated pre-existing bug: `WOLFRAM_BUILD_SERVER`
+      was never defined as a compile macro for that test's target (the CMake
+      option only controlled which targets got built), so its Layer-2 e2e
+      round-trip had silently never compiled in, even with the option ON —
+      fixed alongside extending that e2e test to assert the server observes
+      the `Authorization` header for real. Verified with a devkitPPC
+      cross-build of both the Wii and Wii U targets (`powerpc-eabi-nm` shows
+      `wf_websocket_connect_with_headers` defined in both archives).
+
 ## Next planned work
 
 - `tools.ozone.moderation.getRepo` (`ozone_admin_typed.h`/`.c`) still returns
