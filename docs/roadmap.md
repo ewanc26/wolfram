@@ -414,6 +414,36 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       proves compile/link compatibility, not HTTP/TLS correctness on
       hardware — this has not run on real console hardware.
 
+  61. Typed output-decoder coverage for `ref`-shaped endpoint outputs
+      (`tools/wf_lexgen.cpp`) — `wf_lexgen` previously only cataloged a
+      query/procedure's output as decodable when its `output.schema` was an
+      inline `object`; 29 of 314 callable endpoints instead declare
+      `output.schema` as a `ref` to an object def defined elsewhere (e.g.
+      `tools.ozone.moderation.getRecord` → `tools.ozone.moderation.defs#recordViewDetail`,
+      `com.atproto.identity.resolveIdentity` → `com.atproto.identity.defs#identityInfo`,
+      `app.bsky.actor.getProfile` → `app.bsky.actor.defs#profileViewDetailed`),
+      and those silently got no `_output_decode_json`/`_output_free` pair —
+      callers had to hand-parse raw cJSON. New `output_object_type()` mirrors
+      the existing `json_input_alias_type()` pattern for ref-typed inputs:
+      for a ref resolving to an object def already in the object catalog,
+      `<base>_output` becomes a typedef alias onto that type (no duplicated
+      struct), and the generated decode/free functions delegate to the
+      referenced type's own `wf_lex_decode_*`/`wf_lex_clear_*`. Raises typed
+      output coverage from 231/314 to **260/314** callable endpoints.
+      `test_lexgen`'s new `output_decoders_cover_object_shaped_endpoints`
+      parses the full bundled lexicon corpus, resolves every callable
+      endpoint's output schema the same way the generator does, and asserts
+      the generated header declares a decoder/free pair for each of the 260
+      — regenerating without this fix would fail that test. The remaining
+      54 endpoints have no JSON output at all: 48 reply with an empty body
+      (most `procedure`s with no `output` schema at all), and 6 use a
+      non-JSON encoding for a raw byte/CAR/JSONL stream
+      (`com.atproto.sync.getRepo`/`getRecord`/`getBlocks`/`getCheckout`,
+      `com.atproto.sync.getBlob`, `chat.bsky.actor.exportAccountData`) that
+      already has a dedicated raw-bytes wrapper elsewhere (`sync_typed.h`,
+      `blob.h`) — there is no JSON object for a decoder to produce, so this
+      is a structural floor, not a remaining gap.
+
 ## Next planned work
 
 - Exercise the gated live example test (`test_examples_live`) in CI with real
@@ -427,7 +457,10 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   symbol or `WF_LEX_..._NSID` constant for every one of them is referenced by
   application code somewhere outside that codegen file itself — verified by
   deriving each endpoint's expected symbol name from its NSID and grepping
-  the whole tree, not by sampling.
+  the whole tree, not by sampling. This is raw-call coverage (every endpoint
+  is reachable); typed *output-decoder* coverage is the separate, narrower
+  concern tracked by item 61 above (260/314 — the rest have no JSON body to
+  decode).
 - Service-auth *verification* middleware for the XRPC server is landed
   (`wf_xrpc_server_set_auth_middleware`, `xrpc_server_auth.h`): it resolves the
   issuer's signing key from its DID document, enforces `aud`/`lxm` binding,
