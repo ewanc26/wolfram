@@ -128,15 +128,15 @@
             agent->client, params, out);                                    \
     }
 
-#define WF_OZONE_ADMIN_ENDPOINTS                                          \
-    X(moderation, getRecords, get_records, Q)                              \
-    X(moderation, getRepos, get_repos, Q)                                  \
-    X(moderation, getAccountTimeline, get_account_timeline, Q)            \
-    X(moderation, searchRepos, search_repos, Q)                            \
-    X(moderation, listScheduledActions, list_scheduled_actions, P)         \
-    X(moderation, getRecord, get_record, Q)                                \
-    X(moderation, getRepo, get_repo, QR)                                    \
-    X(moderation, cancelScheduledActions, cancel_scheduled_actions, PR)    \
+#define WF_OZONE_ADMIN_ENDPOINTS                                               \
+    X(moderation, getRecords, get_records, Q)                                  \
+    X(moderation, getRepos, get_repos, Q)                                      \
+    X(moderation, getAccountTimeline, get_account_timeline, Q)                 \
+    X(moderation, searchRepos, search_repos, Q)                                \
+    X(moderation, listScheduledActions, list_scheduled_actions, P)             \
+    X(moderation, getRecord, get_record, Q)                                    \
+    X(moderation, getRepo, get_repo, QR)                                       \
+    X(moderation, cancelScheduledActions, cancel_scheduled_actions, PR)        \
     X(moderation, scheduleAction, schedule_action, PR)
 
 #define X(ns, op, genop, kind) WF_OZONE_ADMIN_DEF_##kind(ns, op, genop)

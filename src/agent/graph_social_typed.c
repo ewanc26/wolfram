@@ -1183,8 +1183,8 @@ wf_status wf_agent_search_starter_packs_v2_typed(
     }
 
     wf_graph_search_starter_packs_v2_result result = {0};
-    status = wf_graph_parse_search_starter_packs_v2(res.body, res.body_len,
-                                                    &result);
+    status =
+        wf_graph_parse_search_starter_packs_v2(res.body, res.body_len, &result);
     wf_response_free(&res);
     if (status == WF_OK) {
         *out = result;

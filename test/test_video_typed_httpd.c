@@ -73,7 +73,8 @@ int main(void) {
     /* ---- getJobStatus: must route through the generated _main_call ---- */
     {
         wf_video_job_status out = {0};
-        wf_status st = wf_agent_video_get_job_status(agent, "httpd-job-1", &out);
+        wf_status st =
+            wf_agent_video_get_job_status(agent, "httpd-job-1", &out);
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
         WF_CHECK(last_nsid &&

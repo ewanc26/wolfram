@@ -38,7 +38,8 @@
     } while (0)
 
 int main(void) {
-    /* ---- report.closeReports: object output, all fields required (#17) ---- */
+    /* ---- report.closeReports: object output, all fields required (#17) ----
+     */
     {
         const char *json = "{\"closedCount\":3,\"reportIds\":[10,11,12]}";
         wf_lex_tools_ozone_report_close_reports_main_output *out = NULL;
@@ -240,12 +241,12 @@ int main(void) {
 
         wf_lex_tools_ozone_report_close_reports_main_input cri = {0};
         wf_lex_tools_ozone_report_close_reports_main_output *cro = NULL;
-        WF_CHECK(wf_ozone_report_closeReports(
-                     NULL, &cri, &cro) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_report_closeReports(
-                     agent, NULL, &cro) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_report_closeReports(
-                     agent, &cri, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_report_closeReports(NULL, &cri, &cro) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_report_closeReports(agent, NULL, &cro) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_report_closeReports(agent, &cri, NULL) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_agent_free(agent);
     }

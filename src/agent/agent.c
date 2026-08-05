@@ -3774,7 +3774,8 @@ wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
     }
 
     wf_agent_sync_auth(agent);
-    return wf_lex_app_bsky_video_get_upload_limits_main_call(agent->client, out);
+    return wf_lex_app_bsky_video_get_upload_limits_main_call(agent->client,
+                                                             out);
 }
 
 /* ── server wrappers ─────────────────────────────────────────────────── */

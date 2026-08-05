@@ -24,7 +24,11 @@
  *     the richer `wf_graph_list_view` (with creator / viewerState / labels)
  *     used by getListMutes and getListBlocks.
  *
- * Endpoints covered (verify each generated lex wrapper in atproto_lex.h):
+ * Endpoints covered (verify each generated lex wrapper in atproto_lex.h): see
+ * the table below, kept aligned as a lookup table rather than reflowed prose.
+ */
+
+/* clang-format off
  *   READ
  *     app.bsky.graph.getMutes                 -> moderation_typed (wf_agent_actor_list)
  *     app.bsky.graph.getBlocks                -> moderation_typed (wf_agent_actor_list)
@@ -53,6 +57,7 @@
  *     app.bsky.graph.muteActorList / unmuteActorList
  *     app.bsky.graph.blockActor / unblockActor           -> TODO (no wrapper)
  *     app.bsky.graph.blockActorList / unblockActorList    -> TODO (no wrapper)
+ * clang-format on
  */
 
 #ifndef WOLFRAM_GRAPH_SOCIAL_TYPED_H
@@ -233,7 +238,8 @@ wf_status wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
 
 /* Parse a JSON body containing "starterPacks" (starterPackView[]), optional
  * "cursor", and optional "hitsTotal" — the app.bsky.graph.searchStarterPacksV2
- * output shape. Same ownership/error rules as wf_graph_parse_starter_pack_views. */
+ * output shape. Same ownership/error rules as
+ * wf_graph_parse_starter_pack_views. */
 wf_status wf_graph_parse_search_starter_packs_v2(
     const char *json, size_t json_len,
     wf_graph_search_starter_packs_v2_result *out);
@@ -340,7 +346,8 @@ wf_status wf_agent_get_starter_packs_with_membership_typed(
  * (wf_agent_search_starter_packs_typed); this module reuses it rather than
  * redefining the symbol. */
 
-/* app.bsky.graph.searchStarterPacksV2 -> wf_graph_search_starter_packs_v2_result
+/* app.bsky.graph.searchStarterPacksV2 ->
+ * wf_graph_search_starter_packs_v2_result
  * ("starterPacks" + optional "cursor"/"hitsTotal"). `q` is required
  * (non-empty search query); `limit` <= 0 omits the limit parameter; `cursor`
  * may be NULL. Unlike v1 (starterPackViewBasic, reused from unspecced_typed.h

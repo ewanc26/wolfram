@@ -102,10 +102,11 @@ static char *build_search_repos_json(void) {
  * (#moderationDetail, no required fields of its own), repo (#repoView). */
 static char *build_get_record_json(void) {
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "uri",
-                            "at://did:plc:rec0000000000000000/app.bsky.feed.post/abc123");
-    cJSON_AddStringToObject(root, "cid",
-                            "bafyreirecordviewdetailcid0000000000000000000000000000");
+    cJSON_AddStringToObject(
+        root, "uri",
+        "at://did:plc:rec0000000000000000/app.bsky.feed.post/abc123");
+    cJSON_AddStringToObject(
+        root, "cid", "bafyreirecordviewdetailcid0000000000000000000000000000");
     cJSON_AddItemToObject(root, "value", cJSON_CreateObject());
     cJSON_AddItemToObject(root, "blobs", cJSON_CreateArray());
     cJSON_AddStringToObject(root, "indexedAt", "2026-01-01T00:00:00.000Z");
@@ -243,8 +244,8 @@ int main(void) {
         WF_CHECK(out != NULL);
         if (out) {
             WF_CHECK(out->uri != NULL &&
-                     strcmp(out->uri,
-                            "at://did:plc:rec0000000000000000/app.bsky.feed.post/abc123") == 0);
+                     strcmp(out->uri, "at://did:plc:rec0000000000000000/"
+                                      "app.bsky.feed.post/abc123") == 0);
             WF_CHECK(out->cid != NULL);
             WF_CHECK(out->blobs.count == 0);
             WF_CHECK(out->repo != NULL && out->repo->did != NULL);
@@ -320,10 +321,10 @@ int main(void) {
         wf_response r = {0};
         wf_lex_tools_ozone_moderation_get_record_main_params grp = {0};
         wf_lex_tools_ozone_moderation_get_record_main_output *gro2 = NULL;
-        WF_CHECK(wf_ozone_moderation_getRecord(
-                     NULL, &grp, &gro2) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_moderation_getRecord(
-                     agent, NULL, &gro2) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRecord(NULL, &grp, &gro2) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRecord(agent, NULL, &gro2) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_get_repo_main_params grp2 = {0};
         WF_CHECK(wf_ozone_moderation_getRepo(

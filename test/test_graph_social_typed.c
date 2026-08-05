@@ -274,8 +274,8 @@ int main(void) {
     {
         cJSON *root = cJSON_CreateObject();
         cJSON *packs = cJSON_AddArrayToObject(root, "starterPacks");
-        cJSON_AddItemToArray(packs, make_starter_pack_view("at://x/ssp/1",
-                                                           "Search Alpha"));
+        cJSON_AddItemToArray(
+            packs, make_starter_pack_view("at://x/ssp/1", "Search Alpha"));
         cJSON_AddStringToObject(root, "cursor", "ssp-cursor-1");
         cJSON_AddNumberToObject(root, "hitsTotal", 17);
         size_t len = 0;
