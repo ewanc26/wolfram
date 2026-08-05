@@ -196,8 +196,8 @@ add_library(
   cpp/wolfram/syntax.cpp
   # TID generation clock
   $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/platform/wii_tid.c,src/tid.c>
-  # Lexicon validation
-  $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/validate/validate.c>
+  # Lexicon validation (C++ with RAII for cJSON)
+  $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:cpp/wolfram/validate.cpp>
   # High-level agent API
   src/agent/agent.c
   src/agent/post.c
