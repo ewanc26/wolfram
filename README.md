@@ -198,11 +198,12 @@ additional architectures (`arm32.cmake`, `amd64.cmake`) are also provided
 under `.devdeps/`.
 
 The Wii platform implements libogc networking, LWP mutexes, monotonic timing,
-mbedTLS HTTPS with CA validation, and the P-256/did:key crypto needed by the
-client. It requires a unique externally provisioned entropy seed through
-`wf_wii_set_entropy_seed`. Wii WebSocket and secp256k1 support remain honest
-stubs. The 3DS platform, transport, and crypto backends remain stubbed. The
-Windows target is fully implemented against the Win32 API.
+mbedTLS HTTPS with CA validation, P-256/did:key crypto, and secp256k1
+(did:key) crypto via mbedTLS. It requires a unique externally provisioned
+entropy seed through `wf_wii_set_entropy_seed`. Wii WebSocket support remains
+an honest stub. The 3DS platform now has real libctru primitives (LightLock
+mutex, osGetTime clock, httpc transport) and mbedtls-based P-256/did:key
+crypto. The Windows target is fully implemented against the Win32 API.
 
 The Wii and 3DS builds are client-only: server modules, OAuth flows, and the
 desktop dependencies (libcurl, OpenSSL, pthreads) are excluded. The Wii U can
