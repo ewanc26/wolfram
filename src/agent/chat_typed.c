@@ -3878,6 +3878,8 @@ struct wf_chat_mod_events_handle {
     wf_websocket *socket;
     char *service_copy;
     char *cursor_copy;      /* initial cursor string (from opts.cursor) */
+    char
+        *token_copy; /* optional bearer access token (from opts.access_token) */
     int64_t last_seq;       /* highest seq observed on this stream */
     int have_seq;           /* whether last_seq is meaningful */
     uint32_t initial_retry_delay_ms;
@@ -3908,7 +3910,24 @@ static wf_status wf_chat_mod_open(wf_chat_mod_events_handle *h) {
     char *url = NULL;
     wf_status s = wf_chat_mod_events_build_url(h->opts.service, cursor, &url);
     if (s != WF_OK) return s;
-    s = wf_websocket_connect(url, &h->socket);
+
+    /* subscribeModEvents is a "private endpoint": attach the session's bearer
+     * token as an Authorization header on the upgrade request, the same way
+     * an authenticated XRPC call would carry it. No token (never logged in)
+     * connects unauthenticated, same as before this existed. */
+    if (h->token_copy && h->token_copy[0]) {
+        char auth_header[1024];
+        int n = snprintf(auth_header, sizeof(auth_header),
+                         "Authorization: Bearer %s", h->token_copy);
+        if (n < 0 || (size_t)n >= sizeof(auth_header)) {
+            free(url);
+            return WF_ERR_INVALID_ARG;
+        }
+        const char *headers[] = {auth_header};
+        s = wf_websocket_connect_with_headers(url, headers, 1, &h->socket);
+    } else {
+        s = wf_websocket_connect(url, &h->socket);
+    }
     free(url);
     return s;
 }
@@ -3976,9 +3995,20 @@ wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
         if (!h->cursor_copy) { free(h->service_copy); free(h); return WF_ERR_ALLOC; }
         h->opts.cursor = h->cursor_copy;
     }
+    if (opts->access_token && opts->access_token[0]) {
+        h->token_copy = wf_chat_strdup(opts->access_token);
+        if (!h->token_copy) {
+            free(h->cursor_copy);
+            free(h->service_copy);
+            free(h);
+            return WF_ERR_ALLOC;
+        }
+        h->opts.access_token = h->token_copy;
+    }
 
     wf_status status = wf_chat_mod_open(h);
     if (status != WF_OK) {
+        free(h->token_copy);
         free(h->cursor_copy);
         free(h->service_copy);
         free(h);
@@ -4034,6 +4064,7 @@ wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
 
     wf_websocket_free(h->socket);
     h->socket = NULL;
+    free(h->token_copy);
     free(h->cursor_copy);
     free(h->service_copy);
     free(h);
@@ -4060,15 +4091,25 @@ wf_status wf_agent_chat_subscribe_mod_events_typed(wf_agent *agent,
     char *base = wf_xrpc_get_base_url(cc);
     if (!base) return WF_ERR_ALLOC;
 
+    /* subscribeModEvents is a "private endpoint"; carry the agent's current
+     * bearer token onto the WS upgrade the same way an authenticated XRPC
+     * call would. A never-logged-in agent has no access_jwt, so this leaves
+     * the connection unauthenticated rather than fabricating a credential. */
+    wf_session_data session;
+    memset(&session, 0, sizeof(session));
+    wf_agent_get_session_data(agent, &session);
+
     wf_chat_mod_events_options opts = {0};
     opts.service = base;
     opts.cursor = cursor;
+    opts.access_token = session.access_jwt;
     opts.on_event = on_event;
     opts.on_error = on_error;
     opts.userdata = userdata;
 
     wf_chat_mod_events_handle *handle = NULL;
     wf_status s = wf_chat_mod_events_start(&opts, &handle);
+    wf_agent_session_data_free(&session);
     free(base);
     return s;
 }
