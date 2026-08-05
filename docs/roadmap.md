@@ -464,9 +464,9 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       inspection alone. `tools.ozone.set.deleteSet` and `.querySets` — named
       in the originating issue as missing — turned out to already be wired
       through the same X-macro table; verified rather than duplicated.
-      `tools.ozone.moderation.getRepo` has the identical ref-output shape as
-      `getRecord` and the same stale QR-vs-Q wrapper, left as a follow-up
-      since it wasn't part of this endpoint list. `internal.bsky.actor.
+       `tools.ozone.moderation.getRepo` has the identical ref-output shape as
+       `getRecord` and was upgraded from the stale QR-vs-Q wrapper to an owning
+       decoder alongside it. `internal.bsky.actor.
       getProfiles` stays unwrapped by design (internal namespace, excluded
       from the reference codegen too).
 
@@ -506,11 +506,6 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 
 ## Next planned work
 
-- `tools.ozone.moderation.getRepo` (`ozone_admin_typed.h`/`.c`) still returns
-  a raw `wf_response` even though its output.schema is a `ref` to an object
-  def that now has a generated decoder (the same shape and the same fix
-  `getRecord` got in item 62) — a small, low-risk follow-up upgrade from QR
-  to Q in the shared X-macro table.
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Continue evaluating upstream C libraries for server-side infrastructure
