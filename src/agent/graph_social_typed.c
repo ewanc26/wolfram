@@ -526,6 +526,95 @@ wf_status wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
     return status;
 }
 
+/* Parse app.bsky.graph.searchStarterPacksV2's output: "starterPacks"
+ * (starterPackView[], full shape — same per-item parser as
+ * wf_graph_parse_starter_pack_views), optional "cursor", and optional
+ * "hitsTotal". Same ownership/error rules as the sibling parsers above. */
+wf_status wf_graph_parse_search_starter_packs_v2(
+    const char *json, size_t json_len,
+    wf_graph_search_starter_packs_v2_result *out) {
+    if (!json || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    wf_status status = WF_OK;
+    cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "starterPacks");
+    if (!cJSON_IsArray(arr)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+
+    size_t count = (size_t)cJSON_GetArraySize(arr);
+    wf_graph_starter_pack_view *items = NULL;
+    cJSON **ptrs = NULL;
+    if (count > 0) {
+        items = (wf_graph_starter_pack_view *)calloc(count, sizeof(*items));
+        ptrs = (cJSON **)calloc(count, sizeof(*ptrs));
+        if (!items || !ptrs) {
+            free(items);
+            free(ptrs);
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+        for (size_t i = 0; i < count; ++i) {
+            ptrs[i] = cJSON_GetArrayItem(arr, (int)i);
+        }
+    }
+
+    for (size_t i = 0; i < count && status == WF_OK; ++i) {
+        cJSON *obj = ptrs[i];
+        if (!cJSON_IsObject(obj)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        status = wf_graph_parse_starter_pack_view(obj, &items[i]);
+        if (status == WF_OK) {
+            items[i].extra = cJSON_DetachItemViaPointer(arr, obj);
+        }
+        if (status != WF_OK) {
+            wf_graph_starter_pack_view_reset(&items[i]);
+        }
+    }
+    free(ptrs);
+
+    if (status == WF_OK) {
+        cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
+        if (cJSON_IsString(cursor) && cursor->valuestring) {
+            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+        }
+    }
+    if (status == WF_OK) {
+        cJSON *hits = cJSON_GetObjectItemCaseSensitive(root, "hitsTotal");
+        if (cJSON_IsNumber(hits)) {
+            out->has_hits_total = true;
+            out->hits_total = (int64_t)hits->valuedouble;
+        }
+    }
+
+    if (status == WF_OK) {
+        out->packs = items;
+        out->pack_count = count;
+    } else {
+        for (size_t i = 0; i < count; ++i) {
+            wf_graph_starter_pack_view_reset(&items[i]);
+        }
+        free(items);
+        memset(out, 0, sizeof(*out));
+    }
+    cJSON_Delete(root);
+    return status;
+}
+
 /* ------------------------------------------------------------------ */
 /* listWithMembership / starterPackWithMembership                     */
 /* ------------------------------------------------------------------ */
@@ -785,6 +874,19 @@ void wf_graph_starter_pack_view_list_free(wf_graph_starter_pack_view_list *list)
     free(list->packs);
     free(list->s_cursor);
     memset(list, 0, sizeof(*list));
+}
+
+void wf_graph_search_starter_packs_v2_result_free(
+    wf_graph_search_starter_packs_v2_result *r) {
+    if (!r) {
+        return;
+    }
+    for (size_t i = 0; i < r->pack_count; ++i) {
+        wf_graph_starter_pack_view_reset(&r->packs[i]);
+    }
+    free(r->packs);
+    free(r->cursor);
+    memset(r, 0, sizeof(*r));
 }
 
 void wf_graph_list_membership_free(wf_graph_list_membership *m) {
@@ -1052,6 +1154,41 @@ wf_status wf_agent_get_starter_pack_typed(wf_agent *agent,
         memset(&list.packs[0], 0, sizeof(list.packs[0]));
     }
     wf_graph_starter_pack_view_list_free(&list);
+    return status;
+}
+
+wf_status wf_agent_search_starter_packs_v2_typed(
+    wf_agent *agent, const char *q, int limit, const char *cursor,
+    wf_graph_search_starter_packs_v2_result *out) {
+    if (!agent || !agent->client || !q || !q[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+
+    wf_lex_app_bsky_graph_search_starter_packs_v2_main_params params = {0};
+    params.q = q;
+    wf_graph_fill_limit_cursor(&limit, cursor, &params.has_limit, &params.limit,
+                               &params.has_cursor, &params.cursor);
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status = wf_lex_app_bsky_graph_search_starter_packs_v2_main_call(
+        agent->client, &params, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    wf_graph_search_starter_packs_v2_result result = {0};
+    status = wf_graph_parse_search_starter_packs_v2(res.body, res.body_len,
+                                                    &result);
+    wf_response_free(&res);
+    if (status == WF_OK) {
+        *out = result;
+    }
     return status;
 }
 
