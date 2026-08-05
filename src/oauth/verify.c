@@ -395,48 +395,24 @@ static wf_status dpop_thumbprint(const cJSON *jwk, char out_jkt[44]) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Bearer (access token) verification                                 */
+/* ES256 signature verification against a trusted-keys set            */
 /* ------------------------------------------------------------------ */
 
-wf_status wf_oauth_verify_bearer(const char *access_token,
-                                 const wf_oauth_trusted_keys *keys,
-                                 wf_oauth_verified_token **out) {
-    wf_jwt *j = NULL;
-    const cJSON *alg, *kid, *cnf, *jkt, *aud;
-    const char *alg_s, *kid_s = NULL;
-    unsigned char x[32], y[32];
+/* Verify the ES256 signature of parsed JWT `j` against one of `keys`,
+ * honouring the header `kid` when the trusted key advertises one (a kid-less
+ * key is an unconditional candidate). The signing input is the concatenated
+ * header.payload base64url segments. Returns WF_OK on a valid signature,
+ * WF_ERR_PARSE otherwise, WF_ERR_ALLOC on OOM. */
+static wf_status wf_jwt_verify_sig(const wf_jwt *j, const char *kid_s,
+                                   const wf_oauth_trusted_keys *keys) {
     char *signing_input = NULL;
+    unsigned char x[32], y[32];
     size_t silen;
-    int64_t now = (int64_t)time(NULL);
-    int64_t exp = 0;
-    int exp_present = 0, has_cnf = 0;
     wf_status status;
-    wf_oauth_verified_token *tok = NULL;
 
-    if (!access_token || !keys || !out) return WF_ERR_INVALID_ARG;
-    *out = NULL;
-    if (strchr(access_token, '.') == NULL) return WF_ERR_PARSE;
-
-    status = wf_jwt_parse(access_token, &j);
-    if (status != WF_OK) return status;
-
-    /* alg must be ES256. */
-    alg = cJSON_GetObjectItemCaseSensitive(j->header, "alg");
-    if (!cJSON_IsString(alg) || (alg_s = alg->valuestring) == NULL) {
-        status = WF_ERR_PARSE;
-        goto done;
-    }
-    if (strcmp(alg_s, "ES256") != 0) {
-        status = WF_ERR_INVALID_ARG; /* reject "none" and other algs */
-        goto done;
-    }
-    kid = cJSON_GetObjectItemCaseSensitive(j->header, "kid");
-    if (cJSON_IsString(kid)) kid_s = kid->valuestring;
-
-    /* Verify signature against one of the trusted keys. */
     silen = strlen(j->header_b64) + 1 + strlen(j->payload_b64);
     signing_input = malloc(silen + 1);
-    if (!signing_input) { status = WF_ERR_ALLOC; goto done; }
+    if (!signing_input) return WF_ERR_ALLOC;
     snprintf(signing_input, silen + 1, "%s.%s", j->header_b64, j->payload_b64);
 
     status = WF_ERR_PARSE;
@@ -463,6 +439,47 @@ wf_status wf_oauth_verify_bearer(const char *access_token,
             break;
         }
     }
+    free(signing_input);
+    return status;
+}
+
+/* ------------------------------------------------------------------ */
+/* Bearer (access token) verification                                 */
+/* ------------------------------------------------------------------ */
+
+wf_status wf_oauth_verify_bearer(const char *access_token,
+                                 const wf_oauth_trusted_keys *keys,
+                                 wf_oauth_verified_token **out) {
+    wf_jwt *j = NULL;
+    const cJSON *alg, *kid, *cnf, *jkt, *aud;
+    const char *alg_s, *kid_s = NULL;
+    int64_t now = (int64_t)time(NULL);
+    int64_t exp = 0;
+    int exp_present = 0, has_cnf = 0;
+    wf_status status;
+    wf_oauth_verified_token *tok = NULL;
+
+    if (!access_token || !keys || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    if (strchr(access_token, '.') == NULL) return WF_ERR_PARSE;
+
+    status = wf_jwt_parse(access_token, &j);
+    if (status != WF_OK) return status;
+
+    /* alg must be ES256. */
+    alg = cJSON_GetObjectItemCaseSensitive(j->header, "alg");
+    if (!cJSON_IsString(alg) || (alg_s = alg->valuestring) == NULL) {
+        status = WF_ERR_PARSE;
+        goto done;
+    }
+    if (strcmp(alg_s, "ES256") != 0) {
+        status = WF_ERR_INVALID_ARG; /* reject "none" and other algs */
+        goto done;
+    }
+    kid = cJSON_GetObjectItemCaseSensitive(j->header, "kid");
+    if (cJSON_IsString(kid)) kid_s = kid->valuestring;
+
+    status = wf_jwt_verify_sig(j, kid_s, keys);
     if (status != WF_OK) goto done;
 
     /* exp check. */
@@ -511,7 +528,6 @@ wf_status wf_oauth_verify_bearer(const char *access_token,
     status = WF_OK;
 done:
     wf_jwt_free(j);
-    free(signing_input);
     wf_oauth_verified_token_free(tok);
     return status;
 }
@@ -753,4 +769,136 @@ wf_status wf_oauth_verify_request(const char *authorization,
     }
 
     return WF_ERR_INVALID_ARG; /* neither present */
+}
+
+/* ------------------------------------------------------------------ */
+/* RFC 7523 client assertion (private_key_jwt) verification            */
+/* ------------------------------------------------------------------ */
+
+void wf_oauth_client_assertion_verified_free(
+    wf_oauth_client_assertion_verified *assertion) {
+    if (!assertion) return;
+    free(assertion->client_id);
+    free(assertion->kid);
+    free(assertion->jti);
+    free(assertion);
+}
+
+/* True when the payload `aud` claim names `expected` (a single string, or an
+ * array that contains it). Mirrors jose's audience handling in the reference. */
+static int jwt_aud_matches(const cJSON *payload, const char *expected) {
+    const cJSON *aud = cJSON_GetObjectItemCaseSensitive(payload, "aud");
+    const cJSON *item;
+    if (cJSON_IsString(aud))
+        return strcmp(aud->valuestring, expected) == 0;
+    if (cJSON_IsArray(aud)) {
+        cJSON_ArrayForEach(item, aud) {
+            if (cJSON_IsString(item) &&
+                strcmp(item->valuestring, expected) == 0)
+                return 1;
+        }
+    }
+    return 0;
+}
+
+wf_status wf_oauth_verify_client_assertion(
+    const char *assertion, const char *expected_client_id,
+    const char *expected_audience, const wf_oauth_trusted_keys *keys,
+    wf_oauth_client_assertion_verified **out) {
+    wf_jwt *j = NULL;
+    const cJSON *alg, *kid, *iss, *sub, *jti;
+    const char *alg_s, *kid_s, *iss_s, *sub_s, *jti_s;
+    int64_t now = (int64_t)time(NULL);
+    int64_t iat = 0, exp = 0;
+    int iat_present = 0, exp_present = 0;
+    wf_status status;
+    wf_oauth_client_assertion_verified *outa = NULL;
+
+    if (!assertion || !expected_client_id || !expected_audience || !keys ||
+        !out)
+        return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    if (strchr(assertion, '.') == NULL) return WF_ERR_PARSE;
+
+    status = wf_jwt_parse(assertion, &j);
+    if (status != WF_OK) return status;
+
+    /* Header: alg must be ES256, kid required (the client binds the signing
+     * key via the kid; jose's remote JWKS set in the reference works the
+     * same way). */
+    alg = cJSON_GetObjectItemCaseSensitive(j->header, "alg");
+    if (!cJSON_IsString(alg) || (alg_s = alg->valuestring) == NULL ||
+        strcmp(alg_s, "ES256") != 0) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    kid = cJSON_GetObjectItemCaseSensitive(j->header, "kid");
+    if (!cJSON_IsString(kid) || (kid_s = kid->valuestring) == NULL ||
+        !*kid_s) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    status = wf_jwt_verify_sig(j, kid_s, keys);
+    if (status != WF_OK) goto done;
+
+    /* RFC 7523 section 3: iss and sub MUST be the client_id. */
+    iss = cJSON_GetObjectItemCaseSensitive(j->payload, "iss");
+    if (!cJSON_IsString(iss) || (iss_s = iss->valuestring) == NULL ||
+        strcmp(iss_s, expected_client_id) != 0) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    sub = cJSON_GetObjectItemCaseSensitive(j->payload, "sub");
+    if (!cJSON_IsString(sub) || (sub_s = sub->valuestring) == NULL ||
+        strcmp(sub_s, expected_client_id) != 0) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    /* aud MUST identify the authorization server; the client uses the
+     * issuer, matching the reference provider's audience check. */
+    if (!jwt_aud_matches(j->payload, expected_audience)) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    /* jti required (the reference's requiredClaims). */
+    jti = cJSON_GetObjectItemCaseSensitive(j->payload, "jti");
+    if (!cJSON_IsString(jti) || (jti_s = jti->valuestring) == NULL ||
+        !*jti_s) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    /* iat must be present and fresh (the reference enforces a 60s max age);
+     * exp, when present, must not have passed. */
+    status = json_int(j->payload, "iat", &iat, &iat_present);
+    if (status != WF_OK) goto done;
+    if (!iat_present) { status = WF_ERR_INVALID_ARG; goto done; }
+    if (iat > now + WF_OAUTH_CLOCK_SKEW ||
+        now - iat > WF_OAUTH_CLIENT_ASSERTION_MAX_AGE) {
+        status = WF_ERR_INVALID_ARG; /* iat outside freshness window */
+        goto done;
+    }
+    status = json_int(j->payload, "exp", &exp, &exp_present);
+    if (status != WF_OK) goto done;
+    if (exp_present && exp < now - WF_OAUTH_CLOCK_SKEW) {
+        status = WF_ERR_INVALID_ARG; /* expired */
+        goto done;
+    }
+
+    outa = calloc(1, sizeof(*outa));
+    if (!outa) { status = WF_ERR_ALLOC; goto done; }
+    outa->client_id = wf_strdup(expected_client_id);
+    outa->kid = wf_strdup(kid_s);
+    outa->jti = wf_strdup(jti_s);
+    if (!outa->client_id || !outa->kid || !outa->jti) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    outa->exp = exp;
+    *out = outa;
+    outa = NULL;
+    status = WF_OK;
+done:
+    wf_jwt_free(j);
+    wf_oauth_client_assertion_verified_free(outa);
+    return status;
 }
