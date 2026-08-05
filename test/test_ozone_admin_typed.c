@@ -126,6 +126,23 @@ static char *build_get_record_json(void) {
     return out;
 }
 
+/* Build a tools.ozone.moderation.getRepo body via cJSON. Its output.schema
+ * is a `ref` to tools.ozone.moderation.defs#repoView, so the JSON body IS
+ * the repoView object directly (no wrapper key) — required fields: did,
+ * handle, indexedAt, moderation, relatedRecords. */
+static char *build_get_repo_json(void) {
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "did", "did:plc:repo000000000000000000");
+    cJSON_AddStringToObject(root, "handle", "repo.example.com");
+    cJSON_AddItemToObject(root, "relatedRecords", cJSON_CreateArray());
+    cJSON_AddStringToObject(root, "indexedAt", "2026-01-01T00:00:00.000Z");
+    cJSON_AddItemToObject(root, "moderation", cJSON_CreateObject());
+
+    char *out = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return out;
+}
+
 /* Build a tools.ozone.moderation.listScheduledActions body via cJSON. */
 static char *build_list_scheduled_actions_json(void) {
     cJSON *root = cJSON_CreateObject();
@@ -259,6 +276,26 @@ int main(void) {
         }
     }
 
+    /* ---- generated-decode path: getRepo (ref-typed output) ---- */
+    {
+        char *json = build_get_repo_json();
+        WF_CHECK(json != NULL);
+        wf_lex_tools_ozone_moderation_get_repo_main_output *out = NULL;
+        wf_status st =
+            wf_ozone_parse_moderation_getRepo(json, strlen(json), &out);
+        free(json);
+        WF_CHECK(st == WF_OK);
+        WF_CHECK(out != NULL);
+        if (out) {
+            WF_CHECK(out->did != NULL &&
+                     strcmp(out->did, "did:plc:repo000000000000000000") == 0);
+            WF_CHECK(out->handle != NULL &&
+                     strcmp(out->handle, "repo.example.com") == 0);
+            WF_CHECK(out->related_records.count == 0);
+            wf_lex_tools_ozone_moderation_get_repo_main_output_free(out);
+        }
+    }
+
     /* ---- generated-decode path: listScheduledActions ---- */
     {
         char *json = build_list_scheduled_actions_json();
@@ -336,7 +373,10 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_get_repo_main_params grp2 = {0};
-        WF_CHECK(wf_ozone_moderation_getRepo(agent, &grp2, NULL) ==
+        wf_lex_tools_ozone_moderation_get_repo_main_output *gro = NULL;
+        WF_CHECK(wf_ozone_moderation_getRepo(NULL, &grp2, &gro) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_moderation_getRepo(agent, NULL, &gro) ==
                  WF_ERR_INVALID_ARG);
 
         wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output *lo =

@@ -24,9 +24,9 @@
  *     to tools.ozone.moderation.defs#recordViewDetail; wf_lexgen only
  *     generates a decoder for that shape as of the ref-output-decoder fix, so
  *     this was QR/raw wf_response until then)
- *   - moderation.getRepo    (QR, raw wf_response output — its output.schema
- *     is also a `ref` to a def with an owning decoder now, but upgrading it
- *     is not part of this pass; left as a follow-up)
+ *   - moderation.getRepo    (Q, owning output — its output.schema
+ *     is a `ref` to tools.ozone.moderation.defs#repoView, which now has a
+ *     generated decoder, so it uses the owning output pattern like getRecord)
  *   - moderation.cancelScheduledActions (PR, raw wf_response output)
  *   - moderation.scheduleAction (PR, raw wf_response output)
  *
@@ -57,37 +57,37 @@ extern "C" {
 /* ------------------------------------------------------------------ */
 
 /* Query with params, owning output decoder. */
-#define WF_OZONE_ADMIN_DECL_Q(ns, op, genop)                                \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,     \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);            \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
+#define WF_OZONE_ADMIN_DECL_Q(ns, op, genop)                                   \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,         \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);                \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
         wf_lex_tools_ozone_##ns##_##genop##_main_output **out);
 
 /* Procedure with input, owning output decoder. */
-#define WF_OZONE_ADMIN_DECL_P(ns, op, genop)                                \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,       \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);            \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
+#define WF_OZONE_ADMIN_DECL_P(ns, op, genop)                                   \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,           \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);                \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
         wf_lex_tools_ozone_##ns##_##genop##_main_output **out);
 
 /* Procedure with input, raw wf_response output. */
-#define WF_OZONE_ADMIN_DECL_PR(ns, op, genop)                               \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,       \
+#define WF_OZONE_ADMIN_DECL_PR(ns, op, genop)                                  \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,           \
         wf_response *out);
 
 /* Query with params, raw wf_response output. */
-#define WF_OZONE_ADMIN_DECL_QR(ns, op, genop)                               \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,     \
+#define WF_OZONE_ADMIN_DECL_QR(ns, op, genop)                                  \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,         \
         wf_response *out);
 
 #define WF_OZONE_ADMIN_ENDPOINTS                                               \
@@ -97,7 +97,7 @@ extern "C" {
     X(moderation, searchRepos, search_repos, Q)                                \
     X(moderation, listScheduledActions, list_scheduled_actions, P)             \
     X(moderation, getRecord, get_record, Q)                                    \
-    X(moderation, getRepo, get_repo, QR)                                       \
+    X(moderation, getRepo, get_repo, Q)                                        \
     X(moderation, cancelScheduledActions, cancel_scheduled_actions, PR)        \
     X(moderation, scheduleAction, schedule_action, PR)
 
