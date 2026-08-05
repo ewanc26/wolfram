@@ -18,7 +18,7 @@
 #define CHECK(cond)                                                            \
     do {                                                                       \
         if (!(cond)) {                                                         \
-            fprintf(stderr, "FAIL: %s (line %d)\n", #cond, __LINE__);         \
+            fprintf(stderr, "FAIL: %s (line %d)\n", #cond, __LINE__);          \
             return 1;                                                          \
         }                                                                      \
     } while (0)
@@ -26,9 +26,8 @@
 /* Build a sample emitEvent input and verify the serializer round-trips it
  * into valid JSON carrying the expected top-level keys. */
 static int test_emit_event_serialize(void) {
-    const char *subject_json =
-        "{\"$type\":\"com.atproto.admin.defs#repoRef\","
-        "\"did\":\"did:plc:subjectexample\"}";
+    const char *subject_json = "{\"$type\":\"com.atproto.admin.defs#repoRef\","
+                               "\"did\":\"did:plc:subjectexample\"}";
     const char *event_json =
         "{\"$type\":\"tools.ozone.moderation.defs#modEventLabel\","
         "\"createLabelVals\":[\"!warn\"],\"negateLabelVals\":[],"
@@ -49,10 +48,10 @@ static int test_emit_event_serialize(void) {
     CHECK(root != NULL);
     CHECK(cJSON_GetObjectItemCaseSensitive(root, "event") != NULL);
     CHECK(cJSON_GetObjectItemCaseSensitive(root, "subject") != NULL);
-    CHECK(cJSON_IsString(
-        cJSON_GetObjectItemCaseSensitive(root, "createdBy")));
-    CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(root, "createdBy")->valuestring,
-                 "did:plc:moderatorexample") == 0);
+    CHECK(cJSON_IsString(cJSON_GetObjectItemCaseSensitive(root, "createdBy")));
+    CHECK(
+        strcmp(cJSON_GetObjectItemCaseSensitive(root, "createdBy")->valuestring,
+               "did:plc:moderatorexample") == 0);
 
     cJSON_Delete(root);
     wf_ozone_emit_event_input_free(json);

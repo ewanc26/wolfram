@@ -20,8 +20,8 @@
  * intersectingBlocks / lagMillis — the lexicon is the source of truth.)
  *
  * Naming note: the JSON-endpoint structs are suffixed `_typed` only where
- * they would otherwise collide with the pre-existing wf_sync_repo_status_typed /
- * wf_sync_commit_info types in sync.h; the CAR-endpoint structs reuse the
+ * they would otherwise collide with the pre-existing wf_sync_repo_status_typed
+ * / wf_sync_commit_info types in sync.h; the CAR-endpoint structs reuse the
  * task's names (wf_sync_block / wf_sync_block_list / wf_sync_record) which
  * do not collide.
  *
@@ -47,10 +47,10 @@ extern "C" {
 /* ── com.atproto.sync.getRepoStatus ──────────────────────────────── */
 /* { did, active (bool, required), status? (string), rev? (string) }. */
 typedef struct wf_sync_repo_status_typed {
-    char *did;       /* owned; required */
-    int   active;    /* required boolean from "active" */
-    char *status;    /* owned; optional "status" (e.g. "deactivated") */
-    char *rev;       /* owned; optional repo rev (present when active) */
+    char *did;    /* owned; required */
+    int active;   /* required boolean from "active" */
+    char *status; /* owned; optional "status" (e.g. "deactivated") */
+    char *rev;    /* owned; optional repo rev (present when active) */
 } wf_sync_repo_status_typed;
 
 /* Parse a getRepoStatus JSON body into an owned struct. Returns
@@ -58,7 +58,7 @@ typedef struct wf_sync_repo_status_typed {
  * malformed or missing the required `did`/`active`, WF_ERR_ALLOC on
  * allocation failure, WF_OK on success. On any error `out` is reset. */
 wf_status wf_sync_repo_status_typed_parse(const char *json, size_t json_len,
-                                   wf_sync_repo_status_typed *out);
+                                          wf_sync_repo_status_typed *out);
 
 /* Free the owned contents of a parsed repo status (safe on a reset list). */
 void wf_sync_repo_status_typed_free(wf_sync_repo_status_typed *s);
@@ -66,14 +66,14 @@ void wf_sync_repo_status_typed_free(wf_sync_repo_status_typed *s);
 /* ── com.atproto.sync.getLatestCommit ────────────────────────────── */
 /* { cid, rev } — both required strings. */
 typedef struct wf_sync_latest_commit {
-    char *cid;       /* owned; required commit CID */
-    char *rev;       /* owned; required repo rev (TID) */
+    char *cid; /* owned; required commit CID */
+    char *rev; /* owned; required repo rev (TID) */
 } wf_sync_latest_commit;
 
 /* Parse a getLatestCommit JSON body. Same ownership/error rules as the
  * repo-status parser (required cid+rev; missing -> WF_ERR_PARSE). */
 wf_status wf_sync_latest_commit_parse(const char *json, size_t json_len,
-                                     wf_sync_latest_commit *out);
+                                      wf_sync_latest_commit *out);
 
 /* Free the owned contents of a parsed latest-commit (safe on reset). */
 void wf_sync_latest_commit_free(wf_sync_latest_commit *c);
@@ -85,7 +85,7 @@ void wf_sync_latest_commit_free(wf_sync_latest_commit *c);
  * owned struct name is suffixed `_typed` to avoid colliding with the
  * pre-existing wf_sync_head in sync.h. */
 typedef struct wf_sync_head_typed {
-    char *root;      /* owned; required head commit CID */
+    char *root; /* owned; required head commit CID */
 } wf_sync_head_typed;
 
 /* Parse a getHead JSON body ("root"). Same ownership/error rules as the
@@ -100,14 +100,14 @@ void wf_sync_head_typed_free(wf_sync_head_typed *h);
 /* ── com.atproto.sync.getBlocks ──────────────────────────────────── */
 /* CAR archive -> list of { cid (string), value (owned CBOR bytes) }. */
 typedef struct wf_sync_block {
-    char    *cid;       /* owned CID string (base32 CIDv1) */
-    uint8_t *value;     /* owned block bytes (CBOR) */
-    size_t   value_len; /* byte length of `value` */
+    char *cid;        /* owned CID string (base32 CIDv1) */
+    uint8_t *value;   /* owned block bytes (CBOR) */
+    size_t value_len; /* byte length of `value` */
 } wf_sync_block;
 
 typedef struct wf_sync_block_list {
     wf_sync_block *items;
-    size_t         count;
+    size_t count;
 } wf_sync_block_list;
 
 /* Parse a getBlocks CAR (raw bytes) into an owned list of blocks. Returns
@@ -115,8 +115,7 @@ typedef struct wf_sync_block_list {
  * WF_ERR_ALLOC on allocation failure, WF_OK on success. On error `out` is
  * reset. */
 wf_status wf_sync_block_list_parse_car(const unsigned char *car_bytes,
-                                      size_t len,
-                                      wf_sync_block_list *out);
+                                       size_t len, wf_sync_block_list *out);
 
 /* Free the owned contents of a parsed block list (safe on reset). */
 void wf_sync_block_list_free(wf_sync_block_list *list);
@@ -127,20 +126,18 @@ void wf_sync_block_list_free(wf_sync_block_list *list);
  * succeeds with `record_cbor == NULL` and `record_len == 0`, but `repo_rev`
  * is populated from the commit. */
 typedef struct wf_sync_record {
-    uint8_t *record_cbor;  /* owned record CBOR bytes (NULL if absent) */
-    size_t   record_len;    /* byte length of `record_cbor` */
-    char    *repo_rev;      /* owned repo rev (TID) from the commit */
+    uint8_t *record_cbor; /* owned record CBOR bytes (NULL if absent) */
+    size_t record_len;    /* byte length of `record_cbor` */
+    char *repo_rev;       /* owned repo rev (TID) from the commit */
 } wf_sync_record;
 
 /* Parse a getRecord CAR (raw bytes), extracting the record identified by
  * `collection`/`rkey`. Returns WF_ERR_INVALID_ARG on NULL inputs,
  * WF_ERR_PARSE on a malformed CAR or missing commit, WF_ERR_ALLOC on
  * allocation failure, WF_OK otherwise. On error `out` is reset. */
-wf_status wf_sync_record_parse_car(const unsigned char *car_bytes,
-                                  size_t len,
-                                  const char *collection,
-                                  const char *rkey,
-                                  wf_sync_record *out);
+wf_status wf_sync_record_parse_car(const unsigned char *car_bytes, size_t len,
+                                   const char *collection, const char *rkey,
+                                   wf_sync_record *out);
 
 /* Free the owned contents of a parsed record (safe on reset). */
 void wf_sync_record_free(wf_sync_record *r);
@@ -152,7 +149,7 @@ void wf_sync_record_free(wf_sync_record *r);
  * the caller and freed with the matching `_free`; on error it is reset. */
 
 wf_status wf_agent_get_repo_status_typed(wf_agent *agent, const char *did,
-                                        wf_sync_repo_status_typed *out);
+                                         wf_sync_repo_status_typed *out);
 
 wf_status wf_agent_get_latest_commit_typed(wf_agent *agent, const char *did,
                                            wf_sync_latest_commit *out);
@@ -164,12 +161,12 @@ wf_status wf_agent_get_head_typed(wf_agent *agent, const char *did,
                                   wf_sync_head_typed *out);
 
 wf_status wf_agent_sync_get_blocks_typed(wf_agent *agent, const char *did,
-                                     const char *const *cids, size_t n,
-                                     wf_sync_block_list *out);
+                                         const char *const *cids, size_t n,
+                                         wf_sync_block_list *out);
 
 wf_status wf_agent_sync_get_record_typed(wf_agent *agent, const char *did,
-                                     const char *collection, const char *rkey,
-                                     wf_sync_record *out);
+                                         const char *collection,
+                                         const char *rkey, wf_sync_record *out);
 
 /* com.atproto.sync.getBlob (query, params: did, cid). Returns the raw blob
  * bytes; on WF_OK the caller owns the buffer returned in *out_data (free with

@@ -25,27 +25,35 @@
 
 static const char *cause_type_str(wf_mod_cause_type t) {
     switch (t) {
-        case WF_MOD_CAUSE_BLOCKING:   return "blocking";
-        case WF_MOD_CAUSE_BLOCKED_BY: return "blockedBy";
-        case WF_MOD_CAUSE_BLOCK_OTHER:return "blockOther";
-        case WF_MOD_CAUSE_LABEL:      return "label";
-        case WF_MOD_CAUSE_MUTED:      return "muted";
-        case WF_MOD_CAUSE_MUTE_WORD:  return "muteWord";
-        case WF_MOD_CAUSE_HIDDEN:     return "hidden";
-        default:                      return "unknown";
+        case WF_MOD_CAUSE_BLOCKING:
+            return "blocking";
+        case WF_MOD_CAUSE_BLOCKED_BY:
+            return "blockedBy";
+        case WF_MOD_CAUSE_BLOCK_OTHER:
+            return "blockOther";
+        case WF_MOD_CAUSE_LABEL:
+            return "label";
+        case WF_MOD_CAUSE_MUTED:
+            return "muted";
+        case WF_MOD_CAUSE_MUTE_WORD:
+            return "muteWord";
+        case WF_MOD_CAUSE_HIDDEN:
+            return "hidden";
+        default:
+            return "unknown";
     }
 }
 
 static void print_ui(const char *label, const wf_mod_ui *ui) {
-    printf("  %s: filters=%zu blurs=%zu alerts=%zu informs=%zu%s\n",
-           label,
+    printf("  %s: filters=%zu blurs=%zu alerts=%zu informs=%zu%s\n", label,
            ui->filter_count, ui->blur_count, ui->alert_count, ui->inform_count,
            ui->no_override ? " (no-override)" : "");
 
     for (size_t i = 0; i < ui->blur_count; i++) {
         const wf_mod_cause *c = &ui->blurs[i];
         if (c->type == WF_MOD_CAUSE_LABEL && c->label.val) {
-            printf("    blur  [%s] %s\n", cause_type_str(c->type), c->label.val);
+            printf("    blur  [%s] %s\n", cause_type_str(c->type),
+                   c->label.val);
         } else {
             printf("    blur  [%s]\n", cause_type_str(c->type));
         }
@@ -53,7 +61,8 @@ static void print_ui(const char *label, const wf_mod_ui *ui) {
     for (size_t i = 0; i < ui->alert_count; i++) {
         const wf_mod_cause *c = &ui->alerts[i];
         if (c->type == WF_MOD_CAUSE_LABEL && c->label.val) {
-            printf("    alert [%s] %s\n", cause_type_str(c->type), c->label.val);
+            printf("    alert [%s] %s\n", cause_type_str(c->type),
+                   c->label.val);
         } else {
             printf("    alert [%s]\n", cause_type_str(c->type));
         }
@@ -65,13 +74,12 @@ static void print_ui(const char *label, const wf_mod_ui *ui) {
 }
 
 static void print_decision(const wf_mod_decision *d) {
-    printf("Decision: did=%s%s causes=%zu\n",
-           d->did ? d->did : "?",
+    printf("Decision: did=%s%s causes=%zu\n", d->did ? d->did : "?",
            d->is_me ? " (is_me)" : "", d->cause_count);
     for (size_t i = 0; i < d->cause_count; i++) {
         const wf_mod_cause *c = &d->causes[i];
-        printf("  cause[%zu] type=%s priority=%d downgraded=%d\n",
-               i, cause_type_str(c->type), c->priority, c->downgraded);
+        printf("  cause[%zu] type=%s priority=%d downgraded=%d\n", i,
+               cause_type_str(c->type), c->priority, c->downgraded);
     }
 
     wf_mod_ui ui;
@@ -99,9 +107,9 @@ int main(int argc, char **argv) {
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
-    const char *target      = argv[4];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
+    const char *target = argv[4];
 
     wf_agent *agent = wf_agent_new(service_url);
     if (!agent) {

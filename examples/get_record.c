@@ -44,8 +44,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    printf("Received %zu block(s), %zu root(s)\n",
-           car.block_count, car.root_count);
+    printf("Received %zu block(s), %zu root(s)\n", car.block_count,
+           car.root_count);
 
     for (size_t i = 0; i < car.root_count; i++) {
         char *root = wf_cid_to_string(&car.roots[i]);
@@ -55,8 +55,8 @@ int main(int argc, char **argv) {
 
     for (size_t i = 0; i < car.block_count; i++) {
         char *cid = wf_cid_to_string(&car.blocks[i].cid);
-        printf("block[%zu]: cid=%s bytes=%zu\n", i,
-               cid ? cid : "(null)", car.blocks[i].data_len);
+        printf("block[%zu]: cid=%s bytes=%zu\n", i, cid ? cid : "(null)",
+               car.blocks[i].data_len);
         free(cid);
     }
 

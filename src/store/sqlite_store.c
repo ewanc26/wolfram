@@ -43,75 +43,73 @@ static wf_status store_init_schema(sqlite3 *db) {
 #ifdef WOLFRAM_BUILD_STORE_CRYPTO
     /* Encrypted on-disk format: a per-store pwhash salt lives in store_meta;
      * the session row holds a fresh nonce and the secretbox ciphertext. */
-    ddl =
-        "CREATE TABLE IF NOT EXISTS session ("
-        "  id INTEGER PRIMARY KEY CHECK (id = 1),"
-        "  nonce BLOB NOT NULL,"
-        "  blob BLOB NOT NULL"
-        ");"
-        "CREATE TABLE IF NOT EXISTS store_meta ("
-        "  k TEXT PRIMARY KEY,"
-        "  v BLOB NOT NULL"
-        ");"
-        "CREATE TABLE IF NOT EXISTS mirror_head ("
-        "  did TEXT PRIMARY KEY,"
-        "  cid TEXT NOT NULL"
-        ");"
-        "CREATE TABLE IF NOT EXISTS mirror_block ("
-        "  did TEXT NOT NULL,"
-        "  cid BLOB NOT NULL,"
-        "  block BLOB NOT NULL,"
-        "  PRIMARY KEY (did, cid)"
-        ");"
-        "CREATE TABLE IF NOT EXISTS labels ("
-        "  uri TEXT NOT NULL,"
-        "  cid TEXT,"
-        "  val TEXT NOT NULL,"
-        "  src TEXT NOT NULL,"
-        "  cts TEXT,"
-        "  neg INTEGER NOT NULL DEFAULT 0,"
-        "  has_cid INTEGER NOT NULL DEFAULT 0,"
-        "  ver INTEGER,"
-        "  exp TEXT,"
-        "  PRIMARY KEY (uri, cid, val, src, neg)"
-        ");";
+    ddl = "CREATE TABLE IF NOT EXISTS session ("
+          "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+          "  nonce BLOB NOT NULL,"
+          "  blob BLOB NOT NULL"
+          ");"
+          "CREATE TABLE IF NOT EXISTS store_meta ("
+          "  k TEXT PRIMARY KEY,"
+          "  v BLOB NOT NULL"
+          ");"
+          "CREATE TABLE IF NOT EXISTS mirror_head ("
+          "  did TEXT PRIMARY KEY,"
+          "  cid TEXT NOT NULL"
+          ");"
+          "CREATE TABLE IF NOT EXISTS mirror_block ("
+          "  did TEXT NOT NULL,"
+          "  cid BLOB NOT NULL,"
+          "  block BLOB NOT NULL,"
+          "  PRIMARY KEY (did, cid)"
+          ");"
+          "CREATE TABLE IF NOT EXISTS labels ("
+          "  uri TEXT NOT NULL,"
+          "  cid TEXT,"
+          "  val TEXT NOT NULL,"
+          "  src TEXT NOT NULL,"
+          "  cts TEXT,"
+          "  neg INTEGER NOT NULL DEFAULT 0,"
+          "  has_cid INTEGER NOT NULL DEFAULT 0,"
+          "  ver INTEGER,"
+          "  exp TEXT,"
+          "  PRIMARY KEY (uri, cid, val, src, neg)"
+          ");";
 #else
-    ddl =
-        "CREATE TABLE IF NOT EXISTS session ("
-        "  id INTEGER PRIMARY KEY CHECK (id = 1),"
-        "  access_jwt TEXT NOT NULL,"
-        "  refresh_jwt TEXT NOT NULL,"
-        "  handle TEXT NOT NULL,"
-        "  did TEXT NOT NULL,"
-        "  email TEXT,"
-        "  email_confirmed INTEGER NOT NULL DEFAULT -1,"
-        "  email_auth_factor INTEGER NOT NULL DEFAULT -1,"
-        "  active INTEGER NOT NULL DEFAULT -1,"
-        "  status TEXT,"
-        "  pds_url TEXT"
-        ");"
-        "CREATE TABLE IF NOT EXISTS mirror_head ("
-        "  did TEXT PRIMARY KEY,"
-        "  cid TEXT NOT NULL"
-        ");"
-        "CREATE TABLE IF NOT EXISTS mirror_block ("
-        "  did TEXT NOT NULL,"
-        "  cid BLOB NOT NULL,"
-        "  block BLOB NOT NULL,"
-        "  PRIMARY KEY (did, cid)"
-        ");"
-        "CREATE TABLE IF NOT EXISTS labels ("
-        "  uri TEXT NOT NULL,"
-        "  cid TEXT,"
-        "  val TEXT NOT NULL,"
-        "  src TEXT NOT NULL,"
-        "  cts TEXT,"
-        "  neg INTEGER NOT NULL DEFAULT 0,"
-        "  has_cid INTEGER NOT NULL DEFAULT 0,"
-        "  ver INTEGER,"
-        "  exp TEXT,"
-        "  PRIMARY KEY (uri, cid, val, src, neg)"
-        ");";
+    ddl = "CREATE TABLE IF NOT EXISTS session ("
+          "  id INTEGER PRIMARY KEY CHECK (id = 1),"
+          "  access_jwt TEXT NOT NULL,"
+          "  refresh_jwt TEXT NOT NULL,"
+          "  handle TEXT NOT NULL,"
+          "  did TEXT NOT NULL,"
+          "  email TEXT,"
+          "  email_confirmed INTEGER NOT NULL DEFAULT -1,"
+          "  email_auth_factor INTEGER NOT NULL DEFAULT -1,"
+          "  active INTEGER NOT NULL DEFAULT -1,"
+          "  status TEXT,"
+          "  pds_url TEXT"
+          ");"
+          "CREATE TABLE IF NOT EXISTS mirror_head ("
+          "  did TEXT PRIMARY KEY,"
+          "  cid TEXT NOT NULL"
+          ");"
+          "CREATE TABLE IF NOT EXISTS mirror_block ("
+          "  did TEXT NOT NULL,"
+          "  cid BLOB NOT NULL,"
+          "  block BLOB NOT NULL,"
+          "  PRIMARY KEY (did, cid)"
+          ");"
+          "CREATE TABLE IF NOT EXISTS labels ("
+          "  uri TEXT NOT NULL,"
+          "  cid TEXT,"
+          "  val TEXT NOT NULL,"
+          "  src TEXT NOT NULL,"
+          "  cts TEXT,"
+          "  neg INTEGER NOT NULL DEFAULT 0,"
+          "  has_cid INTEGER NOT NULL DEFAULT 0,"
+          "  ver INTEGER,"
+          "  exp TEXT,"
+          "  PRIMARY KEY (uri, cid, val, src, neg)"
+          ");";
 #endif
 
     char *err = NULL;
@@ -202,8 +200,8 @@ static void put_u32(uint8_t *p, uint32_t v) {
 }
 
 static uint32_t get_u32(const uint8_t *p) {
-    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
-           ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) |
+           ((uint32_t)p[3] << 24);
 }
 
 /* Little-endian, length-prefixed serialization of the credential fields.
@@ -212,8 +210,8 @@ static uint32_t get_u32(const uint8_t *p) {
  * as 4-byte little-endian values. The caller owns the returned buffer. */
 static uint8_t *session_serialize(const wf_session *sess, size_t *out_len) {
     const wf_session_data *d = &sess->data;
-    const char *strs[7] = { d->access_jwt, d->refresh_jwt, d->handle,
-                            d->did, d->email, d->status, d->pds_url };
+    const char *strs[7] = {d->access_jwt, d->refresh_jwt, d->handle, d->did,
+                           d->email,      d->status,      d->pds_url};
 
     size_t total = 0;
     for (int i = 0; i < 7; i++) {
@@ -238,9 +236,12 @@ static uint8_t *session_serialize(const wf_session *sess, size_t *out_len) {
             *p++ = 0;
         }
     }
-    put_u32(p, (uint32_t)d->email_confirmed); p += 4;
-    put_u32(p, (uint32_t)d->email_auth_factor); p += 4;
-    put_u32(p, (uint32_t)d->active); p += 4;
+    put_u32(p, (uint32_t)d->email_confirmed);
+    p += 4;
+    put_u32(p, (uint32_t)d->email_auth_factor);
+    p += 4;
+    put_u32(p, (uint32_t)d->active);
+    p += 4;
 
     *out_len = total;
     return buf;
@@ -263,28 +264,47 @@ static wf_session *session_deserialize(const uint8_t *buf, size_t len) {
         if (!present) continue;
         if (rem < 4) goto fail;
         uint32_t slen = get_u32(p);
-        p += 4; rem -= 4;
+        p += 4;
+        rem -= 4;
         if (rem < slen) goto fail;
         char *copy = malloc(slen + 1);
         if (!copy) goto fail;
         memcpy(copy, p, slen);
         copy[slen] = '\0';
-        p += slen; rem -= slen;
+        p += slen;
+        rem -= slen;
         switch (i) {
-            case 0: d->access_jwt = copy; break;
-            case 1: d->refresh_jwt = copy; break;
-            case 2: d->handle = copy; break;
-            case 3: d->did = copy; break;
-            case 4: d->email = copy; break;
-            case 5: d->status = copy; break;
-            case 6: d->pds_url = copy; break;
+            case 0:
+                d->access_jwt = copy;
+                break;
+            case 1:
+                d->refresh_jwt = copy;
+                break;
+            case 2:
+                d->handle = copy;
+                break;
+            case 3:
+                d->did = copy;
+                break;
+            case 4:
+                d->email = copy;
+                break;
+            case 5:
+                d->status = copy;
+                break;
+            case 6:
+                d->pds_url = copy;
+                break;
         }
     }
 
     if (rem < 3 * 4) goto fail;
-    d->email_confirmed = (int)get_u32(p); p += 4;
-    d->email_auth_factor = (int)get_u32(p); p += 4;
-    d->active = (int)get_u32(p); p += 4;
+    d->email_confirmed = (int)get_u32(p);
+    p += 4;
+    d->email_auth_factor = (int)get_u32(p);
+    p += 4;
+    d->active = (int)get_u32(p);
+    p += 4;
     s->has_session = 1;
     return s;
 
@@ -294,8 +314,9 @@ fail:
 }
 
 /* Read the persisted pwhash salt, generating and storing one on first use. */
-static wf_status store_read_or_create_salt(sqlite3 *db,
-                                           unsigned char salt[static crypto_pwhash_SALTBYTES]) {
+static wf_status
+store_read_or_create_salt(sqlite3 *db,
+                          unsigned char salt[static crypto_pwhash_SALTBYTES]) {
     static const char *get_sql =
         "SELECT v FROM store_meta WHERE k = 'pwhash_salt'";
     sqlite3_stmt *stmt = NULL;
@@ -389,7 +410,8 @@ wf_status wf_store_save_session(wf_store *s, const wf_session *sess) {
         free(ct);
         return WF_ERR_INVALID_ARG;
     }
-    int brc = sqlite3_bind_blob(stmt, 1, nonce, (int)sizeof(nonce), SQLITE_TRANSIENT);
+    int brc =
+        sqlite3_bind_blob(stmt, 1, nonce, (int)sizeof(nonce), SQLITE_TRANSIENT);
     if (brc == SQLITE_OK)
         brc = sqlite3_bind_blob(stmt, 2, ct, (int)ct_len, SQLITE_TRANSIENT);
     free(ct);
@@ -407,8 +429,7 @@ wf_status wf_store_load_session(wf_store *s, wf_session **out) {
     if (!s || !out) return WF_ERR_INVALID_ARG;
     if (!s->has_key) return WF_ERR_INVALID_ARG;
 
-    static const char *sql =
-        "SELECT nonce, blob FROM session WHERE id = 1";
+    static const char *sql = "SELECT nonce, blob FROM session WHERE id = 1";
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         return WF_ERR_INVALID_ARG;
@@ -469,12 +490,15 @@ static wf_session *session_copy_for_load(const wf_session *src) {
     if (!s) return NULL;
 
     wf_session_data *d = &s->data;
-#define DUP(field)                                            \
-    do {                                                      \
-        if (src->data.field) {                               \
-            d->field = strdup(src->data.field);              \
-            if (!d->field) { wf_session_free(s); return NULL; } \
-        }                                                     \
+#define DUP(field)                                                             \
+    do {                                                                       \
+        if (src->data.field) {                                                 \
+            d->field = strdup(src->data.field);                                \
+            if (!d->field) {                                                   \
+                wf_session_free(s);                                            \
+                return NULL;                                                   \
+            }                                                                  \
+        }                                                                      \
     } while (0)
 
     DUP(access_jwt);
@@ -511,13 +535,21 @@ wf_status wf_store_save_session(wf_store *s, const wf_session *sess) {
     }
 
     int rc = SQLITE_OK;
-    rc = sqlite3_bind_text(stmt, 2, sess->data.access_jwt, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 3, sess->data.refresh_jwt, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 4, sess->data.handle, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 5, sess->data.did, -1, SQLITE_TRANSIENT);
+    rc =
+        sqlite3_bind_text(stmt, 2, sess->data.access_jwt, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_text(stmt, 3, sess->data.refresh_jwt, -1,
+                               SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc =
+            sqlite3_bind_text(stmt, 4, sess->data.handle, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_text(stmt, 5, sess->data.did, -1, SQLITE_TRANSIENT);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 6, sess->data.email);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 7, sess->data.email_confirmed);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 8, sess->data.email_auth_factor);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_int(stmt, 7, sess->data.email_confirmed);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_int(stmt, 8, sess->data.email_auth_factor);
     if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 9, sess->data.active);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 10, sess->data.status);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 11, sess->data.pds_url);
@@ -589,7 +621,8 @@ wf_status wf_store_save_mirror_head(wf_store *s, const char *did,
     }
 
     int rc = sqlite3_bind_text(stmt, 1, did, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 2, cid, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_text(stmt, 2, cid, -1, SQLITE_TRANSIENT);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         return WF_ERR_INVALID_ARG;
@@ -698,16 +731,19 @@ wf_status wf_store_save_mirror_block(wf_store *s, const char *did,
         return WF_ERR_INVALID_ARG;
     }
 
-    static const char *sql =
-        "INSERT OR IGNORE INTO mirror_block (did, cid, block) VALUES (?1, ?2, ?3)";
+    static const char *sql = "INSERT OR IGNORE INTO mirror_block (did, cid, "
+                             "block) VALUES (?1, ?2, ?3)";
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(s->db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         return WF_ERR_INVALID_ARG;
     }
 
     int rc = sqlite3_bind_text(stmt, 1, did, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_blob(stmt, 2, cid, (int)cid_len, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_blob(stmt, 3, block, (int)block_len, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_blob(stmt, 2, cid, (int)cid_len, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc =
+            sqlite3_bind_blob(stmt, 3, block, (int)block_len, SQLITE_TRANSIENT);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         return WF_ERR_INVALID_ARG;
@@ -721,7 +757,8 @@ wf_status wf_store_save_mirror_block(wf_store *s, const char *did,
 
 wf_status wf_store_load_mirror_block(wf_store *s, const char *did,
                                      const uint8_t *cid, size_t cid_len,
-                                     uint8_t **out_block, size_t *out_block_len) {
+                                     uint8_t **out_block,
+                                     size_t *out_block_len) {
     if (!s || !did || !cid || cid_len == 0 || !out_block || !out_block_len) {
         return WF_ERR_INVALID_ARG;
     }
@@ -734,7 +771,8 @@ wf_status wf_store_load_mirror_block(wf_store *s, const char *did,
     }
 
     int rc = sqlite3_bind_text(stmt, 1, did, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_blob(stmt, 2, cid, (int)cid_len, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_blob(stmt, 2, cid, (int)cid_len, SQLITE_TRANSIENT);
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt);
         return WF_ERR_INVALID_ARG;
@@ -764,9 +802,8 @@ wf_status wf_store_load_mirror_block(wf_store *s, const char *did,
 }
 
 wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
-                              const char *val, const char *src,
-                              const char *cts, int neg, int has_cid,
-                              int ver, const char *exp) {
+                              const char *val, const char *src, const char *cts,
+                              int neg, int has_cid, int ver, const char *exp) {
     if (!s || !uri || !val || !src) return WF_ERR_INVALID_ARG;
 
     /* Keyed by (uri, cid, val, src, neg); re-saving the same tuple overwrites
@@ -785,8 +822,10 @@ wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
 
     int rc = sqlite3_bind_text(stmt, 1, uri, -1, SQLITE_TRANSIENT);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 2, cid);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 3, val, -1, SQLITE_TRANSIENT);
-    if (rc == SQLITE_OK) rc = sqlite3_bind_text(stmt, 4, src, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_text(stmt, 3, val, -1, SQLITE_TRANSIENT);
+    if (rc == SQLITE_OK)
+        rc = sqlite3_bind_text(stmt, 4, src, -1, SQLITE_TRANSIENT);
     if (rc == SQLITE_OK) rc = bind_text_opt(stmt, 5, cts);
     if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 6, neg ? 1 : 0);
     if (rc == SQLITE_OK) rc = sqlite3_bind_int(stmt, 7, has_cid ? 1 : 0);
@@ -803,8 +842,8 @@ wf_status wf_store_save_label(wf_store *s, const char *uri, const char *cid,
     return WF_OK;
 }
 
-wf_status wf_store_load_labels(wf_store *s, const char *uri,
-                               wf_mod_label **out, size_t *out_count) {
+wf_status wf_store_load_labels(wf_store *s, const char *uri, wf_mod_label **out,
+                               size_t *out_count) {
     if (!s || !uri || !out || !out_count) return WF_ERR_INVALID_ARG;
 
     static const char *sql =
@@ -827,7 +866,10 @@ wf_status wf_store_load_labels(wf_store *s, const char *uri,
         if (count == cap) {
             size_t ncap = cap ? cap * 2 : 8;
             wf_mod_label *nl = realloc(labels, ncap * sizeof(*nl));
-            if (!nl) { st = WF_ERR_ALLOC; break; }
+            if (!nl) {
+                st = WF_ERR_ALLOC;
+                break;
+            }
             labels = nl;
             cap = ncap;
         }
@@ -838,10 +880,14 @@ wf_status wf_store_load_labels(wf_store *s, const char *uri,
         l->val = strdup((const char *)sqlite3_column_text(stmt, 2));
         const char *cts = (const char *)sqlite3_column_text(stmt, 3);
         l->cts = cts ? strdup(cts) : NULL;
-        if (!l->src || !l->uri || !l->val) { st = WF_ERR_ALLOC; break; }
+        if (!l->src || !l->uri || !l->val) {
+            st = WF_ERR_ALLOC;
+            break;
+        }
 
         /* Negation / cid-scope / version / expiry. COALESCE keeps pre-existing
-         * databases (which lack these columns) loading as plain positive labels. */
+         * databases (which lack these columns) loading as plain positive
+         * labels. */
         l->neg = sqlite3_column_int(stmt, 4) != 0;
         int has_cid = sqlite3_column_int(stmt, 5);
         const char *cid = (const char *)sqlite3_column_text(stmt, 6);

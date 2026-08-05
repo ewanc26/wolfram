@@ -1,5 +1,6 @@
 /**
- * auth_client.c — Authenticated XRPC client with automatic DPoP and session management.
+ * auth_client.c — Authenticated XRPC client with automatic DPoP and session
+ * management.
  */
 
 #include "wolfram/auth_client.h"
@@ -58,32 +59,24 @@ static wf_status auth_client_refresh(wf_auth_client *auth_client) {
         !auth_client->session->refresh_token) {
         return WF_ERR_NOT_FOUND;
     }
-    return wf_oauth_session_refresh(auth_client->client,
-                                    auth_client->server,
+    return wf_oauth_session_refresh(auth_client->client, auth_client->server,
                                     auth_client->client_auth,
-                                    auth_client->session,
-                                    time(NULL));
+                                    auth_client->session, time(NULL));
 }
 
 /* Forward declarations of internal helpers */
 static wf_status auth_client_perform(wf_auth_client *auth_client,
-                                     const char *nsid,
-                                     const char *query_string,
-                                     const char *json_body,
-                                     int is_procedure,
-                                     int is_upload,
-                                     const void *blob,
-                                     size_t blob_len,
-                                     const char *content_type,
+                                     const char *nsid, const char *query_string,
+                                     const char *json_body, int is_procedure,
+                                     int is_upload, const void *blob,
+                                     size_t blob_len, const char *content_type,
                                      wf_response *out);
 
 static wf_status wf_auth_client_ensure_session(wf_auth_client *auth_client,
-                                                int64_t now);
+                                               int64_t now);
 
-wf_status wf_auth_client_query(wf_auth_client *auth_client,
-                                const char *nsid,
-                                const char *query_string,
-                                wf_response *out) {
+wf_status wf_auth_client_query(wf_auth_client *auth_client, const char *nsid,
+                               const char *query_string, wf_response *out) {
     if (!auth_client || !nsid || !out) return WF_ERR_INVALID_ARG;
 
     wf_status status = wf_auth_client_ensure_session(auth_client, time(NULL));
@@ -94,10 +87,9 @@ wf_status wf_auth_client_query(wf_auth_client *auth_client,
 }
 
 wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
-                                       const char *nsid,
-                                       const wf_xrpc_param *params,
-                                       size_t param_count,
-                                       wf_response *out) {
+                                      const char *nsid,
+                                      const wf_xrpc_param *params,
+                                      size_t param_count, wf_response *out) {
     if (!auth_client || !nsid || !out || (param_count > 0 && !params)) {
         return WF_ERR_INVALID_ARG;
     }
@@ -110,7 +102,8 @@ wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
     char **names = calloc(param_count, sizeof(*names));
     char **values = calloc(param_count, sizeof(*values));
     if (!names || !values) {
-        free(names); free(values);
+        free(names);
+        free(values);
         curl_easy_cleanup(curl);
         return WF_ERR_ALLOC;
     }
@@ -132,18 +125,22 @@ wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
     }
     if (status != WF_OK) {
         for (size_t i = 0; i < param_count; i++) {
-            curl_free(names[i]); curl_free(values[i]);
+            curl_free(names[i]);
+            curl_free(values[i]);
         }
-        free(names); free(values);
+        free(names);
+        free(values);
         curl_easy_cleanup(curl);
         return status;
     }
     char *query = malloc(query_len);
     if (!query) {
         for (size_t i = 0; i < param_count; i++) {
-            curl_free(names[i]); curl_free(values[i]);
+            curl_free(names[i]);
+            curl_free(values[i]);
         }
-        free(names); free(values);
+        free(names);
+        free(values);
         curl_easy_cleanup(curl);
         return WF_ERR_ALLOC;
     }
@@ -159,9 +156,11 @@ wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
     }
     query[pos] = '\0';
     for (size_t i = 0; i < param_count; i++) {
-        curl_free(names[i]); curl_free(values[i]);
+        curl_free(names[i]);
+        curl_free(values[i]);
     }
-    free(names); free(values);
+    free(names);
+    free(values);
     curl_easy_cleanup(curl);
 
     status = wf_auth_client_query(auth_client, nsid, query, out);
@@ -170,24 +169,21 @@ wf_status wf_auth_client_query_params(wf_auth_client *auth_client,
 }
 
 wf_status wf_auth_client_procedure(wf_auth_client *auth_client,
-                                    const char *nsid,
-                                    const char *json_body,
-                                    wf_response *out) {
+                                   const char *nsid, const char *json_body,
+                                   wf_response *out) {
     if (!auth_client || !nsid || !out) return WF_ERR_INVALID_ARG;
 
     wf_status status = wf_auth_client_ensure_session(auth_client, time(NULL));
     if (status != WF_OK) return status;
 
-    return auth_client_perform(auth_client, nsid, NULL, json_body, 1, 0,
-                               NULL, 0, NULL, out);
+    return auth_client_perform(auth_client, nsid, NULL, json_body, 1, 0, NULL,
+                               0, NULL, out);
 }
 
 wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
-                                      const char *nsid,
-                                      const void *data,
-                                      size_t data_len,
-                                      const char *content_type,
-                                      wf_response *out) {
+                                     const char *nsid, const void *data,
+                                     size_t data_len, const char *content_type,
+                                     wf_response *out) {
     if (!auth_client || !nsid || !data || data_len == 0 || !content_type ||
         !*content_type || !out) {
         return WF_ERR_INVALID_ARG;
@@ -196,13 +192,14 @@ wf_status wf_auth_client_upload_blob(wf_auth_client *auth_client,
     wf_status status = wf_auth_client_ensure_session(auth_client, time(NULL));
     if (status != WF_OK) return status;
 
-    return auth_client_perform(auth_client, nsid, NULL, NULL, 0, 1,
-                               data, data_len, content_type, out);
+    return auth_client_perform(auth_client, nsid, NULL, NULL, 0, 1, data,
+                               data_len, content_type, out);
 }
 
 static wf_status wf_auth_client_ensure_session(wf_auth_client *auth_client,
-                                                 int64_t now) {
-    if (auth_client->session->expires_at <= 0 || now < auth_client->session->expires_at) {
+                                               int64_t now) {
+    if (auth_client->session->expires_at <= 0 ||
+        now < auth_client->session->expires_at) {
         return WF_OK;
     }
     if (!auth_client->server || !auth_client->client_auth) {
@@ -234,14 +231,10 @@ wf_status wf_auth_client_ensure_valid(wf_auth_client *auth_client) {
  * If the token cannot be refreshed, the original 401 error is propagated.
  */
 static wf_status auth_client_perform(wf_auth_client *auth_client,
-                                     const char *nsid,
-                                     const char *query_string,
-                                     const char *json_body,
-                                     int is_procedure,
-                                     int is_upload,
-                                     const void *blob,
-                                     size_t blob_len,
-                                     const char *content_type,
+                                     const char *nsid, const char *query_string,
+                                     const char *json_body, int is_procedure,
+                                     int is_upload, const void *blob,
+                                     size_t blob_len, const char *content_type,
                                      wf_response *out) {
     wf_status status = WF_OK;
     char *base_url = NULL;
@@ -258,8 +251,8 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
     base_url = wf_xrpc_get_base_url(auth_client->client);
     if (!base_url) return WF_ERR_ALLOC;
 
-    size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1
-                     + (query_string ? strlen(query_string) + 1 : 0);
+    size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1 +
+                     (query_string ? strlen(query_string) + 1 : 0);
     full_url = malloc(url_cap);
     if (!full_url) {
         free(base_url);
@@ -267,17 +260,18 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
     }
 
     if (query_string && query_string[0] != '\0') {
-        snprintf(full_url, url_cap, "%s/xrpc/%s?%s", base_url, nsid, query_string);
+        snprintf(full_url, url_cap, "%s/xrpc/%s?%s", base_url, nsid,
+                 query_string);
     } else {
         snprintf(full_url, url_cap, "%s/xrpc/%s", base_url, nsid);
     }
 
-    authorization = auth_client_build_authorization(
-        auth_client->session->access_token);
+    authorization =
+        auth_client_build_authorization(auth_client->session->access_token);
 
     for (int attempt = 0; attempt < 3; attempt++) {
-        proof_opts.http_method = is_upload ? "POST"
-                                          : (is_procedure ? "POST" : "GET");
+        proof_opts.http_method =
+            is_upload ? "POST" : (is_procedure ? "POST" : "GET");
         proof_opts.http_uri = full_url;
         proof_opts.nonce = dpop_nonce;
 
@@ -290,7 +284,8 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
         wf_http_header headers[2];
         size_t header_count = 0;
         if (authorization) {
-            headers[header_count++] = (wf_http_header){"Authorization", authorization};
+            headers[header_count++] =
+                (wf_http_header){"Authorization", authorization};
         }
         headers[header_count++] = (wf_http_header){"DPoP", proof_jwt};
 
@@ -299,9 +294,9 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
                 auth_client->client, nsid, blob, blob_len, content_type,
                 headers, header_count, out);
         } else if (is_procedure) {
-            status = wf_http_post(auth_client->client, full_url,
-                                  "application/json", json_body, headers,
-                                  header_count, out);
+            status =
+                wf_http_post(auth_client->client, full_url, "application/json",
+                             json_body, headers, header_count, out);
         } else {
             status = wf_http_get_with_headers(auth_client->client, full_url,
                                               headers, header_count, out);

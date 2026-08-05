@@ -58,8 +58,8 @@ int main(int argc, char **argv) {
     params.limit = 50;
 
     wf_response res = {0};
-    status = wf_lex_com_atproto_admin_search_accounts_main_call(
-        session->client, &params, &res);
+    status = wf_lex_com_atproto_admin_search_accounts_main_call(session->client,
+                                                                &params, &res);
     if (status != WF_OK) {
         fprintf(stderr, "admin.searchAccounts failed: %d\n", (int)status);
         wf_response_free(&res);
@@ -78,13 +78,13 @@ int main(int argc, char **argv) {
         size_t n = out->accounts.count;
         printf("admin.searchAccounts returned %zu account(s)\n", n);
         for (size_t i = 0; i < n; ++i) {
-            const wf_lex_com_atproto_admin_defs_account_view *av = out->accounts.items[i];
+            const wf_lex_com_atproto_admin_defs_account_view *av =
+                out->accounts.items[i];
             if (!av) {
                 continue;
             }
             printf("  - did=%s handle=%s email=%s indexedAt=%s\n",
-                   av->did ? av->did : "",
-                   av->handle ? av->handle : "",
+                   av->did ? av->did : "", av->handle ? av->handle : "",
                    av->has_email ? av->email : "",
                    av->indexed_at ? av->indexed_at : "");
         }

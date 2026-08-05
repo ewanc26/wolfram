@@ -16,14 +16,19 @@
 static const char *kPrefsFixture =
     "{"
     "  \"chat\": { \"include\": \"all\", \"push\": false },"
-    "  \"follow\": { \"include\": \"follows\", \"list\": true, \"push\": true },"
+    "  \"follow\": { \"include\": \"follows\", \"list\": true, \"push\": true "
+    "},"
     "  \"like\": { \"include\": \"all\", \"list\": true, \"push\": false },"
-    "  \"likeViaRepost\": { \"include\": \"all\", \"list\": false, \"push\": false },"
-    "  \"mention\": { \"include\": \"follows\", \"list\": true, \"push\": true },"
+    "  \"likeViaRepost\": { \"include\": \"all\", \"list\": false, \"push\": "
+    "false },"
+    "  \"mention\": { \"include\": \"follows\", \"list\": true, \"push\": true "
+    "},"
     "  \"quote\": { \"include\": \"all\", \"list\": false, \"push\": true },"
     "  \"reply\": { \"include\": \"all\", \"list\": true, \"push\": false },"
-    "  \"repost\": { \"include\": \"follows\", \"list\": false, \"push\": false },"
-    "  \"repostViaRepost\": { \"include\": \"all\", \"list\": true, \"push\": true },"
+    "  \"repost\": { \"include\": \"follows\", \"list\": false, \"push\": "
+    "false },"
+    "  \"repostViaRepost\": { \"include\": \"all\", \"list\": true, \"push\": "
+    "true },"
     "  \"starterpackJoined\": { \"list\": true, \"push\": false },"
     "  \"subscribedPost\": { \"list\": false, \"push\": true },"
     "  \"unverified\": { \"list\": true, \"push\": false },"
@@ -31,11 +36,11 @@ static const char *kPrefsFixture =
     "}";
 
 /* Wrapping output body (as returned by the endpoint). */
-static const char *kPrefsOutputFixture =
-    "{ \"preferences\": ";
+static const char *kPrefsOutputFixture = "{ \"preferences\": ";
 
 int main(void) {
-    /* ---- Build a representative subset: follow + like filterable + verified. */
+    /* ---- Build a representative subset: follow + like filterable + verified.
+     */
     wf_notification_v2_preferences prefs = {0};
     prefs.has_follow = 1;
     prefs.follow.has_include = 1;
@@ -69,7 +74,8 @@ int main(void) {
         cJSON *follow = cJSON_GetObjectItemCaseSensitive(root, "follow");
         WF_CHECK(cJSON_IsObject(follow));
         cJSON *finc = cJSON_GetObjectItemCaseSensitive(follow, "include");
-        WF_CHECK(cJSON_IsString(finc) && strcmp(finc->valuestring, "follows") == 0);
+        WF_CHECK(cJSON_IsString(finc) &&
+                 strcmp(finc->valuestring, "follows") == 0);
         cJSON *flist = cJSON_GetObjectItemCaseSensitive(follow, "list");
         WF_CHECK(cJSON_IsBool(flist) && cJSON_IsTrue(flist));
         cJSON *fpush = cJSON_GetObjectItemCaseSensitive(follow, "push");
@@ -97,9 +103,12 @@ int main(void) {
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "quote") == NULL);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "reply") == NULL);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "repost") == NULL);
-        WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "repostViaRepost") == NULL);
-        WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "starterpackJoined") == NULL);
-        WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "subscribedPost") == NULL);
+        WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "repostViaRepost") ==
+                 NULL);
+        WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "starterpackJoined") ==
+                 NULL);
+        WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "subscribedPost") ==
+                 NULL);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "unverified") == NULL);
 
         cJSON_Delete(root);
@@ -143,7 +152,8 @@ int main(void) {
 
     WF_CHECK(parsed.has_like_via_repost == 1);
     WF_CHECK(parsed.like_via_repost.include == WF_NOTIF_V2_INCLUDE_ALL);
-    WF_CHECK(parsed.like_via_repost.list == 0 && parsed.like_via_repost.push == 0);
+    WF_CHECK(parsed.like_via_repost.list == 0 &&
+             parsed.like_via_repost.push == 0);
 
     WF_CHECK(parsed.has_mention == 1);
     WF_CHECK(parsed.mention.include == WF_NOTIF_V2_INCLUDE_FOLLOWS);
@@ -180,8 +190,7 @@ int main(void) {
     wf_notification_v2_preferences_free(&parsed);
 
     /* ---- The wrapping output body also parses (preferences key). ---- */
-    size_t out_len =
-        strlen(kPrefsOutputFixture) + strlen(kPrefsFixture) + 2;
+    size_t out_len = strlen(kPrefsOutputFixture) + strlen(kPrefsFixture) + 2;
     char *wrapped = (char *)malloc(out_len);
     WF_CHECK(wrapped != NULL);
     if (wrapped) {
@@ -197,17 +206,17 @@ int main(void) {
 
     /* ---- Invalid input yields WF_ERR_PARSE. ---- */
     wf_notification_v2_preferences bad_parse = {0};
-    WF_CHECK(wf_notification_v2_preferences_parse(
-                 "not json", 8, &bad_parse) == WF_ERR_PARSE);
+    WF_CHECK(wf_notification_v2_preferences_parse("not json", 8, &bad_parse) ==
+             WF_ERR_PARSE);
     static const char *missing_slots =
         "{\"chat\":{\"include\":\"all\",\"push\":true}}";
-    WF_CHECK(wf_notification_v2_preferences_parse(
-                 missing_slots, strlen(missing_slots), &bad_parse) ==
-             WF_ERR_PARSE);
+    WF_CHECK(wf_notification_v2_preferences_parse(missing_slots,
+                                                  strlen(missing_slots),
+                                                  &bad_parse) == WF_ERR_PARSE);
     static const char *empty_envelope = "{\"preferences\":{}}";
-    WF_CHECK(wf_notification_v2_preferences_parse(
-                 empty_envelope, strlen(empty_envelope), &bad_parse) ==
-             WF_ERR_PARSE);
+    WF_CHECK(wf_notification_v2_preferences_parse(empty_envelope,
+                                                  strlen(empty_envelope),
+                                                  &bad_parse) == WF_ERR_PARSE);
     WF_CHECK(wf_notification_v2_preferences_parse(NULL, 0, &bad_parse) ==
              WF_ERR_INVALID_ARG);
     wf_notification_v2_preferences_free(&bad_parse);
@@ -217,8 +226,8 @@ int main(void) {
     wf_agent *fake = (wf_agent *)&sentinel;
     WF_CHECK(wf_agent_put_notification_preferences_v2_typed(
                  NULL, &prefs, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_put_notification_preferences_v2_typed(
-                 fake, NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_put_notification_preferences_v2_typed(fake, NULL, NULL) ==
+             WF_ERR_INVALID_ARG);
 
     printf("notification_v2_prefs_typed: all checks passed\n");
     WF_TEST_SUMMARY();

@@ -52,8 +52,7 @@ int main(void) {
     {
         wf_actor_status rec = {0};
         wf_status s = wf_actor_status_parse_record(k_record_json,
-                                                    strlen(k_record_json),
-                                                    &rec);
+                                                   strlen(k_record_json), &rec);
         WF_CHECK(s == WF_OK);
         WF_CHECK(rec.status &&
                  strcmp(rec.status, "app.bsky.actor.status#live") == 0);
@@ -69,12 +68,12 @@ int main(void) {
     /* ---- parse view ---- */
     {
         wf_actor_status_view v = {0};
-        wf_status s = wf_actor_status_parse_view(k_view_json,
-                                                  strlen(k_view_json), &v);
+        wf_status s =
+            wf_actor_status_parse_view(k_view_json, strlen(k_view_json), &v);
         WF_CHECK(s == WF_OK);
         WF_CHECK(v.uri &&
-                 strcmp(v.uri,
-                        "at://did:plc:abc/app.bsky.actor.status/self") == 0);
+                 strcmp(v.uri, "at://did:plc:abc/app.bsky.actor.status/self") ==
+                     0);
         WF_CHECK(v.cid && strcmp(v.cid, "bafyreigh") == 0);
         WF_CHECK(v.status &&
                  strcmp(v.status, "app.bsky.actor.status#live") == 0);
@@ -91,8 +90,8 @@ int main(void) {
         WF_CHECK(v.viewer_state != NULL);
         WF_CHECK(v.embed != NULL);
         if (v.viewer_state) {
-            cJSON *muted = cJSON_GetObjectItemCaseSensitive(v.viewer_state,
-                                                            "muted");
+            cJSON *muted =
+                cJSON_GetObjectItemCaseSensitive(v.viewer_state, "muted");
             WF_CHECK(cJSON_IsBool(muted) && !cJSON_IsTrue(muted));
         }
         wf_actor_status_view_free(&v);
@@ -105,8 +104,8 @@ int main(void) {
         WF_CHECK(json != NULL);
         if (json) {
             wf_actor_status rec = {0};
-            wf_status s = wf_actor_status_parse_record(json, strlen(json),
-                                                        &rec);
+            wf_status s =
+                wf_actor_status_parse_record(json, strlen(json), &rec);
             WF_CHECK(s == WF_OK);
             WF_CHECK(rec.status &&
                      strcmp(rec.status, "app.bsky.actor.status#live") == 0);
@@ -127,13 +126,12 @@ int main(void) {
         WF_CHECK(wf_actor_status_parse_record(NULL, 0, &rec) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_status_parse_record(k_record_json,
-                                               strlen(k_record_json),
-                                               NULL) == WF_ERR_INVALID_ARG);
+                                              strlen(k_record_json),
+                                              NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_status_parse_record("not json{", 9, &rec) ==
                  WF_ERR_PARSE);
 
-        WF_CHECK(wf_actor_status_parse_view(NULL, 0, &v) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_actor_status_parse_view(NULL, 0, &v) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_status_parse_view("nope", 4, &v) == WF_ERR_PARSE);
 
         /* builder: missing required inputs */
@@ -141,9 +139,10 @@ int main(void) {
         WF_CHECK(wf_actor_status_build_record(NULL, "x", NULL, &out) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_status_build_record("2024-06-01T00:00:00Z", NULL,
-                                              NULL, &out) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_actor_status_build_record("2024-06-01T00:00:00Z", "x",
-                                              NULL, NULL) == WF_ERR_INVALID_ARG);
+                                              NULL,
+                                              &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_actor_status_build_record("2024-06-01T00:00:00Z", "x", NULL,
+                                              NULL) == WF_ERR_INVALID_ARG);
 
         /* agent wrappers: honest stubs return WF_ERR_INVALID_ARG.
          * NULL-required-input validation returns the same code. */

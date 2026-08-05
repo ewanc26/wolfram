@@ -33,9 +33,9 @@ extern "C" {
  * repo DID (repoRef) the report targets; NULL when the output omitted subject
  * or it was of an unrecognised shape. */
 typedef struct wf_moderation_report {
-    char *id;            /* server-assigned report id, or NULL */
-    char *reason;        /* free-text reason, or NULL */
-    char *subject_uri;   /* uri / repo of the reported subject, or NULL */
+    char *id;          /* server-assigned report id, or NULL */
+    char *reason;      /* free-text reason, or NULL */
+    char *subject_uri; /* uri / repo of the reported subject, or NULL */
 } wf_moderation_report;
 
 /* A returned app.bsky.graph.defs#listView.
@@ -44,12 +44,12 @@ typedef struct wf_moderation_report {
  * blockActorList procedures; it is intentionally distinct from the
  * `wf_agent_list_view` type in graph_typed.h to avoid a name collision. */
 typedef struct wf_mod_list_view {
-    char *uri;          /* at-uri of the list (required) */
-    char *cid;          /* cid of the list record (required) */
-    char *name;         /* list display name (required) */
-    char *purpose;      /* list purpose token (required) */
-    char *description;  /* optional list description */
-    char *avatar;       /* optional avatar uri */
+    char *uri;         /* at-uri of the list (required) */
+    char *cid;         /* cid of the list record (required) */
+    char *name;        /* list display name (required) */
+    char *purpose;     /* list purpose token (required) */
+    char *description; /* optional list description */
+    char *avatar;      /* optional avatar uri */
 } wf_mod_list_view;
 
 /* Result envelope for app.bsky.graph.muteActorList / blockActorList.
@@ -60,7 +60,7 @@ typedef struct wf_mod_list_view {
  * output. */
 typedef struct wf_mod_list_view_result {
     wf_mod_list_view list;
-    char *cursor;       /* optional pagination cursor, or NULL */
+    char *cursor; /* optional pagination cursor, or NULL */
 } wf_mod_list_view_result;
 
 /* Parse a raw com.atproto.moderation.createReport JSON body.
@@ -102,7 +102,7 @@ wf_status wf_agent_create_report(wf_agent *agent, const char *reason,
 wf_status wf_agent_mute_actor_list(wf_agent *agent, const char *list_at_uri,
                                    wf_mod_list_view_result *out);
 wf_status wf_agent_block_actor_list(wf_agent *agent, const char *list_at_uri,
-                                   wf_mod_list_view_result *out);
+                                    wf_mod_list_view_result *out);
 
 #ifdef __cplusplus
 }

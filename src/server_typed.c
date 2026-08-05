@@ -173,7 +173,8 @@ wf_status wf_server_parse_account_status(const char *json, size_t json_len,
     cJSON *repo_rev = cJSON_GetObjectItemCaseSensitive(root, "repoRev");
     cJSON *repo_blocks = cJSON_GetObjectItemCaseSensitive(root, "repoBlocks");
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(root, "indexedRecords");
-    cJSON *pstate = cJSON_GetObjectItemCaseSensitive(root, "privateStateValues");
+    cJSON *pstate =
+        cJSON_GetObjectItemCaseSensitive(root, "privateStateValues");
     cJSON *expected = cJSON_GetObjectItemCaseSensitive(root, "expectedBlobs");
     cJSON *imported = cJSON_GetObjectItemCaseSensitive(root, "importedBlobs");
 
@@ -186,7 +187,8 @@ wf_status wf_server_parse_account_status(const char *json, size_t json_len,
         out->valid_did = cJSON_IsTrue(valid_did);
     }
     if (cJSON_IsString(repo_commit) && repo_commit->valuestring) {
-        status = wf_server_set_string(&out->repo_commit, repo_commit->valuestring);
+        status =
+            wf_server_set_string(&out->repo_commit, repo_commit->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(repo_rev) && repo_rev->valuestring) {
         status = wf_server_set_string(&out->repo_rev, repo_rev->valuestring);
@@ -263,13 +265,17 @@ static wf_status wf_server_parse_invite_code(cJSON *obj,
         c->has_disabled = true;
         c->disabled = cJSON_IsTrue(disabled);
     }
-    if (status == WF_OK && cJSON_IsString(for_account) && for_account->valuestring) {
-        status = wf_server_set_string(&c->for_account, for_account->valuestring);
+    if (status == WF_OK && cJSON_IsString(for_account) &&
+        for_account->valuestring) {
+        status =
+            wf_server_set_string(&c->for_account, for_account->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(created_by) && created_by->valuestring) {
+    if (status == WF_OK && cJSON_IsString(created_by) &&
+        created_by->valuestring) {
         status = wf_server_set_string(&c->created_by, created_by->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(created_at) && created_at->valuestring) {
+    if (status == WF_OK && cJSON_IsString(created_at) &&
+        created_at->valuestring) {
         status = wf_server_set_string(&c->created_at, created_at->valuestring);
     }
 
@@ -523,8 +529,8 @@ void wf_server_session_tokens_free(wf_server_session_tokens *s) {
 
 /* ---- email update request (requestEmailUpdate) ---- */
 
-static void wf_server_email_update_request_reset(
-    wf_server_email_update_request *r) {
+static void
+wf_server_email_update_request_reset(wf_server_email_update_request *r) {
     if (!r) {
         return;
     }
@@ -565,7 +571,7 @@ void wf_server_email_update_request_free(wf_server_email_update_request *r) {
 /* ---- Agent convenience wrappers ---- */
 
 wf_status wf_agent_get_session_typed(wf_agent *agent,
-                                    wf_server_session_info *out) {
+                                     wf_server_session_info *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -573,8 +579,8 @@ wf_status wf_agent_get_session_typed(wf_agent *agent,
     wf_server_session_info info = {0};
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_server_get_session_main_call(
-        agent->client, &res);
+    wf_status status =
+        wf_lex_com_atproto_server_get_session_main_call(agent->client, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -588,9 +594,9 @@ wf_status wf_agent_get_session_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_get_service_auth_typed(wf_agent *agent, const char *aud,
-                                         int64_t exp_or_0,
-                                         const char *lxm_or_null,
-                                         wf_server_auth_token *out) {
+                                          int64_t exp_or_0,
+                                          const char *lxm_or_null,
+                                          wf_server_auth_token *out) {
     if (!agent || !aud || !aud[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -624,7 +630,7 @@ wf_status wf_agent_get_service_auth_typed(wf_agent *agent, const char *aud,
 }
 
 wf_status wf_agent_check_account_status_typed(wf_agent *agent,
-                                             wf_server_account_status *out) {
+                                              wf_server_account_status *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -646,10 +652,10 @@ wf_status wf_agent_check_account_status_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_get_account_invite_codes_typed(wf_agent *agent,
-                                                 int include_used,
-                                                 int create_available,
-                                                 wf_server_invite_code_list *out) {
+wf_status
+wf_agent_get_account_invite_codes_typed(wf_agent *agent, int include_used,
+                                        int create_available,
+                                        wf_server_invite_code_list *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -683,8 +689,8 @@ wf_status wf_agent_get_account_invite_codes_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_reserve_signing_key_typed(wf_agent *agent,
-                                            const char *did_or_null,
-                                            wf_server_auth_token *out) {
+                                             const char *did_or_null,
+                                             wf_server_auth_token *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -720,15 +726,17 @@ wf_status wf_agent_request_account_delete_typed(wf_agent *agent) {
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_server_request_account_delete_main_call(
-        agent->client, &res);
+    wf_status status =
+        wf_lex_com_atproto_server_request_account_delete_main_call(
+            agent->client, &res);
     wf_response_free(&res);
     return status;
 }
 
 /* requestEmailUpdate returns { tokenRequired: boolean }; parse into `out`. */
-wf_status wf_agent_request_email_update_typed(
-    wf_agent *agent, wf_server_email_update_request *out) {
+wf_status
+wf_agent_request_email_update_typed(wf_agent *agent,
+                                    wf_server_email_update_request *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -750,7 +758,8 @@ wf_status wf_agent_request_email_update_typed(
     return status;
 }
 
-/* requestEmailConfirmation has no input or output; it just fires the procedure. */
+/* requestEmailConfirmation has no input or output; it just fires the procedure.
+ */
 wf_status wf_agent_request_email_confirmation_typed(wf_agent *agent) {
     if (!agent) {
         return WF_ERR_INVALID_ARG;
@@ -766,7 +775,7 @@ wf_status wf_agent_request_email_confirmation_typed(wf_agent *agent) {
 }
 
 wf_status wf_agent_request_password_reset_typed(wf_agent *agent,
-                                               const char *email) {
+                                                const char *email) {
     if (!agent || !email || !email[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -776,18 +785,19 @@ wf_status wf_agent_request_password_reset_typed(wf_agent *agent,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_server_request_password_reset_main_call(
-        agent->client, &input, &res);
+    wf_status status =
+        wf_lex_com_atproto_server_request_password_reset_main_call(
+            agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
 
 wf_status wf_agent_create_session_typed(wf_agent *agent, const char *identifier,
-                                       const char *password,
-                                       const char *auth_factor_token_or_null,
-                                       wf_server_session_tokens *out) {
-    if (!agent || !identifier || !identifier[0] ||
-        !password || !password[0] || !out) {
+                                        const char *password,
+                                        const char *auth_factor_token_or_null,
+                                        wf_server_session_tokens *out) {
+    if (!agent || !identifier || !identifier[0] || !password || !password[0] ||
+        !out) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -849,7 +859,7 @@ wf_status wf_agent_refresh_session_typed(wf_agent *agent,
 
 /* com.atproto.server.describeServer */
 wf_status wf_agent_describe_server_typed(wf_agent *agent,
-                                        wf_server_description *out) {
+                                         wf_server_description *out) {
     if (!agent || !agent->client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -858,9 +868,10 @@ wf_status wf_agent_describe_server_typed(wf_agent *agent,
 }
 
 /* com.atproto.server.createAccount */
-wf_status wf_agent_create_account_typed(
-    wf_agent *agent, const wf_server_create_account_input *input,
-    wf_server_create_account_result *out) {
+wf_status
+wf_agent_create_account_typed(wf_agent *agent,
+                              const wf_server_create_account_input *input,
+                              wf_server_create_account_result *out) {
     if (!agent || !agent->client || !input || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -894,11 +905,12 @@ wf_status wf_agent_list_app_passwords_typed(wf_agent *agent,
 }
 
 /* com.atproto.server.revokeAppPassword */
-wf_status wf_agent_revoke_app_password_typed(wf_agent *agent, const char *name) {
+wf_status wf_agent_revoke_app_password_typed(wf_agent *agent,
+                                             const char *name) {
     if (!agent || !agent->client || !name || !name[0]) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_server_revoke_app_password_input input = { .name = name };
+    wf_server_revoke_app_password_input input = {.name = name};
     wf_agent_sync_auth(agent);
     return wf_server_revoke_app_password(agent->client, &input);
 }
@@ -910,8 +922,8 @@ wf_status wf_agent_delete_session_typed(wf_agent *agent) {
     }
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_server_delete_session_main_call(
-        agent->client, &res);
+    wf_status status =
+        wf_lex_com_atproto_server_delete_session_main_call(agent->client, &res);
     wf_response_free(&res);
     return status;
 }
@@ -950,13 +962,14 @@ wf_status wf_agent_confirm_email_typed(wf_agent *agent, const char *email,
         !token[0]) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_server_confirm_email_input input = { .email = email, .token = token };
+    wf_server_confirm_email_input input = {.email = email, .token = token};
     wf_agent_sync_auth(agent);
     return wf_server_confirm_email(agent->client, &input);
 }
 
 /* com.atproto.server.resetPassword (procedure, no output) */
-wf_status wf_agent_reset_password_typed(wf_agent *agent, const char *reset_token,
+wf_status wf_agent_reset_password_typed(wf_agent *agent,
+                                        const char *reset_token,
                                         const char *new_password) {
     if (!agent || !agent->client || !reset_token || !reset_token[0] ||
         !new_password || !new_password[0]) {
@@ -972,7 +985,8 @@ wf_status wf_agent_reset_password_typed(wf_agent *agent, const char *reset_token
 
 /* com.atproto.server.updateEmail (procedure, no output) */
 wf_status wf_agent_update_email_typed(wf_agent *agent, const char *email,
-                                      const char *token, int email_auth_factor) {
+                                      const char *token,
+                                      int email_auth_factor) {
     if (!agent || !agent->client || !email || !email[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -991,13 +1005,14 @@ wf_status wf_agent_update_email_typed(wf_agent *agent, const char *email,
 }
 
 /* com.atproto.server.createInviteCode */
-wf_status wf_agent_create_invite_code_typed(
-    wf_agent *agent, int64_t use_count, const char *for_account_or_null,
-    wf_server_create_invite_code_result *out) {
+wf_status
+wf_agent_create_invite_code_typed(wf_agent *agent, int64_t use_count,
+                                  const char *for_account_or_null,
+                                  wf_server_create_invite_code_result *out) {
     if (!agent || !agent->client || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_server_create_invite_code_input input = { .use_count = use_count };
+    wf_server_create_invite_code_input input = {.use_count = use_count};
     if (for_account_or_null && for_account_or_null[0]) {
         input.for_account = for_account_or_null;
     }

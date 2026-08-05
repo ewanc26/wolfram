@@ -175,7 +175,8 @@ wf_status wf_ageassurance_parse_state(const char *json, size_t json_len,
         wf_aa_state_reset(out);
         return st;
     }
-    cJSON *created = cJSON_GetObjectItemCaseSensitive(metadata, "accountCreatedAt");
+    cJSON *created =
+        cJSON_GetObjectItemCaseSensitive(metadata, "accountCreatedAt");
     if (cJSON_IsString(created)) {
         st = wf_aa_set_string(&out->metadata.account_created_at,
                               created->valuestring);
@@ -203,19 +204,20 @@ void wf_ageassurance_state_free(wf_ageassurance_state *out) {
 
 /* Agent convenience wrappers. */
 
-wf_status wf_agent_begin_ageassurance(wf_agent *agent, wf_ageassurance_begin *out) {
+wf_status wf_agent_begin_ageassurance(wf_agent *agent,
+                                      wf_ageassurance_begin *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
     wf_aa_begin_reset(out);
     /* The opaque agent cannot supply the required begin input (email /
-     * language / countryCode), so we issue the call with an empty input. Callers
-     * needing a real initiation should use the lex wrapper directly. */
+     * language / countryCode), so we issue the call with an empty input.
+     * Callers needing a real initiation should use the lex wrapper directly. */
     wf_lex_app_bsky_ageassurance_begin_main_input input = {0};
     wf_agent_sync_auth(agent);
     wf_response resp = {0};
     wf_status st = wf_lex_app_bsky_ageassurance_begin_main_call(agent->client,
-                                                               &input, &resp);
+                                                                &input, &resp);
     if (st != WF_OK) {
         wf_response_free(&resp);
         return st;
@@ -237,8 +239,8 @@ wf_status wf_agent_get_ageassurance_config(wf_agent *agent,
     wf_aa_config_reset(out);
     wf_agent_sync_auth(agent);
     wf_response resp = {0};
-    wf_status st = wf_lex_app_bsky_ageassurance_get_config_main_call(agent->client,
-                                                                     &resp);
+    wf_status st =
+        wf_lex_app_bsky_ageassurance_get_config_main_call(agent->client, &resp);
     if (st != WF_OK) {
         wf_response_free(&resp);
         return st;
@@ -264,8 +266,8 @@ wf_status wf_agent_get_ageassurance_state(wf_agent *agent,
     wf_lex_app_bsky_ageassurance_get_state_main_params params = {0};
     wf_agent_sync_auth(agent);
     wf_response resp = {0};
-    wf_status st = wf_lex_app_bsky_ageassurance_get_state_main_call(agent->client,
-                                                                   &params, &resp);
+    wf_status st = wf_lex_app_bsky_ageassurance_get_state_main_call(
+        agent->client, &params, &resp);
     if (st != WF_OK) {
         wf_response_free(&resp);
         return st;

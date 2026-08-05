@@ -69,7 +69,8 @@ int main(void) {
     WF_CHECK(wf_agent_parse_feed("{not json", 8, &list) == WF_ERR_PARSE);
 
     /* Missing required `feed` array. */
-    WF_CHECK(wf_agent_parse_feed("{\"cursor\":\"x\"}", 14, &list) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_feed("{\"cursor\":\"x\"}", 14, &list) ==
+             WF_ERR_PARSE);
 
     /* Parse the fixture. */
     size_t len = 0;
@@ -86,8 +87,8 @@ int main(void) {
         wf_agent_feed_item *it0 = &list.items[0];
         WF_CHECK(strcmp(it0->post.uri,
                         "at://did:plc:alice/app.bsky.feed.post/aaa111") == 0);
-        WF_CHECK(strcmp(it0->post.cid,
-                        "bafyreighpostaaaa1111111111111111111111111111111111111111aaa") == 0);
+        WF_CHECK(strcmp(it0->post.cid, "bafyreighpostaaaa1111111111111111111111"
+                                       "111111111111111111aaa") == 0);
         WF_CHECK(strcmp(it0->post.author.did, "did:plc:alice") == 0);
         WF_CHECK(strcmp(it0->post.author.handle, "alice.bsky.social") == 0);
         WF_CHECK(strcmp(it0->post.author.display_name, "Alice") == 0);
@@ -120,7 +121,8 @@ int main(void) {
         WF_CHECK(it2->post.viewer.repost &&
                  strcmp(it2->post.viewer.repost,
                         "at://did:plc:me/app.bsky.feed.repost/myrepost") == 0);
-        WF_CHECK(it2->post.viewer.has_bookmarked && it2->post.viewer.bookmarked == 1);
+        WF_CHECK(it2->post.viewer.has_bookmarked &&
+                 it2->post.viewer.bookmarked == 1);
         WF_CHECK(it2->post.viewer.has_pinned && it2->post.viewer.pinned == 0);
         WF_CHECK(it2->post.has_like_count && it2->post.like_count == 100);
 
@@ -136,18 +138,25 @@ int main(void) {
     wf_agent *agent = wf_agent_new("https://example.com");
     WF_CHECK(agent != NULL);
     wf_agent_feed_list wlist = {0};
-    WF_CHECK(wf_agent_get_timeline_typed(NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_timeline_typed(agent, 10, NULL, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_timeline_typed(agent, 101, NULL, &wlist) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_author_feed_typed(agent, NULL, 10, NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_quotes_typed(agent, NULL, 10, NULL, &wlist) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 10, NULL, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_timeline_typed(NULL, 10, NULL, &wlist) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_timeline_typed(agent, 10, NULL, NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_timeline_typed(agent, 101, NULL, &wlist) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_author_feed_typed(agent, NULL, 10, NULL, NULL,
+                                            NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_quotes_typed(agent, NULL, 10, NULL, &wlist) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 10, NULL, NULL) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_author_feed_typed(agent, "did:plc:alice", 101, NULL,
-                                            NULL, &wlist) == WF_ERR_INVALID_ARG);
+                                            NULL,
+                                            &wlist) == WF_ERR_INVALID_ARG);
     /* filter must be one of the upstream enum values */
     WF_CHECK(wf_agent_get_author_feed_typed(agent, "did:plc:alice", 10, NULL,
-                                            "not_a_real_filter", &wlist) ==
-             WF_ERR_INVALID_ARG);
+                                            "not_a_real_filter",
+                                            &wlist) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_quotes_typed(agent, "at://x", 101, NULL, &wlist) ==
              WF_ERR_INVALID_ARG);
 
@@ -158,7 +167,8 @@ int main(void) {
         WF_CHECK(qjson != NULL);
         if (qjson) {
             wf_agent_feed_list qlist = {0};
-            WF_CHECK(wf_agent_parse_feed_key(qjson, qlen, "posts", &qlist) == WF_OK);
+            WF_CHECK(wf_agent_parse_feed_key(qjson, qlen, "posts", &qlist) ==
+                     WF_OK);
             WF_CHECK(qlist.item_count == 1);
             if (qlist.item_count == 1) {
                 WF_CHECK(qlist.items[0].post.uri &&
@@ -177,7 +187,8 @@ int main(void) {
         wf_agent_skeleton_list slist = {0};
         wf_agent *sentinel = (wf_agent *)1;
         WF_CHECK(wf_agent_get_feed_skeleton_typed(sentinel, "at://x", 101, NULL,
-                                                 &slist) == WF_ERR_INVALID_ARG);
+                                                  &slist) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* getPosts: bare array of postView under "posts". */
@@ -215,12 +226,12 @@ int main(void) {
         WF_CHECK(sjson != NULL);
         if (sjson) {
             wf_agent_skeleton_list slist = {0};
-            WF_CHECK(wf_agent_parse_feed_skeleton(sjson, slen, &slist) == WF_OK);
+            WF_CHECK(wf_agent_parse_feed_skeleton(sjson, slen, &slist) ==
+                     WF_OK);
             WF_CHECK(slist.post_count == 2);
             WF_CHECK(slist.cursor &&
                      strcmp(slist.cursor, "skeleton-cursor-5") == 0);
-            WF_CHECK(slist.req_id &&
-                     strcmp(slist.req_id, "req-xyz-987") == 0);
+            WF_CHECK(slist.req_id && strcmp(slist.req_id, "req-xyz-987") == 0);
             if (slist.post_count == 2) {
                 WF_CHECK(slist.posts[0].post &&
                          strstr(slist.posts[0].post, "sk1") != NULL);
@@ -243,8 +254,7 @@ int main(void) {
             wf_agent_feed_gen_describe desc = {0};
             WF_CHECK(wf_agent_parse_describe_feed_generator(djson, dlen,
                                                             &desc) == WF_OK);
-            WF_CHECK(desc.did &&
-                     strcmp(desc.did, "did:plc:generator1") == 0);
+            WF_CHECK(desc.did && strcmp(desc.did, "did:plc:generator1") == 0);
             WF_CHECK(desc.feed_count == 2);
             if (desc.feed_count == 2) {
                 WF_CHECK(desc.feeds[0].uri &&
@@ -266,48 +276,53 @@ int main(void) {
         WF_CHECK(wf_agent_parse_posts(NULL, 0, &plist) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_parse_posts("{}", 2, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_parse_posts("not json", 8, &plist) == WF_ERR_PARSE);
-        WF_CHECK(wf_agent_parse_posts("{\"cursor\":\"x\"}", 13,
-                                      &plist) == WF_ERR_PARSE);
+        WF_CHECK(wf_agent_parse_posts("{\"cursor\":\"x\"}", 13, &plist) ==
+                 WF_ERR_PARSE);
 
         wf_agent_skeleton_list slist = {0};
-        WF_CHECK(wf_agent_parse_feed_skeleton(NULL, 0,
-                                              &slist) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_parse_feed_skeleton("{}", 2,
-                                              NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_parse_feed_skeleton("{}", 2,
-                                              &slist) == WF_ERR_PARSE);
+        WF_CHECK(wf_agent_parse_feed_skeleton(NULL, 0, &slist) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_feed_skeleton("{}", 2, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_feed_skeleton("{}", 2, &slist) == WF_ERR_PARSE);
 
         wf_agent_feed_gen_describe desc = {0};
-        WF_CHECK(wf_agent_parse_describe_feed_generator(
-                     NULL, 0, &desc) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_parse_describe_feed_generator(
-                     "{}", 2, NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_parse_describe_feed_generator(
-                     "not json", 8, &desc) == WF_ERR_PARSE);
+        WF_CHECK(wf_agent_parse_describe_feed_generator(NULL, 0, &desc) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_describe_feed_generator("{}", 2, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_describe_feed_generator("not json", 8, &desc) ==
+                 WF_ERR_PARSE);
     }
 
     /* Wrapper arg validation (offline; NULL agent/args rejected). */
     {
         wf_agent *a = wf_agent_new("https://example.com");
         WF_CHECK(a != NULL);
-        const char *uris[] = { "at://did:plc:alice/app.bsky.feed.post/x" };
+        const char *uris[] = {"at://did:plc:alice/app.bsky.feed.post/x"};
         wf_agent_post_list plist = {0};
-        WF_CHECK(wf_agent_get_posts_typed(NULL, uris, 1, &plist) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_posts_typed(a, NULL, 1, &plist) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_posts_typed(a, uris, 0, &plist) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_posts_typed(a, uris, 1, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_posts_typed(NULL, uris, 1, &plist) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_posts_typed(a, NULL, 1, &plist) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_posts_typed(a, uris, 0, &plist) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_posts_typed(a, uris, 1, NULL) ==
+                 WF_ERR_INVALID_ARG);
 
         wf_agent_skeleton_list slist = {0};
-        WF_CHECK(wf_agent_get_feed_skeleton_typed(NULL, "at://x", 10, NULL,
-                                                  &slist) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_feed_skeleton_typed(a, NULL, 10, NULL,
-                                                  &slist) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_feed_skeleton_typed(
+                     NULL, "at://x", 10, NULL, &slist) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_feed_skeleton_typed(a, NULL, 10, NULL, &slist) ==
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_feed_skeleton_typed(a, "at://x", 10, NULL,
                                                   NULL) == WF_ERR_INVALID_ARG);
 
         wf_agent_feed_gen_describe desc = {0};
-        WF_CHECK(wf_agent_describe_feed_generator_typed(NULL, &desc) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_describe_feed_generator_typed(a, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_describe_feed_generator_typed(NULL, &desc) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_describe_feed_generator_typed(a, NULL) ==
+                 WF_ERR_INVALID_ARG);
         wf_agent_free(a);
     }
 

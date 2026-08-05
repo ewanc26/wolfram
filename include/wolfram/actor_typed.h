@@ -8,7 +8,8 @@
  *   - app.bsky.actor.searchActors           -> "actors"    (profileView)
  *   - app.bsky.actor.searchActorsTypeahead  -> "actors"    (profileViewBasic)
  *   - app.bsky.unspecced.getSuggestionsSkeleton -> "actors" (did list + cursor)
- *   - app.bsky.feed.getLikes                -> "likes"     ({actor, createdAt, indexedAt})
+ *   - app.bsky.feed.getLikes                -> "likes"     ({actor, createdAt,
+ * indexedAt})
  *   - app.bsky.feed.getRepostedBy           -> "repostedBy" (profileView)
  *
  * The `wf_agent_profile_view` struct (app.bsky.actor.defs#profileView core
@@ -52,7 +53,7 @@ typedef struct wf_agent_profile_view_basic {
     char *handle;
     char *display_name;
     char *avatar;
-    cJSON *viewer;          /* owned detached viewerState subtree; NULL absent */
+    cJSON *viewer; /* owned detached viewerState subtree; NULL absent */
 } wf_agent_profile_view_basic;
 
 /* A list of basic profile views plus an optional cursor (searchActorsTypeahead,
@@ -115,13 +116,17 @@ wf_status wf_agent_parse_actors(const char *json, size_t json_len,
                                 wf_agent_actor_list *out);
 
 /* Parse a profileView list held under `key` (e.g. "repostedBy", "profiles")
- * into an owned actor list. Same ownership/error rules as wf_agent_parse_actors. */
+ * into an owned actor list. Same ownership/error rules as
+ * wf_agent_parse_actors. */
 wf_status wf_agent_parse_profile_views(const char *json, size_t json_len,
-                                       const char *key, wf_agent_actor_list *out);
+                                       const char *key,
+                                       wf_agent_actor_list *out);
 
-/* Free the owned contents of each list type (also safe on a reset/zeroed list). */
+/* Free the owned contents of each list type (also safe on a reset/zeroed list).
+ */
 void wf_agent_profile_view_list_free(wf_agent_profile_view_list *list);
-void wf_agent_profile_view_basic_list_free(wf_agent_profile_view_basic_list *list);
+void wf_agent_profile_view_basic_list_free(
+    wf_agent_profile_view_basic_list *list);
 void wf_agent_actor_like_list_free(wf_agent_actor_like_list *list);
 void wf_agent_actor_list_free(wf_agent_actor_list *list);
 
@@ -136,11 +141,12 @@ wf_status wf_agent_get_profiles_typed(wf_agent *agent,
 wf_status wf_agent_search_actors_typed(wf_agent *agent, const char *query,
                                        int limit, const char *cursor,
                                        wf_agent_actor_list *out);
-wf_status wf_agent_search_actors_typeahead_typed(wf_agent *agent,
-                                                 const char *query, int limit,
-                                                 wf_agent_profile_view_basic_list *out);
-wf_status wf_agent_get_likes_typed(wf_agent *agent, const char *uri,
-                                   int limit, const char *cursor,
+wf_status
+wf_agent_search_actors_typeahead_typed(wf_agent *agent, const char *query,
+                                       int limit,
+                                       wf_agent_profile_view_basic_list *out);
+wf_status wf_agent_get_likes_typed(wf_agent *agent, const char *uri, int limit,
+                                   const char *cursor,
                                    wf_agent_actor_like_list *out);
 wf_status wf_agent_get_reposted_by_typed(wf_agent *agent, const char *uri,
                                          int limit, const char *cursor,

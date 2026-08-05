@@ -51,7 +51,7 @@ static wf_status wf_ozone_set_string(char **dst, const char *src) {
 }
 
 static wf_status wf_ozone_set_string_array(cJSON *arr, char ***out_items,
-                                          size_t *out_count) {
+                                           size_t *out_count) {
     if (!cJSON_IsArray(arr)) {
         return WF_ERR_PARSE;
     }
@@ -113,7 +113,7 @@ static void wf_ozone_subject_status_reset(wf_ozone_subject_status *s) {
 }
 
 static wf_status wf_ozone_parse_subject_status(cJSON *obj,
-                                              wf_ozone_subject_status *s) {
+                                               wf_ozone_subject_status *s) {
     wf_status status = WF_OK;
     cJSON *id = cJSON_GetObjectItemCaseSensitive(obj, "id");
     cJSON *subject = cJSON_GetObjectItemCaseSensitive(obj, "subject");
@@ -163,8 +163,8 @@ static wf_status wf_ozone_parse_subject_status(cJSON *obj,
         status = wf_ozone_set_string_array(tags, &s->tags, &s->tag_count);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_ozone_set_string(&s->subject_repo_handle,
-                                     handle->valuestring);
+        status =
+            wf_ozone_set_string(&s->subject_repo_handle, handle->valuestring);
     }
 
     if (status == WF_OK) {
@@ -288,7 +288,7 @@ static void wf_ozone_team_member_reset(wf_ozone_team_member *m) {
 }
 
 static wf_status wf_ozone_parse_team_member(cJSON *obj,
-                                           wf_ozone_team_member *m) {
+                                            wf_ozone_team_member *m) {
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
     cJSON *disabled = cJSON_GetObjectItemCaseSensitive(obj, "disabled");
@@ -424,137 +424,137 @@ void wf_ozone_team_member_list_free(wf_ozone_team_member_list *l) {
 /* Generated-decode wrapper definitions                                */
 /* ------------------------------------------------------------------ */
 
-#define WF_OZONE_DEF_Q(ns, op, genop)                                       \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,      \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {            \
-        if (!agent || !agent->client || !params || !out) {                 \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        *out = NULL;                                                       \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output *dec = NULL;       \
-        wf_agent_sync_auth(agent);                                         \
-        wf_response res = {0};                                             \
-        wf_status st = wf_lex_tools_ozone_##ns##_##genop##_main_call(      \
-            agent->client, params, &res);                                  \
-        if (st != WF_OK) {                                                 \
-            wf_response_free(&res);                                        \
-            return st;                                                     \
-        }                                                                  \
-        st = wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(  \
-            res.body, res.body_len, &dec);                                 \
-        wf_response_free(&res);                                           \
-        if (st == WF_OK) {                                                 \
-            *out = dec;                                                    \
-        }                                                                  \
-        return st;                                                         \
-    }                                                                      \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {           \
-        if (!json || !out) {                                               \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        return wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json( \
-            json, json_len, out);                                          \
+#define WF_OZONE_DEF_Q(ns, op, genop)                                          \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,         \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {               \
+        if (!agent || !agent->client || !params || !out) {                     \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        *out = NULL;                                                           \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output *dec = NULL;           \
+        wf_agent_sync_auth(agent);                                             \
+        wf_response res = {0};                                                 \
+        wf_status st = wf_lex_tools_ozone_##ns##_##genop##_main_call(          \
+            agent->client, params, &res);                                      \
+        if (st != WF_OK) {                                                     \
+            wf_response_free(&res);                                            \
+            return st;                                                         \
+        }                                                                      \
+        st = wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(      \
+            res.body, res.body_len, &dec);                                     \
+        wf_response_free(&res);                                                \
+        if (st == WF_OK) {                                                     \
+            *out = dec;                                                        \
+        }                                                                      \
+        return st;                                                             \
+    }                                                                          \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {               \
+        if (!json || !out) {                                                   \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        return wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(    \
+            json, json_len, out);                                              \
     }
 
-#define WF_OZONE_DEF_Q0(ns, op, genop)                                      \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {            \
-        if (!agent || !agent->client || !out) {                            \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        *out = NULL;                                                       \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output *dec = NULL;       \
-        wf_agent_sync_auth(agent);                                         \
-        wf_response res = {0};                                             \
-        wf_status st = wf_lex_tools_ozone_##ns##_##genop##_main_call(      \
-            agent->client, &res);                                          \
-        if (st != WF_OK) {                                                 \
-            wf_response_free(&res);                                        \
-            return st;                                                     \
-        }                                                                  \
-        st = wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(  \
-            res.body, res.body_len, &dec);                                 \
-        wf_response_free(&res);                                           \
-        if (st == WF_OK) {                                                 \
-            *out = dec;                                                    \
-        }                                                                  \
-        return st;                                                         \
-    }                                                                      \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {           \
-        if (!json || !out) {                                               \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        return wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json( \
-            json, json_len, out);                                          \
+#define WF_OZONE_DEF_Q0(ns, op, genop)                                         \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {               \
+        if (!agent || !agent->client || !out) {                                \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        *out = NULL;                                                           \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output *dec = NULL;           \
+        wf_agent_sync_auth(agent);                                             \
+        wf_response res = {0};                                                 \
+        wf_status st = wf_lex_tools_ozone_##ns##_##genop##_main_call(          \
+            agent->client, &res);                                              \
+        if (st != WF_OK) {                                                     \
+            wf_response_free(&res);                                            \
+            return st;                                                         \
+        }                                                                      \
+        st = wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(      \
+            res.body, res.body_len, &dec);                                     \
+        wf_response_free(&res);                                                \
+        if (st == WF_OK) {                                                     \
+            *out = dec;                                                        \
+        }                                                                      \
+        return st;                                                             \
+    }                                                                          \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {               \
+        if (!json || !out) {                                                   \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        return wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(    \
+            json, json_len, out);                                              \
     }
 
-#define WF_OZONE_DEF_P(ns, op, genop)                                       \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,        \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {            \
-        if (!agent || !agent->client || !input || !out) {                  \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        *out = NULL;                                                       \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output *dec = NULL;       \
-        wf_agent_sync_auth(agent);                                         \
-        wf_response res = {0};                                             \
-        wf_status st = wf_lex_tools_ozone_##ns##_##genop##_main_call(      \
-            agent->client, input, &res);                                   \
-        if (st != WF_OK) {                                                 \
-            wf_response_free(&res);                                        \
-            return st;                                                     \
-        }                                                                  \
-        st = wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(  \
-            res.body, res.body_len, &dec);                                 \
-        wf_response_free(&res);                                           \
-        if (st == WF_OK) {                                                 \
-            *out = dec;                                                    \
-        }                                                                  \
-        return st;                                                         \
-    }                                                                      \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {           \
-        if (!json || !out) {                                               \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        return wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json( \
-            json, json_len, out);                                          \
+#define WF_OZONE_DEF_P(ns, op, genop)                                          \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,           \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {               \
+        if (!agent || !agent->client || !input || !out) {                      \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        *out = NULL;                                                           \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output *dec = NULL;           \
+        wf_agent_sync_auth(agent);                                             \
+        wf_response res = {0};                                                 \
+        wf_status st = wf_lex_tools_ozone_##ns##_##genop##_main_call(          \
+            agent->client, input, &res);                                       \
+        if (st != WF_OK) {                                                     \
+            wf_response_free(&res);                                            \
+            return st;                                                         \
+        }                                                                      \
+        st = wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(      \
+            res.body, res.body_len, &dec);                                     \
+        wf_response_free(&res);                                                \
+        if (st == WF_OK) {                                                     \
+            *out = dec;                                                        \
+        }                                                                      \
+        return st;                                                             \
+    }                                                                          \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out) {               \
+        if (!json || !out) {                                                   \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        return wf_lex_tools_ozone_##ns##_##genop##_main_output_decode_json(    \
+            json, json_len, out);                                              \
     }
 
-#define WF_OZONE_DEF_PR(ns, op, genop)                                      \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,        \
-        wf_response *out) {                                                \
-        if (!agent || !agent->client || !input || !out) {                  \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        wf_agent_sync_auth(agent);                                         \
-        return wf_lex_tools_ozone_##ns##_##genop##_main_call(              \
-            agent->client, input, out);                                     \
+#define WF_OZONE_DEF_PR(ns, op, genop)                                         \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,           \
+        wf_response *out) {                                                    \
+        if (!agent || !agent->client || !input || !out) {                      \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        wf_agent_sync_auth(agent);                                             \
+        return wf_lex_tools_ozone_##ns##_##genop##_main_call(agent->client,    \
+                                                             input, out);      \
     }
 
-#define WF_OZONE_DEF_QR(ns, op, genop)                                      \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,      \
-        wf_response *out) {                                                \
-        if (!agent || !agent->client || !params || !out) {                 \
-            return WF_ERR_INVALID_ARG;                                     \
-        }                                                                  \
-        wf_agent_sync_auth(agent);                                         \
-        return wf_lex_tools_ozone_##ns##_##genop##_main_call(              \
-            agent->client, params, out);                                    \
+#define WF_OZONE_DEF_QR(ns, op, genop)                                         \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,         \
+        wf_response *out) {                                                    \
+        if (!agent || !agent->client || !params || !out) {                     \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        wf_agent_sync_auth(agent);                                             \
+        return wf_lex_tools_ozone_##ns##_##genop##_main_call(agent->client,    \
+                                                             params, out);     \
     }
 
 #define WF_OZONE_ENDPOINTS                                                     \
@@ -637,9 +637,8 @@ wf_status wf_ozone_moderation_get_suggestions(
     *out_json = NULL;
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status st = wf_ozone_get_suggestions(agent->client,
-                                            (const char **)ignore_subjects, n,
-                                            limit, cursor, &res);
+    wf_status st = wf_ozone_get_suggestions(
+        agent->client, (const char **)ignore_subjects, n, limit, cursor, &res);
     if (st != WF_OK) {
         wf_response_free(&res);
         return st;
@@ -660,16 +659,17 @@ wf_status wf_ozone_moderation_get_suggestions(
 /* TODO: tools.ozone.moderation.getLabelDefinitions is NOT in the local atproto
  * lexicon snapshot, so no generated params/decoder exist. Reuses the existing
  * ozone.c transport helper and returns the raw response body as owned JSON. */
-wf_status wf_ozone_moderation_get_label_definitions(
-    wf_agent *agent, const char *const *uris, size_t n, char **out_json) {
+wf_status wf_ozone_moderation_get_label_definitions(wf_agent *agent,
+                                                    const char *const *uris,
+                                                    size_t n, char **out_json) {
     if (!agent || !agent->client || !out_json) {
         return WF_ERR_INVALID_ARG;
     }
     *out_json = NULL;
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status st = wf_ozone_get_label_defs(agent->client, (const char **)uris, n,
-                                          &res);
+    wf_status st =
+        wf_ozone_get_label_defs(agent->client, (const char **)uris, n, &res);
     if (st != WF_OK) {
         wf_response_free(&res);
         return st;

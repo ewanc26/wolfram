@@ -41,18 +41,18 @@ typedef struct wf_xrpc_server wf_xrpc_server;
 /** Kind of principal an auth middleware resolved for a request. */
 typedef enum {
     WF_XRPC_PRINCIPAL_NONE = 0,
-    WF_XRPC_PRINCIPAL_SERVICE,  /* app.bsky service JWT (iss = service DID) */
-    WF_XRPC_PRINCIPAL_USER,     /* OAuth/OIDC access token (sub = user DID) */
-    WF_XRPC_PRINCIPAL_ANY,      /* service or user; used by per-route auth
-                                   policies to express "no restriction" */
+    WF_XRPC_PRINCIPAL_SERVICE, /* app.bsky service JWT (iss = service DID) */
+    WF_XRPC_PRINCIPAL_USER,    /* OAuth/OIDC access token (sub = user DID) */
+    WF_XRPC_PRINCIPAL_ANY,     /* service or user; used by per-route auth
+                                  policies to express "no restriction" */
 } wf_xrpc_principal_kind;
 
 typedef struct wf_xrpc_request {
-    const char *nsid;          /* Parsed XRPC NSID from URL path */
-    const char *path;          /* Exact request path (for non-XRPC routes). */
-    const char *method;        /* "GET" or "POST" */
-    const char *auth_header;   /* Raw Authorization header (may be NULL) */
-    const char *dpop_header;   /* Raw DPoP proof header (may be NULL) */
+    const char *nsid;        /* Parsed XRPC NSID from URL path */
+    const char *path;        /* Exact request path (for non-XRPC routes). */
+    const char *method;      /* "GET" or "POST" */
+    const char *auth_header; /* Raw Authorization header (may be NULL) */
+    const char *dpop_header; /* Raw DPoP proof header (may be NULL) */
     /* Raw Cookie header, exactly as sent (may be NULL). Unparsed: MHD has no
      * cookie-jar concept and this mirrors that — a handler that wants one
      * cookie among several parses the `name=value; name2=value2` string
@@ -61,13 +61,14 @@ typedef struct wf_xrpc_request {
      * carry a session and nothing else in this struct can stand in for one.
      * Valid only during the handler. */
     const char *cookie_header;
-    cJSON      *params;        /* Query params (GET) or body JSON (POST); may be NULL */
+    cJSON *params; /* Query params (GET) or body JSON (POST); may be NULL */
     /* Raw request body (POST). For binary procedures such as blob uploads the
      * body is the raw bytes, not JSON; handlers that need it read body /
      * body_len directly. Valid only during the handler callback. */
     const unsigned char *body;
-    size_t      body_len;
-    /* Request Content-Type header (may be NULL). Valid only during the handler. */
+    size_t body_len;
+    /* Request Content-Type header (may be NULL). Valid only during the handler.
+     */
     const char *content_type;
     /* Request Host header (may be NULL). Valid only during the handler. */
     const char *host_header;
@@ -83,13 +84,13 @@ typedef struct wf_xrpc_request {
      * built outside the HTTP dispatch path (e.g. some internal/test call
      * sites) — check for NULL before use. */
     const char *client_ip;
-    void       *handler_ctx;   /* User context from route registration */
+    void *handler_ctx; /* User context from route registration */
     /* The following two fields are populated by an auth middleware (e.g.
      * wf_xrpc_server_set_auth_middleware) and are valid only for the duration
      * of the handler callback. `authed_subject` is server-owned and freed after
      * the handler returns; NULL when no principal was authenticated. */
-    char       *authed_subject;       /* resolved DID (iss for service tokens,
-                                         sub for user tokens) */
+    char *authed_subject; /* resolved DID (iss for service tokens,
+                             sub for user tokens) */
     wf_xrpc_principal_kind authed_principal_kind; /* kind of `authed_subject` */
 } wf_xrpc_request;
 
@@ -99,41 +100,38 @@ typedef struct wf_xrpc_response_header wf_xrpc_response_header;
 /* Response — fill in the handler callback, server sends it           */
 /* ------------------------------------------------------------------ */
 typedef struct wf_xrpc_response {
-    int     http_status;       /* HTTP status code (default 200) */
-    char   *body;              /* Heap-allocated body (server frees it) */
-    size_t  body_len;
+    int http_status; /* HTTP status code (default 200) */
+    char *body;      /* Heap-allocated body (server frees it) */
+    size_t body_len;
     /* Optional response Content-Type. When non-NULL the server emits this
      * header instead of the default "application/json" (used to serve raw
      * blobs). Owned by the handler; the server frees it after sending. */
-    char   *content_type;
+    char *content_type;
     wf_xrpc_response_header *headers; /* private owned response-header list */
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT { 200, NULL, 0, NULL, NULL }
+#define WF_XRPC_RESPONSE_INIT {200, NULL, 0, NULL, NULL}
 
 /** Set the response body (copies the string). */
-void wf_xrpc_response_set_body(wf_xrpc_response *resp,
-                               const char *body, size_t body_len);
+void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
+                               size_t body_len);
 
 /** Set an XRPC error response: {"error":"...","message":"..."} */
-void wf_xrpc_response_set_error(wf_xrpc_response *resp,
-                                int http_status,
-                                const char *error,
-                                const char *message);
+void wf_xrpc_response_set_error(wf_xrpc_response *resp, int http_status,
+                                const char *error, const char *message);
 
 /** Set a generic error body with the given HTTP status. */
-void wf_xrpc_response_set_error_body(wf_xrpc_response *resp,
-                                      int http_status,
-                                      const char *body, size_t body_len);
+void wf_xrpc_response_set_error_body(wf_xrpc_response *resp, int http_status,
+                                     const char *body, size_t body_len);
 
 /** Set the response Content-Type (copies the string). Pass NULL to clear. */
 void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
-                                        const char *content_type);
+                                       const char *content_type);
 
 /** Add a response header (copies name and value). */
-wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp,
-                                      const char *name, const char *value);
+wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
+                                      const char *value);
 
 /* ------------------------------------------------------------------ */
 /* Handler callbacks                                                   */
@@ -141,13 +139,13 @@ wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp,
 
 /** Query handler (GET /xrpc/<nsid>). Return WF_OK to send resp. */
 typedef wf_status (*wf_xrpc_query_handler)(void *ctx,
-                                            const wf_xrpc_request *req,
-                                            wf_xrpc_response *resp);
+                                           const wf_xrpc_request *req,
+                                           wf_xrpc_response *resp);
 
 /** Procedure handler (POST /xrpc/<nsid>). Return WF_OK to send resp. */
 typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
-                                                const wf_xrpc_request *req,
-                                                wf_xrpc_response *resp);
+                                               const wf_xrpc_request *req,
+                                               wf_xrpc_response *resp);
 
 /** Handler for an exact-path GET or POST route outside /xrpc. */
 typedef wf_status (*wf_http_route_handler)(void *ctx,
@@ -191,9 +189,8 @@ typedef struct wf_xrpc_sse_stream wf_xrpc_sse_stream;
  * left open (suspended) until the stream is closed. A handler that sends one
  * frame and immediately closes produces a single-shot SSE response.
  */
-typedef wf_status (*wf_xrpc_sse_handler)(void *ctx,
-                                          const wf_xrpc_request *req,
-                                          wf_xrpc_sse_stream *stream);
+typedef wf_status (*wf_xrpc_sse_handler)(void *ctx, const wf_xrpc_request *req,
+                                         wf_xrpc_sse_stream *stream);
 
 /* ------------------------------------------------------------------ */
 /* WebSocket (RFC 6455) subscription endpoints                         */
@@ -229,8 +226,7 @@ typedef struct wf_xrpc_ws_stream wf_xrpc_ws_stream;
  * called or the client closes it. A handler that sends one frame and closes
  * produces a single-shot stream.
  */
-typedef wf_status (*wf_xrpc_ws_handler)(void *ctx,
-                                        const wf_xrpc_request *req,
+typedef wf_status (*wf_xrpc_ws_handler)(void *ctx, const wf_xrpc_request *req,
                                         wf_xrpc_ws_stream *stream);
 
 /* ------------------------------------------------------------------ */
@@ -282,7 +278,7 @@ typedef void (*wf_xrpc_request_observer)(void *ctx, const char *nsid,
  * @return Server handle, or NULL on failure.
  */
 wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
-                                      unsigned int thread_count);
+                                     unsigned int thread_count);
 
 /** Stop accepting new requests. Safe to call more than once. */
 void wf_xrpc_server_stop(wf_xrpc_server *server);
@@ -311,8 +307,7 @@ uint16_t wf_xrpc_server_port(const wf_xrpc_server *server);
 wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
                                              const char *path,
                                              const char *content_type,
-                                             const void *body,
-                                             size_t body_len);
+                                             const void *body, size_t body_len);
 
 /**
  * Register a dynamic public route outside /xrpc. `method` must be GET or POST.
@@ -346,23 +341,21 @@ wf_status wf_xrpc_server_register_http_prefix(wf_xrpc_server *server,
 /* ------------------------------------------------------------------ */
 
 wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
-                                         const char *nsid,
-                                         wf_xrpc_query_handler handler,
-                                         void *ctx);
+                                        const char *nsid,
+                                        wf_xrpc_query_handler handler,
+                                        void *ctx);
 
 wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
-                                          const char *nsid,
-                                          wf_xrpc_procedure_handler handler,
-                                          void *ctx);
+                                            const char *nsid,
+                                            wf_xrpc_procedure_handler handler,
+                                            void *ctx);
 
 /* Register an SSE (Server-Sent Events) endpoint (GET). The connection is kept
  * open and frames are pushed with wf_xrpc_server_sse_send until closed with
  * wf_xrpc_server_sse_close. A handler that sends a single frame and closes
  * produces a single-shot SSE response. */
-wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
-                                      const char *nsid,
-                                      wf_xrpc_sse_handler handler,
-                                      void *ctx);
+wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server, const char *nsid,
+                                      wf_xrpc_sse_handler handler, void *ctx);
 
 /**
  * Push a single SSE frame to an open stream.
@@ -376,8 +369,8 @@ wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server,
  * (typically a dedicated worker thread). Returns WF_ERR_INVALID_ARG if the
  * stream is already closed.
  */
-wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream,
-                                  const char *event, const char *data);
+wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream, const char *event,
+                                  const char *data);
 
 /**
  * Push a pre-formatted raw frame to an open stream. The caller is responsible
@@ -403,10 +396,8 @@ wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream);
  * server → client subscription streaming: binary and close frames, and
  * answering client ping with pong.
  */
-wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
-                                     const char *nsid,
-                                     wf_xrpc_ws_handler handler,
-                                     void *ctx);
+wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server, const char *nsid,
+                                     wf_xrpc_ws_handler handler, void *ctx);
 
 /**
  * Send a single binary (opcode 0x2) WebSocket frame to the client.
@@ -421,8 +412,8 @@ wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server,
  * WF_ERR_NETWORK for any other transport failure. Server → client frames are
  * sent UNMASKED.
  */
-wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream,
-                                 const void *data, size_t len);
+wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream, const void *data,
+                                 size_t len);
 
 /**
  * Retain a WebSocket stream for use by a worker thread. A successful retain
@@ -463,7 +454,7 @@ wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code);
 /* ------------------------------------------------------------------ */
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
-                                        wf_xrpc_auth_cb cb, void *ctx);
+                                      wf_xrpc_auth_cb cb, void *ctx);
 
 /** Install (or clear, with NULL) the per-request observer. `ctx` is not
  *  owned by the server. */
@@ -482,10 +473,11 @@ void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
 
 /**
  * Like wf_xrpc_server_set_auth_callback, but also records an owned middleware
- * context (`mw_ctx`) that the server frees via `mw_free` in wf_xrpc_server_free.
- * Installing a different auth callback (via wf_xrpc_server_set_auth_callback)
- * releases any previously recorded middleware context. Used by
- * wf_xrpc_server_set_auth_middleware; not generally needed by callers.
+ * context (`mw_ctx`) that the server frees via `mw_free` in
+ * wf_xrpc_server_free. Installing a different auth callback (via
+ * wf_xrpc_server_set_auth_callback) releases any previously recorded middleware
+ * context. Used by wf_xrpc_server_set_auth_middleware; not generally needed by
+ * callers.
  */
 void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
                                             wf_xrpc_auth_cb cb, void *ctx,
@@ -504,15 +496,16 @@ typedef struct wf_rate_limiter wf_rate_limiter;
  *
  * @param points            Maximum tokens the bucket can hold (burst).
  * @param duration_seconds  Time window in seconds for token refill.
- *                          Tokens refill at `points / duration_seconds` per second.
+ *                          Tokens refill at `points / duration_seconds` per
+ * second.
  * @param bucket_count      Number of buckets (keys tracked simultaneously).
  *                          0 uses a default (256). Each bucket is a linked-list
  *                          node; higher values reduce hash collisions.
  * @return  Handle, or NULL on allocation failure.
  */
 wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
-                                      unsigned int duration_seconds,
-                                      unsigned int bucket_count);
+                                     unsigned int duration_seconds,
+                                     unsigned int bucket_count);
 
 /** Free a rate limiter. Safe to call with NULL. */
 void wf_rate_limiter_free(wf_rate_limiter *rl);
@@ -528,10 +521,9 @@ void wf_rate_limiter_free(wf_rate_limiter *rl);
  * @return WF_OK if tokens were consumed, WF_ERR_RATE_LIMIT if the bucket is
  *         empty, WF_ERR_INVALID_ARG on bad inputs.
  */
-wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
-                                   const char *key,
-                                   unsigned int cost,
-                                   unsigned int *out_retry_after);
+wf_status wf_rate_limiter_consume(wf_rate_limiter *rl, const char *key,
+                                  unsigned int cost,
+                                  unsigned int *out_retry_after);
 
 /**
  * Bucket status a caller can use to set RateLimit-Limit/Remaining/Reset/
@@ -541,10 +533,11 @@ wf_status wf_rate_limiter_consume(wf_rate_limiter *rl,
  * value, despite the header's name.
  */
 typedef struct wf_rate_limit_status {
-    unsigned int limit;            /* configured bucket capacity (points) */
-    unsigned int remaining;        /* tokens left after this consume */
-    unsigned int reset_at;         /* absolute Unix timestamp */
-    unsigned int duration_seconds; /* the bucket's window, for the Policy header */
+    unsigned int limit;     /* configured bucket capacity (points) */
+    unsigned int remaining; /* tokens left after this consume */
+    unsigned int reset_at;  /* absolute Unix timestamp */
+    unsigned int
+        duration_seconds; /* the bucket's window, for the Policy header */
 } wf_rate_limit_status;
 
 /**
@@ -554,16 +547,15 @@ typedef struct wf_rate_limit_status {
  * gets a 429. `out_status` may be NULL if the caller only cares about the
  * WF_OK/WF_ERR_RATE_LIMIT result.
  */
-wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl,
-                                          const char *key,
-                                          unsigned int cost,
-                                          wf_rate_limit_status *out_status);
+wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl, const char *key,
+                                         unsigned int cost,
+                                         wf_rate_limit_status *out_status);
 
 /* Attach a rate limiter to a server. When set, every request is charged
  * 1 token against the client's IP address before the auth callback.
  * Passing NULL removes the rate limiter. */
 void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
-                                       wf_rate_limiter *rl);
+                                     wf_rate_limiter *rl);
 
 /**
  * Attach a rate limiter the server owns. Unlike wf_xrpc_server_set_rate_limiter
@@ -571,7 +563,7 @@ void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
  * Passing NULL is a no-op. Primarily used by wf_xrpc_server_new_with_config.
  */
 void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
-                                             wf_rate_limiter *rl);
+                                           wf_rate_limiter *rl);
 
 /* Attach a per-route rate limiter. Requests to this exact method/nsid
  * will be charged `rl` tokens (defaults to IP-based limiter if none set).
@@ -581,9 +573,8 @@ void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
  * full URL path as it appears in the request (e.g. "/xrpc/io.example.ping").
  */
 void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
-                                            const char *method,
-                                            const char *url,
-                                            wf_rate_limiter *rl);
+                                           const char *method, const char *url,
+                                           wf_rate_limiter *rl);
 
 /* ------------------------------------------------------------------ */
 /* CORS configuration                                                   */
@@ -598,7 +589,7 @@ void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
  * to fall back to "*"). The server takes a copy of `origin`.
  */
 void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
-                              const char *origin);
+                             const char *origin);
 
 /* ------------------------------------------------------------------ */
 /* JSON configuration loader                                            */
@@ -612,8 +603,8 @@ typedef enum {
 
 /** A single configured route entry: NSID + method. */
 typedef struct wf_xrpc_server_config_route {
-    char *nsid;   /* owned; e.g. "io.example.ping" */
-    int    method; /* wf_xrpc_server_config_method */
+    char *nsid; /* owned; e.g. "io.example.ping" */
+    int method; /* wf_xrpc_server_config_method */
 } wf_xrpc_server_config_route;
 
 /**
@@ -642,10 +633,10 @@ typedef struct wf_xrpc_server_config_route {
  * Unknown/extra fields are ignored. Malformed JSON returns WF_ERR_CONFIG.
  */
 typedef struct wf_xrpc_server_config {
-    char    *host;               /* owned; default "0.0.0.0" */
-    uint16_t port;               /* default 8080 */
-    bool     cors_enabled;       /* default true */
-    char    *cors_origin;        /* owned; default "*" */
+    char *host;        /* owned; default "0.0.0.0" */
+    uint16_t port;     /* default 8080 */
+    bool cors_enabled; /* default true */
+    char *cors_origin; /* owned; default "*" */
     struct {
         unsigned int max_tokens;        /* burst capacity; 0 disables */
         unsigned int refill_per_second; /* tokens refilled per second */
@@ -666,7 +657,7 @@ typedef struct wf_xrpc_server_config {
  *         inputs. On any error *out is NULL and nothing is leaked.
  */
 wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
-                                       wf_xrpc_server_config **out);
+                                      wf_xrpc_server_config **out);
 
 /** Free a config produced by wf_xrpc_server_config_parse. NULL-safe. */
 void wf_xrpc_server_config_free(wf_xrpc_server_config *cfg);

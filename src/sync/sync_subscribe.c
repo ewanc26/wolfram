@@ -17,7 +17,7 @@ struct wf_subscribe_handle {
     char *service_copy;
     int64_t cursor;
     uint32_t retry_delay_ms;
-    uint64_t last_ping_ms;     /* last keepalive ping sent (ms) */
+    uint64_t last_ping_ms; /* last keepalive ping sent (ms) */
     volatile int stopped;
 };
 
@@ -86,7 +86,8 @@ static wf_status parse_cid_link_strict(cbor_item_t *item, wf_cid *out) {
     size_t len = cbor_bytestring_length(tagged);
     const unsigned char *data = cbor_bytestring_handle(tagged);
     if (len < 1 || data[0] != 0x00) return WF_ERR_PARSE;
-    len--; data++;
+    len--;
+    data++;
     if (len > sizeof(out->bytes)) return WF_ERR_PARSE;
     memcpy(out->bytes, data, len);
     out->len = len;
@@ -97,45 +98,46 @@ static wf_status parse_cid_link_strict(cbor_item_t *item, wf_cid *out) {
 
 static void event_free(wf_subscribe_event *ev) {
     switch (ev->type) {
-    case WF_SUBSCRIBE_EVENT_COMMIT:
-        free(ev->data.commit.blocks);
-        if (ev->data.commit.ops) {
-            for (size_t i = 0; i < ev->data.commit.ops_count; i++)
-                free(ev->data.commit.ops[i].path);
-            free(ev->data.commit.ops);
-        }
-        break;
-    case WF_SUBSCRIBE_EVENT_SYNC:
-        free(ev->data.sync.blocks);
-        break;
-    case WF_SUBSCRIBE_EVENT_ERROR:
-        free(ev->data.error.error);
-        free(ev->data.error.message);
-        break;
-    case WF_SUBSCRIBE_EVENT_LABELS:
-        if (ev->data.labels.labels) {
-            for (size_t i = 0; i < ev->data.labels.labels_count; i++) {
-                wf_label *lab = &ev->data.labels.labels[i];
-                free(lab->src);
-                free(lab->uri);
-                free(lab->cid);
-                free(lab->val);
-                free(lab->cts);
-                free(lab->exp);
-                free(lab->sig);
+        case WF_SUBSCRIBE_EVENT_COMMIT:
+            free(ev->data.commit.blocks);
+            if (ev->data.commit.ops) {
+                for (size_t i = 0; i < ev->data.commit.ops_count; i++)
+                    free(ev->data.commit.ops[i].path);
+                free(ev->data.commit.ops);
             }
-            free(ev->data.labels.labels);
-        }
-        break;
-    default:
-        break;
+            break;
+        case WF_SUBSCRIBE_EVENT_SYNC:
+            free(ev->data.sync.blocks);
+            break;
+        case WF_SUBSCRIBE_EVENT_ERROR:
+            free(ev->data.error.error);
+            free(ev->data.error.message);
+            break;
+        case WF_SUBSCRIBE_EVENT_LABELS:
+            if (ev->data.labels.labels) {
+                for (size_t i = 0; i < ev->data.labels.labels_count; i++) {
+                    wf_label *lab = &ev->data.labels.labels[i];
+                    free(lab->src);
+                    free(lab->uri);
+                    free(lab->cid);
+                    free(lab->val);
+                    free(lab->cts);
+                    free(lab->exp);
+                    free(lab->sig);
+                }
+                free(ev->data.labels.labels);
+            }
+            break;
+        default:
+            break;
     }
     memset(ev, 0, sizeof(*ev));
 }
 
 /* ── URL builder ── */
 
-static wf_status build_url(const char *service, int64_t cursor, char **out_url) {
+static wf_status build_url(const char *service, int64_t cursor,
+                           char **out_url) {
     if (!out_url) return WF_ERR_INVALID_ARG;
     *out_url = NULL;
     const char *svc = service ? service : WF_SUBSCRIBE_DEFAULT_SERVICE;
@@ -145,11 +147,13 @@ static wf_status build_url(const char *service, int64_t cursor, char **out_url) 
     char buf[WF_SUBSCRIBE_URL_MAX];
     int n;
     if (cursor > 0) {
-        n = snprintf(buf, sizeof(buf), "%.*s/xrpc/com.atproto.sync.subscribeRepos?cursor=%lld",
+        n = snprintf(buf, sizeof(buf),
+                     "%.*s/xrpc/com.atproto.sync.subscribeRepos?cursor=%lld",
                      (int)slen, svc, (long long)cursor);
     } else {
-        n = snprintf(buf, sizeof(buf), "%.*s/xrpc/com.atproto.sync.subscribeRepos",
-                     (int)slen, svc);
+        n = snprintf(buf, sizeof(buf),
+                     "%.*s/xrpc/com.atproto.sync.subscribeRepos", (int)slen,
+                     svc);
     }
     if (n < 0 || (size_t)n >= sizeof(buf)) return WF_ERR_INVALID_ARG;
     *out_url = wf_strdup(buf);
@@ -219,8 +223,7 @@ static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
     if (since && cbor_isa_string(since)) {
         size_t slen = 0;
         const char *sstr = item_string(since, &slen);
-        if (sstr && slen < sizeof(c->since))
-            memcpy(c->since, sstr, slen);
+        if (sstr && slen < sizeof(c->since)) memcpy(c->since, sstr, slen);
     }
 
     cbor_item_t *blocks = map_find(body, "blocks");
@@ -241,7 +244,9 @@ static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
             for (size_t i = 0; i < c->ops_count; i++) {
                 if (!parse_repo_op(items[i], &c->ops[i])) {
                     for (size_t j = 0; j < i; j++) free(c->ops[j].path);
-                    free(c->ops); c->ops = NULL; c->ops_count = 0;
+                    free(c->ops);
+                    c->ops = NULL;
+                    c->ops_count = 0;
                     return WF_ERR_PARSE;
                 }
             }
@@ -259,7 +264,8 @@ static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
      * firehose). Only populated when present on the wire. */
     cbor_item_t *prev_data = map_find(body, "prevData");
     if (prev_data && !cbor_is_null(prev_data) && !cbor_is_undef(prev_data))
-        c->has_prev_data = (parse_cid_link_strict(prev_data, &c->prev_data) == WF_OK);
+        c->has_prev_data =
+            (parse_cid_link_strict(prev_data, &c->prev_data) == WF_OK);
 
     return WF_OK;
 }
@@ -417,7 +423,10 @@ static wf_status parse_labels(cbor_item_t *body, wf_subscribe_event *ev) {
     if (!labels || !cbor_isa_array(labels)) return WF_ERR_PARSE;
 
     l->labels_count = cbor_array_size(labels);
-    if (l->labels_count == 0) { l->labels = NULL; return WF_OK; }
+    if (l->labels_count == 0) {
+        l->labels = NULL;
+        return WF_OK;
+    }
 
     l->labels = calloc(l->labels_count, sizeof(wf_label));
     if (!l->labels) return WF_ERR_ALLOC;
@@ -431,7 +440,10 @@ static wf_status parse_labels(cbor_item_t *body, wf_subscribe_event *ev) {
 
         cbor_item_t *ver = map_find(item, "ver");
         int64_t v = 0;
-        if (ver && item_int(ver, &v)) { lab->ver = v; lab->has_ver = 1; }
+        if (ver && item_int(ver, &v)) {
+            lab->ver = v;
+            lab->has_ver = 1;
+        }
 
         cbor_item_t *src = map_find(item, "src");
         size_t slen = 0;
@@ -507,7 +519,8 @@ static wf_status parse_labels(cbor_item_t *body, wf_subscribe_event *ev) {
         if (sig && cbor_isa_bytestring(sig)) {
             size_t sl = cbor_bytestring_length(sig);
             const unsigned char *sd = cbor_bytestring_handle(sig);
-            if (wf_crypto_base64url_encode(sd, sl, &lab->sig) != WF_OK) goto fail;
+            if (wf_crypto_base64url_encode(sd, sl, &lab->sig) != WF_OK)
+                goto fail;
             lab->has_sig = 1;
         }
     }
@@ -578,9 +591,11 @@ static wf_status handle_connect(wf_subscribe_handle *handle) {
 
 static wf_status subscribe_loop(wf_subscribe_handle *handle) {
     uint32_t initial_delay = handle->opts.reconnect_delay_ms > 0
-                                 ? (uint32_t)handle->opts.reconnect_delay_ms : 3000;
+                                 ? (uint32_t)handle->opts.reconnect_delay_ms
+                                 : 3000;
     uint32_t max_delay = handle->opts.max_retry_seconds > 0
-                             ? (uint32_t)handle->opts.max_retry_seconds * 1000 : 64000;
+                             ? (uint32_t)handle->opts.max_retry_seconds * 1000
+                             : 64000;
     uint32_t ping_interval = handle->opts.ping_interval_ms > 0
                                  ? handle->opts.ping_interval_ms
                                  : WF_SUBSCRIBE_DEFAULT_PING_INTERVAL_MS;
@@ -596,24 +611,26 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
             wf_status conn_status = handle_connect(handle);
             if (conn_status != WF_OK) {
                 if (handle->opts.on_error)
-                    handle->opts.on_error(conn_status, "websocket connect failed",
+                    handle->opts.on_error(conn_status,
+                                          "websocket connect failed",
                                           handle->opts.userdata);
 
                 uint64_t now = wf_now_ms();
                 uint64_t wait = now + handle->retry_delay_ms;
                 while (!handle->stopped) {
-                    uint64_t remaining = wait > wf_now_ms() ? wait - wf_now_ms() : 0;
+                    uint64_t remaining =
+                        wait > wf_now_ms() ? wait - wf_now_ms() : 0;
                     if (remaining == 0) break;
                     struct timespec ts = {(long)(remaining / 1000),
-                                         (long)(remaining % 1000) * 1000000L};
+                                          (long)(remaining % 1000) * 1000000L};
                     nanosleep(&ts, NULL);
                 }
                 if (handle->stopped) break;
 
                 if (handle->retry_delay_ms < max_delay) {
                     uint64_t doubled = (uint64_t)handle->retry_delay_ms * 2;
-                    handle->retry_delay_ms = doubled > max_delay
-                                                 ? max_delay : (uint32_t)doubled;
+                    handle->retry_delay_ms =
+                        doubled > max_delay ? max_delay : (uint32_t)doubled;
                 }
                 continue;
             }
@@ -632,15 +649,16 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
             handle_close(handle);
             if (handle->opts.on_error)
                 handle->opts.on_error(s, "websocket receive failed",
-                                     handle->opts.userdata);
+                                      handle->opts.userdata);
 
             uint64_t now = wf_now_ms();
             uint64_t wait = now + handle->retry_delay_ms;
             while (!handle->stopped) {
-                uint64_t remaining = wait > wf_now_ms() ? wait - wf_now_ms() : 0;
+                uint64_t remaining =
+                    wait > wf_now_ms() ? wait - wf_now_ms() : 0;
                 if (remaining == 0) break;
                 struct timespec ts = {(long)(remaining / 1000),
-                                     (long)(remaining % 1000) * 1000000L};
+                                      (long)(remaining % 1000) * 1000000L};
                 nanosleep(&ts, NULL);
             }
             if (handle->stopped) break;
@@ -658,7 +676,8 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
              * transport framing in websocket.c.) */
             wf_websocket_message_free(&msg);
             uint64_t now = wf_now_ms();
-            if (ping_interval > 0 && now - handle->last_ping_ms >= ping_interval) {
+            if (ping_interval > 0 &&
+                now - handle->last_ping_ms >= ping_interval) {
                 wf_websocket_send_ping(handle->socket);
                 handle->last_ping_ms = now;
             }
@@ -685,7 +704,8 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
             continue;
         }
 
-        cbor_item_t *body = cbor_load(msg.data + lr.read, msg.len - lr.read, &lr);
+        cbor_item_t *body =
+            cbor_load(msg.data + lr.read, msg.len - lr.read, &lr);
         if (!body || lr.error.code != CBOR_ERR_NONE) {
             cbor_decref(&header);
             cbor_decref(&body);
@@ -709,7 +729,7 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
                     handle->opts.on_event(&ev, handle->opts.userdata);
                 if (handle->opts.on_error)
                     handle->opts.on_error(WF_ERR_PARSE, ev.data.error.error,
-                                         handle->opts.userdata);
+                                          handle->opts.userdata);
                 event_free(&ev);
             }
             continue;
@@ -749,8 +769,7 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
                 ev.type == WF_SUBSCRIBE_EVENT_SYNC ||
                 ev.type == WF_SUBSCRIBE_EVENT_IDENTITY ||
                 ev.type == WF_SUBSCRIBE_EVENT_ACCOUNT) {
-                if (ev.seq > handle->cursor)
-                    handle->cursor = ev.seq;
+                if (ev.seq > handle->cursor) handle->cursor = ev.seq;
             }
 
             if (ev.type == WF_SUBSCRIBE_EVENT_INFO) {
@@ -759,8 +778,8 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
                  * OutdatedCursor the server has already reset to the earliest
                  * available cursor, so we reset our local cursor to 0 and keep
                  * draining on the SAME connection (the reference keeps the
-                 * socket open and replays from the start on the next reconnect).
-                 * We never close the socket on an info frame. */
+                 * socket open and replays from the start on the next
+                 * reconnect). We never close the socket on an info frame. */
                 if (strcmp(ev.data.info.name, "OutdatedCursor") == 0)
                     handle->cursor = 0;
             }
@@ -779,7 +798,7 @@ wf_status wf_subscribe_start(const wf_subscribe_options *opts,
                              wf_subscribe_handle **out) {
     if (!opts || !out || !opts->on_event) return WF_ERR_INVALID_ARG;
     if (opts->service && strncmp(opts->service, "ws://", 5) != 0 &&
-                         strncmp(opts->service, "wss://", 6) != 0)
+        strncmp(opts->service, "wss://", 6) != 0)
         return WF_ERR_INVALID_ARG;
     if (opts->max_retry_seconds < 0 || opts->reconnect_delay_ms < 0)
         return WF_ERR_INVALID_ARG;
@@ -791,7 +810,10 @@ wf_status wf_subscribe_start(const wf_subscribe_options *opts,
     handle->opts = *opts;
     if (opts->service) {
         handle->service_copy = wf_strdup(opts->service);
-        if (!handle->service_copy) { free(handle); return WF_ERR_ALLOC; }
+        if (!handle->service_copy) {
+            free(handle);
+            return WF_ERR_ALLOC;
+        }
         handle->opts.service = handle->service_copy;
     }
     handle->cursor = opts->has_cursor ? opts->cursor : 0;

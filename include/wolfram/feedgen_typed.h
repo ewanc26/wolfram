@@ -37,13 +37,13 @@ typedef struct wf_agent_generator_view {
     char *uri;
     char *cid;
     char *did;
-    wf_agent_profile_view creator;  /* owned creator profileView */
+    wf_agent_profile_view creator; /* owned creator profileView */
     char *display_name;
     char *description;
     char *avatar;
     char *indexed_at;
     int like_count;
-    int has_like_count;             /* whether likeCount was present */
+    int has_like_count; /* whether likeCount was present */
 } wf_agent_generator_view;
 
 /* A parsed list of generator views (app.bsky.feed.getActorFeeds). */
@@ -56,7 +56,7 @@ typedef struct wf_agent_generator_view_list {
 /* A single feed-generator record with online/valid status
  * (app.bsky.feed.getFeedGenerator returns {view, isOnline, isValid}). */
 typedef struct wf_agent_generator_detail {
-    wf_agent_generator_view view;   /* owned generatorView */
+    wf_agent_generator_view view; /* owned generatorView */
     int is_online;
     int is_valid;
 } wf_agent_generator_detail;

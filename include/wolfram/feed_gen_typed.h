@@ -6,16 +6,18 @@
  * search results.
  *
  * Conventions mirror labeler_typed.h / actor_typed.h: wf_status error codes,
- * static strdup/set_string/reset helpers, ownership via cJSON_DetachItemFromObject,
- * and a matching `_free` for every owned struct (a freed/zeroed struct frees
- * safely). Every owned string is heap-allocated; the `extra` field (where
- * present) holds an owned detached cJSON subtree of open/unbounded fields.
+ * static strdup/set_string/reset helpers, ownership via
+ * cJSON_DetachItemFromObject, and a matching `_free` for every owned struct (a
+ * freed/zeroed struct frees safely). Every owned string is heap-allocated; the
+ * `extra` field (where present) holds an owned detached cJSON subtree of
+ * open/unbounded fields.
  *
  * Reused types (do NOT redefine):
  *   - wf_agent_profile        (agent.h) — creator of a generatorView
  *   - wf_agent_like_list      (graph_typed.h) — getLikes output
  *   - wf_agent_actor_list     (graph_typed.h) — getRepostedBy output
- *   - wf_agent_feed_list      (feed_typed.h)  — getQuotes/getActorLikes/getListFeed
+ *   - wf_agent_feed_list      (feed_typed.h)  —
+ * getQuotes/getActorLikes/getListFeed
  *   - wf_agent_profile_view   (agent.h)       — author of a postView
  *
  * NSIDs covered (each call uses the generated lex wrapper directly):
@@ -61,7 +63,7 @@ extern "C" {
 typedef struct wf_feedgen_generator_view {
     char *uri;
     char *cid;
-    wf_agent_profile creator;       /* owned; see note above */
+    wf_agent_profile creator; /* owned; see note above */
     char *display_name;
     char *description;
     char *avatar;
@@ -71,7 +73,7 @@ typedef struct wf_feedgen_generator_view {
     bool accepts_interactions;
     char *content_mode;
     char *indexed_at;
-    cJSON *extra;                   /* owned detached subtree; NULL when empty */
+    cJSON *extra; /* owned detached subtree; NULL when empty */
 } wf_feedgen_generator_view;
 
 /* A list of generator views plus an optional cursor (feeds[] endpoints). */
@@ -96,8 +98,8 @@ typedef struct wf_feedgen_search_post {
     char *uri;
     char *cid;
     wf_agent_profile_view author;
-    cJSON *record;                 /* owned record subtree; NULL when absent */
-    cJSON *embed;                  /* owned embed subtree; NULL when absent */
+    cJSON *record; /* owned record subtree; NULL when absent */
+    cJSON *embed;  /* owned embed subtree; NULL when absent */
     bool has_reply_count;
     int64_t reply_count;
     bool has_repost_count;
@@ -109,7 +111,7 @@ typedef struct wf_feedgen_search_post {
     bool has_bookmark_count;
     int64_t bookmark_count;
     char *indexed_at;
-    cJSON *extra;                  /* owned detached subtree; NULL when empty */
+    cJSON *extra; /* owned detached subtree; NULL when empty */
 } wf_feedgen_search_post;
 
 /* A search-posts result list (searchPosts / searchPostsV2). */
@@ -127,7 +129,8 @@ typedef struct wf_feedgen_search_result_list {
  * On any error `out` is left fully reset. */
 
 /* Parse a feed-generator list JSON body ("feeds" array + optional cursor) into
- * owned structs. Used by getFeedGenerators / getActorFeeds / getSuggestedFeeds. */
+ * owned structs. Used by getFeedGenerators / getActorFeeds / getSuggestedFeeds.
+ */
 wf_status wf_feedgen_parse_generators(const char *json, size_t json_len,
                                       wf_feedgen_generator_list *out);
 
@@ -156,10 +159,11 @@ void wf_feedgen_search_result_list_free(wf_feedgen_search_result_list *list);
 
 /* app.bsky.feed.getFeedGenerator. `feed_uri` is the generator record AT-URI. */
 wf_status wf_feedgen_get_feed_generator_typed(wf_agent *agent,
-                                             const char *feed_uri,
-                                             wf_feedgen_generator_detail *out);
+                                              const char *feed_uri,
+                                              wf_feedgen_generator_detail *out);
 
-/* app.bsky.feed.getFeedGenerators. `feeds`/`feed_count` are generator AT-URIs. */
+/* app.bsky.feed.getFeedGenerators. `feeds`/`feed_count` are generator AT-URIs.
+ */
 wf_status wf_feedgen_get_feed_generators_typed(wf_agent *agent,
                                                const char *const *feeds,
                                                size_t feed_count,

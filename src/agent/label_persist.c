@@ -39,7 +39,7 @@ static wf_status persist_append(wf_agent *agent, wf_mod_label *batch,
 
     size_t base = agent->persisted_label_count;
     wf_mod_label *grown = realloc(agent->persisted_labels,
-        (base + bcount) * sizeof(wf_mod_label));
+                                  (base + bcount) * sizeof(wf_mod_label));
     if (!grown) {
         wf_mod_labels_free(batch, bcount);
         return WF_ERR_ALLOC;
@@ -67,8 +67,8 @@ wf_status wf_agent_persist_label(wf_agent *agent, const wf_mod_label *label) {
     if (!store) return WF_OK;
 
     return wf_store_save_label(store, label->uri, label->cid, label->val,
-                                label->src, label->cts, label->neg,
-                                label->has_cid, label->ver, label->exp);
+                               label->src, label->cts, label->neg,
+                               label->has_cid, label->ver, label->exp);
 }
 
 wf_status wf_agent_load_labels_from_store(wf_agent *agent) {
@@ -79,7 +79,8 @@ wf_status wf_agent_load_labels_from_store(wf_agent *agent) {
 
     /* Drop any previously loaded labels before reloading. */
     if (agent->persisted_labels) {
-        wf_mod_labels_free(agent->persisted_labels, agent->persisted_label_count);
+        wf_mod_labels_free(agent->persisted_labels,
+                           agent->persisted_label_count);
         agent->persisted_labels = NULL;
         agent->persisted_label_count = 0;
     }
@@ -109,16 +110,19 @@ wf_status wf_agent_load_labels_from_store(wf_agent *agent) {
         if (fs == WF_OK) {
             cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
             if (root) {
-                cJSON *follows = cJSON_GetObjectItemCaseSensitive(root, "follows");
+                cJSON *follows =
+                    cJSON_GetObjectItemCaseSensitive(root, "follows");
                 if (cJSON_IsArray(follows)) {
                     cJSON *item = NULL;
                     cJSON_ArrayForEach(item, follows) {
-                        cJSON *fdid = cJSON_GetObjectItemCaseSensitive(item, "did");
-                        if (!cJSON_IsString(fdid) || !fdid->valuestring) continue;
+                        cJSON *fdid =
+                            cJSON_GetObjectItemCaseSensitive(item, "did");
+                        if (!cJSON_IsString(fdid) || !fdid->valuestring)
+                            continue;
                         wf_mod_label *batch = NULL;
                         size_t bcount = 0;
-                        wf_status ls = wf_store_load_labels(store,
-                            fdid->valuestring, &batch, &bcount);
+                        wf_status ls = wf_store_load_labels(
+                            store, fdid->valuestring, &batch, &bcount);
                         if (ls == WF_OK) {
                             wf_status as = persist_append(agent, batch, bcount);
                             if (as != WF_OK) {
@@ -139,7 +143,7 @@ wf_status wf_agent_load_labels_from_store(wf_agent *agent) {
 }
 
 const wf_mod_label *wf_agent_get_persisted_labels(const wf_agent *agent,
-                                                 size_t *out_count) {
+                                                  size_t *out_count) {
     if (!agent || !out_count) {
         return NULL;
     }
@@ -149,5 +153,7 @@ const wf_mod_label *wf_agent_get_persisted_labels(const wf_agent *agent,
 
 #else
 /* stub: label persistence disabled when WOLFRAM_BUILD_STORE is off */
-static void wf_label_persist_no_store_dummy(void) { (void)0; }
+static void wf_label_persist_no_store_dummy(void) {
+    (void)0;
+}
 #endif

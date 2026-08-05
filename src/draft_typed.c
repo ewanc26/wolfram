@@ -178,7 +178,8 @@ static wf_status wf_draft_parse_one(cJSON *item, wf_draft *out) {
     return status;
 }
 
-wf_status wf_draft_parse_list(const char *json, size_t len, wf_draft_list *out) {
+wf_status wf_draft_parse_list(const char *json, size_t len,
+                              wf_draft_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -336,10 +337,10 @@ void wf_draft_deleteDraft_result_free(wf_draft_deleteDraft_result *r) {
  * `root` (kept alive by the caller through the XRPC call); only the array
  * containers are heap-allocated and returned via `posts_out` / `langs_out` for
  * the caller to free afterwards. */
-static wf_status wf_draft_build_lex(cJSON *root,
-                                    wf_lex_app_bsky_draft_defs_draft *draft,
-                                    wf_lex_app_bsky_draft_defs_draft_post ***posts_out,
-                                    char ***langs_out) {
+static wf_status
+wf_draft_build_lex(cJSON *root, wf_lex_app_bsky_draft_defs_draft *draft,
+                   wf_lex_app_bsky_draft_defs_draft_post ***posts_out,
+                   char ***langs_out) {
     *posts_out = NULL;
     *langs_out = NULL;
     wf_status status = WF_OK;
@@ -382,8 +383,8 @@ static wf_status wf_draft_build_lex(cJSON *root,
         int n = cJSON_GetArraySize(posts);
         if (n > 0) {
             wf_lex_app_bsky_draft_defs_draft_post **parr =
-                (wf_lex_app_bsky_draft_defs_draft_post **)calloc(
-                    (size_t)n, sizeof(*parr));
+                (wf_lex_app_bsky_draft_defs_draft_post **)calloc((size_t)n,
+                                                                 sizeof(*parr));
             if (!parr) {
                 return WF_ERR_ALLOC;
             }
@@ -428,7 +429,8 @@ wf_status wf_agent_create_draft(wf_agent *agent, const char *draft_json,
     *out_uri = NULL;
 
     wf_draft_createDraft_result res = {0};
-    wf_status status = wf_agent_draft_createDraft_typed(agent, draft_json, &res);
+    wf_status status =
+        wf_agent_draft_createDraft_typed(agent, draft_json, &res);
     if (status == WF_OK && res.id) {
         /* Transfer ownership of the id string to the caller. */
         *out_uri = res.id;
@@ -512,9 +514,8 @@ wf_status wf_agent_draft_createDraft_typed(wf_agent *agent,
     wf_lex_app_bsky_draft_defs_draft_post **posts = NULL;
     char **langs = NULL;
     wf_lex_app_bsky_draft_create_draft_main_input input = {0};
-    wf_status status =
-        wf_agent_draft_build_and_call_create(agent, draft_json, &input, &posts,
-                                             &langs);
+    wf_status status = wf_agent_draft_build_and_call_create(
+        agent, draft_json, &input, &posts, &langs);
     if (status != WF_OK) {
         free(posts);
         free(langs);
@@ -571,7 +572,8 @@ wf_status wf_agent_draft_updateDraft_typed(wf_agent *agent,
         return status;
     }
 
-    wf_lex_app_bsky_draft_defs_draft_with_id *with_id = calloc(1, sizeof(*with_id));
+    wf_lex_app_bsky_draft_defs_draft_with_id *with_id =
+        calloc(1, sizeof(*with_id));
     if (!with_id) {
         for (size_t i = 0; posts && i < draft->posts.count; ++i) {
             free(posts[i]);

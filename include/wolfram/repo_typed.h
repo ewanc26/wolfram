@@ -40,7 +40,7 @@ typedef struct wf_repo_record {
     char *uri;
     bool has_cid;
     char *cid;
-    cJSON *value;          /* owned detached subtree; NULL absent */
+    cJSON *value; /* owned detached subtree; NULL absent */
 } wf_repo_record;
 
 /* A list of records plus an optional cursor (listRecords). */
@@ -56,12 +56,12 @@ typedef struct wf_repo_record_list {
 typedef struct wf_repo_description {
     char *handle;
     char *did;
-    cJSON *did_doc;        /* owned detached subtree; NULL absent */
+    cJSON *did_doc; /* owned detached subtree; NULL absent */
     char **collections;
     size_t collection_count;
     bool has_handle_is_correct;
     bool handle_is_correct;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_repo_description;
 
 /* A single missing blob (listMissingBlobs). */
@@ -81,12 +81,12 @@ typedef struct wf_repo_missing_blob_list {
  * owned detached cJSON subtrees (`commit`, `results`); convenience `cid`/`rev`
  * fields are also extracted from the commit object when present. */
 typedef struct wf_repo_apply_writes_result {
-    cJSON *commit;         /* owned detached subtree; NULL absent */
+    cJSON *commit; /* owned detached subtree; NULL absent */
     bool has_commit_cid;
     char *commit_cid;
     bool has_commit_rev;
     char *commit_rev;
-    cJSON *results;        /* owned detached subtree (array); NULL absent */
+    cJSON *results; /* owned detached subtree (array); NULL absent */
 } wf_repo_apply_writes_result;
 
 /* ---- Parsers (own their outputs; full cleanup on the first error) ----
@@ -94,7 +94,8 @@ typedef struct wf_repo_apply_writes_result {
  * missing/invalid shape, WF_ERR_ALLOC on allocation failure, WF_OK on success.
  * On any error `out` is left fully reset. */
 
-/* Parse a com.atproto.repo.getRecord JSON body ("uri", optional "cid", "value"). */
+/* Parse a com.atproto.repo.getRecord JSON body ("uri", optional "cid",
+ * "value"). */
 wf_status wf_repo_parse_get_record(const char *json, size_t json_len,
                                    wf_repo_record *out);
 
@@ -126,8 +127,9 @@ void wf_repo_apply_writes_result_free(wf_repo_apply_writes_result *r);
 /* ---- applyWrites input builder ----
  * Builds an owned com.atproto.repo.applyWrites request body. Each `value`
  * argument is *taken ownership of* by the builder (do not free it yourself);
- * the builder frees it on wf_repo_writes_builder_free. wf_repo_writes_build_json
- * returns an owned JSON string (freed by the caller with free()). */
+ * the builder frees it on wf_repo_writes_builder_free.
+ * wf_repo_writes_build_json returns an owned JSON string (freed by the caller
+ * with free()). */
 
 typedef struct wf_repo_writes_builder wf_repo_writes_builder;
 
@@ -164,19 +166,19 @@ void wf_repo_writes_builder_free(wf_repo_writes_builder *b);
  * { uri, cid, commit?, validationStatus? }; `uri` and `cid` are surfaced as
  * owned scalars and any other fields remain in the owned `extra` subtree. */
 typedef struct wf_repo_write_record_result {
-    char *uri;            /* owned; required */
-    char *cid;            /* owned; required */
-    cJSON *extra;         /* owned detached subtree of unknown fields */
+    char *uri;    /* owned; required */
+    char *cid;    /* owned; required */
+    cJSON *extra; /* owned detached subtree of unknown fields */
 } wf_repo_write_record_result;
 
 /* Result of com.atproto.repo.uploadBlob. The body is
  * { blob: { cid, mimeType, size } }; the inner blob fields are surfaced as
  * owned scalars. */
 typedef struct wf_repo_upload_blob_result {
-    char *cid;            /* owned; required blob CID */
-    char *mime_type;      /* owned; required blob MIME type */
+    char *cid;       /* owned; required blob CID */
+    char *mime_type; /* owned; required blob MIME type */
     bool has_size;
-    int64_t size;         /* required blob size in bytes */
+    int64_t size; /* required blob size in bytes */
 } wf_repo_upload_blob_result;
 
 /* Parse a com.atproto.repo.createRecord / putRecord JSON body

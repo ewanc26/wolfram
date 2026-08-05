@@ -162,8 +162,8 @@ static void test_mirror_roundtrip(void) {
 
     const uint8_t cid[] = {0x01, 0x55, 0x12, 0x20, 0xde, 0xad, 0xbe, 0xef};
     const uint8_t block[] = {0x61, 0x62, 0x63, 0x00, 0xff, 0x10};
-    WF_CHECK(wf_store_save_mirror_block(store, did, cid, sizeof(cid),
-                                        block, sizeof(block)) == WF_OK);
+    WF_CHECK(wf_store_save_mirror_block(store, did, cid, sizeof(cid), block,
+                                        sizeof(block)) == WF_OK);
 
     uint8_t *out_block = NULL;
     size_t out_len = 0;

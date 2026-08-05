@@ -55,7 +55,10 @@ static unsigned char *base64_std_decode(const char *in, size_t *out_len) {
     padded[total] = '\0';
 
     out = malloc(total / 4 * 3 ? total / 4 * 3 : 1);
-    if (!out) { free(padded); return NULL; }
+    if (!out) {
+        free(padded);
+        return NULL;
+    }
     for (i = 0; i + 4 <= total; i += 4) {
         int b0 = tbl[(unsigned char)padded[i]];
         int b1 = tbl[(unsigned char)padded[i + 1]];
@@ -79,15 +82,29 @@ static char *read_entire_file(const char *path, size_t *len_out) {
     char *buffer;
     if (len_out) *len_out = 0;
     if (!fp) return NULL;
-    if (fseek(fp, 0, SEEK_END) != 0) { fclose(fp); return NULL; }
+    if (fseek(fp, 0, SEEK_END) != 0) {
+        fclose(fp);
+        return NULL;
+    }
     size_long = ftell(fp);
-    if (size_long < 0) { fclose(fp); return NULL; }
-    if (fseek(fp, 0, SEEK_SET) != 0) { fclose(fp); return NULL; }
+    if (size_long < 0) {
+        fclose(fp);
+        return NULL;
+    }
+    if (fseek(fp, 0, SEEK_SET) != 0) {
+        fclose(fp);
+        return NULL;
+    }
     size = (size_t)size_long;
     buffer = malloc(size + 1);
-    if (!buffer) { fclose(fp); return NULL; }
+    if (!buffer) {
+        fclose(fp);
+        return NULL;
+    }
     if (size > 0 && fread(buffer, 1, size, fp) != size) {
-        free(buffer); fclose(fp); return NULL;
+        free(buffer);
+        fclose(fp);
+        return NULL;
     }
     buffer[size] = '\0';
     fclose(fp);
@@ -114,7 +131,10 @@ int main(void) {
         cJSON *car_b64 = cJSON_GetObjectItemCaseSensitive(fx, "car");
         cJSON *root_cid = cJSON_GetObjectItemCaseSensitive(fx, "root");
         cJSON *blocks = cJSON_GetObjectItemCaseSensitive(fx, "blocks");
-        if (!car_b64 || !root_cid || !blocks) { WF_CHECK(0); continue; }
+        if (!car_b64 || !root_cid || !blocks) {
+            WF_CHECK(0);
+            continue;
+        }
 
         unsigned char *car_bytes = NULL;
         size_t car_len = 0;
@@ -125,11 +145,14 @@ int main(void) {
         wf_car car;
         WF_CHECK(wf_car_parse(car_bytes, car_len, &car) == WF_OK);
         free(car_bytes);
-        if (car.block_count == 0) { wf_car_free(&car); continue; }
+        if (car.block_count == 0) {
+            wf_car_free(&car);
+            continue;
+        }
 
         wf_cid expected_root;
-        WF_CHECK(wf_cid_from_string(root_cid->valuestring,
-                                    &expected_root) == WF_OK);
+        WF_CHECK(wf_cid_from_string(root_cid->valuestring, &expected_root) ==
+                 WF_OK);
         WF_CHECK(car.root_count == 1);
         WF_CHECK(cid_equal(&car.roots[0], &expected_root));
 
@@ -139,9 +162,11 @@ int main(void) {
         for (int j = 0; j < bn; j++) {
             cJSON *blk = cJSON_GetArrayItem(blocks, j);
             cJSON *exp_cid = cJSON_GetObjectItemCaseSensitive(blk, "cid");
-            cJSON *exp_bytes =
-                cJSON_GetObjectItemCaseSensitive(blk, "bytes");
-            if (!exp_cid || !exp_bytes) { WF_CHECK(0); continue; }
+            cJSON *exp_bytes = cJSON_GetObjectItemCaseSensitive(blk, "bytes");
+            if (!exp_cid || !exp_bytes) {
+                WF_CHECK(0);
+                continue;
+            }
 
             wf_cid ec;
             WF_CHECK(wf_cid_from_string(exp_cid->valuestring, &ec) == WF_OK);
@@ -157,8 +182,7 @@ int main(void) {
             free(exp_data);
 
             wf_cid computed;
-            WF_CHECK(wf_cid_of_block(car.blocks[j].data,
-                                     car.blocks[j].data_len,
+            WF_CHECK(wf_cid_of_block(car.blocks[j].data, car.blocks[j].data_len,
                                      &computed) == WF_OK);
             WF_CHECK(cid_equal(&computed, &ec));
         }

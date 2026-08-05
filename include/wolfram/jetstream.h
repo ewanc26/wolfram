@@ -12,9 +12,9 @@ extern "C" {
 
 typedef struct wf_jetstream_options {
     const char *endpoint; /* absolute ws(s) URL, usually ending in /subscribe */
-    const char * const *wanted_collections;
+    const char *const *wanted_collections;
     size_t wanted_collections_count;
-    const char * const *wanted_dids;
+    const char *const *wanted_dids;
     size_t wanted_dids_count;
     int64_t cursor; /* Unix microseconds; 0 omits the parameter */
     uint32_t max_message_size_bytes; /* 0 means no server-side limit */
@@ -38,9 +38,9 @@ typedef struct wf_jetstream_options {
 } wf_jetstream_options;
 
 typedef struct wf_jetstream_options_update {
-    const char * const *wanted_collections;
+    const char *const *wanted_collections;
     size_t wanted_collections_count;
-    const char * const *wanted_dids;
+    const char *const *wanted_dids;
     size_t wanted_dids_count;
     uint32_t max_message_size_bytes;
 } wf_jetstream_options_update;
@@ -58,7 +58,8 @@ typedef enum wf_jetstream_event_kind {
     WF_JETSTREAM_EVENT_INFO,
 } wf_jetstream_event_kind;
 
-/** Parsed envelope plus its complete owned JSON. Free with wf_jetstream_event_free. */
+/** Parsed envelope plus its complete owned JSON. Free with
+ * wf_jetstream_event_free. */
 typedef struct wf_jetstream_event {
     wf_jetstream_event_kind kind;
     char *did;
@@ -67,7 +68,8 @@ typedef struct wf_jetstream_event {
     size_t json_len;
 } wf_jetstream_event;
 
-/** Commit operation as emitted by Jetstream's flattened JSON `commit` payload. */
+/** Commit operation as emitted by Jetstream's flattened JSON `commit` payload.
+ */
 typedef enum wf_jetstream_commit_op {
     WF_JETSTREAM_COMMIT_UNKNOWN = 0,
     WF_JETSTREAM_COMMIT_CREATE,
@@ -87,10 +89,10 @@ typedef struct wf_jetstream_commit {
     wf_jetstream_commit_op operation;
     char *collection; /* NSID */
     char *rkey;
-    cJSON *record;    /* owned; nullable (delete) */
+    cJSON *record; /* owned; nullable (delete) */
     int has_record;
-    char *cid;        /* nullable */
-    char *rev;        /* nullable (repo revision TID) */
+    char *cid; /* nullable */
+    char *rev; /* nullable (repo revision TID) */
 } wf_jetstream_commit;
 
 /** Owned, typed identity payload. `handle` is the only required field. */
@@ -127,7 +129,7 @@ typedef struct wf_jetstream_sync {
 typedef struct wf_jetstream_event_typed {
     wf_jetstream_event_kind kind;
     char *did;
-    int64_t seq;    /* envelope sequence; NOT the payload seq */
+    int64_t seq;     /* envelope sequence; NOT the payload seq */
     int64_t time_us; /* envelope microsecond timestamp */
     wf_jetstream_commit commit;
     wf_jetstream_identity identity;
@@ -146,13 +148,14 @@ wf_status wf_jetstream_connect(const wf_jetstream_options *options,
                                wf_jetstream **out);
 
 /** Encode the official options_update envelope. Caller owns `*out_json`. */
-wf_status wf_jetstream_options_update_json(
-    const wf_jetstream_options_update *update,
-    char **out_json, size_t *out_json_len);
+wf_status
+wf_jetstream_options_update_json(const wf_jetstream_options_update *update,
+                                 char **out_json, size_t *out_json_len);
 
 /** Replace filters on an open stream; retry unchanged after WOULD_BLOCK. */
-wf_status wf_jetstream_update_options(
-    wf_jetstream *stream, const wf_jetstream_options_update *update);
+wf_status
+wf_jetstream_update_options(wf_jetstream *stream,
+                            const wf_jetstream_options_update *update);
 
 /**
  * Receive and parse one event. On transport failure, schedules a reconnect
@@ -160,7 +163,8 @@ wf_status wf_jetstream_update_options(
  */
 wf_status wf_jetstream_next(wf_jetstream *stream, wf_jetstream_event *out);
 
-/** Milliseconds until the next reconnect attempt, or zero when connected/due. */
+/** Milliseconds until the next reconnect attempt, or zero when connected/due.
+ */
 uint32_t wf_jetstream_reconnect_after_ms(const wf_jetstream *stream);
 
 /** True when this build can decode Jetstream's zstd binary messages. */

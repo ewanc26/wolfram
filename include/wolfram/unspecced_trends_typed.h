@@ -10,7 +10,8 @@
  * wf_status error codes, static strdup/set_string/reset helpers, ownership via
  * cJSON_DetachItemFromObject, and a matching `_free` for every owned list.
  *
- * Endpoint coverage (generated lex wrappers required to exist in atproto_lex.h):
+ * Endpoint coverage (generated lex wrappers required to exist in
+ * atproto_lex.h):
  *   - app.bsky.unspecced.getTrends           -> wf_unspecced_trend_list
  *   - app.bsky.unspecced.getSuggestedUsers   -> wf_agent_actor_list
  *   - app.bsky.unspecced.getSuggestedFeeds   -> wf_agent_generator_view_list
@@ -31,8 +32,8 @@ extern "C" {
 #endif
 
 /* A single trend view (app.bsky.unspecced.defs#trendView). Core fields are
- * owned copies; `actors` reuses the shared wf_agent_actor_list (profileViewBasic
- * array) and `extra` captures any trailing fields. */
+ * owned copies; `actors` reuses the shared wf_agent_actor_list
+ * (profileViewBasic array) and `extra` captures any trailing fields. */
 typedef struct wf_unspecced_trend_view {
     char *topic;
     char *display_name;
@@ -42,8 +43,9 @@ typedef struct wf_unspecced_trend_view {
     int64_t post_count;
     char *status;
     char *category;
-    wf_agent_actor_list actors;   /* owned profileViewBasic list; free via actors */
-    cJSON *extra;                 /* owned detached subtree; NULL absent */
+    wf_agent_actor_list
+        actors;   /* owned profileViewBasic list; free via actors */
+    cJSON *extra; /* owned detached subtree; NULL absent */
 } wf_unspecced_trend_view;
 
 /* A list of trend views (app.bsky.unspecced.getTrends). */
@@ -59,7 +61,7 @@ typedef struct wf_unspecced_thread_item_v2 {
     char *uri;
     int has_depth;
     int64_t depth;
-    cJSON *value;                 /* owned detached subtree; NULL absent */
+    cJSON *value; /* owned detached subtree; NULL absent */
 } wf_unspecced_thread_item_v2;
 
 /* A flat thread (app.bsky.unspecced.getPostThreadV2 / OtherV2). `threadgate` is
@@ -68,14 +70,14 @@ typedef struct wf_unspecced_thread_item_v2 {
 typedef struct wf_unspecced_thread_v2 {
     wf_unspecced_thread_item_v2 *items;
     size_t item_count;
-    cJSON *threadgate;            /* owned detached subtree; NULL absent */
+    cJSON *threadgate; /* owned detached subtree; NULL absent */
     int has_other_replies;
 } wf_unspecced_thread_v2;
 
 /* Parse a getTrends JSON body ("trends" array of trendView) into owned structs.
- * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or a
- * missing/invalid array, WF_ERR_ALLOC on allocation failure, WF_OK on success.
- * On any error `out` is left fully reset (no partial leaks). */
+ * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or
+ * a missing/invalid array, WF_ERR_ALLOC on allocation failure, WF_OK on
+ * success. On any error `out` is left fully reset (no partial leaks). */
 wf_status wf_unspecced_parse_trends(const char *json, size_t json_len,
                                     wf_unspecced_trend_list *out);
 
@@ -95,7 +97,8 @@ wf_status wf_unspecced_parse_suggested_feeds(const char *json, size_t json_len,
 
 /* Parse a getPostThreadV2 / getPostThreadOtherV2 JSON body ("thread" array of
  * threadItem) into owned structs. `threadgate` is captured from the top-level
- * field when present. Same ownership/error rules as wf_unspecced_parse_trends. */
+ * field when present. Same ownership/error rules as wf_unspecced_parse_trends.
+ */
 wf_status wf_unspecced_parse_thread_v2(const char *json, size_t json_len,
                                        wf_unspecced_thread_v2 *out);
 
@@ -112,16 +115,18 @@ wf_status wf_agent_get_trends_typed(wf_agent *agent, int limit,
 
 wf_status wf_agent_get_suggested_users_typed(wf_agent *agent,
                                              const char *category_or_null,
-                                             int limit, wf_agent_actor_list *out);
+                                             int limit,
+                                             wf_agent_actor_list *out);
 
 /* Sibling suggested-user feeds. All return the same "actors" array of
  * actor.defs#profileView (plus a recId/recIdStr hint which is ignored here), so
  * they reuse wf_unspecced_parse_suggested_users. getSuggestedUsersForDiscover
  * accepts only a limit; the others also accept an optional category. On success
- * `out` is owned by the caller (free with wf_agent_actor_list_free); on error it
- * is left reset. Each returns WF_ERR_INVALID_ARG on a NULL agent/out. */
-wf_status wf_agent_get_suggested_users_for_discover_typed(
-    wf_agent *agent, int limit, wf_agent_actor_list *out);
+ * `out` is owned by the caller (free with wf_agent_actor_list_free); on error
+ * it is left reset. Each returns WF_ERR_INVALID_ARG on a NULL agent/out. */
+wf_status
+wf_agent_get_suggested_users_for_discover_typed(wf_agent *agent, int limit,
+                                                wf_agent_actor_list *out);
 
 wf_status wf_agent_get_suggested_users_for_explore_typed(
     wf_agent *agent, const char *category_or_null, int limit,

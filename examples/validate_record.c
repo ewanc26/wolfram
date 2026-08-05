@@ -20,15 +20,30 @@ static char *read_file(const char *path, size_t *out_len) {
         perror(path);
         return NULL;
     }
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return NULL; }
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return NULL;
+    }
     size = ftell(f);
-    if (size < 0) { fclose(f); return NULL; }
-    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return NULL; }
+    if (size < 0) {
+        fclose(f);
+        return NULL;
+    }
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return NULL;
+    }
     buf = (char *)malloc((size_t)size + 1);
-    if (!buf) { fclose(f); return NULL; }
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
     got = fread(buf, 1, (size_t)size, f);
     fclose(f);
-    if (got != (size_t)size) { free(buf); return NULL; }
+    if (got != (size_t)size) {
+        free(buf);
+        return NULL;
+    }
     buf[size] = '\0';
     *out_len = (size_t)size;
     return buf;
@@ -40,8 +55,7 @@ int main(int argc, char **argv) {
     wf_validate_result res;
 
     if (argc < 4) {
-        printf("usage: %s <lexicon-dir> <nsid> <record-json>\n",
-               argv[0]);
+        printf("usage: %s <lexicon-dir> <nsid> <record-json>\n", argv[0]);
         return 0;
     }
 

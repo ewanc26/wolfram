@@ -5,10 +5,10 @@
  * ownership rules and the authoritative wire format.
  *
  * Conventions mirror labeler_typed.h / actor_prefs_typed.h: wf_status error
- * codes, static strdup/set_string/reset helpers, ownership via cJSON_DetachItem*
- * (unknown fields are preserved in the owned `extra` cJSON subtree), and a
- * matching `_free` for every owned struct (a freed/zeroed struct frees safely).
- * Every owned string is heap-allocated.
+ * codes, static strdup/set_string/reset helpers, ownership via
+ * cJSON_DetachItem* (unknown fields are preserved in the owned `extra` cJSON
+ * subtree), and a matching `_free` for every owned struct (a freed/zeroed
+ * struct frees safely). Every owned string is heap-allocated.
  *
  * Wire format (from the local lexicons):
  *   - app.bsky.video.defs#jobStatus:
@@ -18,7 +18,8 @@
  *   - app.bsky.video.getJobStatus  output: { jobStatus: <defs#jobStatus> }
  *   - app.bsky.video.uploadVideo   output: { jobStatus: <defs#jobStatus> }
  *   - app.bsky.video.getUploadLimits output:
- *       { canUpload, remainingDailyVideos?, remainingDailyBytes?, message?, error? }
+ *       { canUpload, remainingDailyVideos?, remainingDailyBytes?, message?,
+ * error? }
  */
 
 #ifndef WOLFRAM_VIDEO_TYPED_H
@@ -36,51 +37,54 @@ extern "C" {
 #endif
 
 /* A blob (app.bsky.video.defs#jobStatus.blob / generic AT Proto blob object).
- * `cid` is the ref.$link CID string; unknown fields are preserved in `extra`. */
+ * `cid` is the ref.$link CID string; unknown fields are preserved in `extra`.
+ */
 typedef struct wf_video_blob {
-    char *type;          /* $type; normally "blob"; NULL when absent */
-    char *cid;           /* ref.$link; NULL when absent */
-    char *mime_type;     /* mimeType; NULL when absent */
+    char *type;      /* $type; normally "blob"; NULL when absent */
+    char *cid;       /* ref.$link; NULL when absent */
+    char *mime_type; /* mimeType; NULL when absent */
     bool has_size;
     int64_t size;
-    cJSON *extra;        /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_video_blob;
 
 /* A video processing job status (app.bsky.video.defs#jobStatus). `job_id`,
  * `did`, and `state` are required on the wire; the rest are optional. Unknown
  * fields are preserved in owned `extra`. */
 typedef struct wf_video_job_status_def {
-    char *job_id;        /* required */
-    char *did;           /* required (did format) */
-    char *state;         /* required */
+    char *job_id; /* required */
+    char *did;    /* required (did format) */
+    char *state;  /* required */
     bool has_progress;
-    int64_t progress;    /* 0..100 */
+    int64_t progress; /* 0..100 */
     bool has_blob;
     wf_video_blob blob;
     char *error;
     char *message;
-    cJSON *extra;        /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_video_job_status_def;
 
 /* Envelope for app.bsky.video.getJobStatus / app.bsky.video.uploadVideo output
- * ({ "jobStatus": <defs#jobStatus> }). Unknown fields are preserved in `extra`. */
+ * ({ "jobStatus": <defs#jobStatus> }). Unknown fields are preserved in `extra`.
+ */
 typedef struct wf_video_job_status {
     wf_video_job_status_def job_status;
-    cJSON *extra;        /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_video_job_status;
 
 /* The authenticated user's video upload limits
- * (app.bsky.video.getUploadLimits output). `can_upload` is required on the wire;
- * the rest are optional. Unknown fields are preserved in owned `extra`. */
+ * (app.bsky.video.getUploadLimits output). `can_upload` is required on the
+ * wire; the rest are optional. Unknown fields are preserved in owned `extra`.
+ */
 typedef struct wf_video_upload_limits {
-    bool can_upload;     /* required */
+    bool can_upload; /* required */
     bool has_remaining_daily_videos;
     int64_t remaining_daily_videos;
     bool has_remaining_daily_bytes;
     int64_t remaining_daily_bytes;
     char *message;
     char *error;
-    cJSON *extra;        /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_video_upload_limits;
 
 /* ---- Parsers (own their outputs; full cleanup on first error) ----

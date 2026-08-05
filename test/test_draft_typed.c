@@ -29,8 +29,8 @@ int main(void) {
     /* ---- parse getDrafts ---- */
     {
         wf_draft_list out = {0};
-        wf_status s = wf_draft_parse_list(k_drafts_json, strlen(k_drafts_json),
-                                          &out);
+        wf_status s =
+            wf_draft_parse_list(k_drafts_json, strlen(k_drafts_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.count == 2);
         WF_CHECK(out.items != NULL);
@@ -58,20 +58,17 @@ int main(void) {
 
     /* ---- defs#draftView wire shape (id/draft variants) ---- */
     {
-        const char *json =
-            "{\"drafts\":[{\"id\":\"3k2xyz\","
-            "\"createdAt\":\"2026-03-03T00:00:00Z\","
-            "\"updatedAt\":\"2026-03-04T00:00:00Z\","
-            "\"draft\":{\"posts\":[{\"text\":\"nested\"}],"
-            "\"langs\":[\"de\"]}}]}";
+        const char *json = "{\"drafts\":[{\"id\":\"3k2xyz\","
+                           "\"createdAt\":\"2026-03-03T00:00:00Z\","
+                           "\"updatedAt\":\"2026-03-04T00:00:00Z\","
+                           "\"draft\":{\"posts\":[{\"text\":\"nested\"}],"
+                           "\"langs\":[\"de\"]}}]}";
         wf_draft_list out = {0};
         wf_status s = wf_draft_parse_list(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.count == 1);
-        WF_CHECK(out.items[0].uri &&
-                 strcmp(out.items[0].uri, "3k2xyz") == 0);
-        WF_CHECK(out.items[0].text &&
-                 strcmp(out.items[0].text, "nested") == 0);
+        WF_CHECK(out.items[0].uri && strcmp(out.items[0].uri, "3k2xyz") == 0);
+        WF_CHECK(out.items[0].text && strcmp(out.items[0].text, "nested") == 0);
         WF_CHECK(out.items[0].lang_count == 1);
         WF_CHECK(out.items[0].langs &&
                  strcmp(out.items[0].langs[0], "de") == 0);
@@ -121,8 +118,8 @@ int main(void) {
         /* createDraft returns {id} */
         const char *create_json = "{\"id\":\"3k9create\"}";
         wf_draft_createDraft_result cr = {0};
-        wf_status s = wf_draft_createDraft_parse(create_json,
-                                                 strlen(create_json), &cr);
+        wf_status s =
+            wf_draft_createDraft_parse(create_json, strlen(create_json), &cr);
         WF_CHECK(s == WF_OK);
         WF_CHECK(cr.id && strcmp(cr.id, "3k9create") == 0);
         wf_draft_createDraft_result_free(&cr);
@@ -152,8 +149,9 @@ int main(void) {
         wf_lex_app_bsky_draft_delete_draft_main_input din = {0};
         din.id = "3k9del";
         char *djson = NULL;
-        wf_status es = wf_lex_app_bsky_draft_delete_draft_main_input_encode_json(
-            &din, &djson);
+        wf_status es =
+            wf_lex_app_bsky_draft_delete_draft_main_input_encode_json(&din,
+                                                                      &djson);
         WF_CHECK(es == WF_OK);
         WF_CHECK(djson != NULL);
         if (djson) {
@@ -184,10 +182,10 @@ int main(void) {
         wf_draft_updateDraft_result ur = {0};
         WF_CHECK(wf_agent_draft_updateDraft_typed(NULL, "id", "{}", &ur) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_draft_updateDraft_typed(agent_dummy, NULL, "{}", &ur) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_draft_updateDraft_typed(agent_dummy, "id", NULL, &ur) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_draft_updateDraft_typed(agent_dummy, NULL, "{}",
+                                                  &ur) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_draft_updateDraft_typed(agent_dummy, "id", NULL,
+                                                  &ur) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_draft_updateDraft_typed(agent_dummy, "id", "{}",
                                                   NULL) == WF_ERR_INVALID_ARG);
         wf_draft_updateDraft_result_free(&ur);

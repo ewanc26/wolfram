@@ -136,17 +136,20 @@ static wf_status wf_feed_parse_viewer(wf_agent_feed_viewer_state *v,
         v->has_bookmarked = 1;
         v->bookmarked = cJSON_IsTrue(bookmarked) ? 1 : 0;
     }
-    cJSON *thread_muted = cJSON_GetObjectItemCaseSensitive(viewer, "threadMuted");
+    cJSON *thread_muted =
+        cJSON_GetObjectItemCaseSensitive(viewer, "threadMuted");
     if (cJSON_IsBool(thread_muted)) {
         v->has_thread_muted = 1;
         v->thread_muted = cJSON_IsTrue(thread_muted) ? 1 : 0;
     }
-    cJSON *reply_disabled = cJSON_GetObjectItemCaseSensitive(viewer, "replyDisabled");
+    cJSON *reply_disabled =
+        cJSON_GetObjectItemCaseSensitive(viewer, "replyDisabled");
     if (cJSON_IsBool(reply_disabled)) {
         v->has_reply_disabled = 1;
         v->reply_disabled = cJSON_IsTrue(reply_disabled) ? 1 : 0;
     }
-    cJSON *embedding_disabled = cJSON_GetObjectItemCaseSensitive(viewer, "embeddingDisabled");
+    cJSON *embedding_disabled =
+        cJSON_GetObjectItemCaseSensitive(viewer, "embeddingDisabled");
     if (cJSON_IsBool(embedding_disabled)) {
         v->has_embedding_disabled = 1;
         v->embedding_disabled = cJSON_IsTrue(embedding_disabled) ? 1 : 0;
@@ -159,7 +162,8 @@ static wf_status wf_feed_parse_viewer(wf_agent_feed_viewer_state *v,
     return WF_OK;
 }
 
-static wf_status wf_feed_parse_author(wf_agent_profile_view *author, cJSON *obj) {
+static wf_status wf_feed_parse_author(wf_agent_profile_view *author,
+                                      cJSON *obj) {
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
     cJSON *handle = cJSON_GetObjectItemCaseSensitive(obj, "handle");
@@ -191,7 +195,8 @@ static wf_status wf_feed_parse_post_view(wf_agent_post_view *p, cJSON *obj) {
     cJSON *repost_count = cJSON_GetObjectItemCaseSensitive(obj, "repostCount");
     cJSON *like_count = cJSON_GetObjectItemCaseSensitive(obj, "likeCount");
     cJSON *quote_count = cJSON_GetObjectItemCaseSensitive(obj, "quoteCount");
-    cJSON *bookmark_count = cJSON_GetObjectItemCaseSensitive(obj, "bookmarkCount");
+    cJSON *bookmark_count =
+        cJSON_GetObjectItemCaseSensitive(obj, "bookmarkCount");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
         status = wf_feed_set_string(&p->uri, uri->valuestring);
@@ -202,29 +207,36 @@ static wf_status wf_feed_parse_post_view(wf_agent_post_view *p, cJSON *obj) {
     if (status == WF_OK && cJSON_IsObject(author)) {
         status = wf_feed_parse_author(&p->author, author);
     }
-    if (status == WF_OK && cJSON_IsString(indexed_at) && indexed_at->valuestring) {
+    if (status == WF_OK && cJSON_IsString(indexed_at) &&
+        indexed_at->valuestring) {
         status = wf_feed_set_string(&p->indexed_at, indexed_at->valuestring);
     }
     if (status == WF_OK) {
-        status = wf_feed_parse_int(reply_count, &p->reply_count, &p->has_reply_count);
+        status = wf_feed_parse_int(reply_count, &p->reply_count,
+                                   &p->has_reply_count);
     }
     if (status == WF_OK) {
-        status = wf_feed_parse_int(repost_count, &p->repost_count, &p->has_repost_count);
+        status = wf_feed_parse_int(repost_count, &p->repost_count,
+                                   &p->has_repost_count);
     }
     if (status == WF_OK) {
-        status = wf_feed_parse_int(like_count, &p->like_count, &p->has_like_count);
+        status =
+            wf_feed_parse_int(like_count, &p->like_count, &p->has_like_count);
     }
     if (status == WF_OK) {
-        status = wf_feed_parse_int(quote_count, &p->quote_count, &p->has_quote_count);
+        status = wf_feed_parse_int(quote_count, &p->quote_count,
+                                   &p->has_quote_count);
     }
     if (status == WF_OK) {
-        status = wf_feed_parse_int(bookmark_count, &p->bookmark_count, &p->has_bookmark_count);
+        status = wf_feed_parse_int(bookmark_count, &p->bookmark_count,
+                                   &p->has_bookmark_count);
     }
     if (status == WF_OK) {
         status = wf_feed_parse_viewer(&p->viewer, viewer);
     }
 
-    /* Take ownership of the `record` and `embed` subtrees (type `unknown`/`union`). */
+    /* Take ownership of the `record` and `embed` subtrees (type
+     * `unknown`/`union`). */
     if (status == WF_OK) {
         cJSON *record = cJSON_DetachItemFromObject(obj, "record");
         if (record) {
@@ -280,7 +292,8 @@ static wf_status wf_feed_parse_key(const char *json, size_t json_len,
         cJSON *post = cJSON_GetObjectItemCaseSensitive(fvp, "post");
         cJSON *reply = cJSON_GetObjectItemCaseSensitive(fvp, "reply");
         cJSON *reason = cJSON_GetObjectItemCaseSensitive(fvp, "reason");
-        cJSON *feed_context = cJSON_GetObjectItemCaseSensitive(fvp, "feedContext");
+        cJSON *feed_context =
+            cJSON_GetObjectItemCaseSensitive(fvp, "feedContext");
         cJSON *req_id = cJSON_GetObjectItemCaseSensitive(fvp, "reqId");
 
         if (cJSON_IsObject(post)) {
@@ -295,8 +308,10 @@ static wf_status wf_feed_parse_key(const char *json, size_t json_len,
         if (status == WF_OK && cJSON_IsObject(reply)) {
             item->reply = cJSON_DetachItemFromObject(fvp, "reply");
         }
-        if (status == WF_OK && cJSON_IsString(feed_context) && feed_context->valuestring) {
-            status = wf_feed_set_string(&item->feed_context, feed_context->valuestring);
+        if (status == WF_OK && cJSON_IsString(feed_context) &&
+            feed_context->valuestring) {
+            status = wf_feed_set_string(&item->feed_context,
+                                        feed_context->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(req_id) && req_id->valuestring) {
             status = wf_feed_set_string(&item->req_id, req_id->valuestring);
@@ -343,7 +358,8 @@ void wf_agent_feed_list_free(wf_agent_feed_list *list) {
     wf_feed_list_reset(list);
 }
 
-/* Typed high-level wrappers — call the raw agent endpoint, then parse the body. */
+/* Typed high-level wrappers — call the raw agent endpoint, then parse the body.
+ */
 
 wf_status wf_agent_get_timeline_typed(wf_agent *agent, int limit,
                                       const char *cursor,
@@ -391,8 +407,8 @@ wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
     return status;
 }
 
-wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
-                                    int limit, const char *cursor,
+wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri, int limit,
+                                    const char *cursor,
                                     wf_agent_feed_list *out) {
     if (!agent || !uri || !out) {
         return WF_ERR_INVALID_ARG;
@@ -408,7 +424,8 @@ wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
         return status;
     }
 
-    /* getQuotes returns a `posts` array of feedViewPost (same shape as feed). */
+    /* getQuotes returns a `posts` array of feedViewPost (same shape as feed).
+     */
     status = wf_feed_parse_key(res.body, res.body_len, "posts", out);
     wf_response_free(&res);
     return status;
@@ -428,7 +445,7 @@ static void wf_feed_post_list_reset(wf_agent_post_list *list) {
 }
 
 wf_status wf_agent_parse_posts(const char *json, size_t json_len,
-                              wf_agent_post_list *out) {
+                               wf_agent_post_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -608,9 +625,9 @@ static void wf_feed_gen_describe_reset(wf_agent_feed_gen_describe *d) {
     memset(d, 0, sizeof(*d));
 }
 
-wf_status wf_agent_parse_describe_feed_generator(const char *json,
-                                                size_t json_len,
-                                                wf_agent_feed_gen_describe *out) {
+wf_status
+wf_agent_parse_describe_feed_generator(const char *json, size_t json_len,
+                                       wf_agent_feed_gen_describe *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -710,8 +727,8 @@ wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_feed_skeleton(agent, feed_uri, limit,
-                                                  cursor, &res);
+    wf_status status =
+        wf_agent_get_feed_skeleton(agent, feed_uri, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -722,8 +739,9 @@ wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_describe_feed_generator_typed(wf_agent *agent,
-                                                 wf_agent_feed_gen_describe *out) {
+wf_status
+wf_agent_describe_feed_generator_typed(wf_agent *agent,
+                                       wf_agent_feed_gen_describe *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -735,7 +753,8 @@ wf_status wf_agent_describe_feed_generator_typed(wf_agent *agent,
         return status;
     }
 
-    status = wf_agent_parse_describe_feed_generator(res.body, res.body_len, out);
+    status =
+        wf_agent_parse_describe_feed_generator(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }

@@ -11,7 +11,8 @@
  *   - wf_label_parse_subscribe  : one `#labels` frame -> owned wf_mod_label[]
  *   - wf_agent_subscribe_labels_typed : the agent convenience. It resolves the
  *       labeler service, syncs auth, and delegates to wf_label_subscribe_start,
- *       converting each received label into an owned wf_mod_label for the caller.
+ *       converting each received label into an owned wf_mod_label for the
+ * caller.
  *
  * All ownership follows the wf_mod_label contract: outputs are heap-owned and
  * released with wf_mod_labels_free (or field-by-field free()).
@@ -65,11 +66,8 @@ wf_status wf_label_to_mod_label(const wf_label *src, wf_mod_label *dst) {
     dst->has_cid = src->has_cid ? 1 : 0;
     dst->ver = src->has_ver ? (int)src->ver : 0;
 
-    if (!dst->val ||
-        (src->src && !dst->src) ||
-        (src->uri && !dst->uri) ||
-        (src->cts && !dst->cts) ||
-        (src->has_cid && !dst->cid) ||
+    if (!dst->val || (src->src && !dst->src) || (src->uri && !dst->uri) ||
+        (src->cts && !dst->cts) || (src->has_cid && !dst->cid) ||
         (src->has_exp && !dst->exp)) {
         free(dst->src);
         free(dst->uri);
@@ -84,7 +82,8 @@ wf_status wf_label_to_mod_label(const wf_label *src, wf_mod_label *dst) {
 }
 
 /* Release the heap fields of a single wf_mod_label that was stack-allocated
- * (wf_mod_labels_free would also free the outer array, which we must not do). */
+ * (wf_mod_labels_free would also free the outer array, which we must not do).
+ */
 static void wf_lsub_free_one(wf_mod_label *m) {
     if (!m) return;
     free(m->src);
@@ -98,7 +97,7 @@ static void wf_lsub_free_one(wf_mod_label *m) {
 
 /* Parse a `#labels` frame into an owned wf_mod_label array. */
 wf_status wf_label_parse_subscribe(const char *json, size_t len,
-                                  wf_mod_label **out, size_t *out_count) {
+                                   wf_mod_label **out, size_t *out_count) {
     if (!out || !out_count || !json) {
         return WF_ERR_INVALID_ARG;
     }
@@ -117,7 +116,8 @@ wf_status wf_label_parse_subscribe(const char *json, size_t len,
     }
 
     size_t n = msg.data.labels.count;
-    wf_mod_label *labels = n ? (wf_mod_label *)calloc(n, sizeof(*labels)) : NULL;
+    wf_mod_label *labels =
+        n ? (wf_mod_label *)calloc(n, sizeof(*labels)) : NULL;
     if (n && !labels) {
         wf_label_message_free(&msg);
         return WF_ERR_ALLOC;
@@ -125,8 +125,8 @@ wf_status wf_label_parse_subscribe(const char *json, size_t len,
 
     size_t count = 0;
     for (size_t i = 0; i < n; i++) {
-        wf_status cs = wf_label_to_mod_label(&msg.data.labels.items[i],
-                                             &labels[count]);
+        wf_status cs =
+            wf_label_to_mod_label(&msg.data.labels.items[i], &labels[count]);
         if (cs == WF_ERR_INVALID_ARG) {
             /* Label without a value: not representable, skip it. */
             continue;
@@ -147,9 +147,8 @@ wf_status wf_label_parse_subscribe(const char *json, size_t len,
     wf_label_message_free(&msg);
 
     if (count != n) {
-        wf_mod_label *shrunk =
-            (wf_mod_label *)realloc(labels, count ? count * sizeof(*labels)
-                                                 : 1);
+        wf_mod_label *shrunk = (wf_mod_label *)realloc(
+            labels, count ? count * sizeof(*labels) : 1);
         if (shrunk) {
             labels = shrunk;
         }
@@ -160,7 +159,8 @@ wf_status wf_label_parse_subscribe(const char *json, size_t len,
     return WF_OK;
 }
 
-/* ── agent convenience ────────────────────────────────────────────────────── */
+/* ── agent convenience ──────────────────────────────────────────────────────
+ */
 
 typedef struct {
     wf_agent_label_sub_cb user_cb;
@@ -186,9 +186,10 @@ static void wf_lsub_on_neg(const wf_label *l, void *userdata) {
     wf_lsub_forward((wf_lsub_ctx *)userdata, l);
 }
 
-wf_status wf_agent_subscribe_labels_typed(wf_agent *agent,
-    const char *service, int64_t cursor, int has_cursor,
-    wf_agent_label_sub_cb on_label, void *userdata) {
+wf_status wf_agent_subscribe_labels_typed(wf_agent *agent, const char *service,
+                                          int64_t cursor, int has_cursor,
+                                          wf_agent_label_sub_cb on_label,
+                                          void *userdata) {
     if (!agent || !service || !service[0] || !on_label) {
         return WF_ERR_INVALID_ARG;
     }

@@ -81,7 +81,8 @@ static void wf_admin_invite_code_reset(wf_admin_invite_code *c) {
 }
 
 /* Read the core scalar fields of an accountView into `v`. Does not detach
- * anything (the caller owns the detach/extra step). Returns WF_OK / WF_ERR_ALLOC. */
+ * anything (the caller owns the detach/extra step). Returns WF_OK /
+ * WF_ERR_ALLOC. */
 static wf_status wf_admin_read_account_view(cJSON *obj,
                                             wf_admin_account_view *v) {
     wf_status status = WF_OK;
@@ -110,7 +111,8 @@ static wf_status wf_admin_read_account_view(cJSON *obj,
             v->invites_disabled = cJSON_IsTrue(inv_dis);
         }
         if (cJSON_IsString(deact) && deact->valuestring) {
-            status = wf_admin_set_string(&v->deactivated_at, deact->valuestring);
+            status =
+                wf_admin_set_string(&v->deactivated_at, deact->valuestring);
         }
     }
     return status;
@@ -159,10 +161,10 @@ wf_status wf_admin_parse_account_view(const char *json, size_t json_len,
 }
 
 /* Parse an accountView array held under `key` into an owned account list. */
-static wf_status wf_admin_parse_account_view_list(const char *json,
-                                                  size_t json_len,
-                                                  const char *key,
-                                                  wf_admin_account_view_list *out) {
+static wf_status
+wf_admin_parse_account_view_list(const char *json, size_t json_len,
+                                 const char *key,
+                                 wf_admin_account_view_list *out) {
     if (!json || !out || !key) {
         return WF_ERR_INVALID_ARG;
     }
@@ -213,7 +215,8 @@ static wf_status wf_admin_parse_account_view_list(const char *json,
             wf_admin_strip_key(obj, "indexedAt");
             wf_admin_strip_key(obj, "invitesDisabled");
             wf_admin_strip_key(obj, "deactivatedAt");
-            /* Take ownership of the item (with known keys removed) as `extra`. */
+            /* Take ownership of the item (with known keys removed) as `extra`.
+             */
             v->extra = cJSON_DetachItemViaPointer(arr, obj);
         }
         if (status != WF_OK) {
@@ -496,9 +499,8 @@ wf_status wf_agent_admin_get_account_info(wf_agent *agent, const char *did,
     params.did = did;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_get_account_info_main_call(agent->client,
-                                                            &params, &res);
+    wf_status status = wf_lex_com_atproto_admin_get_account_info_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -524,9 +526,8 @@ wf_status wf_agent_admin_get_account_infos(wf_agent *agent,
     params.dids.count = n;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_get_account_infos_main_call(agent->client,
-                                                             &params, &res);
+    wf_status status = wf_lex_com_atproto_admin_get_account_infos_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -559,9 +560,8 @@ wf_status wf_agent_admin_search_accounts(wf_agent *agent, const char *query,
     }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_search_accounts_main_call(agent->client,
-                                                           &params, &res);
+    wf_status status = wf_lex_com_atproto_admin_search_accounts_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -581,9 +581,8 @@ wf_status wf_agent_admin_get_subject_status(wf_agent *agent, const char *did,
     params.did = did;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_get_subject_status_main_call(agent->client,
-                                                              &params, &res);
+    wf_status status = wf_lex_com_atproto_admin_get_subject_status_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -605,9 +604,8 @@ wf_status wf_agent_admin_get_invite_codes(wf_agent *agent, const char *cursor,
     }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_get_invite_codes_main_call(agent->client,
-                                                            &params, &res);
+    wf_status status = wf_lex_com_atproto_admin_get_invite_codes_main_call(
+        agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -631,7 +629,8 @@ wf_status wf_agent_admin_update_subject_status(wf_agent *agent, const char *did,
         return WF_ERR_ALLOC;
     }
     snprintf(subject_json, need,
-             "{\"$type\":\"com.atproto.admin.defs#repoRef\",\"did\":\"%s\"}", did);
+             "{\"$type\":\"com.atproto.admin.defs#repoRef\",\"did\":\"%s\"}",
+             did);
     input.subject.kind = -1;
     input.subject.data = subject_json;
     input.subject.length = strlen(subject_json);
@@ -656,9 +655,8 @@ wf_status wf_agent_admin_update_subject_status(wf_agent *agent, const char *did,
 
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_update_subject_status_main_call(agent->client,
-                                                                 &input, &res);
+    wf_status status = wf_lex_com_atproto_admin_update_subject_status_main_call(
+        agent->client, &input, &res);
     free(subject_json);
     wf_response_free(&res);
     return status;
@@ -674,9 +672,8 @@ wf_status wf_agent_admin_update_account_handle(wf_agent *agent, const char *did,
     input.handle = new_handle;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_update_account_handle_main_call(agent->client,
-                                                                &input, &res);
+    wf_status status = wf_lex_com_atproto_admin_update_account_handle_main_call(
+        agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -691,9 +688,8 @@ wf_status wf_agent_admin_update_account_email(wf_agent *agent, const char *did,
     input.email = email;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_update_account_email_main_call(agent->client,
-                                                               &input, &res);
+    wf_status status = wf_lex_com_atproto_admin_update_account_email_main_call(
+        agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -710,15 +706,15 @@ wf_status wf_agent_admin_update_account_password(wf_agent *agent,
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =
-        wf_lex_com_atproto_admin_update_account_password_main_call(agent->client,
-                                                                  &input, &res);
+        wf_lex_com_atproto_admin_update_account_password_main_call(
+            agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
 
-wf_status wf_agent_admin_update_account_signing_key(wf_agent *agent,
-                                                    const char *did,
-                                                    const char *signing_key_multibase) {
+wf_status
+wf_agent_admin_update_account_signing_key(wf_agent *agent, const char *did,
+                                          const char *signing_key_multibase) {
     if (!agent || !did || !did[0] || !signing_key_multibase ||
         !signing_key_multibase[0]) {
         return WF_ERR_INVALID_ARG;
@@ -743,9 +739,8 @@ wf_status wf_agent_admin_delete_account(wf_agent *agent, const char *did) {
     input.did = did;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_delete_account_main_call(agent->client, &input,
-                                                          &res);
+    wf_status status = wf_lex_com_atproto_admin_delete_account_main_call(
+        agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -759,7 +754,7 @@ wf_status wf_agent_admin_enable_account_invites(wf_agent *agent) {
     wf_agent_sync_auth(agent);
     wf_status status =
         wf_lex_com_atproto_admin_enable_account_invites_main_call(agent->client,
-                                                                 &input, &res);
+                                                                  &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -772,8 +767,8 @@ wf_status wf_agent_admin_disable_account_invites(wf_agent *agent) {
     wf_response res = {0};
     wf_agent_sync_auth(agent);
     wf_status status =
-        wf_lex_com_atproto_admin_disable_account_invites_main_call(agent->client,
-                                                                  &input, &res);
+        wf_lex_com_atproto_admin_disable_account_invites_main_call(
+            agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -786,9 +781,11 @@ wf_status wf_agent_admin_disable_invite_codes(wf_agent *agent,
     return wf_agent_admin_disable_invite_codes_typed(agent, NULL, 0, NULL, 0);
 }
 
-wf_status wf_agent_admin_disable_invite_codes_typed(
-    wf_agent *agent, const char *const *codes, size_t code_count,
-    const char *const *accounts, size_t account_count) {
+wf_status wf_agent_admin_disable_invite_codes_typed(wf_agent *agent,
+                                                    const char *const *codes,
+                                                    size_t code_count,
+                                                    const char *const *accounts,
+                                                    size_t account_count) {
     if (!agent || !agent->client || (code_count && !codes) ||
         (account_count && !accounts)) {
         return WF_ERR_INVALID_ARG;
@@ -811,9 +808,8 @@ wf_status wf_agent_admin_disable_invite_codes_typed(
     }
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_disable_invite_codes_main_call(agent->client,
-                                                               &input, &res);
+    wf_status status = wf_lex_com_atproto_admin_disable_invite_codes_main_call(
+        agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -835,9 +831,8 @@ wf_status wf_agent_admin_send_email(wf_agent *agent, const char *recipient_did,
     input.sender_did = sender_did;
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status =
-        wf_lex_com_atproto_admin_send_email_main_call(agent->client, &input,
-                                                      &res);
+    wf_status status = wf_lex_com_atproto_admin_send_email_main_call(
+        agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }

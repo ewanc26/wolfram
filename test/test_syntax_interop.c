@@ -55,8 +55,7 @@ static char *wf_read_entire_file(const char *path, size_t *len_out) {
 }
 
 static void wf_run_fixture_file(const char *path,
-                                wf_fixture_validator validator,
-                                int expected) {
+                                wf_fixture_validator validator, int expected) {
     size_t size = 0;
     char *buffer = wf_read_entire_file(path, &size);
     char *line;
@@ -116,12 +115,14 @@ static void wf_run_aturi_fixture_file(const char *path, int expected) {
                 if (expected) {
                     WF_CHECK(parsed.alloc != NULL);
                     WF_CHECK(parsed.authority != NULL);
-                    WF_CHECK(wf_syntax_at_identifier_is_valid(parsed.authority));
+                    WF_CHECK(
+                        wf_syntax_at_identifier_is_valid(parsed.authority));
                     if (parsed.collection) {
                         WF_CHECK(wf_syntax_nsid_is_valid(parsed.collection));
                     }
                     if (parsed.record_key) {
-                        WF_CHECK(wf_syntax_record_key_is_valid(parsed.record_key));
+                        WF_CHECK(
+                            wf_syntax_record_key_is_valid(parsed.record_key));
                     }
                 } else {
                     WF_CHECK(parsed.alloc == NULL);
@@ -139,7 +140,8 @@ static void wf_run_aturi_fixture_file(const char *path, int expected) {
 static void wf_run_fixture_cases(const wf_fixture_case *cases, size_t count) {
     size_t i;
     for (i = 0; i < count; i++) {
-        wf_run_fixture_file(cases[i].path, cases[i].validator, cases[i].expected);
+        wf_run_fixture_file(cases[i].path, cases[i].validator,
+                            cases[i].expected);
     }
 }
 
@@ -153,15 +155,23 @@ static void wf_run_aturi_cases(const wf_fixture_case *cases, size_t count) {
 static void test_syntax_reference_valid(void) {
     const wf_fixture_case cases[] = {
         {SYNTAX_FIXTURE_DIR "/did_syntax_valid.txt", wf_syntax_did_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/handle_syntax_valid.txt", wf_syntax_handle_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/atidentifier_syntax_valid.txt", wf_syntax_at_identifier_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/nsid_syntax_valid.txt", wf_syntax_nsid_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/recordkey_syntax_valid.txt", wf_syntax_record_key_is_valid, 1},
+        {SYNTAX_FIXTURE_DIR "/handle_syntax_valid.txt",
+         wf_syntax_handle_is_valid, 1},
+        {SYNTAX_FIXTURE_DIR "/atidentifier_syntax_valid.txt",
+         wf_syntax_at_identifier_is_valid, 1},
+        {SYNTAX_FIXTURE_DIR "/nsid_syntax_valid.txt", wf_syntax_nsid_is_valid,
+         1},
+        {SYNTAX_FIXTURE_DIR "/recordkey_syntax_valid.txt",
+         wf_syntax_record_key_is_valid, 1},
         {SYNTAX_FIXTURE_DIR "/tid_syntax_valid.txt", wf_syntax_tid_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/datetime_syntax_valid.txt", wf_syntax_datetime_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/language_syntax_valid.txt", wf_syntax_language_is_valid, 1},
-        {SYNTAX_FIXTURE_DIR "/datetime_parse_invalid.txt", wf_syntax_datetime_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/language_parse_invalid.txt", wf_syntax_language_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/datetime_syntax_valid.txt",
+         wf_syntax_datetime_is_valid, 1},
+        {SYNTAX_FIXTURE_DIR "/language_syntax_valid.txt",
+         wf_syntax_language_is_valid, 1},
+        {SYNTAX_FIXTURE_DIR "/datetime_parse_invalid.txt",
+         wf_syntax_datetime_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/language_parse_invalid.txt",
+         wf_syntax_language_is_valid, 0},
         {SYNTAX_FIXTURE_DIR "/aturi_syntax_valid.txt", NULL, 1},
     };
     wf_run_fixture_cases(cases, sizeof(cases) / sizeof(cases[0]) - 1);
@@ -170,16 +180,26 @@ static void test_syntax_reference_valid(void) {
 
 static void test_syntax_reference_invalid(void) {
     const wf_fixture_case cases[] = {
-        {SYNTAX_FIXTURE_DIR "/did_syntax_invalid.txt", wf_syntax_did_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/handle_syntax_invalid.txt", wf_syntax_handle_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/atidentifier_syntax_invalid.txt", wf_syntax_at_identifier_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/nsid_syntax_invalid.txt", wf_syntax_nsid_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/recordkey_syntax_invalid.txt", wf_syntax_record_key_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/tid_syntax_invalid.txt", wf_syntax_tid_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/datetime_syntax_invalid.txt", wf_syntax_datetime_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/language_syntax_invalid.txt", wf_syntax_language_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/datetime_parse_invalid.txt", wf_syntax_datetime_is_valid, 0},
-        {SYNTAX_FIXTURE_DIR "/language_parse_invalid.txt", wf_syntax_language_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/did_syntax_invalid.txt", wf_syntax_did_is_valid,
+         0},
+        {SYNTAX_FIXTURE_DIR "/handle_syntax_invalid.txt",
+         wf_syntax_handle_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/atidentifier_syntax_invalid.txt",
+         wf_syntax_at_identifier_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/nsid_syntax_invalid.txt", wf_syntax_nsid_is_valid,
+         0},
+        {SYNTAX_FIXTURE_DIR "/recordkey_syntax_invalid.txt",
+         wf_syntax_record_key_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/tid_syntax_invalid.txt", wf_syntax_tid_is_valid,
+         0},
+        {SYNTAX_FIXTURE_DIR "/datetime_syntax_invalid.txt",
+         wf_syntax_datetime_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/language_syntax_invalid.txt",
+         wf_syntax_language_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/datetime_parse_invalid.txt",
+         wf_syntax_datetime_is_valid, 0},
+        {SYNTAX_FIXTURE_DIR "/language_parse_invalid.txt",
+         wf_syntax_language_is_valid, 0},
         {SYNTAX_FIXTURE_DIR "/aturi_syntax_invalid.txt", NULL, 0},
     };
     wf_run_fixture_cases(cases, sizeof(cases) / sizeof(cases[0]) - 1);

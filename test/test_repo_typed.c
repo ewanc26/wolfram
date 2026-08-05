@@ -51,7 +51,8 @@ static const char *kDescribeRepoJson =
     "{"
     "  \"handle\": \"alice.bsky.social\","
     "  \"did\": \"did:plc:alice\","
-    "  \"didDoc\": {\"@context\": [\"https://www.w3.org/ns/did/v1\"], \"id\": \"did:plc:alice\"},"
+    "  \"didDoc\": {\"@context\": [\"https://www.w3.org/ns/did/v1\"], \"id\": "
+    "\"did:plc:alice\"},"
     "  \"collections\": [\"app.bsky.feed.post\", \"app.bsky.actor.profile\"],"
     "  \"handleIsCorrect\": true"
     "}";
@@ -61,8 +62,10 @@ static const char *kListMissingBlobsJson =
     "{"
     "  \"cursor\": \"blob-cursor\","
     "  \"blobs\": ["
-    "    {\"cid\": \"bafyreiblob1\", \"recordUri\": \"at://did:plc:alice/app.bsky.feed.post/x\"},"
-    "    {\"cid\": \"bafyreiblob2\", \"recordUri\": \"at://did:plc:alice/app.bsky.feed.post/y\"}"
+    "    {\"cid\": \"bafyreiblob1\", \"recordUri\": "
+    "\"at://did:plc:alice/app.bsky.feed.post/x\"},"
+    "    {\"cid\": \"bafyreiblob2\", \"recordUri\": "
+    "\"at://did:plc:alice/app.bsky.feed.post/y\"}"
     "  ]"
     "}";
 
@@ -72,7 +75,8 @@ static const char *kApplyWritesJson =
     "  \"commit\": {\"cid\": \"bafyreicommit\", \"rev\": \"rev-42\"},"
     "  \"results\": ["
     "    {\"$type\": \"com.atproto.repo.applyWrites#createResult\","
-    "     \"uri\": \"at://did:plc:alice/app.bsky.feed.post/z\", \"cid\": \"bafyreiout\"},"
+    "     \"uri\": \"at://did:plc:alice/app.bsky.feed.post/z\", \"cid\": "
+    "\"bafyreiout\"},"
     "    {\"$type\": \"com.atproto.repo.applyWrites#deleteResult\"}"
     "  ]"
     "}";
@@ -81,16 +85,18 @@ int main(void) {
     /* ---- getRecord ---- */
     {
         wf_repo_record r = {0};
-        WF_CHECK(wf_repo_parse_get_record(kGetRecordJson, strlen(kGetRecordJson),
-                                          &r) == WF_OK);
-        WF_CHECK(r.uri && strcmp(r.uri,
-                      "at://did:plc:alice/app.bsky.feed.post/abc123") == 0);
+        WF_CHECK(wf_repo_parse_get_record(kGetRecordJson,
+                                          strlen(kGetRecordJson), &r) == WF_OK);
+        WF_CHECK(
+            r.uri &&
+            strcmp(r.uri, "at://did:plc:alice/app.bsky.feed.post/abc123") == 0);
         WF_CHECK(r.has_cid && r.cid && strcmp(r.cid, "bafyreigabc123") == 0);
         WF_CHECK(r.value && cJSON_IsObject(r.value));
-        WF_CHECK(cJSON_GetObjectItemCaseSensitive(r.value, "text") &&
-                 strcmp(cJSON_GetObjectItemCaseSensitive(r.value, "text")
-                            ->valuestring,
-                        "hello world") == 0);
+        WF_CHECK(
+            cJSON_GetObjectItemCaseSensitive(r.value, "text") &&
+            strcmp(
+                cJSON_GetObjectItemCaseSensitive(r.value, "text")->valuestring,
+                "hello world") == 0);
         wf_repo_record_free(&r);
         WF_CHECK(r.uri == NULL && r.cid == NULL && r.value == NULL);
     }
@@ -98,9 +104,8 @@ int main(void) {
     /* ---- listRecords ---- */
     {
         wf_repo_record_list l = {0};
-        WF_CHECK(wf_repo_parse_list_records(kListRecordsJson,
-                                            strlen(kListRecordsJson), &l) ==
-                 WF_OK);
+        WF_CHECK(wf_repo_parse_list_records(
+                     kListRecordsJson, strlen(kListRecordsJson), &l) == WF_OK);
         WF_CHECK(l.count == 2);
         WF_CHECK(l.cursor && strcmp(l.cursor, "next-cursor") == 0);
         WF_CHECK(l.items[0].uri &&
@@ -118,8 +123,8 @@ int main(void) {
     {
         wf_repo_description d = {0};
         WF_CHECK(wf_repo_parse_describe_repo(kDescribeRepoJson,
-                                             strlen(kDescribeRepoJson), &d) ==
-                 WF_OK);
+                                             strlen(kDescribeRepoJson),
+                                             &d) == WF_OK);
         WF_CHECK(d.handle && strcmp(d.handle, "alice.bsky.social") == 0);
         WF_CHECK(d.did && strcmp(d.did, "did:plc:alice") == 0);
         WF_CHECK(d.did_doc && cJSON_IsObject(d.did_doc));
@@ -130,25 +135,23 @@ int main(void) {
                  strcmp(d.collections[1], "app.bsky.actor.profile") == 0);
         WF_CHECK(d.has_handle_is_correct && d.handle_is_correct);
         wf_repo_description_free(&d);
-        WF_CHECK(d.handle == NULL && d.did == NULL &&
-                 d.did_doc == NULL && d.collections == NULL);
+        WF_CHECK(d.handle == NULL && d.did == NULL && d.did_doc == NULL &&
+                 d.collections == NULL);
     }
 
     /* ---- listMissingBlobs ---- */
     {
         wf_repo_missing_blob_list l = {0};
         WF_CHECK(wf_repo_parse_list_missing_blobs(kListMissingBlobsJson,
-                                                 strlen(kListMissingBlobsJson),
-                                                 &l) == WF_OK);
+                                                  strlen(kListMissingBlobsJson),
+                                                  &l) == WF_OK);
         WF_CHECK(l.count == 2);
         WF_CHECK(l.cursor && strcmp(l.cursor, "blob-cursor") == 0);
-        WF_CHECK(l.items[0].cid &&
-                 strcmp(l.items[0].cid, "bafyreiblob1") == 0);
+        WF_CHECK(l.items[0].cid && strcmp(l.items[0].cid, "bafyreiblob1") == 0);
         WF_CHECK(l.items[0].record_uri &&
                  strcmp(l.items[0].record_uri,
                         "at://did:plc:alice/app.bsky.feed.post/x") == 0);
-        WF_CHECK(l.items[1].cid &&
-                 strcmp(l.items[1].cid, "bafyreiblob2") == 0);
+        WF_CHECK(l.items[1].cid && strcmp(l.items[1].cid, "bafyreiblob2") == 0);
         wf_repo_missing_blob_list_free(&l);
         WF_CHECK(l.items == NULL && l.count == 0 && l.cursor == NULL);
     }
@@ -156,13 +159,12 @@ int main(void) {
     /* ---- applyWrites result ---- */
     {
         wf_repo_apply_writes_result r = {0};
-        WF_CHECK(wf_repo_parse_apply_writes(kApplyWritesJson,
-                                            strlen(kApplyWritesJson), &r) ==
-                 WF_OK);
-        WF_CHECK(r.has_commit_cid &&
-                 r.commit_cid && strcmp(r.commit_cid, "bafyreicommit") == 0);
-        WF_CHECK(r.has_commit_rev &&
-                 r.commit_rev && strcmp(r.commit_rev, "rev-42") == 0);
+        WF_CHECK(wf_repo_parse_apply_writes(
+                     kApplyWritesJson, strlen(kApplyWritesJson), &r) == WF_OK);
+        WF_CHECK(r.has_commit_cid && r.commit_cid &&
+                 strcmp(r.commit_cid, "bafyreicommit") == 0);
+        WF_CHECK(r.has_commit_rev && r.commit_rev &&
+                 strcmp(r.commit_rev, "rev-42") == 0);
         WF_CHECK(r.commit && cJSON_IsObject(r.commit));
         WF_CHECK(r.results && cJSON_IsArray(r.results) &&
                  cJSON_GetArraySize(r.results) == 2);
@@ -185,8 +187,10 @@ int main(void) {
         wf_repo_writes_builder *b = NULL;
         WF_CHECK(wf_repo_writes_builder_init(&b) == WF_OK && b != NULL);
 
-        cJSON *v1 = cJSON_Parse("{\"$type\":\"app.bsky.feed.post\",\"text\":\"hi\"}");
-        cJSON *v2 = cJSON_Parse("{\"$type\":\"app.bsky.feed.post\",\"text\":\"upd\"}");
+        cJSON *v1 =
+            cJSON_Parse("{\"$type\":\"app.bsky.feed.post\",\"text\":\"hi\"}");
+        cJSON *v2 =
+            cJSON_Parse("{\"$type\":\"app.bsky.feed.post\",\"text\":\"upd\"}");
         WF_CHECK(wf_repo_writes_add_create(b, "app.bsky.feed.post", NULL, v1) ==
                  WF_OK);
         WF_CHECK(wf_repo_writes_add_update(b, "app.bsky.feed.post", "rk2",
@@ -211,24 +215,24 @@ int main(void) {
         cJSON *c0 = cJSON_GetArrayItem(writes, 0);
         cJSON *c1 = cJSON_GetArrayItem(writes, 1);
         cJSON *c2 = cJSON_GetArrayItem(writes, 2);
-        WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(c0, "$type")
-                            ->valuestring,
-                        "com.atproto.repo.applyWrites#create") == 0);
+        WF_CHECK(
+            strcmp(cJSON_GetObjectItemCaseSensitive(c0, "$type")->valuestring,
+                   "com.atproto.repo.applyWrites#create") == 0);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(c0, "rkey") == NULL);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(c0, "value") &&
                  cJSON_IsObject(cJSON_GetObjectItemCaseSensitive(c0, "value")));
-        WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(c1, "$type")
-                            ->valuestring,
-                        "com.atproto.repo.applyWrites#update") == 0);
-        WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(c1, "rkey")
-                            ->valuestring,
-                        "rk2") == 0);
-        WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(c2, "$type")
-                            ->valuestring,
-                        "com.atproto.repo.applyWrites#delete") == 0);
-        WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(c2, "rkey")
-                            ->valuestring,
-                        "rk3") == 0);
+        WF_CHECK(
+            strcmp(cJSON_GetObjectItemCaseSensitive(c1, "$type")->valuestring,
+                   "com.atproto.repo.applyWrites#update") == 0);
+        WF_CHECK(
+            strcmp(cJSON_GetObjectItemCaseSensitive(c1, "rkey")->valuestring,
+                   "rk2") == 0);
+        WF_CHECK(
+            strcmp(cJSON_GetObjectItemCaseSensitive(c2, "$type")->valuestring,
+                   "com.atproto.repo.applyWrites#delete") == 0);
+        WF_CHECK(
+            strcmp(cJSON_GetObjectItemCaseSensitive(c2, "rkey")->valuestring,
+                   "rk3") == 0);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(c2, "value") == NULL);
 
         free(json);
@@ -246,8 +250,8 @@ int main(void) {
         WF_CHECK(wf_repo_writes_build_json(b, "did:plc:bob", -1, "bafyrswap",
                                            &json) == WF_OK);
         cJSON *root = cJSON_Parse(json);
-        WF_CHECK(root && cJSON_GetObjectItemCaseSensitive(root, "validate") ==
-                 NULL);
+        WF_CHECK(root &&
+                 cJSON_GetObjectItemCaseSensitive(root, "validate") == NULL);
         WF_CHECK(cJSON_GetObjectItemCaseSensitive(root, "swapCommit") &&
                  strcmp(cJSON_GetObjectItemCaseSensitive(root, "swapCommit")
                             ->valuestring,
@@ -307,7 +311,8 @@ int main(void) {
     {
         static const char create[] =
             "{\"$type\":\"com.atproto.repo.applyWrites#create\","
-            "\"collection\":\"app.bsky.feed.post\",\"value\":{\"text\":\"one\"}}";
+            "\"collection\":\"app.bsky.feed.post\",\"value\":{\"text\":\"one\"}"
+            "}";
         static const char delete_[] =
             "{\"$type\":\"com.atproto.repo.applyWrites#delete\","
             "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"two\"}";
@@ -333,7 +338,8 @@ int main(void) {
         WF_CHECK(cJSON_IsArray(encoded));
         WF_CHECK(cJSON_GetArraySize(encoded) == 2);
         WF_CHECK(strcmp(cJSON_GetObjectItemCaseSensitive(
-                            cJSON_GetArrayItem(encoded, 1), "$type")->valuestring,
+                            cJSON_GetArrayItem(encoded, 1), "$type")
+                            ->valuestring,
                         "com.atproto.repo.applyWrites#delete") == 0);
         cJSON_Delete(root);
         wf_lex_com_atproto_repo_apply_writes_main_json_free(json);
@@ -346,12 +352,12 @@ int main(void) {
             "\"cid\":\"bafyreig\",\"commit\":{\"cid\":\"bafy:rev\","
             "\"rev\":\"3\"},\"validationStatus\":\"valid\"}";
         wf_repo_write_record_result out = {0};
-        wf_status s = wf_repo_parse_write_record_result(
-            json, strlen(json), &out);
+        wf_status s =
+            wf_repo_parse_write_record_result(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
-        WF_CHECK(out.uri &&
-                 strcmp(out.uri,
-                        "at://did:plc:abc/app.bsky.feed.post/abc123") == 0);
+        WF_CHECK(
+            out.uri &&
+            strcmp(out.uri, "at://did:plc:abc/app.bsky.feed.post/abc123") == 0);
         WF_CHECK(out.cid && strcmp(out.cid, "bafyreig") == 0);
         WF_CHECK(out.extra != NULL);
         if (out.extra) {
@@ -374,19 +380,18 @@ int main(void) {
             "{\"blob\":{\"cid\":\"bafy:blob\",\"mimeType\":\"image/png\","
             "\"size\":1234}}";
         wf_repo_upload_blob_result out = {0};
-        wf_status s = wf_repo_parse_upload_blob_result(
-            json, strlen(json), &out);
+        wf_status s =
+            wf_repo_parse_upload_blob_result(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.cid && strcmp(out.cid, "bafy:blob") == 0);
-        WF_CHECK(out.mime_type &&
-                 strcmp(out.mime_type, "image/png") == 0);
+        WF_CHECK(out.mime_type && strcmp(out.mime_type, "image/png") == 0);
         WF_CHECK(out.has_size && out.size == 1234);
         wf_repo_upload_blob_result_free(&out);
 
         static const char *bad = "{\"blob\":{\"mimeType\":\"x\"}}";
         wf_repo_upload_blob_result bad_out = {0};
-        WF_CHECK(wf_repo_parse_upload_blob_result(
-                     bad, strlen(bad), &bad_out) == WF_OK);
+        WF_CHECK(wf_repo_parse_upload_blob_result(bad, strlen(bad), &bad_out) ==
+                 WF_OK);
         WF_CHECK(bad_out.cid == NULL && bad_out.has_size == false);
         wf_repo_upload_blob_result_free(&bad_out);
 
@@ -396,16 +401,17 @@ int main(void) {
 
     /* ---- New agent wrapper NULL validation (NULL agent passed so the
        wrappers never dereference a fake pointer; the wrappers validate the
-       agent first, so NULL agent is enough to exercise the invalid path). ---- */
+       agent first, so NULL agent is enough to exercise the invalid path). ----
+     */
     {
         wf_repo_write_record_result wr = {0};
         wf_repo_upload_blob_result ub = {0};
 
-        WF_CHECK(wf_agent_create_record_typed(NULL, "r", "c", NULL, -1,
-                                             "{}", NULL, &wr) ==
-                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_create_record_typed(NULL, "r", "c", NULL, -1, "{}",
-                                             NULL, NULL) == WF_ERR_INVALID_ARG);
+                                              NULL, &wr) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_record_typed(NULL, "r", "c", NULL, -1, "{}",
+                                              NULL,
+                                              NULL) == WF_ERR_INVALID_ARG);
 
         WF_CHECK(wf_agent_put_record_typed(NULL, "r", "c", "k", -1, "{}", NULL,
                                            NULL, &wr) == WF_ERR_INVALID_ARG);

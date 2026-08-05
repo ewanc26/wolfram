@@ -46,14 +46,14 @@ typedef struct wf_sync_repo_ref {
     bool has_active;
     bool active;
     bool has_status;
-    char *status;        /* NULL absent */
+    char *status; /* NULL absent */
 } wf_sync_repo_ref;
 
 /* A list of repo references plus an optional cursor (listRepos). */
 typedef struct wf_sync_repo_ref_list {
     wf_sync_repo_ref *items;
     size_t count;
-    char *cursor;        /* NULL absent */
+    char *cursor; /* NULL absent */
 } wf_sync_repo_ref_list;
 
 /* A single repo reference keyed by DID only (listReposByCollection#repo). */
@@ -65,14 +65,14 @@ typedef struct wf_sync_repo_by_collection {
 typedef struct wf_sync_repo_by_collection_list {
     wf_sync_repo_by_collection *items;
     size_t count;
-    char *cursor;        /* NULL absent */
+    char *cursor; /* NULL absent */
 } wf_sync_repo_by_collection_list;
 
 /* A list of blob CIDs (strings) plus an optional cursor (listBlobs). */
 typedef struct wf_sync_blob_cid_list {
     char **cids;
     size_t count;
-    char *cursor;        /* NULL absent */
+    char *cursor; /* NULL absent */
 } wf_sync_blob_cid_list;
 
 /* A single host (com.atproto.sync.listHosts#host and getHostStatus output):
@@ -84,14 +84,14 @@ typedef struct wf_sync_host {
     bool has_account_count;
     int64_t account_count;
     bool has_status;
-    char *status;        /* NULL absent */
+    char *status; /* NULL absent */
 } wf_sync_host;
 
 /* A list of hosts plus an optional cursor (listHosts). */
 typedef struct wf_sync_host_list {
     wf_sync_host *items;
     size_t count;
-    char *cursor;        /* NULL absent */
+    char *cursor; /* NULL absent */
 } wf_sync_host_list;
 
 /* ---- Parsers (own their outputs; full cleanup on first error) ----
@@ -103,9 +103,11 @@ typedef struct wf_sync_host_list {
 wf_status wf_sync_parse_repo_list(const char *json, size_t json_len,
                                   wf_sync_repo_ref_list *out);
 
-/* Parse a com.atproto.sync.listReposByCollection JSON body ("repos" + cursor). */
-wf_status wf_sync_parse_repo_by_collection_list(
-    const char *json, size_t json_len, wf_sync_repo_by_collection_list *out);
+/* Parse a com.atproto.sync.listReposByCollection JSON body ("repos" + cursor).
+ */
+wf_status
+wf_sync_parse_repo_by_collection_list(const char *json, size_t json_len,
+                                      wf_sync_repo_by_collection_list *out);
 
 /* Parse a com.atproto.sync.listBlobs JSON body ("cids" array + cursor). */
 wf_status wf_sync_parse_blob_cid_list(const char *json, size_t json_len,
@@ -140,9 +142,10 @@ wf_status wf_agent_list_repos_typed(wf_agent *agent, int limit,
                                     wf_sync_repo_ref_list *out);
 
 /* com.atproto.sync.listReposByCollection. `collection` is required. */
-wf_status wf_agent_list_repos_by_collection_typed(
-    wf_agent *agent, const char *collection, int limit, const char *cursor,
-    wf_sync_repo_by_collection_list *out);
+wf_status
+wf_agent_list_repos_by_collection_typed(wf_agent *agent, const char *collection,
+                                        int limit, const char *cursor,
+                                        wf_sync_repo_by_collection_list *out);
 
 /* com.atproto.sync.listBlobs. `did` is required; `since` may be NULL. */
 wf_status wf_agent_list_blobs_typed(wf_agent *agent, const char *did,
@@ -152,15 +155,15 @@ wf_status wf_agent_list_blobs_typed(wf_agent *agent, const char *did,
 
 /* com.atproto.sync.listHosts. `limit` <= 0 uses the server default. */
 wf_status wf_agent_list_hosts_typed(wf_agent *agent, int limit,
-                                    const char *cursor,
-                                    wf_sync_host_list *out);
+                                    const char *cursor, wf_sync_host_list *out);
 
 /* com.atproto.sync.getHostStatus. `hostname` is required. */
 wf_status wf_agent_get_host_status_typed(wf_agent *agent, const char *hostname,
                                          wf_sync_host *out);
 
 /* com.atproto.sync.notifyOfUpdate (procedure, input {hostname}). No output. */
-wf_status wf_agent_notify_of_update_typed(wf_agent *agent, const char *hostname);
+wf_status wf_agent_notify_of_update_typed(wf_agent *agent,
+                                          const char *hostname);
 
 /* com.atproto.sync.requestCrawl (procedure, input {hostname}). No output. */
 wf_status wf_agent_request_crawl_typed(wf_agent *agent, const char *hostname);
@@ -175,8 +178,7 @@ wf_status wf_agent_get_repo_car(wf_agent *agent, const char *did,
 /* com.atproto.sync.getCheckout (binary CAR output). `did` is required. Returns
  * owned bytes via `out_bytes`/`out_len` (caller frees with free()). */
 wf_status wf_agent_get_checkout_car(wf_agent *agent, const char *did,
-                                    unsigned char **out_bytes,
-                                    size_t *out_len);
+                                    unsigned char **out_bytes, size_t *out_len);
 
 #ifdef __cplusplus
 }

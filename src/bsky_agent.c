@@ -62,7 +62,8 @@ wf_status wf_bsky_agent_login_session(wf_bsky_agent *b,
          * carried in the persisted session data) over the hardcoded default,
          * so a resumed session on a self-hosted PDS is bound to the right host.
          * When no PDS is known yet, fall back to the default entryway; the
-         * subsequent refresh will re-point the agent once the didDoc arrives. */
+         * subsequent refresh will re-point the agent once the didDoc arrives.
+         */
         const char *service = (data->pds_url && data->pds_url[0])
                                   ? data->pds_url
                                   : WF_BSKY_AGENT_DEFAULT_SERVICE;
@@ -93,8 +94,7 @@ wf_status wf_bsky_agent_post(wf_bsky_agent *b, const char *text,
     return wf_agent_post(b->agent, text, out);
 }
 
-wf_status wf_bsky_agent_get_profile(wf_bsky_agent *b,
-                                    const char *handle_or_did,
+wf_status wf_bsky_agent_get_profile(wf_bsky_agent *b, const char *handle_or_did,
                                     wf_agent_profile *out) {
     if (!b || !handle_or_did || !out) {
         return WF_ERR_INVALID_ARG;
@@ -157,7 +157,8 @@ wf_status wf_bsky_agent_like(wf_bsky_agent *b, const char *post_uri,
 }
 
 wf_status wf_bsky_agent_repost(wf_bsky_agent *b, const char *post_uri,
-                               const char *post_cid, wf_agent_post_result *out) {
+                               const char *post_cid,
+                               wf_agent_post_result *out) {
     if (!b || !post_uri || !post_cid || !out) {
         return WF_ERR_INVALID_ARG;
     }

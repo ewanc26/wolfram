@@ -93,7 +93,8 @@ wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
     }
 
     wf_status status = WF_OK;
-    cJSON *notifications = cJSON_GetObjectItemCaseSensitive(root, "notifications");
+    cJSON *notifications =
+        cJSON_GetObjectItemCaseSensitive(root, "notifications");
     if (!cJSON_IsArray(notifications)) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
@@ -117,7 +118,8 @@ wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
         cJSON *author = cJSON_GetObjectItemCaseSensitive(obj, "author");
         cJSON *reason = cJSON_GetObjectItemCaseSensitive(obj, "reason");
-        cJSON *reason_subject = cJSON_GetObjectItemCaseSensitive(obj, "reasonSubject");
+        cJSON *reason_subject =
+            cJSON_GetObjectItemCaseSensitive(obj, "reasonSubject");
         cJSON *is_read = cJSON_GetObjectItemCaseSensitive(obj, "isRead");
         cJSON *indexed_at = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
         cJSON *labels = cJSON_GetObjectItemCaseSensitive(obj, "labels");
@@ -131,31 +133,45 @@ wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
 
         if (status == WF_OK && cJSON_IsObject(author)) {
             cJSON *a_did = cJSON_GetObjectItemCaseSensitive(author, "did");
-            cJSON *a_handle = cJSON_GetObjectItemCaseSensitive(author, "handle");
-            cJSON *a_name = cJSON_GetObjectItemCaseSensitive(author, "displayName");
-            cJSON *a_avatar = cJSON_GetObjectItemCaseSensitive(author, "avatar");
+            cJSON *a_handle =
+                cJSON_GetObjectItemCaseSensitive(author, "handle");
+            cJSON *a_name =
+                cJSON_GetObjectItemCaseSensitive(author, "displayName");
+            cJSON *a_avatar =
+                cJSON_GetObjectItemCaseSensitive(author, "avatar");
             if (cJSON_IsString(a_did) && a_did->valuestring) {
-                status = wf_agent_notif_set_string(&n->author.did, a_did->valuestring);
+                status = wf_agent_notif_set_string(&n->author.did,
+                                                   a_did->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(a_handle) && a_handle->valuestring) {
-                status = wf_agent_notif_set_string(&n->author.handle, a_handle->valuestring);
+            if (status == WF_OK && cJSON_IsString(a_handle) &&
+                a_handle->valuestring) {
+                status = wf_agent_notif_set_string(&n->author.handle,
+                                                   a_handle->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(a_name) && a_name->valuestring) {
-                status = wf_agent_notif_set_string(&n->author.display_name, a_name->valuestring);
+            if (status == WF_OK && cJSON_IsString(a_name) &&
+                a_name->valuestring) {
+                status = wf_agent_notif_set_string(&n->author.display_name,
+                                                   a_name->valuestring);
             }
-            if (status == WF_OK && cJSON_IsString(a_avatar) && a_avatar->valuestring) {
-                status = wf_agent_notif_set_string(&n->author.avatar, a_avatar->valuestring);
+            if (status == WF_OK && cJSON_IsString(a_avatar) &&
+                a_avatar->valuestring) {
+                status = wf_agent_notif_set_string(&n->author.avatar,
+                                                   a_avatar->valuestring);
             }
         }
 
         if (status == WF_OK && cJSON_IsString(reason) && reason->valuestring) {
             status = wf_agent_notif_set_string(&n->reason, reason->valuestring);
         }
-        if (status == WF_OK && cJSON_IsString(reason_subject) && reason_subject->valuestring) {
-            status = wf_agent_notif_set_string(&n->reason_subject, reason_subject->valuestring);
+        if (status == WF_OK && cJSON_IsString(reason_subject) &&
+            reason_subject->valuestring) {
+            status = wf_agent_notif_set_string(&n->reason_subject,
+                                               reason_subject->valuestring);
         }
-        if (status == WF_OK && cJSON_IsString(indexed_at) && indexed_at->valuestring) {
-            status = wf_agent_notif_set_string(&n->indexed_at, indexed_at->valuestring);
+        if (status == WF_OK && cJSON_IsString(indexed_at) &&
+            indexed_at->valuestring) {
+            status = wf_agent_notif_set_string(&n->indexed_at,
+                                               indexed_at->valuestring);
         }
         if (status == WF_OK && cJSON_IsBool(is_read)) {
             n->is_read = cJSON_IsTrue(is_read) ? 1 : 0;
@@ -173,7 +189,8 @@ wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
         if (status == WF_OK && cJSON_IsArray(labels)) {
             int label_count = cJSON_GetArraySize(labels);
             if (label_count > 0) {
-                n->labels = (wf_agent_label *)calloc((size_t)label_count, sizeof(*n->labels));
+                n->labels = (wf_agent_label *)calloc((size_t)label_count,
+                                                     sizeof(*n->labels));
                 if (!n->labels) {
                     status = WF_ERR_ALLOC;
                 }
@@ -185,16 +202,23 @@ wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
                     cJSON *l_cts = cJSON_GetObjectItemCaseSensitive(lab, "cts");
                     wf_agent_label *out_label = &n->labels[n->label_count];
                     if (cJSON_IsString(l_src) && l_src->valuestring) {
-                        status = wf_agent_notif_set_string(&out_label->src, l_src->valuestring);
+                        status = wf_agent_notif_set_string(&out_label->src,
+                                                           l_src->valuestring);
                     }
-                    if (status == WF_OK && cJSON_IsString(l_uri) && l_uri->valuestring) {
-                        status = wf_agent_notif_set_string(&out_label->uri, l_uri->valuestring);
+                    if (status == WF_OK && cJSON_IsString(l_uri) &&
+                        l_uri->valuestring) {
+                        status = wf_agent_notif_set_string(&out_label->uri,
+                                                           l_uri->valuestring);
                     }
-                    if (status == WF_OK && cJSON_IsString(l_val) && l_val->valuestring) {
-                        status = wf_agent_notif_set_string(&out_label->val, l_val->valuestring);
+                    if (status == WF_OK && cJSON_IsString(l_val) &&
+                        l_val->valuestring) {
+                        status = wf_agent_notif_set_string(&out_label->val,
+                                                           l_val->valuestring);
                     }
-                    if (status == WF_OK && cJSON_IsString(l_cts) && l_cts->valuestring) {
-                        status = wf_agent_notif_set_string(&out_label->cts, l_cts->valuestring);
+                    if (status == WF_OK && cJSON_IsString(l_cts) &&
+                        l_cts->valuestring) {
+                        status = wf_agent_notif_set_string(&out_label->cts,
+                                                           l_cts->valuestring);
                     }
                     if (status == WF_OK) {
                         n->label_count++;
@@ -216,12 +240,15 @@ wf_status wf_agent_parse_notifications(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_agent_notif_set_string(&out->cursor, cursor->valuestring);
+            status =
+                wf_agent_notif_set_string(&out->cursor, cursor->valuestring);
         }
 
         cJSON *seen_at = cJSON_GetObjectItemCaseSensitive(root, "seenAt");
-        if (status == WF_OK && cJSON_IsString(seen_at) && seen_at->valuestring) {
-            status = wf_agent_notif_set_string(&out->seen_at, seen_at->valuestring);
+        if (status == WF_OK && cJSON_IsString(seen_at) &&
+            seen_at->valuestring) {
+            status =
+                wf_agent_notif_set_string(&out->seen_at, seen_at->valuestring);
         }
 
         cJSON *priority = cJSON_GetObjectItemCaseSensitive(root, "priority");
@@ -320,8 +347,8 @@ wf_status wf_agent_get_unread_count_typed(wf_agent *agent, int *out_count) {
     return WF_OK;
 }
 
-wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
-                                       wf_response *out) {
+wf_status wf_agent_list_notifications(wf_agent *agent, int limit,
+                                      const char *cursor, wf_response *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -351,11 +378,13 @@ wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cu
     }
 
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client, "app.bsky.notification.listNotifications",
-                               params, param_count, out);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.notification.listNotifications",
+                                params, param_count, out);
 }
 
-wf_status wf_agent_update_seen_notifications(wf_agent *agent, const char *seen_at) {
+wf_status wf_agent_update_seen_notifications(wf_agent *agent,
+                                             const char *seen_at) {
     if (!agent || !seen_at) {
         return WF_ERR_INVALID_ARG;
     }
@@ -383,9 +412,8 @@ wf_status wf_agent_update_seen_notifications(wf_agent *agent, const char *seen_a
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                         "app.bsky.notification.updateSeen",
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "app.bsky.notification.updateSeen", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
@@ -397,7 +425,6 @@ wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out) {
     }
 
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client,
-                                "app.bsky.notification.getUnreadCount",
-                                NULL, 0, out);
+    return wf_xrpc_query_params(
+        agent->client, "app.bsky.notification.getUnreadCount", NULL, 0, out);
 }

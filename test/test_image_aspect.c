@@ -13,8 +13,7 @@ static const unsigned char kPng[] = {
     0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00,
     0x0b, 0x49, 0x44, 0x41, 0x54, 0x78, 0xda, 0x63, 0x64, 0xf8, 0xff, 0xbf,
     0x1e, 0x00, 0x05, 0x84, 0x02, 0x7f, 0xc2, 0x5b, 0x1e, 0x2a, 0x00, 0x00,
-    0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
-};
+    0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
 
 int main(void) {
     /* --- wf_image_dimensions --- */
@@ -34,7 +33,8 @@ int main(void) {
 
     /* --- embed with aspectRatio --- */
     wf_uploaded_blob blob = {0};
-    const char *dummy_cid = "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjev8e";
+    const char *dummy_cid =
+        "bafkreihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjev8e";
     const char *dummy_mime = "image/png";
     blob.cid = wf_dup_span(dummy_cid, strlen(dummy_cid));
     blob.mime_type = wf_dup_span(dummy_mime, strlen(dummy_mime));
@@ -51,7 +51,8 @@ int main(void) {
 
     if (embed) {
         cJSON *images = cJSON_GetObjectItem(embed, "images");
-        WF_CHECK(images && cJSON_IsArray(images) && cJSON_GetArraySize(images) == 1);
+        WF_CHECK(images && cJSON_IsArray(images) &&
+                 cJSON_GetArraySize(images) == 1);
         cJSON *img = cJSON_GetArrayItem(images, 0);
         WF_CHECK(img != NULL);
         cJSON *ar = img ? cJSON_GetObjectItem(img, "aspectRatio") : NULL;

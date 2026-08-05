@@ -10,13 +10,12 @@
 
 static int failures = 0;
 
-#define CHECK(cond)                                                         \
-    do {                                                                    \
-        if (!(cond)) {                                                      \
-            fprintf(stderr, "FAIL: %s (%s:%d)\n", #cond, __FILE__,          \
-                    __LINE__);                                              \
-            failures++;                                                     \
-        }                                                                   \
+#define CHECK(cond)                                                            \
+    do {                                                                       \
+        if (!(cond)) {                                                         \
+            fprintf(stderr, "FAIL: %s (%s:%d)\n", #cond, __FILE__, __LINE__);  \
+            failures++;                                                        \
+        }                                                                      \
     } while (0)
 
 int main(void) {

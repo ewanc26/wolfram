@@ -89,8 +89,8 @@ static void test_mirror_roundtrip(void) {
     /* Block round-trip with a binary CID + binary block. */
     const uint8_t cid[] = {0x01, 0x55, 0x12, 0x20, 0xde, 0xad, 0xbe, 0xef};
     const uint8_t block[] = {0x61, 0x62, 0x63, 0x00, 0xff, 0x10};
-    WF_CHECK(wf_store_save_mirror_block(store, did, cid, sizeof(cid),
-                                        block, sizeof(block)) == WF_OK);
+    WF_CHECK(wf_store_save_mirror_block(store, did, cid, sizeof(cid), block,
+                                        sizeof(block)) == WF_OK);
 
     uint8_t *out_block = NULL;
     size_t out_len = 0;
@@ -106,8 +106,8 @@ static void test_mirror_roundtrip(void) {
     uint8_t *noblock = NULL;
     size_t noblock_len = 0;
     WF_CHECK(wf_store_load_mirror_block(store, did, bad_cid, sizeof(bad_cid),
-                                        &noblock, &noblock_len) ==
-             WF_ERR_NOT_FOUND);
+                                        &noblock,
+                                        &noblock_len) == WF_ERR_NOT_FOUND);
 
     wf_store_close(store);
 }

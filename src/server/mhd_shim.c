@@ -39,9 +39,9 @@
 #include <time.h>
 #include <unistd.h>
 
-#define SHIM_HEADER_MAX   16384   /* request line + headers */
-#define SHIM_BODY_CHUNK   8192    /* handed to the handler per call */
-#define SHIM_MAX_KV       64      /* headers + query args per request */
+#define SHIM_HEADER_MAX 16384 /* request line + headers */
+#define SHIM_BODY_CHUNK 8192  /* handed to the handler per call */
+#define SHIM_MAX_KV 64        /* headers + query args per request */
 
 /* ------------------------------------------------------------------ */
 /* Key/value store — headers and query arguments                       */
@@ -65,7 +65,7 @@ struct MHD_Response {
     size_t body_len;
     enum MHD_ResponseMemoryMode mem_mode;
 
-    uint64_t total_size;                    /* MHD_SIZE_UNKNOWN => chunked */
+    uint64_t total_size; /* MHD_SIZE_UNKNOWN => chunked */
     MHD_ContentReaderCallback crc;
     void *crc_cls;
     MHD_ContentReaderFreeCallback crfc;
@@ -105,7 +105,7 @@ struct MHD_Connection {
     void *socket_context;
     struct MHD_UpgradeResponseHandle urh;
 
-    struct MHD_Connection *next;            /* daemon's live list */
+    struct MHD_Connection *next; /* daemon's live list */
 };
 
 struct MHD_Daemon {
@@ -144,8 +144,8 @@ static char *dup_range(const char *start, size_t len) {
     return out;
 }
 
-static bool kv_add(kv *table, size_t *count, enum MHD_ValueKind kind,
-                   char *key, char *value) {
+static bool kv_add(kv *table, size_t *count, enum MHD_ValueKind kind, char *key,
+                   char *value) {
     if (*count >= SHIM_MAX_KV) {
         free(key);
         free(value);
@@ -188,12 +188,14 @@ static void url_decode(char *s) {
     for (char *p = s; *p; p++) {
         if (*p == '%' && p[1] && p[2]) {
             int hi = p[1], lo = p[2];
-            hi = (hi >= '0' && hi <= '9') ? hi - '0'
-               : (hi >= 'a' && hi <= 'f') ? hi - 'a' + 10
-               : (hi >= 'A' && hi <= 'F') ? hi - 'A' + 10 : -1;
-            lo = (lo >= '0' && lo <= '9') ? lo - '0'
-               : (lo >= 'a' && lo <= 'f') ? lo - 'a' + 10
-               : (lo >= 'A' && lo <= 'F') ? lo - 'A' + 10 : -1;
+            hi = (hi >= '0' && hi <= '9')   ? hi - '0'
+                 : (hi >= 'a' && hi <= 'f') ? hi - 'a' + 10
+                 : (hi >= 'A' && hi <= 'F') ? hi - 'A' + 10
+                                            : -1;
+            lo = (lo >= '0' && lo <= '9')   ? lo - '0'
+                 : (lo >= 'a' && lo <= 'f') ? lo - 'a' + 10
+                 : (lo >= 'A' && lo <= 'F') ? lo - 'A' + 10
+                                            : -1;
             if (hi >= 0 && lo >= 0) {
                 *out++ = (char)((hi << 4) | lo);
                 p += 2;
@@ -240,8 +242,9 @@ static void response_unref(struct MHD_Response *r) {
     free(r);
 }
 
-struct MHD_Response *MHD_create_response_from_buffer(
-    size_t size, void *buffer, enum MHD_ResponseMemoryMode mode) {
+struct MHD_Response *
+MHD_create_response_from_buffer(size_t size, void *buffer,
+                                enum MHD_ResponseMemoryMode mode) {
     struct MHD_Response *r = response_new();
     if (!r) return NULL;
     r->kind = RESP_BUFFER;
@@ -261,9 +264,10 @@ struct MHD_Response *MHD_create_response_from_buffer(
     return r;
 }
 
-struct MHD_Response *MHD_create_response_from_callback(
-    uint64_t size, size_t block_size, MHD_ContentReaderCallback crc,
-    void *crc_cls, MHD_ContentReaderFreeCallback crfc) {
+struct MHD_Response *
+MHD_create_response_from_callback(uint64_t size, size_t block_size,
+                                  MHD_ContentReaderCallback crc, void *crc_cls,
+                                  MHD_ContentReaderFreeCallback crfc) {
     (void)block_size;
     struct MHD_Response *r = response_new();
     if (!r) return NULL;
@@ -297,7 +301,9 @@ enum MHD_Result MHD_add_response_header(struct MHD_Response *response,
         return MHD_NO;
     }
     return kv_add(response->headers, &response->header_count,
-                  MHD_RESPONSE_HEADER_KIND, k, v) ? MHD_YES : MHD_NO;
+                  MHD_RESPONSE_HEADER_KIND, k, v)
+               ? MHD_YES
+               : MHD_NO;
 }
 
 void MHD_destroy_response(struct MHD_Response *response) {
@@ -309,7 +315,7 @@ enum MHD_Result MHD_queue_response(struct MHD_Connection *connection,
                                    struct MHD_Response *response) {
     if (!connection || !response) return MHD_NO;
     if (connection->queued) response_unref(connection->queued);
-    response->refcount++;                   /* the connection's reference */
+    response->refcount++; /* the connection's reference */
     connection->queued = response;
     connection->status = status_code;
     return MHD_YES;
@@ -327,8 +333,8 @@ const char *MHD_lookup_connection_value(struct MHD_Connection *connection,
         if (connection->values[i].kind != kind) continue;
         /* Header names are case-insensitive; query argument names are not. */
         bool match = (kind == MHD_HEADER_KIND)
-            ? ci_equal(connection->values[i].key, key) != 0
-            : strcmp(connection->values[i].key, key) == 0;
+                         ? ci_equal(connection->values[i].key, key) != 0
+                         : strcmp(connection->values[i].key, key) == 0;
         if (match) return connection->values[i].value;
     }
     return NULL;
@@ -350,9 +356,9 @@ int MHD_get_connection_values(struct MHD_Connection *connection,
     return n;
 }
 
-const union MHD_ConnectionInfo *MHD_get_connection_info(
-    struct MHD_Connection *connection, enum MHD_ConnectionInfoType info_type,
-    ...) {
+const union MHD_ConnectionInfo *
+MHD_get_connection_info(struct MHD_Connection *connection,
+                        enum MHD_ConnectionInfoType info_type, ...) {
     if (!connection || info_type != MHD_CONNECTION_INFO_CLIENT_ADDRESS)
         return NULL;
     connection->info.client_addr = (struct sockaddr *)&connection->peer;
@@ -430,8 +436,8 @@ static void parse_query(struct MHD_Connection *conn, char *query) {
         if (k && v) {
             url_decode(k);
             url_decode(v);
-            kv_add(conn->values, &conn->value_count, MHD_GET_ARGUMENT_KIND,
-                   k, v);
+            kv_add(conn->values, &conn->value_count, MHD_GET_ARGUMENT_KIND, k,
+                   v);
         } else {
             free(k);
             free(v);
@@ -467,13 +473,12 @@ static ssize_t read_headers(int fd, char *buf, size_t cap, size_t *header_len) {
         }
         have += (size_t)n;
     }
-    return -1;                              /* headers larger than the cap */
+    return -1; /* headers larger than the cap */
 }
 
 /* Parse the request line and headers already in `buf`. */
-static bool parse_request(struct MHD_Connection *conn, char *buf,
-                          char **method, char **url, char **version,
-                          char **query) {
+static bool parse_request(struct MHD_Connection *conn, char *buf, char **method,
+                          char **url, char **version, char **query) {
     char *line_end = strstr(buf, "\r\n");
     if (!line_end) return false;
     *line_end = '\0';
@@ -527,27 +532,41 @@ static bool parse_request(struct MHD_Connection *conn, char *buf,
 
 static const char *status_text(unsigned int code) {
     switch (code) {
-    case 101: return "Switching Protocols";
-    case 200: return "OK";
-    case 201: return "Created";
-    case 204: return "No Content";
-    case 400: return "Bad Request";
-    case 401: return "Unauthorized";
-    case 403: return "Forbidden";
-    case 404: return "Not Found";
-    case 405: return "Method Not Allowed";
-    case 409: return "Conflict";
-    case 413: return "Content Too Large";
-    case 429: return "Too Many Requests";
-    case 500: return "Internal Server Error";
-    case 501: return "Not Implemented";
-    default:  return "OK";
+        case 101:
+            return "Switching Protocols";
+        case 200:
+            return "OK";
+        case 201:
+            return "Created";
+        case 204:
+            return "No Content";
+        case 400:
+            return "Bad Request";
+        case 401:
+            return "Unauthorized";
+        case 403:
+            return "Forbidden";
+        case 404:
+            return "Not Found";
+        case 405:
+            return "Method Not Allowed";
+        case 409:
+            return "Conflict";
+        case 413:
+            return "Content Too Large";
+        case 429:
+            return "Too Many Requests";
+        case 500:
+            return "Internal Server Error";
+        case 501:
+            return "Not Implemented";
+        default:
+            return "OK";
     }
 }
 
 static bool send_status_and_headers(struct MHD_Connection *conn,
-                                    struct MHD_Response *r,
-                                    const char *extra) {
+                                    struct MHD_Response *r, const char *extra) {
     char head[2048];
     int n = snprintf(head, sizeof(head), "HTTP/1.1 %u %s\r\n", conn->status,
                      status_text(conn->status));
@@ -649,8 +668,8 @@ static void *connection_main(void *arg) {
                    &con_cls) == MHD_NO)
         goto done;
 
-    const char *cl = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
-                                                 "Content-Length");
+    const char *cl =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Length");
     long long content_length = cl ? strtoll(cl, NULL, 10) : 0;
     if (content_length < 0) content_length = 0;
 
@@ -778,7 +797,7 @@ static void *acceptor_main(void *arg) {
         int fd = accept(d->listen_fd, (struct sockaddr *)&peer, &plen);
         if (fd < 0) {
             if (errno == EINTR) continue;
-            break;                          /* listener closed by stop */
+            break; /* listener closed by stop */
         }
         if (d->stopping) {
             close(fd);
@@ -819,7 +838,9 @@ struct MHD_Daemon *MHD_start_daemon(unsigned int flags, uint16_t port,
                                     void *apc, void *apc_cls,
                                     MHD_AccessHandlerCallback dh, void *dh_cls,
                                     ...) {
-    (void)flags; (void)apc; (void)apc_cls;
+    (void)flags;
+    (void)apc;
+    (void)apc_cls;
     if (!dh) return NULL;
 
     struct MHD_Daemon *d =
@@ -842,16 +863,16 @@ struct MHD_Daemon *MHD_start_daemon(unsigned int flags, uint16_t port,
         void *a = va_arg(ap, void *);
         void *b = va_arg(ap, void *);
         switch (opt) {
-        case MHD_OPTION_NOTIFY_COMPLETED:
-            d->notify_completed = (MHD_RequestCompletedCallback)a;
-            d->notify_completed_cls = b;
-            break;
-        case MHD_OPTION_NOTIFY_CONNECTION:
-            d->notify_connection = (MHD_NotifyConnectionCallback)a;
-            d->notify_connection_cls = b;
-            break;
-        default:
-            break;                          /* EXTERNAL_LOGGER and friends */
+            case MHD_OPTION_NOTIFY_COMPLETED:
+                d->notify_completed = (MHD_RequestCompletedCallback)a;
+                d->notify_completed_cls = b;
+                break;
+            case MHD_OPTION_NOTIFY_CONNECTION:
+                d->notify_connection = (MHD_NotifyConnectionCallback)a;
+                d->notify_connection_cls = b;
+                break;
+            default:
+                break; /* EXTERNAL_LOGGER and friends */
         }
     }
     va_end(ap);
@@ -920,7 +941,7 @@ void MHD_stop_daemon(struct MHD_Daemon *daemon) {
         bool empty = daemon->connections == NULL;
         pthread_mutex_unlock(&daemon->lock);
         if (empty) break;
-        struct timespec ts = { 0, 10 * 1000 * 1000 };
+        struct timespec ts = {0, 10 * 1000 * 1000};
         nanosleep(&ts, NULL);
     }
     pthread_mutex_destroy(&daemon->lock);

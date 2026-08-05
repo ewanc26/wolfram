@@ -50,41 +50,49 @@ static void on_error(wf_status status, const char *msg, void *userdata) {
 static void test_build_url(void) {
     char *url = NULL;
     WF_CHECK(wf_label_build_url("https://example.com", 0, &url) == WF_OK);
-    WF_CHECK(strcmp(url, "wss://example.com/xrpc/com.atproto.label.subscribeLabels") == 0);
+    WF_CHECK(
+        strcmp(url,
+               "wss://example.com/xrpc/com.atproto.label.subscribeLabels") ==
+        0);
     free(url);
 
-    WF_CHECK(wf_label_build_url("wss://example.com/xrpc/com.atproto.label.subscribeLabels",
-                                42, &url) == WF_OK);
-    WF_CHECK(strcmp(url,
-                    "wss://example.com/xrpc/com.atproto.label.subscribeLabels?cursor=42") == 0);
+    WF_CHECK(wf_label_build_url(
+                 "wss://example.com/xrpc/com.atproto.label.subscribeLabels", 42,
+                 &url) == WF_OK);
+    WF_CHECK(strcmp(url, "wss://example.com/xrpc/"
+                         "com.atproto.label.subscribeLabels?cursor=42") == 0);
     free(url);
 
-    WF_CHECK(wf_label_build_url("https://example.com/path/",
-                                0, &url) == WF_OK);
-    WF_CHECK(strcmp(url, "wss://example.com/path/xrpc/com.atproto.label.subscribeLabels") == 0);
+    WF_CHECK(wf_label_build_url("https://example.com/path/", 0, &url) == WF_OK);
+    WF_CHECK(
+        strcmp(
+            url,
+            "wss://example.com/path/xrpc/com.atproto.label.subscribeLabels") ==
+        0);
     free(url);
 }
 
 static void test_message_parse(void) {
-    const char *labels_json =
-        "{"
-        "\"$type\":\"#labels\"," 
-        "\"seq\":17,"
-        "\"labels\":["
-        "{\"src\":\"did:plc:z72i7hdynmk6r22z27h6tvur\","
-        "\"uri\":\"at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3jui7kd54zh2y\","
-        "\"val\":\"nsfw\","
-        "\"cts\":\"2024-10-16T00:00:00Z\","
-        "\"neg\":false},"
-        "{\"src\":\"did:plc:z72i7hdynmk6r22z27h6tvur\","
-        "\"uri\":\"at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3jui7kd54zh2y\","
-        "\"val\":\"hide\","
-        "\"cts\":\"2024-10-16T00:00:00Z\","
-        "\"neg\":true}"
-        "]}"
-        ;
+    const char *labels_json = "{"
+                              "\"$type\":\"#labels\","
+                              "\"seq\":17,"
+                              "\"labels\":["
+                              "{\"src\":\"did:plc:z72i7hdynmk6r22z27h6tvur\","
+                              "\"uri\":\"at://did:plc:z72i7hdynmk6r22z27h6tvur/"
+                              "app.bsky.feed.post/3jui7kd54zh2y\","
+                              "\"val\":\"nsfw\","
+                              "\"cts\":\"2024-10-16T00:00:00Z\","
+                              "\"neg\":false},"
+                              "{\"src\":\"did:plc:z72i7hdynmk6r22z27h6tvur\","
+                              "\"uri\":\"at://did:plc:z72i7hdynmk6r22z27h6tvur/"
+                              "app.bsky.feed.post/3jui7kd54zh2y\","
+                              "\"val\":\"hide\","
+                              "\"cts\":\"2024-10-16T00:00:00Z\","
+                              "\"neg\":true}"
+                              "]}";
     wf_label_message message = {0};
-    WF_CHECK(wf_label_message_parse(labels_json, strlen(labels_json), &message) == WF_OK);
+    WF_CHECK(wf_label_message_parse(labels_json, strlen(labels_json),
+                                    &message) == WF_OK);
     WF_CHECK(message.type == WF_LABEL_MESSAGE_LABELS);
     WF_CHECK(message.data.labels.seq == 17);
     WF_CHECK(message.data.labels.count == 2);
@@ -96,14 +104,13 @@ static void test_message_parse(void) {
     WF_CHECK(message.data.labels.items[1].neg == 1);
     wf_label_message_free(&message);
 
-    const char *info_json =
-        "{"
-        "\"$type\":\"#info\"," 
-        "\"name\":\"OutdatedCursor\","
-        "\"message\":\"cursor too old\""
-        "}"
-        ;
-    WF_CHECK(wf_label_message_parse(info_json, strlen(info_json), &message) == WF_OK);
+    const char *info_json = "{"
+                            "\"$type\":\"#info\","
+                            "\"name\":\"OutdatedCursor\","
+                            "\"message\":\"cursor too old\""
+                            "}";
+    WF_CHECK(wf_label_message_parse(info_json, strlen(info_json), &message) ==
+             WF_OK);
     WF_CHECK(message.type == WF_LABEL_MESSAGE_INFO);
     WF_CHECK(strcmp(message.data.info.name, "OutdatedCursor") == 0);
     WF_CHECK(message.data.info.has_message);

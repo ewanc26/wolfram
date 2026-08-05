@@ -1,5 +1,6 @@
 /*
- * thread.c — example using wf_agent_get_post_thread to fetch a conversation thread.
+ * thread.c — example using wf_agent_get_post_thread to fetch a conversation
+ * thread.
  *
  * Usage:
  *   thread <service-url> <handle> <password> <post-uri>
@@ -38,7 +39,9 @@ static void print_thread(const wf_response *res) {
 
 int main(int argc, char **argv) {
     if (argc != 5) {
-        fprintf(stderr, "usage: %s <service-url> <handle> <password> <post-uri>\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s <service-url> <handle> <password> <post-uri>\n",
+                argv[0]);
         return 1;
     }
     const char *service = argv[1];

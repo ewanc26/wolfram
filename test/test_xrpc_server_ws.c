@@ -34,7 +34,8 @@ static void test_base64_encode(const unsigned char *in, size_t len, char *out) {
     size_t i, o = 0;
     for (i = 0; i + 3 <= len; i += 3) {
         unsigned int n = ((unsigned int)in[i] << 16) |
-                         ((unsigned int)in[i + 1] << 8) | (unsigned int)in[i + 2];
+                         ((unsigned int)in[i + 1] << 8) |
+                         (unsigned int)in[i + 2];
         out[o++] = tab[(n >> 18) & 0x3f];
         out[o++] = tab[(n >> 12) & 0x3f];
         out[o++] = tab[(n >> 6) & 0x3f];
@@ -80,7 +81,7 @@ static int test_write_all(int fd, const void *buf, size_t len) {
         if (n < 0) {
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                struct pollfd pfd = { fd, POLLOUT, 0 };
+                struct pollfd pfd = {fd, POLLOUT, 0};
                 if (poll(&pfd, 1, 2000) <= 0) return -1;
                 continue;
             }
@@ -102,8 +103,8 @@ static int test_write_all(int fd, const void *buf, size_t len) {
  * reader below blocks waiting for bytes it already holds.
  */
 static unsigned char test_pending[4096];
-static size_t        test_pending_len;
-static size_t        test_pending_off;
+static size_t test_pending_len;
+static size_t test_pending_off;
 
 static void test_pushback(const void *data, size_t len) {
     if (len > sizeof(test_pending)) len = sizeof(test_pending);
@@ -124,12 +125,18 @@ static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
     }
 
     while (off < len) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         int pr = poll(&pfd, 1, remaining > 0 ? remaining : 1000);
-        if (pr < 0) { if (errno == EINTR) continue; return -1; }
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (pr == 0) return -1;
         ssize_t n = read(fd, p + off, len - off);
-        if (n < 0) { if (errno == EINTR) continue; return -1; }
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (n == 0) return -1;
         off += (size_t)n;
     }
@@ -142,7 +149,7 @@ static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
 
 struct ws_thread_arg {
     wf_xrpc_ws_stream *stream;
-    int                count;
+    int count;
 };
 
 struct ws_handler_ctx {
@@ -154,7 +161,8 @@ static void *ws_streamer(void *arg) {
     char payload[32];
     for (int i = 0; i < a->count; i++) {
         snprintf(payload, sizeof(payload), "frame-%d", i);
-        if (wf_xrpc_server_ws_send(a->stream, payload, strlen(payload)) != WF_OK) {
+        if (wf_xrpc_server_ws_send(a->stream, payload, strlen(payload)) !=
+            WF_OK) {
             fprintf(stderr, "WARN: ws_send failed on frame %d\n", i);
         }
     }
@@ -169,10 +177,10 @@ static wf_status ws_handler(void *ctx, const wf_xrpc_request *req,
     struct ws_thread_arg *a;
     pthread_t tid;
     struct ws_handler_ctx *handler_ctx = (struct ws_handler_ctx *)ctx;
-    const cJSON *cursor = req && req->params
-                              ? cJSON_GetObjectItemCaseSensitive(req->params,
-                                                                 "cursor")
-                              : NULL;
+    const cJSON *cursor =
+        req && req->params
+            ? cJSON_GetObjectItemCaseSensitive(req->params, "cursor")
+            : NULL;
     if (handler_ctx && cJSON_IsString(cursor) &&
         strcmp(cursor->valuestring, "42") == 0) {
         handler_ctx->cursor_seen = 1;
@@ -227,8 +235,8 @@ static int run_test(void) {
         return 1;
     }
 
-    if (wf_xrpc_server_register_ws(server, "io.example.subscribe",
-                                   ws_handler, &handler_ctx) != WF_OK) {
+    if (wf_xrpc_server_register_ws(server, "io.example.subscribe", ws_handler,
+                                   &handler_ctx) != WF_OK) {
         fprintf(stderr, "FAIL: register WS endpoint\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -250,7 +258,8 @@ static int run_test(void) {
                       "Connection: Upgrade\r\n"
                       "Sec-WebSocket-Key: " WS_KEY "\r\n"
                       "Sec-WebSocket-Version: 13\r\n"
-                      "\r\n", (unsigned)port);
+                      "\r\n",
+                      (unsigned)port);
     if (test_write_all(fd, req, (size_t)nr) != 0) {
         fprintf(stderr, "FAIL: write handshake request\n");
         close(fd);
@@ -263,7 +272,7 @@ static int run_test(void) {
     size_t hoff = 0;
     int got_eoh = 0;
     while (!got_eoh && hoff < sizeof(hdr) - 1) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         if (poll(&pfd, 1, 3000) <= 0) break;
         ssize_t n = read(fd, hdr + hoff, sizeof(hdr) - 1 - hoff);
         if (n <= 0) break;
@@ -321,8 +330,10 @@ static int run_test(void) {
     test_base64_encode(digest, SHA_DIGEST_LENGTH, expect);
 
     if (strcmp(got_accept, expect) != 0) {
-        fprintf(stderr, "FAIL: Sec-WebSocket-Accept mismatch: got '%s' "
-                        "want '%s'\n", got_accept, expect);
+        fprintf(stderr,
+                "FAIL: Sec-WebSocket-Accept mismatch: got '%s' "
+                "want '%s'\n",
+                got_accept, expect);
         failures++;
         goto cleanup;
     }
@@ -337,8 +348,8 @@ static int run_test(void) {
 
         unsigned char h[2];
         if (test_read_exact(fd, h, 2, 3000) != 0) {
-            fprintf(stderr, "FAIL: read frame %d header (got %d frames)\n",
-                    i, frames_seen);
+            fprintf(stderr, "FAIL: read frame %d header (got %d frames)\n", i,
+                    frames_seen);
             failures++;
             goto cleanup;
         }
@@ -346,11 +357,17 @@ static int run_test(void) {
         uint64_t plen = (uint64_t)(h[1] & 0x7f);
         if (plen == 126) {
             unsigned char e[2];
-            if (test_read_exact(fd, e, 2, 1000) != 0) { failures++; goto cleanup; }
+            if (test_read_exact(fd, e, 2, 1000) != 0) {
+                failures++;
+                goto cleanup;
+            }
             plen = ((uint64_t)e[0] << 8) | (uint64_t)e[1];
         } else if (plen == 127) {
             unsigned char e[8];
-            if (test_read_exact(fd, e, 8, 1000) != 0) { failures++; goto cleanup; }
+            if (test_read_exact(fd, e, 8, 1000) != 0) {
+                failures++;
+                goto cleanup;
+            }
             plen = 0;
             for (int j = 0; j < 8; j++) plen = (plen << 8) | (uint64_t)e[j];
         }
@@ -373,7 +390,10 @@ static int run_test(void) {
         }
 
         char payload[256];
-        if (plen >= sizeof(payload)) { failures++; goto cleanup; }
+        if (plen >= sizeof(payload)) {
+            failures++;
+            goto cleanup;
+        }
         if (test_read_exact(fd, payload, (size_t)plen, 2000) != 0) {
             fprintf(stderr, "FAIL: read frame %d payload\n", i);
             failures++;
@@ -381,8 +401,8 @@ static int run_test(void) {
         }
         if ((size_t)plen != strlen(expect_payload) ||
             memcmp(payload, expect_payload, (size_t)plen) != 0) {
-            fprintf(stderr, "FAIL: frame %d payload mismatch: '%.*s'\n",
-                    i, (int)plen, payload);
+            fprintf(stderr, "FAIL: frame %d payload mismatch: '%.*s'\n", i,
+                    (int)plen, payload);
             failures++;
             goto cleanup;
         }
@@ -390,8 +410,8 @@ static int run_test(void) {
     }
 
     if (frames_seen != TEST_COUNT) {
-        fprintf(stderr, "FAIL: expected %d binary frames, got %d\n",
-                TEST_COUNT, frames_seen);
+        fprintf(stderr, "FAIL: expected %d binary frames, got %d\n", TEST_COUNT,
+                frames_seen);
         failures++;
     } else {
         printf("PASS: received %d binary frames in order\n", frames_seen);
@@ -411,7 +431,8 @@ static int run_test(void) {
         printf("PASS: stream terminated with a close frame\n");
     }
     if (!handler_ctx.cursor_seen) {
-        fprintf(stderr, "FAIL: WS handler did not receive cursor query param\n");
+        fprintf(stderr,
+                "FAIL: WS handler did not receive cursor query param\n");
         failures++;
     } else {
         printf("PASS: WS handler received cursor query param\n");
@@ -419,7 +440,7 @@ static int run_test(void) {
 
 cleanup:
     if (fd >= 0) close(fd);
-    wf_xrpc_server_free(server);   /* blocks until clean shutdown */
+    wf_xrpc_server_free(server); /* blocks until clean shutdown */
     if (failures == 0) {
         printf("PASS: XRPC server WebSocket subscription serving\n");
     }

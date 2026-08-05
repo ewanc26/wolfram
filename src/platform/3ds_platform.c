@@ -70,7 +70,9 @@ void wf_platform_shutdown(void) {
  *   }
  */
 
-struct wf_platform_mutex { int dummy; };
+struct wf_platform_mutex {
+    int dummy;
+};
 
 wf_platform_mutex *wf_platform_mutex_new(void) {
     /* Stub: no real backend yet — signal failure honestly. */

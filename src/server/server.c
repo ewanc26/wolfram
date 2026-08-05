@@ -49,7 +49,8 @@ static wf_status wf_server_json_string(const cJSON *object, const char *name,
     if (!item) {
         return required ? WF_ERR_PARSE : WF_OK;
     }
-    if (!cJSON_IsString(item) || !item->valuestring || item->valuestring[0] == '\0') {
+    if (!cJSON_IsString(item) || !item->valuestring ||
+        item->valuestring[0] == '\0') {
         return required ? WF_ERR_PARSE : WF_OK;
     }
 
@@ -57,8 +58,10 @@ static wf_status wf_server_json_string(const cJSON *object, const char *name,
     return *out ? WF_OK : WF_ERR_ALLOC;
 }
 
-static wf_status wf_server_json_string_array(const cJSON *object, const char *name,
-                                             char ***items_out, size_t *count_out) {
+static wf_status wf_server_json_string_array(const cJSON *object,
+                                             const char *name,
+                                             char ***items_out,
+                                             size_t *count_out) {
     const cJSON *array;
     const cJSON *item;
     char **items = NULL;
@@ -87,7 +90,8 @@ static wf_status wf_server_json_string_array(const cJSON *object, const char *na
     }
 
     cJSON_ArrayForEach(item, array) {
-        if (!cJSON_IsString(item) || !item->valuestring || item->valuestring[0] == '\0') {
+        if (!cJSON_IsString(item) || !item->valuestring ||
+            item->valuestring[0] == '\0') {
             wf_server_free_strings(items, index);
             return WF_ERR_PARSE;
         }
@@ -104,7 +108,8 @@ static wf_status wf_server_json_string_array(const cJSON *object, const char *na
     return WF_OK;
 }
 
-static wf_status wf_server_json_bool(const cJSON *object, const char *name, int *out) {
+static wf_status wf_server_json_bool(const cJSON *object, const char *name,
+                                     int *out) {
     const cJSON *item;
 
     if (!out) {
@@ -140,7 +145,8 @@ void wf_server_describe_free(wf_server_description *desc) {
     desc->phone_verification_required = -1;
 }
 
-wf_status wf_server_describe(wf_xrpc_client *client, wf_server_description *out) {
+wf_status wf_server_describe(wf_xrpc_client *client,
+                             wf_server_description *out) {
     wf_response response = {0};
     cJSON *root = NULL;
     cJSON *links = NULL;
@@ -177,9 +183,9 @@ wf_status wf_server_describe(wf_xrpc_client *client, wf_server_description *out)
                                      &out->phone_verification_required);
     }
     if (status == WF_OK) {
-        status = wf_server_json_string_array(root, "availableUserDomains",
-                                             &out->available_user_domains,
-                                             &out->available_user_domains_count);
+        status = wf_server_json_string_array(
+            root, "availableUserDomains", &out->available_user_domains,
+            &out->available_user_domains_count);
     }
     if (status == WF_OK) {
         links = cJSON_GetObjectItemCaseSensitive(root, "links");
@@ -195,8 +201,8 @@ wf_status wf_server_describe(wf_xrpc_client *client, wf_server_description *out)
     if (status == WF_OK) {
         contact = cJSON_GetObjectItemCaseSensitive(root, "contact");
         if (contact && cJSON_IsObject(contact)) {
-            status = wf_server_json_string(contact, "email", 0,
-                                           &out->contact_email);
+            status =
+                wf_server_json_string(contact, "email", 0, &out->contact_email);
         }
     }
 
@@ -209,7 +215,8 @@ wf_status wf_server_describe(wf_xrpc_client *client, wf_server_description *out)
     return status;
 }
 
-void wf_server_create_account_result_free(wf_server_create_account_result *result) {
+void wf_server_create_account_result_free(
+    wf_server_create_account_result *result) {
     if (!result) {
         return;
     }
@@ -267,7 +274,8 @@ wf_status wf_server_create_account(wf_xrpc_client *client,
         }
     }
     if (input->recovery_key && input->recovery_key[0] != '\0') {
-        if (!cJSON_AddStringToObject(body, "recoveryKey", input->recovery_key)) {
+        if (!cJSON_AddStringToObject(body, "recoveryKey",
+                                     input->recovery_key)) {
             cJSON_Delete(body);
             return WF_ERR_ALLOC;
         }
@@ -295,7 +303,8 @@ wf_status wf_server_create_account(wf_xrpc_client *client,
 
     status = wf_server_json_string(root, "accessJwt", 1, &out->access_jwt);
     if (status == WF_OK) {
-        status = wf_server_json_string(root, "refreshJwt", 1, &out->refresh_jwt);
+        status =
+            wf_server_json_string(root, "refreshJwt", 1, &out->refresh_jwt);
     }
     if (status == WF_OK) {
         status = wf_server_json_string(root, "handle", 1, &out->handle);
@@ -329,9 +338,10 @@ void wf_server_app_password_free(wf_server_app_password *pwd) {
     pwd->privileged = -1;
 }
 
-wf_status wf_server_create_app_password(wf_xrpc_client *client,
-                                        const wf_server_create_app_password_input *input,
-                                        wf_server_app_password *out) {
+wf_status
+wf_server_create_app_password(wf_xrpc_client *client,
+                              const wf_server_create_app_password_input *input,
+                              wf_server_app_password *out) {
     wf_response response = {0};
     cJSON *body = NULL;
     cJSON *root = NULL;
@@ -368,8 +378,8 @@ wf_status wf_server_create_app_password(wf_xrpc_client *client,
         return WF_ERR_ALLOC;
     }
 
-    status = wf_xrpc_procedure(client, "com.atproto.server.createAppPassword", json,
-                               &response);
+    status = wf_xrpc_procedure(client, "com.atproto.server.createAppPassword",
+                               json, &response);
     free(json);
     if (status != WF_OK) {
         return status;
@@ -506,8 +516,8 @@ wf_status wf_server_list_app_passwords(wf_xrpc_client *client,
     return WF_OK;
 }
 
-wf_status wf_server_revoke_app_password(wf_xrpc_client *client,
-                                        const wf_server_revoke_app_password_input *input) {
+wf_status wf_server_revoke_app_password(
+    wf_xrpc_client *client, const wf_server_revoke_app_password_input *input) {
     wf_response response = {0};
     cJSON *body = NULL;
     char *json = NULL;
@@ -535,15 +545,16 @@ wf_status wf_server_revoke_app_password(wf_xrpc_client *client,
         return WF_ERR_ALLOC;
     }
 
-    status = wf_xrpc_procedure(client, "com.atproto.server.revokeAppPassword", json,
-                               &response);
+    status = wf_xrpc_procedure(client, "com.atproto.server.revokeAppPassword",
+                               json, &response);
     free(json);
     wf_response_free(&response);
     return status;
 }
 
-wf_status wf_server_delete_account(wf_xrpc_client *client,
-                                   const wf_server_delete_account_input *input) {
+wf_status
+wf_server_delete_account(wf_xrpc_client *client,
+                         const wf_server_delete_account_input *input) {
     wf_response response = {0};
     cJSON *body = NULL;
     char *json = NULL;
@@ -553,7 +564,8 @@ wf_status wf_server_delete_account(wf_xrpc_client *client,
         return WF_ERR_INVALID_ARG;
     }
     if (!input->did || input->did[0] == '\0' || !input->password ||
-        input->password[0] == '\0' || !input->token || input->token[0] == '\0') {
+        input->password[0] == '\0' || !input->token ||
+        input->token[0] == '\0') {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -587,8 +599,9 @@ wf_status wf_server_delete_account(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_server_request_password_reset(wf_xrpc_client *client,
-                                           const wf_server_request_password_reset_input *input) {
+wf_status wf_server_request_password_reset(
+    wf_xrpc_client *client,
+    const wf_server_request_password_reset_input *input) {
     wf_response response = {0};
     cJSON *body = NULL;
     char *json = NULL;
@@ -616,15 +629,16 @@ wf_status wf_server_request_password_reset(wf_xrpc_client *client,
         return WF_ERR_ALLOC;
     }
 
-    status = wf_xrpc_procedure(client, "com.atproto.server.requestPasswordReset",
-                               json, &response);
+    status = wf_xrpc_procedure(
+        client, "com.atproto.server.requestPasswordReset", json, &response);
     free(json);
     wf_response_free(&response);
     return status;
 }
 
-wf_status wf_server_reset_password(wf_xrpc_client *client,
-                                   const wf_server_reset_password_input *input) {
+wf_status
+wf_server_reset_password(wf_xrpc_client *client,
+                         const wf_server_reset_password_input *input) {
     wf_response response = {0};
     cJSON *body = NULL;
     char *json = NULL;
@@ -658,7 +672,7 @@ wf_status wf_server_reset_password(wf_xrpc_client *client,
     }
 
     status = wf_xrpc_procedure(client, "com.atproto.server.resetPassword", json,
-                                &response);
+                               &response);
     free(json);
     wf_response_free(&response);
     return status;
@@ -677,9 +691,10 @@ void wf_server_create_invite_code_result_free(
     memset(result, 0, sizeof(*result));
 }
 
-wf_status wf_server_create_invite_code(
-    wf_xrpc_client *client, const wf_server_create_invite_code_input *input,
-    wf_server_create_invite_code_result *out) {
+wf_status
+wf_server_create_invite_code(wf_xrpc_client *client,
+                             const wf_server_create_invite_code_input *input,
+                             wf_server_create_invite_code_result *out) {
     wf_response response = {0};
     wf_lex_com_atproto_server_create_invite_code_main_input lex_in = {0};
     wf_lex_com_atproto_server_create_invite_code_main_output *lex_out = NULL;
@@ -699,15 +714,16 @@ wf_status wf_server_create_invite_code(
         lex_in.for_account = input->for_account;
     }
 
-    status = wf_lex_com_atproto_server_create_invite_code_main_call(client,
-                                                                    &lex_in, &response);
+    status = wf_lex_com_atproto_server_create_invite_code_main_call(
+        client, &lex_in, &response);
     if (status != WF_OK) {
         wf_response_free(&response);
         return status;
     }
 
-    status = wf_lex_com_atproto_server_create_invite_code_main_output_decode_json(
-        response.body, response.body_len, &lex_out);
+    status =
+        wf_lex_com_atproto_server_create_invite_code_main_output_decode_json(
+            response.body, response.body_len, &lex_out);
     wf_response_free(&response);
     if (status != WF_OK || !lex_out) {
         return status != WF_OK ? status : WF_ERR_PARSE;
@@ -755,9 +771,10 @@ void wf_server_create_invite_codes_result_free(
     memset(result, 0, sizeof(*result));
 }
 
-wf_status wf_server_create_invite_codes(
-    wf_xrpc_client *client, const wf_server_create_invite_codes_input *input,
-    wf_server_create_invite_codes_result *out) {
+wf_status
+wf_server_create_invite_codes(wf_xrpc_client *client,
+                              const wf_server_create_invite_codes_input *input,
+                              wf_server_create_invite_codes_result *out) {
     wf_response response = {0};
     wf_lex_com_atproto_server_create_invite_codes_main_input lex_in = {0};
     wf_lex_com_atproto_server_create_invite_codes_main_output *lex_out = NULL;
@@ -786,8 +803,9 @@ wf_status wf_server_create_invite_codes(
         return status;
     }
 
-    status = wf_lex_com_atproto_server_create_invite_codes_main_output_decode_json(
-        response.body, response.body_len, &lex_out);
+    status =
+        wf_lex_com_atproto_server_create_invite_codes_main_output_decode_json(
+            response.body, response.body_len, &lex_out);
     wf_response_free(&response);
     if (status != WF_OK || !lex_out) {
         return status != WF_OK ? status : WF_ERR_PARSE;
@@ -799,8 +817,8 @@ wf_status wf_server_create_invite_codes(
             status = WF_ERR_ALLOC;
         }
         for (size_t i = 0; status == WF_OK && i < lex_out->codes.count; i++) {
-            const wf_lex_com_atproto_server_create_invite_codes_account_codes *src =
-                lex_out->codes.items[i];
+            const wf_lex_com_atproto_server_create_invite_codes_account_codes
+                *src = lex_out->codes.items[i];
             wf_server_invite_codes_for_account *dst = &out->accounts[i];
             if (src->account) {
                 dst->account = wf_server_strdup(src->account);
@@ -813,7 +831,8 @@ wf_status wf_server_create_invite_codes(
                 if (!dst->codes) {
                     status = WF_ERR_ALLOC;
                 }
-                for (size_t j = 0; status == WF_OK && j < src->codes.count; j++) {
+                for (size_t j = 0; status == WF_OK && j < src->codes.count;
+                     j++) {
                     if (src->codes.items[j]) {
                         dst->codes[j] = wf_server_strdup(src->codes.items[j]);
                         if (!dst->codes[j]) {
@@ -863,8 +882,7 @@ wf_status wf_server_revoke_invite_codes(
     }
     for (size_t i = 0; i < input->code_count; i++) {
         if (!input->codes[i] || input->codes[i][0] == '\0' ||
-            !cJSON_AddItemToArray(array,
-                                  cJSON_CreateString(input->codes[i]))) {
+            !cJSON_AddItemToArray(array, cJSON_CreateString(input->codes[i]))) {
             cJSON_Delete(body);
             return WF_ERR_ALLOC;
         }
@@ -877,7 +895,7 @@ wf_status wf_server_revoke_invite_codes(
     }
 
     status = wf_xrpc_procedure(client, "com.atproto.server.revokeInviteCodes",
-                                json, &response);
+                               json, &response);
     free(json);
     wf_response_free(&response);
     return status;
@@ -890,14 +908,15 @@ wf_status wf_server_activate_account(wf_xrpc_client *client) {
     if (!client) {
         return WF_ERR_INVALID_ARG;
     }
-    status = wf_xrpc_procedure(client, "com.atproto.server.activateAccount", "{}",
-                               &response);
+    status = wf_xrpc_procedure(client, "com.atproto.server.activateAccount",
+                               "{}", &response);
     wf_response_free(&response);
     return status;
 }
 
-wf_status wf_server_deactivate_account(
-    wf_xrpc_client *client, const wf_server_deactivate_account_input *input) {
+wf_status
+wf_server_deactivate_account(wf_xrpc_client *client,
+                             const wf_server_deactivate_account_input *input) {
     wf_response response = {0};
     wf_lex_com_atproto_server_deactivate_account_main_input lex_in = {0};
     wf_status status;
@@ -910,8 +929,8 @@ wf_status wf_server_deactivate_account(
         lex_in.delete_after = input->delete_after;
     }
 
-    status = wf_lex_com_atproto_server_deactivate_account_main_call(client,
-                                                                    &lex_in, &response);
+    status = wf_lex_com_atproto_server_deactivate_account_main_call(
+        client, &lex_in, &response);
     wf_response_free(&response);
     return status;
 }
@@ -938,8 +957,9 @@ wf_status wf_server_confirm_email(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_server_request_email_update(
-    wf_xrpc_client *client, wf_server_request_email_update_result *out) {
+wf_status
+wf_server_request_email_update(wf_xrpc_client *client,
+                               wf_server_request_email_update_result *out) {
     wf_response response = {0};
     cJSON *root = NULL;
     const cJSON *token_required;
@@ -950,8 +970,8 @@ wf_status wf_server_request_email_update(
     }
     memset(out, 0, sizeof(*out));
 
-    status = wf_xrpc_procedure(client, "com.atproto.server.requestEmailUpdate", "{}",
-                               &response);
+    status = wf_xrpc_procedure(client, "com.atproto.server.requestEmailUpdate",
+                               "{}", &response);
     if (status != WF_OK) {
         wf_response_free(&response);
         return status;
@@ -978,8 +998,8 @@ wf_status wf_server_request_email_confirmation(wf_xrpc_client *client) {
     if (!client) {
         return WF_ERR_INVALID_ARG;
     }
-    status = wf_xrpc_procedure(client, "com.atproto.server.requestEmailConfirmation",
-                               "{}", &response);
+    status = wf_xrpc_procedure(
+        client, "com.atproto.server.requestEmailConfirmation", "{}", &response);
     wf_response_free(&response);
     return status;
 }

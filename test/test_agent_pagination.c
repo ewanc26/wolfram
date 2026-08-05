@@ -88,10 +88,11 @@ static void test_response_cursor(void) {
 /* --- generic wf_agent_page (fake transport) ---------------------------- */
 
 typedef struct {
-    int calls;     /* number of times fake_call invoked */
-    int pages;     /* number of pages delivered to on_page */
-    int abort_on;  /* if >0, on_page returns error on this page index (1-based) */
-    int fail_on;   /* if >0, fake_call returns error on this call (1-based) */
+    int calls;    /* number of times fake_call invoked */
+    int pages;    /* number of pages delivered to on_page */
+    int abort_on; /* if >0, on_page returns error on this page index (1-based)
+                   */
+    int fail_on;  /* if >0, fake_call returns error on this call (1-based) */
 } fake_state;
 
 static wf_status fake_call(wf_agent *agent, int limit, const char *cursor,
@@ -107,9 +108,8 @@ static wf_status fake_call(wf_agent *agent, int limit, const char *cursor,
     }
 
     /* First call: cursor "C1". Second and later: exhausted. */
-    const char *body = (st->calls == 1)
-        ? "{\"feed\":[],\"cursor\":\"C1\"}"
-        : "{\"feed\":[]}";
+    const char *body =
+        (st->calls == 1) ? "{\"feed\":[],\"cursor\":\"C1\"}" : "{\"feed\":[]}";
     out->body = strdup(body);
     out->body_len = strlen(body);
     return WF_OK;
@@ -134,8 +134,8 @@ static void test_page_until_exhausted(void) {
 
     fake_state st = {0};
     char *last = NULL;
-    wf_status s = wf_agent_page(agent, fake_call, 10, 0, count_on_page, &st,
-                                &last);
+    wf_status s =
+        wf_agent_page(agent, fake_call, 10, 0, count_on_page, &st, &last);
     assert(s == WF_OK);
     assert(st.calls == 2);
     assert(st.pages == 2);
@@ -151,8 +151,8 @@ static void test_page_max_pages(void) {
 
     fake_state st = {0};
     char *last = NULL;
-    wf_status s = wf_agent_page(agent, fake_call, 10, 1, count_on_page, &st,
-                                &last);
+    wf_status s =
+        wf_agent_page(agent, fake_call, 10, 1, count_on_page, &st, &last);
     assert(s == WF_OK);
     assert(st.calls == 1);
     assert(st.pages == 1);
@@ -169,8 +169,8 @@ static void test_page_callback_abort(void) {
     fake_state st = {0};
     st.abort_on = 1;
     char *last = NULL;
-    wf_status s = wf_agent_page(agent, fake_call, 10, 0, count_on_page, &st,
-                                &last);
+    wf_status s =
+        wf_agent_page(agent, fake_call, 10, 0, count_on_page, &st, &last);
     assert(s == WF_ERR_INVALID_ARG);
     assert(st.pages == 1);
     assert(st.calls == 1); /* no second fetch after abort */
@@ -186,8 +186,8 @@ static void test_page_call_error(void) {
     fake_state st = {0};
     st.fail_on = 1;
     char *last = NULL;
-    wf_status s = wf_agent_page(agent, fake_call, 10, 0, count_on_page, &st,
-                                &last);
+    wf_status s =
+        wf_agent_page(agent, fake_call, 10, 0, count_on_page, &st, &last);
     assert(s == WF_ERR_NETWORK);
     assert(st.calls == 1);
     free(last);
@@ -197,14 +197,14 @@ static void test_page_call_error(void) {
 
 static void test_page_invalid_args(void) {
     fake_state st = {0};
-    assert(wf_agent_page(NULL, fake_call, 10, 0, count_on_page, &st, NULL)
-           == WF_ERR_INVALID_ARG);
+    assert(wf_agent_page(NULL, fake_call, 10, 0, count_on_page, &st, NULL) ==
+           WF_ERR_INVALID_ARG);
     wf_agent *agent = wf_agent_new("https://example.invalid");
     assert(agent);
-    assert(wf_agent_page(agent, NULL, 10, 0, count_on_page, &st, NULL)
-           == WF_ERR_INVALID_ARG);
-    assert(wf_agent_page(agent, fake_call, 10, 0, NULL, &st, NULL)
-           == WF_ERR_INVALID_ARG);
+    assert(wf_agent_page(agent, NULL, 10, 0, count_on_page, &st, NULL) ==
+           WF_ERR_INVALID_ARG);
+    assert(wf_agent_page(agent, fake_call, 10, 0, NULL, &st, NULL) ==
+           WF_ERR_INVALID_ARG);
     wf_agent_free(agent);
 }
 
@@ -229,9 +229,9 @@ static wf_status author_feed_page_cb(wf_agent *agent,
     return timeline_page_cb(agent, feed, cursor, ud);
 }
 
-static wf_status notifications_page_cb(
-    wf_agent *agent, const wf_agent_notification_list *list,
-    const char *cursor, void *ud) {
+static wf_status notifications_page_cb(wf_agent *agent,
+                                       const wf_agent_notification_list *list,
+                                       const char *cursor, void *ud) {
     (void)agent;
     (void)list;
     (void)cursor;
@@ -251,27 +251,26 @@ static wf_status records_page_cb(wf_agent *agent, const wf_response *resp,
 static void test_typed_invalid_args(void) {
     /* NULL agent (or missing required arg) must yield WF_ERR_INVALID_ARG,
      * which also proves the symbols link against the library. */
-    assert(wf_agent_get_timeline_paged(NULL, 10, 0, NULL, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
-    assert(wf_agent_list_notifications_paged(NULL, 10, 0, NULL, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
-    assert(wf_agent_get_author_feed_paged(NULL, "actor", 10, 0, NULL, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
-    assert(wf_agent_list_records_paged(NULL, "coll", 10, 0, NULL, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
+    assert(wf_agent_get_timeline_paged(NULL, 10, 0, NULL, NULL, NULL) ==
+           WF_ERR_INVALID_ARG);
+    assert(wf_agent_list_notifications_paged(NULL, 10, 0, NULL, NULL, NULL) ==
+           WF_ERR_INVALID_ARG);
+    assert(wf_agent_get_author_feed_paged(NULL, "actor", 10, 0, NULL, NULL,
+                                          NULL) == WF_ERR_INVALID_ARG);
+    assert(wf_agent_list_records_paged(NULL, "coll", 10, 0, NULL, NULL, NULL) ==
+           WF_ERR_INVALID_ARG);
     /* Missing required string arg. */
     wf_agent *agent = wf_agent_new("https://example.invalid");
     assert(agent);
-    assert(wf_agent_get_timeline_paged(agent, 10, 0, NULL, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
-    assert(wf_agent_list_notifications_paged(agent, 10, 0, NULL, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
+    assert(wf_agent_get_timeline_paged(agent, 10, 0, NULL, NULL, NULL) ==
+           WF_ERR_INVALID_ARG);
+    assert(wf_agent_list_notifications_paged(agent, 10, 0, NULL, NULL, NULL) ==
+           WF_ERR_INVALID_ARG);
     assert(wf_agent_get_author_feed_paged(agent, NULL, 10, 0,
-                                          author_feed_page_cb, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
-    assert(wf_agent_list_records_paged(agent, NULL, 10, 0,
-                                       records_page_cb, NULL, NULL)
-           == WF_ERR_INVALID_ARG);
+                                          author_feed_page_cb, NULL,
+                                          NULL) == WF_ERR_INVALID_ARG);
+    assert(wf_agent_list_records_paged(agent, NULL, 10, 0, records_page_cb,
+                                       NULL, NULL) == WF_ERR_INVALID_ARG);
 
     /* Force each callback type through the compiler's compatibility checks. */
     wf_agent_timeline_page_cb timeline_cb = timeline_page_cb;

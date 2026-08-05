@@ -63,8 +63,8 @@ extern "C" {
 typedef struct wf_ozone_subject_status {
     bool has_id;
     int64_t id;
-    char *subject;            /* subject URI/DID */
-    char *review_state;       /* reviewState */
+    char *subject;      /* subject URI/DID */
+    char *review_state; /* reviewState */
     char *created_at;
     char *updated_at;
     bool has_comment;
@@ -78,7 +78,7 @@ typedef struct wf_ozone_subject_status {
     char **tags;
     size_t tag_count;
     char *subject_repo_handle;
-    cJSON *extra;             /* owned detached subtree of unknown fields */
+    cJSON *extra; /* owned detached subtree of unknown fields */
 } wf_ozone_subject_status;
 
 typedef struct wf_ozone_subject_status_list {
@@ -100,8 +100,8 @@ typedef struct wf_ozone_team_member {
     char *created_at;
     char *updated_at;
     char *last_updated_by;
-    char *profile_handle;     /* copied from profile.handle when present */
-    cJSON *extra;             /* owned detached subtree of unknown fields */
+    char *profile_handle; /* copied from profile.handle when present */
+    cJSON *extra;         /* owned detached subtree of unknown fields */
 } wf_ozone_team_member;
 
 typedef struct wf_ozone_team_member_list {
@@ -129,46 +129,46 @@ void wf_ozone_team_member_list_free(wf_ozone_team_member_list *l);
 /* ------------------------------------------------------------------ */
 
 /* Query with params, owning output decoder. */
-#define WF_OZONE_DECL_Q(ns, op, genop)                                     \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,     \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);            \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
+#define WF_OZONE_DECL_Q(ns, op, genop)                                         \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,         \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);                \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
         wf_lex_tools_ozone_##ns##_##genop##_main_output **out);
 
 /* Query with no params, owning output decoder. */
-#define WF_OZONE_DECL_Q0(ns, op, genop)                                    \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);            \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
+#define WF_OZONE_DECL_Q0(ns, op, genop)                                        \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);                \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
         wf_lex_tools_ozone_##ns##_##genop##_main_output **out);
 
 /* Procedure with input, owning output decoder. */
-#define WF_OZONE_DECL_P(ns, op, genop)                                     \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,       \
-        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);            \
-    wf_status wf_ozone_parse_##ns##_##op(                                  \
-        const char *json, size_t json_len,                                 \
+#define WF_OZONE_DECL_P(ns, op, genop)                                         \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,           \
+        wf_lex_tools_ozone_##ns##_##genop##_main_output **out);                \
+    wf_status wf_ozone_parse_##ns##_##op(                                      \
+        const char *json, size_t json_len,                                     \
         wf_lex_tools_ozone_##ns##_##genop##_main_output **out);
 
 /* Procedure with input, raw wf_response output. */
-#define WF_OZONE_DECL_PR(ns, op, genop)                                    \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,       \
+#define WF_OZONE_DECL_PR(ns, op, genop)                                        \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_input *input,           \
         wf_response *out);
 
 /* Query with params, raw wf_response output. */
-#define WF_OZONE_DECL_QR(ns, op, genop)                                    \
-    wf_status wf_ozone_##ns##_##op(                                        \
-        wf_agent *agent,                                                   \
-        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,     \
+#define WF_OZONE_DECL_QR(ns, op, genop)                                        \
+    wf_status wf_ozone_##ns##_##op(                                            \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##genop##_main_params *params,         \
         wf_response *out);
 
 #define WF_OZONE_ENDPOINTS                                                     \
@@ -248,8 +248,9 @@ wf_status wf_ozone_moderation_get_suggestions(
 /* TODO: tools.ozone.moderation.getLabelDefinitions is NOT in the local atproto
  * lexicon snapshot, so no generated params/decoder exist. This wrapper reuses
  * the existing ozone.c transport helper and returns the raw response body. */
-wf_status wf_ozone_moderation_get_label_definitions(
-    wf_agent *agent, const char *const *uris, size_t n, char **out_json);
+wf_status wf_ozone_moderation_get_label_definitions(wf_agent *agent,
+                                                    const char *const *uris,
+                                                    size_t n, char **out_json);
 
 #ifdef __cplusplus
 }

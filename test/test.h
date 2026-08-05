@@ -15,21 +15,21 @@
 static int wf_test_pass_count = 0;
 static int wf_test_fail_count = 0;
 
-#define WF_CHECK(cond)                                                       \
-    do {                                                                     \
-        if (cond) {                                                         \
-            wf_test_pass_count++;                                           \
-        } else {                                                            \
-            wf_test_fail_count++;                                           \
-            fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); \
-        }                                                                    \
+#define WF_CHECK(cond)                                                         \
+    do {                                                                       \
+        if (cond) {                                                            \
+            wf_test_pass_count++;                                              \
+        } else {                                                               \
+            wf_test_fail_count++;                                              \
+            fprintf(stderr, "FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);    \
+        }                                                                      \
     } while (0)
 
-#define WF_TEST_SUMMARY()                                                    \
-    do {                                                                     \
-        printf("%d passed, %d failed\n", wf_test_pass_count,                \
-               wf_test_fail_count);                                          \
-        return wf_test_fail_count == 0 ? 0 : 1;                             \
+#define WF_TEST_SUMMARY()                                                      \
+    do {                                                                       \
+        printf("%d passed, %d failed\n", wf_test_pass_count,                   \
+               wf_test_fail_count);                                            \
+        return wf_test_fail_count == 0 ? 0 : 1;                                \
     } while (0)
 
 #endif /* WOLFRAM_TEST_H */

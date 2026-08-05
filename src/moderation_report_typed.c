@@ -1,11 +1,11 @@
 /*
  * moderation_report_typed.c — typed parser + agent wrapper for
- * com.atproto.moderation.createReport. See include/wolfram/moderation_report_typed.h
- * for the public API and ownership rules. Follows the conventions of
- * actor_typed.c / chat_typed.c: static strdup/set_string/reset helpers, owned
- * strings, full cleanup on the first error. The wrapper calls the generated
- * lexicon procedure wrapper on the agent's primary XRPC client after syncing
- * auth.
+ * com.atproto.moderation.createReport. See
+ * include/wolfram/moderation_report_typed.h for the public API and ownership
+ * rules. Follows the conventions of actor_typed.c / chat_typed.c: static
+ * strdup/set_string/reset helpers, owned strings, full cleanup on the first
+ * error. The wrapper calls the generated lexicon procedure wrapper on the
+ * agent's primary XRPC client after syncing auth.
  */
 
 #include "wolfram/moderation_report_typed.h"
@@ -34,7 +34,8 @@ static char *wf_moderation_report_record_strdup(const char *s) {
     return copy;
 }
 
-static wf_status wf_moderation_report_record_set_string(char **dst, const char *src) {
+static wf_status wf_moderation_report_record_set_string(char **dst,
+                                                        const char *src) {
     char *copy = wf_moderation_report_record_strdup(src);
     if (src && !copy) {
         return WF_ERR_ALLOC;
@@ -57,7 +58,7 @@ static void wf_moderation_report_record_reset(wf_moderation_report_record *r) {
 }
 
 wf_status wf_moderation_report_record_parse(const char *json, size_t len,
-                                     wf_moderation_report_record *out) {
+                                            wf_moderation_report_record *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -127,18 +128,16 @@ wf_status wf_agent_report(wf_agent *agent, const char *subject_uri,
                                  reason_type, NULL, NULL, NULL, out);
 }
 
-wf_status wf_agent_report_typed(wf_agent *agent,
-                                const char *subject_did,
+wf_status wf_agent_report_typed(wf_agent *agent, const char *subject_did,
                                 const char *subject_uri,
                                 const char *subject_cid,
-                                const char *reason_type,
-                                const char *reason,
+                                const char *reason_type, const char *reason,
                                 const char *mod_tool_name,
                                 const char *mod_tool_meta_json,
                                 wf_moderation_report_record *out) {
     int repo_subject = subject_did && subject_did[0];
-    int record_subject = subject_uri && subject_uri[0] &&
-                         subject_cid && subject_cid[0];
+    int record_subject =
+        subject_uri && subject_uri[0] && subject_cid && subject_cid[0];
     if (!agent || !out || !reason_type || !reason_type[0] ||
         repo_subject == record_subject ||
         (subject_uri && subject_uri[0] && !record_subject) ||
@@ -156,9 +155,8 @@ wf_status wf_agent_report_typed(wf_agent *agent,
     if (!subject) {
         return WF_ERR_ALLOC;
     }
-    const char *subject_type = repo_subject
-        ? "com.atproto.admin.defs#repoRef"
-        : "com.atproto.repo.strongRef";
+    const char *subject_type = repo_subject ? "com.atproto.admin.defs#repoRef"
+                                            : "com.atproto.repo.strongRef";
     if (!cJSON_AddStringToObject(subject, "$type", subject_type) ||
         !cJSON_AddStringToObject(subject, repo_subject ? "did" : "uri",
                                  repo_subject ? subject_did : subject_uri)) {
@@ -208,9 +206,8 @@ wf_status wf_agent_report_typed(wf_agent *agent,
     }
 
     wf_response res = {0};
-    wf_status status =
-        wf_lex_com_atproto_moderation_create_report_main_call(agent->client,
-                                                              &input, &res);
+    wf_status status = wf_lex_com_atproto_moderation_create_report_main_call(
+        agent->client, &input, &res);
     if (status == WF_OK) {
         status = wf_moderation_report_record_parse(res.body, res.body_len, out);
     }

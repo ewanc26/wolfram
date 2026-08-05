@@ -18,16 +18,16 @@
 /* Build a sample label definition ("porn" -> content/alert/adult). */
 static wf_mod_label_def make_porn_def(void) {
     wf_mod_label_def def;
-    wf_mod_interpret_label_def(&def, "porn", "did:plc:labeler",
-                               "content", "alert", 1, "hide");
+    wf_mod_interpret_label_def(&def, "porn", "did:plc:labeler", "content",
+                               "alert", 1, "hide");
     return def;
 }
 
 /* Build a sample "spam" label definition. */
 static wf_mod_label_def make_spam_def(void) {
     wf_mod_label_def def;
-    wf_mod_interpret_label_def(&def, "spam", "did:plc:labeler",
-                               "none", "alert", 0, "warn");
+    wf_mod_interpret_label_def(&def, "spam", "did:plc:labeler", "none", "alert",
+                               0, "warn");
     return def;
 }
 
@@ -144,7 +144,8 @@ int main(void) {
     const char *prefs_json =
         "{"
         "  \"preferences\": ["
-        "    {\"$type\":\"app.bsky.actor.defs#adultContentPref\",\"enabled\":true},"
+        "    "
+        "{\"$type\":\"app.bsky.actor.defs#adultContentPref\",\"enabled\":true},"
         "    {\"$type\":\"app.bsky.actor.defs#labelersPref\","
         "       \"labelers\":[{\"did\":\"did:plc:labeler\"}]},"
         "    {\"$type\":\"app.bsky.actor.defs#contentLabelPrefs\","
@@ -160,10 +161,8 @@ int main(void) {
     if (wf_mod_prefs_from_json(&json_prefs, prefs_json) == WF_OK) {
         printf("  json prefs: adult=%d labelers=%zu global_labels=%zu"
                " muted_words=%zu hidden=%zu\n",
-               json_prefs.adult_content_enabled,
-               json_prefs.labeler_count,
-               json_prefs.global_label_count,
-               json_prefs.muted_word_count,
+               json_prefs.adult_content_enabled, json_prefs.labeler_count,
+               json_prefs.global_label_count, json_prefs.muted_word_count,
                json_prefs.hidden_post_count);
         wf_mod_prefs_free(&json_prefs);
     } else {
@@ -172,13 +171,14 @@ int main(void) {
 
     const char *labeler_json =
         "{\"policies\":{\"labelValueDefinitions\":["
-        "  {\"identifier\":\"porn\",\"blurs\":\"content\",\"severity\":\"alert\","
+        "  "
+        "{\"identifier\":\"porn\",\"blurs\":\"content\",\"severity\":\"alert\","
         "   \"adultOnly\":true,\"defaultSetting\":\"hide\"}"
         "]}}";
     wf_mod_label_def *json_defs = NULL;
     size_t json_def_count = 0;
-    if (wf_mod_label_defs_from_labeler(labeler, labeler_json,
-                                       &json_defs, &json_def_count) == WF_OK) {
+    if (wf_mod_label_defs_from_labeler(labeler, labeler_json, &json_defs,
+                                       &json_def_count) == WF_OK) {
         printf("  json label defs: %zu\n", json_def_count);
         if (json_def_count > 0) {
             printf("    first def: %s adult=%d default=%d\n",
@@ -199,8 +199,8 @@ int main(void) {
         "]}";
     wf_mod_label *json_labels = NULL;
     size_t json_label_count = 0;
-    if (wf_mod_labels_from_json(&json_labels, &json_label_count,
-                                labels_json) == WF_OK) {
+    if (wf_mod_labels_from_json(&json_labels, &json_label_count, labels_json) ==
+        WF_OK) {
         printf("  json labels: %zu (val=%s)\n", json_label_count,
                json_label_count ? json_labels[0].val : "?");
         wf_mod_labels_free(json_labels, json_label_count);

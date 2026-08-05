@@ -78,28 +78,27 @@ int main(void) {
 
     /* ---- listActivitySubscriptions ---- */
     WF_CHECK(wf_notif_v2_parse_list_activity_subscriptions(
-                 kListActivityJson, strlen(kListActivityJson), &list) ==
-             WF_OK);
+                 kListActivityJson, strlen(kListActivityJson), &list) == WF_OK);
     WF_CHECK(list.count == 2);
     WF_CHECK(list.cursor && strcmp(list.cursor, "next-cursor-xyz") == 0);
     WF_CHECK(list.items[0].did &&
-             strcmp(list.items[0].did,
-                    "did:plc:bob0000000000000000000000") == 0);
+             strcmp(list.items[0].did, "did:plc:bob0000000000000000000000") ==
+                 0);
     WF_CHECK(list.items[0].handle &&
              strcmp(list.items[0].handle, "bob.bsky.social") == 0);
     WF_CHECK(list.items[0].display_name &&
              strcmp(list.items[0].display_name, "Bob") == 0);
     WF_CHECK(list.items[0].avatar &&
-             strcmp(list.items[0].avatar,
-                    "https://cdn.bsky.app/img/bob.jpg") == 0);
+             strcmp(list.items[0].avatar, "https://cdn.bsky.app/img/bob.jpg") ==
+                 0);
     /* The unknown `indexedAt` is preserved in `extra`. */
     WF_CHECK(list.items[0].extra &&
              cJSON_GetObjectItemCaseSensitive(list.items[0].extra,
                                               "indexedAt") != NULL);
     /* Second item has no avatar/displayName; extra holds no known scalars. */
     WF_CHECK(list.items[1].did &&
-             strcmp(list.items[1].did,
-                    "did:plc:carol0000000000000000000") == 0);
+             strcmp(list.items[1].did, "did:plc:carol0000000000000000000") ==
+                 0);
     WF_CHECK(list.items[1].handle &&
              strcmp(list.items[1].handle, "carol.bsky.social") == 0);
     WF_CHECK(list.items[1].display_name == NULL);
@@ -108,14 +107,13 @@ int main(void) {
     WF_CHECK(list.count == 0 && list.items == NULL && list.cursor == NULL);
 
     /* ---- putPreferencesV2 output (preferences object) ---- */
-    static const char *kPrefsJson =
-        "{ \"preferences\": { \"like\": { \"include\": \"all\", \"list\": true, "
-        "\"push\": false } } }";
+    static const char *kPrefsJson = "{ \"preferences\": { \"like\": { "
+                                    "\"include\": \"all\", \"list\": true, "
+                                    "\"push\": false } } }";
     WF_CHECK(wf_notif_v2_parse_preferences(kPrefsJson, strlen(kPrefsJson),
                                            &prefs) == WF_OK);
-    WF_CHECK(prefs.preferences &&
-             cJSON_GetObjectItemCaseSensitive(prefs.preferences, "like") !=
-                 NULL);
+    WF_CHECK(prefs.preferences && cJSON_GetObjectItemCaseSensitive(
+                                      prefs.preferences, "like") != NULL);
     wf_notif_v2_preferences_free(&prefs);
     WF_CHECK(prefs.preferences == NULL);
 

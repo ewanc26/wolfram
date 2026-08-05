@@ -2,9 +2,9 @@
  * feedgen_typed.c — typed parser for feed-generator endpoints.
  *
  * See include/wolfram/feedgen_typed.h for the public API and ownership rules.
- * Follows the same conventions as notification.c / feed_typed.c / graph_typed.c:
- * static strdup/set_string/reset helpers, owned string copies, full cleanup on
- * the first error.
+ * Follows the same conventions as notification.c / feed_typed.c /
+ * graph_typed.c: static strdup/set_string/reset helpers, owned string copies,
+ * full cleanup on the first error.
  */
 
 #include "wolfram/feedgen_typed.h"
@@ -94,7 +94,8 @@ static wf_status wf_fg_parse_int(cJSON *num, int *dst, int *has) {
     return WF_OK;
 }
 
-static wf_status wf_fg_parse_creator(wf_agent_profile_view *creator, cJSON *obj) {
+static wf_status wf_fg_parse_creator(wf_agent_profile_view *creator,
+                                     cJSON *obj) {
     wf_status status = WF_OK;
     if (!cJSON_IsObject(obj)) {
         return WF_OK;
@@ -297,7 +298,8 @@ void wf_agent_feed_view_list_free(wf_agent_feed_view_list *list) {
     wf_agent_feed_list_free(list);
 }
 
-/* ---- Typed high-level wrappers -------------------------------------------- */
+/* ---- Typed high-level wrappers --------------------------------------------
+ */
 
 wf_status wf_agent_get_actor_feeds_typed(wf_agent *agent, const char *actor,
                                          int limit, const char *cursor,
@@ -307,7 +309,8 @@ wf_status wf_agent_get_actor_feeds_typed(wf_agent *agent, const char *actor,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_actor_feeds(agent, actor, limit, cursor, &res);
+    wf_status status =
+        wf_agent_get_actor_feeds(agent, actor, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -367,7 +370,8 @@ wf_status wf_agent_get_actor_likes_typed(wf_agent *agent, const char *actor,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_actor_likes(agent, actor, limit, cursor, &res);
+    wf_status status =
+        wf_agent_get_actor_likes(agent, actor, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;

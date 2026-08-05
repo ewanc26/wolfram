@@ -49,7 +49,8 @@ extern "C" {
  */
 typedef struct wf_oauth_trusted_keys wf_oauth_trusted_keys;
 
-/** Create an empty trusted-keys container. Free with wf_oauth_trusted_keys_free. */
+/** Create an empty trusted-keys container. Free with
+ * wf_oauth_trusted_keys_free. */
 wf_status wf_oauth_trusted_keys_new(wf_oauth_trusted_keys **out);
 
 /**
@@ -60,7 +61,8 @@ wf_status wf_oauth_trusted_keys_new(wf_oauth_trusted_keys **out);
 wf_status wf_oauth_trusted_keys_add_jwk(wf_oauth_trusted_keys *keys,
                                         const char *jwk_json);
 
-/** Free a trusted-keys container and all JWK copies it holds. Safe with NULL. */
+/** Free a trusted-keys container and all JWK copies it holds. Safe with NULL.
+ */
 void wf_oauth_trusted_keys_free(wf_oauth_trusted_keys *keys);
 
 /**
@@ -72,13 +74,13 @@ void wf_oauth_trusted_keys_free(wf_oauth_trusted_keys *keys);
  * was presented and bound to the access token.
  */
 typedef struct wf_oauth_verified_token {
-    char *sub;        /* subject / DID (may be NULL for a DPoP-only proof) */
-    char *iss;        /* token issuer (may be NULL) */
-    char *aud;        /* audience (first entry if an array; may be NULL) */
-    char *scope;      /* space-separated scopes (may be NULL) */
-    char *dpop_jkt;   /* DPoP proof JWK thumbprint (NULL unless DPoP-bound) */
-    int64_t exp;      /* expiry (unix seconds); 0 if absent */
-    int dpop_bound;   /* 1 when a valid DPoP proof was bound to this token */
+    char *sub;      /* subject / DID (may be NULL for a DPoP-only proof) */
+    char *iss;      /* token issuer (may be NULL) */
+    char *aud;      /* audience (first entry if an array; may be NULL) */
+    char *scope;    /* space-separated scopes (may be NULL) */
+    char *dpop_jkt; /* DPoP proof JWK thumbprint (NULL unless DPoP-bound) */
+    int64_t exp;    /* expiry (unix seconds); 0 if absent */
+    int dpop_bound; /* 1 when a valid DPoP proof was bound to this token */
 } wf_oauth_verified_token;
 
 /** Free a verified token and all strings it owns. Safe with NULL. */
@@ -107,8 +109,9 @@ int wf_oauth_dpop_replay_cache_is_seen(const wf_oauth_dpop_replay_cache *cache,
  * the entry never expires. Returns WF_OK on success, WF_ERR_ALLOC on OOM.
  * Re-recording an existing (unexpired) jti refreshes its expiry.
  */
-wf_status wf_oauth_dpop_replay_cache_mark_seen(wf_oauth_dpop_replay_cache *cache,
-                                               const char *jti, int64_t ttl);
+wf_status
+wf_oauth_dpop_replay_cache_mark_seen(wf_oauth_dpop_replay_cache *cache,
+                                     const char *jti, int64_t ttl);
 
 /** Free a replay cache and all recorded `jti` strings. Safe with NULL. */
 void wf_oauth_dpop_replay_cache_free(wf_oauth_dpop_replay_cache *cache);
@@ -139,12 +142,11 @@ wf_status wf_oauth_verify_bearer(const char *access_token,
  *
  * On WF_OK, *out is heap-allocated and freed with wf_oauth_verified_token_free;
  * `dpop_jkt` carries the proof key's RFC 7638 thumbprint and `dpop_bound` is 1.
- * `sub`/`iss`/`aud`/`scope` are left NULL (a DPoP proof is not an identity token).
+ * `sub`/`iss`/`aud`/`scope` are left NULL (a DPoP proof is not an identity
+ * token).
  */
-wf_status wf_oauth_verify_dpop(const char *dpop_proof,
-                               const char *access_token,
-                               const char *http_method,
-                               const char *http_uri,
+wf_status wf_oauth_verify_dpop(const char *dpop_proof, const char *access_token,
+                               const char *http_method, const char *http_uri,
                                wf_oauth_dpop_replay_cache *replay,
                                wf_oauth_verified_token **out);
 
@@ -165,8 +167,7 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof,
  */
 wf_status wf_oauth_verify_request(const char *authorization,
                                   const char *dpop_proof,
-                                  const char *http_method,
-                                  const char *http_uri,
+                                  const char *http_method, const char *http_uri,
                                   const wf_oauth_trusted_keys *keys,
                                   wf_oauth_dpop_replay_cache *replay,
                                   wf_oauth_verified_token **out);
@@ -215,10 +216,8 @@ void wf_oauth_client_assertion_verified_free(
  * non-ES256 algorithm.
  */
 wf_status wf_oauth_verify_client_assertion(
-    const char *assertion,
-    const char *expected_client_id,
-    const char *expected_audience,
-    const wf_oauth_trusted_keys *keys,
+    const char *assertion, const char *expected_client_id,
+    const char *expected_audience, const wf_oauth_trusted_keys *keys,
     wf_oauth_client_assertion_verified **out);
 
 #ifdef __cplusplus

@@ -115,8 +115,8 @@ void wf_identity_resolve_handle_free(wf_identity_resolve_handle *v) {
 
 /* ---- resolveDid ---- */
 
-static void wf_identity_verification_method_reset(
-    wf_identity_verification_method *m) {
+static void
+wf_identity_verification_method_reset(wf_identity_verification_method *m) {
     if (!m) {
         return;
     }
@@ -137,8 +137,9 @@ static void wf_identity_service_reset(wf_identity_service *s) {
     memset(s, 0, sizeof(*s));
 }
 
-static wf_status wf_identity_read_verification_method(
-    cJSON *obj, wf_identity_verification_method *m) {
+static wf_status
+wf_identity_read_verification_method(cJSON *obj,
+                                     wf_identity_verification_method *m) {
     wf_status status = WF_OK;
     cJSON *id = cJSON_GetObjectItemCaseSensitive(obj, "id");
     cJSON *type = cJSON_GetObjectItemCaseSensitive(obj, "type");
@@ -150,8 +151,10 @@ static wf_status wf_identity_read_verification_method(
     if (status == WF_OK && cJSON_IsString(type) && type->valuestring) {
         status = wf_identity_set_string(&m->type, type->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(controller) && controller->valuestring) {
-        status = wf_identity_set_string(&m->controller, controller->valuestring);
+    if (status == WF_OK && cJSON_IsString(controller) &&
+        controller->valuestring) {
+        status =
+            wf_identity_set_string(&m->controller, controller->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(pk) && pk->valuestring) {
         status =
@@ -229,16 +232,15 @@ wf_status wf_identity_parse_resolve_did(const char *json, size_t json_len,
             const char *raw = first->valuestring;
             const char *prefix = "at://";
             size_t plen = strlen(prefix);
-            const char *handle = (strncmp(raw, prefix, plen) == 0)
-                                     ? raw + plen
-                                     : raw;
+            const char *handle =
+                (strncmp(raw, prefix, plen) == 0) ? raw + plen : raw;
             status = wf_identity_set_string(&out->handle, handle);
         }
     }
 
     if (status == WF_OK) {
-        cJSON *vms = cJSON_GetObjectItemCaseSensitive(did_doc,
-                                                      "verificationMethod");
+        cJSON *vms =
+            cJSON_GetObjectItemCaseSensitive(did_doc, "verificationMethod");
         if (cJSON_IsArray(vms)) {
             size_t count = (size_t)cJSON_GetArraySize(vms);
             wf_identity_verification_method *items = NULL;
@@ -379,8 +381,8 @@ wf_status wf_identity_parse_get_recommended_did_credentials(
     }
 
     if (status == WF_OK) {
-        cJSON *vm = cJSON_GetObjectItemCaseSensitive(root,
-                                                     "verificationMethods");
+        cJSON *vm =
+            cJSON_GetObjectItemCaseSensitive(root, "verificationMethods");
         if (vm) {
             char *vm_json = cJSON_PrintUnformatted(vm);
             if (!vm_json) {
@@ -417,8 +419,8 @@ void wf_identity_recommended_credentials_free(
 
 /* ---- signPlcOperation ---- */
 
-static void wf_identity_signed_operation_reset(
-    wf_identity_signed_operation *v) {
+static void
+wf_identity_signed_operation_reset(wf_identity_signed_operation *v) {
     if (!v) {
         return;
     }
@@ -426,8 +428,9 @@ static void wf_identity_signed_operation_reset(
     memset(v, 0, sizeof(*v));
 }
 
-wf_status wf_identity_parse_sign_plc_operation(
-    const char *json, size_t json_len, wf_identity_signed_operation *out) {
+wf_status
+wf_identity_parse_sign_plc_operation(const char *json, size_t json_len,
+                                     wf_identity_signed_operation *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -464,7 +467,8 @@ void wf_identity_signed_operation_free(wf_identity_signed_operation *v) {
 
 /* ---- resolveIdentity ---- */
 
-static void wf_identity_resolve_identity_reset(wf_identity_resolve_identity *v) {
+static void
+wf_identity_resolve_identity_reset(wf_identity_resolve_identity *v) {
     if (!v) {
         return;
     }
@@ -474,8 +478,9 @@ static void wf_identity_resolve_identity_reset(wf_identity_resolve_identity *v) 
     memset(v, 0, sizeof(*v));
 }
 
-wf_status wf_identity_parse_resolve_identity(const char *json, size_t json_len,
-                                             wf_identity_resolve_identity *out) {
+wf_status
+wf_identity_parse_resolve_identity(const char *json, size_t json_len,
+                                   wf_identity_resolve_identity *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -550,7 +555,7 @@ wf_status wf_agent_resolve_handle_typed(wf_agent *agent, const char *handle,
 }
 
 wf_status wf_agent_resolve_did_typed(wf_agent *agent, const char *did,
-                                      wf_identity_resolve_did *out) {
+                                     wf_identity_resolve_did *out) {
     if (!agent || !agent->client || !did || !did[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -570,7 +575,8 @@ wf_status wf_agent_resolve_did_typed(wf_agent *agent, const char *did,
     return status;
 }
 
-wf_status wf_agent_update_handle_typed(wf_agent *agent, const char *new_handle) {
+wf_status wf_agent_update_handle_typed(wf_agent *agent,
+                                       const char *new_handle) {
     if (!agent || !agent->client || !new_handle || !new_handle[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -607,7 +613,7 @@ wf_status wf_agent_get_recommended_did_credentials_typed(
 }
 
 wf_status wf_agent_request_plc_operation_signature_typed(wf_agent *agent,
-                                                          const char *did) {
+                                                         const char *did) {
     if (!agent || !agent->client || !did || !did[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -619,11 +625,10 @@ wf_status wf_agent_request_plc_operation_signature_typed(wf_agent *agent,
 }
 
 wf_status wf_agent_sign_plc_operation_typed(
-    wf_agent *agent, const char *token,
-    const char *const *rotation_keys, size_t rotation_keys_count,
-    const char *const *also_known_as, size_t also_known_as_count,
-    const char *verification_methods_json, const char *services_json,
-    wf_identity_signed_operation *out) {
+    wf_agent *agent, const char *token, const char *const *rotation_keys,
+    size_t rotation_keys_count, const char *const *also_known_as,
+    size_t also_known_as_count, const char *verification_methods_json,
+    const char *services_json, wf_identity_signed_operation *out) {
     if (!agent || !agent->client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -661,14 +666,13 @@ wf_status wf_agent_sign_plc_operation_typed(
         wf_response_free(&res);
         return status;
     }
-    status =
-        wf_identity_parse_sign_plc_operation(res.body, res.body_len, out);
+    status = wf_identity_parse_sign_plc_operation(res.body, res.body_len, out);
     wf_response_free(&res);
     return status;
 }
 
 wf_status wf_agent_submit_plc_operation_typed(wf_agent *agent,
-                                               const char *operation_json) {
+                                              const char *operation_json) {
     if (!agent || !agent->client || !operation_json || !operation_json[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -678,8 +682,9 @@ wf_status wf_agent_submit_plc_operation_typed(wf_agent *agent,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_identity_submit_plc_operation_main_call(
-        agent->client, &input, &res);
+    wf_status status =
+        wf_lex_com_atproto_identity_submit_plc_operation_main_call(
+            agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
@@ -791,14 +796,12 @@ wf_status wf_agent_identity_rotate_handle(wf_agent *agent,
      * private signing key; the caller-supplied token authorizes that sign. */
     wf_identity_signed_operation signed_op = {0};
     status = wf_agent_sign_plc_operation_typed(
-        agent, token,
-        (const char *const *)creds.rotation_keys, creds.rotation_key_count,
-        aka_items, update.also_known_as_count,
-        creds.verification_methods_json, creds.services_json,
-        &signed_op);
+        agent, token, (const char *const *)creds.rotation_keys,
+        creds.rotation_key_count, aka_items, update.also_known_as_count,
+        creds.verification_methods_json, creds.services_json, &signed_op);
     if (status == WF_OK) {
-        status = wf_agent_submit_plc_operation_typed(
-            agent, signed_op.operation_json);
+        status = wf_agent_submit_plc_operation_typed(agent,
+                                                     signed_op.operation_json);
     }
     wf_identity_signed_operation_free(&signed_op);
     free(aka);

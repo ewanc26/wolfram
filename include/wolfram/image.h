@@ -14,7 +14,8 @@ extern "C" {
  * Returns WF_OK and writes *out_w / *out_h on success. Returns WF_ERR_PARSE
  * if the buffer is not a recognized image format, or WF_ERR_INVALID_ARG if any
  * argument is NULL or the length is zero. */
-wf_status wf_image_dimensions(const void *data, size_t len, int *out_w, int *out_h);
+wf_status wf_image_dimensions(const void *data, size_t len, int *out_w,
+                              int *out_h);
 
 #ifdef __cplusplus
 }

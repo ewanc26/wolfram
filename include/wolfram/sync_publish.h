@@ -32,14 +32,15 @@ wf_status wf_sync_publish_event(const wf_subscribe_event *ev,
 /* Build an `op: -1` error frame.
  *
  * @param seq     Sequence number associated with the error (0 if none).
- * @param error   Error name (e.g. "FutureCursor"); may be NULL (emitted as null).
+ * @param error   Error name (e.g. "FutureCursor"); may be NULL (emitted as
+ * null).
  * @param message Human-readable message; may be NULL (omitted when absent).
  * @param out     Receives a heap-allocated buffer of framed CBOR bytes;
  *                free with `free()`.
  * @param out_len Receives the length of `*out`. */
 wf_status wf_sync_publish_error(int64_t seq, const char *error,
-                                const char *message,
-                                unsigned char **out, size_t *out_len);
+                                const char *message, unsigned char **out,
+                                size_t *out_len);
 
 #ifdef __cplusplus
 }

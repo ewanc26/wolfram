@@ -51,9 +51,9 @@ static void wf_session_data_init(wf_session_data *data) {
 }
 
 static wf_status wf_session_data_copy(wf_session_data *dst,
-                                       const wf_session_data *src) {
-    if (!dst || !src || !src->access_jwt || !src->refresh_jwt ||
-        !src->handle || !src->did) {
+                                      const wf_session_data *src) {
+    if (!dst || !src || !src->access_jwt || !src->refresh_jwt || !src->handle ||
+        !src->did) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -82,7 +82,8 @@ static wf_status wf_session_data_copy(wf_session_data *dst,
  * Parse a session JSON response (from createSession or refreshSession)
  * into wf_session_data. Required fields: accessJwt, refreshJwt, handle, did.
  */
-static wf_status wf_session_data_parse(wf_session_data *data, const char *json, size_t json_len) {
+static wf_status wf_session_data_parse(wf_session_data *data, const char *json,
+                                       size_t json_len) {
     cJSON *root = cJSON_ParseWithLength(json, json_len);
     if (!root) return WF_ERR_PARSE;
 
@@ -104,8 +105,8 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json, 
     data->handle = wf_strdup(handle->valuestring);
     data->did = wf_strdup(did->valuestring);
 
-    if (!data->access_jwt || !data->refresh_jwt ||
-        !data->handle || !data->did) {
+    if (!data->access_jwt || !data->refresh_jwt || !data->handle ||
+        !data->did) {
         status = WF_ERR_ALLOC;
         goto done;
     }
@@ -116,12 +117,14 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json, 
         data->email = wf_strdup(email->valuestring);
     }
 
-    cJSON *email_confirmed = cJSON_GetObjectItemCaseSensitive(root, "emailConfirmed");
+    cJSON *email_confirmed =
+        cJSON_GetObjectItemCaseSensitive(root, "emailConfirmed");
     if (cJSON_IsBool(email_confirmed)) {
         data->email_confirmed = cJSON_IsTrue(email_confirmed) ? 1 : 0;
     }
 
-    cJSON *email_auth = cJSON_GetObjectItemCaseSensitive(root, "emailAuthFactor");
+    cJSON *email_auth =
+        cJSON_GetObjectItemCaseSensitive(root, "emailAuthFactor");
     if (cJSON_IsBool(email_auth)) {
         data->email_auth_factor = cJSON_IsTrue(email_auth) ? 1 : 0;
     }
@@ -173,7 +176,8 @@ done:
  * accessJwt/refreshJwt). Only updates fields present in the response.
  */
 static wf_status wf_session_data_update_from_get(wf_session_data *data,
-                                                   const char *json, size_t json_len) {
+                                                 const char *json,
+                                                 size_t json_len) {
     cJSON *root = cJSON_ParseWithLength(json, json_len);
     if (!root) return WF_ERR_PARSE;
 
@@ -199,12 +203,14 @@ static wf_status wf_session_data_update_from_get(wf_session_data *data,
         new_email = wf_strdup(email->valuestring);
     }
 
-    cJSON *email_confirmed = cJSON_GetObjectItemCaseSensitive(root, "emailConfirmed");
+    cJSON *email_confirmed =
+        cJSON_GetObjectItemCaseSensitive(root, "emailConfirmed");
     if (cJSON_IsBool(email_confirmed)) {
         data->email_confirmed = cJSON_IsTrue(email_confirmed) ? 1 : 0;
     }
 
-    cJSON *email_auth = cJSON_GetObjectItemCaseSensitive(root, "emailAuthFactor");
+    cJSON *email_auth =
+        cJSON_GetObjectItemCaseSensitive(root, "emailAuthFactor");
     if (cJSON_IsBool(email_auth)) {
         data->email_auth_factor = cJSON_IsTrue(email_auth) ? 1 : 0;
     }
@@ -297,9 +303,8 @@ void wf_session_free(wf_session *session) {
     free(session);
 }
 
-wf_status wf_session_login(wf_session *session,
-                            const char *identifier,
-                            const char *password) {
+wf_status wf_session_login(wf_session *session, const char *identifier,
+                           const char *password) {
     return wf_session_login_with_opts(session, identifier, password, NULL);
 }
 
@@ -347,9 +352,8 @@ wf_status wf_session_login_with_opts(wf_session *session,
     if (!json_str) return WF_ERR_ALLOC;
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(session->client,
-                                          "com.atproto.server.createSession",
-                                          json_str, &res);
+    wf_status status = wf_xrpc_procedure(
+        session->client, "com.atproto.server.createSession", json_str, &res);
     free(json_str);
 
     if (status != WF_OK) {
@@ -406,9 +410,8 @@ wf_status wf_session_refresh(wf_session *session) {
     wf_xrpc_client_set_auth(session->client, session->data.refresh_jwt);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(session->client,
-                                          "com.atproto.server.refreshSession",
-                                          NULL, &res);
+    wf_status status = wf_xrpc_procedure(
+        session->client, "com.atproto.server.refreshSession", NULL, &res);
 
     if (status != WF_OK) {
         if (wf_session_is_auth_error(status, &res)) {
@@ -484,16 +487,16 @@ wf_status wf_session_get(wf_session *session) {
     }
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_query(session->client,
-                                      "com.atproto.server.getSession",
-                                      NULL, &res);
+    wf_status status = wf_xrpc_query(
+        session->client, "com.atproto.server.getSession", NULL, &res);
 
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
-    status = wf_session_data_update_from_get(&session->data, res.body, res.body_len);
+    status =
+        wf_session_data_update_from_get(&session->data, res.body, res.body_len);
     wf_response_free(&res);
 
     return status;
@@ -508,9 +511,8 @@ wf_status wf_session_delete(wf_session *session) {
     wf_xrpc_client_set_auth(session->client, session->data.refresh_jwt);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(session->client,
-                                          "com.atproto.server.deleteSession",
-                                          NULL, &res);
+    wf_status status = wf_xrpc_procedure(
+        session->client, "com.atproto.server.deleteSession", NULL, &res);
 
     wf_response_free(&res);
 

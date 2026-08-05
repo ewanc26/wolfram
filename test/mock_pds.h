@@ -42,8 +42,7 @@ wf_status wf_mock_pds_start(wf_mock_pds **out, int *out_port);
  * The strings are copied; neither the NSID nor the JSON need outlive the
  * call. Registering the same NSID twice replaces the previous response.
  */
-wf_status wf_mock_pds_register(wf_mock_pds *pds,
-                               const char *nsid,
+wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
                                const char *json);
 
 /** Stop the HTTP daemon without discarding registered responses or the
@@ -62,10 +61,8 @@ void wf_mock_pds_free(wf_mock_pds *pds);
  * NULL inputs) the relevant pointer(s) are NULL. Returns WF_OK on success,
  * WF_ERR_INVALID_ARG on NULL inputs.
  */
-wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds,
-                                        const char **nsid,
-                                        const char **method,
-                                        const char **body);
+wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds, const char **nsid,
+                                       const char **method, const char **body);
 
 #ifdef __cplusplus
 }

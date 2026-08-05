@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>   /* strncasecmp */
+#include <strings.h> /* strncasecmp */
 #include <sys/stat.h>
 
 #define WF_VALIDATE_MAX_DEPTH 128
@@ -68,7 +68,8 @@ static char *wf_vformat(const char *fmt, va_list ap) {
     return buf;
 }
 
-static void wf_ctx_error(wf_validation_ctx *ctx, const char *path, const char *fmt, ...) {
+static void wf_ctx_error(wf_validation_ctx *ctx, const char *path,
+                         const char *fmt, ...) {
     wf_validate_error *error;
     char *message;
     va_list ap;
@@ -102,7 +103,8 @@ static void wf_ctx_error(wf_validation_ctx *ctx, const char *path, const char *f
     }
 }
 
-static void wf_ctx_simple(wf_validation_ctx *ctx, const char *path, const char *message) {
+static void wf_ctx_simple(wf_validation_ctx *ctx, const char *path,
+                          const char *message) {
     wf_ctx_error(ctx, path, "%s", message ? message : "validation failed");
 }
 
@@ -134,7 +136,8 @@ static int wf_json_value_is_null(const cJSON *item) {
 
 static int wf_is_json_integer(const cJSON *item, int64_t *out) {
     double value;
-    if (!item || !cJSON_IsNumber(item) || !isfinite(item->valuedouble)) return 0;
+    if (!item || !cJSON_IsNumber(item) || !isfinite(item->valuedouble))
+        return 0;
     value = item->valuedouble;
     if (trunc(value) != value) return 0;
     if (value < (double)LLONG_MIN || value > (double)LLONG_MAX) return 0;
@@ -177,12 +180,14 @@ static int wf_utf8_decode(const unsigned char **pp, const unsigned char *end) {
         return (int)cp;
     }
     if ((p[0] & 0xF0u) == 0xE0u && p + 2 < end) {
-        cp = ((unsigned)(p[0] & 0x0Fu) << 12) | ((unsigned)(p[1] & 0x3Fu) << 6) | (unsigned)(p[2] & 0x3Fu);
+        cp = ((unsigned)(p[0] & 0x0Fu) << 12) |
+             ((unsigned)(p[1] & 0x3Fu) << 6) | (unsigned)(p[2] & 0x3Fu);
         *pp = p + 3;
         return (int)cp;
     }
     if ((p[0] & 0xF8u) == 0xF0u && p + 3 < end) {
-        cp = ((unsigned)(p[0] & 0x07u) << 18) | ((unsigned)(p[1] & 0x3Fu) << 12) |
+        cp = ((unsigned)(p[0] & 0x07u) << 18) |
+             ((unsigned)(p[1] & 0x3Fu) << 12) |
              ((unsigned)(p[2] & 0x3Fu) << 6) | (unsigned)(p[3] & 0x3Fu);
         *pp = p + 4;
         return (int)cp;
@@ -249,7 +254,8 @@ static const unsigned long wf_grapheme_extend[] = {
 
 static int wf_is_grapheme_extend(int cp) {
     return wf_in_ranges(cp, wf_grapheme_extend,
-                        sizeof(wf_grapheme_extend) / sizeof(wf_grapheme_extend[0]));
+                        sizeof(wf_grapheme_extend) /
+                            sizeof(wf_grapheme_extend[0]));
 }
 
 static int wf_is_control(int cp) {
@@ -261,8 +267,7 @@ static int wf_is_ri(int cp) {
 }
 
 static int wf_is_emoji(int cp) {
-    return (cp >= 0x1F000 && cp <= 0x1FAFF) ||
-           (cp >= 0x2600 && cp <= 0x27BF) ||
+    return (cp >= 0x1F000 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF) ||
            cp == 0x2764 || cp == 0x2B00;
 }
 
@@ -286,18 +291,18 @@ static size_t wf_utf8_grapheme_count(const char *s) {
         if (count == 0) {
             break_before = 1;
         } else if (prev1 == 0x0Du && cp == 0x0Au) {
-            break_before = 0;                                   /* GB3: CR x LF */
+            break_before = 0; /* GB3: CR x LF */
         } else if (wf_is_control(prev1)) {
-            break_before = 1;                                   /* GB4/GB5     */
+            break_before = 1; /* GB4/GB5     */
         } else if (wf_is_grapheme_extend(cp) || cp == 0x200Du) {
-            break_before = 0;                                   /* GB9: x Extend/ZWJ */
+            break_before = 0; /* GB9: x Extend/ZWJ */
         } else if (prev1 == 0x200Du && wf_is_emoji(prev2) &&
                    (wf_is_emoji(cp) || wf_is_emoji_modifier(cp))) {
-            break_before = 0;                                   /* GB11: ZWJ sequence */
+            break_before = 0; /* GB11: ZWJ sequence */
         } else if (wf_is_emoji(prev1) && wf_is_emoji_modifier(cp)) {
-            break_before = 0;                                   /* GB9c: skin tone */
+            break_before = 0; /* GB9c: skin tone */
         } else if (wf_is_ri(prev1) && wf_is_ri(cp)) {
-            break_before = ri_pending ? 0 : 1;                  /* GB12/GB13: flag pairs */
+            break_before = ri_pending ? 0 : 1; /* GB12/GB13: flag pairs */
         } else {
             break_before = 1;
         }
@@ -351,7 +356,8 @@ static int wf_base32_value(unsigned char ch) {
     return -1;
 }
 
-static int wf_cid_varint(const unsigned char *data, size_t len, uint64_t *value, size_t *used) {
+static int wf_cid_varint(const unsigned char *data, size_t len, uint64_t *value,
+                         size_t *used) {
     uint64_t result = 0;
     unsigned shift = 0;
     size_t i;
@@ -380,11 +386,14 @@ static int wf_cid_bytes_is_valid(const unsigned char *data, size_t len) {
     if (!data || len == 0) return 0;
     if (len == 34 && data[0] == 0x12 && data[1] == 0x20) return 1;
 
-    if (!wf_cid_varint(data + pos, len - pos, &value, &used) || value != 1) return 0;
+    if (!wf_cid_varint(data + pos, len - pos, &value, &used) || value != 1)
+        return 0;
     pos += used;
-    if (!wf_cid_varint(data + pos, len - pos, &value, &used) || value == 0) return 0;
+    if (!wf_cid_varint(data + pos, len - pos, &value, &used) || value == 0)
+        return 0;
     pos += used;
-    if (!wf_cid_varint(data + pos, len - pos, &value, &used) || value == 0) return 0;
+    if (!wf_cid_varint(data + pos, len - pos, &value, &used) || value == 0)
+        return 0;
     pos += used;
     if (!wf_cid_varint(data + pos, len - pos, &value, &used)) return 0;
     pos += used;
@@ -435,8 +444,12 @@ static int wf_is_valid_uri(const char *uri) {
     if (!uri || !*uri) return 0;
     parsed = curl_url();
     if (!parsed) return 0;
-    if (curl_url_set(parsed, CURLUPART_URL, uri, CURLU_NON_SUPPORT_SCHEME) != CURLUE_OK) goto done;
-    if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK || !scheme || !*scheme) goto done;
+    if (curl_url_set(parsed, CURLUPART_URL, uri, CURLU_NON_SUPPORT_SCHEME) !=
+        CURLUE_OK)
+        goto done;
+    if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
+        !scheme || !*scheme)
+        goto done;
     valid = 1;
 
 done:
@@ -462,8 +475,8 @@ static int wf_mime_accepts(const char *pattern, const char *mime) {
 
     semi = strchr(mime, ';');
     mime_len = semi ? (size_t)(semi - mime) : strlen(mime);
-    while (mime_len > 0 && (mime[mime_len - 1] == ' ' ||
-                            mime[mime_len - 1] == '\t'))
+    while (mime_len > 0 &&
+           (mime[mime_len - 1] == ' ' || mime[mime_len - 1] == '\t'))
         mime_len--;
 
     if (strcmp(pattern, "*/*") == 0) return 1;
@@ -473,15 +486,15 @@ static int wf_mime_accepts(const char *pattern, const char *mime) {
         if (plen >= 2 && pattern[plen - 1] == '*' && pattern[plen - 2] == '/') {
             // "image/*" admits any subtype of "image/".
             size_t prefix = plen - 1;
-            return mime_len > prefix &&
-                   strncasecmp(pattern, mime, prefix) == 0;
+            return mime_len > prefix && strncasecmp(pattern, mime, prefix) == 0;
         }
         return plen == mime_len && strncasecmp(pattern, mime, mime_len) == 0;
     }
 }
 
-static const wf_lexicon_doc *wf_registry_find_doc(const wf_lexicon_registry *registry,
-                                                 const char *lexicon_id) {
+static const wf_lexicon_doc *
+wf_registry_find_doc(const wf_lexicon_registry *registry,
+                     const char *lexicon_id) {
     const wf_lexicon_doc *doc;
     if (!registry || !lexicon_id) return NULL;
     for (doc = registry->docs; doc; doc = doc->next) {
@@ -496,7 +509,7 @@ int wf_lexicon_registry_contains(const wf_lexicon_registry *registry,
 }
 
 static wf_lexicon_doc *wf_registry_find_doc_mut(wf_lexicon_registry *registry,
-                                               const char *lexicon_id) {
+                                                const char *lexicon_id) {
     wf_lexicon_doc *doc;
     if (!registry || !lexicon_id) return NULL;
     for (doc = registry->docs; doc; doc = doc->next) {
@@ -505,7 +518,8 @@ static wf_lexicon_doc *wf_registry_find_doc_mut(wf_lexicon_registry *registry,
     return NULL;
 }
 
-static const cJSON *wf_doc_find_def(const wf_lexicon_doc *doc, const char *def_id) {
+static const cJSON *wf_doc_find_def(const wf_lexicon_doc *doc,
+                                    const char *def_id) {
     const cJSON *defs;
     if (!doc || !def_id) return NULL;
     defs = cJSON_GetObjectItemCaseSensitive(doc->root, "defs");
@@ -514,20 +528,23 @@ static const cJSON *wf_doc_find_def(const wf_lexicon_doc *doc, const char *def_i
 }
 
 static const char *wf_schema_type(const cJSON *schema) {
-    const cJSON *type = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "type");
+    const cJSON *type =
+        cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "type");
     return wf_is_json_string(type) ? type->valuestring : NULL;
 }
 
 static const cJSON *wf_def_body_for_validation(const cJSON *def) {
     const char *type = wf_schema_type(def);
     if (type && strcmp(type, "record") == 0) {
-        const cJSON *record = cJSON_GetObjectItemCaseSensitive((cJSON *)def, "record");
+        const cJSON *record =
+            cJSON_GetObjectItemCaseSensitive((cJSON *)def, "record");
         return cJSON_IsObject(record) ? record : NULL;
     }
     return def;
 }
 
-static char *wf_canonicalize_ref(const char *current_lexicon_id, const char *ref) {
+static char *wf_canonicalize_ref(const char *current_lexicon_id,
+                                 const char *ref) {
     size_t current_len, ref_len;
     char *canon;
 
@@ -552,10 +569,10 @@ static char *wf_canonicalize_ref(const char *current_lexicon_id, const char *ref
 }
 
 static const cJSON *wf_resolve_schema_ref(const wf_lexicon_registry *registry,
-                                         const char *current_lexicon_id,
-                                         const char *ref,
-                                         const char **resolved_lexicon_id,
-                                         char **canonical_ref_out) {
+                                          const char *current_lexicon_id,
+                                          const char *ref,
+                                          const char **resolved_lexicon_id,
+                                          char **canonical_ref_out) {
     char *canon;
     char *hash;
     wf_lexicon_doc *doc;
@@ -585,27 +602,26 @@ static const cJSON *wf_resolve_schema_ref(const wf_lexicon_registry *registry,
         return NULL;
     }
     if (resolved_lexicon_id) *resolved_lexicon_id = doc->id;
-    if (canonical_ref_out) *canonical_ref_out = canon;
-    else free(canon);
+    if (canonical_ref_out)
+        *canonical_ref_out = canon;
+    else
+        free(canon);
     return schema;
 }
 
 static wf_status wf_validate_schema(wf_validation_ctx *ctx,
                                     const wf_lexicon_registry *registry,
                                     const char *current_lexicon_id,
-                                    const cJSON *schema,
-                                    const cJSON *value,
-                                    const char *path,
-                                    int depth,
+                                    const cJSON *schema, const cJSON *value,
+                                    const char *path, int depth,
                                     const char *expected_token_value);
 
 static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
-                                         const wf_lexicon_registry *registry,
-                                         const char *current_lexicon_id,
-                                         const cJSON *schema,
-                                         const cJSON *value,
-                                         const char *path,
-                                         int depth) {
+                                           const wf_lexicon_registry *registry,
+                                           const char *current_lexicon_id,
+                                           const cJSON *schema,
+                                           const cJSON *value, const char *path,
+                                           int depth) {
     const cJSON *properties;
     const cJSON *required;
     const cJSON *nullable;
@@ -617,7 +633,8 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
         return WF_ERR_INVALID_ARG;
     }
 
-    properties = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "properties");
+    properties =
+        cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "properties");
     nullable = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "nullable");
     if (cJSON_IsObject(properties)) {
         cJSON_ArrayForEach(prop_item, properties) {
@@ -627,7 +644,8 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
             int is_nullable = 0;
 
             if (!prop_name) continue;
-            prop_value = cJSON_GetObjectItemCaseSensitive((cJSON *)value, prop_name);
+            prop_value =
+                cJSON_GetObjectItemCaseSensitive((cJSON *)value, prop_name);
             prop_path = wf_path_join(path, prop_name);
             if (!prop_path) {
                 valid = 0;
@@ -638,7 +656,9 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
                 const cJSON *nullable_name;
                 if (cJSON_IsArray(nullable)) {
                     cJSON_ArrayForEach(nullable_name, nullable) {
-                        if (wf_is_json_string(nullable_name) && strcmp(nullable_name->valuestring, prop_name) == 0) {
+                        if (wf_is_json_string(nullable_name) &&
+                            strcmp(nullable_name->valuestring, prop_name) ==
+                                0) {
                             is_nullable = 1;
                             break;
                         }
@@ -652,7 +672,8 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
 
             if (prop_value != NULL) {
                 if (wf_validate_schema(ctx, registry, current_lexicon_id,
-                                       prop_item, prop_value, prop_path, depth + 1, NULL) != WF_OK) {
+                                       prop_item, prop_value, prop_path,
+                                       depth + 1, NULL) != WF_OK) {
                     valid = 0;
                 }
             }
@@ -666,9 +687,12 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
         cJSON_ArrayForEach(required_item, required) {
             char *missing_path;
             if (!wf_is_json_string(required_item)) continue;
-            if (cJSON_GetObjectItemCaseSensitive((cJSON *)value, required_item->valuestring) != NULL) continue;
+            if (cJSON_GetObjectItemCaseSensitive(
+                    (cJSON *)value, required_item->valuestring) != NULL)
+                continue;
             missing_path = wf_path_join(path, required_item->valuestring);
-            wf_ctx_simple(ctx, missing_path ? missing_path : path, "is required");
+            wf_ctx_simple(ctx, missing_path ? missing_path : path,
+                          "is required");
             free(missing_path);
             valid = 0;
         }
@@ -678,12 +702,11 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
 }
 
 static wf_status wf_validate_array_schema(wf_validation_ctx *ctx,
-                                        const wf_lexicon_registry *registry,
-                                        const char *current_lexicon_id,
-                                        const cJSON *schema,
-                                        const cJSON *value,
-                                        const char *path,
-                                        int depth) {
+                                          const wf_lexicon_registry *registry,
+                                          const char *current_lexicon_id,
+                                          const cJSON *schema,
+                                          const cJSON *value, const char *path,
+                                          int depth) {
     const cJSON *items;
     const cJSON *entry;
     int index = 0;
@@ -711,22 +734,28 @@ static wf_status wf_validate_array_schema(wf_validation_ctx *ctx,
             index++;
             continue;
         }
-        if (wf_validate_schema(ctx, registry, current_lexicon_id,
-                               items, entry, item_path, depth + 1, NULL) != WF_OK) {
+        if (wf_validate_schema(ctx, registry, current_lexicon_id, items, entry,
+                               item_path, depth + 1, NULL) != WF_OK) {
             valid = 0;
         }
         free(item_path);
         index++;
     }
 
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength"), &min_len) &&
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength"),
+            &min_len) &&
         cJSON_GetArraySize((cJSON *)value) < (int)min_len) {
-        wf_ctx_error(ctx, path, "must not have fewer than %lld elements", (long long)min_len);
+        wf_ctx_error(ctx, path, "must not have fewer than %lld elements",
+                     (long long)min_len);
         valid = 0;
     }
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength"), &max_len) &&
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength"),
+            &max_len) &&
         cJSON_GetArraySize((cJSON *)value) > (int)max_len) {
-        wf_ctx_error(ctx, path, "must not have more than %lld elements", (long long)max_len);
+        wf_ctx_error(ctx, path, "must not have more than %lld elements",
+                     (long long)max_len);
         valid = 0;
     }
 
@@ -734,9 +763,9 @@ static wf_status wf_validate_array_schema(wf_validation_ctx *ctx,
 }
 
 static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
-                                          const cJSON *schema,
-                                          const cJSON *value,
-                                          const char *path) {
+                                           const cJSON *schema,
+                                           const cJSON *value,
+                                           const char *path) {
     const cJSON *item;
     size_t len;
     size_t graphemes;
@@ -747,7 +776,8 @@ static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
     }
 
     item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "const");
-    if (wf_is_json_string(item) && strcmp(item->valuestring, value->valuestring) != 0) {
+    if (wf_is_json_string(item) &&
+        strcmp(item->valuestring, value->valuestring) != 0) {
         wf_ctx_error(ctx, path, "must be %s", item->valuestring);
         return WF_ERR_INVALID_ARG;
     }
@@ -757,7 +787,8 @@ static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
         const cJSON *entry;
         int found = 0;
         cJSON_ArrayForEach(entry, item) {
-            if (wf_is_json_string(entry) && strcmp(entry->valuestring, value->valuestring) == 0) {
+            if (wf_is_json_string(entry) &&
+                strcmp(entry->valuestring, value->valuestring) == 0) {
                 found = 1;
                 break;
             }
@@ -773,7 +804,8 @@ static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
         const cJSON *entry;
         int found = 0;
         cJSON_ArrayForEach(entry, item) {
-            if (wf_is_json_string(entry) && strcmp(entry->valuestring, value->valuestring) == 0) {
+            if (wf_is_json_string(entry) &&
+                strcmp(entry->valuestring, value->valuestring) == 0) {
                 found = 1;
                 break;
             }
@@ -785,30 +817,54 @@ static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
     }
 
     len = strlen(value->valuestring);
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength"), NULL) &&
-        len < (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength")->valuedouble) {
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength"),
+            NULL) &&
+        len < (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema,
+                                                       "minLength")
+                  ->valuedouble) {
         wf_ctx_error(ctx, path, "must not be shorter than %lld bytes",
-                     (long long)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength")->valuedouble);
+                     (long long)cJSON_GetObjectItemCaseSensitive(
+                         (cJSON *)schema, "minLength")
+                         ->valuedouble);
         return WF_ERR_INVALID_ARG;
     }
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength"), NULL) &&
-        len > (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength")->valuedouble) {
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength"),
+            NULL) &&
+        len > (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema,
+                                                       "maxLength")
+                  ->valuedouble) {
         wf_ctx_error(ctx, path, "must not be longer than %lld bytes",
-                     (long long)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength")->valuedouble);
+                     (long long)cJSON_GetObjectItemCaseSensitive(
+                         (cJSON *)schema, "maxLength")
+                         ->valuedouble);
         return WF_ERR_INVALID_ARG;
     }
 
     graphemes = wf_utf8_grapheme_count(value->valuestring);
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minGraphemes"), NULL) &&
-        graphemes < (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minGraphemes")->valuedouble) {
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minGraphemes"),
+            NULL) &&
+        graphemes < (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema,
+                                                             "minGraphemes")
+                        ->valuedouble) {
         wf_ctx_error(ctx, path, "must not be shorter than %lld graphemes",
-                     (long long)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minGraphemes")->valuedouble);
+                     (long long)cJSON_GetObjectItemCaseSensitive(
+                         (cJSON *)schema, "minGraphemes")
+                         ->valuedouble);
         return WF_ERR_INVALID_ARG;
     }
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxGraphemes"), NULL) &&
-        graphemes > (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxGraphemes")->valuedouble) {
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxGraphemes"),
+            NULL) &&
+        graphemes > (size_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema,
+                                                             "maxGraphemes")
+                        ->valuedouble) {
         wf_ctx_error(ctx, path, "must not be longer than %lld graphemes",
-                     (long long)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxGraphemes")->valuedouble);
+                     (long long)cJSON_GetObjectItemCaseSensitive(
+                         (cJSON *)schema, "maxGraphemes")
+                         ->valuedouble);
         return WF_ERR_INVALID_ARG;
     }
 
@@ -851,9 +907,9 @@ static wf_status wf_validate_string_schema(wf_validation_ctx *ctx,
 }
 
 static wf_status wf_validate_integer_schema(wf_validation_ctx *ctx,
-                                           const cJSON *schema,
-                                           const cJSON *value,
-                                           const char *path) {
+                                            const cJSON *schema,
+                                            const cJSON *value,
+                                            const char *path) {
     const cJSON *item;
     int64_t integer;
     int64_t limit;
@@ -885,12 +941,19 @@ static wf_status wf_validate_integer_schema(wf_validation_ctx *ctx,
         }
     }
 
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minimum"), &limit) && integer < limit) {
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minimum"),
+            &limit) &&
+        integer < limit) {
         wf_ctx_error(ctx, path, "must not be less than %lld", (long long)limit);
         return WF_ERR_INVALID_ARG;
     }
-    if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maximum"), &limit) && integer > limit) {
-        wf_ctx_error(ctx, path, "must not be greater than %lld", (long long)limit);
+    if (wf_is_json_integer(
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maximum"),
+            &limit) &&
+        integer > limit) {
+        wf_ctx_error(ctx, path, "must not be greater than %lld",
+                     (long long)limit);
         return WF_ERR_INVALID_ARG;
     }
 
@@ -898,9 +961,9 @@ static wf_status wf_validate_integer_schema(wf_validation_ctx *ctx,
 }
 
 static wf_status wf_validate_boolean_schema(wf_validation_ctx *ctx,
-                                           const cJSON *schema,
-                                           const cJSON *value,
-                                           const char *path) {
+                                            const cJSON *schema,
+                                            const cJSON *value,
+                                            const char *path) {
     const cJSON *item;
 
     if (!cJSON_IsBool(value)) {
@@ -910,7 +973,8 @@ static wf_status wf_validate_boolean_schema(wf_validation_ctx *ctx,
 
     item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "const");
     if (cJSON_IsBool(item) && cJSON_IsTrue(item) != cJSON_IsTrue(value)) {
-        wf_ctx_error(ctx, path, "must be %s", cJSON_IsTrue(item) ? "true" : "false");
+        wf_ctx_error(ctx, path, "must be %s",
+                     cJSON_IsTrue(item) ? "true" : "false");
         return WF_ERR_INVALID_ARG;
     }
 
@@ -967,14 +1031,16 @@ static wf_status wf_validate_bytes_schema(wf_validation_ctx *ctx,
     }
     free(subpath);
 
-    min_len_item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength");
+    min_len_item =
+        cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "minLength");
     if (wf_is_json_integer(min_len_item, NULL) &&
         decoded_len < (size_t)min_len_item->valuedouble) {
         wf_ctx_error(ctx, path, "must not be smaller than %lld bytes",
                      (long long)min_len_item->valuedouble);
         return WF_ERR_INVALID_ARG;
     }
-    max_len_item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength");
+    max_len_item =
+        cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxLength");
     if (wf_is_json_integer(max_len_item, NULL) &&
         decoded_len > (size_t)max_len_item->valuedouble) {
         wf_ctx_error(ctx, path, "must not be larger than %lld bytes",
@@ -986,9 +1052,9 @@ static wf_status wf_validate_bytes_schema(wf_validation_ctx *ctx,
 }
 
 static wf_status wf_validate_cid_link_schema(wf_validation_ctx *ctx,
-                                            const cJSON *schema,
-                                            const cJSON *value,
-                                            const char *path) {
+                                             const cJSON *schema,
+                                             const cJSON *value,
+                                             const char *path) {
     const cJSON *link;
     char *subpath;
 
@@ -1000,7 +1066,8 @@ static wf_status wf_validate_cid_link_schema(wf_validation_ctx *ctx,
 
     link = cJSON_GetObjectItemCaseSensitive((cJSON *)value, "$link");
     subpath = wf_path_join(path, "$link");
-    if (!wf_is_json_string(link) || !wf_is_valid_cid_string(link->valuestring)) {
+    if (!wf_is_json_string(link) ||
+        !wf_is_valid_cid_string(link->valuestring)) {
         wf_ctx_simple(ctx, subpath ? subpath : path, "must be a valid CID");
         free(subpath);
         return WF_ERR_INVALID_ARG;
@@ -1009,11 +1076,9 @@ static wf_status wf_validate_cid_link_schema(wf_validation_ctx *ctx,
     return WF_OK;
 }
 
-static wf_status wf_validate_token_schema_with_expected(wf_validation_ctx *ctx,
-                                                        const cJSON *schema,
-                                                        const cJSON *value,
-                                                        const char *path,
-                                                        const char *expected_value) {
+static wf_status wf_validate_token_schema_with_expected(
+    wf_validation_ctx *ctx, const cJSON *schema, const cJSON *value,
+    const char *path, const char *expected_value) {
     const cJSON *const_item;
     const char *expected;
 
@@ -1042,10 +1107,8 @@ static wf_status wf_validate_token_schema_with_expected(wf_validation_ctx *ctx,
 static wf_status wf_validate_schema(wf_validation_ctx *ctx,
                                     const wf_lexicon_registry *registry,
                                     const char *current_lexicon_id,
-                                    const cJSON *schema,
-                                    const cJSON *value,
-                                    const char *path,
-                                    int depth,
+                                    const cJSON *schema, const cJSON *value,
+                                    const char *path, int depth,
                                     const char *expected_token_value) {
     const char *type;
 
@@ -1065,18 +1128,22 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
     }
 
     if (strcmp(type, "record") == 0) {
-        const cJSON *body = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "record");
+        const cJSON *body =
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "record");
         if (!cJSON_IsObject(body)) {
             wf_ctx_simple(ctx, path, "record schema is missing a record body");
             return WF_ERR_INVALID_ARG;
         }
-        return wf_validate_schema(ctx, registry, current_lexicon_id, body, value, path, depth + 1, NULL);
+        return wf_validate_schema(ctx, registry, current_lexicon_id, body,
+                                  value, path, depth + 1, NULL);
     }
     if (strcmp(type, "object") == 0) {
-        return wf_validate_object_schema(ctx, registry, current_lexicon_id, schema, value, path, depth);
+        return wf_validate_object_schema(ctx, registry, current_lexicon_id,
+                                         schema, value, path, depth);
     }
     if (strcmp(type, "array") == 0) {
-        return wf_validate_array_schema(ctx, registry, current_lexicon_id, schema, value, path, depth);
+        return wf_validate_array_schema(ctx, registry, current_lexicon_id,
+                                        schema, value, path, depth);
     }
     if (strcmp(type, "string") == 0) {
         return wf_validate_string_schema(ctx, schema, value, path);
@@ -1097,15 +1164,18 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         return wf_validate_unknown_schema(ctx, schema, value, path);
     }
     if (strcmp(type, "query") == 0) {
-        const cJSON *params = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "parameters");
+        const cJSON *params =
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "parameters");
         if (!cJSON_IsObject(params)) {
             wf_ctx_simple(ctx, path, "query schema is missing parameters");
             return WF_ERR_INVALID_ARG;
         }
-        return wf_validate_schema(ctx, registry, current_lexicon_id, params, value, path, depth + 1, NULL);
+        return wf_validate_schema(ctx, registry, current_lexicon_id, params,
+                                  value, path, depth + 1, NULL);
     }
     if (strcmp(type, "procedure") == 0) {
-        const cJSON *input = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "input");
+        const cJSON *input =
+            cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "input");
         const cJSON *inner;
         if (!cJSON_IsObject(input)) {
             wf_ctx_simple(ctx, path, "procedure schema is missing input");
@@ -1113,16 +1183,20 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         }
         inner = cJSON_GetObjectItemCaseSensitive((cJSON *)input, "schema");
         if (!cJSON_IsObject(inner)) {
-            wf_ctx_simple(ctx, path, "procedure input schema is missing schema body");
+            wf_ctx_simple(ctx, path,
+                          "procedure input schema is missing schema body");
             return WF_ERR_INVALID_ARG;
         }
-        return wf_validate_schema(ctx, registry, current_lexicon_id, inner, value, path, depth + 1, NULL);
+        return wf_validate_schema(ctx, registry, current_lexicon_id, inner,
+                                  value, path, depth + 1, NULL);
     }
     if (strcmp(type, "params") == 0) {
-        return wf_validate_object_schema(ctx, registry, current_lexicon_id, schema, value, path, depth);
+        return wf_validate_object_schema(ctx, registry, current_lexicon_id,
+                                         schema, value, path, depth);
     }
     if (strcmp(type, "subscription") == 0) {
-        wf_ctx_simple(ctx, path, "subscription schemas have no request-body validation");
+        wf_ctx_simple(ctx, path,
+                      "subscription schemas have no request-body validation");
         return WF_OK;
     }
     if (strcmp(type, "blob") == 0) {
@@ -1141,15 +1215,21 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
 
         type_item = cJSON_GetObjectItemCaseSensitive((cJSON *)value, "$type");
         accept = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "accept");
-        has_constraints = cJSON_IsArray(accept) || cJSON_IsNumber(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxSize"));
+        has_constraints = cJSON_IsArray(accept) ||
+                          cJSON_IsNumber(cJSON_GetObjectItemCaseSensitive(
+                              (cJSON *)schema, "maxSize"));
 
-        if (wf_is_json_string(type_item) && strcmp(type_item->valuestring, "blob") == 0) {
+        if (wf_is_json_string(type_item) &&
+            strcmp(type_item->valuestring, "blob") == 0) {
             ref = cJSON_GetObjectItemCaseSensitive((cJSON *)value, "ref");
-            mime_type = cJSON_GetObjectItemCaseSensitive((cJSON *)value, "mimeType");
+            mime_type =
+                cJSON_GetObjectItemCaseSensitive((cJSON *)value, "mimeType");
             size = cJSON_GetObjectItemCaseSensitive((cJSON *)value, "size");
 
             subpath = wf_path_join(path, "ref");
-            if (!cJSON_IsObject(ref) || wf_validate_cid_link_schema(ctx, schema, ref, subpath ? subpath : path) != WF_OK) {
+            if (!cJSON_IsObject(ref) ||
+                wf_validate_cid_link_schema(
+                    ctx, schema, ref, subpath ? subpath : path) != WF_OK) {
                 free(subpath);
                 return WF_ERR_INVALID_ARG;
             }
@@ -1157,7 +1237,8 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
 
             subpath = wf_path_join(path, "mimeType");
             if (!wf_is_json_string(mime_type)) {
-                wf_ctx_simple(ctx, subpath ? subpath : path, "must be a string");
+                wf_ctx_simple(ctx, subpath ? subpath : path,
+                              "must be a string");
                 free(subpath);
                 return WF_ERR_INVALID_ARG;
             }
@@ -1173,7 +1254,8 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
                     }
                 }
                 if (!found) {
-                    wf_ctx_simple(ctx, subpath ? subpath : path, "must match one of the accepted MIME types");
+                    wf_ctx_simple(ctx, subpath ? subpath : path,
+                                  "must match one of the accepted MIME types");
                     free(subpath);
                     return WF_ERR_INVALID_ARG;
                 }
@@ -1182,14 +1264,23 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
 
             subpath = wf_path_join(path, "size");
             if (!wf_is_json_integer(size, NULL)) {
-                wf_ctx_simple(ctx, subpath ? subpath : path, "must be an integer");
+                wf_ctx_simple(ctx, subpath ? subpath : path,
+                              "must be an integer");
                 free(subpath);
                 return WF_ERR_INVALID_ARG;
             }
-            if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxSize"), NULL) &&
-                (int64_t)size->valuedouble > (int64_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxSize")->valuedouble) {
-                wf_ctx_error(ctx, subpath ? subpath : path, "must not be greater than %lld",
-                             (long long)cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "maxSize")->valuedouble);
+            if (wf_is_json_integer(cJSON_GetObjectItemCaseSensitive(
+                                       (cJSON *)schema, "maxSize"),
+                                   NULL) &&
+                (int64_t)size->valuedouble >
+                    (int64_t)cJSON_GetObjectItemCaseSensitive((cJSON *)schema,
+                                                              "maxSize")
+                        ->valuedouble) {
+                wf_ctx_error(ctx, subpath ? subpath : path,
+                             "must not be greater than %lld",
+                             (long long)cJSON_GetObjectItemCaseSensitive(
+                                 (cJSON *)schema, "maxSize")
+                                 ->valuedouble);
                 free(subpath);
                 return WF_ERR_INVALID_ARG;
             }
@@ -1200,7 +1291,9 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         /* atproto requires a BlobRef object ($type:"blob", ref, mimeType,
          * size). A bare cid-link ({"$link":...}) is NOT a valid blob value. */
         if (has_constraints) {
-            wf_ctx_simple(ctx, path, "must be a full blob object to validate size or MIME type constraints");
+            wf_ctx_simple(ctx, path,
+                          "must be a full blob object to validate size or MIME "
+                          "type constraints");
         } else {
             wf_ctx_simple(ctx, path, "must be a blob object");
         }
@@ -1220,7 +1313,9 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         wf_status status;
 
         if (!cJSON_IsObject(value)) {
-            wf_ctx_simple(ctx, path, "must be an object which includes the \"$type\" property");
+            wf_ctx_simple(
+                ctx, path,
+                "must be an object which includes the \"$type\" property");
             return WF_ERR_INVALID_ARG;
         }
         type_item = cJSON_GetObjectItemCaseSensitive((cJSON *)value, "$type");
@@ -1234,15 +1329,19 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         canonical_type = wf_canonicalize_ref(NULL, type_item->valuestring);
         if (!canonical_type) {
             subpath = wf_path_join(path, "$type");
-            wf_ctx_simple(ctx, subpath ? subpath : path, "must be a valid type reference");
+            wf_ctx_simple(ctx, subpath ? subpath : path,
+                          "must be a valid type reference");
             free(subpath);
             return WF_ERR_INVALID_ARG;
         }
         refs = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "refs");
         if (canonical_type && cJSON_IsArray(refs)) {
             cJSON_ArrayForEach(ref_item, refs) {
-                canonical_ref = wf_canonicalize_ref(current_lexicon_id, wf_is_json_string(ref_item) ? ref_item->valuestring : NULL);
-                if (canonical_ref && strcmp(canonical_ref, canonical_type) == 0) {
+                canonical_ref = wf_canonicalize_ref(
+                    current_lexicon_id,
+                    wf_is_json_string(ref_item) ? ref_item->valuestring : NULL);
+                if (canonical_ref &&
+                    strcmp(canonical_ref, canonical_type) == 0) {
                     matched = 1;
                     free(canonical_ref);
                     canonical_ref = NULL;
@@ -1254,10 +1353,12 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         }
 
         if (!matched) {
-            closed_item = cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "closed");
+            closed_item =
+                cJSON_GetObjectItemCaseSensitive((cJSON *)schema, "closed");
             if (cJSON_IsBool(closed_item) && cJSON_IsTrue(closed_item)) {
                 subpath = wf_path_join(path, "$type");
-                wf_ctx_simple(ctx, subpath ? subpath : path, "must be one of the union refs");
+                wf_ctx_simple(ctx, subpath ? subpath : path,
+                              "must be one of the union refs");
                 free(subpath);
                 free(canonical_type);
                 return WF_ERR_INVALID_ARG;
@@ -1266,13 +1367,13 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
             return WF_OK;
         }
 
-        resolved_schema = wf_resolve_schema_ref(registry, current_lexicon_id,
-                                                type_item->valuestring,
-                                                &resolved_lexicon_id,
-                                                &canonical_ref);
+        resolved_schema = wf_resolve_schema_ref(
+            registry, current_lexicon_id, type_item->valuestring,
+            &resolved_lexicon_id, &canonical_ref);
         if (!resolved_schema) {
             subpath = wf_path_join(path, "$type");
-            wf_ctx_error(ctx, subpath ? subpath : path, "references an unknown definition");
+            wf_ctx_error(ctx, subpath ? subpath : path,
+                         "references an unknown definition");
             free(subpath);
             free(canonical_type);
             free(canonical_ref);
@@ -1282,15 +1383,17 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
         {
             const char *resolved_type = wf_schema_type(resolved_schema);
             if (resolved_type && strcmp(resolved_type, "token") == 0) {
-                status = wf_validate_token_schema_with_expected(ctx, resolved_schema, value, path, canonical_type);
+                status = wf_validate_token_schema_with_expected(
+                    ctx, resolved_schema, value, path, canonical_type);
                 free(canonical_type);
                 free(canonical_ref);
                 return status;
             }
         }
 
-        status = wf_validate_schema(ctx, registry, resolved_lexicon_id,
-                                    resolved_schema, value, path, depth + 1, NULL);
+        status =
+            wf_validate_schema(ctx, registry, resolved_lexicon_id,
+                               resolved_schema, value, path, depth + 1, NULL);
         free(canonical_type);
         free(canonical_ref);
         return status;
@@ -1307,43 +1410,44 @@ static wf_status wf_validate_schema(wf_validation_ctx *ctx,
             wf_ctx_simple(ctx, path, "reference schema is missing a ref");
             return WF_ERR_INVALID_ARG;
         }
-        resolved_schema = wf_resolve_schema_ref(registry, current_lexicon_id,
-                                                ref_item->valuestring,
-                                                &resolved_lexicon_id,
-                                                &canonical_ref);
+        resolved_schema = wf_resolve_schema_ref(
+            registry, current_lexicon_id, ref_item->valuestring,
+            &resolved_lexicon_id, &canonical_ref);
         if (!resolved_schema) {
-            wf_ctx_error(ctx, path, "references an unknown definition: %s", ref_item->valuestring);
+            wf_ctx_error(ctx, path, "references an unknown definition: %s",
+                         ref_item->valuestring);
             free(canonical_ref);
             return WF_ERR_INVALID_ARG;
         }
         {
             const char *resolved_type = wf_schema_type(resolved_schema);
             if (resolved_type && strcmp(resolved_type, "token") == 0) {
-                status = wf_validate_token_schema_with_expected(ctx, resolved_schema, value, path, canonical_ref);
+                status = wf_validate_token_schema_with_expected(
+                    ctx, resolved_schema, value, path, canonical_ref);
                 free(canonical_ref);
                 return status;
             }
         }
-        status = wf_validate_schema(ctx, registry, resolved_lexicon_id,
-                                    resolved_schema, value, path, depth + 1, NULL);
+        status =
+            wf_validate_schema(ctx, registry, resolved_lexicon_id,
+                               resolved_schema, value, path, depth + 1, NULL);
         free(canonical_ref);
         return status;
     }
     if (strcmp(type, "token") == 0) {
-        return wf_validate_token_schema_with_expected(ctx, schema, value, path, expected_token_value);
+        return wf_validate_token_schema_with_expected(ctx, schema, value, path,
+                                                      expected_token_value);
     }
 
     wf_ctx_error(ctx, path, "unsupported lexicon type: %s", type);
     return WF_ERR_INVALID_ARG;
 }
 
-static wf_validate_result wf_validate_with_def(const wf_lexicon_registry *registry,
-                                               const char *lexicon_id,
-                                               const cJSON *def,
-                                               const char *expected_token_value,
-                                               const char *root_path,
-                                               const char *json,
-                                               size_t json_len) {
+static wf_validate_result
+wf_validate_with_def(const wf_lexicon_registry *registry,
+                     const char *lexicon_id, const cJSON *def,
+                     const char *expected_token_value, const char *root_path,
+                     const char *json, size_t json_len) {
     wf_validation_ctx ctx = {0};
     cJSON *value;
     const cJSON *schema;
@@ -1357,7 +1461,8 @@ static wf_validate_result wf_validate_with_def(const wf_lexicon_registry *regist
 
     schema = wf_def_body_for_validation(def);
     if (!schema) {
-        wf_ctx_simple(&ctx, root_path, "invalid or unsupported lexicon definition");
+        wf_ctx_simple(&ctx, root_path,
+                      "invalid or unsupported lexicon definition");
         cJSON_Delete(value);
         return (wf_validate_result){0, ctx.head};
     }
@@ -1365,9 +1470,11 @@ static wf_validate_result wf_validate_with_def(const wf_lexicon_registry *regist
     {
         const char *schema_type = wf_schema_type(schema);
         if (schema_type && strcmp(schema_type, "token") == 0) {
-            (void)wf_validate_token_schema_with_expected(&ctx, schema, value, root_path, expected_token_value);
+            (void)wf_validate_token_schema_with_expected(
+                &ctx, schema, value, root_path, expected_token_value);
         } else {
-            (void)wf_validate_schema(&ctx, registry, lexicon_id, schema, value, root_path, 0, NULL);
+            (void)wf_validate_schema(&ctx, registry, lexicon_id, schema, value,
+                                     root_path, 0, NULL);
         }
     }
 
@@ -1431,8 +1538,9 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
     lexicon_item = cJSON_GetObjectItemCaseSensitive(root, "lexicon");
     id_item = cJSON_GetObjectItemCaseSensitive(root, "id");
     defs_item = cJSON_GetObjectItemCaseSensitive(root, "defs");
-    if (!wf_is_json_integer(lexicon_item, NULL) || (int)lexicon_item->valuedouble != 1 ||
-        !wf_is_json_string(id_item) || !cJSON_IsObject(defs_item) ||
+    if (!wf_is_json_integer(lexicon_item, NULL) ||
+        (int)lexicon_item->valuedouble != 1 || !wf_is_json_string(id_item) ||
+        !cJSON_IsObject(defs_item) ||
         !wf_syntax_nsid_is_valid(id_item->valuestring)) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
@@ -1474,7 +1582,8 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
 
 wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,
                                       const char *lexicon_id,
-                                      const char *record_json, size_t json_len) {
+                                      const char *record_json,
+                                      size_t json_len) {
     const wf_lexicon_doc *doc;
     const cJSON *def;
     const char *expected = NULL;
@@ -1509,8 +1618,8 @@ wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,
     }
 
     {
-        wf_validate_result result = wf_validate_with_def(registry, doc->id, def, expected,
-                                                          "record", record_json, json_len);
+        wf_validate_result result = wf_validate_with_def(
+            registry, doc->id, def, expected, "record", record_json, json_len);
         free(expected_owned);
         return result;
     }
@@ -1567,12 +1676,14 @@ wf_validate_result wf_validate_value(const wf_lexicon_registry *registry,
     {
         const char *def_type = wf_schema_type(def);
         if (def_type && strcmp(def_type, "token") == 0) {
-            expected_owned = wf_canonicalize_ref(target_lexicon_id, target_def_id);
+            expected_owned =
+                wf_canonicalize_ref(target_lexicon_id, target_def_id);
             expected = expected_owned;
         }
     }
 
-    result = wf_validate_with_def(registry, doc->id, def, expected, "value", json, json_len);
+    result = wf_validate_with_def(registry, doc->id, def, expected, "value",
+                                  json, json_len);
     free(expected_owned);
     free(lookup_lexicon_id);
     return result;
@@ -1625,10 +1736,10 @@ static int wf_path_is_json(const char *name) {
     return len >= 5 && strcmp(name + len - 5, ".json") == 0;
 }
 
-static void wf_lexicon_registry_load_dir_recursive(wf_lexicon_registry *registry,
-                                                   const char *dir,
-                                                   size_t *loaded_out,
-                                                   size_t *skipped_out) {
+static void
+wf_lexicon_registry_load_dir_recursive(wf_lexicon_registry *registry,
+                                       const char *dir, size_t *loaded_out,
+                                       size_t *skipped_out) {
     DIR *d = opendir(dir);
     struct dirent *e;
 
@@ -1648,7 +1759,8 @@ static void wf_lexicon_registry_load_dir_recursive(wf_lexicon_registry *registry
         }
 
         if (S_ISDIR(st.st_mode)) {
-            wf_lexicon_registry_load_dir_recursive(registry, path, loaded_out, skipped_out);
+            wf_lexicon_registry_load_dir_recursive(registry, path, loaded_out,
+                                                   skipped_out);
         } else if (S_ISREG(st.st_mode) && wf_path_is_json(name)) {
             char *contents = NULL;
             size_t len = 0;
@@ -1656,10 +1768,13 @@ static void wf_lexicon_registry_load_dir_recursive(wf_lexicon_registry *registry
             if (!contents) {
                 (*skipped_out)++;
             } else {
-                wf_status status = wf_lexicon_registry_load(registry, contents, len);
+                wf_status status =
+                    wf_lexicon_registry_load(registry, contents, len);
                 free(contents);
-                if (status == WF_OK) (*loaded_out)++;
-                else (*skipped_out)++;
+                if (status == WF_OK)
+                    (*loaded_out)++;
+                else
+                    (*skipped_out)++;
             }
         }
         free(path);
@@ -1667,7 +1782,8 @@ static void wf_lexicon_registry_load_dir_recursive(wf_lexicon_registry *registry
     closedir(d);
 }
 
-wf_status wf_lexicon_registry_load_dir(wf_lexicon_registry *registry, const char *dir) {
+wf_status wf_lexicon_registry_load_dir(wf_lexicon_registry *registry,
+                                       const char *dir) {
     size_t loaded = 0;
     size_t skipped = 0;
     struct stat st;

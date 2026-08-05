@@ -27,7 +27,7 @@ extern "C" {
 typedef int MHD_socket;
 #define MHD_INVALID_SOCKET (-1)
 #define MHD_SIZE_UNKNOWN ((uint64_t)-1LL)
-#define MHD_CONTENT_READER_END_OF_STREAM ((ssize_t)-1)
+#define MHD_CONTENT_READER_END_OF_STREAM ((ssize_t) - 1)
 
 enum MHD_Result { MHD_NO = 0, MHD_YES = 1 };
 
@@ -76,8 +76,12 @@ struct MHD_Connection;
 struct MHD_Response;
 struct MHD_UpgradeResponseHandle;
 
-union MHD_ConnectionInfo { struct sockaddr *client_addr; };
-union MHD_DaemonInfo { uint16_t port; };
+union MHD_ConnectionInfo {
+    struct sockaddr *client_addr;
+};
+union MHD_DaemonInfo {
+    uint16_t port;
+};
 
 enum MHD_RequestTerminationCode {
     MHD_REQUEST_TERMINATED_COMPLETED_OK = 0,
@@ -89,31 +93,35 @@ typedef enum MHD_Result (*MHD_AccessHandlerCallback)(
     const char *method, const char *version, const char *upload_data,
     size_t *upload_data_size, void **con_cls);
 typedef enum MHD_Result (*MHD_KeyValueIterator)(void *cls,
-    enum MHD_ValueKind kind, const char *key, const char *value);
-typedef ssize_t (*MHD_ContentReaderCallback)(void *cls, uint64_t pos,
-                                             char *buf, size_t max);
+                                                enum MHD_ValueKind kind,
+                                                const char *key,
+                                                const char *value);
+typedef ssize_t (*MHD_ContentReaderCallback)(void *cls, uint64_t pos, char *buf,
+                                             size_t max);
 typedef void (*MHD_ContentReaderFreeCallback)(void *cls);
-typedef void (*MHD_RequestCompletedCallback)(void *cls,
-    struct MHD_Connection *connection, void **con_cls,
+typedef void (*MHD_RequestCompletedCallback)(
+    void *cls, struct MHD_Connection *connection, void **con_cls,
     enum MHD_RequestTerminationCode toe);
-typedef void (*MHD_NotifyConnectionCallback)(void *cls,
-    struct MHD_Connection *connection, void **socket_context,
+typedef void (*MHD_NotifyConnectionCallback)(
+    void *cls, struct MHD_Connection *connection, void **socket_context,
     enum MHD_ConnectionNotificationCode toe);
-typedef void (*MHD_UpgradeHandler)(void *cls,
-    struct MHD_Connection *connection, void *con_cls, const char *extra_in,
-    size_t extra_in_size, MHD_socket sock,
-    struct MHD_UpgradeResponseHandle *urh);
+typedef void (*MHD_UpgradeHandler)(void *cls, struct MHD_Connection *connection,
+                                   void *con_cls, const char *extra_in,
+                                   size_t extra_in_size, MHD_socket sock,
+                                   struct MHD_UpgradeResponseHandle *urh);
 
 struct MHD_Daemon *MHD_start_daemon(unsigned int flags, uint16_t port,
                                     void *apc, void *apc_cls,
                                     MHD_AccessHandlerCallback dh, void *dh_cls,
                                     ...);
 void MHD_stop_daemon(struct MHD_Daemon *daemon);
-struct MHD_Response *MHD_create_response_from_buffer(
-    size_t size, void *buffer, enum MHD_ResponseMemoryMode mode);
-struct MHD_Response *MHD_create_response_from_callback(
-    uint64_t size, size_t block_size, MHD_ContentReaderCallback crc,
-    void *crc_cls, MHD_ContentReaderFreeCallback crfc);
+struct MHD_Response *
+MHD_create_response_from_buffer(size_t size, void *buffer,
+                                enum MHD_ResponseMemoryMode mode);
+struct MHD_Response *
+MHD_create_response_from_callback(uint64_t size, size_t block_size,
+                                  MHD_ContentReaderCallback crc, void *crc_cls,
+                                  MHD_ContentReaderFreeCallback crfc);
 struct MHD_Response *MHD_create_response_for_upgrade(MHD_UpgradeHandler uh,
                                                      void *uh_cls);
 enum MHD_Result MHD_add_response_header(struct MHD_Response *response,
@@ -128,10 +136,11 @@ const char *MHD_lookup_connection_value(struct MHD_Connection *connection,
                                         const char *key);
 int MHD_get_connection_values(struct MHD_Connection *connection,
                               enum MHD_ValueKind kind,
-                              MHD_KeyValueIterator iterator, void *iterator_cls);
-const union MHD_ConnectionInfo *MHD_get_connection_info(
-    struct MHD_Connection *connection, enum MHD_ConnectionInfoType info_type,
-    ...);
+                              MHD_KeyValueIterator iterator,
+                              void *iterator_cls);
+const union MHD_ConnectionInfo *
+MHD_get_connection_info(struct MHD_Connection *connection,
+                        enum MHD_ConnectionInfoType info_type, ...);
 const union MHD_DaemonInfo *MHD_get_daemon_info(struct MHD_Daemon *daemon,
                                                 enum MHD_DaemonInfoType type,
                                                 ...);

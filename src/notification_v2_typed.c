@@ -52,8 +52,9 @@ static void wf_notif_v2_strip_key(cJSON *obj, const char *key) {
 
 /* ---- activitySubscription (#activitySubscription: post/reply) ---- */
 
-static wf_status wf_notif_v2_parse_activity_subscription(
-    cJSON *obj, wf_notif_v2_activity_subscription *a) {
+static wf_status
+wf_notif_v2_parse_activity_subscription(cJSON *obj,
+                                        wf_notif_v2_activity_subscription *a) {
     wf_status status = WF_OK;
     cJSON *post = cJSON_GetObjectItemCaseSensitive(obj, "post");
     cJSON *reply = cJSON_GetObjectItemCaseSensitive(obj, "reply");
@@ -68,8 +69,8 @@ static wf_status wf_notif_v2_parse_activity_subscription(
     return status;
 }
 
-static void wf_notif_v2_activity_subscription_reset(
-    wf_notif_v2_activity_subscription *a) {
+static void
+wf_notif_v2_activity_subscription_reset(wf_notif_v2_activity_subscription *a) {
     if (!a) {
         return;
     }
@@ -147,8 +148,9 @@ void wf_notif_v2_activity_subscription_result_free(
 
 /* ---- listActivitySubscriptions output (subscriptions: profileView[]) ---- */
 
-static wf_status wf_notif_v2_read_subscription_view(
-    cJSON *obj, wf_notif_v2_subscription_view *v) {
+static wf_status
+wf_notif_v2_read_subscription_view(cJSON *obj,
+                                   wf_notif_v2_subscription_view *v) {
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
     cJSON *handle = cJSON_GetObjectItemCaseSensitive(obj, "handle");
@@ -169,8 +171,8 @@ static wf_status wf_notif_v2_read_subscription_view(
     return status;
 }
 
-static void wf_notif_v2_subscription_view_reset(
-    wf_notif_v2_subscription_view *v) {
+static void
+wf_notif_v2_subscription_view_reset(wf_notif_v2_subscription_view *v) {
     if (!v) {
         return;
     }
@@ -319,14 +321,15 @@ void wf_notif_v2_preferences_free(wf_notif_v2_preferences *p) {
     memset(p, 0, sizeof(*p));
 }
 
-/* ---- putPreferencesV2 input builder (raw JSON -> structured generated input) */
+/* ---- putPreferencesV2 input builder (raw JSON -> structured generated input)
+ */
 
 static wf_lex_app_bsky_notification_defs_chat_preference *
 wf_notif_v2_make_chat_pref(cJSON *o, wf_status *st) {
     *st = WF_OK;
     wf_lex_app_bsky_notification_defs_chat_preference *p =
         (wf_lex_app_bsky_notification_defs_chat_preference *)calloc(1,
-                                                                     sizeof(*p));
+                                                                    sizeof(*p));
     if (!p) {
         *st = WF_ERR_ALLOC;
         return NULL;
@@ -409,7 +412,8 @@ static void wf_notif_v2_prefs_v2_input_free(
 }
 
 static wf_status wf_notif_v2_build_prefs_v2_input(
-    cJSON *root, wf_lex_app_bsky_notification_put_preferences_v2_main_input *in) {
+    cJSON *root,
+    wf_lex_app_bsky_notification_put_preferences_v2_main_input *in) {
     wf_status status = WF_OK;
     cJSON *child = root->child;
     while (child) {
@@ -643,7 +647,8 @@ wf_status wf_notification_v2_preferences_build(
 }
 
 /* Read one filterablePreference sub-object into `p` (all fields required). */
-static void wf_notif_v2_read_filterable(cJSON *o, wf_notif_v2_filterable_pref *p) {
+static void wf_notif_v2_read_filterable(cJSON *o,
+                                        wf_notif_v2_filterable_pref *p) {
     cJSON *include = cJSON_GetObjectItemCaseSensitive(o, "include");
     cJSON *list = cJSON_GetObjectItemCaseSensitive(o, "list");
     cJSON *push = cJSON_GetObjectItemCaseSensitive(o, "push");
@@ -684,7 +689,8 @@ static void wf_notif_v2_read_pref(cJSON *o, wf_notif_v2_pref *p) {
     }
 }
 
-/* Read the deprecated chatPreference sub-object into `p` (all fields required). */
+/* Read the deprecated chatPreference sub-object into `p` (all fields required).
+ */
 static void wf_notif_v2_read_chat(cJSON *o, wf_notif_v2_chat_pref *p) {
     cJSON *include = cJSON_GetObjectItemCaseSensitive(o, "include");
     cJSON *push = cJSON_GetObjectItemCaseSensitive(o, "push");
@@ -704,8 +710,9 @@ static void wf_notif_v2_read_chat(cJSON *o, wf_notif_v2_chat_pref *p) {
     }
 }
 
-wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
-                                               wf_notification_v2_preferences *out) {
+wf_status
+wf_notification_v2_preferences_parse(const char *json, size_t len,
+                                     wf_notification_v2_preferences *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -734,11 +741,11 @@ wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
                      unverified = {0}, verified = {0};
 
     cJSON *o;
-#define READ_SLOT(field, name, reader)                                       \
-    do {                                                                     \
-        o = cJSON_GetObjectItemCaseSensitive(root, name);                    \
-        if (!cJSON_IsObject(o)) goto invalid;                                \
-        reader(o, &field);                                                   \
+#define READ_SLOT(field, name, reader)                                         \
+    do {                                                                       \
+        o = cJSON_GetObjectItemCaseSensitive(root, name);                      \
+        if (!cJSON_IsObject(o)) goto invalid;                                  \
+        reader(o, &field);                                                     \
     } while (0)
 
     READ_SLOT(chat, "chat", wf_notif_v2_read_chat);
@@ -749,22 +756,22 @@ wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
     READ_SLOT(quote, "quote", wf_notif_v2_read_filterable);
     READ_SLOT(reply, "reply", wf_notif_v2_read_filterable);
     READ_SLOT(repost, "repost", wf_notif_v2_read_filterable);
-    READ_SLOT(repost_via_repost, "repostViaRepost", wf_notif_v2_read_filterable);
+    READ_SLOT(repost_via_repost, "repostViaRepost",
+              wf_notif_v2_read_filterable);
     READ_SLOT(starterpack_joined, "starterpackJoined", wf_notif_v2_read_pref);
     READ_SLOT(subscribed_post, "subscribedPost", wf_notif_v2_read_pref);
     READ_SLOT(unverified, "unverified", wf_notif_v2_read_pref);
     READ_SLOT(verified, "verified", wf_notif_v2_read_pref);
 #undef READ_SLOT
 
-    if (!chat.has_include || !chat.has_push ||
-        !follow.has_include || !follow.has_list || !follow.has_push ||
-        !like.has_include || !like.has_list || !like.has_push ||
-        !like_via_repost.has_include || !like_via_repost.has_list ||
-        !like_via_repost.has_push || !mention.has_include ||
-        !mention.has_list || !mention.has_push || !quote.has_include ||
-        !quote.has_list || !quote.has_push || !reply.has_include ||
-        !reply.has_list || !reply.has_push || !repost.has_include ||
-        !repost.has_list || !repost.has_push ||
+    if (!chat.has_include || !chat.has_push || !follow.has_include ||
+        !follow.has_list || !follow.has_push || !like.has_include ||
+        !like.has_list || !like.has_push || !like_via_repost.has_include ||
+        !like_via_repost.has_list || !like_via_repost.has_push ||
+        !mention.has_include || !mention.has_list || !mention.has_push ||
+        !quote.has_include || !quote.has_list || !quote.has_push ||
+        !reply.has_include || !reply.has_list || !reply.has_push ||
+        !repost.has_include || !repost.has_list || !repost.has_push ||
         !repost_via_repost.has_include || !repost_via_repost.has_list ||
         !repost_via_repost.has_push || !starterpack_joined.has_list ||
         !starterpack_joined.has_push || !subscribed_post.has_list ||
@@ -869,7 +876,8 @@ wf_status wf_agent_put_notification_preferences_v2(
 
 /* Build the structured generated input from the owned typed prefs struct. The
  * generated input borrows `include` string pointers from our static table, so
- * no sub-struct string fields need freeing (only the sub-structs themselves). */
+ * no sub-struct string fields need freeing (only the sub-structs themselves).
+ */
 static wf_status wf_notif_v2_prefs_to_lex_input(
     const wf_notification_v2_preferences *p,
     wf_lex_app_bsky_notification_put_preferences_v2_main_input *in) {
@@ -880,7 +888,8 @@ static wf_status wf_notif_v2_prefs_to_lex_input(
             !wf_notif_v2_include_to_str(p->chat.include)) {
             return WF_ERR_INVALID_ARG;
         }
-        wf_lex_app_bsky_notification_defs_chat_preference *c = calloc(1, sizeof(*c));
+        wf_lex_app_bsky_notification_defs_chat_preference *c =
+            calloc(1, sizeof(*c));
         if (!c) {
             return WF_ERR_ALLOC;
         }
@@ -893,48 +902,48 @@ static wf_status wf_notif_v2_prefs_to_lex_input(
         in->has_chat = true;
         in->chat = c;
     }
-#define FILL_FILTERABLE(slot, lexfield)                                      \
-    do {                                                                     \
-        if (p->has_##slot) {                                                 \
-            if (p->slot.has_include &&                                       \
-                !wf_notif_v2_include_to_str(p->slot.include)) {              \
-                return WF_ERR_INVALID_ARG;                                   \
-            }                                                                \
-            wf_lex_app_bsky_notification_defs_filterable_preference *f =     \
-                calloc(1, sizeof(*f));                                       \
-            if (!f) {                                                        \
-                return WF_ERR_ALLOC;                                         \
-            }                                                                \
-            if (p->slot.has_include) {                                       \
-                f->include = wf_notif_v2_include_to_str(p->slot.include);    \
-            }                                                                \
-            if (p->slot.has_list) {                                          \
-                f->list = p->slot.list != 0;                                 \
-            }                                                                \
-            if (p->slot.has_push) {                                          \
-                f->push = p->slot.push != 0;                                 \
-            }                                                                \
-            in->has_##slot = true;                                           \
-            in->lexfield = f;                                                \
-        }                                                                    \
+#define FILL_FILTERABLE(slot, lexfield)                                        \
+    do {                                                                       \
+        if (p->has_##slot) {                                                   \
+            if (p->slot.has_include &&                                         \
+                !wf_notif_v2_include_to_str(p->slot.include)) {                \
+                return WF_ERR_INVALID_ARG;                                     \
+            }                                                                  \
+            wf_lex_app_bsky_notification_defs_filterable_preference *f =       \
+                calloc(1, sizeof(*f));                                         \
+            if (!f) {                                                          \
+                return WF_ERR_ALLOC;                                           \
+            }                                                                  \
+            if (p->slot.has_include) {                                         \
+                f->include = wf_notif_v2_include_to_str(p->slot.include);      \
+            }                                                                  \
+            if (p->slot.has_list) {                                            \
+                f->list = p->slot.list != 0;                                   \
+            }                                                                  \
+            if (p->slot.has_push) {                                            \
+                f->push = p->slot.push != 0;                                   \
+            }                                                                  \
+            in->has_##slot = true;                                             \
+            in->lexfield = f;                                                  \
+        }                                                                      \
     } while (0)
-#define FILL_PREF(slot, lexfield)                                            \
-    do {                                                                     \
-        if (p->has_##slot) {                                                 \
-            wf_lex_app_bsky_notification_defs_preference *q =                \
-                calloc(1, sizeof(*q));                                       \
-            if (!q) {                                                        \
-                return WF_ERR_ALLOC;                                         \
-            }                                                                \
-            if (p->slot.has_list) {                                          \
-                q->list = p->slot.list != 0;                                 \
-            }                                                                \
-            if (p->slot.has_push) {                                          \
-                q->push = p->slot.push != 0;                                 \
-            }                                                                \
-            in->has_##slot = true;                                           \
-            in->lexfield = q;                                                \
-        }                                                                    \
+#define FILL_PREF(slot, lexfield)                                              \
+    do {                                                                       \
+        if (p->has_##slot) {                                                   \
+            wf_lex_app_bsky_notification_defs_preference *q =                  \
+                calloc(1, sizeof(*q));                                         \
+            if (!q) {                                                          \
+                return WF_ERR_ALLOC;                                           \
+            }                                                                  \
+            if (p->slot.has_list) {                                            \
+                q->list = p->slot.list != 0;                                   \
+            }                                                                  \
+            if (p->slot.has_push) {                                            \
+                q->push = p->slot.push != 0;                                   \
+            }                                                                  \
+            in->has_##slot = true;                                             \
+            in->lexfield = q;                                                  \
+        }                                                                      \
     } while (0)
 
     FILL_FILTERABLE(follow, follow);
@@ -1014,9 +1023,10 @@ wf_status wf_agent_put_notification_preferences_v2_typed(
     return status;
 }
 
-wf_status wf_agent_list_activity_subscriptions(
-    wf_agent *agent, int limit, const char *cursor,
-    wf_notif_v2_subscription_view_list *out) {
+wf_status
+wf_agent_list_activity_subscriptions(wf_agent *agent, int limit,
+                                     const char *cursor,
+                                     wf_notif_v2_subscription_view_list *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1028,8 +1038,8 @@ wf_status wf_agent_list_activity_subscriptions(
     }
 
     wf_notif_v2_subscription_view_list list = {0};
-    wf_lex_app_bsky_notification_list_activity_subscriptions_main_params params =
-        {0};
+    wf_lex_app_bsky_notification_list_activity_subscriptions_main_params
+        params = {0};
     if (limit > 0) {
         params.has_limit = true;
         params.limit = limit;
@@ -1050,7 +1060,7 @@ wf_status wf_agent_list_activity_subscriptions(
     }
 
     status = wf_notif_v2_parse_list_activity_subscriptions(res.body,
-                                                          res.body_len, &list);
+                                                           res.body_len, &list);
     wf_response_free(&res);
     if (status == WF_OK) {
         *out = list;
@@ -1105,7 +1115,7 @@ wf_status wf_agent_put_activity_subscription(
     }
 
     status = wf_notif_v2_parse_put_activity_subscription(res.body, res.body_len,
-                                                        out);
+                                                         out);
     wf_response_free(&res);
     return status;
 }

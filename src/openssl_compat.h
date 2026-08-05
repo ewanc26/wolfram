@@ -60,15 +60,33 @@ int RAND_bytes(unsigned char *buf, int len);
 /* ── EC / ECDSA (stubs) ────────────────────────────────────────────── */
 
 /* Opaque stub types — consumers never dereference these on Wii. */
-typedef struct { int dummy; } EC_KEY;
-typedef struct { int dummy; } EC_GROUP;
-typedef struct { int dummy; } EC_POINT;
-typedef struct { int dummy; } ECDSA_SIG;
-typedef struct { int dummy; } BIGNUM;
-typedef struct { int dummy; } EVP_MD_CTX;
-typedef struct { int dummy; } EVP_MD;
-typedef struct { int dummy; } EVP_CIPHER_CTX;
-typedef struct { int dummy; } EVP_CIPHER;
+typedef struct {
+    int dummy;
+} EC_KEY;
+typedef struct {
+    int dummy;
+} EC_GROUP;
+typedef struct {
+    int dummy;
+} EC_POINT;
+typedef struct {
+    int dummy;
+} ECDSA_SIG;
+typedef struct {
+    int dummy;
+} BIGNUM;
+typedef struct {
+    int dummy;
+} EVP_MD_CTX;
+typedef struct {
+    int dummy;
+} EVP_MD;
+typedef struct {
+    int dummy;
+} EVP_CIPHER_CTX;
+typedef struct {
+    int dummy;
+} EVP_CIPHER;
 
 #define NID_X9_62_prime256v1 415
 #define POINT_CONVERSION_COMPRESSED 2

@@ -37,9 +37,10 @@ extern "C" {
 
 /**
  * Map a DID to its public verification key as a `did:key:z...` (or bare
- * `z...` multibase) string, suitable for passing to wf_server_verify_service_auth
- * or wf_verify. On WF_OK, *out_didkey is heap-allocated and owned by the caller
- * (free() it). Used to fetch the issuer's signing key during token verification.
+ * `z...` multibase) string, suitable for passing to
+ * wf_server_verify_service_auth or wf_verify. On WF_OK, *out_didkey is
+ * heap-allocated and owned by the caller (free() it). Used to fetch the
+ * issuer's signing key during token verification.
  *
  * The built-in default resolver handles `did:key:` locally (no network) and,
  * for other methods, defers to an optional wf_xrpc_client supplied via the
@@ -67,26 +68,29 @@ typedef wf_status (*wf_xrpc_server_auth_resolve_fn)(const char *did,
  *  length, the first one added wins. A rule whose kind is SERVICE or USER
  *  also marks its prefix as protected. */
 typedef struct wf_xrpc_server_auth_principal_rule {
-    char *nsid_prefix;   /* owned; exact NSID or `prefix.` sub-namespace */
+    char *nsid_prefix; /* owned; exact NSID or `prefix.` sub-namespace */
     wf_xrpc_principal_kind kind; /* SERVICE, USER, or ANY (no restriction) */
 } wf_xrpc_server_auth_principal_rule;
 
 typedef struct wf_xrpc_server_auth_config {
-    char *server_did;          /* owned; this server's DID, used for `aud` checks */
-    char *server_origin;       /* owned external origin, used for DPoP `htu` */
-    char **protected_nsids;    /* owned array of NSID prefixes requiring auth */
+    char *server_did;    /* owned; this server's DID, used for `aud` checks */
+    char *server_origin; /* owned external origin, used for DPoP `htu` */
+    char **protected_nsids; /* owned array of NSID prefixes requiring auth */
     size_t protected_nsid_count;
     wf_xrpc_server_auth_principal_rule *principal_rules; /* owned array of
                                           per-route principal policies */
     size_t principal_rule_count;
-    int    require_aud;        /* non-zero => enforce token `aud` == server_did */
-    int    require_lxm;        /* non-zero => enforce token `lxm` == request NSID */
-    wf_xrpc_client *resolver_client; /* borrowed; used by default resolver for
-                                          non-did:key DIDs (NULL => did:key only) */
-    wf_xrpc_server_auth_resolve_fn resolver; /* NULL => built-in default resolver */
-    void *resolver_ctx;        /* ctx for an injected resolver (borrowed) */
-    struct wf_oauth_trusted_keys *trusted_keys; /* optional; OAuth access-token
-                                          verification keys (borrowed, may be NULL) */
+    int require_aud; /* non-zero => enforce token `aud` == server_did */
+    int require_lxm; /* non-zero => enforce token `lxm` == request NSID */
+    wf_xrpc_client
+        *resolver_client; /* borrowed; used by default resolver for
+                               non-did:key DIDs (NULL => did:key only) */
+    wf_xrpc_server_auth_resolve_fn
+        resolver;       /* NULL => built-in default resolver */
+    void *resolver_ctx; /* ctx for an injected resolver (borrowed) */
+    struct wf_oauth_trusted_keys
+        *trusted_keys; /* optional; OAuth access-token
+                 verification keys (borrowed, may be NULL) */
     struct wf_oauth_dpop_replay_cache *replay_cache; /* optional, borrowed */
 } wf_xrpc_server_auth_config;
 
@@ -99,13 +103,15 @@ wf_status wf_xrpc_server_auth_config_new(wf_xrpc_server_auth_config **out);
 void wf_xrpc_server_auth_config_free(wf_xrpc_server_auth_config *cfg);
 
 /** Set the server's own DID (copied). Used to validate service-token `aud`. */
-wf_status wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *cfg,
-                                                    const char *server_did);
+wf_status
+wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *cfg,
+                                          const char *server_did);
 
 /** Set the external HTTPS origin used to reconstruct DPoP `htu` values
  *  (for example `https://api.example.com`). The value is copied. */
-wf_status wf_xrpc_server_auth_config_set_server_origin(
-    wf_xrpc_server_auth_config *cfg, const char *server_origin);
+wf_status
+wf_xrpc_server_auth_config_set_server_origin(wf_xrpc_server_auth_config *cfg,
+                                             const char *server_origin);
 
 /** Mark an NSID prefix as protected (requires a valid token). Copied.
  *  A request NSID matches when it equals the prefix or begins with
@@ -124,35 +130,41 @@ wf_status wf_xrpc_server_auth_config_protect(wf_xrpc_server_auth_config *cfg,
  *  longest-prefix-wins against the request NSID; when no rule matches, both
  *  service and user tokens are accepted (the default). May be called
  *  repeatedly. */
-wf_status wf_xrpc_server_auth_config_require_principal(
-    wf_xrpc_server_auth_config *cfg, const char *nsid_prefix,
-    wf_xrpc_principal_kind kind);
+wf_status
+wf_xrpc_server_auth_config_require_principal(wf_xrpc_server_auth_config *cfg,
+                                             const char *nsid_prefix,
+                                             wf_xrpc_principal_kind kind);
 
 /** Set whether a token's `aud` claim must equal the configured server_did.
  *  Default: on. */
-wf_status wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config *cfg,
-                                                     int require);
+wf_status
+wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config *cfg,
+                                           int require);
 
 /** Set whether a token must carry an `lxm` claim equal to the request NSID
  *  (lexicon binding). Default: on. */
-wf_status wf_xrpc_server_auth_config_set_require_lxm(wf_xrpc_server_auth_config *cfg,
-                                                     int require);
+wf_status
+wf_xrpc_server_auth_config_set_require_lxm(wf_xrpc_server_auth_config *cfg,
+                                           int require);
 
 /** Inject a custom DID→did:key resolver (borrowed). Passing NULL restores the
  *  built-in default resolver. */
-wf_status wf_xrpc_server_auth_config_set_resolver(wf_xrpc_server_auth_config *cfg,
-                                                  wf_xrpc_server_auth_resolve_fn fn,
-                                                  void *ctx);
+wf_status
+wf_xrpc_server_auth_config_set_resolver(wf_xrpc_server_auth_config *cfg,
+                                        wf_xrpc_server_auth_resolve_fn fn,
+                                        void *ctx);
 
 /** Set an optional wf_xrpc_client used by the default resolver to resolve
  *  non-did:key DIDs (borrowed). */
-wf_status wf_xrpc_server_auth_config_set_resolver_client(
-    wf_xrpc_server_auth_config *cfg, wf_xrpc_client *client);
+wf_status
+wf_xrpc_server_auth_config_set_resolver_client(wf_xrpc_server_auth_config *cfg,
+                                               wf_xrpc_client *client);
 
 /** Set optional trusted keys for OAuth access-token (user) verification
  *  (borrowed, may be NULL). */
-wf_status wf_xrpc_server_auth_config_set_trusted_keys(
-    wf_xrpc_server_auth_config *cfg, struct wf_oauth_trusted_keys *keys);
+wf_status
+wf_xrpc_server_auth_config_set_trusted_keys(wf_xrpc_server_auth_config *cfg,
+                                            struct wf_oauth_trusted_keys *keys);
 
 /** Set an optional shared DPoP replay cache (borrowed). */
 wf_status wf_xrpc_server_auth_config_set_replay_cache(
@@ -189,8 +201,9 @@ wf_status wf_xrpc_server_auth_config_set_replay_cache(
  * The server takes ownership of the middleware's internal copy of `cfg` and
  * frees it in wf_xrpc_server_free. Passing NULL `cfg` is an error.
  */
-wf_status wf_xrpc_server_set_auth_middleware(wf_xrpc_server *server,
-                                             const wf_xrpc_server_auth_config *cfg);
+wf_status
+wf_xrpc_server_set_auth_middleware(wf_xrpc_server *server,
+                                   const wf_xrpc_server_auth_config *cfg);
 
 #ifdef __cplusplus
 }

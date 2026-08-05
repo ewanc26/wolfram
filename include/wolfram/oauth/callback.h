@@ -9,10 +9,10 @@ extern "C" {
 
 /** Decoded parameters received at the client's redirect URI. */
 typedef struct wf_oauth_callback_params {
-    const char *response;          /* JARM response; unsupported when present */
+    const char *response; /* JARM response; unsupported when present */
     const char *state;
     const char *code;
-    const char *issuer;            /* `iss` */
+    const char *issuer; /* `iss` */
     const char *error;
     const char *error_description;
 } wf_oauth_callback_params;

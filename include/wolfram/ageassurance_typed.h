@@ -37,8 +37,8 @@ extern "C" {
  * `begin` and nested inside `getState`. */
 typedef struct wf_ageassurance_begin {
     char *last_initiated_at; /* nullable; RFC 3339 datetime */
-    char *status;            /* required; "unknown"|"pending"|"assured"|"blocked" */
-    char *access;            /* required; "unknown"|"none"|"safe"|"full" */
+    char *status; /* required; "unknown"|"pending"|"assured"|"blocked" */
+    char *access; /* required; "unknown"|"none"|"safe"|"full" */
 } wf_ageassurance_begin;
 
 /* app.bsky.ageassurance.defs#config — getConfig output. The per-region
@@ -55,7 +55,7 @@ typedef struct wf_ageassurance_metadata {
 
 /* app.bsky.ageassurance.getState output = { state, metadata }. */
 typedef struct wf_ageassurance_state {
-    wf_ageassurance_begin state;   /* required nested defs#state */
+    wf_ageassurance_begin state;       /* required nested defs#state */
     wf_ageassurance_metadata metadata; /* required nested defs#stateMetadata */
 } wf_ageassurance_state;
 
@@ -89,7 +89,8 @@ void wf_ageassurance_state_free(wf_ageassurance_state *out);
  * with the matching `_free`); on error it is left reset. NULL inputs (and NULL
  * agent) return WF_ERR_INVALID_ARG. See the header note about required inputs
  * that are not reachable from the opaque wf_agent. */
-wf_status wf_agent_begin_ageassurance(wf_agent *agent, wf_ageassurance_begin *out);
+wf_status wf_agent_begin_ageassurance(wf_agent *agent,
+                                      wf_ageassurance_begin *out);
 wf_status wf_agent_get_ageassurance_config(wf_agent *agent,
                                            wf_ageassurance_config *out);
 wf_status wf_agent_get_ageassurance_state(wf_agent *agent,

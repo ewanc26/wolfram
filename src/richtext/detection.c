@@ -9,8 +9,8 @@
 /* Matches @handle.domain-like at word boundaries */
 
 static int is_word_boundary(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
-           c == '(' || c == '\0';
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '(' ||
+           c == '\0';
 }
 
 static int is_scheme(const char *s, size_t len) {
@@ -33,8 +33,7 @@ static void detect_mentions(const char *text, size_t text_len,
 
         size_t start = i + 1;
         size_t end = start;
-        while (end < text_len && is_valid_mention_char(text[end]))
-            end++;
+        while (end < text_len && is_valid_mention_char(text[end])) end++;
 
         if (end == start) continue;
 
@@ -44,16 +43,16 @@ static void detect_mentions(const char *text, size_t text_len,
         memcpy(domain, text + start, dlen);
         domain[dlen] = '\0';
 
-        if (end < text_len && isalnum((unsigned char)text[end]))
-            continue;
+        if (end < text_len && isalnum((unsigned char)text[end])) continue;
 
-        if (!wf_richtext_is_valid_domain(domain))
-            continue;
+        if (!wf_richtext_is_valid_domain(domain)) continue;
 
-        /* At this point text[end] is not part of the handle, so end-1 is last handle char */
+        /* At this point text[end] is not part of the handle, so end-1 is last
+         * handle char */
         size_t handle_end = end;
 
-        wf_richtext_facet *f = realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
+        wf_richtext_facet *f =
+            realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
         if (!f) return;
         *facets = f;
         wf_richtext_facet *cur = &(*facets)[*count];
@@ -84,16 +83,23 @@ static int is_domain_char(char c) {
 static size_t strip_trailing_punct(const char *s, size_t len) {
     while (len > 0) {
         char c = s[len - 1];
-        if (c == '.' || c == ',' || c == ';' || c == ':' ||
-            c == '!' || c == '?' || c == ')') {
+        if (c == '.' || c == ',' || c == ';' || c == ':' || c == '!' ||
+            c == '?' || c == ')') {
             if (c == ')') {
                 int has_open = 0;
                 for (size_t j = 0; j < len - 1; j++)
-                    if (s[j] == '(') { has_open = 1; break; }
-                if (!has_open) { len--; continue; }
+                    if (s[j] == '(') {
+                        has_open = 1;
+                        break;
+                    }
+                if (!has_open) {
+                    len--;
+                    continue;
+                }
             }
             len--;
-        } else break;
+        } else
+            break;
     }
     return len;
 }
@@ -103,12 +109,12 @@ static void detect_links(const char *text, size_t text_len,
     for (size_t i = 0; i < text_len; i++) {
         if (is_scheme(text + i, text_len - i)) {
             size_t url_end = i;
-            while (url_end < text_len && is_url_char(text[url_end]))
-                url_end++;
+            while (url_end < text_len && is_url_char(text[url_end])) url_end++;
             size_t stripped = strip_trailing_punct(text + i, url_end - i);
 
             if (stripped > 0) {
-                wf_richtext_facet *f = realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
+                wf_richtext_facet *f =
+                    realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
                 if (!f) return;
                 *facets = f;
                 wf_richtext_facet *cur = &(*facets)[*count];
@@ -118,7 +124,9 @@ static void detect_links(const char *text, size_t text_len,
                 if (cur->features) {
                     cur->feature_count = 1;
                     cur->features[0].type = WF_RICHTEXT_FEATURE_LINK;
-                    size_t ulen = stripped < sizeof(cur->features[0].uri) - 1 ? stripped : sizeof(cur->features[0].uri) - 1;
+                    size_t ulen = stripped < sizeof(cur->features[0].uri) - 1
+                                      ? stripped
+                                      : sizeof(cur->features[0].uri) - 1;
                     memcpy(cur->features[0].uri, text + i, ulen);
                     cur->features[0].uri[ulen] = '\0';
                 }
@@ -129,13 +137,11 @@ static void detect_links(const char *text, size_t text_len,
         }
 
         /* Bare domain detection */
-        if (!is_word_boundary(i > 0 ? text[i-1] : '\0') && i > 0)
-            continue;
+        if (!is_word_boundary(i > 0 ? text[i - 1] : '\0') && i > 0) continue;
 
         size_t dstart = i;
         size_t dend = dstart;
-        while (dend < text_len && is_domain_char(text[dend]))
-            dend++;
+        while (dend < text_len && is_domain_char(text[dend])) dend++;
         if (dend <= dstart + 2) continue;
 
         char domain[1024];
@@ -144,21 +150,20 @@ static void detect_links(const char *text, size_t text_len,
         memcpy(domain, text + dstart, dlen);
         domain[dlen] = '\0';
 
-        if (!wf_richtext_is_valid_domain(domain))
-            continue;
+        if (!wf_richtext_is_valid_domain(domain)) continue;
 
         size_t url_end = dend;
-        while (url_end < text_len && is_url_char(text[url_end]))
-            url_end++;
+        while (url_end < text_len && is_url_char(text[url_end])) url_end++;
         size_t stripped = strip_trailing_punct(text + dstart, url_end - dstart);
 
-        wf_richtext_facet *f = realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
+        wf_richtext_facet *f =
+            realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
         if (!f) return;
         *facets = f;
         wf_richtext_facet *cur = &(*facets)[*count];
         cur->byte_start = dstart;
         cur->byte_end = dstart + stripped;
-            cur->features = malloc(sizeof(wf_richtext_feature));
+        cur->features = malloc(sizeof(wf_richtext_feature));
         if (cur->features) {
             cur->feature_count = 1;
             cur->features[0].type = WF_RICHTEXT_FEATURE_LINK;
@@ -189,11 +194,11 @@ static int is_tag_body_char(unsigned char c) {
 static void detect_tags(const char *text, size_t text_len,
                         wf_richtext_facet **facets, size_t *count) {
     for (size_t i = 0; i < text_len; i++) {
-        if (text[i] != '#' && !is_fullwidth_hash((const unsigned char *)text + i, text_len - i))
+        if (text[i] != '#' &&
+            !is_fullwidth_hash((const unsigned char *)text + i, text_len - i))
             continue;
 
-        if (i > 0 && !is_word_boundary(text[i - 1]))
-            continue;
+        if (i > 0 && !is_word_boundary(text[i - 1])) continue;
 
         size_t hlen = (text[i] == '#') ? 1 : 3;
         size_t tstart = i + hlen;
@@ -214,8 +219,14 @@ static void detect_tags(const char *text, size_t text_len,
         int has_content = 0;
         for (size_t j = 0; j < tlen; j++) {
             unsigned char c = (unsigned char)tag[j];
-            if (c >= 0x80) { has_content = 1; break; }
-            if (isalpha((unsigned char)c)) { has_content = 1; break; }
+            if (c >= 0x80) {
+                has_content = 1;
+                break;
+            }
+            if (isalpha((unsigned char)c)) {
+                has_content = 1;
+                break;
+            }
         }
         if (!has_content) continue;
 
@@ -229,7 +240,8 @@ static void detect_tags(const char *text, size_t text_len,
         size_t glen = wf_richtext_grapheme_len(tag, tlen);
         if (glen > 64) continue;
 
-        wf_richtext_facet *f = realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
+        wf_richtext_facet *f =
+            realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
         if (!f) return;
         *facets = f;
         wf_richtext_facet *cur = &(*facets)[*count];
@@ -239,7 +251,9 @@ static void detect_tags(const char *text, size_t text_len,
         if (cur->features) {
             cur->feature_count = 1;
             cur->features[0].type = WF_RICHTEXT_FEATURE_TAG;
-            size_t cplen = tlen < sizeof(cur->features[0].tag) - 1 ? tlen : sizeof(cur->features[0].tag) - 1;
+            size_t cplen = tlen < sizeof(cur->features[0].tag) - 1
+                               ? tlen
+                               : sizeof(cur->features[0].tag) - 1;
             memcpy(cur->features[0].tag, tag, cplen);
             cur->features[0].tag[cplen] = '\0';
         }
@@ -258,7 +272,8 @@ static void detect_cashtags(const char *text, size_t text_len,
             continue;
 
         size_t end = i + 1;
-        while (end < text_len && end - i - 1 < 5 && isalnum((unsigned char)text[end]))
+        while (end < text_len && end - i - 1 < 5 &&
+               isalnum((unsigned char)text[end]))
             end++;
 
         size_t tlen = end - i - 1;
@@ -271,7 +286,8 @@ static void detect_cashtags(const char *text, size_t text_len,
             text[end] != ')' && text[end] != '"' && text[end] != '\'')
             continue;
 
-        wf_richtext_facet *f = realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
+        wf_richtext_facet *f =
+            realloc(*facets, (*count + 1) * sizeof(wf_richtext_facet));
         if (!f) return;
         *facets = f;
         wf_richtext_facet *cur = &(*facets)[*count];
@@ -282,8 +298,10 @@ static void detect_cashtags(const char *text, size_t text_len,
             cur->feature_count = 1;
             cur->features[0].type = WF_RICHTEXT_FEATURE_TAG;
             cur->features[0].tag[0] = '$';
-            for (size_t j = 0; j < tlen && j + 1 < sizeof(cur->features[0].tag) - 1; j++)
-                cur->features[0].tag[j + 1] = toupper((unsigned char)text[i + 1 + j]);
+            for (size_t j = 0;
+                 j < tlen && j + 1 < sizeof(cur->features[0].tag) - 1; j++)
+                cur->features[0].tag[j + 1] =
+                    toupper((unsigned char)text[i + 1 + j]);
             cur->features[0].tag[tlen + 1] = '\0';
         }
         (*count)++;
@@ -307,8 +325,7 @@ wf_status wf_richtext_detect_facets(wf_richtext *rt) {
     if (!rt || !rt->text) return WF_ERR_INVALID_ARG;
 
     /* Free existing facets */
-    for (size_t i = 0; i < rt->facet_count; i++)
-        free(rt->facets[i].features);
+    for (size_t i = 0; i < rt->facet_count; i++) free(rt->facets[i].features);
     free(rt->facets);
     rt->facets = NULL;
     rt->facet_count = 0;
@@ -320,7 +337,8 @@ wf_status wf_richtext_detect_facets(wf_richtext *rt) {
 
     /* Sort by byte_start */
     if (rt->facet_count > 1) {
-        qsort(rt->facets, rt->facet_count, sizeof(wf_richtext_facet), facet_cmp);
+        qsort(rt->facets, rt->facet_count, sizeof(wf_richtext_facet),
+              facet_cmp);
     }
 
     return WF_OK;

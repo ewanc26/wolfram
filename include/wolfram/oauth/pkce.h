@@ -18,9 +18,9 @@ typedef struct wf_oauth_pkce {
 /** Generate a fresh 32-octet PKCE verifier and its S256 challenge. */
 wf_status wf_oauth_pkce_generate(wf_oauth_pkce *out);
 
-/** Validate a caller-provided RFC 7636 verifier and derive its S256 challenge. */
-wf_status wf_oauth_pkce_from_verifier(const char *verifier,
-                                      wf_oauth_pkce *out);
+/** Validate a caller-provided RFC 7636 verifier and derive its S256 challenge.
+ */
+wf_status wf_oauth_pkce_from_verifier(const char *verifier, wf_oauth_pkce *out);
 
 #ifdef __cplusplus
 }

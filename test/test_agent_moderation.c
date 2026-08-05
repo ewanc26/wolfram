@@ -86,8 +86,8 @@ static int test_profile_subject(void) {
     wf_mod_subject_profile subj = {0};
     wf_mod_label *labels = NULL;
     size_t label_count = 0;
-    WF_CHECK(wf_agent_mod_profile_subject_from_json(root, &subj,
-            &labels, &label_count) == WF_OK);
+    WF_CHECK(wf_agent_mod_profile_subject_from_json(root, &subj, &labels,
+                                                    &label_count) == WF_OK);
     subj.labels = labels;
     subj.label_count = label_count;
 
@@ -121,7 +121,8 @@ static int test_profile_subject(void) {
     wf_mod_decision_free(&merged);
 
     if (labels) wf_mod_labels_free(labels, label_count);
-    if (opts.label_def_count) wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
+    if (opts.label_def_count)
+        wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
     wf_mod_prefs_free(&opts.prefs);
     cJSON_Delete(root);
     return 0;
@@ -154,8 +155,9 @@ static int test_post_subject(void) {
     wf_mod_subject_post subj = {0};
     wf_mod_label *labels = NULL, *author_labels = NULL;
     size_t label_count = 0, author_label_count = 0;
-    WF_CHECK(wf_agent_mod_post_subject_from_json(root, author, &subj,
-            &labels, &label_count, &author_labels, &author_label_count) == WF_OK);
+    WF_CHECK(wf_agent_mod_post_subject_from_json(root, author, &subj, &labels,
+                                                 &label_count, &author_labels,
+                                                 &author_label_count) == WF_OK);
     subj.labels = labels;
     subj.label_count = label_count;
     subj.author.labels = author_labels;
@@ -185,7 +187,8 @@ static int test_post_subject(void) {
 
     if (labels) wf_mod_labels_free(labels, label_count);
     if (author_labels) wf_mod_labels_free(author_labels, author_label_count);
-    if (opts.label_def_count) wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
+    if (opts.label_def_count)
+        wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
     wf_mod_prefs_free(&opts.prefs);
     cJSON_Delete(root);
     return 0;

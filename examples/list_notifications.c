@@ -24,15 +24,14 @@
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        fprintf(stderr,
-                "usage: %s <service-url> <handle> <password> [limit]\n",
+        fprintf(stderr, "usage: %s <service-url> <handle> <password> [limit]\n",
                 argv[0]);
         return 1;
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
     int limit = (argc > 4) ? (int)strtol(argv[4], NULL, 10) : 50;
     if (limit <= 0) {
         limit = 50;
@@ -66,8 +65,9 @@ int main(int argc, char **argv) {
     printf("Notifications (%zu):\n", list.notification_count);
     for (size_t i = 0; i < list.notification_count; ++i) {
         const wf_agent_notification *n = &list.notifications[i];
-        const char *author = n->author.handle ? n->author.handle
-                            : (n->author.did ? n->author.did : "?");
+        const char *author = n->author.handle
+                                 ? n->author.handle
+                                 : (n->author.did ? n->author.did : "?");
         const char *text = "";
         if (n->record) {
             cJSON *t = cJSON_GetObjectItemCaseSensitive(n->record, "text");
@@ -77,8 +77,7 @@ int main(int argc, char **argv) {
         }
         printf("  [%zu] reason=%s%s author=%s read=%d\n", i,
                n->reason ? n->reason : "?",
-               n->reason_subject ? n->reason_subject : "",
-               author, n->is_read);
+               n->reason_subject ? n->reason_subject : "", author, n->is_read);
         if (text[0]) {
             printf("        \"%.120s\"\n", text);
         }

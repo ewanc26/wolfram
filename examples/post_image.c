@@ -49,7 +49,8 @@ static const char *wf_image_mime_type_from_path(const char *path) {
     const char *dot = strrchr(path, '.');
     if (!dot || !dot[1]) return NULL;
     const char *ext = dot + 1;
-    if (wf_ascii_iequals(ext, "jpg") || wf_ascii_iequals(ext, "jpeg")) return "image/jpeg";
+    if (wf_ascii_iequals(ext, "jpg") || wf_ascii_iequals(ext, "jpeg"))
+        return "image/jpeg";
     if (wf_ascii_iequals(ext, "png")) return "image/png";
     if (wf_ascii_iequals(ext, "gif")) return "image/gif";
     if (wf_ascii_iequals(ext, "webp")) return "image/webp";
@@ -57,18 +58,34 @@ static const char *wf_image_mime_type_from_path(const char *path) {
 }
 
 /* Helper to read a file into memory */
-static wf_status wf_read_file(const char *path, unsigned char **out_data, size_t *out_len) {
+static wf_status wf_read_file(const char *path, unsigned char **out_data,
+                              size_t *out_len) {
     FILE *f = fopen(path, "rb");
     if (!f) return WF_ERR_INVALID_ARG;
-    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return WF_ERR_INVALID_ARG; }
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return WF_ERR_INVALID_ARG;
+    }
     long len = ftell(f);
-    if (len < 0) { fclose(f); return WF_ERR_INVALID_ARG; }
-    if (fseek(f, 0, SEEK_SET) != 0) { fclose(f); return WF_ERR_INVALID_ARG; }
+    if (len < 0) {
+        fclose(f);
+        return WF_ERR_INVALID_ARG;
+    }
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return WF_ERR_INVALID_ARG;
+    }
     unsigned char *data = malloc((size_t)len);
-    if (!data) { fclose(f); return WF_ERR_ALLOC; }
+    if (!data) {
+        fclose(f);
+        return WF_ERR_ALLOC;
+    }
     size_t read = fread(data, 1, (size_t)len, f);
     fclose(f);
-    if (read != (size_t)len) { free(data); return WF_ERR_ALLOC; }
+    if (read != (size_t)len) {
+        free(data);
+        return WF_ERR_ALLOC;
+    }
     *out_data = data;
     *out_len = (size_t)len;
     return WF_OK;
@@ -89,34 +106,47 @@ static void wf_uploaded_blob_free(wf_uploaded_blob *blob) {
     blob->size = 0;
 }
 
-static wf_status wf_parse_uploaded_blob_response(const wf_response *res, wf_uploaded_blob *out) {
-    if (!res || !out || !res->body || res->body_len == 0) return WF_ERR_INVALID_ARG;
-    out->cid = NULL; out->mime_type = NULL; out->size = 0;
+static wf_status wf_parse_uploaded_blob_response(const wf_response *res,
+                                                 wf_uploaded_blob *out) {
+    if (!res || !out || !res->body || res->body_len == 0)
+        return WF_ERR_INVALID_ARG;
+    out->cid = NULL;
+    out->mime_type = NULL;
+    out->size = 0;
     cJSON *root = cJSON_ParseWithLength(res->body, res->body_len);
     if (!root) return WF_ERR_PARSE;
     cJSON *blob = cJSON_GetObjectItemCaseSensitive(root, "blob");
     cJSON *type = blob ? cJSON_GetObjectItemCaseSensitive(blob, "$type") : NULL;
     cJSON *ref = blob ? cJSON_GetObjectItemCaseSensitive(blob, "ref") : NULL;
     cJSON *link = ref ? cJSON_GetObjectItemCaseSensitive(ref, "$link") : NULL;
-    cJSON *mime_type = blob ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType") : NULL;
+    cJSON *mime_type =
+        blob ? cJSON_GetObjectItemCaseSensitive(blob, "mimeType") : NULL;
     cJSON *size = blob ? cJSON_GetObjectItemCaseSensitive(blob, "size") : NULL;
-    if (!cJSON_IsObject(blob) || !cJSON_IsString(type) || strcmp(type->valuestring, "blob") != 0 ||
-        !cJSON_IsObject(ref) || !cJSON_IsString(link) ||
-        !cJSON_IsString(mime_type) || !cJSON_IsNumber(size) || size->valuedouble < 0.0) {
+    if (!cJSON_IsObject(blob) || !cJSON_IsString(type) ||
+        strcmp(type->valuestring, "blob") != 0 || !cJSON_IsObject(ref) ||
+        !cJSON_IsString(link) || !cJSON_IsString(mime_type) ||
+        !cJSON_IsNumber(size) || size->valuedouble < 0.0) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
     out->cid = wf_dup_span(link->valuestring, strlen(link->valuestring));
-    out->mime_type = wf_dup_span(mime_type->valuestring, strlen(mime_type->valuestring));
+    out->mime_type =
+        wf_dup_span(mime_type->valuestring, strlen(mime_type->valuestring));
     out->size = (size_t)size->valuedouble;
     cJSON_Delete(root);
-    if (!out->cid || !out->mime_type) { wf_uploaded_blob_free(out); return WF_ERR_ALLOC; }
+    if (!out->cid || !out->mime_type) {
+        wf_uploaded_blob_free(out);
+        return WF_ERR_ALLOC;
+    }
     return WF_OK;
 }
 
 int main(int argc, char **argv) {
     if (argc < 5) {
-        fprintf(stderr, "usage: %s <service-url> <handle-or-email> <password> <image-path> [alt text...]\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s <service-url> <handle-or-email> <password> "
+                "<image-path> [alt text...]\n",
+                argv[0]);
         return 1;
     }
     const char *service_url = argv[1];
@@ -124,26 +154,46 @@ int main(int argc, char **argv) {
     const char *password = argv[3];
     const char *image_path = argv[4];
     char *alt_text = wf_join_args(argc, argv, 5);
-    if (!alt_text) { fprintf(stderr, "failed to assemble alt text\n"); return 1; }
+    if (!alt_text) {
+        fprintf(stderr, "failed to assemble alt text\n");
+        return 1;
+    }
     const char *content_type = wf_image_mime_type_from_path(image_path);
     if (!content_type) {
         fprintf(stderr, "unsupported image type for '%s'\n", image_path);
         free(alt_text);
         return 1;
     }
-    unsigned char *image_data = NULL; size_t image_len = 0;
+    unsigned char *image_data = NULL;
+    size_t image_len = 0;
     wf_status status = wf_read_file(image_path, &image_data, &image_len);
-    if (status != WF_OK) { free(alt_text); return 1; }
+    if (status != WF_OK) {
+        free(alt_text);
+        return 1;
+    }
     wf_agent *agent = wf_agent_new(service_url);
-    if (!agent) { fprintf(stderr, "failed to create agent\n"); free(image_data); free(alt_text); return 1; }
+    if (!agent) {
+        fprintf(stderr, "failed to create agent\n");
+        free(image_data);
+        free(alt_text);
+        return 1;
+    }
     status = wf_agent_login(agent, identifier, password);
-    if (status != WF_OK) { fprintf(stderr, "login failed: %d\n", (int)status); wf_agent_free(agent); free(image_data); free(alt_text); return 1; }
+    if (status != WF_OK) {
+        fprintf(stderr, "login failed: %d\n", (int)status);
+        wf_agent_free(agent);
+        free(image_data);
+        free(alt_text);
+        return 1;
+    }
     const char *handle = wf_agent_get_handle(agent);
     const char *did = wf_agent_get_did(agent);
     printf("Logged in as %s (%s)\n", handle ? handle : identifier, did);
-    printf("Uploading %s as %s (%zu bytes)\n", image_path, content_type, image_len);
+    printf("Uploading %s as %s (%zu bytes)\n", image_path, content_type,
+           image_len);
     wf_response upload_res = {0};
-    status = wf_agent_upload_blob(agent, image_data, image_len, content_type, &upload_res);
+    status = wf_agent_upload_blob(agent, image_data, image_len, content_type,
+                                  &upload_res);
     free(image_data);
     if (status != WF_OK) {
         fprintf(stderr, "blob upload failed: %d\n", (int)status);
@@ -161,7 +211,8 @@ int main(int argc, char **argv) {
         free(alt_text);
         return 1;
     }
-    printf("Uploaded blob: cid=%s mime=%s size=%zu\n", blob.cid, blob.mime_type, blob.size);
+    printf("Uploaded blob: cid=%s mime=%s size=%zu\n", blob.cid, blob.mime_type,
+           blob.size);
     /* Build embed JSON */
     cJSON *embed = cJSON_CreateObject();
     cJSON *images = cJSON_CreateArray();

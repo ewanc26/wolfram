@@ -45,14 +45,16 @@ int main(void) {
     /* Input validation. */
     wf_mod_label *labels = NULL;
     size_t count = 0;
-    WF_CHECK(wf_label_parse_query(NULL, 0, &labels, &count) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_label_parse_query(k_label_json, strlen(k_label_json), NULL, &count) ==
+    WF_CHECK(wf_label_parse_query(NULL, 0, &labels, &count) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_label_parse_query(k_label_json, strlen(k_label_json), &labels, NULL) ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_label_parse_query(k_label_json, strlen(k_label_json), NULL,
+                                  &count) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_label_parse_query(k_label_json, strlen(k_label_json), &labels,
+                                  NULL) == WF_ERR_INVALID_ARG);
 
     /* Malformed JSON. */
-    WF_CHECK(wf_label_parse_query("{not json", 8, &labels, &count) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_label_parse_query("{not json", 8, &labels, &count) ==
+             WF_ERR_INVALID_ARG);
 
     /* Missing labels array. */
     WF_CHECK(wf_label_parse_query("{\"cursor\":\"x\"}", 14, &labels, &count) ==
@@ -92,14 +94,14 @@ int main(void) {
     const char *dummy_uri = "at://did:plc:alice/app.bsky.feed.post/aaa111";
     wf_mod_label *out = NULL;
     size_t out_count = 0;
-    WF_CHECK(wf_agent_query_labels_typed(NULL, &dummy_uri, 1, NULL, 0,
-                                         &out, &out_count) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_query_labels_typed(agent, NULL, 0, NULL, 0,
-                                         &out, &out_count) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_query_labels_typed(agent, &dummy_uri, 1, NULL, 0,
-                                         NULL, &out_count) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_query_labels_typed(agent, &dummy_uri, 1, NULL, 0,
-                                         &out, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_query_labels_typed(NULL, &dummy_uri, 1, NULL, 0, &out,
+                                         &out_count) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_query_labels_typed(agent, NULL, 0, NULL, 0, &out,
+                                         &out_count) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_query_labels_typed(agent, &dummy_uri, 1, NULL, 0, NULL,
+                                         &out_count) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_query_labels_typed(agent, &dummy_uri, 1, NULL, 0, &out,
+                                         NULL) == WF_ERR_INVALID_ARG);
 
     wf_agent_free(agent);
 

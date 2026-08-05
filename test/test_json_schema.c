@@ -5,14 +5,16 @@
 
 static void check_valid(const char *schema, const char *doc) {
     char *err = NULL;
-    wf_status s = wf_json_validate(schema, strlen(schema), doc, strlen(doc), &err);
+    wf_status s =
+        wf_json_validate(schema, strlen(schema), doc, strlen(doc), &err);
     if (err) free(err);
     WF_CHECK(s == WF_OK);
 }
 
 static void check_invalid(const char *schema, const char *doc) {
     char *err = NULL;
-    wf_status s = wf_json_validate(schema, strlen(schema), doc, strlen(doc), &err);
+    wf_status s =
+        wf_json_validate(schema, strlen(schema), doc, strlen(doc), &err);
     WF_CHECK(s != WF_OK);
     WF_CHECK(err != NULL);
     if (err) free(err);
@@ -127,7 +129,8 @@ static void test_additional(void) {
 }
 
 static void test_combinators(void) {
-    const char *any = "{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"number\"}]}";
+    const char *any =
+        "{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"number\"}]}";
     check_valid(any, "\"x\"");
     check_valid(any, "5");
     check_invalid(any, "true");

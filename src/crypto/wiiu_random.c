@@ -115,7 +115,8 @@ wf_status wf_wiiu_rotate_entropy_seed(unsigned char *out, size_t out_len) {
     }
     wf_status status = wiiu_drbg_init();
     if (status != WF_OK) return status;
-    if (mbedtls_ctr_drbg_random(&g_ctr, out, out_len) != 0) return WF_ERR_CRYPTO;
+    if (mbedtls_ctr_drbg_random(&g_ctr, out, out_len) != 0)
+        return WF_ERR_CRYPTO;
 
     /* Fail closed until the caller confirms the new seed reached storage. If
      * the console loses power between here and the commit, the next boot must

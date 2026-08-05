@@ -38,10 +38,10 @@ static char *wf_label_dup(const char *s) {
 }
 
 /* queryLabels — use the generated lexicon wrapper. */
-wf_status wf_label_query_labels(wf_xrpc_client *client,
-                                const char *const *uris, size_t uri_count,
-                                const char *const *sources, size_t source_count,
-                                int limit, wf_response *out) {
+wf_status wf_label_query_labels(wf_xrpc_client *client, const char *const *uris,
+                                size_t uri_count, const char *const *sources,
+                                size_t source_count, int limit,
+                                wf_response *out) {
     if (!client || !uris || uri_count == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -66,12 +66,12 @@ wf_status wf_label_query_labels(wf_xrpc_client *client,
         params.limit = limit;
     }
 
-    return wf_lex_com_atproto_label_query_labels_main_call(client, &params, out);
+    return wf_lex_com_atproto_label_query_labels_main_call(client, &params,
+                                                           out);
 }
 
 /* getLabels — hand-rolled authenticated XRPC GET (no generated wrapper). */
-wf_status wf_label_get_labels(wf_xrpc_client *client,
-                              const char *uri,
+wf_status wf_label_get_labels(wf_xrpc_client *client, const char *uri,
                               const char *const *sources, size_t source_count,
                               wf_response *out) {
     if (!client || !uri || !out) {
@@ -79,7 +79,8 @@ wf_status wf_label_get_labels(wf_xrpc_client *client,
     }
 
     size_t param_count = 1 + (sources ? source_count : 0);
-    wf_xrpc_param *params = (wf_xrpc_param *)calloc(param_count, sizeof(*params));
+    wf_xrpc_param *params =
+        (wf_xrpc_param *)calloc(param_count, sizeof(*params));
     if (!params) {
         return WF_ERR_ALLOC;
     }
@@ -92,15 +93,15 @@ wf_status wf_label_get_labels(wf_xrpc_client *client,
     }
 
     wf_status status = wf_xrpc_query_params(client, WF_LABEL_GET_LABELS_NSID,
-                                             params, param_count, out);
+                                            params, param_count, out);
 
     free(params);
     return status;
 }
 
 /* Parse a queryLabels/getLabels JSON body into owned wf_mod_label structs. */
-wf_status wf_label_parse_query(const char *json, size_t len,
-                               wf_mod_label **out, size_t *out_count) {
+wf_status wf_label_parse_query(const char *json, size_t len, wf_mod_label **out,
+                               size_t *out_count) {
     if (!out || !out_count || !json) {
         return WF_ERR_INVALID_ARG;
     }
@@ -128,24 +129,30 @@ wf_status wf_label_parse_query(const char *json, size_t len,
     size_t count = 0;
     cJSON *l;
     cJSON_ArrayForEach(l, arr) {
-        const char *src = cJSON_IsString(
-            cJSON_GetObjectItemCaseSensitive(l, "src"))
-            ? cJSON_GetObjectItemCaseSensitive(l, "src")->valuestring : NULL;
-        const char *uri = cJSON_IsString(
-            cJSON_GetObjectItemCaseSensitive(l, "uri"))
-            ? cJSON_GetObjectItemCaseSensitive(l, "uri")->valuestring : NULL;
-        const char *val = cJSON_IsString(
-            cJSON_GetObjectItemCaseSensitive(l, "val"))
-            ? cJSON_GetObjectItemCaseSensitive(l, "val")->valuestring : NULL;
-        const char *cts = cJSON_IsString(
-            cJSON_GetObjectItemCaseSensitive(l, "cts"))
-            ? cJSON_GetObjectItemCaseSensitive(l, "cts")->valuestring : NULL;
-        const char *cid = cJSON_IsString(
-            cJSON_GetObjectItemCaseSensitive(l, "cid"))
-            ? cJSON_GetObjectItemCaseSensitive(l, "cid")->valuestring : NULL;
-        const char *exp = cJSON_IsString(
-            cJSON_GetObjectItemCaseSensitive(l, "exp"))
-            ? cJSON_GetObjectItemCaseSensitive(l, "exp")->valuestring : NULL;
+        const char *src =
+            cJSON_IsString(cJSON_GetObjectItemCaseSensitive(l, "src"))
+                ? cJSON_GetObjectItemCaseSensitive(l, "src")->valuestring
+                : NULL;
+        const char *uri =
+            cJSON_IsString(cJSON_GetObjectItemCaseSensitive(l, "uri"))
+                ? cJSON_GetObjectItemCaseSensitive(l, "uri")->valuestring
+                : NULL;
+        const char *val =
+            cJSON_IsString(cJSON_GetObjectItemCaseSensitive(l, "val"))
+                ? cJSON_GetObjectItemCaseSensitive(l, "val")->valuestring
+                : NULL;
+        const char *cts =
+            cJSON_IsString(cJSON_GetObjectItemCaseSensitive(l, "cts"))
+                ? cJSON_GetObjectItemCaseSensitive(l, "cts")->valuestring
+                : NULL;
+        const char *cid =
+            cJSON_IsString(cJSON_GetObjectItemCaseSensitive(l, "cid"))
+                ? cJSON_GetObjectItemCaseSensitive(l, "cid")->valuestring
+                : NULL;
+        const char *exp =
+            cJSON_IsString(cJSON_GetObjectItemCaseSensitive(l, "exp"))
+                ? cJSON_GetObjectItemCaseSensitive(l, "exp")->valuestring
+                : NULL;
 
         cJSON *neg_item = cJSON_GetObjectItemCaseSensitive(l, "neg");
         bool neg = cJSON_IsBool(neg_item) && cJSON_IsTrue(neg_item);
@@ -214,11 +221,11 @@ done:
 }
 
 /* Fetch labels through the agent's authenticated client, parse, and persist. */
-wf_status wf_agent_query_labels_typed(wf_agent *agent,
-                                      const char *const *uris, size_t uri_count,
+wf_status wf_agent_query_labels_typed(wf_agent *agent, const char *const *uris,
+                                      size_t uri_count,
                                       const char *const *sources,
-                                      size_t source_count,
-                                      wf_mod_label **out, size_t *out_count) {
+                                      size_t source_count, wf_mod_label **out,
+                                      size_t *out_count) {
     if (!agent || !out || !out_count || !uris || uri_count == 0) {
         return WF_ERR_INVALID_ARG;
     }

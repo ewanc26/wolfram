@@ -3,25 +3,28 @@
  * (account / signup helper flows) plus convenience agent wrappers.
  *
  * Endpoints covered (wire format per the atproto lexicon, authoritative):
- *   - com.atproto.temp.checkHandleAvailability  (query, params: handle[,email,birthDate])
+ *   - com.atproto.temp.checkHandleAvailability  (query, params:
+ * handle[,email,birthDate])
  *   - com.atproto.temp.checkSignupQueue          (query, no params)
  *   - com.atproto.temp.fetchLabels               (query, params: since?,limit?)
  *   - com.atproto.temp.dereferenceScope          (query, params: scope)
- *   - com.atproto.temp.requestPhoneVerification  (procedure, input: phoneNumber)
+ *   - com.atproto.temp.requestPhoneVerification  (procedure, input:
+ * phoneNumber)
  *   - com.atproto.temp.revokeAccountCredentials  (procedure, input: account)
  *   - com.atproto.temp.addReservedHandle         (procedure, input: handle)
  *
  * Conventions mirror feed_typed.h / actor_typed.h: wf_status error codes,
- * static strdup/set_string/reset helpers, ownership via cJSON_DetachItemFromObject,
- * and a matching `_free` for every owned struct. The raw generated lex wrappers
- * (wf_lex_com_atproto_temp_*) live in atproto_lex.h and are NOT edited here.
+ * static strdup/set_string/reset helpers, ownership via
+ * cJSON_DetachItemFromObject, and a matching `_free` for every owned struct.
+ * The raw generated lex wrappers (wf_lex_com_atproto_temp_*) live in
+ * atproto_lex.h and are NOT edited here.
  *
  * NOTE on the agent wrappers: the lexicon input for revokeAccountCredentials is
- * `account` (an at-identifier), which the helper signature below does not carry;
- * that wrapper therefore returns WF_ERR_INVALID_ARG with a TODO rather than a
- * fabricated success (see AGENTS.md principle 3). checkSignupQueue's `closed`
- * out-param and fetchLabels' `did_pointers` are not part of the current lexicon
- * and are documented at their call sites.
+ * `account` (an at-identifier), which the helper signature below does not
+ * carry; that wrapper therefore returns WF_ERR_INVALID_ARG with a TODO rather
+ * than a fabricated success (see AGENTS.md principle 3). checkSignupQueue's
+ * `closed` out-param and fetchLabels' `did_pointers` are not part of the
+ * current lexicon and are documented at their call sites.
  */
 
 #ifndef WOLFRAM_TEMP_TYPED_H
@@ -38,26 +41,26 @@ extern "C" {
 
 /* A single suggested handle from checkHandleAvailability#resultUnavailable. */
 typedef struct wf_temp_handle_suggestion {
-    char *handle;                       /* suggested handle */
-    char *method;                       /* opaque suggestion method */
+    char *handle; /* suggested handle */
+    char *method; /* opaque suggestion method */
 } wf_temp_handle_suggestion;
 
 /* Result of com.atproto.temp.checkHandleAvailability.
  * `available` is derived: 1 when the result union is resultAvailable, 0 when
- * resultUnavailable (in which case `suggestions` may be populated). `raw_result`
- * keeps the full union object as an owned detached cJSON subtree so callers can
- * inspect anything the parser does not surface explicitly. */
+ * resultUnavailable (in which case `suggestions` may be populated).
+ * `raw_result` keeps the full union object as an owned detached cJSON subtree
+ * so callers can inspect anything the parser does not surface explicitly. */
 typedef struct wf_temp_check_handle_availability {
-    char *handle;                       /* echo of the requested handle */
-    int available;                      /* 1 available, 0 unavailable */
+    char *handle;  /* echo of the requested handle */
+    int available; /* 1 available, 0 unavailable */
     wf_temp_handle_suggestion *suggestions;
     size_t suggestion_count;
-    cJSON *raw_result;                  /* owned detached result union subtree */
+    cJSON *raw_result; /* owned detached result union subtree */
 } wf_temp_check_handle_availability;
 
 /* Result of com.atproto.temp.checkSignupQueue. */
 typedef struct wf_temp_check_signup_queue {
-    int activated;                      /* required: account activated */
+    int activated; /* required: account activated */
     int has_place_in_queue;
     int64_t place_in_queue;
     int has_estimated_time_ms;
@@ -67,43 +70,40 @@ typedef struct wf_temp_check_signup_queue {
 /* Result of com.atproto.temp.fetchLabels. `labels` owns the detached "labels"
  * array (items are com.atproto.label.defs#label); callers inspect via cJSON. */
 typedef struct wf_temp_fetch_labels {
-    cJSON *labels;                      /* owned detached "labels" array */
+    cJSON *labels; /* owned detached "labels" array */
 } wf_temp_fetch_labels;
 
 /* Result of com.atproto.temp.dereferenceScope. */
 typedef struct wf_temp_dereference_scope {
-    char *scope;                        /* full oauth permission scope */
+    char *scope; /* full oauth permission scope */
 } wf_temp_dereference_scope;
 
 /* --- Parsers (decode a raw JSON response body into owned structs) -------- */
 
 /* parse JSON, required fields missing/invalid => WF_ERR_PARSE. On error `out`
  * is left reset. Free with wf_temp_check_handle_availability_free. */
-wf_status wf_temp_check_handle_availability_parse(
-    const char *json, size_t json_len,
-    wf_temp_check_handle_availability *out);
+wf_status
+wf_temp_check_handle_availability_parse(const char *json, size_t json_len,
+                                        wf_temp_check_handle_availability *out);
 void wf_temp_check_handle_availability_free(
     wf_temp_check_handle_availability *v);
 
 /* parse JSON, required `activated` missing/invalid => WF_ERR_PARSE. Struct owns
  * no heap beyond scalars, so _free is a thin reset (provided for symmetry). */
-wf_status wf_temp_check_signup_queue_parse(
-    const char *json, size_t json_len,
-    wf_temp_check_signup_queue *out);
+wf_status wf_temp_check_signup_queue_parse(const char *json, size_t json_len,
+                                           wf_temp_check_signup_queue *out);
 void wf_temp_check_signup_queue_free(wf_temp_check_signup_queue *v);
 
 /* parse JSON, detach the "labels" array (required) as owned cJSON. Missing
  * "labels" => WF_ERR_PARSE. Free with wf_temp_fetch_labels_free. */
-wf_status wf_temp_fetch_labels_parse(
-    const char *json, size_t json_len,
-    wf_temp_fetch_labels *out);
+wf_status wf_temp_fetch_labels_parse(const char *json, size_t json_len,
+                                     wf_temp_fetch_labels *out);
 void wf_temp_fetch_labels_free(wf_temp_fetch_labels *v);
 
 /* parse JSON, required `scope` missing/invalid => WF_ERR_PARSE. Free with
  * wf_temp_dereference_scope_free. */
-wf_status wf_temp_dereference_scope_parse(
-    const char *json, size_t json_len,
-    wf_temp_dereference_scope *out);
+wf_status wf_temp_dereference_scope_parse(const char *json, size_t json_len,
+                                          wf_temp_dereference_scope *out);
 void wf_temp_dereference_scope_free(wf_temp_dereference_scope *v);
 
 /* --- Write-side result structs (com.atproto.temp procedures) ------------- */
@@ -113,20 +113,20 @@ void wf_temp_dereference_scope_free(wf_temp_dereference_scope *v);
  * optional echo captured when the server includes one (it is not required by
  * the lexicon and may be NULL). The caller owns `handle`. */
 typedef struct wf_temp_add_reserved_handle_result {
-    int ok;               /* 1 when the (empty) output parsed successfully */
-    char *handle;         /* optional echoed handle; owned, may be NULL */
+    int ok;       /* 1 when the (empty) output parsed successfully */
+    char *handle; /* optional echoed handle; owned, may be NULL */
 } wf_temp_add_reserved_handle_result;
 
 /* Result of com.atproto.temp.requestPhoneVerification. The lexicon declares no
  * output, so `ok` is 1 on a successful (empty) parse. */
 typedef struct wf_temp_request_phone_verification_result {
-    int ok;               /* 1 when the empty output parsed successfully */
+    int ok; /* 1 when the empty output parsed successfully */
 } wf_temp_request_phone_verification_result;
 
 /* Result of com.atproto.temp.revokeAccountCredentials. The lexicon declares no
  * output, so `ok` is 1 on a successful (empty) parse. */
 typedef struct wf_temp_revoke_account_credentials_result {
-    int ok;               /* 1 when the empty output parsed successfully */
+    int ok; /* 1 when the empty output parsed successfully */
 } wf_temp_revoke_account_credentials_result;
 
 /* --- Write-side parsers -------------------------------------------------- */
@@ -134,9 +134,9 @@ typedef struct wf_temp_revoke_account_credentials_result {
 /* parse JSON (expected empty object). `ok` is set to 1 on success; an optional
  * echoed "handle" string is captured if present. Missing/invalid JSON =>
  * WF_ERR_PARSE. Free with wf_temp_add_reserved_handle_result_free. */
-wf_status wf_temp_add_reserved_handle_parse(
-    const char *json, size_t json_len,
-    wf_temp_add_reserved_handle_result *out);
+wf_status
+wf_temp_add_reserved_handle_parse(const char *json, size_t json_len,
+                                  wf_temp_add_reserved_handle_result *out);
 void wf_temp_add_reserved_handle_result_free(
     wf_temp_add_reserved_handle_result *v);
 
@@ -172,44 +172,40 @@ wf_status wf_agent_check_handle_availability(wf_agent *agent,
  * is reserved (the current lexicon exposes no queue-closed flag) and is always
  * set to 0. The caller owns *out_place (free with free()). Returns
  * WF_ERR_INVALID_ARG on NULL out pointers. */
-wf_status wf_agent_check_signup_queue(wf_agent *agent,
-                                      int *out_activated,
-                                      int *out_closed,
-                                      char **out_place);
+wf_status wf_agent_check_signup_queue(wf_agent *agent, int *out_activated,
+                                      int *out_closed, char **out_place);
 
 /* Legacy fetchLabels wrapper. The lexicon has no DID selector, so
  * `did_pointers` must be NULL and `count` zero; unsupported selector input is
  * rejected rather than discarded. Uses endpoint defaults for since/limit. */
 wf_status wf_agent_fetch_labels(wf_agent *agent,
-                                const char *const *did_pointers,
-                                size_t count,
+                                const char *const *did_pointers, size_t count,
                                 cJSON **out_labels);
 
 /* Exact deprecated fetchLabels query. `has_since` controls the optional
  * integer cursor; `limit == 0` omits the parameter, otherwise it must be
  * within the lexicon range 1..250. `*out_labels` is owned by the caller and
  * freed with cJSON_Delete. */
-wf_status wf_agent_fetch_labels_query(wf_agent *agent,
-                                      int has_since, int64_t since,
-                                      int limit, cJSON **out_labels);
+wf_status wf_agent_fetch_labels_query(wf_agent *agent, int has_since,
+                                      int64_t since, int limit,
+                                      cJSON **out_labels);
 
 /* Legacy requestPhoneVerification wrapper. The input has only phoneNumber, so
  * `code` must be NULL; non-NULL input is rejected rather than discarded. */
 wf_status wf_agent_request_phone_verification(wf_agent *agent,
-                                             const char *phone_number,
-                                             const char *code);
+                                              const char *phone_number,
+                                              const char *code);
 
 /* Exact requestPhoneVerification procedure carrying only phoneNumber. */
 wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
-                                                     const char *phone_number);
+                                                    const char *phone_number);
 
 /* Issue revokeAccountCredentials. The atproto lexicon requires an `account`
  * (at-identifier) input that this helper's signature does not carry, so this is
  * an honest stub returning WF_ERR_INVALID_ARG with a TODO (AGENTS.md #3). */
-wf_status wf_agent_revoke_account_credentials(wf_agent *agent,
-                                               const char *code,
-                                               const char *name,
-                                               const char *description);
+wf_status wf_agent_revoke_account_credentials(wf_agent *agent, const char *code,
+                                              const char *name,
+                                              const char *description);
 
 /* Issue revokeAccountCredentials carrying the lexicon-required `account`
  * (at-identifier) input. Returns wf_status only (the procedure returns no
@@ -224,9 +220,8 @@ wf_status wf_agent_add_reserved_handle(wf_agent *agent, const char *handle);
  * *out_did (the lexicon returns the full oauth permission `scope`; the helper
  * names it out_did for parity). Caller owns *out_did (free with free()).
  * Returns WF_ERR_INVALID_ARG on NULL/empty scope or out pointer. */
-wf_status wf_agent_dereference_scope(wf_agent *agent,
-                                      const char *scope,
-                                      char **out_did);
+wf_status wf_agent_dereference_scope(wf_agent *agent, const char *scope,
+                                     char **out_did);
 
 /* Issue addReservedHandle (procedure, input: handle). *out is filled with the
  * parsed result (ok=1 on success, optional echoed handle captured when present;

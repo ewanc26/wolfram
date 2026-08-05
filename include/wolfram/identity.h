@@ -53,9 +53,8 @@ wf_did_method wf_did_method_of(const char *did);
  * On WF_OK, `out` is populated and must be released with
  * wf_did_document_free.
  */
-wf_status wf_did_resolve(wf_xrpc_client *client,
-                          const char *did,
-                          wf_did_document *out);
+wf_status wf_did_resolve(wf_xrpc_client *client, const char *did,
+                         wf_did_document *out);
 
 /**
  * Resolve a known atproto service by its canonical ID and expected type.
@@ -67,12 +66,12 @@ wf_status wf_did_resolve_service(wf_xrpc_client *client, const char *did,
 
 /* Resolve a service by canonical fragment (for example "#atproto_pds").
  * `service_type` optionally enforces an exact type. Relative and absolute IDs
- * in the DID document are accepted. Only valid HTTP(S) endpoints are returned. */
-wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
-                                        const char *did,
-                                        const char *service_id,
-                                        const char *service_type,
-                                        char **out_endpoint);
+ * in the DID document are accepted. Only valid HTTP(S) endpoints are returned.
+ */
+wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client, const char *did,
+                                       const char *service_id,
+                                       const char *service_type,
+                                       char **out_endpoint);
 
 /* Resolve a verification method by its canonical fragment (for example
  * "#atproto" or "#atproto_label") and return its key normalized to
@@ -83,8 +82,7 @@ wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client,
  * semantics). On WF_OK, `*out_didkey` is heap-allocated and owned by the
  * caller (free()). */
 wf_status wf_did_resolve_verification_key(wf_xrpc_client *client,
-                                          const char *did,
-                                          const char *key_id,
+                                          const char *did, const char *key_id,
                                           char **out_didkey);
 
 /**
@@ -114,8 +112,7 @@ void wf_did_document_free(wf_did_document *doc);
  * adapters that do not use wolfram's built-in resolver.
  */
 wf_status wf_handle_parse_dns_txt(const wf_dns_txt_chunk *chunks,
-                                  size_t chunk_count,
-                                  char **out_did);
+                                  size_t chunk_count, char **out_did);
 
 /**
  * Resolve a handle (e.g. "ewancroft.uk") to a DID string.
@@ -125,9 +122,8 @@ wf_status wf_handle_parse_dns_txt(const wf_dns_txt_chunk *chunks,
  *
  * `*out_did` is heap-allocated on success; caller must free() it.
  */
-wf_status wf_handle_resolve(wf_xrpc_client *client,
-                              const char *handle,
-                              char **out_did);
+wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle,
+                            char **out_did);
 
 /**
  * Account / identity-management operations for the com.atproto.identity
@@ -142,12 +138,12 @@ wf_status wf_handle_resolve(wf_xrpc_client *client,
 
 /** Output of com.atproto.identity.getRecommendedDidCredentials. */
 typedef struct wf_identity_recommended_did_credentials {
-    char **rotation_keys;       /* NULL if none; array of did:key strings */
+    char **rotation_keys; /* NULL if none; array of did:key strings */
     size_t rotation_keys_count;
-    char **also_known_as;       /* NULL if none; array of "at://..." strings */
+    char **also_known_as; /* NULL if none; array of "at://..." strings */
     size_t also_known_as_count;
-    char  *verification_methods; /* raw JSON object string, or NULL */
-    char  *services;             /* raw JSON object string, or NULL */
+    char *verification_methods; /* raw JSON object string, or NULL */
+    char *services;             /* raw JSON object string, or NULL */
 } wf_identity_recommended_did_credentials;
 
 /**
@@ -173,7 +169,8 @@ void wf_identity_recommended_did_credentials_free(
 wf_status wf_identity_request_plc_operation_signature(wf_xrpc_client *client,
                                                       const char *did);
 
-/** Input for com.atproto.identity.signPlcOperation (server-side token signing). */
+/** Input for com.atproto.identity.signPlcOperation (server-side token signing).
+ */
 typedef struct wf_identity_sign_plc_operation_input {
     /**
      * Token received via wf_identity_request_plc_operation_signature. NULL or
@@ -182,10 +179,10 @@ typedef struct wf_identity_sign_plc_operation_input {
     const char *token;
     /** Rotation keys (array of did:key strings). NULL/0 -> omitted. */
     const char *const *rotation_keys;
-    size_t             rotation_keys_count;
+    size_t rotation_keys_count;
     /** alsoKnownAs entries (array of "at://..." strings). NULL/0 -> omitted. */
     const char *const *also_known_as;
-    size_t             also_known_as_count;
+    size_t also_known_as_count;
     /**
      * verificationMethods map as a JSON object string, e.g.
      * "{\"atproto\":\"did:key:...\"}". NULL -> omitted.
@@ -236,13 +233,14 @@ wf_status wf_identity_update_handle(wf_xrpc_client *client, const char *handle);
 
 /** Input for com.atproto.identity.checkHandle. */
 typedef struct wf_identity_check_handle_input {
-    const char *handle;  /* required */
-    const char *did;     /* optional; the DID the handle is expected to map to */
+    const char *handle; /* required */
+    const char *did;    /* optional; the DID the handle is expected to map to */
 } wf_identity_check_handle_input;
 
 /** Output of com.atproto.identity.checkHandle. */
 typedef struct wf_identity_check_handle_result {
-    int valid; /* 1 if the handle is available/valid, 0 otherwise; -1 if absent */
+    int valid; /* 1 if the handle is available/valid, 0 otherwise; -1 if absent
+                */
 } wf_identity_check_handle_result;
 
 /**

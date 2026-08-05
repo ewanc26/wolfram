@@ -105,30 +105,31 @@ static int canonical_pair_cmp(const void *lhs, const void *rhs) {
 static void canonicalise(cbor_item_t *item) {
     if (!item) return;
     switch (cbor_typeof(item)) {
-    case CBOR_TYPE_MAP: {
-        struct cbor_pair *pairs = cbor_map_handle(item);
-        size_t count = cbor_map_size(item);
-        for (size_t i = 0; i < count; i++) {
-            /* Only string keys occur here; a non-string would make the
-             * comparison meaningless, so leave such a map alone. */
-            if (!cbor_isa_string(pairs[i].key)) return;
+        case CBOR_TYPE_MAP: {
+            struct cbor_pair *pairs = cbor_map_handle(item);
+            size_t count = cbor_map_size(item);
+            for (size_t i = 0; i < count; i++) {
+                /* Only string keys occur here; a non-string would make the
+                 * comparison meaningless, so leave such a map alone. */
+                if (!cbor_isa_string(pairs[i].key)) return;
+            }
+            qsort(pairs, count, sizeof(*pairs), canonical_pair_cmp);
+            for (size_t i = 0; i < count; i++) canonicalise(pairs[i].value);
+            break;
         }
-        qsort(pairs, count, sizeof(*pairs), canonical_pair_cmp);
-        for (size_t i = 0; i < count; i++) canonicalise(pairs[i].value);
-        break;
-    }
-    case CBOR_TYPE_ARRAY: {
-        size_t count = cbor_array_size(item);
-        for (size_t i = 0; i < count; i++)
-            canonicalise(cbor_array_handle(item)[i]);
-        break;
-    }
-    default:
-        break;
+        case CBOR_TYPE_ARRAY: {
+            size_t count = cbor_array_size(item);
+            for (size_t i = 0; i < count; i++)
+                canonicalise(cbor_array_handle(item)[i]);
+            break;
+        }
+        default:
+            break;
     }
 }
 
-/* Serialize `a` then `b` into one contiguous owned buffer (header then body). */
+/* Serialize `a` then `b` into one contiguous owned buffer (header then body).
+ */
 static wf_status serialize_two(cbor_item_t *a, cbor_item_t *b,
                                unsigned char **out, size_t *out_len) {
     unsigned char *b1 = NULL, *b2 = NULL;
@@ -177,8 +178,7 @@ static cbor_item_t *build_ops(const wf_subscribe_repo_op *ops, size_t n) {
             map_put(op, "cid", cid_link_item(&ops[i].cid));
         else
             map_put(op, "cid", cbor_new_null());
-        if (ops[i].has_prev)
-            map_put(op, "prev", cid_link_item(&ops[i].prev));
+        if (ops[i].has_prev) map_put(op, "prev", cid_link_item(&ops[i].prev));
         bool push_ok = cbor_array_push(arr, op);
         (void)push_ok;
         cbor_decref(&op);
@@ -213,16 +213,15 @@ static cbor_item_t *build_commit_body(const wf_subscribe_commit *c) {
         map_put(m, "since", cbor_build_string(c->since));
     else
         map_put(m, "since", cbor_new_null());
-    map_put(m, "blocks",
-            cbor_build_bytestring(c->blocks ? c->blocks
-                                            : (const unsigned char *)"",
-                                  c->blocks_len));
+    map_put(
+        m, "blocks",
+        cbor_build_bytestring(c->blocks ? c->blocks : (const unsigned char *)"",
+                              c->blocks_len));
     map_put(m, "ops", build_ops(c->ops, c->ops_count));
     /* `blobs` is always present: empty CID-link array when there are none. */
     map_put(m, "blobs", cbor_new_definite_array(0));
     map_put(m, "time", cbor_build_string(c->time));
-    if (c->has_prev_data)
-        map_put(m, "prevData", cid_link_item(&c->prev_data));
+    if (c->has_prev_data) map_put(m, "prevData", cid_link_item(&c->prev_data));
     return m;
 }
 
@@ -230,10 +229,10 @@ static cbor_item_t *build_sync_body(const wf_subscribe_sync *s) {
     cbor_item_t *m = cbor_new_definite_map(5);
     map_put(m, "seq", int_item(s->seq));
     map_put(m, "did", cbor_build_string(s->did));
-    map_put(m, "blocks",
-            cbor_build_bytestring(s->blocks ? s->blocks
-                                            : (const unsigned char *)"",
-                                  s->blocks_len));
+    map_put(
+        m, "blocks",
+        cbor_build_bytestring(s->blocks ? s->blocks : (const unsigned char *)"",
+                              s->blocks_len));
     map_put(m, "rev", cbor_build_string(s->rev));
     map_put(m, "time", cbor_build_string(s->time));
     return m;
@@ -244,8 +243,7 @@ static cbor_item_t *build_identity_body(const wf_subscribe_identity *id) {
     map_put(m, "seq", int_item(id->seq));
     map_put(m, "did", cbor_build_string(id->did));
     map_put(m, "time", cbor_build_string(id->time));
-    if (id->has_handle)
-        map_put(m, "handle", cbor_build_string(id->handle));
+    if (id->has_handle) map_put(m, "handle", cbor_build_string(id->handle));
     return m;
 }
 
@@ -255,8 +253,7 @@ static cbor_item_t *build_account_body(const wf_subscribe_account *ac) {
     map_put(m, "did", cbor_build_string(ac->did));
     map_put(m, "time", cbor_build_string(ac->time));
     map_put(m, "active", cbor_build_bool(ac->active));
-    if (ac->has_status)
-        map_put(m, "status", cbor_build_string(ac->status));
+    if (ac->has_status) map_put(m, "status", cbor_build_string(ac->status));
     return m;
 }
 
@@ -285,18 +282,14 @@ static cbor_item_t *build_label_item(const wf_label *l) {
     cbor_item_t *m = cbor_new_definite_map(n);
     if (!m) return NULL;
 
-    if (l->has_ver)
-        map_put(m, "ver", int_item(l->ver));
+    if (l->has_ver) map_put(m, "ver", int_item(l->ver));
     map_put(m, "src", cbor_build_string(l->src));
     map_put(m, "uri", cbor_build_string(l->uri));
-    if (l->has_cid)
-        map_put(m, "cid", cbor_build_string(l->cid));
+    if (l->has_cid) map_put(m, "cid", cbor_build_string(l->cid));
     map_put(m, "val", cbor_build_string(l->val));
-    if (l->has_neg)
-        map_put(m, "neg", cbor_build_bool(l->neg));
+    if (l->has_neg) map_put(m, "neg", cbor_build_bool(l->neg));
     map_put(m, "cts", cbor_build_string(l->cts));
-    if (l->has_exp)
-        map_put(m, "exp", cbor_build_string(l->exp));
+    if (l->has_exp) map_put(m, "exp", cbor_build_string(l->exp));
     if (l->has_sig) {
         unsigned char *raw = NULL;
         size_t raw_len = 0;
@@ -341,10 +334,8 @@ static cbor_item_t *build_labels_body(const wf_subscribe_labels *l) {
 
 static cbor_item_t *build_error_body(const char *error, const char *message) {
     cbor_item_t *m = cbor_new_definite_map(error ? 2 : 1);
-    map_put(m, "error",
-            error ? cbor_build_string(error) : cbor_new_null());
-    if (message)
-        map_put(m, "message", cbor_build_string(message));
+    map_put(m, "error", error ? cbor_build_string(error) : cbor_new_null());
+    if (message) map_put(m, "message", cbor_build_string(message));
     return m;
 }
 
@@ -361,36 +352,37 @@ wf_status wf_sync_publish_event(const wf_subscribe_event *ev,
     int is_error = 0;
 
     switch (ev->type) {
-    case WF_SUBSCRIBE_EVENT_COMMIT:
-        body = build_commit_body(&ev->data.commit);
-        t = "#commit";
-        break;
-    case WF_SUBSCRIBE_EVENT_SYNC:
-        body = build_sync_body(&ev->data.sync);
-        t = "#sync";
-        break;
-    case WF_SUBSCRIBE_EVENT_IDENTITY:
-        body = build_identity_body(&ev->data.identity);
-        t = "#identity";
-        break;
-    case WF_SUBSCRIBE_EVENT_ACCOUNT:
-        body = build_account_body(&ev->data.account);
-        t = "#account";
-        break;
-    case WF_SUBSCRIBE_EVENT_INFO:
-        body = build_info_body(&ev->data.info);
-        t = "#info";
-        break;
-    case WF_SUBSCRIBE_EVENT_LABELS:
-        body = build_labels_body(&ev->data.labels);
-        t = "#labels";
-        break;
-    case WF_SUBSCRIBE_EVENT_ERROR:
-        body = build_error_body(ev->data.error.error, ev->data.error.message);
-        is_error = 1;
-        break;
-    default:
-        return WF_ERR_INVALID_ARG;
+        case WF_SUBSCRIBE_EVENT_COMMIT:
+            body = build_commit_body(&ev->data.commit);
+            t = "#commit";
+            break;
+        case WF_SUBSCRIBE_EVENT_SYNC:
+            body = build_sync_body(&ev->data.sync);
+            t = "#sync";
+            break;
+        case WF_SUBSCRIBE_EVENT_IDENTITY:
+            body = build_identity_body(&ev->data.identity);
+            t = "#identity";
+            break;
+        case WF_SUBSCRIBE_EVENT_ACCOUNT:
+            body = build_account_body(&ev->data.account);
+            t = "#account";
+            break;
+        case WF_SUBSCRIBE_EVENT_INFO:
+            body = build_info_body(&ev->data.info);
+            t = "#info";
+            break;
+        case WF_SUBSCRIBE_EVENT_LABELS:
+            body = build_labels_body(&ev->data.labels);
+            t = "#labels";
+            break;
+        case WF_SUBSCRIBE_EVENT_ERROR:
+            body =
+                build_error_body(ev->data.error.error, ev->data.error.message);
+            is_error = 1;
+            break;
+        default:
+            return WF_ERR_INVALID_ARG;
     }
     if (!body) return WF_ERR_ALLOC;
 
@@ -401,8 +393,7 @@ wf_status wf_sync_publish_event(const wf_subscribe_event *ev,
         return WF_ERR_ALLOC;
     }
     map_put(header, "op", int_item(is_error ? -1 : 1));
-    if (!is_error)
-        map_put(header, "t", cbor_build_string(t));
+    if (!is_error) map_put(header, "t", cbor_build_string(t));
 
     wf_status s = serialize_two(header, body, out, out_len);
     cbor_decref(&header);
@@ -411,9 +402,10 @@ wf_status wf_sync_publish_event(const wf_subscribe_event *ev,
 }
 
 wf_status wf_sync_publish_error(int64_t seq, const char *error,
-                                const char *message,
-                                unsigned char **out, size_t *out_len) {
-    (void)seq; /* the wire error frame carries no seq field; accepted for API symmetry */
+                                const char *message, unsigned char **out,
+                                size_t *out_len) {
+    (void)seq; /* the wire error frame carries no seq field; accepted for API
+                  symmetry */
     if (!out || !out_len) return WF_ERR_INVALID_ARG;
     *out = NULL;
     *out_len = 0;

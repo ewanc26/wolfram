@@ -67,7 +67,8 @@ int main(void) {
                  strcmp(out.status, "active") == 0);
         WF_CHECK(out.did_doc != NULL);
         if (out.did_doc) {
-            cJSON *id = cJSON_GetObjectItemCaseSensitive(out.did_doc, "@context");
+            cJSON *id =
+                cJSON_GetObjectItemCaseSensitive(out.did_doc, "@context");
             WF_CHECK(cJSON_IsArray(id));
         }
         WF_CHECK(out.extra != NULL);
@@ -87,8 +88,7 @@ int main(void) {
         WF_CHECK(out.repo_rev && strcmp(out.repo_rev, "3") == 0);
         WF_CHECK(out.has_repo_blocks && out.repo_blocks == 1024);
         WF_CHECK(out.has_indexed_records && out.indexed_records == 42);
-        WF_CHECK(out.has_private_state_values &&
-                 out.private_state_values == 0);
+        WF_CHECK(out.has_private_state_values && out.private_state_values == 0);
         WF_CHECK(out.has_expected_blobs && out.expected_blobs == 3);
         WF_CHECK(out.has_imported_blobs && out.imported_blobs == 1);
         wf_server_account_status_free(&out);
@@ -226,13 +226,12 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_account_invite_codes_typed(NULL, 0, 0, &ic) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_account_invite_codes_typed((wf_agent *)1, 0, 0,
-                                                         NULL) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_account_invite_codes_typed(
+                     (wf_agent *)1, 0, 0, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_reserve_signing_key_typed(NULL, NULL, &at) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_reserve_signing_key_typed((wf_agent *)1, NULL, NULL) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_reserve_signing_key_typed(
+                     (wf_agent *)1, NULL, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_request_account_delete_typed(NULL) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_request_email_update_typed(NULL, &eu) ==
@@ -307,8 +306,7 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
 
         WF_CHECK(wf_agent_delete_session_typed(NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_activate_account_typed(NULL) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_activate_account_typed(NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_deactivate_account_typed(NULL, NULL) ==
                  WF_ERR_INVALID_ARG);
 
@@ -336,11 +334,10 @@ int main(void) {
         WF_CHECK(wf_agent_create_invite_code_typed(NULL, 1, NULL, NULL) ==
                  WF_ERR_INVALID_ARG);
 
-        WF_CHECK(wf_agent_create_invite_codes_typed(NULL, 1, 1, NULL, 0,
-                                                   &cics) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_create_invite_codes_typed(NULL, 1, 1, NULL, 0,
-                                                     NULL) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_invite_codes_typed(
+                     NULL, 1, 1, NULL, 0, &cics) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_create_invite_codes_typed(
+                     NULL, 1, 1, NULL, 0, NULL) == WF_ERR_INVALID_ARG);
 
         wf_server_describe_free(&desc);
         wf_server_create_account_result_free(&car);

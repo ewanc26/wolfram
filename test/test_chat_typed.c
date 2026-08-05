@@ -18,7 +18,9 @@
 /* No-op mod-event callback used only for the subscribeModEvents arg-guards. */
 static void test_mod_event_noop(const wf_chat_mod_event *event, int64_t seq,
                                 void *userdata) {
-    (void)event; (void)seq; (void)userdata;
+    (void)event;
+    (void)seq;
+    (void)userdata;
 }
 
 static char *read_entire_file(const char *path, size_t *len_out) {
@@ -163,7 +165,8 @@ static void test_malformed(void) {
     wf_chat_convo_list_free(&l);
 
     wf_chat_message_list m = {0};
-    WF_CHECK(wf_agent_parse_messages("{\"messages\":5}", 15, &m) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_messages("{\"messages\":5}", 15, &m) ==
+             WF_ERR_PARSE);
     wf_chat_message_list_free(&m);
 }
 
@@ -199,8 +202,8 @@ static void test_chat_service_did_from_describe(void) {
     const char *no_chat =
         "{\"did\":\"did:plc:srv\",\"availableUserDomains\":[\"bsky.social\"]}";
     char *did = NULL;
-    wf_status s = wf_agent_chat_service_did_from_describe(no_chat,
-                                                          strlen(no_chat), &did);
+    wf_status s =
+        wf_agent_chat_service_did_from_describe(no_chat, strlen(no_chat), &did);
     WF_CHECK(s == WF_OK);
     WF_CHECK(did == NULL);
 
@@ -215,8 +218,7 @@ static void test_chat_service_did_from_describe(void) {
     free(did);
 
     /* Empty `chat` field is treated as absent (fallback). */
-    const char *empty_chat =
-        "{\"did\":\"did:plc:srv\",\"chat\":\"\"}";
+    const char *empty_chat = "{\"did\":\"did:plc:srv\",\"chat\":\"\"}";
     s = wf_agent_chat_service_did_from_describe(empty_chat, strlen(empty_chat),
                                                 &did);
     WF_CHECK(s == WF_OK);
@@ -244,7 +246,8 @@ static void test_parse_chat_notification_prefs(void) {
     WF_CHECK(json != NULL);
 
     wf_chat_notification_preferences prefs = {0};
-    wf_status s = wf_agent_parse_chat_notification_preferences(json, len, &prefs);
+    wf_status s =
+        wf_agent_parse_chat_notification_preferences(json, len, &prefs);
     WF_CHECK(s == WF_OK);
 
     WF_CHECK(prefs.chat.include && strcmp(prefs.chat.include, "all") == 0);
@@ -274,37 +277,38 @@ static void test_parse_chat_notification_prefs_invalid(void) {
 static void test_chat_notification_wrappers_null_arg(void) {
     wf_chat_notification_preferences p = {0};
     WF_CHECK(wf_agent_chat_notification_get_preferences(NULL, &p) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_notification_get_preferences((wf_agent *)1, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_notification_put_preferences(NULL, &p, &p) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_notification_put_preferences((wf_agent *)1, NULL, &p) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_notification_put_preferences((wf_agent *)1, &p, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_notification_put_preferences(
+                 (wf_agent *)1, NULL, &p) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_notification_put_preferences(
+                 (wf_agent *)1, &p, NULL) == WF_ERR_INVALID_ARG);
 }
 
 static void test_wrappers_null_arg(void) {
     wf_chat_convo_list l = {0};
-    WF_CHECK(wf_agent_chat_list_convos(NULL, 0, NULL, &l) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_list_convos(NULL, 0, NULL, &l) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_list_convos((wf_agent *)1, 0, NULL, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 
     wf_chat_convo c = {0};
     WF_CHECK(wf_agent_chat_get_convo(NULL, "x", &c) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_get_convo((wf_agent *)1, NULL, &c) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_get_convo((wf_agent *)1, "x", NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 
     wf_chat_message_list m = {0};
     WF_CHECK(wf_agent_chat_get_messages(NULL, "x", 0, NULL, &m) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_get_messages((wf_agent *)1, NULL, 0, NULL, &m) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_get_messages((wf_agent *)1, "x", 0, NULL, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -396,8 +400,7 @@ static void test_parse_log(void) {
     WF_CHECK(lg.events[0].id && strcmp(lg.events[0].id, "l1") == 0);
     WF_CHECK(lg.events[0].type &&
              strcmp(lg.events[0].type, "#logBeginConvo") == 0);
-    WF_CHECK(lg.events[0].convo_id &&
-             strcmp(lg.events[0].convo_id, "c1") == 0);
+    WF_CHECK(lg.events[0].convo_id && strcmp(lg.events[0].convo_id, "c1") == 0);
     WF_CHECK(lg.events[1].type &&
              strcmp(lg.events[1].type, "#logAddMember") == 0);
     WF_CHECK(lg.cursor && strcmp(lg.cursor, "lc") == 0);
@@ -415,10 +418,8 @@ static void test_parse_message_batch(void) {
     wf_status s = wf_agent_parse_message_batch(json, strlen(json), &b);
     WF_CHECK(s == WF_OK);
     WF_CHECK(b.item_count == 1);
-    WF_CHECK(b.items[0].convo_id &&
-             strcmp(b.items[0].convo_id, "c1") == 0);
-    WF_CHECK(b.items[0].message.id &&
-             strcmp(b.items[0].message.id, "m1") == 0);
+    WF_CHECK(b.items[0].convo_id && strcmp(b.items[0].convo_id, "c1") == 0);
+    WF_CHECK(b.items[0].message.id && strcmp(b.items[0].message.id, "m1") == 0);
     WF_CHECK(b.items[0].message.text &&
              strcmp(b.items[0].message.text, "hi") == 0);
     wf_chat_message_batch_free(&b);
@@ -477,11 +478,10 @@ static void test_parse_join_link(void) {
 }
 
 static void test_parse_join_link_previews(void) {
-    const char *json =
-        "{\"joinLinkPreviews\":["
-        "{\"$type\":\"#joinLinkPreviewView\",\"code\":\"abc\","
-        "\"name\":\"Group\",\"joinRule\":\"all-members\","
-        "\"requireApproval\":true}]}";
+    const char *json = "{\"joinLinkPreviews\":["
+                       "{\"$type\":\"#joinLinkPreviewView\",\"code\":\"abc\","
+                       "\"name\":\"Group\",\"joinRule\":\"all-members\","
+                       "\"requireApproval\":true}]}";
     wf_chat_join_link_previews p = {0};
     wf_status s = wf_agent_parse_join_link_previews(json, strlen(json), &p);
     WF_CHECK(s == WF_OK);
@@ -514,10 +514,9 @@ static void test_parse_join_requests(void) {
 }
 
 static void test_parse_request_join(void) {
-    const char *json =
-        "{\"status\":\"joined\","
-        "\"convo\":{\"id\":\"c1\",\"rev\":\"r1\","
-        "\"members\":[{\"did\":\"did:plc:a\"}]}}";
+    const char *json = "{\"status\":\"joined\","
+                       "\"convo\":{\"id\":\"c1\",\"rev\":\"r1\","
+                       "\"members\":[{\"did\":\"did:plc:a\"}]}}";
     wf_chat_request_join r = {0};
     wf_status s = wf_agent_parse_request_join(json, strlen(json), &r);
     WF_CHECK(s == WF_OK);
@@ -528,13 +527,12 @@ static void test_parse_request_join(void) {
 }
 
 static void test_parse_actor_metadata(void) {
-    const char *json =
-        "{\"day\":{\"messagesSent\":1,\"messagesReceived\":2,"
-        "\"convos\":3,\"convosStarted\":4},"
-        "\"month\":{\"messagesSent\":10,\"messagesReceived\":20,"
-        "\"convos\":30,\"convosStarted\":40},"
-        "\"all\":{\"messagesSent\":100,\"messagesReceived\":200,"
-        "\"convos\":300,\"convosStarted\":400}}";
+    const char *json = "{\"day\":{\"messagesSent\":1,\"messagesReceived\":2,"
+                       "\"convos\":3,\"convosStarted\":4},"
+                       "\"month\":{\"messagesSent\":10,\"messagesReceived\":20,"
+                       "\"convos\":30,\"convosStarted\":40},"
+                       "\"all\":{\"messagesSent\":100,\"messagesReceived\":200,"
+                       "\"convos\":300,\"convosStarted\":400}}";
     wf_chat_actor_metadata m = {0};
     wf_status s = wf_agent_parse_actor_metadata(json, strlen(json), &m);
     WF_CHECK(s == WF_OK);
@@ -546,9 +544,8 @@ static void test_parse_actor_metadata(void) {
 }
 
 static void test_parse_mod_convo(void) {
-    const char *json =
-        "{\"id\":\"c1\",\"rev\":\"r1\","
-        "\"kind\":{\"$type\":\"#directConvo\",\"foo\":1}}";
+    const char *json = "{\"id\":\"c1\",\"rev\":\"r1\","
+                       "\"kind\":{\"$type\":\"#directConvo\",\"foo\":1}}";
     wf_chat_mod_convo c = {0};
     wf_status s = wf_agent_parse_mod_convo(json, strlen(json), &c);
     WF_CHECK(s == WF_OK);
@@ -560,9 +557,8 @@ static void test_parse_mod_convo(void) {
 }
 
 static void test_parse_mod_convos(void) {
-    const char *json =
-        "{\"convos\":[{\"id\":\"c1\",\"rev\":\"r1\","
-        "\"kind\":{\"$type\":\"#groupConvo\"}}]}";
+    const char *json = "{\"convos\":[{\"id\":\"c1\",\"rev\":\"r1\","
+                       "\"kind\":{\"$type\":\"#groupConvo\"}}]}";
     wf_chat_mod_convo_list l = {0};
     wf_status s = wf_agent_parse_mod_convos(json, strlen(json), &l);
     WF_CHECK(s == WF_OK);
@@ -574,9 +570,8 @@ static void test_parse_mod_convos(void) {
 }
 
 static void test_parse_actor_status(void) {
-    const char *json =
-        "{\"chatDisabled\":false,\"canCreateGroups\":true,"
-        "\"groupMemberLimit\":50}";
+    const char *json = "{\"chatDisabled\":false,\"canCreateGroups\":true,"
+                       "\"groupMemberLimit\":50}";
     wf_chat_actor_status s = {0};
     wf_status st = wf_agent_parse_actor_status(json, strlen(json), &s);
     WF_CHECK(st == WF_OK);
@@ -590,84 +585,83 @@ static void test_extended_typed_wrappers_null_arg(void) {
     /* Argument validation (no network needed): NULL agent / NULL out. */
     wf_chat_convo_availability av = {0};
     WF_CHECK(wf_agent_chat_get_convo_availability_typed(NULL, NULL, 0, &av) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_convo_members mem = {0};
     WF_CHECK(wf_agent_chat_get_convo_members_typed(NULL, "x", &mem) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_unread_counts uc = {0};
     WF_CHECK(wf_agent_chat_get_unread_counts_typed(NULL, &uc) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_convo_list l = {0};
     WF_CHECK(wf_agent_chat_list_convo_requests_typed(NULL, 0, NULL, &l) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_log lg = {0};
     WF_CHECK(wf_agent_chat_get_log_typed(NULL, 0, NULL, &lg) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_convo c = {0};
     WF_CHECK(wf_agent_chat_accept_convo_typed(NULL, "x", &c) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_mute_convo_typed(NULL, "x", &c) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_unlock_convo_typed(NULL, "x", &c) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_update_read_typed(NULL, "x", "y", &c) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_convo_ref r = {0};
     WF_CHECK(wf_agent_chat_leave_convo_typed(NULL, "x", &r) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_updated_count u = {0};
     WF_CHECK(wf_agent_chat_update_all_read_typed(NULL, "x", &u) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_message m = {0};
     WF_CHECK(wf_agent_chat_add_reaction_typed(NULL, "x", "y", "z", &m) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_remove_reaction_typed(NULL, "x", "y", "z", &m) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_join_link j = {0};
     WF_CHECK(wf_agent_chat_create_join_link_typed(NULL, "x", true, "y", &j) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_enable_join_link_typed(NULL, "x", &j) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_join_link_previews p = {0};
     WF_CHECK(wf_agent_chat_get_join_link_previews_typed(NULL, NULL, 0, &p) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_join_requests jr = {0};
     WF_CHECK(wf_agent_chat_list_join_requests_typed(NULL, "x", 0, NULL, &jr) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_request_join rq = {0};
     WF_CHECK(wf_agent_chat_request_join_typed(NULL, "x", &rq) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_actor_metadata am = {0};
     WF_CHECK(wf_agent_chat_mod_get_actor_metadata_typed(NULL, "x", &am) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_mod_convo mc = {0};
     WF_CHECK(wf_agent_chat_mod_get_convo_typed(NULL, "x", &mc) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_mod_convo_list ml = {0};
     WF_CHECK(wf_agent_chat_mod_get_convos_typed(NULL, NULL, 0, &ml) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     wf_chat_actor_status as = {0};
     WF_CHECK(wf_agent_chat_get_status_typed(NULL, &as) == WF_ERR_INVALID_ARG);
     wf_chat_message_list ml2 = {0};
-    WF_CHECK(wf_agent_chat_mod_get_message_context_typed(NULL, "x", "y", 0, 0,
-                                                        0, &ml2) ==
-              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_mod_get_message_context_typed(
+                 NULL, "x", "y", 0, 0, 0, &ml2) == WF_ERR_INVALID_ARG);
 
     /* out == NULL must also be rejected without touching the service. */
     WF_CHECK(wf_agent_chat_get_convo_members_typed((wf_agent *)1, "x", NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_get_status_typed((wf_agent *)1, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_accept_convo_typed((wf_agent *)1, "x", NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 }
 
 static void test_extended_typed_parsers_invalid(void) {
     wf_chat_convo_availability a = {0};
     WF_CHECK(wf_agent_parse_convo_availability(NULL, 0, &a) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_parse_convo_availability("not json", 8, &a) ==
-              WF_ERR_PARSE);
+             WF_ERR_PARSE);
     wf_chat_unread_counts u = {0};
     WF_CHECK(wf_agent_parse_unread_counts(NULL, 0, &u) == WF_ERR_INVALID_ARG);
     wf_chat_log lg = {0};
@@ -702,33 +696,30 @@ static void test_parse_chat_ok(void) {
 }
 
 static void test_parse_export_account_data(void) {
-    const char *jsonl =
-        "{\"uri\":\"at://did:plc:a/.../r1\"}\n"
-        "{\"uri\":\"at://did:plc:a/.../r2\"}\r\n"
-        "{\"uri\":\"at://did:plc:a/.../r3\"}";
+    const char *jsonl = "{\"uri\":\"at://did:plc:a/.../r1\"}\n"
+                        "{\"uri\":\"at://did:plc:a/.../r2\"}\r\n"
+                        "{\"uri\":\"at://did:plc:a/.../r3\"}";
     wf_chat_export_account_data e = {0};
     wf_status s = wf_agent_parse_export_account_data(jsonl, strlen(jsonl), &e);
     WF_CHECK(s == WF_OK);
     WF_CHECK(e.record_count == 3);
-    WF_CHECK(e.records[0].json &&
-              strstr(e.records[0].json, "r1") != NULL);
-    WF_CHECK(e.records[2].json &&
-              strstr(e.records[2].json, "r3") != NULL);
+    WF_CHECK(e.records[0].json && strstr(e.records[0].json, "r1") != NULL);
+    WF_CHECK(e.records[2].json && strstr(e.records[2].json, "r3") != NULL);
     wf_chat_export_account_data_free(&e);
     WF_CHECK(e.records == NULL && e.record_count == 0);
 
     /* Blank lines are skipped. */
     wf_chat_export_account_data e2 = {0};
-    WF_CHECK(wf_agent_parse_export_account_data("\n\n{\"a\":1}\n",
-             strlen("\n\n{\"a\":1}\n"), &e2) == WF_OK);
+    WF_CHECK(wf_agent_parse_export_account_data(
+                 "\n\n{\"a\":1}\n", strlen("\n\n{\"a\":1}\n"), &e2) == WF_OK);
     WF_CHECK(e2.record_count == 1);
     wf_chat_export_account_data_free(&e2);
 
     wf_chat_export_account_data e3 = {0};
     WF_CHECK(wf_agent_parse_export_account_data(NULL, 0, &e3) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_parse_export_account_data("x", 1, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 }
 
 static void test_parse_mod_event(void) {
@@ -743,7 +734,7 @@ static void test_parse_mod_event(void) {
     WF_CHECK(ev.convo_id && strcmp(ev.convo_id, "c1") == 0);
     WF_CHECK(ev.rev && strcmp(ev.rev, "r1") == 0);
     WF_CHECK(ev.created_at &&
-              strcmp(ev.created_at, "2024-01-01T00:00:00Z") == 0);
+             strcmp(ev.created_at, "2024-01-01T00:00:00Z") == 0);
     WF_CHECK(ev.actor_did && strcmp(ev.actor_did, "did:plc:owner") == 0);
     WF_CHECK(ev.subject_did && strcmp(ev.subject_did, "did:plc:sub") == 0);
     wf_chat_mod_event_free(&ev);
@@ -751,67 +742,59 @@ static void test_parse_mod_event(void) {
 
     wf_chat_mod_event ev2 = {0};
     WF_CHECK(wf_agent_parse_mod_event("not json", 8, &ev2) == WF_ERR_PARSE);
-    WF_CHECK(wf_agent_parse_mod_event(NULL, 0, &ev2) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_parse_mod_event("{}", 2, NULL) ==
-              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_mod_event(NULL, 0, &ev2) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_mod_event("{}", 2, NULL) == WF_ERR_INVALID_ARG);
 }
 
 static void test_new_typed_wrappers_null_arg(void) {
     /* Argument validation (no network): NULL agent / NULL out. */
     wf_chat_ok ok = {0};
     WF_CHECK(wf_agent_chat_reject_join_request_typed(NULL, "x", "y", &ok) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_reject_join_request_typed((wf_agent *)1, NULL, "y",
-                                                     &ok) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_reject_join_request_typed((wf_agent *)1, "x", NULL,
-                                                     &ok) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_reject_join_request_typed((wf_agent *)1, "x", "y",
-                                                     NULL) == WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_reject_join_request_typed(
+                 (wf_agent *)1, NULL, "y", &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_reject_join_request_typed(
+                 (wf_agent *)1, "x", NULL, &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_reject_join_request_typed(
+                 (wf_agent *)1, "x", "y", NULL) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_chat_update_join_requests_read_typed(NULL, "x", &ok) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_update_join_requests_read_typed((wf_agent *)1, NULL,
-                                                          &ok) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_update_join_requests_read_typed((wf_agent *)1, "x",
-                                                          NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_update_join_requests_read_typed(
+                 (wf_agent *)1, NULL, &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_update_join_requests_read_typed(
+                 (wf_agent *)1, "x", NULL) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_chat_withdraw_join_request_typed(NULL, "x", &ok) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_withdraw_join_request_typed((wf_agent *)1, "x",
-                                                      NULL) == WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_withdraw_join_request_typed(
+                 (wf_agent *)1, "x", NULL) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_chat_delete_account_typed(NULL, &ok) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_delete_account_typed((wf_agent *)1, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 
-    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed(NULL, "x", true, "r",
-                                                        &ok) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed((wf_agent *)1, NULL,
-                                                         true, "r", &ok) ==
-              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed((wf_agent *)1, "x",
-                                                         true, "r", NULL) ==
-              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed(
+                 NULL, "x", true, "r", &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed(
+                 (wf_agent *)1, NULL, true, "r", &ok) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_mod_update_actor_access_typed(
+                 (wf_agent *)1, "x", true, "r", NULL) == WF_ERR_INVALID_ARG);
 
     wf_chat_export_account_data ex = {0};
     WF_CHECK(wf_agent_chat_export_account_data_typed(NULL, &ex) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_export_account_data_typed((wf_agent *)1, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 
     /* subscribeModEvents is now a real subscription; validate arg-guards.
      * NULL agent or NULL on_event both return WF_ERR_INVALID_ARG. */
     WF_CHECK(wf_agent_chat_subscribe_mod_events_typed(
                  NULL, NULL, test_mod_event_noop, NULL, NULL) ==
-              WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_chat_subscribe_mod_events_typed(
-                 (wf_agent *)1, "cur", NULL, NULL, NULL) ==
-              WF_ERR_INVALID_ARG);
+                 (wf_agent *)1, "cur", NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
 }
 
 int main(void) {

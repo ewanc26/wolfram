@@ -22,7 +22,8 @@ int main() {
     // 2) RAII handle over an xrpc client (no network needed to construct).
     wf_xrpc_client_handle client(wf_xrpc_client_new("https://bsky.social"));
     assert(client);
-    assert(std::string(wf_xrpc_get_base_url(client.get())) == "https://bsky.social");
+    assert(std::string(wf_xrpc_get_base_url(client.get())) ==
+           "https://bsky.social");
 
     // 3) Offline JSON round-trip. canonicalize preserves key order and emits
     //    compact JSON; the owned char* is released by the cstring RAII wrapper.
@@ -45,13 +46,15 @@ int main() {
         assert(std::string(dr->id) == "at://did/app.bsky.draft.getDrafts/abc");
         wf_draft_createDraft_result_handle drh(dr); // takes ownership
         (void)drh;
-        // scope exit: drh -> wf_draft_createDraft_result_free(dr) (frees dr->id)
+        // scope exit: drh -> wf_draft_createDraft_result_free(dr) (frees
+        // dr->id)
     }
 
     // 5) Success path for every new typed result: assert the parsed fields.
     //    draft createDraft returns {id}; update/delete expose `ok`; temp
     //    addReservedHandle echoes an optional `handle` and sets `ok`=1.
-    const char *draft_json = "{\"id\":\"at://did/app.bsky.draft.getDrafts/abc\"}";
+    const char *draft_json =
+        "{\"id\":\"at://did/app.bsky.draft.getDrafts/abc\"}";
     size_t draft_len = std::char_traits<char>::length(draft_json);
 
     wf_draft_createDraft_result dr;

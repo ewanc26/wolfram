@@ -1,7 +1,8 @@
 /*
  * notification_typed.c — owned typed parsers + agent wrappers for the
- * app.bsky.notification CORE endpoints. See include/wolfram/notification_typed.h
- * for the public API, the authoritative wire format, and ownership rules.
+ * app.bsky.notification CORE endpoints. See
+ * include/wolfram/notification_typed.h for the public API, the authoritative
+ * wire format, and ownership rules.
  *
  * Mirrors actor_typed.c / labeler_typed.c: static strdup/set_string/reset
  * helpers, owned strings, detached `extra`/`record`/`labels` cJSON subtrees,
@@ -72,7 +73,8 @@ static void wf_notification_view_reset(wf_notification_view *v) {
 /* Parse a single notification object (in place) into `v`. Known fields are
  * detached so the remaining `obj` becomes `v->extra`. Returns
  * WF_OK / WF_ERR_PARSE / WF_ERR_ALLOC. On error `v` is reset. */
-static wf_status wf_notification_parse_view(cJSON *obj, wf_notification_view *v) {
+static wf_status wf_notification_parse_view(cJSON *obj,
+                                            wf_notification_view *v) {
     wf_status status = WF_OK;
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
@@ -97,14 +99,16 @@ static wf_status wf_notification_parse_view(cJSON *obj, wf_notification_view *v)
             status = wf_notif_set_string(&v->author.did, did->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-            status = wf_notif_set_string(&v->author.handle, handle->valuestring);
+            status =
+                wf_notif_set_string(&v->author.handle, handle->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-            status = wf_notif_set_string(&v->author.display_name,
-                                         name->valuestring);
+            status =
+                wf_notif_set_string(&v->author.display_name, name->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-            status = wf_notif_set_string(&v->author.avatar, avatar->valuestring);
+            status =
+                wf_notif_set_string(&v->author.avatar, avatar->valuestring);
         }
     }
     if (status == WF_OK && cJSON_IsString(reason) && reason->valuestring) {
@@ -250,8 +254,9 @@ wf_status wf_notification_parse_list(const char *json, size_t json_len,
     return status;
 }
 
-wf_status wf_notification_parse_unread_count(const char *json, size_t json_len,
-                                             wf_notification_unread_count *out) {
+wf_status
+wf_notification_parse_unread_count(const char *json, size_t json_len,
+                                   wf_notification_unread_count *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -317,8 +322,9 @@ wf_status wf_agent_list_notifications_rich_typed(wf_agent *agent, int limit,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_app_bsky_notification_list_notifications_main_call(
-        agent->client, &params, &res);
+    wf_status status =
+        wf_lex_app_bsky_notification_list_notifications_main_call(
+            agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -375,7 +381,8 @@ wf_status wf_agent_update_seen_typed(wf_agent *agent, const char *seen_at) {
 
 wf_status wf_agent_register_push_typed(wf_agent *agent, const char *service_did,
                                        const char *token, const char *platform,
-                                       const char *app_id, bool has_age_restricted,
+                                       const char *app_id,
+                                       bool has_age_restricted,
                                        bool age_restricted) {
     if (!agent || !agent->client || !service_did || !service_did[0] || !token ||
         !token[0] || !platform || !platform[0] || !app_id || !app_id[0]) {
@@ -398,8 +405,10 @@ wf_status wf_agent_register_push_typed(wf_agent *agent, const char *service_did,
     return status;
 }
 
-wf_status wf_agent_unregister_push_typed(wf_agent *agent, const char *service_did,
-                                         const char *token, const char *platform,
+wf_status wf_agent_unregister_push_typed(wf_agent *agent,
+                                         const char *service_did,
+                                         const char *token,
+                                         const char *platform,
                                          const char *app_id) {
     if (!agent || !agent->client || !service_did || !service_did[0] || !token ||
         !token[0] || !platform || !platform[0] || !app_id || !app_id[0]) {

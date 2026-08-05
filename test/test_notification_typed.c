@@ -20,7 +20,8 @@ int main(void) {
 
     /* like */
     cJSON *n1 = cJSON_CreateObject();
-    cJSON_AddStringToObject(n1, "uri", "at://did:plc:alice/app.bsky.feed.post/aa");
+    cJSON_AddStringToObject(n1, "uri",
+                            "at://did:plc:alice/app.bsky.feed.post/aa");
     cJSON_AddStringToObject(n1, "cid", "bafyreigh1");
     cJSON *a1 = cJSON_AddObjectToObject(n1, "author");
     cJSON_AddStringToObject(a1, "did", "did:plc:alice");
@@ -36,7 +37,8 @@ int main(void) {
 
     /* follow */
     cJSON *n2 = cJSON_CreateObject();
-    cJSON_AddStringToObject(n2, "uri", "at://did:plc:bob/app.bsky.graph.follow/bb");
+    cJSON_AddStringToObject(n2, "uri",
+                            "at://did:plc:bob/app.bsky.graph.follow/bb");
     cJSON_AddStringToObject(n2, "cid", "bafyreigh2");
     cJSON *a2 = cJSON_AddObjectToObject(n2, "author");
     cJSON_AddStringToObject(a2, "did", "did:plc:bob");
@@ -48,7 +50,8 @@ int main(void) {
 
     /* reply with reasonSubject */
     cJSON *n3 = cJSON_CreateObject();
-    cJSON_AddStringToObject(n3, "uri", "at://did:plc:carol/app.bsky.feed.post/cc");
+    cJSON_AddStringToObject(n3, "uri",
+                            "at://did:plc:carol/app.bsky.feed.post/cc");
     cJSON_AddStringToObject(n3, "cid", "bafyreigh3");
     cJSON *a3 = cJSON_AddObjectToObject(n3, "author");
     cJSON_AddStringToObject(a3, "did", "did:plc:carol");
@@ -93,8 +96,8 @@ int main(void) {
     WF_CHECK(list.has_priority == 1 && list.priority == 1);
 
     wf_notification_view *v0 = &list.items[0];
-    WF_CHECK(v0->uri && strcmp(v0->uri,
-                              "at://did:plc:alice/app.bsky.feed.post/aa") == 0);
+    WF_CHECK(v0->uri &&
+             strcmp(v0->uri, "at://did:plc:alice/app.bsky.feed.post/aa") == 0);
     WF_CHECK(v0->author.did && strcmp(v0->author.did, "did:plc:alice") == 0);
     WF_CHECK(v0->author.handle &&
              strcmp(v0->author.handle, "alice.bsky.social") == 0);
@@ -147,8 +150,8 @@ int main(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_list_notifications_rich_typed((wf_agent *)1, 101, NULL,
                                                     &rl) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_list_notifications_typed((wf_agent *)1, 101, NULL, &arl) ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_list_notifications_typed((wf_agent *)1, 101, NULL,
+                                               &arl) == WF_ERR_INVALID_ARG);
 
     int64_t cnt = 0;
     WF_CHECK(wf_agent_get_unread_count_rich_typed(NULL, &cnt) ==
@@ -161,16 +164,19 @@ int main(void) {
     WF_CHECK(wf_agent_update_seen_typed(NULL, NULL) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", "tok", "ios",
-                                          "app", false, false) ==
-             WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_register_push_typed(NULL, NULL, "tok", "ios", "app", false,
+                                          "app", false,
                                           false) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", NULL, "ios", "app",
+    WF_CHECK(wf_agent_register_push_typed(NULL, NULL, "tok", "ios", "app",
                                           false, false) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", "tok", NULL, "app",
-                                          false, false) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", "tok", "ios", NULL,
-                                          false, false) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", NULL, "ios",
+                                          "app", false,
+                                          false) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", "tok", NULL,
+                                          "app", false,
+                                          false) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_register_push_typed(NULL, "did:web:pn", "tok", "ios",
+                                          NULL, false,
+                                          false) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_unregister_push_typed(NULL, "did:web:pn", "tok", "ios",
                                             "app") == WF_ERR_INVALID_ARG);

@@ -43,7 +43,8 @@ static void test_base64_encode(const unsigned char *in, size_t len, char *out) {
     size_t i, o = 0;
     for (i = 0; i + 3 <= len; i += 3) {
         unsigned int n = ((unsigned int)in[i] << 16) |
-                         ((unsigned int)in[i + 1] << 8) | (unsigned int)in[i + 2];
+                         ((unsigned int)in[i + 1] << 8) |
+                         (unsigned int)in[i + 2];
         out[o++] = tab[(n >> 18) & 0x3f];
         out[o++] = tab[(n >> 12) & 0x3f];
         out[o++] = tab[(n >> 6) & 0x3f];
@@ -87,7 +88,7 @@ static int test_write_all(int fd, const void *buf, size_t len) {
         if (n < 0) {
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                struct pollfd pfd = { fd, POLLOUT, 0 };
+                struct pollfd pfd = {fd, POLLOUT, 0};
                 if (poll(&pfd, 1, 2000) <= 0) return -1;
                 continue;
             }
@@ -110,8 +111,8 @@ static int test_write_all(int fd, const void *buf, size_t len) {
  * already read and thrown away. Replay them instead.
  */
 static unsigned char test_pending[4096];
-static size_t        test_pending_len;
-static size_t        test_pending_off;
+static size_t test_pending_len;
+static size_t test_pending_off;
 
 static void test_pushback(const void *data, size_t len) {
     if (len > sizeof(test_pending)) len = sizeof(test_pending);
@@ -131,12 +132,18 @@ static int test_read_exact(int fd, void *buf, size_t len, int timeout_ms) {
     }
 
     while (off < len) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         int pr = poll(&pfd, 1, remaining > 0 ? remaining : 1000);
-        if (pr < 0) { if (errno == EINTR) continue; return -1; }
+        if (pr < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (pr == 0) return -1;
         ssize_t n = read(fd, p + off, len - off);
-        if (n < 0) { if (errno == EINTR) continue; return -1; }
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
         if (n == 0) return -1;
         off += (size_t)n;
     }
@@ -154,7 +161,8 @@ static int test_ws_handshake(int fd, uint16_t port, const char *path) {
                       "Connection: Upgrade\r\n"
                       "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
                       "Sec-WebSocket-Version: 13\r\n"
-                      "\r\n", path, (unsigned)port);
+                      "\r\n",
+                      path, (unsigned)port);
     if (test_write_all(fd, req, (size_t)nr) != 0) {
         return -1;
     }
@@ -163,7 +171,7 @@ static int test_ws_handshake(int fd, uint16_t port, const char *path) {
     size_t hoff = 0;
     int got_eoh = 0;
     while (!got_eoh && hoff < sizeof(hdr) - 1) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         if (poll(&pfd, 1, 3000) <= 0) break;
         ssize_t n = read(fd, hdr + hoff, sizeof(hdr) - 1 - hoff);
         if (n <= 0) break;
@@ -193,7 +201,7 @@ static int test_ws_handshake(int fd, uint16_t port, const char *path) {
 
 struct upstream_arg {
     wf_xrpc_ws_stream *stream;
-    int                count;
+    int count;
 };
 
 static void *upstream_streamer(void *arg) {
@@ -201,7 +209,8 @@ static void *upstream_streamer(void *arg) {
     char payload[32];
     for (int i = 0; i < a->count; i++) {
         snprintf(payload, sizeof(payload), "frame-%d", i);
-        if (wf_xrpc_server_ws_send(a->stream, payload, strlen(payload)) != WF_OK) {
+        if (wf_xrpc_server_ws_send(a->stream, payload, strlen(payload)) !=
+            WF_OK) {
             fprintf(stderr, "WARN: upstream ws_send failed on frame %d\n", i);
         }
     }
@@ -246,18 +255,19 @@ static wf_status upstream_ws_handler(void *ctx, const wf_xrpc_request *req,
 #define WS_KEY "dGhlIHNhbXBsZSBub25jZQ=="
 #define TEST_COUNT 3
 #define UPSTREAM_NSID "io.example.upstream.subscribe"
-#define RELAY_NSID    "com.atproto.sync.subscribeRepos"
+#define RELAY_NSID "com.atproto.sync.subscribeRepos"
 
 static int run_test(void) {
-    wf_xrpc_server   *upstream = NULL;
-    wf_xrpc_server   *relay_srv = NULL;
-    wf_relay_server  *relay = NULL;
-    wf_websocket     *client = NULL;
-    int               failures = 0;
-    uint16_t          relay_port;
-    char              upstream_url[128];
+    wf_xrpc_server *upstream = NULL;
+    wf_xrpc_server *relay_srv = NULL;
+    wf_relay_server *relay = NULL;
+    wf_websocket *client = NULL;
+    int failures = 0;
+    uint16_t relay_port;
+    char upstream_url[128];
 
-    /* Always bring up the relay server so we exercise registration + teardown. */
+    /* Always bring up the relay server so we exercise registration + teardown.
+     */
     relay_srv = wf_xrpc_server_start("127.0.0.1", 0, 1);
     if (!relay_srv) {
         fprintf(stderr, "FAIL: relay wf_xrpc_server_start returned NULL\n");
@@ -276,7 +286,8 @@ static int run_test(void) {
 
         upstream = wf_xrpc_server_start("127.0.0.1", 0, 1);
         if (!upstream) {
-            fprintf(stderr, "FAIL: upstream wf_xrpc_server_start returned NULL\n");
+            fprintf(stderr,
+                    "FAIL: upstream wf_xrpc_server_start returned NULL\n");
             wf_xrpc_server_free(relay_srv);
             return 1;
         }
@@ -298,8 +309,8 @@ static int run_test(void) {
                  "ws://127.0.0.1:%u/xrpc/%s", (unsigned)up_port, UPSTREAM_NSID);
     } else {
         /* ---- Degraded offline path: relay cannot reach any upstream ---- */
-        snprintf(upstream_url, sizeof(upstream_url),
-                 "ws://127.0.0.1:9/xrpc/%s", UPSTREAM_NSID);
+        snprintf(upstream_url, sizeof(upstream_url), "ws://127.0.0.1:9/xrpc/%s",
+                 UPSTREAM_NSID);
     }
 
     {
@@ -320,7 +331,8 @@ static int run_test(void) {
 
     if (wf_websocket_supported()) {
         /* Connect a raw wf_websocket client to the relay and verify it
-         * receives the same ordered frames byte-for-byte, then a clean close. */
+         * receives the same ordered frames byte-for-byte, then a clean close.
+         */
         char url[128];
         snprintf(url, sizeof(url), "ws://127.0.0.1:%u/xrpc/%s",
                  (unsigned)relay_port, RELAY_NSID);
@@ -336,23 +348,27 @@ static int run_test(void) {
             snprintf(expect_payload, sizeof(expect_payload), "frame-%d", i);
 
             if (wf_websocket_receive(client, &msg) != WF_OK) {
-                fprintf(stderr, "FAIL: client did not receive frame %d "
-                                "(got %d of %d)\n", i, i, TEST_COUNT);
+                fprintf(stderr,
+                        "FAIL: client did not receive frame %d "
+                        "(got %d of %d)\n",
+                        i, i, TEST_COUNT);
                 failures++;
                 goto cleanup;
             }
             if (msg.type != WF_WEBSOCKET_BINARY) {
-                fprintf(stderr, "FAIL: frame %d was not binary (type %d)\n",
-                        i, (int)msg.type);
+                fprintf(stderr, "FAIL: frame %d was not binary (type %d)\n", i,
+                        (int)msg.type);
                 wf_websocket_message_free(&msg);
                 failures++;
                 goto cleanup;
             }
             if (msg.len != strlen(expect_payload) ||
                 memcmp(msg.data, expect_payload, msg.len) != 0) {
-                fprintf(stderr, "FAIL: frame %d payload mismatch: got %.*s "
-                                "want %s\n", i, (int)msg.len,
-                                (const char *)msg.data, expect_payload);
+                fprintf(stderr,
+                        "FAIL: frame %d payload mismatch: got %.*s "
+                        "want %s\n",
+                        i, (int)msg.len, (const char *)msg.data,
+                        expect_payload);
                 wf_websocket_message_free(&msg);
                 failures++;
                 goto cleanup;
@@ -360,7 +376,8 @@ static int run_test(void) {
             wf_websocket_message_free(&msg);
         }
         printf("PASS: client received %d ordered binary frames "
-               "(byte-for-byte)\n", TEST_COUNT);
+               "(byte-for-byte)\n",
+               TEST_COUNT);
 
         {
             wf_websocket_message msg;
@@ -414,8 +431,8 @@ static int run_test(void) {
 
 cleanup:
     if (client) wf_websocket_free(client);
-    wf_xrpc_server_free(relay_srv);   /* blocks until clean shutdown */
-    wf_xrpc_server_free(upstream);    /* blocks until clean shutdown */
+    wf_xrpc_server_free(relay_srv); /* blocks until clean shutdown */
+    wf_xrpc_server_free(upstream);  /* blocks until clean shutdown */
     /* Free the relay handle only after the servers have torn down their
      * WebSocket worker threads, per the module's ownership contract. */
     wf_relay_server_free(relay);

@@ -20,25 +20,27 @@ static void test_canonicalize(void) {
 }
 
 static void test_validate_pass(void) {
-    const char *schema =
-        "{\"type\":\"object\",\"required\":[\"name\"],"
-        "\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"number\"}}}";
+    const char *schema = "{\"type\":\"object\",\"required\":[\"name\"],"
+                         "\"properties\":{\"name\":{\"type\":\"string\"},"
+                         "\"age\":{\"type\":\"number\"}}}";
     const char *doc = "{\"name\":\"x\",\"age\":3}";
     char *err = NULL;
-    wf_status s = wf_json_validate(schema, strlen(schema), doc, strlen(doc), &err);
+    wf_status s =
+        wf_json_validate(schema, strlen(schema), doc, strlen(doc), &err);
     WF_CHECK(s == WF_OK);
     WF_CHECK(err == NULL);
 }
 
 static void test_validate_fail(void) {
-    const char *schema =
-        "{\"type\":\"object\",\"required\":[\"name\"],"
-        "\"properties\":{\"name\":{\"type\":\"string\"},\"age\":{\"type\":\"number\"}}}";
+    const char *schema = "{\"type\":\"object\",\"required\":[\"name\"],"
+                         "\"properties\":{\"name\":{\"type\":\"string\"},"
+                         "\"age\":{\"type\":\"number\"}}}";
 
     /* missing required */
     const char *doc_missing = "{\"age\":3}";
     char *err = NULL;
-    wf_status s = wf_json_validate(schema, strlen(schema), doc_missing, strlen(doc_missing), &err);
+    wf_status s = wf_json_validate(schema, strlen(schema), doc_missing,
+                                   strlen(doc_missing), &err);
     WF_CHECK(s != WF_OK);
     WF_CHECK(err != NULL);
     free(err);
@@ -46,16 +48,19 @@ static void test_validate_fail(void) {
     /* wrong type */
     const char *doc_wrong = "{\"name\":5}";
     err = NULL;
-    s = wf_json_validate(schema, strlen(schema), doc_wrong, strlen(doc_wrong), &err);
+    s = wf_json_validate(schema, strlen(schema), doc_wrong, strlen(doc_wrong),
+                         &err);
     WF_CHECK(s != WF_OK);
     WF_CHECK(err != NULL);
     free(err);
 
     /* array items wrong type */
-    const char *arr_schema = "{\"type\":\"array\",\"items\":{\"type\":\"string\"}}";
+    const char *arr_schema =
+        "{\"type\":\"array\",\"items\":{\"type\":\"string\"}}";
     const char *arr_doc = "[1,2]";
     err = NULL;
-    s = wf_json_validate(arr_schema, strlen(arr_schema), arr_doc, strlen(arr_doc), &err);
+    s = wf_json_validate(arr_schema, strlen(arr_schema), arr_doc,
+                         strlen(arr_doc), &err);
     WF_CHECK(s != WF_OK);
     WF_CHECK(err != NULL);
     free(err);
@@ -63,7 +68,8 @@ static void test_validate_fail(void) {
     /* array items correct type passes */
     const char *arr_doc_ok = "[\"a\",\"b\"]";
     err = NULL;
-    s = wf_json_validate(arr_schema, strlen(arr_schema), arr_doc_ok, strlen(arr_doc_ok), &err);
+    s = wf_json_validate(arr_schema, strlen(arr_schema), arr_doc_ok,
+                         strlen(arr_doc_ok), &err);
     WF_CHECK(s == WF_OK);
     WF_CHECK(err == NULL);
 }

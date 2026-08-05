@@ -16,10 +16,10 @@
 /* Helper state                                                         */
 /* ------------------------------------------------------------------ */
 struct wf_feedgen_server {
-    wf_feedgen_server_config config;  /* deep copy; freed by _free */
+    wf_feedgen_server_config config; /* deep copy; freed by _free */
     wf_feedgen_server_skeleton_cb skeleton_cb;
-    void                          *cb_ctx;
-    wf_xrpc_server               *server;
+    void *cb_ctx;
+    wf_xrpc_server *server;
 };
 
 /* ------------------------------------------------------------------ */
@@ -49,7 +49,7 @@ void wf_feedgen_server_config_free(wf_feedgen_server_config *config) {
 /* ------------------------------------------------------------------ */
 
 static void feedgen_srv_add_str_opt(cJSON *obj, const char *key,
-                                     const char *val) {
+                                    const char *val) {
     if (val && val[0] != '\0') {
         cJSON_AddStringToObject(obj, key, val);
     }
@@ -104,8 +104,8 @@ static cJSON *feedgen_srv_build_view(const wf_feedgen_server_config *cfg) {
 /* ------------------------------------------------------------------ */
 
 static wf_status feedgen_srv_skeleton_handler(void *ctx,
-                                               const wf_xrpc_request *req,
-                                               wf_xrpc_response *resp) {
+                                              const wf_xrpc_request *req,
+                                              wf_xrpc_response *resp) {
     wf_feedgen_server *fg = (wf_feedgen_server *)ctx;
     const char *feed = NULL;
     const char *cursor = NULL;
@@ -147,7 +147,7 @@ static wf_status feedgen_srv_skeleton_handler(void *ctx,
     }
 
     rc = fg->skeleton_cb(fg->cb_ctx, feed, cursor, limit, &out_feed,
-                          &out_cursor);
+                         &out_cursor);
     if (rc != WF_OK) {
         wf_xrpc_response_set_error(resp, 500, "InternalServerError",
                                    "Skeleton callback failed");
@@ -234,10 +234,9 @@ static wf_status feedgen_srv_generator_handler(void *ctx,
 /* Lifecycle                                                            */
 /* ------------------------------------------------------------------ */
 
-wf_feedgen_server *wf_feedgen_server_new(
-    const wf_feedgen_server_config *config,
-    wf_feedgen_server_skeleton_cb skeleton_cb,
-    void *ctx) {
+wf_feedgen_server *
+wf_feedgen_server_new(const wf_feedgen_server_config *config,
+                      wf_feedgen_server_skeleton_cb skeleton_cb, void *ctx) {
     wf_feedgen_server *fg;
 
     if (!config || !skeleton_cb) {
@@ -265,8 +264,7 @@ wf_feedgen_server *wf_feedgen_server_new(
 }
 
 wf_status wf_feedgen_server_start(wf_feedgen_server *fg, const char *address,
-                                   uint16_t port,
-                                   unsigned int thread_count) {
+                                  uint16_t port, unsigned int thread_count) {
     if (!fg || !address) {
         return WF_ERR_INVALID_ARG;
     }

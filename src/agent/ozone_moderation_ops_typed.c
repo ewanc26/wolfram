@@ -1,7 +1,8 @@
 /*
  * ozone_moderation_ops_typed.c — owning typed parsers + agent wrappers for the
  * moderation *operations* endpoints of the tools.ozone.* namespaces:
- *   - tools.ozone.report.*    (report lifecycle: query/get/assign/activity/stats)
+ *   - tools.ozone.report.*    (report lifecycle:
+ * query/get/assign/activity/stats)
  *   - tools.ozone.queue.*     (moderation queue CRUD + routing + assignment)
  *   - tools.ozone.signature.* (threat-signature correlation / related accounts)
  *
@@ -170,8 +171,8 @@ static void wf_ozone_ops_report_view_reset(wf_ozone_ops_report_view *s) {
     memset(s, 0, sizeof(*s));
 }
 
-static wf_status wf_ozone_ops_parse_report_view_obj(
-    cJSON *obj, wf_ozone_ops_report_view *s) {
+static wf_status
+wf_ozone_ops_parse_report_view_obj(cJSON *obj, wf_ozone_ops_report_view *s) {
     wf_status status = WF_OK;
     cJSON *id = cJSON_GetObjectItemCaseSensitive(obj, "id");
     cJSON *event_id = cJSON_GetObjectItemCaseSensitive(obj, "eventId");
@@ -183,7 +184,8 @@ static wf_status wf_ozone_ops_parse_report_view_obj(
     cJSON *updated_at = cJSON_GetObjectItemCaseSensitive(obj, "updatedAt");
     cJSON *queued_at = cJSON_GetObjectItemCaseSensitive(obj, "queuedAt");
     cJSON *action_note = cJSON_GetObjectItemCaseSensitive(obj, "actionNote");
-    cJSON *related = cJSON_GetObjectItemCaseSensitive(obj, "relatedReportCount");
+    cJSON *related =
+        cJSON_GetObjectItemCaseSensitive(obj, "relatedReportCount");
     cJSON *muted = cJSON_GetObjectItemCaseSensitive(obj, "isMuted");
 
     if (cJSON_IsNumber(id)) {
@@ -216,7 +218,8 @@ static wf_status wf_ozone_ops_parse_report_view_obj(
         updated_at->valuestring) {
         status = wf_ops_set_string(&s->updated_at, updated_at->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(queued_at) && queued_at->valuestring) {
+    if (status == WF_OK && cJSON_IsString(queued_at) &&
+        queued_at->valuestring) {
         status = wf_ops_set_string(&s->queued_at, queued_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(action_note) &&
@@ -355,8 +358,8 @@ void wf_ozone_ops_report_list_free(wf_ozone_ops_report_list *l) {
 /* tools.ozone.report.defs#reportActivityView                         */
 /* ================================================================== */
 
-static void wf_ozone_ops_report_activity_view_reset(
-    wf_ozone_ops_report_activity_view *s) {
+static void
+wf_ozone_ops_report_activity_view_reset(wf_ozone_ops_report_activity_view *s) {
     if (!s) {
         return;
     }
@@ -458,8 +461,9 @@ wf_status wf_ozone_ops_parse_report_activity_list(
     return status;
 }
 
-wf_status wf_ozone_ops_parse_wrapped_activity(
-    const char *json, size_t json_len, wf_ozone_ops_report_activity_view *out) {
+wf_status
+wf_ozone_ops_parse_wrapped_activity(const char *json, size_t json_len,
+                                    wf_ozone_ops_report_activity_view *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -561,7 +565,8 @@ static wf_status wf_ozone_ops_parse_report_assignment_view_obj(
 }
 
 wf_status wf_ozone_ops_parse_report_assignment_list(
-    const char *json, size_t json_len, wf_ozone_ops_report_assignment_list *out) {
+    const char *json, size_t json_len,
+    wf_ozone_ops_report_assignment_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -597,7 +602,8 @@ wf_status wf_ozone_ops_parse_report_assignment_list(
 }
 
 wf_status wf_ozone_ops_parse_report_assignment_view(
-    const char *json, size_t json_len, wf_ozone_ops_report_assignment_view *out) {
+    const char *json, size_t json_len,
+    wf_ozone_ops_report_assignment_view *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -734,8 +740,8 @@ void wf_ozone_ops_live_stats_free(wf_ozone_ops_live_stats *v) {
     wf_ozone_ops_live_stats_reset(v);
 }
 
-static void wf_ozone_ops_historical_stats_reset(
-    wf_ozone_ops_historical_stats *s) {
+static void
+wf_ozone_ops_historical_stats_reset(wf_ozone_ops_historical_stats *s) {
     if (!s) {
         return;
     }
@@ -747,8 +753,9 @@ static void wf_ozone_ops_historical_stats_reset(
     memset(s, 0, sizeof(*s));
 }
 
-static wf_status wf_ozone_ops_parse_historical_stats_obj(
-    cJSON *obj, wf_ozone_ops_historical_stats *s) {
+static wf_status
+wf_ozone_ops_parse_historical_stats_obj(cJSON *obj,
+                                        wf_ozone_ops_historical_stats *s) {
     wf_status status = WF_OK;
     cJSON *date = cJSON_GetObjectItemCaseSensitive(obj, "date");
     cJSON *computed = cJSON_GetObjectItemCaseSensitive(obj, "computedAt");
@@ -807,7 +814,8 @@ static wf_status wf_ozone_ops_parse_historical_stats_obj(
 }
 
 wf_status wf_ozone_ops_parse_historical_stats_list(
-    const char *json, size_t json_len, wf_ozone_ops_historical_stats_list *out) {
+    const char *json, size_t json_len,
+    wf_ozone_ops_historical_stats_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -889,7 +897,8 @@ static wf_status wf_ozone_ops_parse_queue_view_obj(cJSON *obj,
     wf_status status = WF_OK;
     cJSON *id = cJSON_GetObjectItemCaseSensitive(obj, "id");
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "name");
-    cJSON *subject_types = cJSON_GetObjectItemCaseSensitive(obj, "subjectTypes");
+    cJSON *subject_types =
+        cJSON_GetObjectItemCaseSensitive(obj, "subjectTypes");
     cJSON *collection = cJSON_GetObjectItemCaseSensitive(obj, "collection");
     cJSON *report_types = cJSON_GetObjectItemCaseSensitive(obj, "reportTypes");
     cJSON *description = cJSON_GetObjectItemCaseSensitive(obj, "description");
@@ -1093,7 +1102,8 @@ static wf_status wf_ozone_ops_parse_queue_assignment_view_obj(
 }
 
 wf_status wf_ozone_ops_parse_queue_assignment_list(
-    const char *json, size_t json_len, wf_ozone_ops_queue_assignment_list *out) {
+    const char *json, size_t json_len,
+    wf_ozone_ops_queue_assignment_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1129,7 +1139,8 @@ wf_status wf_ozone_ops_parse_queue_assignment_list(
 }
 
 wf_status wf_ozone_ops_parse_queue_assignment_view(
-    const char *json, size_t json_len, wf_ozone_ops_queue_assignment_view *out) {
+    const char *json, size_t json_len,
+    wf_ozone_ops_queue_assignment_view *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1142,8 +1153,7 @@ wf_status wf_ozone_ops_parse_queue_assignment_view(
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
-    wf_status status =
-        wf_ozone_ops_parse_queue_assignment_view_obj(root, out);
+    wf_status status = wf_ozone_ops_parse_queue_assignment_view_obj(root, out);
     if (status != WF_OK) {
         cJSON_Delete(root);
     }
@@ -1172,8 +1182,9 @@ void wf_ozone_ops_queue_assignment_list_free(
 /* tools.ozone.queue deleteQueue / routeReports results             */
 /* ================================================================== */
 
-wf_status wf_ozone_ops_parse_delete_queue_result(
-    const char *json, size_t json_len, wf_ozone_ops_delete_queue_result *out) {
+wf_status
+wf_ozone_ops_parse_delete_queue_result(const char *json, size_t json_len,
+                                       wf_ozone_ops_delete_queue_result *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1277,12 +1288,13 @@ static wf_status wf_ozone_ops_parse_sig_detail_array(
     return wf_ops_parse_array(
         arr, sizeof(wf_ozone_ops_sig_detail),
         (wf_ops_parse_one_fn)wf_ozone_ops_parse_sig_detail_obj,
-        (wf_ops_reset_one_fn)wf_ozone_ops_sig_detail_reset,
-        (void **)out_items, out_count);
+        (wf_ops_reset_one_fn)wf_ozone_ops_sig_detail_reset, (void **)out_items,
+        out_count);
 }
 
-wf_status wf_ozone_ops_parse_sig_detail_list(
-    const char *json, size_t json_len, wf_ozone_ops_sig_detail_list *out) {
+wf_status
+wf_ozone_ops_parse_sig_detail_list(const char *json, size_t json_len,
+                                   wf_ozone_ops_sig_detail_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1418,7 +1430,8 @@ void wf_ozone_ops_account_list_free(wf_ozone_ops_account_list *l) {
     memset(l, 0, sizeof(*l));
 }
 
-static void wf_ozone_ops_related_account_reset(wf_ozone_ops_related_account *r) {
+static void
+wf_ozone_ops_related_account_reset(wf_ozone_ops_related_account *r) {
     if (!r) {
         return;
     }
@@ -1433,8 +1446,9 @@ static void wf_ozone_ops_related_account_reset(wf_ozone_ops_related_account *r) 
     memset(r, 0, sizeof(*r));
 }
 
-static wf_status wf_ozone_ops_parse_related_account_obj(
-    cJSON *obj, wf_ozone_ops_related_account *r) {
+static wf_status
+wf_ozone_ops_parse_related_account_obj(cJSON *obj,
+                                       wf_ozone_ops_related_account *r) {
     wf_status status = WF_ERR_PARSE;
     cJSON *acct = cJSON_GetObjectItemCaseSensitive(obj, "account");
     if (cJSON_IsObject(acct)) {
@@ -1508,61 +1522,61 @@ void wf_ozone_ops_related_account_list_free(
 /* Agent wrappers (sync auth, call generated lex wrapper, decode)    */
 /* ================================================================== */
 
-#define WF_OPS_Q(ns, op, call_op, OutType, parsefn)                         \
-    wf_status wf_ozone_ops_##ns##_##op(                                      \
-        wf_agent *agent,                                                     \
-        const wf_lex_tools_ozone_##ns##_##call_op##_main_params *params,     \
-        OutType *out) {                                                      \
-        if (!agent || !agent->client || !params || !out) {                   \
-            return WF_ERR_INVALID_ARG;                                       \
-        }                                                                     \
-        memset(out, 0, sizeof(*out));                                        \
-        wf_agent_sync_auth(agent);                                           \
-        wf_response res = {0};                                               \
-        wf_status st = wf_lex_tools_ozone_##ns##_##call_op##_main_call(      \
-            agent->client, params, &res);                                    \
-        if (st != WF_OK) {                                                   \
-            wf_response_free(&res);                                          \
-            return st;                                                       \
-        }                                                                     \
-        st = parsefn(res.body, res.body_len, out);                          \
-        wf_response_free(&res);                                              \
-        return st;                                                           \
+#define WF_OPS_Q(ns, op, call_op, OutType, parsefn)                            \
+    wf_status wf_ozone_ops_##ns##_##op(                                        \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##call_op##_main_params *params,       \
+        OutType *out) {                                                        \
+        if (!agent || !agent->client || !params || !out) {                     \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        memset(out, 0, sizeof(*out));                                          \
+        wf_agent_sync_auth(agent);                                             \
+        wf_response res = {0};                                                 \
+        wf_status st = wf_lex_tools_ozone_##ns##_##call_op##_main_call(        \
+            agent->client, params, &res);                                      \
+        if (st != WF_OK) {                                                     \
+            wf_response_free(&res);                                            \
+            return st;                                                         \
+        }                                                                      \
+        st = parsefn(res.body, res.body_len, out);                             \
+        wf_response_free(&res);                                                \
+        return st;                                                             \
     }
 
-#define WF_OPS_P(ns, op, call_op, OutType, parsefn)                         \
-    wf_status wf_ozone_ops_##ns##_##op(                                      \
-        wf_agent *agent,                                                     \
-        const wf_lex_tools_ozone_##ns##_##call_op##_main_input *input,       \
-        OutType *out) {                                                      \
-        if (!agent || !agent->client || !input || !out) {                    \
-            return WF_ERR_INVALID_ARG;                                       \
-        }                                                                     \
-        memset(out, 0, sizeof(*out));                                        \
-        wf_agent_sync_auth(agent);                                           \
-        wf_response res = {0};                                               \
-        wf_status st = wf_lex_tools_ozone_##ns##_##call_op##_main_call(      \
-            agent->client, input, &res);                                     \
-        if (st != WF_OK) {                                                   \
-            wf_response_free(&res);                                          \
-            return st;                                                       \
-        }                                                                     \
-        st = parsefn(res.body, res.body_len, out);                          \
-        wf_response_free(&res);                                              \
-        return st;                                                           \
+#define WF_OPS_P(ns, op, call_op, OutType, parsefn)                            \
+    wf_status wf_ozone_ops_##ns##_##op(                                        \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##call_op##_main_input *input,         \
+        OutType *out) {                                                        \
+        if (!agent || !agent->client || !input || !out) {                      \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        memset(out, 0, sizeof(*out));                                          \
+        wf_agent_sync_auth(agent);                                             \
+        wf_response res = {0};                                                 \
+        wf_status st = wf_lex_tools_ozone_##ns##_##call_op##_main_call(        \
+            agent->client, input, &res);                                       \
+        if (st != WF_OK) {                                                     \
+            wf_response_free(&res);                                            \
+            return st;                                                         \
+        }                                                                      \
+        st = parsefn(res.body, res.body_len, out);                             \
+        wf_response_free(&res);                                                \
+        return st;                                                             \
     }
 
-#define WF_OPS_RAW(ns, op, call_op)                                          \
-    wf_status wf_ozone_ops_##ns##_##op(                                       \
-        wf_agent *agent,                                                     \
-        const wf_lex_tools_ozone_##ns##_##call_op##_main_input *input,        \
-        wf_response *out) {                                                  \
-        if (!agent || !agent->client || !input || !out) {                    \
-            return WF_ERR_INVALID_ARG;                                       \
-        }                                                                     \
-        wf_agent_sync_auth(agent);                                           \
-        return wf_lex_tools_ozone_##ns##_##call_op##_main_call(              \
-            agent->client, input, out);                                       \
+#define WF_OPS_RAW(ns, op, call_op)                                            \
+    wf_status wf_ozone_ops_##ns##_##op(                                        \
+        wf_agent *agent,                                                       \
+        const wf_lex_tools_ozone_##ns##_##call_op##_main_input *input,         \
+        wf_response *out) {                                                    \
+        if (!agent || !agent->client || !input || !out) {                      \
+            return WF_ERR_INVALID_ARG;                                         \
+        }                                                                      \
+        wf_agent_sync_auth(agent);                                             \
+        return wf_lex_tools_ozone_##ns##_##call_op##_main_call(agent->client,  \
+                                                               input, out);    \
     }
 
 /* report.* */
@@ -1610,8 +1624,7 @@ WF_OPS_P(queue, update_queue, update_queue, wf_ozone_ops_queue_view,
          wf_ozone_ops_parse_wrapped_queue)
 WF_OPS_P(queue, delete_queue, delete_queue, wf_ozone_ops_delete_queue_result,
          wf_ozone_ops_parse_delete_queue_result)
-WF_OPS_P(queue, route_reports, route_reports,
-         wf_ozone_ops_route_reports_result,
+WF_OPS_P(queue, route_reports, route_reports, wf_ozone_ops_route_reports_result,
          wf_ozone_ops_parse_route_reports_result)
 WF_OPS_P(queue, assign_moderator, assign_moderator,
          wf_ozone_ops_queue_assignment_view,
@@ -1624,5 +1637,5 @@ WF_OPS_Q(signature, find_correlation, find_correlation,
 WF_OPS_Q(signature, find_related_accounts, find_related_accounts,
          wf_ozone_ops_related_account_list,
          wf_ozone_ops_parse_related_account_list)
-WF_OPS_Q(signature, search_accounts, search_accounts,
-         wf_ozone_ops_account_list, wf_ozone_ops_parse_account_list)
+WF_OPS_Q(signature, search_accounts, search_accounts, wf_ozone_ops_account_list,
+         wf_ozone_ops_parse_account_list)

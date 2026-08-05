@@ -29,16 +29,14 @@ static wf_status on_page(wf_agent *agent, const wf_agent_feed_list *feed,
     page_ctx *ctx = (page_ctx *)ud;
     ctx->page++;
 
-    printf("--- page %d (requested cursor: %s) : %zu items ---\n",
-           ctx->page, cursor ? cursor : "(start)", feed->item_count);
+    printf("--- page %d (requested cursor: %s) : %zu items ---\n", ctx->page,
+           cursor ? cursor : "(start)", feed->item_count);
 
     for (size_t i = 0; i < feed->item_count; ++i) {
         const wf_agent_post_view *post = &feed->items[i].post;
-        printf("  [%d] %s  %s  likes=%d\n",
-               ctx->printed + (int)i,
+        printf("  [%d] %s  %s  likes=%d\n", ctx->printed + (int)i,
                post->author.handle ? post->author.handle : "?",
-               post->uri ? post->uri : "?",
-               post->like_count);
+               post->uri ? post->uri : "?", post->like_count);
     }
     ctx->printed += (int)feed->item_count;
 

@@ -1,7 +1,8 @@
 /*
  * ozone_moderation_ops_typed.h — owning typed parsers + agent wrappers for the
  * moderation *operations* endpoints of the tools.ozone.* namespaces:
- *   - tools.ozone.report.*    (report lifecycle: query/get/assign/activity/stats)
+ *   - tools.ozone.report.*    (report lifecycle:
+ * query/get/assign/activity/stats)
  *   - tools.ozone.queue.*     (moderation queue CRUD + routing + assignment)
  *   - tools.ozone.signature.* (threat-signature correlation / related accounts)
  *
@@ -306,19 +307,25 @@ wf_status wf_ozone_ops_parse_report_list(const char *json, size_t json_len,
 /* Parses a bare tools.ozone.report.defs#reportView object (getReport). */
 wf_status wf_ozone_ops_parse_report_view(const char *json, size_t json_len,
                                          wf_ozone_ops_report_view *out);
-/* Parses a { "report": reportView } wrapper (getLatestReport, reassignQueue). */
+/* Parses a { "report": reportView } wrapper (getLatestReport, reassignQueue).
+ */
 wf_status wf_ozone_ops_parse_wrapped_report(const char *json, size_t json_len,
                                             wf_ozone_ops_report_view *out);
-wf_status wf_ozone_ops_parse_report_activity_list(
-    const char *json, size_t json_len, wf_ozone_ops_report_activity_list *out);
+wf_status
+wf_ozone_ops_parse_report_activity_list(const char *json, size_t json_len,
+                                        wf_ozone_ops_report_activity_list *out);
 /* Parses a { "activity": reportActivityView } wrapper (createActivity). */
-wf_status wf_ozone_ops_parse_wrapped_activity(
-    const char *json, size_t json_len, wf_ozone_ops_report_activity_view *out);
+wf_status
+wf_ozone_ops_parse_wrapped_activity(const char *json, size_t json_len,
+                                    wf_ozone_ops_report_activity_view *out);
 wf_status wf_ozone_ops_parse_report_assignment_list(
-    const char *json, size_t json_len, wf_ozone_ops_report_assignment_list *out);
-/* Parses a bare report.defs#assignmentView object (assign/unassignModerator). */
+    const char *json, size_t json_len,
+    wf_ozone_ops_report_assignment_list *out);
+/* Parses a bare report.defs#assignmentView object (assign/unassignModerator).
+ */
 wf_status wf_ozone_ops_parse_report_assignment_view(
-    const char *json, size_t json_len, wf_ozone_ops_report_assignment_view *out);
+    const char *json, size_t json_len,
+    wf_ozone_ops_report_assignment_view *out);
 /* Parses a { "stats": liveStats } wrapper (getLiveStats). */
 wf_status wf_ozone_ops_parse_live_stats(const char *json, size_t json_len,
                                         wf_ozone_ops_live_stats *out);
@@ -336,18 +343,21 @@ wf_status wf_ozone_ops_parse_queue_assignment_list(
 /* Parses a bare queue.defs#assignmentView object (queue.assignModerator). */
 wf_status wf_ozone_ops_parse_queue_assignment_view(
     const char *json, size_t json_len, wf_ozone_ops_queue_assignment_view *out);
-wf_status wf_ozone_ops_parse_delete_queue_result(
-    const char *json, size_t json_len, wf_ozone_ops_delete_queue_result *out);
-wf_status wf_ozone_ops_parse_route_reports_result(
-    const char *json, size_t json_len, wf_ozone_ops_route_reports_result *out);
+wf_status
+wf_ozone_ops_parse_delete_queue_result(const char *json, size_t json_len,
+                                       wf_ozone_ops_delete_queue_result *out);
+wf_status
+wf_ozone_ops_parse_route_reports_result(const char *json, size_t json_len,
+                                        wf_ozone_ops_route_reports_result *out);
 
 /* signature.* */
-wf_status wf_ozone_ops_parse_sig_detail_list(
-    const char *json, size_t json_len, wf_ozone_ops_sig_detail_list *out);
-wf_status wf_ozone_ops_parse_related_account_list(
-    const char *json, size_t json_len, wf_ozone_ops_related_account_list *out);
-wf_status wf_ozone_ops_parse_account_list(
-    const char *json, size_t json_len, wf_ozone_ops_account_list *out);
+wf_status wf_ozone_ops_parse_sig_detail_list(const char *json, size_t json_len,
+                                             wf_ozone_ops_sig_detail_list *out);
+wf_status
+wf_ozone_ops_parse_related_account_list(const char *json, size_t json_len,
+                                        wf_ozone_ops_related_account_list *out);
+wf_status wf_ozone_ops_parse_account_list(const char *json, size_t json_len,
+                                          wf_ozone_ops_account_list *out);
 
 /* ================================================================== */
 /* Free functions (idempotent, safe on a zeroed struct)               */
@@ -355,8 +365,10 @@ wf_status wf_ozone_ops_parse_account_list(
 
 void wf_ozone_ops_report_view_free(wf_ozone_ops_report_view *v);
 void wf_ozone_ops_report_list_free(wf_ozone_ops_report_list *l);
-void wf_ozone_ops_report_activity_view_free(wf_ozone_ops_report_activity_view *v);
-void wf_ozone_ops_report_activity_list_free(wf_ozone_ops_report_activity_list *l);
+void wf_ozone_ops_report_activity_view_free(
+    wf_ozone_ops_report_activity_view *v);
+void wf_ozone_ops_report_activity_list_free(
+    wf_ozone_ops_report_activity_list *l);
 void wf_ozone_ops_report_assignment_view_free(
     wf_ozone_ops_report_assignment_view *v);
 void wf_ozone_ops_report_assignment_list_free(
@@ -486,7 +498,8 @@ wf_status wf_ozone_ops_signature_find_correlation(
     wf_ozone_ops_sig_detail_list *out);
 wf_status wf_ozone_ops_signature_find_related_accounts(
     wf_agent *agent,
-    const wf_lex_tools_ozone_signature_find_related_accounts_main_params *params,
+    const wf_lex_tools_ozone_signature_find_related_accounts_main_params
+        *params,
     wf_ozone_ops_related_account_list *out);
 wf_status wf_ozone_ops_signature_search_accounts(
     wf_agent *agent,

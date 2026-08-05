@@ -23,8 +23,7 @@ static int repo_mst_key_cmp(const unsigned char *a, size_t a_len,
 static size_t repo_mst_find_ge(const wf_mst_node *node,
                                const unsigned char *key, size_t key_len) {
     for (size_t i = 0; i < node->count; i++) {
-        if (repo_mst_key_cmp(key, key_len,
-                             node->entries[i].key,
+        if (repo_mst_key_cmp(key, key_len, node->entries[i].key,
                              node->entries[i].key_len) <= 0)
             return i;
     }
@@ -32,8 +31,7 @@ static size_t repo_mst_find_ge(const wf_mst_node *node,
 }
 
 static void repo_free_entries(wf_mst_entry *entries, size_t count) {
-    for (size_t i = 0; i < count; i++)
-        free(entries[i].key);
+    for (size_t i = 0; i < count; i++) free(entries[i].key);
 }
 
 static wf_status repo_mst_load_node_depth(wf_car *car, const wf_cid *cid,
@@ -49,8 +47,8 @@ static wf_status repo_mst_load_node_depth(wf_car *car, const wf_cid *cid,
      * one derives it from a child. Getting this wrong makes nodes at the same
      * real layer compare as different, which breaks subtree merges. */
     if (out->count > 0) {
-        out->layer = wf_mst_key_layer(out->entries[0].key,
-                                      out->entries[0].key_len);
+        out->layer =
+            wf_mst_key_layer(out->entries[0].key, out->entries[0].key_len);
         return s;
     }
     if (out->left.len == 0) return s;
@@ -77,15 +75,15 @@ static wf_status mst_update_value(wf_car *car, const wf_cid *node_cid,
 
     size_t idx = repo_mst_find_ge(&node, key, key_len);
     int found = idx < node.count &&
-        repo_mst_key_cmp(key, key_len, node.entries[idx].key,
-                         node.entries[idx].key_len) == 0;
+                repo_mst_key_cmp(key, key_len, node.entries[idx].key,
+                                 node.entries[idx].key_len) == 0;
     int use_left = idx == 0;
     size_t parent_idx = idx > 0 ? idx - 1 : 0;
     wf_cid updated_child = {{0}, 0};
 
     if (!found) {
-        const wf_cid *child = use_left ? &node.left
-                                       : &node.entries[parent_idx].subtree;
+        const wf_cid *child =
+            use_left ? &node.left : &node.entries[parent_idx].subtree;
         if (child->len == 0) {
             wf_mst_node_free(&node);
             return WF_ERR_NOT_FOUND;
@@ -137,15 +135,12 @@ static wf_status mst_update_value(wf_car *car, const wf_cid *node_cid,
     return s;
 }
 
-wf_status wf_repo_create_record(wf_car *car,
-                                const wf_cid *prev_commit,
-                                const char *did,
-                                const char *collection,
+wf_status wf_repo_create_record(wf_car *car, const wf_cid *prev_commit,
+                                const char *did, const char *collection,
                                 const char *rkey,
                                 const unsigned char *record_cbor,
                                 size_t record_cbor_len,
-                                const wf_signing_key *key,
-                                wf_cid *out_commit,
+                                const wf_signing_key *key, wf_cid *out_commit,
                                 wf_cid *out_record) {
     if (!car || !did || !collection || !rkey || !record_cbor ||
         record_cbor_len == 0 || !key || !out_commit || !out_record) {
@@ -164,8 +159,8 @@ wf_status wf_repo_create_record(wf_car *car,
      * insert and the commit below must still happen, or the new record would
      * be silently dropped and the caller handed a zeroed commit CID. */
     if (!wf_car_find_block(car, out_record)) {
-        wf_car_block *new_blocks = realloc(car->blocks,
-            (car->block_count + 1) * sizeof(wf_car_block));
+        wf_car_block *new_blocks =
+            realloc(car->blocks, (car->block_count + 1) * sizeof(wf_car_block));
         if (!new_blocks) return WF_ERR_ALLOC;
         car->blocks = new_blocks;
         wf_car_block *blk = &car->blocks[car->block_count];
@@ -207,7 +202,8 @@ wf_status wf_repo_create_record(wf_car *car,
     char rev[64];
     wf_tid_now(rev);
     s = wf_commit_create(did, rev, &new_mst_root,
-                         (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
+                         (prev_commit && prev_commit->len > 0) ? prev_commit
+                                                               : NULL,
                          key, car, &commit);
     if (s != WF_OK) return s;
 
@@ -215,15 +211,12 @@ wf_status wf_repo_create_record(wf_car *car,
     return WF_OK;
 }
 
-wf_status wf_repo_get_record(wf_car *car,
-                             const wf_cid *commit_cid,
-                             const char *collection,
-                             const char *rkey,
-                             unsigned char **out_data,
-                             size_t *out_len,
+wf_status wf_repo_get_record(wf_car *car, const wf_cid *commit_cid,
+                             const char *collection, const char *rkey,
+                             unsigned char **out_data, size_t *out_len,
                              wf_cid *out_record_cid) {
-    if (!car || !commit_cid || !collection || !rkey ||
-        !out_data || !out_len || !out_record_cid) {
+    if (!car || !commit_cid || !collection || !rkey || !out_data || !out_len ||
+        !out_record_cid) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -267,19 +260,16 @@ wf_status wf_repo_get_record(wf_car *car,
     return WF_OK;
 }
 
-wf_status wf_repo_update_record(wf_car *car,
-                                const wf_cid *prev_commit,
-                                const char *did,
-                                const char *collection,
+wf_status wf_repo_update_record(wf_car *car, const wf_cid *prev_commit,
+                                const char *did, const char *collection,
                                 const char *rkey,
                                 const unsigned char *record_cbor,
                                 size_t record_cbor_len,
-                                const wf_signing_key *key,
-                                wf_cid *out_commit,
+                                const wf_signing_key *key, wf_cid *out_commit,
                                 wf_cid *out_record) {
-    if (!car || !prev_commit || prev_commit->len == 0 || !did ||
-        !collection || !rkey || !record_cbor || record_cbor_len == 0 ||
-        !key || !out_commit || !out_record) {
+    if (!car || !prev_commit || prev_commit->len == 0 || !did || !collection ||
+        !rkey || !record_cbor || record_cbor_len == 0 || !key || !out_commit ||
+        !out_record) {
         return WF_ERR_INVALID_ARG;
     }
     memset(out_commit, 0, sizeof(*out_commit));
@@ -289,8 +279,8 @@ wf_status wf_repo_update_record(wf_car *car,
     if (!commit_block) return WF_ERR_PARSE;
     wf_commit previous;
     memset(&previous, 0, sizeof(previous));
-    wf_status s = wf_commit_parse(commit_block->data, commit_block->data_len,
-                                  &previous);
+    wf_status s =
+        wf_commit_parse(commit_block->data, commit_block->data_len, &previous);
     if (s != WF_OK) return s;
 
     size_t col_len = strlen(collection), rkey_len = strlen(rkey);
@@ -302,17 +292,20 @@ wf_status wf_repo_update_record(wf_car *car,
     memcpy(mst_key + col_len + 1, rkey, rkey_len);
 
     s = wf_cid_of_block(record_cbor, record_cbor_len, out_record);
-    if (s != WF_OK) { free(mst_key); return s; }
+    if (s != WF_OK) {
+        free(mst_key);
+        return s;
+    }
 
     wf_cid new_mst_root = {{0}, 0};
-    s = mst_update_value(car, &previous.data, mst_key, mst_key_len,
-                         out_record, &new_mst_root);
+    s = mst_update_value(car, &previous.data, mst_key, mst_key_len, out_record,
+                         &new_mst_root);
     free(mst_key);
     if (s != WF_OK) return s;
 
     if (!wf_car_find_block(car, out_record)) {
-        wf_car_block *blocks = realloc(car->blocks,
-            (car->block_count + 1) * sizeof(*blocks));
+        wf_car_block *blocks =
+            realloc(car->blocks, (car->block_count + 1) * sizeof(*blocks));
         if (!blocks) return WF_ERR_ALLOC;
         car->blocks = blocks;
         wf_car_block *record_block = &car->blocks[car->block_count];
@@ -335,12 +328,9 @@ wf_status wf_repo_update_record(wf_car *car,
     return WF_OK;
 }
 
-wf_status wf_repo_delete_record(wf_car *car,
-                                const wf_cid *prev_commit,
-                                const char *did,
-                                const char *collection,
-                                const char *rkey,
-                                const wf_signing_key *key,
+wf_status wf_repo_delete_record(wf_car *car, const wf_cid *prev_commit,
+                                const char *did, const char *collection,
+                                const char *rkey, const wf_signing_key *key,
                                 wf_cid *out_commit) {
     if (!car || !did || !collection || !rkey || !key || !out_commit) {
         return WF_ERR_INVALID_ARG;
@@ -369,7 +359,8 @@ wf_status wf_repo_delete_record(wf_car *car,
     memcpy(mst_key + col_len + 1, rkey, rkey_len);
 
     wf_cid new_mst_root = {{0}, 0};
-    wf_status s = wf_mst_delete(car, &mst_root, mst_key, key_len, &new_mst_root);
+    wf_status s =
+        wf_mst_delete(car, &mst_root, mst_key, key_len, &new_mst_root);
     free(mst_key);
     if (s != WF_OK) return s;
 
@@ -389,7 +380,8 @@ wf_status wf_repo_delete_record(wf_car *car,
     char rev[64];
     wf_tid_now(rev);
     s = wf_commit_create(did, rev, &new_mst_root,
-                         (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
+                         (prev_commit && prev_commit->len > 0) ? prev_commit
+                                                               : NULL,
                          key, car, &commit);
     if (s != WF_OK) return s;
 
@@ -418,8 +410,8 @@ static wf_status repo_mst_key(const char *collection, const char *rkey,
 static wf_status repo_put_block(wf_car *car, const wf_cid *cid,
                                 const unsigned char *data, size_t len) {
     if (wf_car_find_block(car, cid)) return WF_OK;
-    wf_car_block *blocks = realloc(car->blocks,
-        (car->block_count + 1) * sizeof(*blocks));
+    wf_car_block *blocks =
+        realloc(car->blocks, (car->block_count + 1) * sizeof(*blocks));
     if (!blocks) return WF_ERR_ALLOC;
     car->blocks = blocks;
     wf_car_block *blk = &car->blocks[car->block_count];
@@ -432,12 +424,9 @@ static wf_status repo_put_block(wf_car *car, const wf_cid *cid,
     return WF_OK;
 }
 
-wf_status wf_repo_apply_writes(wf_car *car,
-                               const wf_cid *prev_commit,
-                               const char *did,
-                               wf_repo_write *writes,
-                               size_t count,
-                               const wf_signing_key *key,
+wf_status wf_repo_apply_writes(wf_car *car, const wf_cid *prev_commit,
+                               const char *did, wf_repo_write *writes,
+                               size_t count, const wf_signing_key *key,
                                wf_cid *out_commit) {
     if (!car || !did || !key || !out_commit || (count && !writes))
         return WF_ERR_INVALID_ARG;
@@ -466,53 +455,55 @@ wf_status wf_repo_apply_writes(wf_car *car,
 
         unsigned char *mst_key = NULL;
         size_t mst_key_len = 0;
-        wf_status s = repo_mst_key(w->collection, w->rkey, &mst_key,
-                                   &mst_key_len);
+        wf_status s =
+            repo_mst_key(w->collection, w->rkey, &mst_key, &mst_key_len);
         if (s != WF_OK) return s;
 
         wf_cid existing = {{0}, 0};
-        int found = mst_root.len > 0 &&
-            wf_mst_find(car, &mst_root, mst_key, mst_key_len, &existing) == WF_OK;
+        int found =
+            mst_root.len > 0 && wf_mst_find(car, &mst_root, mst_key,
+                                            mst_key_len, &existing) == WF_OK;
         wf_cid new_root = {{0}, 0};
 
         switch (w->action) {
-        case WF_REPO_WRITE_CREATE:
-        case WF_REPO_WRITE_UPDATE:
-            if (!w->record_cbor || w->record_cbor_len == 0) {
+            case WF_REPO_WRITE_CREATE:
+            case WF_REPO_WRITE_UPDATE:
+                if (!w->record_cbor || w->record_cbor_len == 0) {
+                    free(mst_key);
+                    return WF_ERR_INVALID_ARG;
+                }
+                if (w->action == WF_REPO_WRITE_CREATE && found) {
+                    free(mst_key);
+                    return WF_ERR_CONFLICT;
+                }
+                if (w->action == WF_REPO_WRITE_UPDATE && !found) {
+                    free(mst_key);
+                    return WF_ERR_NOT_FOUND;
+                }
+                s = wf_cid_of_block(w->record_cbor, w->record_cbor_len,
+                                    &w->out_record);
+                if (s == WF_OK)
+                    s = repo_put_block(car, &w->out_record, w->record_cbor,
+                                       w->record_cbor_len);
+                if (s == WF_OK) {
+                    s = found ? mst_update_value(car, &mst_root, mst_key,
+                                                 mst_key_len, &w->out_record,
+                                                 &new_root)
+                              : wf_mst_add(car, &mst_root, mst_key, mst_key_len,
+                                           &w->out_record, &new_root);
+                }
+                break;
+            case WF_REPO_WRITE_DELETE:
+                if (!found) {
+                    free(mst_key);
+                    return WF_ERR_NOT_FOUND;
+                }
+                s = wf_mst_delete(car, &mst_root, mst_key, mst_key_len,
+                                  &new_root);
+                break;
+            default:
                 free(mst_key);
                 return WF_ERR_INVALID_ARG;
-            }
-            if (w->action == WF_REPO_WRITE_CREATE && found) {
-                free(mst_key);
-                return WF_ERR_CONFLICT;
-            }
-            if (w->action == WF_REPO_WRITE_UPDATE && !found) {
-                free(mst_key);
-                return WF_ERR_NOT_FOUND;
-            }
-            s = wf_cid_of_block(w->record_cbor, w->record_cbor_len,
-                                &w->out_record);
-            if (s == WF_OK)
-                s = repo_put_block(car, &w->out_record, w->record_cbor,
-                                   w->record_cbor_len);
-            if (s == WF_OK) {
-                s = found
-                    ? mst_update_value(car, &mst_root, mst_key, mst_key_len,
-                                       &w->out_record, &new_root)
-                    : wf_mst_add(car, &mst_root, mst_key, mst_key_len,
-                                 &w->out_record, &new_root);
-            }
-            break;
-        case WF_REPO_WRITE_DELETE:
-            if (!found) {
-                free(mst_key);
-                return WF_ERR_NOT_FOUND;
-            }
-            s = wf_mst_delete(car, &mst_root, mst_key, mst_key_len, &new_root);
-            break;
-        default:
-            free(mst_key);
-            return WF_ERR_INVALID_ARG;
         }
         free(mst_key);
         if (s != WF_OK) return s;
@@ -550,9 +541,10 @@ wf_status wf_repo_apply_writes(wf_car *car,
     memset(&commit, 0, sizeof(commit));
     char rev[64];
     wf_tid_now(rev);
-    wf_status s = wf_commit_create(did, rev, &mst_root,
-        (prev_commit && prev_commit->len > 0) ? prev_commit : NULL,
-        key, car, &commit);
+    wf_status s = wf_commit_create(
+        did, rev, &mst_root,
+        (prev_commit && prev_commit->len > 0) ? prev_commit : NULL, key, car,
+        &commit);
     if (s != WF_OK) return s;
 
     *out_commit = commit.cid;

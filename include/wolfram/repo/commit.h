@@ -26,12 +26,9 @@ typedef struct wf_commit {
 
 wf_status wf_commit_parse(const unsigned char *cbor, size_t len,
                           wf_commit *out);
-wf_status wf_commit_create(const char *did, const char *rev,
-                           const wf_cid *data,
-                           const wf_cid *prev,
-                           const wf_signing_key *key,
-                           wf_car *car,
-                           wf_commit *out);
+wf_status wf_commit_create(const char *did, const char *rev, const wf_cid *data,
+                           const wf_cid *prev, const wf_signing_key *key,
+                           wf_car *car, wf_commit *out);
 
 #ifdef __cplusplus
 }

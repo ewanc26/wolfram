@@ -46,8 +46,7 @@ typedef struct wf_repo_diff {
 } wf_repo_diff;
 
 void wf_repo_diff_free(wf_repo_diff *diff);
-wf_status wf_repo_diff_verify(const wf_car *base,
-                              const wf_cid *base_commit,
+wf_status wf_repo_diff_verify(const wf_car *base, const wf_cid *base_commit,
                               const wf_car *update,
                               const wf_repo_verify_options *options,
                               wf_repo_diff *out);
@@ -56,8 +55,8 @@ wf_status wf_repo_verify(const wf_car *car,
                          const wf_repo_verify_options *options,
                          wf_commit *out_commit);
 wf_status wf_repo_import(const unsigned char *bytes, size_t len,
-                         const wf_repo_verify_options *options,
-                         wf_car *out_car, wf_commit *out_commit);
+                         const wf_repo_verify_options *options, wf_car *out_car,
+                         wf_commit *out_commit);
 
 #ifdef __cplusplus
 }

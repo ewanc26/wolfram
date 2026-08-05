@@ -76,9 +76,9 @@ typedef enum wf_mod_action {
 typedef enum wf_mod_label_flag {
     WF_MOD_FLAG_NONE = 0,
     WF_MOD_FLAG_NO_OVERRIDE = 1 << 0,
-    WF_MOD_FLAG_ADULT       = 1 << 1,
-    WF_MOD_FLAG_UNAUTHED     = 1 << 2,
-    WF_MOD_FLAG_NO_SELF      = 1 << 3
+    WF_MOD_FLAG_ADULT = 1 << 1,
+    WF_MOD_FLAG_UNAUTHED = 1 << 2,
+    WF_MOD_FLAG_NO_SELF = 1 << 3
 } wf_mod_label_flag;
 
 /* ------------------------------------------------------------------ */
@@ -87,16 +87,16 @@ typedef enum wf_mod_label_flag {
 
 /** A label as received from the network. */
 typedef struct wf_mod_label {
-    char *src;   /* DID of the labeler */
-    char *uri;   /* URI of the labeled subject */
-    char *val;   /* label value string */
-    char *cts;   /* creation timestamp */
+    char *src; /* DID of the labeler */
+    char *uri; /* URI of the labeled subject */
+    char *val; /* label value string */
+    char *cts; /* creation timestamp */
 
-    bool neg;    /* 1 if this is a negation (revocation) label */
-    char *cid;   /* cid the label is scoped to, or NULL */
-    bool has_cid;/* 1 if `cid` is present */
-    int ver;     /* label schema version (optional, 0 if absent) */
-    char *exp;   /* expiry timestamp (optional), or NULL */
+    bool neg;     /* 1 if this is a negation (revocation) label */
+    char *cid;    /* cid the label is scoped to, or NULL */
+    bool has_cid; /* 1 if `cid` is present */
+    int ver;      /* label schema version (optional, 0 if absent) */
+    char *exp;    /* expiry timestamp (optional), or NULL */
 } wf_mod_label;
 
 /** Behavior for a single target (account/profile/content) across contexts. */
@@ -113,12 +113,12 @@ typedef struct wf_mod_behavior {
 
 /** Interpreted label value definition. */
 typedef struct wf_mod_label_def {
-    char *identifier;         /* e.g. "porn", "gore", "spam" */
-    char *defined_by;         /* DID of labeler, or NULL for global */
-    int configurable;         /* 1 if user can configure preference */
+    char *identifier;                  /* e.g. "porn", "gore", "spam" */
+    char *defined_by;                  /* DID of labeler, or NULL for global */
+    int configurable;                  /* 1 if user can configure preference */
     wf_mod_label_pref default_setting; /* default preference */
-    uint32_t flags;           /* bitmask of wf_mod_label_flag */
-    wf_mod_behavior behaviors[3]; /* indexed by wf_mod_label_target */
+    uint32_t flags;                    /* bitmask of wf_mod_label_flag */
+    wf_mod_behavior behaviors[3];      /* indexed by wf_mod_label_target */
 } wf_mod_label_def;
 
 /* ------------------------------------------------------------------ */
@@ -158,21 +158,21 @@ typedef struct wf_mod_prefs {
     wf_mod_label_pref *global_label_prefs; /* global per-label preferences */
     char **global_label_identifiers;       /* parallel identifiers */
     size_t global_label_count;
-    size_t global_label_cap;               /* allocation capacity (internal) */
+    size_t global_label_cap; /* allocation capacity (internal) */
     wf_mod_labeler_pref *labelers;
     size_t labeler_count;
-    size_t labeler_cap;                    /* allocation capacity (internal) */
+    size_t labeler_cap; /* allocation capacity (internal) */
     wf_mod_muted_word *muted_words;
     size_t muted_word_count;
-    size_t muted_word_cap;                 /* allocation capacity (internal) */
+    size_t muted_word_cap; /* allocation capacity (internal) */
     char **hidden_posts;
     size_t hidden_post_count;
-    size_t hidden_post_cap;                /* allocation capacity (internal) */
+    size_t hidden_post_cap; /* allocation capacity (internal) */
 } wf_mod_prefs;
 
 /** Moderation options passed to decision functions. */
 typedef struct wf_mod_opts {
-    const char *user_did;   /* DID of the current user, or NULL */
+    const char *user_did; /* DID of the current user, or NULL */
     wf_mod_prefs prefs;
     wf_mod_label_def *label_defs; /* known label definitions */
     size_t label_def_count;
@@ -189,11 +189,11 @@ typedef struct wf_mod_cause {
     int downgraded;
 
     /* For label causes */
-    wf_mod_label label;          /* copy of the label */
+    wf_mod_label label;                /* copy of the label */
     const wf_mod_label_def *label_def; /* pointer to definition (not owned) */
     wf_mod_label_target target;
     wf_mod_label_pref setting;
-    wf_mod_behavior behavior;    /* copy of the behavior for this target */
+    wf_mod_behavior behavior; /* copy of the behavior for this target */
     int no_override;
 
     /* For mute-word causes */
@@ -233,12 +233,12 @@ typedef struct wf_mod_ui {
 
 /** Profile viewer state (blocking/muting info). */
 typedef struct wf_mod_viewer_state {
-    const char *blocking;       /* blocking URI, or NULL */
-    const char *blocked_by;      /* 1 if blocked by this actor, 0 otherwise */
-    const char *muted;          /* 1 if muted, 0 otherwise */
-    const char *muted_by_list;  /* list URI if muted by list, or NULL */
+    const char *blocking;         /* blocking URI, or NULL */
+    const char *blocked_by;       /* 1 if blocked by this actor, 0 otherwise */
+    const char *muted;            /* 1 if muted, 0 otherwise */
+    const char *muted_by_list;    /* list URI if muted by list, or NULL */
     const char *blocking_by_list; /* list URI if blocking by list, or NULL */
-    const char *following;      /* following URI, or NULL */
+    const char *following;        /* following URI, or NULL */
 } wf_mod_viewer_state;
 
 /** A profile subject for moderation. */
@@ -257,9 +257,9 @@ typedef struct wf_mod_subject_post {
     wf_mod_subject_profile author;
     wf_mod_label *labels;
     size_t label_count;
-    const char *text;          /* post text */
-    const char *embed_type;    /* embed $type, or NULL */
-    const char *embed_uri;     /* URI of embedded/quoted post, or NULL */
+    const char *text;       /* post text */
+    const char *embed_type; /* embed $type, or NULL */
+    const char *embed_uri;  /* URI of embedded/quoted post, or NULL */
 } wf_mod_subject_post;
 
 /** A feed generator subject. */
@@ -288,8 +288,7 @@ wf_status wf_mod_decision_init(wf_mod_decision *d);
 void wf_mod_decision_free(wf_mod_decision *d);
 
 /** Merge two decisions into a new one. The result must be freed by caller. */
-wf_status wf_mod_decision_merge(wf_mod_decision *out,
-                                const wf_mod_decision *a,
+wf_status wf_mod_decision_merge(wf_mod_decision *out, const wf_mod_decision *a,
                                 const wf_mod_decision *b);
 
 /** Mark all causes in a decision as downgraded. */
@@ -302,8 +301,7 @@ int wf_mod_decision_blocked(const wf_mod_decision *d);
 int wf_mod_decision_muted(const wf_mod_decision *d);
 
 /** Compute the UI for a given context. Free with wf_mod_ui_free. */
-wf_status wf_mod_decision_ui(const wf_mod_decision *d,
-                             wf_mod_context ctx,
+wf_status wf_mod_decision_ui(const wf_mod_decision *d, wf_mod_context ctx,
                              wf_mod_ui *out);
 
 /** Free a UI struct. */
@@ -321,10 +319,8 @@ wf_status wf_mod_add_hidden(wf_mod_decision *d, int hidden);
 wf_status wf_mod_add_muted_word(wf_mod_decision *d,
                                 const wf_mod_mute_word_match *matches,
                                 size_t match_count);
-wf_status wf_mod_add_label(wf_mod_decision *d,
-                           wf_mod_label_target target,
-                           const wf_mod_label *label,
-                           const wf_mod_opts *opts);
+wf_status wf_mod_add_label(wf_mod_decision *d, wf_mod_label_target target,
+                           const wf_mod_label *label, const wf_mod_opts *opts);
 
 /* ------------------------------------------------------------------ */
 /* Subject deciders                                                     */
@@ -381,10 +377,8 @@ wf_status wf_mod_decide_status(wf_mod_decision *out,
  */
 wf_status wf_mod_interpret_label_def(wf_mod_label_def *out,
                                      const char *identifier,
-                                     const char *defined_by,
-                                     const char *blurs,
-                                     const char *severity,
-                                     int adult_only,
+                                     const char *defined_by, const char *blurs,
+                                     const char *severity, int adult_only,
                                      const char *default_setting);
 
 /** Free a label def. */
@@ -401,7 +395,8 @@ void wf_mod_label_def_free(wf_mod_label_def *def);
  * `tags` is an array of tag strings (lowercased), or NULL.
  * `tag_count` is the number of tags.
  * `lang` is the primary language code, or NULL (for language exceptions).
- * `following` is 1 if the author is followed by the user (for exclude-following).
+ * `following` is 1 if the author is followed by the user (for
+ * exclude-following).
  *
  * Returns WF_OK and populates `out_matches`/`out_count` if matches found.
  * If no matches, out_count is set to 0.
@@ -409,12 +404,9 @@ void wf_mod_label_def_free(wf_mod_label_def *def);
 wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                                   size_t *out_count,
                                   const wf_mod_muted_word *muted_words,
-                                  size_t muted_word_count,
-                                  const char *text,
-                                  const char *const *tags,
-                                  size_t tag_count,
-                                  const char *lang,
-                                  int following);
+                                  size_t muted_word_count, const char *text,
+                                  const char *const *tags, size_t tag_count,
+                                  const char *lang, int following);
 
 /** Free an array of mute word matches. */
 void wf_mod_mute_word_matches_free(wf_mod_mute_word_match *matches,
@@ -426,17 +418,18 @@ void wf_mod_mute_word_matches_free(wf_mod_mute_word_match *matches,
 
 /** Find a label definition by identifier. Returns NULL if not found. */
 const wf_mod_label_def *wf_mod_find_label_def(const wf_mod_opts *opts,
-                                               const char *identifier,
-                                               const char *labeler_did);
+                                              const char *identifier,
+                                              const char *labeler_did);
 
-/** Get the label preference for a label, considering user prefs and label defs. */
+/** Get the label preference for a label, considering user prefs and label defs.
+ */
 wf_mod_label_pref wf_mod_get_label_pref(const wf_mod_opts *opts,
                                         const wf_mod_label_def *def,
                                         const char *labeler_did);
 
 /** Get the action for a behavior in a given context. */
 wf_mod_action wf_mod_behavior_get(const wf_mod_behavior *beh,
-                                   wf_mod_context ctx);
+                                  wf_mod_context ctx);
 
 /* ------------------------------------------------------------------ */
 /* JSON ingestion (offline — parses API-shaped JSON into engine structs) */
@@ -448,7 +441,8 @@ wf_mod_action wf_mod_behavior_get(const wf_mod_behavior *beh,
  * `app.bsky.actor.defs#moderationPrefs` object) into `wf_mod_prefs`.
  *
  * Recognized preference shapes:
- *  - adultContentPref / moderationPrefs.adultContentEnabled -> adult_content_enabled
+ *  - adultContentPref / moderationPrefs.adultContentEnabled ->
+ * adult_content_enabled
  *  - labelersPref / moderationPrefs.labelers -> prefs.labelers (DID list)
  *  - contentLabelPrefs / moderationPrefs.labels -> global per-label preferences
  *  - hiddenPostsPref / moderationPrefs.hiddenPosts -> prefs.hidden_posts
@@ -486,8 +480,7 @@ void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count);
  * `out_count` labels; free with wf_mod_labels_free. On failure, `*out` is
  * set to NULL.
  */
-wf_status wf_mod_labels_from_json(wf_mod_label **out,
-                                  size_t *out_count,
+wf_status wf_mod_labels_from_json(wf_mod_label **out, size_t *out_count,
                                   const char *json);
 
 /** Free an array of labels produced by wf_mod_labels_from_json. */

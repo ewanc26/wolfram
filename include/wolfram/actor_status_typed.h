@@ -30,7 +30,8 @@
  * atproto lexicon corpus currently ships only the record type for
  * app.bsky.actor.status and does NOT generate `getActorStatus`/`getStatus`/
  * `putStatus` call helpers; the three wrappers below are therefore honest
- * stubs returning WF_ERR_INVALID_ARG with a TODO (see src/actor_status_typed.c).
+ * stubs returning WF_ERR_INVALID_ARG with a TODO (see
+ * src/actor_status_typed.c).
  */
 
 #ifndef WOLFRAM_ACTOR_STATUS_TYPED_H
@@ -50,34 +51,34 @@ extern "C" {
 /* A stored app.bsky.actor.status record. `embed` and `extra` hold owned
  * detached cJSON subtrees; NULL when absent. */
 typedef struct wf_actor_status {
-    char *status;            /* status enum token (e.g. "app.bsky.actor.status#live") */
-    char *created_at;        /* RFC 3339 datetime (required on the wire) */
+    char *status; /* status enum token (e.g. "app.bsky.actor.status#live") */
+    char *created_at; /* RFC 3339 datetime (required on the wire) */
     bool has_duration_minutes;
     int64_t duration_minutes;
-    cJSON *embed;            /* owned detached embed subtree; NULL absent */
-    cJSON *extra;            /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *embed; /* owned detached embed subtree; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_actor_status;
 
 /* A statusView (app.bsky.actor.defs#statusView). Core/record-derived fields are
  * copied; any other fields remain in owned `extra`. The optional task-described
  * envelope fields (actor/lastUpdated/viewerState) are tolerated if present. */
 typedef struct wf_actor_status_view {
-    char *uri;               /* at-uri of the record */
-    char *cid;               /* cid of the record */
-    char *status;            /* status enum token */
-    char *created_at;        /* RFC 3339 datetime (from the record) */
+    char *uri;        /* at-uri of the record */
+    char *cid;        /* cid of the record */
+    char *status;     /* status enum token */
+    char *created_at; /* RFC 3339 datetime (from the record) */
     bool has_duration_minutes;
     int64_t duration_minutes;
-    cJSON *embed;            /* owned detached embed subtree; NULL absent */
-    char *expires_at;        /* RFC 3339 datetime; NULL absent */
+    cJSON *embed;     /* owned detached embed subtree; NULL absent */
+    char *expires_at; /* RFC 3339 datetime; NULL absent */
     bool has_is_active;
     bool is_active;
     bool has_is_disabled;
     bool is_disabled;
-    char *actor;             /* did (task envelope field; NULL absent) */
-    char *last_updated;      /* RFC 3339 datetime (task envelope field) */
-    cJSON *viewer_state;     /* owned detached #viewerState subtree; NULL absent */
-    cJSON *extra;            /* owned detached subtree of unknown fields; NULL absent */
+    char *actor;         /* did (task envelope field; NULL absent) */
+    char *last_updated;  /* RFC 3339 datetime (task envelope field) */
+    cJSON *viewer_state; /* owned detached #viewerState subtree; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_actor_status_view;
 
 /* The putStatus output: { uri, cid, value }. Mirrors the record-write shape;

@@ -30,39 +30,70 @@
 
 /* Replicate the production canonical-CBOR reconstruction (kept in sync with
  * wf_label_build_signed_cbor). Returns heap-allocated bytes; caller frees. */
-static wf_status build_signed_cbor(const wf_label *label,
-                                    unsigned char **out, size_t *out_len) {
+static wf_status build_signed_cbor(const wf_label *label, unsigned char **out,
+                                   size_t *out_len) {
     if (!label || !out || !out_len) return WF_ERR_INVALID_ARG;
-    *out = NULL; *out_len = 0;
+    *out = NULL;
+    *out_len = 0;
     if (!label->src || !label->uri || !label->val || !label->cts)
         return WF_ERR_INVALID_ARG;
 
-    const char *names[8] = {"ver","src","uri","cid","val","neg","cts","exp"};
+    const char *names[8] = {"ver", "src", "uri", "cid",
+                            "val", "neg", "cts", "exp"};
     wf_cbor_item *keys[8] = {0}, *vals[8] = {0};
     int64_t ver = label->has_ver ? label->ver : 1;
-    keys[0] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[0], 3}};
-    vals[0] = &(wf_cbor_item){.type = WF_CBOR_UNSIGNED, .uinteger = (uint64_t)ver};
-    keys[1] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[1], 3}};
-    vals[1] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)label->src, strlen(label->src)}};
-    keys[2] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[2], 3}};
-    vals[2] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)label->uri, strlen(label->uri)}};
-    keys[3] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[3], 3}};
-    vals[3] = label->has_cid ? &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)label->cid, strlen(label->cid)}}
-                             : &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = 22};
-    keys[4] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[4], 3}};
-    vals[4] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)label->val, strlen(label->val)}};
-    keys[5] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[5], 3}};
-    vals[5] = label->has_neg ? &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = label->neg ? 21 : 20}
-                             : &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = 22};
-    keys[6] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[6], 3}};
-    vals[6] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)label->cts, strlen(label->cts)}};
-    keys[7] = &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)names[7], 3}};
-    vals[7] = label->has_exp ? &(wf_cbor_item){.type = WF_CBOR_STRING, .string = {(char *)label->exp, strlen(label->exp)}}
-                             : &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = 22};
+    keys[0] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[0], 3}};
+    vals[0] =
+        &(wf_cbor_item){.type = WF_CBOR_UNSIGNED, .uinteger = (uint64_t)ver};
+    keys[1] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[1], 3}};
+    vals[1] =
+        &(wf_cbor_item){.type = WF_CBOR_STRING,
+                        .string = {(char *)label->src, strlen(label->src)}};
+    keys[2] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[2], 3}};
+    vals[2] =
+        &(wf_cbor_item){.type = WF_CBOR_STRING,
+                        .string = {(char *)label->uri, strlen(label->uri)}};
+    keys[3] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[3], 3}};
+    vals[3] = label->has_cid
+                  ? &(wf_cbor_item){.type = WF_CBOR_STRING,
+                                    .string = {(char *)label->cid,
+                                               strlen(label->cid)}}
+                  : &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = 22};
+    keys[4] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[4], 3}};
+    vals[4] =
+        &(wf_cbor_item){.type = WF_CBOR_STRING,
+                        .string = {(char *)label->val, strlen(label->val)}};
+    keys[5] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[5], 3}};
+    vals[5] = label->has_neg
+                  ? &(wf_cbor_item){.type = WF_CBOR_SIMPLE,
+                                    .simple_value = label->neg ? 21 : 20}
+                  : &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = 22};
+    keys[6] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[6], 3}};
+    vals[6] =
+        &(wf_cbor_item){.type = WF_CBOR_STRING,
+                        .string = {(char *)label->cts, strlen(label->cts)}};
+    keys[7] = &(wf_cbor_item){.type = WF_CBOR_STRING,
+                              .string = {(char *)names[7], 3}};
+    vals[7] = label->has_exp
+                  ? &(wf_cbor_item){.type = WF_CBOR_STRING,
+                                    .string = {(char *)label->exp,
+                                               strlen(label->exp)}}
+                  : &(wf_cbor_item){.type = WF_CBOR_SIMPLE, .simple_value = 22};
 
-    wf_cbor_item map = {.type = WF_CBOR_MAP, .map = {.count = 8, .pairs = NULL}};
+    wf_cbor_item map = {.type = WF_CBOR_MAP,
+                        .map = {.count = 8, .pairs = NULL}};
     wf_cbor_pair pairs[8];
-    for (size_t i = 0; i < 8; ++i) { pairs[i].key = keys[i]; pairs[i].value = vals[i]; }
+    for (size_t i = 0; i < 8; ++i) {
+        pairs[i].key = keys[i];
+        pairs[i].value = vals[i];
+    }
     map.map.pairs = pairs;
 
     *out = wf_cbor_serialize(&map, out_len);
@@ -102,14 +133,18 @@ int main(void) {
     /* Label with every optional field present. */
     wf_label label;
     memset(&label, 0, sizeof(label));
-    label.has_ver = 1; label.ver = 1;
+    label.has_ver = 1;
+    label.ver = 1;
     label.src = "did:plc:labeler";
     label.uri = "at://did:plc:alice/app.bsky.feed.post/aaa111";
-    label.has_cid = 1; label.cid = "bafyreimxexamplecid";
+    label.has_cid = 1;
+    label.cid = "bafyreimxexamplecid";
     label.val = "org.labeler.porn";
-    label.has_neg = 1; label.neg = 0;
+    label.has_neg = 1;
+    label.neg = 0;
     label.cts = "2024-01-02T03:04:05.000Z";
-    label.has_exp = 1; label.exp = "2099-01-01T00:00:00.000Z";
+    label.has_exp = 1;
+    label.exp = "2099-01-01T00:00:00.000Z";
 
     WF_CHECK(sign_label(&key, &label) == WF_OK);
     WF_CHECK(wf_label_verify_signature_with_key(didkey, &label) == WF_OK);
@@ -129,8 +164,10 @@ int main(void) {
 
     /* A label without sig cannot be verified. */
     label.has_sig = 0;
-    free(label.sig); label.sig = NULL;
-    WF_CHECK(wf_label_verify_signature_with_key(didkey, &label) == WF_ERR_INVALID_ARG);
+    free(label.sig);
+    label.sig = NULL;
+    WF_CHECK(wf_label_verify_signature_with_key(didkey, &label) ==
+             WF_ERR_INVALID_ARG);
     label.has_sig = 1;
 
     /* A label with all optional fields ABSENT must still verify (the

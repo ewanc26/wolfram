@@ -21,7 +21,8 @@
 
 static void show_server_info(wf_xrpc_client *client) {
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_server_describe_server_main_call(client, &res);
+    wf_status status =
+        wf_lex_com_atproto_server_describe_server_main_call(client, &res);
     if (status != WF_OK && status != WF_ERR_HTTP) {
         fprintf(stderr, "describeServer failed: %d\n", (int)status);
         wf_response_free(&res);
@@ -32,7 +33,10 @@ static void show_server_info(wf_xrpc_client *client) {
     status = wf_lex_com_atproto_server_describe_server_main_output_decode_json(
         res.body, res.body_len, &out);
     wf_response_free(&res);
-    if (status != WF_OK) { fprintf(stderr, "decode failed: %d\n", (int)status); return; }
+    if (status != WF_OK) {
+        fprintf(stderr, "decode failed: %d\n", (int)status);
+        return;
+    }
 
     printf("=== Server Info ===\n");
     printf("DID: %s\n", out->did);
@@ -62,7 +66,8 @@ static void show_likes(wf_xrpc_client *client, const char *uri) {
     params.limit = 5;
 
     wf_response res = {0};
-    wf_status status = wf_lex_app_bsky_feed_get_likes_main_call(client, &params, &res);
+    wf_status status =
+        wf_lex_app_bsky_feed_get_likes_main_call(client, &params, &res);
     if (status != WF_OK && status != WF_ERR_HTTP) {
         fprintf(stderr, "getLikes failed: %d\n", (int)status);
         wf_response_free(&res);
@@ -73,7 +78,10 @@ static void show_likes(wf_xrpc_client *client, const char *uri) {
     status = wf_lex_app_bsky_feed_get_likes_main_output_decode_json(
         res.body, res.body_len, &out);
     wf_response_free(&res);
-    if (status != WF_OK) { fprintf(stderr, "decode failed: %d\n", (int)status); return; }
+    if (status != WF_OK) {
+        fprintf(stderr, "decode failed: %d\n", (int)status);
+        return;
+    }
 
     printf("\n=== Likes (first %d) ===\n", (int)out->likes.count);
     for (size_t i = 0; i < out->likes.count; i++) {
@@ -83,20 +91,24 @@ static void show_likes(wf_xrpc_client *client, const char *uri) {
             printf(" (%s)", out->likes.items[i]->actor->display_name);
         printf("\n");
     }
-    if (out->has_cursor)
-        printf("Cursor: %s\n", out->cursor);
+    if (out->has_cursor) printf("Cursor: %s\n", out->cursor);
 
     wf_lex_app_bsky_feed_get_likes_main_output_free(out);
 }
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "usage: %s <service-url> [<handle> <password> <post-uri>]\n", argv[0]);
+        fprintf(stderr,
+                "usage: %s <service-url> [<handle> <password> <post-uri>]\n",
+                argv[0]);
         return 1;
     }
 
     wf_session *session = wf_session_new(argv[1]);
-    if (!session) { fprintf(stderr, "alloc failed\n"); return 1; }
+    if (!session) {
+        fprintf(stderr, "alloc failed\n");
+        return 1;
+    }
 
     show_server_info(session->client);
 
@@ -105,7 +117,8 @@ int main(int argc, char **argv) {
         if (s != WF_OK) {
             fprintf(stderr, "login failed: %d\n", (int)s);
         } else {
-            printf("\nLogged in as %s (%s)\n", session->data.handle, session->data.did);
+            printf("\nLogged in as %s (%s)\n", session->data.handle,
+                   session->data.did);
             show_likes(session->client, argv[4]);
         }
     }

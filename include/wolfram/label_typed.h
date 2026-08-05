@@ -46,19 +46,19 @@ extern "C" {
  * or a missing `labels` array, WF_ERR_ALLOC on allocation failure, WF_OK on
  * success. On success `out`/`out_count` own caller-freed memory (pass to
  * wf_mod_labels_free); on error they are left zeroed. */
-wf_status wf_label_parse_query(const char *json, size_t len,
-                               wf_mod_label **out, size_t *out_count);
+wf_status wf_label_parse_query(const char *json, size_t len, wf_mod_label **out,
+                               size_t *out_count);
 
 /* Fetch labels through an agent's authenticated client, parse them, and
  * persist each into the agent's attached store (best-effort, when a store is
  * attached). `out`/`out_count` receive the parsed labels (always owned by the
  * caller and freed with wf_mod_labels_free) regardless of persistence. NULL
  * agent/out or a NULL/empty `uris` returns WF_ERR_INVALID_ARG. */
-wf_status wf_agent_query_labels_typed(wf_agent *agent,
-                                       const char *const *uris, size_t uri_count,
-                                       const char *const *sources,
-                                       size_t source_count,
-                                       wf_mod_label **out, size_t *out_count);
+wf_status wf_agent_query_labels_typed(wf_agent *agent, const char *const *uris,
+                                      size_t uri_count,
+                                      const char *const *sources,
+                                      size_t source_count, wf_mod_label **out,
+                                      size_t *out_count);
 
 /* Convert one parsed com.atproto.label.defs#label (as produced by the
  * subscribeLabels decoder and surfaced through `wf_label`) into an owned
@@ -86,7 +86,7 @@ wf_status wf_label_to_mod_label(const wf_label *src, wf_mod_label *dst);
  * `out`/`out_count` own caller-freed memory (release with wf_mod_labels_free);
  * on error they are left zeroed. */
 wf_status wf_label_parse_subscribe(const char *json, size_t len,
-                                  wf_mod_label **out, size_t *out_count);
+                                   wf_mod_label **out, size_t *out_count);
 
 /* Agent convenience: subscribe to a labeler's label stream through the agent.
  *
@@ -96,15 +96,17 @@ wf_status wf_label_parse_subscribe(const char *json, size_t len,
  * number. Each label is dispatched to `on_label` as an owned `wf_mod_label`
  * (freed by the wrapper immediately after the callback returns).
  *
- * The call blocks until the subscription is stopped (wf_label_subscribe_stop), a
- * fatal initial-connect error occurs, or the service closes cleanly. Returns
+ * The call blocks until the subscription is stopped (wf_label_subscribe_stop),
+ * a fatal initial-connect error occurs, or the service closes cleanly. Returns
  * WF_ERR_INVALID_ARG on NULL agent/service/on_label or a negative cursor;
  * transport/connection errors propagate from wf_label_subscribe_start. The
  * agent's auth is synced (wf_agent_sync_auth) before connecting. */
-typedef void (*wf_agent_label_sub_cb)(const wf_mod_label *label, void *userdata);
-wf_status wf_agent_subscribe_labels_typed(wf_agent *agent,
-    const char *service, int64_t cursor, int has_cursor,
-    wf_agent_label_sub_cb on_label, void *userdata);
+typedef void (*wf_agent_label_sub_cb)(const wf_mod_label *label,
+                                      void *userdata);
+wf_status wf_agent_subscribe_labels_typed(wf_agent *agent, const char *service,
+                                          int64_t cursor, int has_cursor,
+                                          wf_agent_label_sub_cb on_label,
+                                          void *userdata);
 
 #ifdef __cplusplus
 }

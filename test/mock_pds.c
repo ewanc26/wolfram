@@ -52,15 +52,9 @@ static const char *mock_lookup(wf_mock_pds *pds, const char *nsid) {
 }
 
 static enum MHD_Result
-mock_handler(void *cls,
-             struct MHD_Connection *connection,
-             const char *url,
-             const char *method,
-             const char *version,
-             const char *upload_data,
-             size_t *upload_data_size,
-             void **con_cls)
-{
+mock_handler(void *cls, struct MHD_Connection *connection, const char *url,
+             const char *method, const char *version, const char *upload_data,
+             size_t *upload_data_size, void **con_cls) {
     (void)version;
     (void)connection;
 
@@ -157,11 +151,9 @@ wf_status wf_mock_pds_start(wf_mock_pds **out, int *out_port) {
         return WF_ERR_ALLOC;
     }
 
-    pds->daemon = MHD_start_daemon(MHD_USE_INTERNAL_POLLING_THREAD,
-                                   0, /* port 0 => ephemeral */
-                                   NULL, NULL,
-                                   mock_handler, pds,
-                                   MHD_OPTION_END);
+    pds->daemon = MHD_start_daemon(
+        MHD_USE_INTERNAL_POLLING_THREAD, 0, /* port 0 => ephemeral */
+        NULL, NULL, mock_handler, pds, MHD_OPTION_END);
     if (pds->daemon == NULL) {
         free(pds);
         return WF_ERR_NETWORK;
@@ -181,8 +173,7 @@ wf_status wf_mock_pds_start(wf_mock_pds **out, int *out_port) {
     return WF_OK;
 }
 
-wf_status wf_mock_pds_register(wf_mock_pds *pds,
-                               const char *nsid,
+wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
                                const char *json) {
     if (pds == NULL || nsid == NULL || json == NULL) {
         return WF_ERR_INVALID_ARG;
@@ -203,9 +194,8 @@ wf_status wf_mock_pds_register(wf_mock_pds *pds,
 
     if (pds->count == pds->cap) {
         size_t ncap = pds->cap == 0 ? 8 : pds->cap * 2;
-        struct wf_mock_pds_entry *n =
-            (struct wf_mock_pds_entry *)realloc(pds->entries,
-                                                ncap * sizeof(*n));
+        struct wf_mock_pds_entry *n = (struct wf_mock_pds_entry *)realloc(
+            pds->entries, ncap * sizeof(*n));
         if (n == NULL) {
             return WF_ERR_ALLOC;
         }
@@ -254,10 +244,8 @@ void wf_mock_pds_free(wf_mock_pds *pds) {
     free(pds);
 }
 
-wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds,
-                                        const char **nsid,
-                                        const char **method,
-                                        const char **body) {
+wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds, const char **nsid,
+                                       const char **method, const char **body) {
     if (pds == NULL || nsid == NULL || method == NULL || body == NULL) {
         return WF_ERR_INVALID_ARG;
     }

@@ -12,8 +12,8 @@ extern "C" {
 
 /* Extended JSON-Schema validation with additional keywords */
 wf_status wf_json_validate_enhanced(const char *schema_json, size_t schema_len,
-                                     const char *doc_json, size_t doc_len,
-                                     char **out_error);
+                                    const char *doc_json, size_t doc_len,
+                                    char **out_error);
 
 /* Format validation with support for common format patterns */
 wf_status wf_json_validate_formats(const char *schema_json, size_t schema_len,
@@ -22,28 +22,30 @@ wf_status wf_json_validate_formats(const char *schema_json, size_t schema_len,
 
 /* Validation with enum support */
 wf_status wf_json_validate_enums(const char *schema_json, size_t schema_len,
-                                const char *doc_json, size_t doc_len,
-                                char **out_error);
+                                 const char *doc_json, size_t doc_len,
+                                 char **out_error);
 
 /* Validation with number range constraints */
-wf_status wf_json_validate_number_ranges(const char *schema_json, size_t schema_len,
-                                        const char *doc_json, size_t doc_len,
-                                        char **out_error);
+wf_status wf_json_validate_number_ranges(const char *schema_json,
+                                         size_t schema_len,
+                                         const char *doc_json, size_t doc_len,
+                                         char **out_error);
 
 /* Validation with string pattern matching */
 wf_status wf_json_validate_patterns(const char *schema_json, size_t schema_len,
-                                   const char *doc_json, size_t doc_len,
-                                   char **out_error);
+                                    const char *doc_json, size_t doc_len,
+                                    char **out_error);
 
 /* Validation with additionalProperties control */
-wf_status wf_json_validate_additional_props(const char *schema_json, size_t schema_len,
-                                           const char *doc_json, size_t doc_len,
-                                           char **out_error);
+wf_status wf_json_validate_additional_props(const char *schema_json,
+                                            size_t schema_len,
+                                            const char *doc_json,
+                                            size_t doc_len, char **out_error);
 
 /* Validation with union types (anyOf/oneOf) */
 wf_status wf_json_validate_unions(const char *schema_json, size_t schema_len,
-                                 const char *doc_json, size_t doc_len,
-                                 char **out_error);
+                                  const char *doc_json, size_t doc_len,
+                                  char **out_error);
 
 /* CID validation for JSON values */
 wf_status wf_json_validate_cid_links(const char *schema_json, size_t schema_len,
@@ -52,8 +54,8 @@ wf_status wf_json_validate_cid_links(const char *schema_json, size_t schema_len,
 
 /* Bytes validation for binary data */
 wf_status wf_json_validate_bytes(const char *schema_json, size_t schema_len,
-                               const char *doc_json, size_t doc_len,
-                               char **out_error);
+                                 const char *doc_json, size_t doc_len,
+                                 char **out_error);
 
 /* Format validation types */
 typedef enum {
@@ -111,14 +113,15 @@ typedef struct {
 void wf_json_validation_options_init(wf_json_validation_options *options);
 
 /* Enhanced validation with custom options */
-wf_status wf_json_validate_with_options(const char *schema_json, size_t schema_len,
-                                         const char *doc_json, size_t doc_len,
-                                         const wf_json_validation_options *options,
-                                         char **out_error);
+wf_status
+wf_json_validate_with_options(const char *schema_json, size_t schema_len,
+                              const char *doc_json, size_t doc_len,
+                              const wf_json_validation_options *options,
+                              char **out_error);
 
 /* Sorted canonical JSON (option to sort object keys) */
 wf_status wf_json_canonicalize_sorted(const char *in, size_t len, char **out,
-                                    int sort_objects);
+                                      int sort_objects);
 
 /* Lex integration functions */
 wf_status wf_json_to_lex(const char *json, size_t len, char **out_lex);

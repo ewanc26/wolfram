@@ -60,12 +60,10 @@ wf_status wf_agent_report(wf_agent *agent, const char *subject_uri,
 /* Exact createReport wrapper. Supply exactly one subject form: subject_did,
  * or subject_uri plus subject_cid. Optional mod_tool_meta_json requires a
  * non-empty mod_tool_name and must encode one JSON value. */
-wf_status wf_agent_report_typed(wf_agent *agent,
-                                const char *subject_did,
+wf_status wf_agent_report_typed(wf_agent *agent, const char *subject_did,
                                 const char *subject_uri,
                                 const char *subject_cid,
-                                const char *reason_type,
-                                const char *reason,
+                                const char *reason_type, const char *reason,
                                 const char *mod_tool_name,
                                 const char *mod_tool_meta_json,
                                 wf_moderation_report_record *out);

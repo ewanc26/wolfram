@@ -92,8 +92,7 @@ static void test_parse_report_repo_subject(void) {
     WF_CHECK(st == WF_OK);
     WF_CHECK(r.id && strcmp(r.id, "7") == 0);
     WF_CHECK(r.reason == NULL);
-    WF_CHECK(r.subject_uri &&
-             strcmp(r.subject_uri, "did:plc:repotarget") == 0);
+    WF_CHECK(r.subject_uri && strcmp(r.subject_uri, "did:plc:repotarget") == 0);
     wf_moderation_report_free(&r);
 }
 
@@ -134,14 +133,14 @@ static void test_parse_list_view(const char *fixture) {
 }
 
 static void test_parse_list_view_missing_optional(void) {
-    const char *json =
-        "{\"list\":{\"uri\":\"at://x/app.bsky.graph.list/1\","
-        "\"cid\":\"bafycid\",\"name\":\"Minimal\",\"purpose\":"
-        "\"app.bsky.graph.defs#modlist\"}}";
+    const char *json = "{\"list\":{\"uri\":\"at://x/app.bsky.graph.list/1\","
+                       "\"cid\":\"bafycid\",\"name\":\"Minimal\",\"purpose\":"
+                       "\"app.bsky.graph.defs#modlist\"}}";
     wf_mod_list_view_result res;
     wf_status st = wf_agent_parse_list_view_result(json, strlen(json), &res);
     WF_CHECK(st == WF_OK);
-    WF_CHECK(res.list.uri && strcmp(res.list.uri, "at://x/app.bsky.graph.list/1") == 0);
+    WF_CHECK(res.list.uri &&
+             strcmp(res.list.uri, "at://x/app.bsky.graph.list/1") == 0);
     WF_CHECK(res.list.name && strcmp(res.list.name, "Minimal") == 0);
     WF_CHECK(res.list.description == NULL);
     WF_CHECK(res.list.avatar == NULL);
@@ -152,8 +151,10 @@ static void test_parse_list_view_missing_optional(void) {
 static void test_parse_list_view_invalid(void) {
     wf_mod_list_view_result res;
 
-    WF_CHECK(wf_agent_parse_list_view_result(NULL, 0, &res) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_parse_list_view_result("garbage", 7, &res) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_list_view_result(NULL, 0, &res) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_parse_list_view_result("garbage", 7, &res) ==
+             WF_ERR_PARSE);
 
     const char *no_list = "{\"cursor\":\"x\"}";
     WF_CHECK(wf_agent_parse_list_view_result(no_list, strlen(no_list), &res) ==
@@ -181,7 +182,8 @@ static void test_wrappers_null_args(void) {
     WF_CHECK(wf_agent_mute_actor_list((wf_agent *)1, "uri", NULL) ==
              WF_ERR_INVALID_ARG);
 
-    WF_CHECK(wf_agent_block_actor_list(NULL, "uri", &lvr) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_block_actor_list(NULL, "uri", &lvr) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_block_actor_list((wf_agent *)1, NULL, &lvr) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_block_actor_list((wf_agent *)1, "uri", NULL) ==

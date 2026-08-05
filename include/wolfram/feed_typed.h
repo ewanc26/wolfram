@@ -28,14 +28,14 @@ extern "C" {
 
 /* Viewer relationship state for a post (app.bsky.feed.defs#viewerState). */
 typedef struct wf_agent_feed_viewer_state {
-    char *repost;          /* at-uri of the viewer's repost, or NULL */
-    char *like;            /* at-uri of the viewer's like, or NULL */
+    char *repost; /* at-uri of the viewer's repost, or NULL */
+    char *like;   /* at-uri of the viewer's like, or NULL */
     int bookmarked;
     int thread_muted;
     int reply_disabled;
     int embedding_disabled;
     int pinned;
-    int has_bookmarked;        /* whether the *_disabled-style flags were set */
+    int has_bookmarked; /* whether the *_disabled-style flags were set */
     int has_thread_muted;
     int has_reply_disabled;
     int has_embedding_disabled;
@@ -47,8 +47,8 @@ typedef struct wf_agent_post_view {
     char *uri;
     char *cid;
     wf_agent_profile_view author;
-    cJSON *record;              /* owned record subtree; NULL when absent */
-    cJSON *embed;               /* owned embed subtree; NULL when absent */
+    cJSON *record; /* owned record subtree; NULL when absent */
+    cJSON *embed;  /* owned embed subtree; NULL when absent */
     int reply_count;
     int repost_count;
     int like_count;
@@ -66,10 +66,10 @@ typedef struct wf_agent_post_view {
 /* A feed item (app.bsky.feed.defs#feedViewPost). */
 typedef struct wf_agent_feed_item {
     wf_agent_post_view post;
-    cJSON *reason;              /* owned reason subtree (reasonRepost/reasonPin) */
-    cJSON *reply;               /* owned replyRef subtree; NULL when absent */
-    char *feed_context;         /* optional context from feed generator */
-    char *req_id;               /* optional per-request identifier */
+    cJSON *reason;      /* owned reason subtree (reasonRepost/reasonPin) */
+    cJSON *reply;       /* owned replyRef subtree; NULL when absent */
+    char *feed_context; /* optional context from feed generator */
+    char *req_id;       /* optional per-request identifier */
 } wf_agent_feed_item;
 
 /* The parsed timeline/author-feed list. */
@@ -89,8 +89,8 @@ typedef struct wf_agent_post_list {
 
 /* A single skeleton feed post (app.bsky.feed.getFeedSkeleton -> feed[]). */
 typedef struct wf_agent_skeleton_post {
-    char *post;          /* post AT-URI */
-    cJSON *reason;       /* owned reason subtree; NULL when absent */
+    char *post;    /* post AT-URI */
+    cJSON *reason; /* owned reason subtree; NULL when absent */
 } wf_agent_skeleton_post;
 
 /* A parsed feed-generator skeleton (app.bsky.feed.getFeedSkeleton). */
@@ -111,7 +111,7 @@ typedef struct wf_agent_feed_gen_describe {
     char *did;
     wf_agent_feed_gen_feed *feeds;
     size_t feed_count;
-    cJSON *links;        /* owned links subtree; NULL when absent */
+    cJSON *links; /* owned links subtree; NULL when absent */
 } wf_agent_feed_gen_describe;
 
 /* Parse a raw getTimeline/getAuthorFeed JSON body into owned structs.
@@ -140,14 +140,14 @@ wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
                                          int limit, const char *cursor,
                                          const char *filter,
                                          wf_agent_feed_list *out);
-wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri,
-                                     int limit, const char *cursor,
-                                     wf_agent_feed_list *out);
+wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri, int limit,
+                                    const char *cursor,
+                                    wf_agent_feed_list *out);
 
 /* Parse a getPosts JSON body (bare array of postView under "posts") into owned
  * structs. Same ownership/error rules as wf_agent_parse_feed. */
 wf_status wf_agent_parse_posts(const char *json, size_t json_len,
-                              wf_agent_post_list *out);
+                               wf_agent_post_list *out);
 
 /* Free a parsed post list and every owned subtree it holds. */
 void wf_agent_post_list_free(wf_agent_post_list *list);
@@ -162,9 +162,9 @@ wf_status wf_agent_parse_feed_skeleton(const char *json, size_t json_len,
 void wf_agent_skeleton_list_free(wf_agent_skeleton_list *list);
 
 /* Parse a describeFeedGenerator JSON body into owned structs. */
-wf_status wf_agent_parse_describe_feed_generator(const char *json,
-                                                 size_t json_len,
-                                                 wf_agent_feed_gen_describe *out);
+wf_status
+wf_agent_parse_describe_feed_generator(const char *json, size_t json_len,
+                                       wf_agent_feed_gen_describe *out);
 
 /* Free a parsed describeFeedGenerator response and every owned subtree. */
 void wf_agent_feed_gen_describe_free(wf_agent_feed_gen_describe *out);
@@ -178,8 +178,9 @@ wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
                                            const char *feed_uri, int limit,
                                            const char *cursor,
                                            wf_agent_skeleton_list *out);
-wf_status wf_agent_describe_feed_generator_typed(wf_agent *agent,
-                                                 wf_agent_feed_gen_describe *out);
+wf_status
+wf_agent_describe_feed_generator_typed(wf_agent *agent,
+                                       wf_agent_feed_gen_describe *out);
 
 #ifdef __cplusplus
 }

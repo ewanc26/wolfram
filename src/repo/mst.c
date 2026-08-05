@@ -17,11 +17,13 @@ unsigned wf_mst_key_layer(const unsigned char *key, size_t key_len) {
     unsigned count = 0;
     for (int i = 0; i < (int)sizeof(hash); i++) {
         unsigned char b = hash[i];
-        if (b <  64) count++;
-        if (b <  16) count++;
-        if (b <   4) count++;
-        if (b ==  0) count++;
-        else break;
+        if (b < 64) count++;
+        if (b < 16) count++;
+        if (b < 4) count++;
+        if (b == 0)
+            count++;
+        else
+            break;
     }
     return count;
 }
@@ -42,7 +44,10 @@ wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
 
     wf_cbor_item *obj = wf_cbor_parse(cbor, len);
     if (!obj) return WF_ERR_PARSE;
-    if (obj->type != WF_CBOR_MAP) { wf_cbor_free(obj); return WF_ERR_PARSE; }
+    if (obj->type != WF_CBOR_MAP) {
+        wf_cbor_free(obj);
+        return WF_ERR_PARSE;
+    }
 
     wf_cbor_item *l_item = wf_cbor_map_find(obj, "l", 1);
     if (l_item && l_item->type == WF_CBOR_LINK && l_item->bytes.len == 36) {
@@ -63,7 +68,10 @@ wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
     }
 
     out->entries = calloc(out->count, sizeof(wf_mst_entry));
-    if (!out->entries) { wf_cbor_free(obj); return WF_ERR_ALLOC; }
+    if (!out->entries) {
+        wf_cbor_free(obj);
+        return WF_ERR_ALLOC;
+    }
 
     unsigned char *prev_key = NULL;
     size_t prev_key_len = 0;
@@ -80,30 +88,44 @@ wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
 
         wf_cbor_item *p_item = wf_cbor_map_find(entry, "p", 1);
         if (!p_item || p_item->type != WF_CBOR_UNSIGNED) {
-            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+            wf_mst_node_free(out);
+            wf_cbor_free(obj);
+            return WF_ERR_PARSE;
         }
         uint64_t prefix_len = p_item->uinteger;
         if (prefix_len > prev_key_len) {
-            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+            wf_mst_node_free(out);
+            wf_cbor_free(obj);
+            return WF_ERR_PARSE;
         }
 
         wf_cbor_item *k_item = wf_cbor_map_find(entry, "k", 1);
         if (!k_item || k_item->type != WF_CBOR_BYTES) {
-            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+            wf_mst_node_free(out);
+            wf_cbor_free(obj);
+            return WF_ERR_PARSE;
         }
 
         size_t full_len = (size_t)prefix_len + k_item->bytes.len;
         ent->key = malloc(full_len);
-        if (!ent->key) { wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_ALLOC; }
+        if (!ent->key) {
+            wf_mst_node_free(out);
+            wf_cbor_free(obj);
+            return WF_ERR_ALLOC;
+        }
         if (prefix_len > 0 && prev_key)
             memcpy(ent->key, prev_key, (size_t)prefix_len);
         if (k_item->bytes.len > 0)
-            memcpy(ent->key + prefix_len, k_item->bytes.data, k_item->bytes.len);
+            memcpy(ent->key + prefix_len, k_item->bytes.data,
+                   k_item->bytes.len);
         ent->key_len = full_len;
 
         wf_cbor_item *v_item = wf_cbor_map_find(entry, "v", 1);
-        if (!v_item || v_item->type != WF_CBOR_LINK || v_item->bytes.len != 36) {
-            wf_mst_node_free(out); wf_cbor_free(obj); return WF_ERR_PARSE;
+        if (!v_item || v_item->type != WF_CBOR_LINK ||
+            v_item->bytes.len != 36) {
+            wf_mst_node_free(out);
+            wf_cbor_free(obj);
+            return WF_ERR_PARSE;
         }
         memcpy(ent->value.bytes, v_item->bytes.data, 36);
         ent->value.len = 36;
@@ -128,16 +150,16 @@ wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
 
     for (size_t i = 1; i < out->count; i++) {
         if (wf_mst_key_cmp(out->entries[i - 1].key, out->entries[i - 1].key_len,
-                            out->entries[i].key, out->entries[i].key_len) >= 0) {
+                           out->entries[i].key, out->entries[i].key_len) >= 0) {
             wf_mst_node_free(out);
             wf_cbor_free(obj);
             return WF_ERR_PARSE;
         }
     }
 
-    out->layer = (out->count > 0)
-        ? wf_mst_key_layer(out->entries[0].key, out->entries[0].key_len)
-        : 0;
+    out->layer = (out->count > 0) ? wf_mst_key_layer(out->entries[0].key,
+                                                     out->entries[0].key_len)
+                                  : 0;
 
     wf_cbor_free(obj);
     return WF_OK;
@@ -145,16 +167,14 @@ wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
 
 void wf_mst_node_free(wf_mst_node *node) {
     if (!node) return;
-    for (size_t i = 0; i < node->count; i++)
-        free(node->entries[i].key);
+    for (size_t i = 0; i < node->count; i++) free(node->entries[i].key);
     free(node->entries);
     node->entries = NULL;
     node->count = 0;
 }
 
 wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
-                      const unsigned char *key, size_t key_len,
-                      wf_cid *out) {
+                      const unsigned char *key, size_t key_len, wf_cid *out) {
     if (!car || !root_cid || !key || key_len == 0 || !out)
         return WF_ERR_INVALID_ARG;
 
@@ -165,15 +185,14 @@ wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
         if (!block) return WF_ERR_PARSE;
 
         wf_mst_node node;
-        wf_status s = wf_mst_node_parse(block->data, block->data_len,
-                                        &current, &node);
+        wf_status s =
+            wf_mst_node_parse(block->data, block->data_len, &current, &node);
         if (s != WF_OK) return s;
 
         size_t idx = 0;
         for (; idx < node.count; idx++) {
-            int cmp = wf_mst_key_cmp(key, key_len,
-                                      node.entries[idx].key,
-                                      node.entries[idx].key_len);
+            int cmp = wf_mst_key_cmp(key, key_len, node.entries[idx].key,
+                                     node.entries[idx].key_len);
             if (cmp == 0) {
                 *out = node.entries[idx].value;
                 wf_mst_node_free(&node);
@@ -231,8 +250,7 @@ wf_status wf_mst_node_build(unsigned layer, const wf_cid *left,
 static wf_status mst_load_node(wf_car *car, const wf_cid *cid,
                                wf_mst_node *out);
 static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
-                                   unsigned child_layer,
-                                   unsigned parent_layer);
+                                   unsigned child_layer, unsigned parent_layer);
 
 /* Raise `cid` until it sits exactly one layer below `parent_layer`. */
 static wf_status mst_normalise_child(wf_car *car, wf_cid *cid,
@@ -271,8 +289,9 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
      */
     if (node->count > 0 || node->left.len > 0) {
         unsigned effective = node->count > 0
-            ? wf_mst_key_layer(node->entries[0].key, node->entries[0].key_len)
-            : node->layer;
+                                 ? wf_mst_key_layer(node->entries[0].key,
+                                                    node->entries[0].key_len)
+                                 : node->layer;
         if (effective > 0) {
             if (node->left.len > 0) {
                 wf_status rs = mst_normalise_child(car, &node->left, effective);
@@ -280,9 +299,8 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
             }
             for (size_t i = 0; i < node->count; i++) {
                 if (node->entries[i].subtree.len == 0) continue;
-                wf_status rs = mst_normalise_child(car,
-                                                   &node->entries[i].subtree,
-                                                   effective);
+                wf_status rs = mst_normalise_child(
+                    car, &node->entries[i].subtree, effective);
                 if (rs != WF_OK) return rs;
             }
         }
@@ -298,33 +316,44 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
     arr->children.count = node->count;
     if (node->count > 0) {
         arr->children.items = calloc(node->count, sizeof(wf_cbor_item *));
-        if (!arr->children.items) { free(arr); return WF_ERR_ALLOC; }
+        if (!arr->children.items) {
+            free(arr);
+            return WF_ERR_ALLOC;
+        }
     }
 
     for (size_t i = 0; i < node->count; i++) {
         wf_mst_entry *src = &node->entries[i];
         uint64_t prefix = 0;
         if (prev_key) {
-            size_t min = prev_key_len < src->key_len ? prev_key_len : src->key_len;
+            size_t min =
+                prev_key_len < src->key_len ? prev_key_len : src->key_len;
             while (prefix < min && prev_key[prefix] == src->key[prefix])
                 prefix++;
         }
 
         wf_cbor_item *entry = calloc(1, sizeof(*entry));
-        if (!entry) { err = 1; break; }
+        if (!entry) {
+            err = 1;
+            break;
+        }
         entry->type = WF_CBOR_MAP;
         entry->map.count = 4;
         entry->map.pairs = calloc(4, sizeof(wf_cbor_pair));
-        if (!entry->map.pairs) { free(entry); err = 1; break; }
+        if (!entry->map.pairs) {
+            free(entry);
+            err = 1;
+            break;
+        }
 
         entry->map.pairs[0].key = cbor_str("k");
-        entry->map.pairs[0].value = cbor_bytes(src->key + prefix,
-                                               src->key_len - (size_t)prefix);
+        entry->map.pairs[0].value =
+            cbor_bytes(src->key + prefix, src->key_len - (size_t)prefix);
         entry->map.pairs[1].key = cbor_str("p");
         entry->map.pairs[1].value = cbor_uint(prefix);
         entry->map.pairs[2].key = cbor_str("t");
-        entry->map.pairs[2].value = (src->subtree.len > 0)
-            ? cbor_cid(&src->subtree) : cbor_null();
+        entry->map.pairs[2].value =
+            (src->subtree.len > 0) ? cbor_cid(&src->subtree) : cbor_null();
         entry->map.pairs[3].key = cbor_str("v");
         entry->map.pairs[3].value = cbor_cid(&src->value);
 
@@ -343,17 +372,24 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
     }
 
     wf_cbor_item *map = calloc(1, sizeof(*map));
-    if (!map) { wf_cbor_free(arr); return WF_ERR_ALLOC; }
+    if (!map) {
+        wf_cbor_free(arr);
+        return WF_ERR_ALLOC;
+    }
     map->type = WF_CBOR_MAP;
     map->map.count = 2;
     map->map.pairs = calloc(2, sizeof(wf_cbor_pair));
-    if (!map->map.pairs) { free(map); wf_cbor_free(arr); return WF_ERR_ALLOC; }
+    if (!map->map.pairs) {
+        free(map);
+        wf_cbor_free(arr);
+        return WF_ERR_ALLOC;
+    }
 
     map->map.pairs[0].key = cbor_str("e");
     map->map.pairs[0].value = arr;
     map->map.pairs[1].key = cbor_str("l");
-    map->map.pairs[1].value = (node->left.len > 0)
-        ? cbor_cid(&node->left) : cbor_null();
+    map->map.pairs[1].value =
+        (node->left.len > 0) ? cbor_cid(&node->left) : cbor_null();
 
     size_t cbor_len;
     unsigned char *cbor = wf_cbor_serialize(map, &cbor_len);
@@ -362,7 +398,10 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
 
     wf_cid cid;
     wf_status s = wf_cid_of_block(cbor, cbor_len, &cid);
-    if (s != WF_OK) { free(cbor); return s; }
+    if (s != WF_OK) {
+        free(cbor);
+        return s;
+    }
 
     /* Content-addressed store: if a block with this CID already exists in the
      * CAR (e.g. a shared MST subtree reused across writes), reuse it rather
@@ -374,9 +413,12 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
         return WF_OK;
     }
 
-    wf_car_block *new_blocks = realloc(car->blocks,
-        (car->block_count + 1) * sizeof(wf_car_block));
-    if (!new_blocks) { free(cbor); return WF_ERR_ALLOC; }
+    wf_car_block *new_blocks =
+        realloc(car->blocks, (car->block_count + 1) * sizeof(wf_car_block));
+    if (!new_blocks) {
+        free(cbor);
+        return WF_ERR_ALLOC;
+    }
     car->blocks = new_blocks;
     car->blocks[car->block_count].cid = cid;
     car->blocks[car->block_count].data = cbor;
@@ -387,11 +429,10 @@ wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car) {
     return WF_OK;
 }
 
-static size_t mst_find_ge(const wf_mst_node *node,
-                          const unsigned char *key, size_t key_len) {
+static size_t mst_find_ge(const wf_mst_node *node, const unsigned char *key,
+                          size_t key_len) {
     for (size_t i = 0; i < node->count; i++) {
-        if (wf_mst_key_cmp(key, key_len,
-                           node->entries[i].key,
+        if (wf_mst_key_cmp(key, key_len, node->entries[i].key,
                            node->entries[i].key_len) <= 0)
             return i;
     }
@@ -421,8 +462,8 @@ static wf_status mst_load_node_depth(wf_car *car, const wf_cid *cid,
      * the keys' hashes, so it struck only some sets of record keys.
      */
     if (out->count > 0) {
-        out->layer = wf_mst_key_layer(out->entries[0].key,
-                                      out->entries[0].key_len);
+        out->layer =
+            wf_mst_key_layer(out->entries[0].key, out->entries[0].key_len);
         return s;
     }
     if (out->left.len == 0) return s;
@@ -441,8 +482,7 @@ static wf_status mst_load_node(wf_car *car, const wf_cid *cid,
 }
 
 static void free_entries(wf_mst_entry *entries, size_t count) {
-    for (size_t i = 0; i < count; i++)
-        free(entries[i].key);
+    for (size_t i = 0; i < count; i++) free(entries[i].key);
 }
 
 /*
@@ -452,15 +492,14 @@ static void free_entries(wf_mst_entry *entries, size_t count) {
  */
 typedef struct {
     int is_tree;
-    wf_cid cid;            /* tree cid, when is_tree */
+    wf_cid cid;               /* tree cid, when is_tree */
     const unsigned char *key; /* leaf key (borrowed from the source node) */
     size_t key_len;
-    wf_cid value;          /* leaf value */
-    wf_cid subtree;        /* leaf subtree */
+    wf_cid value;   /* leaf value */
+    wf_cid subtree; /* leaf subtree */
 } mst_split_item;
 
-static size_t mst_collect_items(const wf_mst_node *node,
-                                mst_split_item **out) {
+static size_t mst_collect_items(const wf_mst_node *node, mst_split_item **out) {
     size_t n = 0;
     if (node->left.len > 0) n++;
     for (size_t i = 0; i < node->count; i++) {
@@ -513,7 +552,10 @@ static wf_status mst_build_from_items(wf_car *car, unsigned layer,
         wf_status st = wf_mst_node_build(layer, &items[0].cid, NULL, 0, &node);
         if (st != WF_OK) return st;
         st = wf_mst_node_finalize(&node, car);
-        if (st != WF_OK) { wf_mst_node_free(&node); return st; }
+        if (st != WF_OK) {
+            wf_mst_node_free(&node);
+            return st;
+        }
         *out = node.cid;
         wf_mst_node_free(&node);
         return WF_OK;
@@ -521,7 +563,10 @@ static wf_status mst_build_from_items(wf_car *car, unsigned layer,
 
     wf_cid left = {{0}, 0};
     size_t s = 0;
-    if (items[0].is_tree) { left = items[0].cid; s = 1; }
+    if (items[0].is_tree) {
+        left = items[0].cid;
+        s = 1;
+    }
 
     wf_mst_entry *entries = calloc(leafcount, sizeof(wf_mst_entry));
     if (!entries) return WF_ERR_ALLOC;
@@ -548,7 +593,10 @@ static wf_status mst_build_from_items(wf_car *car, unsigned layer,
     free(entries);
     if (st != WF_OK) return st;
     st = wf_mst_node_finalize(&node, car);
-    if (st != WF_OK) { wf_mst_node_free(&node); return st; }
+    if (st != WF_OK) {
+        wf_mst_node_free(&node);
+        return st;
+    }
     *out = node.cid;
     wf_mst_node_free(&node);
     return WF_OK;
@@ -572,7 +620,10 @@ static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
 
     mst_split_item *items = NULL;
     size_t n = mst_collect_items(&node, &items);
-    if (n == 0) { wf_mst_node_free(&node); return WF_OK; }
+    if (n == 0) {
+        wf_mst_node_free(&node);
+        return WF_OK;
+    }
 
     size_t index = n;
     for (size_t i = 0; i < n; i++) {
@@ -598,9 +649,10 @@ static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
             s = mst_split_around(car, &tree_cid, key, key_len, &sl, &sr);
             if (s == WF_OK) {
                 if (sl.len > 0) {
-                    mst_split_item *comb = calloc((index - 1) + 1,
-                                                  sizeof(mst_split_item));
-                    if (!comb) s = WF_ERR_ALLOC;
+                    mst_split_item *comb =
+                        calloc((index - 1) + 1, sizeof(mst_split_item));
+                    if (!comb)
+                        s = WF_ERR_ALLOC;
                     else {
                         for (size_t i = 0; i < index - 1; i++)
                             comb[i] = items[i];
@@ -616,9 +668,10 @@ static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
                     left = base_left;
                 }
                 if (s == WF_OK && sr.len > 0) {
-                    mst_split_item *comb = calloc((n - index) + 1,
-                                                  sizeof(mst_split_item));
-                    if (!comb) s = WF_ERR_ALLOC;
+                    mst_split_item *comb =
+                        calloc((n - index) + 1, sizeof(mst_split_item));
+                    if (!comb)
+                        s = WF_ERR_ALLOC;
                     else {
                         comb[0].is_tree = 1;
                         comb[0].cid = sr;
@@ -645,8 +698,7 @@ static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
 }
 
 static wf_status mst_raise_subtree(wf_car *car, wf_cid *cid,
-                                   unsigned child_layer,
-                                   unsigned parent_layer);
+                                   unsigned child_layer, unsigned parent_layer);
 static wf_status mst_raise_to_layer(wf_car *car, wf_cid *cid,
                                     unsigned target_layer);
 
@@ -656,8 +708,7 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     size_t idx = mst_find_ge(node, key, key_len);
 
     if (idx < node->count) {
-        int cmp = wf_mst_key_cmp(key, key_len,
-                                 node->entries[idx].key,
+        int cmp = wf_mst_key_cmp(key, key_len, node->entries[idx].key,
                                  node->entries[idx].key_len);
         if (cmp == 0) {
             *new_cid = node->cid;
@@ -676,8 +727,8 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
      * the upper part becomes the new leaf's subtree. */
     wf_cid pred_subtree = {{0}, 0};
     wf_cid new_subtree = {{0}, 0};
-    const wf_cid *preceding_tree = idx == 0
-        ? &node->left : &node->entries[idx - 1].subtree;
+    const wf_cid *preceding_tree =
+        idx == 0 ? &node->left : &node->entries[idx - 1].subtree;
     if (preceding_tree->len > 0) {
         wf_status ss = mst_split_around(car, preceding_tree, key, key_len,
                                         &pred_subtree, &new_subtree);
@@ -702,7 +753,11 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
     for (size_t i = 0, j = 0; i < node->count; i++, j++) {
         if (j == idx) {
             new_entries[j].key = malloc(key_len);
-            if (!new_entries[j].key) { free_entries(new_entries, j); free(new_entries); return WF_ERR_ALLOC; }
+            if (!new_entries[j].key) {
+                free_entries(new_entries, j);
+                free(new_entries);
+                return WF_ERR_ALLOC;
+            }
             memcpy(new_entries[j].key, key, key_len);
             new_entries[j].key_len = key_len;
             new_entries[j].value = *value;
@@ -710,16 +765,25 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
             j++;
         }
         new_entries[j].key = malloc(node->entries[i].key_len);
-        if (!new_entries[j].key) { free_entries(new_entries, j); free(new_entries); return WF_ERR_ALLOC; }
-        memcpy(new_entries[j].key, node->entries[i].key, node->entries[i].key_len);
+        if (!new_entries[j].key) {
+            free_entries(new_entries, j);
+            free(new_entries);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(new_entries[j].key, node->entries[i].key,
+               node->entries[i].key_len);
         new_entries[j].key_len = node->entries[i].key_len;
         new_entries[j].value = node->entries[i].value;
-        new_entries[j].subtree = (idx > 0 && i + 1 == idx)
-            ? pred_subtree : node->entries[i].subtree;
+        new_entries[j].subtree =
+            (idx > 0 && i + 1 == idx) ? pred_subtree : node->entries[i].subtree;
     }
     if (idx == node->count) {
         new_entries[idx].key = malloc(key_len);
-        if (!new_entries[idx].key) { free_entries(new_entries, idx); free(new_entries); return WF_ERR_ALLOC; }
+        if (!new_entries[idx].key) {
+            free_entries(new_entries, idx);
+            free(new_entries);
+            return WF_ERR_ALLOC;
+        }
         memcpy(new_entries[idx].key, key, key_len);
         new_entries[idx].key_len = key_len;
         new_entries[idx].value = *value;
@@ -728,21 +792,22 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
 
     wf_cid new_left = idx == 0 ? pred_subtree : node->left;
     wf_mst_node new_node;
-    wf_status s = wf_mst_node_build(node->layer, &new_left,
-                                    new_entries, new_count, &new_node);
+    wf_status s = wf_mst_node_build(node->layer, &new_left, new_entries,
+                                    new_count, &new_node);
     free_entries(new_entries, new_count);
     free(new_entries);
     if (s != WF_OK) return s;
 
     s = wf_mst_node_finalize(&new_node, car);
-    if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+    if (s != WF_OK) {
+        wf_mst_node_free(&new_node);
+        return s;
+    }
 
     *new_cid = new_node.cid;
     wf_mst_node_free(&new_node);
     return WF_OK;
 }
-
-
 
 static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
                                         const unsigned char *key,
@@ -764,7 +829,8 @@ static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
         use_prev = node->count - 1;
     }
 
-    const wf_cid *target_cid = use_left ? &node->left : &node->entries[use_prev].subtree;
+    const wf_cid *target_cid =
+        use_left ? &node->left : &node->entries[use_prev].subtree;
 
     if (target_cid->len > 0) {
         if (use_left) {
@@ -816,8 +882,13 @@ static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
 
     for (size_t i = 0; i < new_count; i++) {
         new_entries[i].key = malloc(node->entries[i].key_len);
-        if (!new_entries[i].key) { free_entries(new_entries, i); free(new_entries); return WF_ERR_ALLOC; }
-        memcpy(new_entries[i].key, node->entries[i].key, node->entries[i].key_len);
+        if (!new_entries[i].key) {
+            free_entries(new_entries, i);
+            free(new_entries);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(new_entries[i].key, node->entries[i].key,
+               node->entries[i].key_len);
         new_entries[i].key_len = node->entries[i].key_len;
         new_entries[i].value = node->entries[i].value;
         new_entries[i].subtree = node->entries[i].subtree;
@@ -825,19 +896,22 @@ static wf_status mst_add_at_lower_layer(wf_car *car, const wf_mst_node *node,
 
     wf_mst_node new_node;
     if (use_left) {
-        s = wf_mst_node_build(node->layer, &new_subtree,
-                              new_entries, new_count, &new_node);
+        s = wf_mst_node_build(node->layer, &new_subtree, new_entries, new_count,
+                              &new_node);
     } else {
         new_entries[use_prev].subtree = new_subtree;
-        s = wf_mst_node_build(node->layer, &node->left,
-                              new_entries, new_count, &new_node);
+        s = wf_mst_node_build(node->layer, &node->left, new_entries, new_count,
+                              &new_node);
     }
     free_entries(new_entries, new_count);
     free(new_entries);
     if (s != WF_OK) return s;
 
     s = wf_mst_node_finalize(&new_node, car);
-    if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+    if (s != WF_OK) {
+        wf_mst_node_free(&new_node);
+        return s;
+    }
     *new_cid = new_node.cid;
     wf_mst_node_free(&new_node);
     return WF_OK;
@@ -872,15 +946,14 @@ static wf_status mst_raise_to_layer(wf_car *car, wf_cid *cid,
     return mst_raise_subtree(car, cid, actual, target_layer);
 }
 
-static wf_status mst_add_at_higher_layer(wf_car *car,
-                                         const wf_mst_node *node,
+static wf_status mst_add_at_higher_layer(wf_car *car, const wf_mst_node *node,
                                          const unsigned char *key,
                                          size_t key_len, const wf_cid *value,
-                                         unsigned key_layer,
-                                         wf_cid *new_cid) {
+                                         unsigned key_layer, wf_cid *new_cid) {
     wf_cid left = {{0}, 0};
     wf_cid right = {{0}, 0};
-    wf_status s = mst_split_around(car, &node->cid, key, key_len, &left, &right);
+    wf_status s =
+        mst_split_around(car, &node->cid, key, key_len, &left, &right);
     if (s != WF_OK) return s;
 
     /*
@@ -911,7 +984,10 @@ static wf_status mst_add_at_higher_layer(wf_car *car,
     if (s != WF_OK) return s;
 
     s = wf_mst_node_finalize(&root_node, car);
-    if (s != WF_OK) { wf_mst_node_free(&root_node); return s; }
+    if (s != WF_OK) {
+        wf_mst_node_free(&root_node);
+        return s;
+    }
     *new_cid = root_node.cid;
     wf_mst_node_free(&root_node);
     return WF_OK;
@@ -936,13 +1012,16 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
 
         wf_cid empty_left = {{0}, 0};
         wf_mst_node node;
-        wf_status s = wf_mst_node_build(key_layer, &empty_left,
-                                        &entry, 1, &node);
+        wf_status s =
+            wf_mst_node_build(key_layer, &empty_left, &entry, 1, &node);
         free(entry.key);
         entry.key = NULL;
         if (s != WF_OK) return s;
         s = wf_mst_node_finalize(&node, car);
-        if (s != WF_OK) { wf_mst_node_free(&node); return s; }
+        if (s != WF_OK) {
+            wf_mst_node_free(&node);
+            return s;
+        }
         *new_root = node.cid;
         wf_mst_node_free(&node);
         return WF_OK;
@@ -955,11 +1034,11 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
     if (key_layer == node.layer) {
         s = mst_add_at_layer(car, &node, key, key_len, value, new_root);
     } else if (key_layer > node.layer) {
-        s = mst_add_at_higher_layer(car, &node, key, key_len,
-                                    value, key_layer, new_root);
+        s = mst_add_at_higher_layer(car, &node, key, key_len, value, key_layer,
+                                    new_root);
     } else {
-        s = mst_add_at_lower_layer(car, &node, key, key_len,
-                                   value, key_layer, new_root);
+        s = mst_add_at_lower_layer(car, &node, key, key_len, value, key_layer,
+                                   new_root);
     }
 
     wf_mst_node_free(&node);
@@ -968,8 +1047,14 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
 
 static wf_status mst_merge_subtrees(wf_car *car, const wf_cid *a,
                                     const wf_cid *b, wf_cid *out) {
-    if (a->len == 0) { *out = *b; return WF_OK; }
-    if (b->len == 0) { *out = *a; return WF_OK; }
+    if (a->len == 0) {
+        *out = *b;
+        return WF_OK;
+    }
+    if (b->len == 0) {
+        *out = *a;
+        return WF_OK;
+    }
 
     wf_mst_node left_node, right_node;
     wf_status s = mst_load_node(car, a, &left_node);
@@ -1074,8 +1159,7 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
         *new_cid = node->cid;
         return WF_OK;
     }
-    int cmp = wf_mst_key_cmp(key, key_len,
-                             node->entries[idx].key,
+    int cmp = wf_mst_key_cmp(key, key_len, node->entries[idx].key,
                              node->entries[idx].key_len);
     if (cmp != 0) {
         *new_cid = node->cid;
@@ -1094,8 +1178,8 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
     }
 
     wf_cid merged;
-    wf_status s = mst_merge_subtrees(car, &left_subtree, &right_subtree,
-                                     &merged);
+    wf_status s =
+        mst_merge_subtrees(car, &left_subtree, &right_subtree, &merged);
     if (s != WF_OK) return s;
 
     if (new_count == 0) {
@@ -1115,7 +1199,8 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
             free(new_entries);
             return WF_ERR_ALLOC;
         }
-        memcpy(new_entries[j].key, node->entries[i].key, new_entries[j].key_len);
+        memcpy(new_entries[j].key, node->entries[i].key,
+               new_entries[j].key_len);
         new_entries[j].value = node->entries[i].value;
         new_entries[j].subtree = node->entries[i].subtree;
         j++;
@@ -1129,14 +1214,17 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
     }
 
     wf_mst_node new_node;
-    s = wf_mst_node_build(node->layer, &new_left,
-                          new_entries, new_count, &new_node);
+    s = wf_mst_node_build(node->layer, &new_left, new_entries, new_count,
+                          &new_node);
     free_entries(new_entries, new_count);
     free(new_entries);
     if (s != WF_OK) return s;
 
     s = wf_mst_node_finalize(&new_node, car);
-    if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+    if (s != WF_OK) {
+        wf_mst_node_free(&new_node);
+        return s;
+    }
     *new_cid = new_node.cid;
     wf_mst_node_free(&new_node);
     return WF_OK;
@@ -1151,8 +1239,7 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
         size_t idx = mst_find_ge(node, key, key_len);
         int found_here = 0;
         if (idx < node->count) {
-            int cmp = wf_mst_key_cmp(key, key_len,
-                                     node->entries[idx].key,
+            int cmp = wf_mst_key_cmp(key, key_len, node->entries[idx].key,
                                      node->entries[idx].key_len);
             found_here = (cmp == 0);
         }
@@ -1184,13 +1271,15 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
             wf_mst_node child;
             s = mst_load_node(car, &node->left, &child);
             if (s != WF_OK) return s;
-            s = mst_delete_recursive(car, &child, key, key_len, key_layer, &subtree);
+            s = mst_delete_recursive(car, &child, key, key_len, key_layer,
+                                     &subtree);
             wf_mst_node_free(&child);
         } else {
             wf_mst_node sub_node;
             s = mst_load_node(car, &node->entries[sub_idx].subtree, &sub_node);
             if (s != WF_OK) return s;
-            s = mst_delete_recursive(car, &sub_node, key, key_len, key_layer, &subtree);
+            s = mst_delete_recursive(car, &sub_node, key, key_len, key_layer,
+                                     &subtree);
             wf_mst_node_free(&sub_node);
         }
         if (s != WF_OK) return s;
@@ -1207,7 +1296,8 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
                 free(new_entries);
                 return WF_ERR_ALLOC;
             }
-            memcpy(new_entries[i].key, node->entries[i].key, new_entries[i].key_len);
+            memcpy(new_entries[i].key, node->entries[i].key,
+                   new_entries[i].key_len);
             new_entries[i].value = node->entries[i].value;
             new_entries[i].subtree = node->entries[i].subtree;
         }
@@ -1232,19 +1322,22 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
 
         wf_mst_node new_node;
         if (use_left) {
-            s = wf_mst_node_build(node->layer, &subtree,
-                                  new_entries, new_count, &new_node);
+            s = wf_mst_node_build(node->layer, &subtree, new_entries, new_count,
+                                  &new_node);
         } else {
             new_entries[sub_idx].subtree = subtree;
-            s = wf_mst_node_build(node->layer, &node->left,
-                                  new_entries, new_count, &new_node);
+            s = wf_mst_node_build(node->layer, &node->left, new_entries,
+                                  new_count, &new_node);
         }
         free_entries(new_entries, new_count);
         free(new_entries);
         if (s != WF_OK) return s;
 
         s = wf_mst_node_finalize(&new_node, car);
-        if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+        if (s != WF_OK) {
+            wf_mst_node_free(&new_node);
+            return s;
+        }
         *new_cid = new_node.cid;
         wf_mst_node_free(&new_node);
         return WF_OK;
@@ -1266,8 +1359,8 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
         use_left = 0;
     }
 
-    const wf_cid *target = use_left ? &node->left
-                                    : &node->entries[use_prev].subtree;
+    const wf_cid *target =
+        use_left ? &node->left : &node->entries[use_prev].subtree;
     if (target->len == 0) {
         memset(new_cid, 0, sizeof(*new_cid));
         return WF_ERR_NOT_FOUND;
@@ -1277,7 +1370,8 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
         wf_mst_node sub_node;
         s = mst_load_node(car, target, &sub_node);
         if (s != WF_OK) return s;
-        s = mst_delete_recursive(car, &sub_node, key, key_len, key_layer, new_cid);
+        s = mst_delete_recursive(car, &sub_node, key, key_len, key_layer,
+                                 new_cid);
         wf_mst_node_free(&sub_node);
     }
     if (s != WF_OK) return s;
@@ -1294,26 +1388,30 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
             free(new_entries);
             return WF_ERR_ALLOC;
         }
-        memcpy(new_entries[i].key, node->entries[i].key, new_entries[i].key_len);
+        memcpy(new_entries[i].key, node->entries[i].key,
+               new_entries[i].key_len);
         new_entries[i].value = node->entries[i].value;
         new_entries[i].subtree = node->entries[i].subtree;
     }
 
     wf_mst_node new_node;
     if (use_left) {
-        s = wf_mst_node_build(node->layer, new_cid,
-                              new_entries, new_count, &new_node);
+        s = wf_mst_node_build(node->layer, new_cid, new_entries, new_count,
+                              &new_node);
     } else {
         new_entries[use_prev].subtree = *new_cid;
-        s = wf_mst_node_build(node->layer, &node->left,
-                              new_entries, new_count, &new_node);
+        s = wf_mst_node_build(node->layer, &node->left, new_entries, new_count,
+                              &new_node);
     }
     free_entries(new_entries, new_count);
     free(new_entries);
     if (s != WF_OK) return s;
 
     s = wf_mst_node_finalize(&new_node, car);
-    if (s != WF_OK) { wf_mst_node_free(&new_node); return s; }
+    if (s != WF_OK) {
+        wf_mst_node_free(&new_node);
+        return s;
+    }
     *new_cid = new_node.cid;
     wf_mst_node_free(&new_node);
     return WF_OK;
@@ -1375,7 +1473,8 @@ static wf_status mst_cid_list_push(wf_cid **list, size_t *count, size_t *cap,
         size_t ncap = *cap ? *cap * 2 : 16;
         wf_cid *n = realloc(*list, ncap * sizeof(wf_cid));
         if (!n) return WF_ERR_ALLOC;
-        *list = n; *cap = ncap;
+        *list = n;
+        *cap = ncap;
     }
     (*list)[*count] = *cid;
     (*count)++;
@@ -1389,7 +1488,8 @@ static wf_status mst_leaf_list_push(wf_mst_leaf **list, size_t *count,
         size_t ncap = *cap ? *cap * 2 : 16;
         wf_mst_leaf *n = realloc(*list, ncap * sizeof(wf_mst_leaf));
         if (!n) return WF_ERR_ALLOC;
-        *list = n; *cap = ncap;
+        *list = n;
+        *cap = ncap;
     }
     wf_mst_leaf *leaf = &(*list)[*count];
     leaf->key = malloc(key_len);
@@ -1418,9 +1518,12 @@ static wf_status mst_walk_node(wf_car *car, const wf_cid *cid,
     if (s != WF_OK) return s;
 
     if (node.left.len > 0) {
-        s = mst_walk_node(car, &node.left, from_key, from_key_len, has_from,
-                          cb, ctx);
-        if (s != WF_OK) { wf_mst_node_free(&node); return s; }
+        s = mst_walk_node(car, &node.left, from_key, from_key_len, has_from, cb,
+                          ctx);
+        if (s != WF_OK) {
+            wf_mst_node_free(&node);
+            return s;
+        }
     }
     for (size_t i = 0; i < node.count; i++) {
         if (!has_from ||
@@ -1428,12 +1531,18 @@ static wf_status mst_walk_node(wf_car *car, const wf_cid *cid,
                            from_key, from_key_len) >= 0) {
             s = cb(ctx, node.entries[i].key, node.entries[i].key_len,
                    &node.entries[i].value);
-            if (s != WF_OK) { wf_mst_node_free(&node); return s; }
+            if (s != WF_OK) {
+                wf_mst_node_free(&node);
+                return s;
+            }
         }
         if (node.entries[i].subtree.len > 0) {
             s = mst_walk_node(car, &node.entries[i].subtree, from_key,
                               from_key_len, has_from, cb, ctx);
-            if (s != WF_OK) { wf_mst_node_free(&node); return s; }
+            if (s != WF_OK) {
+                wf_mst_node_free(&node);
+                return s;
+            }
         }
     }
     wf_mst_node_free(&node);
@@ -1445,8 +1554,8 @@ wf_status wf_mst_walk_from(wf_car *car, const wf_cid *root,
                            wf_mst_walk_cb cb, void *ctx) {
     if (!car || !root || !cb) return WF_ERR_INVALID_ARG;
     if (root->len == 0) return WF_OK;
-    return mst_walk_node(car, root, from_key, from_key_len,
-                         from_key != NULL, cb, ctx);
+    return mst_walk_node(car, root, from_key, from_key_len, from_key != NULL,
+                         cb, ctx);
 }
 
 typedef struct mst_collect_ctx {
@@ -1461,48 +1570,57 @@ static wf_status mst_collect_cb(void *ctx, const unsigned char *key,
                                 size_t key_len, const wf_cid *value) {
     mst_collect_ctx *c = ctx;
     if (c->want_coll) {
-        if (!(key_len > c->coll_len &&
-              key[c->coll_len] == '/' &&
+        if (!(key_len > c->coll_len && key[c->coll_len] == '/' &&
               memcmp(key, c->coll, c->coll_len) == 0))
             return WF_OK;
     }
-    return mst_leaf_list_push(&c->acc, &c->acc_count, &c->acc_cap, key,
-                              key_len, value);
+    return mst_leaf_list_push(&c->acc, &c->acc_count, &c->acc_cap, key, key_len,
+                              value);
 }
 
-wf_status wf_mst_list(wf_car *car, const wf_cid *root,
-                      wf_mst_leaf **out, size_t *out_count) {
+wf_status wf_mst_list(wf_car *car, const wf_cid *root, wf_mst_leaf **out,
+                      size_t *out_count) {
     if (!car || !root || !out || !out_count) return WF_ERR_INVALID_ARG;
-    *out = NULL; *out_count = 0;
+    *out = NULL;
+    *out_count = 0;
     if (root->len == 0) return WF_OK;
     mst_collect_ctx c = {0};
     wf_status s = mst_walk_node(car, root, NULL, 0, 0, mst_collect_cb, &c);
-    if (s != WF_OK) { wf_mst_leaf_list_free(c.acc, c.acc_count); return s; }
-    *out = c.acc; *out_count = c.acc_count;
+    if (s != WF_OK) {
+        wf_mst_leaf_list_free(c.acc, c.acc_count);
+        return s;
+    }
+    *out = c.acc;
+    *out_count = c.acc_count;
     return WF_OK;
 }
 
 wf_status wf_mst_paths(wf_car *car, const wf_cid *root,
                        const unsigned char *collection, size_t collection_len,
                        wf_mst_leaf **out, size_t *out_count) {
-    if (!car || !root || !collection || collection_len == 0 || !out || !out_count)
+    if (!car || !root || !collection || collection_len == 0 || !out ||
+        !out_count)
         return WF_ERR_INVALID_ARG;
-    *out = NULL; *out_count = 0;
+    *out = NULL;
+    *out_count = 0;
     if (root->len == 0) return WF_OK;
     mst_collect_ctx c = {0};
     c.coll = collection;
     c.coll_len = collection_len;
     c.want_coll = 1;
     wf_status s = mst_walk_node(car, root, NULL, 0, 0, mst_collect_cb, &c);
-    if (s != WF_OK) { wf_mst_leaf_list_free(c.acc, c.acc_count); return s; }
-    *out = c.acc; *out_count = c.acc_count;
+    if (s != WF_OK) {
+        wf_mst_leaf_list_free(c.acc, c.acc_count);
+        return s;
+    }
+    *out = c.acc;
+    *out_count = c.acc_count;
     return WF_OK;
 }
 
 void wf_mst_leaf_list_free(wf_mst_leaf *list, size_t count) {
     if (!list) return;
-    for (size_t i = 0; i < count; i++)
-        free(list[i].key);
+    for (size_t i = 0; i < count; i++) free(list[i].key);
     free(list);
 }
 
@@ -1511,8 +1629,8 @@ void wf_mst_cid_list_free(wf_cid *list, size_t count) {
     free(list);
 }
 
-static wf_status mst_all_cids_node(wf_car *car, const wf_cid *cid,
-                                   wf_cid **out, size_t *count, size_t *cap) {
+static wf_status mst_all_cids_node(wf_car *car, const wf_cid *cid, wf_cid **out,
+                                   size_t *count, size_t *cap) {
     if (!cid || cid->len == 0) return WF_OK;
     if (mst_cid_list_contains(*out, *count, cid)) return WF_OK;
     wf_status s = mst_cid_list_push(out, count, cap, cid);
@@ -1530,22 +1648,28 @@ static wf_status mst_all_cids_node(wf_car *car, const wf_cid *cid,
     for (size_t i = 0; s == WF_OK && i < node.count; i++) {
         s = mst_cid_list_push(out, count, cap, &node.entries[i].value);
         if (s == WF_OK && node.entries[i].subtree.len > 0)
-            s = mst_all_cids_node(car, &node.entries[i].subtree,
-                                  out, count, cap);
+            s = mst_all_cids_node(car, &node.entries[i].subtree, out, count,
+                                  cap);
     }
     wf_mst_node_free(&node);
     return s;
 }
 
-wf_status wf_mst_get_all_cids(wf_car *car, const wf_cid *root,
-                              wf_cid **out, size_t *out_count) {
+wf_status wf_mst_get_all_cids(wf_car *car, const wf_cid *root, wf_cid **out,
+                              size_t *out_count) {
     if (!car || !root || !out || !out_count) return WF_ERR_INVALID_ARG;
-    *out = NULL; *out_count = 0;
+    *out = NULL;
+    *out_count = 0;
     if (root->len == 0) return WF_OK;
-    wf_cid *list = NULL; size_t count = 0, cap = 0;
+    wf_cid *list = NULL;
+    size_t count = 0, cap = 0;
     wf_status s = mst_all_cids_node(car, root, &list, &count, &cap);
-    if (s != WF_OK) { free(list); return s; }
-    *out = list; *out_count = count;
+    if (s != WF_OK) {
+        free(list);
+        return s;
+    }
+    *out = list;
+    *out_count = count;
     return WF_OK;
 }
 
@@ -1565,22 +1689,24 @@ static wf_status mst_count_in_range(wf_car *car, const wf_cid *cid,
     if (s != WF_OK) return s;
     if (node.left.len > 0) {
         size_t c;
-        s = mst_count_in_range(car, &node.left, from_key, from_key_len,
-                               to_key, to_key_len, has_to, &c);
+        s = mst_count_in_range(car, &node.left, from_key, from_key_len, to_key,
+                               to_key_len, has_to, &c);
         if (s == WF_OK) *out += c;
     }
     for (size_t i = 0; s == WF_OK && i < node.count; i++) {
         if (node.entries[i].subtree.len > 0) {
             size_t c;
             s = mst_count_in_range(car, &node.entries[i].subtree, from_key,
-                                   from_key_len, to_key, to_key_len, has_to, &c);
+                                   from_key_len, to_key, to_key_len, has_to,
+                                   &c);
             if (s == WF_OK) *out += c;
         }
         int ge = wf_mst_key_cmp(node.entries[i].key, node.entries[i].key_len,
                                 from_key, from_key_len) >= 0;
         int lt = has_to ? wf_mst_key_cmp(node.entries[i].key,
-                                         node.entries[i].key_len,
-                                         to_key, to_key_len) < 0 : 1;
+                                         node.entries[i].key_len, to_key,
+                                         to_key_len) < 0
+                        : 1;
         if (ge && lt) (*out)++;
     }
     wf_mst_node_free(&node);
@@ -1592,12 +1718,12 @@ static wf_status mst_collect_proof(wf_car *car, const wf_cid *cid,
                                    const unsigned char *from_key,
                                    size_t from_key_len,
                                    const unsigned char *to_key,
-                                   size_t to_key_len, int has_to,
-                                   wf_cid **out, size_t *count, size_t *cap) {
+                                   size_t to_key_len, int has_to, wf_cid **out,
+                                   size_t *count, size_t *cap) {
     if (!cid || cid->len == 0) return WF_OK;
     size_t n;
-    wf_status s = mst_count_in_range(car, cid, from_key, from_key_len,
-                                     to_key, to_key_len, has_to, &n);
+    wf_status s = mst_count_in_range(car, cid, from_key, from_key_len, to_key,
+                                     to_key_len, has_to, &n);
     if (s != WF_OK) return s;
     if (n == 0) return WF_OK;
     s = mst_cid_list_push(out, count, cap, cid);
@@ -1608,14 +1734,14 @@ static wf_status mst_collect_proof(wf_car *car, const wf_cid *cid,
     s = wf_mst_node_parse(block->data, block->data_len, cid, &node);
     if (s != WF_OK) return s;
     if (node.left.len > 0) {
-        s = mst_collect_proof(car, &node.left, from_key, from_key_len,
-                              to_key, to_key_len, has_to, out, count, cap);
+        s = mst_collect_proof(car, &node.left, from_key, from_key_len, to_key,
+                              to_key_len, has_to, out, count, cap);
     }
     for (size_t i = 0; s == WF_OK && i < node.count; i++) {
         if (node.entries[i].subtree.len > 0) {
             s = mst_collect_proof(car, &node.entries[i].subtree, from_key,
-                                  from_key_len, to_key, to_key_len, has_to,
-                                  out, count, cap);
+                                  from_key_len, to_key, to_key_len, has_to, out,
+                                  count, cap);
         }
     }
     wf_mst_node_free(&node);
@@ -1626,18 +1752,23 @@ wf_status wf_mst_get_covering_proof(wf_car *car, const wf_cid *root,
                                     const unsigned char *from_key,
                                     size_t from_key_len,
                                     const unsigned char *to_key,
-                                    size_t to_key_len,
-                                    wf_cid **out, size_t *out_count) {
+                                    size_t to_key_len, wf_cid **out,
+                                    size_t *out_count) {
     if (!car || !root || !from_key || from_key_len == 0 || !out || !out_count)
         return WF_ERR_INVALID_ARG;
-    *out = NULL; *out_count = 0;
+    *out = NULL;
+    *out_count = 0;
     if (root->len == 0) return WF_OK;
     int has_to = (to_key != NULL);
-    wf_cid *list = NULL; size_t count = 0, cap = 0;
-    wf_status s = mst_collect_proof(car, root, from_key, from_key_len,
-                                    to_key, to_key_len, has_to,
-                                    &list, &count, &cap);
-    if (s != WF_OK) { free(list); return s; }
-    *out = list; *out_count = count;
+    wf_cid *list = NULL;
+    size_t count = 0, cap = 0;
+    wf_status s = mst_collect_proof(car, root, from_key, from_key_len, to_key,
+                                    to_key_len, has_to, &list, &count, &cap);
+    if (s != WF_OK) {
+        free(list);
+        return s;
+    }
+    *out = list;
+    *out_count = count;
     return WF_OK;
 }

@@ -49,7 +49,7 @@ typedef struct wf_labeler_label {
     bool has_exp;
     char *exp;
     bool has_sig;
-    char *sig;            /* base64 string; NULL absent */
+    char *sig; /* base64 string; NULL absent */
 } wf_labeler_label;
 
 /* A list of labels plus an optional cursor (queryLabels). */
@@ -103,7 +103,7 @@ typedef struct wf_labeler_creator {
     char *handle;
     char *display_name;
     char *avatar;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_labeler_creator;
 
 /* A labeler service view (app.bsky.labeler.defs#labelerView or
@@ -127,7 +127,7 @@ typedef struct wf_labeler_service_view {
     char **subject_collections;
     size_t subject_collection_count;
     bool is_detailed;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_labeler_service_view;
 
 /* A list of labeler service views (getServices). */
@@ -150,7 +150,7 @@ typedef struct wf_labeler_service_record {
     size_t subject_type_count;
     char **subject_collections;
     size_t subject_collection_count;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_labeler_service_record;
 
 /* ---- Parsers (own their outputs; full cleanup on first error) ----
@@ -165,7 +165,7 @@ wf_status wf_labeler_parse_query_labels(const char *json, size_t json_len,
 /* Parse an app.bsky.labeler.getServices JSON body ("views" array of service
  * views, including embedded policies and label value definitions). */
 wf_status wf_labeler_parse_services(const char *json, size_t json_len,
-                                     wf_labeler_service_list *out);
+                                    wf_labeler_service_list *out);
 
 /* Parse a com.atproto.temp.fetchLabels JSON body ("labels" array). */
 wf_status wf_labeler_parse_temp_labels(const char *json, size_t json_len,
@@ -192,10 +192,12 @@ void wf_labeler_policies_free(wf_labeler_policies *p);
 /* com.atproto.label.queryLabels. `sources`/`source_count` may be NULL/0. */
 wf_status wf_agent_query_labels(wf_agent *agent, const char *const *uris,
                                 size_t uri_count, const char *const *sources,
-                                size_t source_count, wf_labeler_label_list *out);
+                                size_t source_count,
+                                wf_labeler_label_list *out);
 
 /* app.bsky.labeler.getServices. */
-wf_status wf_agent_get_labeler_services(wf_agent *agent, const char *const *dids,
+wf_status wf_agent_get_labeler_services(wf_agent *agent,
+                                        const char *const *dids,
                                         size_t did_count, bool detailed,
                                         wf_labeler_service_list *out);
 
@@ -208,8 +210,8 @@ wf_status wf_agent_fetch_labels_typed(wf_agent *agent, const char *did,
 /* Exact typed fetchLabels query. `has_since` controls the optional integer
  * cursor; `limit == 0` omits the parameter, otherwise the lexicon requires
  * 1..250. The returned list is freed with wf_labeler_temp_label_list_free. */
-wf_status wf_agent_fetch_labels_list(wf_agent *agent,
-                                     int has_since, int64_t since, int limit,
+wf_status wf_agent_fetch_labels_list(wf_agent *agent, int has_since,
+                                     int64_t since, int limit,
                                      wf_labeler_temp_label_list *out);
 
 #ifdef __cplusplus

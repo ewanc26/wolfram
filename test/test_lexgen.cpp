@@ -77,8 +77,9 @@ struct CommandResult {
     std::string stderr_text;
 };
 
-static CommandResult run_command(const std::vector<std::string>& args,
-                                 const std::vector<std::string>& extra_env = {}) {
+static CommandResult
+run_command(const std::vector<std::string> &args,
+            const std::vector<std::string> &extra_env = {}) {
     int out_pipe[2];
     int err_pipe[2];
     if (pipe(out_pipe) != 0 || pipe(err_pipe) != 0)
@@ -98,18 +99,19 @@ static CommandResult run_command(const std::vector<std::string>& args,
         dup2(err_pipe[1], STDERR_FILENO);
         close(out_pipe[1]);
         close(err_pipe[1]);
-        for (const std::string& entry : extra_env) {
+        for (const std::string &entry : extra_env) {
             std::string::size_type eq = entry.find('=');
             if (eq != std::string::npos)
-                setenv(entry.substr(0, eq).c_str(), entry.substr(eq + 1).c_str(), 1);
+                setenv(entry.substr(0, eq).c_str(),
+                       entry.substr(eq + 1).c_str(), 1);
         }
-        std::vector<char*> argv;
-        for (const std::string& a : args)
-            argv.push_back(const_cast<char*>(a.c_str()));
+        std::vector<char *> argv;
+        for (const std::string &a : args)
+            argv.push_back(const_cast<char *>(a.c_str()));
         argv.push_back(nullptr);
         execvp(argv[0], argv.data());
-        std::string err = std::string("test_lexgen: execvp(") + args[0] + ") failed: " +
-                          strerror(errno) + "\n";
+        std::string err = std::string("test_lexgen: execvp(") + args[0] +
+                          ") failed: " + strerror(errno) + "\n";
         write(STDERR_FILENO, err.data(), err.size());
         _exit(127);
     }
@@ -133,8 +135,7 @@ static CommandResult run_command(const std::vector<std::string>& args,
         }
         int polled = poll(pfd, nfds, -1);
         if (polled < 0) {
-            if (errno == EINTR)
-                continue;
+            if (errno == EINTR) continue;
             break;
         }
         for (int i = 0; i < nfds; ++i) {
@@ -170,7 +171,7 @@ static CommandResult run_command(const std::vector<std::string>& args,
 // File / directory helpers.
 // ---------------------------------------------------------------------------
 
-static std::string read_file(const fs::path& path) {
+static std::string read_file(const fs::path &path) {
     std::ifstream in(path);
     if (!in)
         throw std::runtime_error("test_lexgen: cannot read " + path.string());
@@ -179,7 +180,7 @@ static std::string read_file(const fs::path& path) {
     return ss.str();
 }
 
-static void write_file(const fs::path& path, const std::string& content) {
+static void write_file(const fs::path &path, const std::string &content) {
     std::ofstream out(path);
     if (!out)
         throw std::runtime_error("test_lexgen: cannot write " + path.string());
@@ -187,7 +188,7 @@ static void write_file(const fs::path& path, const std::string& content) {
 }
 
 class TempDir {
-public:
+  public:
     fs::path path;
 
     TempDir() {
@@ -208,21 +209,22 @@ public:
 // Generator invocation helpers (mirror the Python subprocess.run calls).
 // ---------------------------------------------------------------------------
 
-static std::string generate_to_stdout(const std::vector<std::string>& lexicons) {
+static std::string
+generate_to_stdout(const std::vector<std::string> &lexicons) {
     std::vector<std::string> args = {GENERATOR};
-    for (const std::string& path : lexicons)
-        args.push_back(path);
+    for (const std::string &path : lexicons) args.push_back(path);
     CommandResult res = run_command(args);
     if (res.status != 0)
-        throw std::runtime_error("generator exited " + std::to_string(res.status) + ":\n" +
+        throw std::runtime_error("generator exited " +
+                                 std::to_string(res.status) + ":\n" +
                                  res.stdout_text + res.stderr_text);
     return res.stdout_text;
 }
 
 // Generate a header into `header` and, when `source` is non-empty, also a
 // source file via --source-output, mirroring the Python argument order.
-static void generate(const std::string& fixture, const fs::path& header,
-                     const fs::path& source) {
+static void generate(const std::string &fixture, const fs::path &header,
+                     const fs::path &source) {
     std::vector<std::string> args = {GENERATOR, fixture, "-o", header.string()};
     if (!source.empty()) {
         args.push_back("--source-output");
@@ -230,7 +232,8 @@ static void generate(const std::string& fixture, const fs::path& header,
     }
     CommandResult res = run_command(args);
     if (res.status != 0)
-        throw std::runtime_error("generator exited " + std::to_string(res.status) + ":\n" +
+        throw std::runtime_error("generator exited " +
+                                 std::to_string(res.status) + ":\n" +
                                  res.stdout_text + res.stderr_text);
 }
 
@@ -239,22 +242,36 @@ static void generate(const std::string& fixture, const fs::path& header,
 // generated source against cJSON and OpenSSL like the Python test did).
 // ---------------------------------------------------------------------------
 
-static void compile_and_run(const fs::path& dir, const fs::path& generated_c,
-                            const fs::path& check_c, const fs::path& executable) {
+static void compile_and_run(const fs::path &dir, const fs::path &generated_c,
+                            const fs::path &check_c,
+                            const fs::path &executable) {
     std::vector<std::string> args = {
-        "cc", "-std=c11", "-Wall", "-Wextra", "-Werror",
-        "-I", dir.string(),
-        "-I", ROOT + "/include",
-        "-I", CJSON_INCLUDE,
-        "-I", OPENSSL_INCLUDE,
-        generated_c.string(), check_c.string(),
-        "-L", CJSON_LIB, "-lcjson",
+        "cc",
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-I",
+        dir.string(),
+        "-I",
+        ROOT + "/include",
+        "-I",
+        CJSON_INCLUDE,
+        "-I",
+        OPENSSL_INCLUDE,
+        generated_c.string(),
+        check_c.string(),
+        "-L",
+        CJSON_LIB,
+        "-lcjson",
         OPENSSL_CRYPTO,
-        "-o", executable.string(),
+        "-o",
+        executable.string(),
     };
     CommandResult compile = run_command(args);
     if (compile.status != 0)
-        throw std::runtime_error("cc failed:\n" + compile.stdout_text + compile.stderr_text);
+        throw std::runtime_error("cc failed:\n" + compile.stdout_text +
+                                 compile.stderr_text);
 
     std::vector<std::string> env = {
         "DYLD_LIBRARY_PATH=" + CJSON_LIB,
@@ -262,7 +279,8 @@ static void compile_and_run(const fs::path& dir, const fs::path& generated_c,
     };
     CommandResult run = run_command({executable.string()}, env);
     if (run.status != 0)
-        throw std::runtime_error("check binary exited " + std::to_string(run.status) + ":\n" +
+        throw std::runtime_error("check binary exited " +
+                                 std::to_string(run.status) + ":\n" +
                                  run.stdout_text + run.stderr_text);
 }
 
@@ -270,15 +288,16 @@ static void compile_and_run(const fs::path& dir, const fs::path& generated_c,
 // Assertion helpers.
 // ---------------------------------------------------------------------------
 
-static void assert_true(bool condition, const std::string& message) {
-    if (!condition)
-        throw std::runtime_error(message);
+static void assert_true(bool condition, const std::string &message) {
+    if (!condition) throw std::runtime_error(message);
 }
 
-static void assert_contains(const std::string& haystack, const std::string& needle,
-                            const std::string& what) {
+static void assert_contains(const std::string &haystack,
+                            const std::string &needle,
+                            const std::string &what) {
     if (haystack.find(needle) == std::string::npos)
-        throw std::runtime_error(what + ": generated output is missing:\n" + needle);
+        throw std::runtime_error(what + ": generated output is missing:\n" +
+                                 needle);
 }
 
 // ---------------------------------------------------------------------------
@@ -287,21 +306,25 @@ static void assert_contains(const std::string& haystack, const std::string& need
 // ---------------------------------------------------------------------------
 
 static const std::set<std::string> C_KEYWORDS = {
-    "auto", "break", "case", "char", "const", "continue", "default",
-    "do", "double", "else", "enum", "extern", "float", "for", "goto",
-    "if", "inline", "int", "long", "register", "restrict", "return",
-    "short", "signed", "sizeof", "static", "struct", "switch", "typedef",
-    "union", "unsigned", "void", "volatile", "while", "_Alignas",
-    "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary",
-    "_Noreturn", "_Static_assert", "_Thread_local",
+    "auto",       "break",     "case",           "char",
+    "const",      "continue",  "default",        "do",
+    "double",     "else",      "enum",           "extern",
+    "float",      "for",       "goto",           "if",
+    "inline",     "int",       "long",           "register",
+    "restrict",   "return",    "short",          "signed",
+    "sizeof",     "static",    "struct",         "switch",
+    "typedef",    "union",     "unsigned",       "void",
+    "volatile",   "while",     "_Alignas",       "_Alignof",
+    "_Atomic",    "_Bool",     "_Complex",       "_Generic",
+    "_Imaginary", "_Noreturn", "_Static_assert", "_Thread_local",
 };
 
 static const std::set<std::string> PY_KEYWORDS = {
-    "False", "None", "True", "and", "as", "assert", "async", "await",
-    "break", "class", "continue", "def", "del", "elif", "else", "except",
-    "finally", "for", "from", "global", "if", "import", "in", "is",
-    "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try",
-    "while", "with", "yield",
+    "False",  "None",   "True",    "and",      "as",       "assert", "async",
+    "await",  "break",  "class",   "continue", "def",      "del",    "elif",
+    "else",   "except", "finally", "for",      "from",     "global", "if",
+    "import", "in",     "is",      "lambda",   "nonlocal", "not",    "or",
+    "pass",   "raise",  "return",  "try",      "while",    "with",   "yield",
 };
 
 static bool is_lower_or_digit(char c) {
@@ -309,7 +332,7 @@ static bool is_lower_or_digit(char c) {
     return std::islower(uc) != 0 || std::isdigit(uc) != 0;
 }
 
-static std::string snake(const std::string& value) {
+static std::string snake(const std::string &value) {
     std::string camel;
     for (size_t i = 0; i < value.size(); ++i) {
         char c = value[i];
@@ -326,21 +349,23 @@ static std::string snake(const std::string& value) {
                 out += '_';
                 pending = false;
             }
-            out += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            out +=
+                static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         } else {
             pending = true;
         }
     }
-    if (out.empty())
-        out = "value";
+    if (out.empty()) out = "value";
     if (std::isdigit(static_cast<unsigned char>(out[0])) != 0 ||
         C_KEYWORDS.count(out) != 0 || PY_KEYWORDS.count(out) != 0)
         out += '_';
     return out;
 }
 
-static std::string type_name(const std::string& nsid, const std::string& suffix) {
-    return "wf_lex_" + snake(nsid) + (suffix.empty() ? "" : "_" + snake(suffix));
+static std::string type_name(const std::string &nsid,
+                             const std::string &suffix) {
+    return "wf_lex_" + snake(nsid) +
+           (suffix.empty() ? "" : "_" + snake(suffix));
 }
 
 // ---------------------------------------------------------------------------
@@ -350,11 +375,14 @@ static std::string type_name(const std::string& nsid, const std::string& suffix)
 static void test_generates_endpoint_and_named_types() {
     std::string header = generate_to_stdout(
         {ROOT + "/test/fixtures/lexicons/com.example.echo.json"});
-    assert_contains(header, "#define WF_LEX_COM_EXAMPLE_ECHO_NSID \"com.example.echo\"",
+    assert_contains(header,
+                    "#define WF_LEX_COM_EXAMPLE_ECHO_NSID \"com.example.echo\"",
                     "NSID define");
-    assert_contains(header, "#define WF_LEX_COM_EXAMPLE_ECHO_KIND \"procedure\"",
+    assert_contains(header,
+                    "#define WF_LEX_COM_EXAMPLE_ECHO_KIND \"procedure\"",
                     "KIND define");
-    assert_contains(header, "wf_lex_com_example_echo_main_input", "main input type");
+    assert_contains(header, "wf_lex_com_example_echo_main_input",
+                    "main input type");
     assert_contains(header, "const char * message;", "message field");
     assert_contains(header, "int64_t attempts;", "attempts field");
     assert_contains(header, "bool has_enabled;", "has_enabled field");
@@ -365,7 +393,8 @@ static void test_generates_endpoint_and_named_types() {
 }
 
 static void test_output_is_deterministic() {
-    std::string fixture = ROOT + "/test/fixtures/lexicons/com.example.echo.json";
+    std::string fixture =
+        ROOT + "/test/fixtures/lexicons/com.example.echo.json";
     assert_true(generate_to_stdout({fixture}) == generate_to_stdout({fixture}),
                 "generator output is not deterministic");
 }
@@ -375,33 +404,36 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
     std::set<std::string> subscriptions;
     int endpoint_count = 0;
     int file_count = 0;
-    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(ROOT + "/lexicons")) {
-        if (!entry.is_regular_file() || entry.path().extension().string() != ".json")
+    for (const fs::directory_entry &entry :
+         fs::recursive_directory_iterator(ROOT + "/lexicons")) {
+        if (!entry.is_regular_file() ||
+            entry.path().extension().string() != ".json")
             continue;
         ++file_count;
         std::string text = read_file(entry.path());
-        cJSON* document = cJSON_Parse(text.c_str());
+        cJSON *document = cJSON_Parse(text.c_str());
         if (!document)
             throw std::runtime_error("cannot parse " + entry.path().string());
-        cJSON* id_item = cJSON_GetObjectItemCaseSensitive(document, "id");
-        std::string nsid = (id_item && cJSON_IsString(id_item) && id_item->valuestring)
-                               ? id_item->valuestring
-                               : "";
-        cJSON* defs = cJSON_GetObjectItemCaseSensitive(document, "defs");
+        cJSON *id_item = cJSON_GetObjectItemCaseSensitive(document, "id");
+        std::string nsid =
+            (id_item && cJSON_IsString(id_item) && id_item->valuestring)
+                ? id_item->valuestring
+                : "";
+        cJSON *defs = cJSON_GetObjectItemCaseSensitive(document, "defs");
         if (defs && cJSON_IsObject(defs)) {
-            for (cJSON* def = defs->child; def; def = def->next) {
-                if (!def->string)
-                    continue;
-                cJSON* type_item = cJSON_GetObjectItemCaseSensitive(def, "type");
-                std::string kind = (type_item && cJSON_IsString(type_item) && type_item->valuestring)
+            for (cJSON *def = defs->child; def; def = def->next) {
+                if (!def->string) continue;
+                cJSON *type_item =
+                    cJSON_GetObjectItemCaseSensitive(def, "type");
+                std::string kind = (type_item && cJSON_IsString(type_item) &&
+                                    type_item->valuestring)
                                        ? type_item->valuestring
                                        : "";
                 if (kind == "subscription") {
                     subscriptions.insert(nsid);
                     continue;
                 }
-                if (kind != "query" && kind != "procedure")
-                    continue;
+                if (kind != "query" && kind != "procedure") continue;
                 ++endpoint_count;
                 std::string symbol = type_name(nsid, def->string);
                 assert_contains(header, "wf_status " + symbol + "_call(",
@@ -412,24 +444,29 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
         }
         cJSON_Delete(document);
     }
-    assert_true(endpoint_count == 314,
-                "endpoint count is " + std::to_string(endpoint_count) + ", expected 314");
+    assert_true(endpoint_count == 314, "endpoint count is " +
+                                           std::to_string(endpoint_count) +
+                                           ", expected 314");
     std::set<std::string> expected = {
         "chat.bsky.moderation.subscribeModEvents",
         "com.atproto.label.subscribeLabels",
         "com.atproto.sync.subscribeRepos",
     };
-    assert_true(subscriptions == expected, "subscription NSID set does not match");
+    assert_true(subscriptions == expected,
+                "subscription NSID set does not match");
     std::string subscription_apis =
         read_file(ROOT + "/include/wolfram/sync_subscribe.h") +
         read_file(ROOT + "/include/wolfram/label.h") +
         read_file(ROOT + "/include/wolfram/chat_typed.h");
-    assert_contains(subscription_apis, "wf_subscribe_start(", "wf_subscribe_start");
-    assert_contains(subscription_apis, "wf_label_subscribe_start(", "wf_label_subscribe_start");
-    assert_contains(subscription_apis, "wf_agent_chat_subscribe_mod_events_typed(",
+    assert_contains(subscription_apis, "wf_subscribe_start(",
+                    "wf_subscribe_start");
+    assert_contains(subscription_apis, "wf_label_subscribe_start(",
+                    "wf_label_subscribe_start");
+    assert_contains(subscription_apis,
+                    "wf_agent_chat_subscribe_mod_events_typed(",
                     "wf_agent_chat_subscribe_mod_events_typed");
-    std::cout << "    bundled lexicons: " << file_count << " files, " << endpoint_count
-              << " endpoints\n";
+    std::cout << "    bundled lexicons: " << file_count << " files, "
+              << endpoint_count << " endpoints\n";
 }
 
 // Issue #18: every callable endpoint whose output is actually JSON-object
@@ -449,35 +486,36 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
     // Parse every bundled lexicon document up front so refs can be resolved
     // across files, the same two-phase approach wf_lexgen.cpp's own
     // resolve_ref relies on (a ref may point at a def in another document).
-    std::map<std::string, cJSON*> docs_by_nsid;
-    std::vector<cJSON*> owned;
-    for (const fs::directory_entry& entry :
+    std::map<std::string, cJSON *> docs_by_nsid;
+    std::vector<cJSON *> owned;
+    for (const fs::directory_entry &entry :
          fs::recursive_directory_iterator(ROOT + "/lexicons")) {
-        if (!entry.is_regular_file() || entry.path().extension().string() != ".json")
+        if (!entry.is_regular_file() ||
+            entry.path().extension().string() != ".json")
             continue;
         std::string text = read_file(entry.path());
-        cJSON* document = cJSON_Parse(text.c_str());
+        cJSON *document = cJSON_Parse(text.c_str());
         if (!document)
             throw std::runtime_error("cannot parse " + entry.path().string());
         owned.push_back(document);
-        cJSON* id_item = cJSON_GetObjectItemCaseSensitive(document, "id");
-        std::string nsid = (id_item && cJSON_IsString(id_item) && id_item->valuestring)
-                               ? id_item->valuestring
-                               : "";
+        cJSON *id_item = cJSON_GetObjectItemCaseSensitive(document, "id");
+        std::string nsid =
+            (id_item && cJSON_IsString(id_item) && id_item->valuestring)
+                ? id_item->valuestring
+                : "";
         docs_by_nsid[nsid] = document;
     }
 
     auto cleanup = [&]() {
-        for (cJSON* document : owned)
-            cJSON_Delete(document);
+        for (cJSON *document : owned) cJSON_Delete(document);
     };
 
     try {
-        auto schema_kind = [](cJSON* schema) -> std::string {
-            if (!schema)
-                return "";
-            cJSON* type_item = cJSON_GetObjectItemCaseSensitive(schema, "type");
-            return (type_item && cJSON_IsString(type_item) && type_item->valuestring)
+        auto schema_kind = [](cJSON *schema) -> std::string {
+            if (!schema) return "";
+            cJSON *type_item = cJSON_GetObjectItemCaseSensitive(schema, "type");
+            return (type_item && cJSON_IsString(type_item) &&
+                    type_item->valuestring)
                        ? type_item->valuestring
                        : "";
         };
@@ -485,7 +523,8 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
         // Resolves a `ref` string ("#name" for the same document, or
         // "nsid#name" / bare "nsid" for another) to its target def, mirroring
         // wf_lexgen.cpp's own resolve_ref/ref_type helpers.
-        auto resolve_ref = [&](const std::string& nsid, const std::string& ref) -> cJSON* {
+        auto resolve_ref = [&](const std::string &nsid,
+                               const std::string &ref) -> cJSON * {
             std::string target_nsid = nsid, def_name = "main";
             if (!ref.empty() && ref[0] == '#') {
                 def_name = ref.substr(1);
@@ -499,56 +538,64 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
                 }
             }
             auto doc_it = docs_by_nsid.find(target_nsid);
-            if (doc_it == docs_by_nsid.end())
-                return nullptr;
-            cJSON* defs = cJSON_GetObjectItemCaseSensitive(doc_it->second, "defs");
-            return defs ? cJSON_GetObjectItemCaseSensitive(defs, def_name.c_str()) : nullptr;
+            if (doc_it == docs_by_nsid.end()) return nullptr;
+            cJSON *defs =
+                cJSON_GetObjectItemCaseSensitive(doc_it->second, "defs");
+            return defs ? cJSON_GetObjectItemCaseSensitive(defs,
+                                                           def_name.c_str())
+                        : nullptr;
         };
 
         int expected_decoders = 0;
-        for (const auto& kv : docs_by_nsid) {
-            const std::string& nsid = kv.first;
-            cJSON* defs = cJSON_GetObjectItemCaseSensitive(kv.second, "defs");
-            if (!defs || !cJSON_IsObject(defs))
-                continue;
-            for (cJSON* def = defs->child; def; def = def->next) {
-                if (!def->string)
-                    continue;
-                cJSON* type_item = cJSON_GetObjectItemCaseSensitive(def, "type");
-                std::string kind = (type_item && cJSON_IsString(type_item) && type_item->valuestring)
+        for (const auto &kv : docs_by_nsid) {
+            const std::string &nsid = kv.first;
+            cJSON *defs = cJSON_GetObjectItemCaseSensitive(kv.second, "defs");
+            if (!defs || !cJSON_IsObject(defs)) continue;
+            for (cJSON *def = defs->child; def; def = def->next) {
+                if (!def->string) continue;
+                cJSON *type_item =
+                    cJSON_GetObjectItemCaseSensitive(def, "type");
+                std::string kind = (type_item && cJSON_IsString(type_item) &&
+                                    type_item->valuestring)
                                        ? type_item->valuestring
                                        : "";
-                if (kind != "query" && kind != "procedure")
-                    continue;
-                cJSON* output = cJSON_GetObjectItemCaseSensitive(def, "output");
-                cJSON* schema = output ? cJSON_GetObjectItemCaseSensitive(output, "schema") : nullptr;
+                if (kind != "query" && kind != "procedure") continue;
+                cJSON *output = cJSON_GetObjectItemCaseSensitive(def, "output");
+                cJSON *schema =
+                    output ? cJSON_GetObjectItemCaseSensitive(output, "schema")
+                           : nullptr;
                 std::string stype = schema_kind(schema);
                 bool object_shaped = false;
                 if (stype == "object") {
                     object_shaped = true;
                 } else if (stype == "ref") {
-                    cJSON* ref_item = cJSON_GetObjectItemCaseSensitive(schema, "ref");
-                    if (ref_item && cJSON_IsString(ref_item) && ref_item->valuestring) {
-                        cJSON* target = resolve_ref(nsid, ref_item->valuestring);
+                    cJSON *ref_item =
+                        cJSON_GetObjectItemCaseSensitive(schema, "ref");
+                    if (ref_item && cJSON_IsString(ref_item) &&
+                        ref_item->valuestring) {
+                        cJSON *target =
+                            resolve_ref(nsid, ref_item->valuestring);
                         if (target && schema_kind(target) == "object")
                             object_shaped = true;
                     }
                 }
-                if (!object_shaped)
-                    continue;
+                if (!object_shaped) continue;
                 ++expected_decoders;
                 std::string symbol = type_name(nsid, def->string);
-                assert_contains(header, "wf_status " + symbol + "_output_decode_json(",
+                assert_contains(header,
+                                "wf_status " + symbol + "_output_decode_json(",
                                 "output decoder " + symbol);
                 assert_contains(header, "void " + symbol + "_output_free(",
                                 "output free " + symbol);
             }
         }
         assert_true(expected_decoders == 260,
-                    "object-shaped output count is " + std::to_string(expected_decoders) +
-                        ", expected 260 (231 inline-object + 29 ref-to-object outputs)");
-        std::cout << "    object-shaped outputs covered by a decoder: " << expected_decoders
-                  << " endpoints\n";
+                    "object-shaped output count is " +
+                        std::to_string(expected_decoders) +
+                        ", expected 260 (231 inline-object + 29 ref-to-object "
+                        "outputs)");
+        std::cout << "    object-shaped outputs covered by a decoder: "
+                  << expected_decoders << " endpoints\n";
     } catch (...) {
         cleanup();
         throw;
@@ -560,7 +607,8 @@ static void test_generated_header_compiles_as_c11() {
     TempDir dir;
     fs::path header = dir.path / "generated.h";
     fs::path check = dir.path / "check.c";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header, {});
+    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header,
+             {});
     write_file(check, "#include \"generated.h\"\n"
                       "int main(void) {\n"
                       "  wf_lex_com_example_echo_main_input value = {0};\n"
@@ -568,13 +616,14 @@ static void test_generated_header_compiles_as_c11() {
                       "  return value.message == 0;\n"
                       "}\n");
     std::vector<std::string> args = {
-"cc", "-std=c2x", "-Wall", "-Wextra", "-Werror", "-fsyntax-only",
-         "-I", ROOT + "/include", check.string(),
-     };
-     CommandResult res = run_command(args);
-     if (res.status != 0)
-         throw std::runtime_error("header C23 compile failed:\n" + res.stdout_text +
-                                  res.stderr_text);
+        "cc",      "-std=c2x",        "-Wall",
+        "-Wextra", "-Werror",         "-fsyntax-only",
+        "-I",      ROOT + "/include", check.string(),
+    };
+    CommandResult res = run_command(args);
+    if (res.status != 0)
+        throw std::runtime_error("header C23 compile failed:\n" +
+                                 res.stdout_text + res.stderr_text);
 }
 
 static void test_union_array_cleanup_casts_away_borrowed_view_const() {
@@ -615,23 +664,32 @@ static void test_union_array_cleanup_casts_away_borrowed_view_const() {
 })lexchk");
     generate(fixture, header, source);
     std::string generated = read_file(source);
-    std::string union_type = "wf_lex_com_example_union_array_main_output_items_item_union";
-    assert_contains(generated, "wf_lex_clear_" + union_type + "((" + union_type + " *)&(",
+    std::string union_type =
+        "wf_lex_com_example_union_array_main_output_items_item_union";
+    assert_contains(generated,
+                    "wf_lex_clear_" + union_type + "((" + union_type + " *)&(",
                     "union-array cleanup cast");
 }
 
 static void test_inline_objects_are_dependency_safe_and_deterministic() {
-    std::string fixture = ROOT + "/test/fixtures/lexicons/com.example.inline.json";
+    std::string fixture =
+        ROOT + "/test/fixtures/lexicons/com.example.inline.json";
     std::string header = generate_to_stdout({fixture});
-    std::string nested = "typedef struct wf_lex_com_example_inline_main_input_config_nested {";
-    std::string parent = "typedef struct wf_lex_com_example_inline_main_input_config {";
+    std::string nested =
+        "typedef struct wf_lex_com_example_inline_main_input_config_nested {";
+    std::string parent =
+        "typedef struct wf_lex_com_example_inline_main_input_config {";
     size_t nested_pos = header.find(nested);
     size_t parent_pos = header.find(parent);
-    assert_true(nested_pos != std::string::npos, "nested inline typedef missing");
-    assert_true(parent_pos != std::string::npos, "parent inline typedef missing");
-    assert_true(nested_pos < parent_pos, "nested typedef must precede parent typedef");
+    assert_true(nested_pos != std::string::npos,
+                "nested inline typedef missing");
+    assert_true(parent_pos != std::string::npos,
+                "parent inline typedef missing");
+    assert_true(nested_pos < parent_pos,
+                "nested typedef must precede parent typedef");
     assert_contains(header,
-                    "WF_LEX_ARRAY(wf_lex_com_example_inline_main_input_entries_item) entries;",
+                    "WF_LEX_ARRAY(wf_lex_com_example_inline_main_input_entries_"
+                    "item) entries;",
                     "entries array type");
     assert_true(header == generate_to_stdout({fixture}),
                 "inline output is not deterministic");
@@ -643,7 +701,8 @@ static void test_inline_object_codecs_run() {
     fs::path generated = dir.path / "generated.c";
     fs::path check = dir.path / "check.c";
     fs::path executable = dir.path / "check";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.inline.json", header, generated);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.inline.json", header,
+             generated);
     write_file(check, R"lexchk(#include "generated.h"
 #include <assert.h>
 #include <string.h>
@@ -682,7 +741,8 @@ static void test_referenced_inputs_and_all_json_value_kinds_run() {
     fs::path generated = dir.path / "generated.c";
     fs::path check = dir.path / "check.c";
     fs::path executable = dir.path / "check";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.refs.json", header, generated);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.refs.json", header,
+             generated);
     write_file(check, R"lexchk(#include "generated.h"
 #include <assert.h>
 #include <string.h>
@@ -731,17 +791,22 @@ static void test_generates_json_codec_and_transport_wrapper() {
     TempDir dir;
     fs::path header = dir.path / "generated.h";
     fs::path source = dir.path / "generated.c";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header, source);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header,
+             source);
     std::string generated = read_file(source);
-    assert_contains(generated, "cJSON_PrintUnformatted", "cJSON_PrintUnformatted");
+    assert_contains(generated, "cJSON_PrintUnformatted",
+                    "cJSON_PrintUnformatted");
     assert_contains(generated, "_output_decode_json", "output decode json");
-    assert_contains(generated, "cJSON_GetObjectItemCaseSensitive(item, \"$bytes\")",
+    assert_contains(generated,
+                    "cJSON_GetObjectItemCaseSensitive(item, \"$bytes\")",
                     "$bytes lookup");
-    assert_contains(generated, "cJSON_GetObjectItemCaseSensitive(item, \"$link\")",
+    assert_contains(generated,
+                    "cJSON_GetObjectItemCaseSensitive(item, \"$link\")",
                     "$link lookup");
     assert_contains(generated, "wf_xrpc_procedure(client, \"com.example.echo\"",
                     "procedure wrapper");
-    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header, source);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header,
+             source);
     assert_true(generated == read_file(source), "regenerated source differs");
 }
 
@@ -749,21 +814,27 @@ static void test_query_wrapper_uses_encoded_xrpc_parameters() {
     TempDir dir;
     fs::path header = dir.path / "generated.h";
     fs::path source = dir.path / "generated.c";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.get.json", header, source);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.get.json", header,
+             source);
     std::string generated = read_file(source);
-    assert_contains(generated, "wf_xrpc_query_params(client, \"com.example.get\"",
+    assert_contains(generated,
+                    "wf_xrpc_query_params(client, \"com.example.get\"",
                     "query params wrapper");
     assert_contains(generated,
-                    "encoded[count++] = (wf_xrpc_param){\"limit\", number_values[number_count++]}",
+                    "encoded[count++] = (wf_xrpc_param){\"limit\", "
+                    "number_values[number_count++]}",
                     "limit param");
+    assert_contains(
+        generated,
+        "encoded[count++] = (wf_xrpc_param){\"dids\", params->dids.items[i]}",
+        "dids param");
     assert_contains(generated,
-                    "encoded[count++] = (wf_xrpc_param){\"dids\", params->dids.items[i]}",
-                    "dids param");
-    assert_contains(generated,
-                    "encoded[count++] = (wf_xrpc_param){\"ids\", number_values[number_count++]}",
+                    "encoded[count++] = (wf_xrpc_param){\"ids\", "
+                    "number_values[number_count++]}",
                     "ids param");
     assert_contains(generated,
-                    "encoded[count++] = (wf_xrpc_param){\"flags\", (params->flags.items[i] ? \"true\" : \"false\")}",
+                    "encoded[count++] = (wf_xrpc_param){\"flags\", "
+                    "(params->flags.items[i] ? \"true\" : \"false\")}",
                     "flags param");
 }
 
@@ -773,7 +844,8 @@ static void test_query_array_wrapper_runs_with_repeated_keys() {
     fs::path generated = dir.path / "generated.c";
     fs::path check = dir.path / "check.c";
     fs::path executable = dir.path / "check";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.get.json", header, generated);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.get.json", header,
+             generated);
     write_file(check, R"lexchk(#include "generated.h"
 #include <assert.h>
 #include <string.h>
@@ -824,7 +896,8 @@ static void test_generated_codec_and_wrapper_run() {
     fs::path generated = dir.path / "generated.c";
     fs::path check = dir.path / "check.c";
     fs::path executable = dir.path / "check";
-    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header, generated);
+    generate(ROOT + "/test/fixtures/lexicons/com.example.echo.json", header,
+             generated);
     write_file(check, R"lexchk(#include "generated.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -880,19 +953,21 @@ int main(void) {
 // ---------------------------------------------------------------------------
 
 struct TestEntry {
-    const char* name;
+    const char *name;
     void (*run)();
 };
 
 int main() {
     const TestEntry tests[] = {
-        {"generates_endpoint_and_named_types", test_generates_endpoint_and_named_types},
+        {"generates_endpoint_and_named_types",
+         test_generates_endpoint_and_named_types},
         {"output_is_deterministic", test_output_is_deterministic},
         {"generated_client_covers_bundled_endpoint_lexicons",
          test_generated_client_covers_bundled_endpoint_lexicons},
         {"output_decoders_cover_object_shaped_endpoints",
          test_output_decoders_cover_object_shaped_endpoints},
-        {"generated_header_compiles_as_c11", test_generated_header_compiles_as_c11},
+        {"generated_header_compiles_as_c11",
+         test_generated_header_compiles_as_c11},
         {"union_array_cleanup_casts_away_borrowed_view_const",
          test_union_array_cleanup_casts_away_borrowed_view_const},
         {"inline_objects_are_dependency_safe_and_deterministic",
@@ -906,15 +981,16 @@ int main() {
          test_query_wrapper_uses_encoded_xrpc_parameters},
         {"query_array_wrapper_runs_with_repeated_keys",
          test_query_array_wrapper_runs_with_repeated_keys},
-        {"generated_codec_and_wrapper_run", test_generated_codec_and_wrapper_run},
+        {"generated_codec_and_wrapper_run",
+         test_generated_codec_and_wrapper_run},
     };
 
     int failures = 0;
-    for (const TestEntry& test : tests) {
+    for (const TestEntry &test : tests) {
         try {
             test.run();
             std::cout << "ok " << test.name << "\n";
-        } catch (const std::exception& error) {
+        } catch (const std::exception &error) {
             std::cerr << "FAIL " << test.name << ": " << error.what() << "\n";
             ++failures;
         }

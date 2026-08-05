@@ -6,8 +6,10 @@
  * return account views, subject-status views, and invite-code views:
  *   - com.atproto.admin.getAccountInfo     -> accountView (object, not wrapped)
  *   - com.atproto.admin.getAccountInfos    -> "infos"   (accountView[])
- *   - com.atproto.admin.searchAccounts     -> "accounts" (accountView[] + cursor)
- *   - com.atproto.admin.getSubjectStatus   -> {subject, takedown?, deactivated?}
+ *   - com.atproto.admin.searchAccounts     -> "accounts" (accountView[] +
+ * cursor)
+ *   - com.atproto.admin.getSubjectStatus   -> {subject, takedown?,
+ * deactivated?}
  *   - com.atproto.admin.getInviteCodes     -> "codes"   (inviteCode[] + cursor)
  *
  * Conventions mirror actor_typed.h / feed_typed.h / graph_typed.h: wf_status
@@ -45,7 +47,7 @@ typedef struct wf_admin_account_view {
     bool has_invites_disabled;
     bool invites_disabled;
     char *deactivated_at;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_admin_account_view;
 
 /* A list of account views plus an optional cursor (getAccountInfos,
@@ -59,10 +61,11 @@ typedef struct wf_admin_account_view_list {
 /* The service-specific admin status of a subject (account/record/blob).
  * `subject` keeps the full union object as an owned detached cJSON subtree;
  * `did` is a convenience copy when the subject is a repoRef ({did}). takedown
- * and deactivated status attributes are decoded into applied/ref (ref owned). */
+ * and deactivated status attributes are decoded into applied/ref (ref owned).
+ */
 typedef struct wf_admin_subject_status {
-    cJSON *subject;        /* owned detached subject union; NULL absent on error */
-    char *did;             /* convenience: subject.repoRef.did; NULL otherwise */
+    cJSON *subject; /* owned detached subject union; NULL absent on error */
+    char *did;      /* convenience: subject.repoRef.did; NULL otherwise */
     bool has_takedown;
     bool takedown_applied;
     char *takedown_ref;
@@ -83,7 +86,7 @@ typedef struct wf_admin_invite_code {
     char *for_account;
     char *created_by;
     char *created_at;
-    cJSON *extra;          /* owned detached subtree of unknown fields; NULL absent */
+    cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_admin_invite_code;
 
 /* A list of invite codes plus an optional cursor (getInviteCodes). */
@@ -106,7 +109,8 @@ wf_status wf_admin_parse_account_view(const char *json, size_t json_len,
 wf_status wf_admin_parse_account_infos(const char *json, size_t json_len,
                                        wf_admin_account_view_list *out);
 
-/* Parse a searchAccounts JSON body ("accounts" array of accountView + cursor). */
+/* Parse a searchAccounts JSON body ("accounts" array of accountView + cursor).
+ */
 wf_status wf_admin_parse_search_accounts(const char *json, size_t json_len,
                                          wf_admin_account_view_list *out);
 
@@ -156,9 +160,9 @@ wf_status wf_agent_admin_update_account_email(wf_agent *agent, const char *did,
 wf_status wf_agent_admin_update_account_password(wf_agent *agent,
                                                  const char *did,
                                                  const char *new_password);
-wf_status wf_agent_admin_update_account_signing_key(wf_agent *agent,
-                                                    const char *did,
-                                                    const char *signing_key_multibase);
+wf_status
+wf_agent_admin_update_account_signing_key(wf_agent *agent, const char *did,
+                                          const char *signing_key_multibase);
 wf_status wf_agent_admin_delete_account(wf_agent *agent, const char *did);
 wf_status wf_agent_admin_enable_account_invites(wf_agent *agent);
 wf_status wf_agent_admin_disable_account_invites(wf_agent *agent);
@@ -168,9 +172,11 @@ wf_status wf_agent_admin_disable_invite_codes(wf_agent *agent,
                                               const char *cursor);
 /* Exact disableInviteCodes input. Both arrays are optional, but a non-zero
  * count requires a non-NULL array whose entries are all non-NULL. */
-wf_status wf_agent_admin_disable_invite_codes_typed(
-    wf_agent *agent, const char *const *codes, size_t code_count,
-    const char *const *accounts, size_t account_count);
+wf_status wf_agent_admin_disable_invite_codes_typed(wf_agent *agent,
+                                                    const char *const *codes,
+                                                    size_t code_count,
+                                                    const char *const *accounts,
+                                                    size_t account_count);
 wf_status wf_agent_admin_send_email(wf_agent *agent, const char *recipient_did,
                                     const char *content, const char *subject,
                                     const char *sender_did);

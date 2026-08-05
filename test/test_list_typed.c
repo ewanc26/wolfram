@@ -71,8 +71,7 @@ static void test_parse_lists_invalid_args(void) {
 
 static void test_parse_lists_malformed(void) {
     wf_agent_list_view_list out = {0};
-    WF_CHECK(wf_agent_parse_lists("{not valid json", 14, &out) ==
-            WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_lists("{not valid json", 14, &out) == WF_ERR_PARSE);
     WF_CHECK(out.list_count == 0);
     WF_CHECK(out.lists == NULL);
 }
@@ -80,7 +79,7 @@ static void test_parse_lists_malformed(void) {
 static void test_parse_lists_missing_array(void) {
     wf_agent_list_view_list out = {0};
     WF_CHECK(wf_agent_parse_lists("{\"cursor\":\"x\"}", 13, &out) ==
-            WF_ERR_PARSE);
+             WF_ERR_PARSE);
     WF_CHECK(out.list_count == 0);
 }
 
@@ -103,13 +102,13 @@ static void test_parse_lists_fixture(void) {
     WF_CHECK(strcmp(out.lists[0].uri,
                     "at://did:plc:abc/app.bsky.graph.list/aaaa") == 0);
     WF_CHECK(strcmp(out.lists[0].name, "My Mod List") == 0);
-    WF_CHECK(strcmp(out.lists[0].purpose,
-                    "app.bsky.graph.defs#modlist") == 0);
-    WF_CHECK(strcmp(out.lists[0].description, "Accounts to mute or block.") == 0);
+    WF_CHECK(strcmp(out.lists[0].purpose, "app.bsky.graph.defs#modlist") == 0);
+    WF_CHECK(strcmp(out.lists[0].description, "Accounts to mute or block.") ==
+             0);
 
     WF_CHECK(strcmp(out.lists[1].name, "Reading List") == 0);
-    WF_CHECK(strcmp(out.lists[1].purpose,
-                    "app.bsky.graph.defs#curatelist") == 0);
+    WF_CHECK(strcmp(out.lists[1].purpose, "app.bsky.graph.defs#curatelist") ==
+             0);
 
     wf_agent_list_view_list_free(&out);
     WF_CHECK(out.list_count == 0);
@@ -131,9 +130,9 @@ static void test_parse_list_items_malformed(void) {
 static void test_parse_list_items_missing(void) {
     wf_agent_list_item_list out = {0};
     WF_CHECK(wf_agent_parse_list_items("{\"items\":[]}", 12, &out) ==
-            WF_ERR_PARSE);
+             WF_ERR_PARSE);
     WF_CHECK(wf_agent_parse_list_items("{\"list\":{}}", 10, &out) ==
-            WF_ERR_PARSE);
+             WF_ERR_PARSE);
 }
 
 static void test_parse_list_items_fixture(void) {
@@ -175,18 +174,18 @@ static void test_wrappers_arg_validation(void) {
     wf_agent_list_item_list items = {0};
 
     WF_CHECK(wf_agent_get_lists_typed(NULL, "alice", 50, NULL, &lists) ==
-            WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_lists_typed((wf_agent *)1, NULL, 50, NULL, &lists) ==
-            WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_lists_typed((wf_agent *)1, "alice", 50, NULL, NULL) ==
-            WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_agent_get_list_typed(NULL, "at://x", 50, NULL, &items) ==
-            WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_list_typed((wf_agent *)1, NULL, 50, NULL, &items) ==
-            WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_get_list_typed((wf_agent *)1, "at://x", 50, NULL, NULL) ==
-            WF_ERR_INVALID_ARG);
+             WF_ERR_INVALID_ARG);
 }
 
 int main(void) {

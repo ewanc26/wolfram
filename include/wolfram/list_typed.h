@@ -65,10 +65,10 @@ typedef struct wf_agent_list_item_list {
 } wf_agent_list_item_list;
 
 /* Parse a getList JSON body of `json_len` bytes into owned structs. Expects a
- * `list` object and an `items` array of listItemView. Returns WF_ERR_INVALID_ARG
- * on NULL inputs, WF_ERR_PARSE on malformed JSON or a missing/invalid array or
- * `list` object, WF_ERR_ALLOC on allocation failure, WF_OK on success. On any
- * error `out` is left fully reset. */
+ * `list` object and an `items` array of listItemView. Returns
+ * WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or a
+ * missing/invalid array or `list` object, WF_ERR_ALLOC on allocation failure,
+ * WF_OK on success. On any error `out` is left fully reset. */
 wf_status wf_agent_parse_list_items(const char *json, size_t json_len,
                                     wf_agent_list_item_list *out);
 

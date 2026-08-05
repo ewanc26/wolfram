@@ -23,8 +23,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Free the owned fields of a single stack-allocated wf_mod_label. wf_mod_labels_free
- * would also free the (stack) outer array, so we free only the strings here. */
+/* Free the owned fields of a single stack-allocated wf_mod_label.
+ * wf_mod_labels_free would also free the (stack) outer array, so we free only
+ * the strings here. */
 static void free_one(wf_mod_label *m) {
     if (!m) return;
     free(m->src);
@@ -71,8 +72,8 @@ static const char *k_frame_json =
 static void test_to_mod_label(void) {
     /* Build a wf_label by round-tripping the frame through the decoder. */
     wf_label_message msg = {0};
-    WF_CHECK(wf_label_message_parse(k_frame_json, strlen(k_frame_json),
-                                  &msg) == WF_OK);
+    WF_CHECK(wf_label_message_parse(k_frame_json, strlen(k_frame_json), &msg) ==
+             WF_OK);
     WF_CHECK(msg.type == WF_LABEL_MESSAGE_LABELS);
     WF_CHECK(msg.data.labels.count == 3);
 
@@ -81,8 +82,8 @@ static void test_to_mod_label(void) {
     memset(&m0, 0, sizeof(m0));
     WF_CHECK(wf_label_to_mod_label(&msg.data.labels.items[0], &m0) == WF_OK);
     WF_CHECK(strcmp(m0.src, "did:plc:z72i7hdynmk6r22z27h6tvur") == 0);
-    WF_CHECK(strcmp(m0.uri,
-                    "at://did:plc:alice/app.bsky.feed.post/aaa111") == 0);
+    WF_CHECK(strcmp(m0.uri, "at://did:plc:alice/app.bsky.feed.post/aaa111") ==
+             0);
     WF_CHECK(strcmp(m0.val, "nsfw") == 0);
     WF_CHECK(strcmp(m0.cts, "2024-10-16T00:00:00Z") == 0);
     WF_CHECK(m0.neg == 0);
@@ -133,8 +134,8 @@ static void test_parse_subscribe(void) {
     /* Input validation. */
     WF_CHECK(wf_label_parse_subscribe(NULL, 0, &labels, &count) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_label_parse_subscribe(k_frame_json, strlen(k_frame_json),
-                                      NULL, &count) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_label_parse_subscribe(k_frame_json, strlen(k_frame_json), NULL,
+                                      &count) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_label_parse_subscribe(k_frame_json, strlen(k_frame_json),
                                       &labels, NULL) == WF_ERR_INVALID_ARG);
 
@@ -143,9 +144,10 @@ static void test_parse_subscribe(void) {
              WF_ERR_PARSE);
 
     /* Wrong frame type (an #info frame is not a #labels frame). */
-    const char *info_frame = "{\"$type\":\"#info\",\"name\":\"OutdatedCursor\"}";
-    WF_CHECK(wf_label_parse_subscribe(info_frame, strlen(info_frame),
-                                      &labels, &count) == WF_ERR_PARSE);
+    const char *info_frame =
+        "{\"$type\":\"#info\",\"name\":\"OutdatedCursor\"}";
+    WF_CHECK(wf_label_parse_subscribe(info_frame, strlen(info_frame), &labels,
+                                      &count) == WF_ERR_PARSE);
 
     /* A valid object with no recognised `$type` (frame parser contract). */
     WF_CHECK(wf_label_parse_subscribe("{\"seq\":1}", 9, &labels, &count) ==
@@ -193,22 +195,25 @@ static void test_agent_validation(void) {
     wf_agent *agent = wf_agent_new("https://example.com");
     WF_CHECK(agent != NULL);
 
-    WF_CHECK(wf_agent_subscribe_labels_typed(NULL, "https://mod.bsky.app",
-        0, 0, on_label, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_subscribe_labels_typed(agent, NULL,
-        0, 0, on_label, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_subscribe_labels_typed(agent, "",
-        0, 0, on_label, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_subscribe_labels_typed(agent, "https://mod.bsky.app",
-        0, 0, NULL, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_subscribe_labels_typed(agent, "https://mod.bsky.app",
-        -1, 1, on_label, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_subscribe_labels_typed(NULL, "https://mod.bsky.app", 0, 0,
+                                             on_label,
+                                             NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_subscribe_labels_typed(agent, NULL, 0, 0, on_label,
+                                             NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_subscribe_labels_typed(agent, "", 0, 0, on_label, NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_subscribe_labels_typed(agent, "https://mod.bsky.app", 0,
+                                             0, NULL,
+                                             NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_subscribe_labels_typed(agent, "https://mod.bsky.app", -1,
+                                             1, on_label,
+                                             NULL) == WF_ERR_INVALID_ARG);
 
     /* Unreachable service: the initial connect fails fast and the wrapper
      * returns a non-OK status without hanging. */
     g_seen = 0;
-    wf_status st = wf_agent_subscribe_labels_typed(agent,
-        "ws://127.0.0.1:1", 0, 0, on_label, NULL);
+    wf_status st = wf_agent_subscribe_labels_typed(agent, "ws://127.0.0.1:1", 0,
+                                                   0, on_label, NULL);
     WF_CHECK(st != WF_OK);
     WF_CHECK(g_seen == 0); /* we never connected, so no labels arrived */
 

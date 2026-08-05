@@ -39,8 +39,9 @@ wf_status wf_agent_verify_handle(wf_agent *agent, const char *handle,
     return wf_identity_verify_handle(agent->client, handle, out_valid);
 }
 
-wf_status wf_agent_revoke_invite_codes(
-    wf_agent *agent, const wf_server_revoke_invite_codes_input *input) {
+wf_status
+wf_agent_revoke_invite_codes(wf_agent *agent,
+                             const wf_server_revoke_invite_codes_input *input) {
     if (!agent_ready(agent) || !input) {
         return WF_ERR_INVALID_ARG;
     }

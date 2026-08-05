@@ -20,10 +20,13 @@ int main(void) {
         const char *json =
             "{\"topics\":["
             "{\"topic\":\"#Cats\",\"displayName\":\"Cats\",\"description\":"
-            "\"All about cats\",\"link\":\"at://did:plc:x/app.bsky.feed.post/cats\"},"
-            "{\"topic\":\"#Dogs\",\"link\":\"at://did:plc:x/app.bsky.feed.post/dogs\"}"
+            "\"All about "
+            "cats\",\"link\":\"at://did:plc:x/app.bsky.feed.post/cats\"},"
+            "{\"topic\":\"#Dogs\",\"link\":\"at://did:plc:x/app.bsky.feed.post/"
+            "dogs\"}"
             "],\"suggested\":["
-            "{\"topic\":\"#Art\",\"link\":\"at://did:plc:x/app.bsky.feed.post/art\"}"
+            "{\"topic\":\"#Art\",\"link\":\"at://did:plc:x/app.bsky.feed.post/"
+            "art\"}"
             "]}";
         wf_agent_trending_topics out = {0};
         wf_status s = wf_agent_parse_trending_topics(json, strlen(json), &out);
@@ -61,14 +64,16 @@ int main(void) {
             "\"subject\":\"at://did:plc:news/app.bsky.feed.generator/daily\"}"
             "]}";
         wf_agent_tagged_suggestions out = {0};
-        wf_status s = wf_agent_parse_tagged_suggestions(json, strlen(json), &out);
+        wf_status s =
+            wf_agent_parse_tagged_suggestions(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.count == 2);
         if (out.count == 2) {
             WF_CHECK(strcmp(out.items[0].tag, "gaming") == 0);
             WF_CHECK(strcmp(out.items[0].subject_type, "actor") == 0);
             WF_CHECK(strcmp(out.items[0].subject,
-                            "at://did:plc:gamer/app.bsky.actor.profile/self") == 0);
+                            "at://did:plc:gamer/app.bsky.actor.profile/self") ==
+                     0);
             WF_CHECK(strcmp(out.items[1].subject_type, "feed") == 0);
         }
         wf_agent_tagged_suggestions_free(&out);
@@ -82,7 +87,8 @@ int main(void) {
             "\"recIdStr\":\"12345\",\"actors\":[{\"did\":\"did:plc:a\"},"
             "{\"did\":\"did:plc:b\"}]}";
         wf_agent_suggestions_skeleton out = {0};
-        wf_status s = wf_agent_parse_suggestions_skeleton(json, strlen(json), &out);
+        wf_status s =
+            wf_agent_parse_suggestions_skeleton(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.actor_count == 2);
         WF_CHECK(out.cursor != NULL);
@@ -114,8 +120,10 @@ int main(void) {
         if (out.live_now_count == 2) {
             WF_CHECK(strcmp(out.live_now[0].did, "did:plc:live") == 0);
             WF_CHECK(out.live_now[0].domain_count == 2);
-            WF_CHECK(strcmp(out.live_now[0].domains[0], "live.example.com") == 0);
-            WF_CHECK(strcmp(out.live_now[0].domains[1], "stream.example.com") == 0);
+            WF_CHECK(strcmp(out.live_now[0].domains[0], "live.example.com") ==
+                     0);
+            WF_CHECK(strcmp(out.live_now[0].domains[1], "stream.example.com") ==
+                     0);
             WF_CHECK(strcmp(out.live_now[1].did, "did:plc:live2") == 0);
             WF_CHECK(out.live_now[1].domain_count == 0);
         }
@@ -124,10 +132,11 @@ int main(void) {
 
     /* ---------------- getAgeAssuranceState ---------------- */
     {
-        const char *json =
-            "{\"status\":\"pending\",\"lastInitiatedAt\":\"2026-01-02T03:04:05Z\"}";
+        const char *json = "{\"status\":\"pending\",\"lastInitiatedAt\":\"2026-"
+                           "01-02T03:04:05Z\"}";
         wf_agent_age_assurance_state out = {0};
-        wf_status s = wf_agent_parse_age_assurance_state(json, strlen(json), &out);
+        wf_status s =
+            wf_agent_parse_age_assurance_state(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.status != NULL);
         WF_CHECK(strcmp(out.status, "pending") == 0);
@@ -139,14 +148,16 @@ int main(void) {
         /* status only, optional field absent */
         const char *json = "{\"status\":\"completed\"}";
         wf_agent_age_assurance_state out = {0};
-        wf_status s = wf_agent_parse_age_assurance_state(json, strlen(json), &out);
+        wf_status s =
+            wf_agent_parse_age_assurance_state(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(strcmp(out.status, "completed") == 0);
         WF_CHECK(out.has_last_initiated_at == 0);
         wf_agent_age_assurance_state_free(&out);
     }
 
-    /* ---------------- getOnboardingSuggestedStarterPacks (full) ---------------- */
+    /* ---------------- getOnboardingSuggestedStarterPacks (full)
+     * ---------------- */
     {
         const char *json =
             "{\"starterPacks\":["
@@ -154,17 +165,19 @@ int main(void) {
             "\"cid\":\"bafyxxx\",\"indexedAt\":\"2026-05-06T07:08:09Z\","
             "\"creator\":{\"did\":\"did:plc:sp\",\"handle\":\"sp.bsky.social\","
             "\"displayName\":\"Starter Pack\",\"avatar\":\"https://a/av.png\"},"
-            "\"record\":{\"$type\":\"app.bsky.graph.starterpack\",\"name\":\"Fun\"},"
+            "\"record\":{\"$type\":\"app.bsky.graph.starterpack\",\"name\":"
+            "\"Fun\"},"
             "\"joinedWeekCount\":12,\"joinedAllTimeCount\":345}]}";
         wf_agent_starter_pack_view_list out = {0};
-        wf_status s = wf_agent_parse_onboarding_starter_packs(json, strlen(json),
-                                                              &out);
+        wf_status s =
+            wf_agent_parse_onboarding_starter_packs(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.count == 1);
         if (out.count == 1) {
             wf_agent_starter_pack_view *v = &out.items[0];
             WF_CHECK(strcmp(v->uri,
-                            "at://did:plc:sp/app.bsky.graph.starterpack/aaa") == 0);
+                            "at://did:plc:sp/app.bsky.graph.starterpack/aaa") ==
+                     0);
             WF_CHECK(strcmp(v->cid, "bafyxxx") == 0);
             WF_CHECK(v->creator.did != NULL);
             WF_CHECK(strcmp(v->creator.did, "did:plc:sp") == 0);
@@ -180,7 +193,8 @@ int main(void) {
         WF_CHECK(out.items == NULL && out.count == 0);
     }
 
-    /* ---------------- getOnboardingSuggestedStarterPacksSkeleton ---------------- */
+    /* ---------------- getOnboardingSuggestedStarterPacksSkeleton
+     * ---------------- */
     {
         const char *json =
             "{\"starterPacks\":["
@@ -193,9 +207,11 @@ int main(void) {
         WF_CHECK(out.uri_count == 2);
         if (out.uri_count == 2) {
             WF_CHECK(strcmp(out.uris[0],
-                            "at://did:plc:sp/app.bsky.graph.starterpack/aaa") == 0);
+                            "at://did:plc:sp/app.bsky.graph.starterpack/aaa") ==
+                     0);
             WF_CHECK(strcmp(out.uris[1],
-                            "at://did:plc:sp/app.bsky.graph.starterpack/bbb") == 0);
+                            "at://did:plc:sp/app.bsky.graph.starterpack/bbb") ==
+                     0);
         }
         wf_agent_starter_pack_skeleton_list_free(&out);
     }
@@ -206,7 +222,8 @@ int main(void) {
             "{\"cursor\":\"sp-cursor\",\"hitsTotal\":7,\"starterPacks\":["
             "{\"uri\":\"at://did:plc:sp/app.bsky.graph.starterpack/aaa\"}]}";
         wf_agent_search_starter_packs_list out = {0};
-        wf_status s = wf_agent_parse_search_starter_packs(json, strlen(json), &out);
+        wf_status s =
+            wf_agent_parse_search_starter_packs(json, strlen(json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.count == 1);
         WF_CHECK(out.cursor != NULL);
@@ -215,7 +232,8 @@ int main(void) {
         WF_CHECK(out.hits_total == 7);
         if (out.count == 1) {
             WF_CHECK(strcmp(out.items[0].uri,
-                            "at://did:plc:sp/app.bsky.graph.starterpack/aaa") == 0);
+                            "at://did:plc:sp/app.bsky.graph.starterpack/aaa") ==
+                     0);
         }
         wf_agent_search_starter_packs_free(&out);
     }
@@ -233,43 +251,45 @@ int main(void) {
                  WF_ERR_PARSE);
 
         wf_agent_tagged_suggestions ts = {0};
-        WF_CHECK(wf_agent_parse_tagged_suggestions("{}", 2, &ts) == WF_ERR_PARSE);
+        WF_CHECK(wf_agent_parse_tagged_suggestions("{}", 2, &ts) ==
+                 WF_ERR_PARSE);
 
         wf_agent_unspecced_config cfg = {0};
-        WF_CHECK(wf_agent_parse_config("{\"checkEmailConfirmed\":\"x\"}",
-                                       strlen("{\"checkEmailConfirmed\":\"x\"}"),
-                                       &cfg) == WF_OK);
+        WF_CHECK(wf_agent_parse_config(
+                     "{\"checkEmailConfirmed\":\"x\"}",
+                     strlen("{\"checkEmailConfirmed\":\"x\"}"), &cfg) == WF_OK);
 
         /* agent wrapper NULL validation */
         WF_CHECK(wf_agent_get_trending_topics_typed(NULL, NULL, 0, &tt) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_trending_topics_typed((wf_agent *)1, NULL, 26,
-                                                     &tt) == WF_ERR_INVALID_ARG);
+                                                    &tt) == WF_ERR_INVALID_ARG);
         wf_agent_tagged_suggestions ts2 = {0};
         WF_CHECK(wf_agent_get_tagged_suggestions_typed(NULL, &ts2) ==
                  WF_ERR_INVALID_ARG);
         wf_agent_unspecced_config cfg2 = {0};
         WF_CHECK(wf_agent_get_config_typed(NULL, &cfg2) == WF_ERR_INVALID_ARG);
         wf_agent_suggestions_skeleton skel = {0};
-        WF_CHECK(wf_agent_get_suggestions_skeleton_typed((wf_agent *)1, NULL, 101,
-                                                         NULL, NULL, &skel) ==
+        WF_CHECK(wf_agent_get_suggestions_skeleton_typed(
+                     (wf_agent *)1, NULL, 101, NULL, NULL, &skel) ==
                  WF_ERR_INVALID_ARG);
         wf_agent_search_starter_packs_list sp = {0};
-        WF_CHECK(wf_agent_search_starter_packs_typed(NULL, NULL, NULL, 0, NULL,
-                                                     &sp) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, NULL, NULL, 0,
-                                                     NULL, &sp) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, "q", NULL, 101,
-                                                     NULL, &sp) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_starter_packs_typed(
+                     NULL, NULL, NULL, 0, NULL, &sp) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, NULL, NULL,
+                                                     0, NULL, &sp) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_starter_packs_typed((wf_agent *)1, "q", NULL,
+                                                     101, NULL, &sp) ==
+                 WF_ERR_INVALID_ARG);
 
-        /* getSuggestedStarterPacks reuses the onboarding starter-pack parser and
-         * shares its NULL validation. */
+        /* getSuggestedStarterPacks reuses the onboarding starter-pack parser
+         * and shares its NULL validation. */
         wf_agent_starter_pack_view_list ssp = {0};
         WF_CHECK(wf_agent_get_suggested_starter_packs_typed(NULL, 0, &ssp) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_suggested_starter_packs_typed((wf_agent *)1, 0,
-                                                            NULL) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_suggested_starter_packs_typed(
+                     (wf_agent *)1, 0, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_onboarding_suggested_starter_packs_typed(
                      (wf_agent *)1, 26, &ssp) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_onboarding_suggested_starter_packs_skeleton_typed(

@@ -40,8 +40,8 @@ static char *resign_with_header(const char *token, const char *header_json,
     if (!signing_input) goto done;
     snprintf(signing_input, signing_len + 1, "%s.%.*s", header_b64,
              (int)payload_len, dot1 + 1);
-    if (wf_sign(key, (const unsigned char *)signing_input, signing_len,
-                sig, sizeof(sig)) != WF_OK ||
+    if (wf_sign(key, (const unsigned char *)signing_input, signing_len, sig,
+                sizeof(sig)) != WF_OK ||
         wf_crypto_base64url_encode(sig, sizeof(sig), &sig_b64) != WF_OK) {
         goto done;
     }
@@ -66,7 +66,8 @@ static char *to_high_s_p256(const char *token) {
     BIGNUM *order = NULL, *low_s = NULL, *high_s = NULL;
     char *sig_b64 = NULL, *result = NULL;
 
-    if (!dot2 || wf_crypto_base64url_decode(dot2 + 1, &sig, &sig_len) != WF_OK ||
+    if (!dot2 ||
+        wf_crypto_base64url_decode(dot2 + 1, &sig, &sig_len) != WF_OK ||
         sig_len != 64) {
         goto done;
     }
@@ -264,16 +265,16 @@ int main(void) {
 
     /* ---- 4c. Issuer must be a DID with at most one service fragment ---- */
     {
-        const char *invalid_issuers[] = {
-            "not-a-did", "did:plc:issuer#", "did:plc:issuer#one#two"
-        };
-        for (size_t i = 0; i < sizeof(invalid_issuers) / sizeof(*invalid_issuers);
-             i++) {
+        const char *invalid_issuers[] = {"not-a-did", "did:plc:issuer#",
+                                         "did:plc:issuer#one#two"};
+        for (size_t i = 0;
+             i < sizeof(invalid_issuers) / sizeof(*invalid_issuers); i++) {
             wf_service_auth_request req = {0};
             req.iss = invalid_issuers[i];
             req.aud = aud;
             char *token = NULL;
-            WF_CHECK(wf_server_create_service_auth(&req, &key, &token) == WF_OK);
+            WF_CHECK(wf_server_create_service_auth(&req, &key, &token) ==
+                     WF_OK);
             wf_service_auth_claims claims = {0};
             WF_CHECK(wf_server_verify_service_auth(token, didkey, 0, &claims) ==
                      WF_ERR_PARSE);
@@ -306,13 +307,12 @@ int main(void) {
              i < sizeof(prohibited_types) / sizeof(*prohibited_types); i++) {
             char header[64];
             snprintf(header, sizeof(header),
-                     "{\"typ\":\"%s\",\"alg\":\"ES256\"}",
-                     prohibited_types[i]);
+                     "{\"typ\":\"%s\",\"alg\":\"ES256\"}", prohibited_types[i]);
             char *forged = resign_with_header(token, header, &key);
             WF_CHECK(forged != NULL);
             wf_service_auth_claims claims = {0};
-            WF_CHECK(wf_server_verify_service_auth(forged, didkey, 0, &claims) ==
-                     WF_ERR_PARSE);
+            WF_CHECK(wf_server_verify_service_auth(forged, didkey, 0,
+                                                   &claims) == WF_ERR_PARSE);
             wf_service_auth_claims_free(&claims);
             free(forged);
         }
@@ -333,12 +333,11 @@ int main(void) {
         unsigned char *sig = NULL;
         size_t sig_len = 0;
         WF_CHECK(dot2 != NULL);
-        WF_CHECK(dot2 && wf_crypto_base64url_decode(dot2 + 1, &sig, &sig_len) ==
-                             WF_OK);
-        WF_CHECK(dot2 && wf_verify(didkey,
-                                   (const unsigned char *)high_s_token,
-                                   (size_t)(dot2 - high_s_token), sig, sig_len) ==
-                             WF_ERR_PARSE);
+        WF_CHECK(dot2 &&
+                 wf_crypto_base64url_decode(dot2 + 1, &sig, &sig_len) == WF_OK);
+        WF_CHECK(dot2 && wf_verify(didkey, (const unsigned char *)high_s_token,
+                                   (size_t)(dot2 - high_s_token), sig,
+                                   sig_len) == WF_ERR_PARSE);
 
         wf_service_auth_claims claims = {0};
         WF_CHECK(wf_server_verify_service_auth(high_s_token, didkey, 0,

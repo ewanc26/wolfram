@@ -10,8 +10,7 @@ wf_cbor_item *cbor_str(const char *s) {
     if (s) {
         item->string.len = strlen(s);
         item->string.str = malloc(item->string.len);
-        if (item->string.str)
-            memcpy(item->string.str, s, item->string.len);
+        if (item->string.str) memcpy(item->string.str, s, item->string.len);
     }
     return item;
 }
@@ -23,8 +22,7 @@ wf_cbor_item *cbor_bytes(const unsigned char *data, size_t len) {
     item->bytes.len = len;
     if (len > 0) {
         item->bytes.data = malloc(len);
-        if (item->bytes.data)
-            memcpy(item->bytes.data, data, len);
+        if (item->bytes.data) memcpy(item->bytes.data, data, len);
     }
     return item;
 }
