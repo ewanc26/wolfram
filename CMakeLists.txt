@@ -5,8 +5,8 @@ if(POLICY CMP0156)
 endif()
 project(
   wolfram
-  VERSION 0.6.7
-  DESCRIPTION "A C SDK for the AT Protocol"
+  VERSION 0.6.8
+  DESCRIPTION "A C/C++ SDK for the AT Protocol"
   LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 23)
