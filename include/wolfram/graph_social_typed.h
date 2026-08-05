@@ -24,7 +24,11 @@
  *     the richer `wf_graph_list_view` (with creator / viewerState / labels)
  *     used by getListMutes and getListBlocks.
  *
- * Endpoints covered (verify each generated lex wrapper in atproto_lex.h):
+ * Endpoints covered (verify each generated lex wrapper in atproto_lex.h): see
+ * the table below, kept aligned as a lookup table rather than reflowed prose.
+ */
+
+/* clang-format off
  *   READ
  *     app.bsky.graph.getMutes                 -> moderation_typed (wf_agent_actor_list)
  *     app.bsky.graph.getBlocks                -> moderation_typed (wf_agent_actor_list)
@@ -38,6 +42,7 @@
  *     app.bsky.graph.getStarterPack           -> wf_graph_starter_pack_view (single) [this module]
  *     app.bsky.graph.getSuggestedFollowsByActor -> wf_agent_actor_list ("suggestions") [this module]
  *     app.bsky.graph.searchStarterPacks       -> unspecced_typed (wf_agent_search_starter_packs_list)
+ *     app.bsky.graph.searchStarterPacksV2     -> wf_graph_search_starter_packs_v2_result [this module]
  *     app.bsky.graph.getListsWithMembership   -> wf_graph_list_membership_list [this module]
  *     app.bsky.graph.getStarterPacksWithMembership -> wf_graph_starter_pack_membership_list [this module]
  *   (getMutes / getBlocks / searchStarterPacks share identical signatures with
@@ -52,6 +57,7 @@
  *     app.bsky.graph.muteActorList / unmuteActorList
  *     app.bsky.graph.blockActor / unblockActor           -> TODO (no wrapper)
  *     app.bsky.graph.blockActorList / unblockActorList    -> TODO (no wrapper)
+ * clang-format on
  */
 
 #ifndef WOLFRAM_GRAPH_SOCIAL_TYPED_H
@@ -156,6 +162,19 @@ typedef struct wf_graph_starter_pack_view_list {
     char *s_cursor;
 } wf_graph_starter_pack_view_list;
 
+/* Envelope for app.bsky.graph.searchStarterPacksV2's "starterPacks" (full
+ * starterPackView, reusing wf_graph_starter_pack_view), optional "cursor", and
+ * optional "hitsTotal" (an estimated total hit count). Distinct from
+ * wf_graph_starter_pack_view_list only in also carrying hitsTotal — the v1
+ * app.bsky.graph.searchStarterPacks has no such field. */
+typedef struct wf_graph_search_starter_packs_v2_result {
+    wf_graph_starter_pack_view *packs;
+    size_t pack_count;
+    char *cursor;
+    bool has_hits_total;
+    int64_t hits_total;
+} wf_graph_search_starter_packs_v2_result;
+
 /* ------------------------------------------------------------------ */
 /* Membership wraps (with-membership endpoints)                        */
 /*   getListsWithMembership / getStarterPacksWithMembership           */
@@ -217,6 +236,14 @@ wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
 wf_status wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
                                             wf_graph_starter_pack_view_list *out);
 
+/* Parse a JSON body containing "starterPacks" (starterPackView[]), optional
+ * "cursor", and optional "hitsTotal" — the app.bsky.graph.searchStarterPacksV2
+ * output shape. Same ownership/error rules as
+ * wf_graph_parse_starter_pack_views. */
+wf_status wf_graph_parse_search_starter_packs_v2(
+    const char *json, size_t json_len,
+    wf_graph_search_starter_packs_v2_result *out);
+
 /* Free the owned contents of each parsed struct (also safe on a reset/zeroed
  * value). */
 void wf_graph_list_view_free(wf_graph_list_view *v);
@@ -224,6 +251,8 @@ void wf_graph_list_view_list_free(wf_graph_list_view_list *list);
 void wf_graph_list_item_view_list_free(wf_graph_list_item_view_list *list);
 void wf_graph_starter_pack_view_free(wf_graph_starter_pack_view *v);
 void wf_graph_starter_pack_view_list_free(wf_graph_starter_pack_view_list *list);
+void wf_graph_search_starter_packs_v2_result_free(
+    wf_graph_search_starter_packs_v2_result *r);
 
 /* Parse a JSON body containing a "listsWithMembership" array of list-with-
  * membership entries (getListsWithMembership) into owned structs. Each entry
@@ -316,6 +345,17 @@ wf_status wf_agent_get_starter_packs_with_membership_typed(
 /* app.bsky.graph.searchStarterPacks is provided by unspecced_typed.h
  * (wf_agent_search_starter_packs_typed); this module reuses it rather than
  * redefining the symbol. */
+
+/* app.bsky.graph.searchStarterPacksV2 ->
+ * wf_graph_search_starter_packs_v2_result
+ * ("starterPacks" + optional "cursor"/"hitsTotal"). `q` is required
+ * (non-empty search query); `limit` <= 0 omits the limit parameter; `cursor`
+ * may be NULL. Unlike v1 (starterPackViewBasic, reused from unspecced_typed.h
+ * above), V2 returns the full starterPackView and an optional estimated
+ * total hit count. */
+wf_status wf_agent_search_starter_packs_v2_typed(
+    wf_agent *agent, const char *q, int limit, const char *cursor,
+    wf_graph_search_starter_packs_v2_result *out);
 
 /* WRITE endpoints (procedures). Each validates required input then issues the
  * generated lex procedure call. They return wf_status only (the response body

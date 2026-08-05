@@ -268,6 +268,53 @@ int main(void) {
         free(json);
     }
 
+    /* ---- searchStarterPacksV2 (wf_graph_search_starter_packs_v2_result) —
+     * issue #17: previously generated-only, no agent wrapper. Same per-item
+     * shape as getStarterPacks, plus an optional "hitsTotal". ---- */
+    {
+        cJSON *root = cJSON_CreateObject();
+        cJSON *packs = cJSON_AddArrayToObject(root, "starterPacks");
+        cJSON_AddItemToArray(
+            packs, make_starter_pack_view("at://x/ssp/1", "Search Alpha"));
+        cJSON_AddStringToObject(root, "cursor", "ssp-cursor-1");
+        cJSON_AddNumberToObject(root, "hitsTotal", 17);
+        size_t len = 0;
+        char *json = json_string(root, &len);
+        cJSON_Delete(root);
+        WF_CHECK(json != NULL);
+
+        wf_graph_search_starter_packs_v2_result r = {0};
+        WF_CHECK(wf_graph_parse_search_starter_packs_v2(json, len, &r) ==
+                 WF_OK);
+        WF_CHECK(r.pack_count == 1);
+        WF_CHECK(r.cursor && strcmp(r.cursor, "ssp-cursor-1") == 0);
+        WF_CHECK(r.has_hits_total && r.hits_total == 17);
+        if (r.pack_count == 1) {
+            WF_CHECK(r.packs[0].uri &&
+                     strcmp(r.packs[0].uri, "at://x/ssp/1") == 0);
+            WF_CHECK(r.packs[0].name &&
+                     strcmp(r.packs[0].name, "Search Alpha") == 0);
+        }
+        wf_graph_search_starter_packs_v2_result_free(&r);
+        free(json);
+
+        /* hitsTotal is optional; absent must leave has_hits_total false. */
+        cJSON *root2 = cJSON_CreateObject();
+        cJSON_AddItemToObject(root2, "starterPacks", cJSON_CreateArray());
+        size_t len2 = 0;
+        char *json2 = json_string(root2, &len2);
+        cJSON_Delete(root2);
+        WF_CHECK(json2 != NULL);
+
+        wf_graph_search_starter_packs_v2_result r2 = {0};
+        WF_CHECK(wf_graph_parse_search_starter_packs_v2(json2, len2, &r2) ==
+                 WF_OK);
+        WF_CHECK(r2.pack_count == 0);
+        WF_CHECK(!r2.has_hits_total);
+        wf_graph_search_starter_packs_v2_result_free(&r2);
+        free(json2);
+    }
+
     /* ---- getListsWithMembership (wf_graph_list_membership_list) ---- */
     {
         cJSON *root = cJSON_CreateObject();
@@ -363,8 +410,14 @@ int main(void) {
         WF_CHECK(wf_graph_parse_list_views("not json", 8, &gv) == WF_ERR_PARSE);
         WF_CHECK(wf_graph_parse_starter_pack_views(NULL, 0, &spl) ==
                  WF_ERR_INVALID_ARG);
+        wf_graph_search_starter_packs_v2_result ssp = {0};
+        WF_CHECK(wf_graph_parse_search_starter_packs_v2(NULL, 0, &ssp) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_graph_parse_search_starter_packs_v2("not json", 8, &ssp) ==
+                 WF_ERR_PARSE);
         wf_graph_list_view_list_free(&gv);
         wf_graph_starter_pack_view_list_free(&spl);
+        wf_graph_search_starter_packs_v2_result_free(&ssp);
     }
 
     /* ---- agent wrapper arg validation (NULL agent / missing required) ---- */
@@ -422,6 +475,20 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_starter_pack_typed(NULL, "at://x/sp", &spv) ==
                  WF_ERR_INVALID_ARG);
+        {
+            wf_graph_search_starter_packs_v2_result ssp = {0};
+            WF_CHECK(wf_agent_search_starter_packs_v2_typed(
+                         NULL, "q", 0, NULL, &ssp) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_search_starter_packs_v2_typed(
+                         agent, NULL, 0, NULL, &ssp) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_search_starter_packs_v2_typed(
+                         agent, "", 0, NULL, &ssp) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_search_starter_packs_v2_typed(
+                         agent, "q", 101, NULL, &ssp) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_search_starter_packs_v2_typed(
+                         agent, "q", 0, NULL, NULL) == WF_ERR_INVALID_ARG);
+            wf_graph_search_starter_packs_v2_result_free(&ssp);
+        }
         WF_CHECK(wf_agent_get_suggested_follows_by_actor_typed(agent, NULL,
                                                                &al) ==
                  WF_ERR_INVALID_ARG);
