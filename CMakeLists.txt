@@ -1686,6 +1686,15 @@ if(WOLFRAM_BUILD_TESTS)
             ${cjson_SOURCE_DIR}
         )
         add_test(NAME graph_writes COMMAND test_graph_writes)
+
+        add_executable(test_video_typed_httpd test/test_video_typed_httpd.c test/mock_pds.c)
+        target_link_libraries(test_video_typed_httpd PRIVATE wolfram ${MICROHTTPD_LIBRARY})
+        target_include_directories(test_video_typed_httpd PRIVATE
+            test
+            ${MICROHTTPD_INCLUDE_DIR}
+            ${cjson_SOURCE_DIR}
+        )
+        add_test(NAME video_typed_httpd COMMAND test_video_typed_httpd)
     endif()
 endif()
 
