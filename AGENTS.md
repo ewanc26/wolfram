@@ -37,6 +37,9 @@ Agentic principles and technical context for the `wolfram` repository.
   `WOLFRAM_VERSION_{MAJOR,MINOR,PATCH}` macros are derived from
   `PROJECT_VERSION` as PUBLIC compile definitions — there is no `version.h` to
   keep in sync.
+- **Version independently**: Wolfram and MetalBear are sibling projects, not a
+  single release unit. Each repo versions itself on its own history; do not
+  sync the version string to the sibling's.
 
 ## Development workflow
 
