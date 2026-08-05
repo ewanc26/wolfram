@@ -69,6 +69,16 @@ wf_status wii_tls_add_ca_pem(const char *pem);
  */
 int wii_tls_random(void *p, unsigned char *out, size_t len);
 
+/**
+ * Non-blocking readiness check: does the next wii_tls_recv() have bytes to
+ * return immediately? Checks mbedTLS's internal record buffer first (data
+ * already decrypted from a prior read but not yet consumed sits there, not
+ * on the socket, so a socket-level poll alone would miss it), then falls
+ * back to a zero-timeout select() on the underlying fd. Returns 1 if a read
+ * would return promptly, 0 if it would block, or -1 on an invalid handle.
+ */
+int wii_tls_pending(wii_tls_conn *c);
+
 #ifdef __cplusplus
 }
 #endif

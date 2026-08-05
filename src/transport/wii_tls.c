@@ -308,3 +308,19 @@ int wii_tls_random(void *p, unsigned char *out, size_t len) {
     }
     return mbedtls_ctr_drbg_random(&g_ctr, out, len);
 }
+
+int wii_tls_pending(wii_tls_conn *c) {
+    if (!c || c->fd < 0) return -1;
+    /* mbedTLS may already hold decoded application bytes from a previous TLS
+     * record that the caller only partially consumed; those never touch the
+     * socket again, so a select() below would wrongly report "not ready". */
+    if (mbedtls_ssl_get_bytes_avail(&c->ssl) > 0) return 1;
+
+    fd_set rfds;
+    struct timeval tv = {0, 0};  /* zero-timeout poll, never blocks */
+    FD_ZERO(&rfds);
+    FD_SET(c->fd, &rfds);
+    int rc = net_select(c->fd + 1, &rfds, NULL, NULL, &tv);
+    if (rc < 0) return -1;
+    return (rc > 0 && FD_ISSET(c->fd, &rfds)) ? 1 : 0;
+}
