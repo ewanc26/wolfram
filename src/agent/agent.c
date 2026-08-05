@@ -3753,14 +3753,15 @@ wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
         return WF_ERR_INVALID_ARG;
     }
 
-    wf_xrpc_param params[] = {
-        {"jobId", job_id},
-    };
+    /* Use the generated marshalling rather than hand-building the query
+     * param array: the NSID, param name ("jobId"), and encoding all come
+     * from wf_lexgen, so this can't drift from the lexicon. */
+    wf_lex_app_bsky_video_get_job_status_main_params params = {0};
+    params.job_id = job_id;
 
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client,
-                                WF_LEX_APP_BSKY_VIDEO_GET_JOB_STATUS_NSID,
-                                params, 1, out);
+    return wf_lex_app_bsky_video_get_job_status_main_call(agent->client,
+                                                          &params, out);
 }
 
 wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
@@ -3773,9 +3774,7 @@ wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
     }
 
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client,
-                                WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_LIMITS_NSID,
-                                NULL, 0, out);
+    return wf_lex_app_bsky_video_get_upload_limits_main_call(agent->client, out);
 }
 
 /* ── server wrappers ─────────────────────────────────────────────────── */
