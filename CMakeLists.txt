@@ -297,6 +297,18 @@ src/agent/push_endpoint.c
     src/image.c
 )
 
+# The version lives only in the `VERSION` above; derive the public
+# WOLFRAM_VERSION_* macros from PROJECT_VERSION at compile time.
+string(REPLACE "." ";" WOLFRAM_VERSION_PARTS "${PROJECT_VERSION}")
+list(GET WOLFRAM_VERSION_PARTS 0 WOLFRAM_VERSION_MAJOR)
+list(GET WOLFRAM_VERSION_PARTS 1 WOLFRAM_VERSION_MINOR)
+list(GET WOLFRAM_VERSION_PARTS 2 WOLFRAM_VERSION_PATCH)
+target_compile_definitions(wolfram PUBLIC
+    WOLFRAM_VERSION_MAJOR=${WOLFRAM_VERSION_MAJOR}
+    WOLFRAM_VERSION_MINOR=${WOLFRAM_VERSION_MINOR}
+    WOLFRAM_VERSION_PATCH=${WOLFRAM_VERSION_PATCH}
+    WOLFRAM_VERSION_STRING="${PROJECT_VERSION}")
+
 # POSIX feature-test macros.
 #
 # glibc hides strdup, strndup, struct sigaction, clock_gettime, gmtime_r and
@@ -1015,6 +1027,11 @@ if(WOLFRAM_BUILD_TESTS)
         target_include_directories(test_xrpc_wii_host PRIVATE
             include src ${cjson_SOURCE_DIR})
         target_link_libraries(test_xrpc_wii_host PRIVATE cjson)
+        target_compile_definitions(test_xrpc_wii_host PRIVATE
+            WOLFRAM_VERSION_MAJOR=${WOLFRAM_VERSION_MAJOR}
+            WOLFRAM_VERSION_MINOR=${WOLFRAM_VERSION_MINOR}
+            WOLFRAM_VERSION_PATCH=${WOLFRAM_VERSION_PATCH}
+            WOLFRAM_VERSION_STRING="${PROJECT_VERSION}")
         add_test(NAME xrpc_wii_host COMMAND test_xrpc_wii_host)
     endif()
 

@@ -1,5 +1,4 @@
 #include "wolfram/websocket.h"
-#include "wolfram/version.h"
 
 #include <curl/curl.h>
 #include <stdint.h>

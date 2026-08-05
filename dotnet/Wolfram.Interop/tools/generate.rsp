@@ -20,7 +20,6 @@
 -f ../../include/wolfram/websocket.h
 -f ../../include/wolfram/json.h
 -f ../../include/wolfram/util.h
--f ../../include/wolfram/version.h
 -f ../../include/wolfram/tid.h
 -f ../../include/wolfram/image.h
 -f ../../include/wolfram/blob.h

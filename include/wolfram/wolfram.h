@@ -9,7 +9,6 @@
 #ifndef WOLFRAM_H
 #define WOLFRAM_H
 
-#include "wolfram/version.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/identity.h"
 #include "wolfram/crypto.h"

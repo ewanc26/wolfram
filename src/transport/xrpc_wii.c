@@ -10,7 +10,6 @@
  */
 
 #include "wolfram/xrpc.h"
-#include "wolfram/version.h"
 #include "wii_tls.h"
 
 #include <cJSON.h>

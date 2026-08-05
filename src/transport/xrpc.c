@@ -7,7 +7,6 @@
  */
 
 #include "wolfram/xrpc.h"
-#include "wolfram/version.h"
 
 #include <cJSON.h>
 #include <curl/curl.h>
