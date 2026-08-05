@@ -38,6 +38,25 @@
     } while (0)
 
 int main(void) {
+    /* ---- report.closeReports: object output, all fields required (#17) ---- */
+    {
+        const char *json = "{\"closedCount\":3,\"reportIds\":[10,11,12]}";
+        wf_lex_tools_ozone_report_close_reports_main_output *out = NULL;
+        wf_status st =
+            wf_ozone_parse_report_closeReports(json, strlen(json), &out);
+        WF_CHECK(st == WF_OK);
+        WF_CHECK(out != NULL);
+        if (out) {
+            WF_CHECK(out->closed_count == 3);
+            WF_CHECK(out->report_ids.count == 3);
+            if (out->report_ids.items) {
+                WF_CHECK(out->report_ids.items[0] == 10);
+                WF_CHECK(out->report_ids.items[2] == 12);
+            }
+            wf_lex_tools_ozone_report_close_reports_main_output_free(out);
+        }
+    }
+
     /* ---- report.* generated-decode paths ---- */
     WF_TEST_PARSE_EMPTY(report, queryReports, report_query_reports, reports);
     WF_TEST_PARSE_EMPTY(report, getAssignments, report_get_assignments,
@@ -146,6 +165,12 @@ int main(void) {
         wf_lex_tools_ozone_safelink_query_rules_main_output *sl = NULL;
         WF_CHECK(wf_ozone_parse_safelink_queryRules(NULL, 0, &sl) ==
                  WF_ERR_INVALID_ARG);
+
+        wf_lex_tools_ozone_report_close_reports_main_output *cr = NULL;
+        WF_CHECK(wf_ozone_parse_report_closeReports(NULL, 0, &cr) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_parse_report_closeReports("{}", 2, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* ---- agent wrappers: NULL-argument validation (offline) ---- */
@@ -212,6 +237,15 @@ int main(void) {
                      agent, NULL, &ms) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_ozone_moderation_queryStatuses(
                      agent, &msp, NULL) == WF_ERR_INVALID_ARG);
+
+        wf_lex_tools_ozone_report_close_reports_main_input cri = {0};
+        wf_lex_tools_ozone_report_close_reports_main_output *cro = NULL;
+        WF_CHECK(wf_ozone_report_closeReports(
+                     NULL, &cri, &cro) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_report_closeReports(
+                     agent, NULL, &cro) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ozone_report_closeReports(
+                     agent, &cri, NULL) == WF_ERR_INVALID_ARG);
 
         wf_agent_free(agent);
     }

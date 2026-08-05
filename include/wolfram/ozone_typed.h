@@ -224,6 +224,7 @@ void wf_ozone_team_member_list_free(wf_ozone_team_member_list *l);
     X(report, listActivities, list_activities, Q)                           \
     X(report, createActivity, create_activity, P)                           \
     X(report, refreshStats, refresh_stats, P)                              \
+    X(report, closeReports, close_reports, P)                              \
     X(safelink, queryRules, query_rules, P)                                \
     X(safelink, addRule, add_rule, PR)                                      \
     X(safelink, updateRule, update_rule, PR)                               \
