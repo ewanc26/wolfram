@@ -444,8 +444,39 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       `blob.h`) — there is no JSON object for a decoder to produce, so this
       is a structural floor, not a remaining gap.
 
+  62. Typed agent wrappers for the last generated-only callable endpoints —
+      `app.bsky.graph.searchStarterPacksV2` (`wf_agent_search_starter_packs_v2_typed`
+      / `wf_graph_search_starter_packs_v2_result` in `graph_social_typed.h`,
+      reusing the existing per-item starter-pack-view parser and adding the
+      optional `hitsTotal` field the v1 endpoint doesn't have),
+      `tools.ozone.report.closeReports` (added to the existing X-macro
+      endpoint table in `ozone_typed.h`/`.c` — `X(report, closeReports,
+      close_reports, P)` — rather than a one-off wrapper), and
+      `tools.ozone.moderation.getRecord` upgraded from a raw-`wf_response`
+      wrapper to an owning decoder in `ozone_admin_typed.h`/`.c` now that its
+      ref-typed output has one (item 61). `app.bsky.video.getJobStatus` /
+      `getUploadLimits` (`src/agent/agent.c`) were rewired from a hand-built
+      `wf_xrpc_query_params` call plus a `WF_LEX_*_NSID` constant to the
+      generated `wf_lex_app_bsky_video_get_*_main_call`, closing the same
+      class of drift risk the ref-output decoder gap did; a new
+      `test_video_typed_httpd.c` (built under `WOLFRAM_BUILD_TEST_HTTPD`)
+      proves the swap against a real local mock PDS rather than by
+      inspection alone. `tools.ozone.set.deleteSet` and `.querySets` — named
+      in the originating issue as missing — turned out to already be wired
+      through the same X-macro table; verified rather than duplicated.
+      `tools.ozone.moderation.getRepo` has the identical ref-output shape as
+      `getRecord` and the same stale QR-vs-Q wrapper, left as a follow-up
+      since it wasn't part of this endpoint list. `internal.bsky.actor.
+      getProfiles` stays unwrapped by design (internal namespace, excluded
+      from the reference codegen too).
+
 ## Next planned work
 
+- `tools.ozone.moderation.getRepo` (`ozone_admin_typed.h`/`.c`) still returns
+  a raw `wf_response` even though its output.schema is a `ref` to an object
+  def that now has a generated decoder (the same shape and the same fix
+  `getRecord` got in item 62) — a small, low-risk follow-up upgrade from QR
+  to Q in the shared X-macro table.
 - Exercise the gated live example test (`test_examples_live`) in CI with real
   credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
 - Continue evaluating upstream C libraries for server-side infrastructure
