@@ -384,10 +384,35 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       monotonic time) with POSIX (Linux/macOS) and Win32 backends fully
       implemented, plus toolchain files and client-only build wiring for
       Nintendo Wii/Wii U/3DS (devkitPro), Windows (MinGW-w64), and Linux/AArch64.
-      The Wii platform primitives now use libogc (`net_init`, LWP mutexes, and
-      the timebase clock), while Wii HTTPS/WebSocket and crypto remain honest
-      stubs. Wii U/3DS platform, transport, and crypto backends remain honest
-      `WF_ERR_NOT_IMPLEMENTED` stubs.
+      The Wii platform primitives use libogc (`net_init`, LWP mutexes, and the
+      timebase clock); Wii U platform primitives use wut (`socket_lib_init`,
+      `OSMutex`, `OSGetTime`, divide-first tick conversion). Wii HTTPS
+      (mbedTLS, verified certificate chain, fail-closed entropy) and P-256/
+      did:key crypto are real; secp256k1 remains an honest stub on both
+      consoles — no libsecp256k1 port exists for either. 3DS platform,
+      transport, and crypto backends remain honest `WF_ERR_NOT_IMPLEMENTED`
+      stubs.
+
+  60. Wii WebSocket client (`src/transport/websocket_wii.c`) — a real RFC 6455
+      implementation replacing the prior honest stub, built on `wii_tls`
+      (mbedTLS handshake + verified certificate chain over lwIP). Covers the
+      HTTP/1.1 Upgrade handshake with Sec-WebSocket-Accept verification
+      (`mbedtls_sha1` + RFC 4648 base64, mirroring the check the SDK's own
+      XRPC server performs as a WS server), masked client framing per RFC
+      6455 §5.2/§5.3, fragmented-message reassembly, and transparent
+      ping/pong. wss:// only, matching every AT Protocol subscription
+      endpoint. The mask key and Sec-WebSocket-Key are drawn from
+      `wii_tls_random` — the same DRBG that seeds TLS and P-256 signing —
+      never `srand()`/timing. `wii_tls_pending()` (new in `wii_tls.{c,h}`)
+      gives `wf_websocket_receive` a real non-blocking readiness check: it
+      consults mbedTLS's internal record buffer before falling back to a
+      zero-timeout `select()`, so already-decrypted-but-unread bytes are not
+      missed. Verified via a devkitPPC cross-build and `powerpc-eabi-nm`: the
+      prior stub was missing `wf_websocket_send_ping` entirely, an undefined
+      symbol that would only have surfaced at link time in a real firehose/
+      Jetstream consumer. As with the rest of the Wii backend, a cross-build
+      proves compile/link compatibility, not HTTP/TLS correctness on
+      hardware — this has not run on real console hardware.
 
 ## Next planned work
 
@@ -439,11 +464,15 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   fully typed 13-slot `defs#preferences` representation. The legacy v1
   `putPreferences` endpoint carries only its required `priority` boolean;
   `wf_agent_put_notification_priority` transmits that exact schema.
-- Finish the Nintendo Wii HTTPS/WebSocket and crypto backends, including a
-  trustworthy entropy source and CA validation. Replace the Wii U/3DS platform,
-  transport, and crypto stubs with real device backends. See the `TODO` markers
-  in `src/platform/*_platform.c`, `src/transport/*_wii.c`, and
-  `src/crypto/crypto_wii.c`.
+- Wii HTTPS and WebSocket, and Wii U platform/transport, are real and
+  cross-build-verified (though unverified on physical hardware — see items 59
+  and 60). Remaining console gaps: secp256k1 on Wii/Wii U (no libsecp256k1
+  port for either — a hand-rolled implementation is off the table per this
+  project's crypto policy, so this stays an honest stub unless/until a port
+  appears), and the 3DS platform/transport/crypto backends, which are still
+  full `WF_ERR_NOT_IMPLEMENTED` stubs (devkitARM is not available in this
+  environment to verify a cross-build). See the `TODO` markers in
+  `src/platform/3ds_platform.c`.
 
 ## Dependencies
 
