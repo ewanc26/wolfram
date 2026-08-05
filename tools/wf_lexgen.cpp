@@ -545,6 +545,34 @@ public:
     }
 
     // -----------------------------------------------------------------------
+    // Output type helpers.
+    // -----------------------------------------------------------------------
+
+    // If a query/procedure's output schema is either an inline object or a
+    // `ref` resolving to one, returns the C type name to use for `<base>_output`
+    // — `base + "_output"` itself for an inline object (already emitted via the
+    // object catalog), or the referenced object's own type for a ref (aliased
+    // rather than duplicated, mirroring `json_input_alias_type`). Otherwise
+    // `nullopt`: no decoder is generated (no output body, a non-JSON encoding
+    // such as a CAR/blob stream, or a ref to something other than an object).
+    std::optional<std::string> output_object_type(const std::string& nsid, const std::string& base,
+                                                  cJSON* output_schema) const {
+        if (!output_schema)
+            return std::nullopt;
+        if (schema_type(output_schema) == "object")
+            return base + "_output";
+        if (schema_type(output_schema) == "ref") {
+            cJSON* ref = cJSON_GetObjectItemCaseSensitive(output_schema, "ref");
+            if (ref && cJSON_IsString(ref) && ref->valuestring) {
+                auto resolved = resolve_ref(nsid, ref->valuestring);
+                if (resolved && schema_type(resolved->second) == "object")
+                    return ref_type(nsid, ref->valuestring);
+            }
+        }
+        return std::nullopt;
+    }
+
+    // -----------------------------------------------------------------------
     // Header emission.
     // -----------------------------------------------------------------------
 
@@ -1222,6 +1250,32 @@ public:
             }
         }
 
+        // `<base>_output` aliases for endpoints whose output schema is a `ref`
+        // to an object def rather than an inline object: the referenced type
+        // already has a full definition (emitted above via the object catalog),
+        // so `<base>_output` is just another name for it rather than a
+        // duplicate struct.
+        for (const auto& doc : docs) {
+            const std::string& nsid = doc.id;
+            for (cJSON* def = doc.defs->child; def; def = def->next) {
+                if (!def->string)
+                    continue;
+                std::string kind = schema_type(def);
+                if (kind != "query" && kind != "procedure")
+                    continue;
+                cJSON* output = cJSON_GetObjectItemCaseSensitive(def, "output");
+                cJSON* output_schema = output ? cJSON_GetObjectItemCaseSensitive(output, "schema") : nullptr;
+                if (!output_schema || schema_type(output_schema) != "ref")
+                    continue;
+                std::string base = type_name(nsid, def->string);
+                auto alias = output_object_type(nsid, base, output_schema);
+                if (alias && *alias != base + "_output") {
+                    out.push_back("typedef " + *alias + " " + base + "_output;");
+                    out.push_back("");
+                }
+            }
+        }
+
         for (const auto& doc : docs) {
             const std::string& nsid = doc.id;
             for (cJSON* def = doc.defs->child; def; def = def->next) {
@@ -1242,7 +1296,7 @@ public:
                 }
                 cJSON* output = cJSON_GetObjectItemCaseSensitive(def, "output");
                 cJSON* output_schema = output ? cJSON_GetObjectItemCaseSensitive(output, "schema") : nullptr;
-                if (output_schema && schema_type(output_schema) == "object") {
+                if (output_object_type(nsid, base, output_schema)) {
                     out.push_back("/** Decode an owning output value; free it with the matching function. */");
                     out.push_back("wf_status " + base + "_output_decode_json(");
                     out.push_back("    const char *json, size_t length, " + base + "_output **out_value);");
@@ -1457,7 +1511,8 @@ public:
                 std::string base = type_name(nsid, def->string);
                 cJSON* output = cJSON_GetObjectItemCaseSensitive(def, "output");
                 cJSON* output_schema = output ? cJSON_GetObjectItemCaseSensitive(output, "schema") : nullptr;
-                if (output_schema && schema_type(output_schema) == "object") {
+                auto output_type = output_object_type(nsid, base, output_schema);
+                if (output_type) {
                     out.push_back("wf_status " + base + "_output_decode_json(");
                     out.push_back("    const char *json, size_t length, " + base + "_output **out_value) {");
                     out.push_back("    if (!json || !out_value) return WF_ERR_INVALID_ARG;");
@@ -1465,14 +1520,14 @@ public:
                     out.push_back("    if (!root) return WF_ERR_INVALID_ARG;");
                     out.push_back("    " + base + "_output *value = calloc(1, sizeof(*value));");
                     out.push_back("    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }");
-                    out.push_back("    wf_status status = wf_lex_decode_" + base + "_output(root, value);");
+                    out.push_back("    wf_status status = wf_lex_decode_" + *output_type + "(root, value);");
                     out.push_back("    cJSON_Delete(root);");
                     out.push_back("    if (status != WF_OK) { free(value); return status; }");
                     out.push_back("    *out_value = value; return WF_OK;");
                     out.push_back("}");
                     out.push_back("");
                     out.push_back("void " + base + "_output_free(" + base + "_output *value) {");
-                    out.push_back("    wf_lex_clear_" + base + "_output(value); free(value);");
+                    out.push_back("    wf_lex_clear_" + *output_type + "(value); free(value);");
                     out.push_back("}");
                     out.push_back("");
                 }
