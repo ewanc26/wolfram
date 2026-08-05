@@ -40,6 +40,10 @@ Agentic principles and technical context for the `wolfram` repository.
 - **Version independently**: Wolfram and MetalBear are sibling projects, not a
   single release unit. Each repo versions itself on its own history; do not
   sync the version string to the sibling's.
+- **No version jumps**: bump from the immediately previous released version.
+  Never skip a patch, minor, or major number. If a gap already exists in the
+  history (as in Wolfram's v0.2.6 → v0.10.0), it is history — do not backfill
+  it with phantom tags or releases.
 
 ## Development workflow
 
