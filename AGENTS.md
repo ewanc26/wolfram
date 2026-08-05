@@ -31,10 +31,12 @@ Agentic principles and technical context for the `wolfram` repository.
 - **Bump in the same commit**: the version change and the tag must refer to the
   same commit — no separate bump commit without a tag.
 - **Create a GitHub release for every version bump**: after tagging, create a
-  release via `gh release create v<major>.<minor>.<patch> <tag> --title "v<major>.<minor>.<patch>" --generate-notes`. The release must be created in the same commit as the tag — no separate release without a tag.
-- **Keep `include/wolfram/version.h` in sync**: the header defines
-  `WOLFRAM_VERSION_STRING` and the `WOLFRAM_VERSION_{MAJOR,MINOR,PATCH}` macros;
-  every CMakeLists.txt bump must update them to match.
+  release via `gh release create v<major>.<minor>.<patch> --title "v<major>.<minor>.<patch>" --generate-notes` (the tag is named by that single positional; a second positional would be treated as an upload file). The release must be created in the same commit as the tag — no separate release without a tag.
+- **One version definition**: the version lives only in the `VERSION` line of
+  `CMakeLists.txt`. The `WOLFRAM_VERSION_STRING` and
+  `WOLFRAM_VERSION_{MAJOR,MINOR,PATCH}` macros are derived from
+  `PROJECT_VERSION` as PUBLIC compile definitions — there is no `version.h` to
+  keep in sync.
 
 ## Development workflow
 
