@@ -8,10 +8,22 @@
  * Layer 2 (built under WOLFRAM_BUILD_SERVER): an end-to-end test that runs a
  * local in-process XRPC server whose WS route streams the framed CBOR
  * mod-event bytes, then drives wf_chat_mod_events_start against it in a thread
- * and asserts the on_event callback receives the expected fields. The streaming
- * path is exercised best-effort: if the local loopback WS handshake cannot be
- * completed (e.g. a libcurl build without WS support), it SKIPs rather than
- * fails, so CI stays deterministic.
+ * and asserts the on_event callback receives the expected fields. Also passes
+ * wf_chat_mod_events_options.access_token and asserts the server observed it
+ * as a real `Authorization: Bearer <token>` header on the upgrade request
+ * (via wf_xrpc_request.auth_header) — subscribeModEvents is a "private
+ * endpoint" that previously had no way to authenticate the WS connection at
+ * all (issue #19; see wf_websocket_connect_with_headers in websocket.h). The
+ * streaming path is exercised best-effort: if the local loopback WS handshake
+ * cannot be completed (e.g. a libcurl build without WS support — this is
+ * genuinely common; Apple's shipped libcurl on macOS has no ws/wss protocol
+ * support at all), it SKIPs rather than fails, so CI stays deterministic.
+ *
+ * NOTE: until this file's CMake target explicitly defined the
+ * WOLFRAM_BUILD_SERVER *macro* (not just gating which targets get built),
+ * this entire Layer 2 silently never compiled in even with the CMake option
+ * ON — see the target_compile_definitions call next to this target in
+ * CMakeLists.txt.
  */
 
 #include "wolfram/chat_typed.h"
@@ -263,7 +275,15 @@ struct e2e_ctx {
     wf_chat_mod_events_handle *handle;
     int done;
     uint16_t port;
+    /* Captured server-side from wf_xrpc_request.auth_header on the WS
+     * upgrade request, proving wf_chat_mod_events_options.access_token
+     * actually reaches the wire as `Authorization: Bearer <token>` (issue
+     * #19: subscribeModEvents is a "private endpoint" that previously had
+     * no way to authenticate at all). */
+    char *captured_auth_header;
 };
+
+#define WF_E2E_TEST_TOKEN "test-mod-token-abc123"
 
 static void on_e2e_event(const wf_chat_mod_event *event, int64_t seq,
                          void *userdata) {
@@ -308,7 +328,10 @@ static void *ws_streamer(void *arg) {
 
 static wf_status e2e_ws_handler(void *ctx, const wf_xrpc_request *req,
                                 wf_xrpc_ws_stream *stream) {
-    (void)ctx; (void)req;
+    struct e2e_ctx *e = (struct e2e_ctx *)ctx;
+    if (e && req && req->auth_header) {
+        e->captured_auth_header = strdup(req->auth_header);
+    }
     struct ws_arg *a = malloc(sizeof(*a));
     if (!a) return WF_ERR_ALLOC;
     a->stream = stream;
@@ -334,6 +357,7 @@ static void *e2e_runner(void *arg) {
     opts.on_error = on_e2e_error;
     opts.userdata = ctx;
     opts.reconnect_delay_ms = 100;
+    opts.access_token = WF_E2E_TEST_TOKEN;
 
     /* Connect straight to the local server port. */
     char url[256];
@@ -354,15 +378,15 @@ static void test_e2e_local(void) {
     uint16_t port = wf_xrpc_server_port(server);
     if (port == 0) { wf_xrpc_server_free(server); printf("SKIP: no port\n"); return; }
 
+    struct e2e_ctx ctx = {0};
+    ctx.port = port;
+
     if (wf_xrpc_server_register_ws(server, WF_CHAT_MOD_EVENTS_NSID,
-                                   e2e_ws_handler, NULL) != WF_OK) {
+                                   e2e_ws_handler, &ctx) != WF_OK) {
         wf_xrpc_server_free(server);
         printf("SKIP: register ws\n");
         return;
     }
-
-    struct e2e_ctx ctx = {0};
-    ctx.port = port;
 
     pthread_t tid;
     if (pthread_create(&tid, NULL, e2e_runner, &ctx) != 0) {
@@ -383,10 +407,19 @@ static void test_e2e_local(void) {
         printf("PASS: e2e received framed mod-event with expected fields\n");
         WF_CHECK(ctx.last_type &&
                  strcmp(ctx.last_type, "#eventConvoFirstMessage") == 0);
+        /* issue #19: the private endpoint's bearer token must reach the
+         * wire as a real Authorization header, not be silently dropped. */
+        WF_CHECK(
+            ctx.captured_auth_header &&
+            strcmp(ctx.captured_auth_header, "Bearer " WF_E2E_TEST_TOKEN) == 0);
+        if (ctx.captured_auth_header)
+            printf("PASS: e2e server observed Authorization: %s\n",
+                   ctx.captured_auth_header);
     } else {
         printf("SKIP: e2e loopback WS unavailable (best-effort)\n");
     }
     free(ctx.last_type);
+    free(ctx.captured_auth_header);
 
     wf_xrpc_server_free(server);
 }
