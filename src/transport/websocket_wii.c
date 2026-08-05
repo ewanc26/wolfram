@@ -234,8 +234,12 @@ int wf_websocket_supported(void) {
     return 1; /* wss:// is genuinely implemented on this backend */
 }
 
-wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
-    if (!url || !out) return WF_ERR_INVALID_ARG;
+wf_status wf_websocket_connect_with_headers(const char *url,
+                                            const char *const *request_headers,
+                                            size_t request_header_count,
+                                            wf_websocket **out) {
+    if (!url || !out || (request_header_count && !request_headers))
+        return WF_ERR_INVALID_ARG;
     *out = NULL;
 
     char host[256];
@@ -260,17 +264,34 @@ wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
     char key_b64[32];
     wii_ws_base64_encode(key_raw, sizeof(key_raw), key_b64);
 
-    char req[2560];
+    /* Any extra header lines (e.g. Authorization for a private subscription)
+     * as one \r\n-terminated block, spliced in before the closing blank line.
+     */
+    char extra[1024] = {0};
+    size_t extra_len = 0;
+    for (size_t i = 0; i < request_header_count; i++) {
+        if (!request_headers[i]) continue;
+        int hn = snprintf(extra + extra_len, sizeof(extra) - extra_len,
+                          "%s\r\n", request_headers[i]);
+        if (hn < 0 || (size_t)hn >= sizeof(extra) - extra_len) {
+            wii_tls_close(conn);
+            return WF_ERR_INVALID_ARG;
+        }
+        extra_len += (size_t)hn;
+    }
+
+    char req[3584];
     int n = snprintf(req, sizeof(req),
-        "GET %s HTTP/1.1\r\n"
-        "Host: %s\r\n"
-        "Upgrade: websocket\r\n"
-        "Connection: Upgrade\r\n"
-        "Sec-WebSocket-Key: %s\r\n"
-        "Sec-WebSocket-Version: 13\r\n"
-        "User-Agent: wolfram/%s\r\n"
-        "\r\n",
-        path, host, key_b64, WOLFRAM_VERSION_STRING);
+                     "GET %s HTTP/1.1\r\n"
+                     "Host: %s\r\n"
+                     "Upgrade: websocket\r\n"
+                     "Connection: Upgrade\r\n"
+                     "Sec-WebSocket-Key: %s\r\n"
+                     "Sec-WebSocket-Version: 13\r\n"
+                     "User-Agent: wolfram/%s\r\n"
+                     "%s"
+                     "\r\n",
+                     path, host, key_b64, WOLFRAM_VERSION_STRING, extra);
     if (n < 0 || (size_t)n >= sizeof(req)) {
         wii_tls_close(conn);
         return WF_ERR_ALLOC;
@@ -379,6 +400,10 @@ wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
 
     *out = ws;
     return WF_OK;
+}
+
+wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
+    return wf_websocket_connect_with_headers(url, NULL, 0, out);
 }
 
 wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out) {

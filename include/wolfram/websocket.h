@@ -38,6 +38,22 @@ int wf_websocket_supported(void);
 wf_status wf_websocket_connect(const char *url, wf_websocket **out);
 
 /**
+ * Connect exactly like wf_websocket_connect, but send `header_count` extra
+ * HTTP header lines (each a complete "Name: value" string, no ownership
+ * transfer — copied before this call returns) with the WebSocket upgrade
+ * request. Existing for authenticated subscriptions (a private XRPC
+ * subscription endpoint that needs `Authorization: Bearer <token>` on the
+ * handshake, since a WS URL carries no header of its own): pass NULL/0 for
+ * `headers`/`header_count` to behave exactly like wf_websocket_connect
+ * (which is defined in terms of this function). Returns WF_ERR_INVALID_ARG
+ * on a NULL url/out or a non-NULL header_count with a NULL headers array.
+ */
+wf_status wf_websocket_connect_with_headers(const char *url,
+                                            const char *const *headers,
+                                            size_t header_count,
+                                            wf_websocket **out);
+
+/**
  * Receive one complete message. This call is non-blocking after connection:
  * WF_ERR_WOULD_BLOCK means the socket is not readable yet and may be retried.
  * Partial message state is retained by the connection.

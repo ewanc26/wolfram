@@ -571,6 +571,13 @@ if(WOLFRAM_BUILD_SERVER)
         add_executable(test_chat_modevents_sub test/test_chat_modevents_sub.c)
         target_link_libraries(test_chat_modevents_sub PRIVATE wolfram Threads::Threads)
         target_include_directories(test_chat_modevents_sub PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR})
+        # The file's Layer 2 (in-process XRPC server e2e round-trip) is gated on
+        # `#if defined(WOLFRAM_BUILD_SERVER)`, but nothing previously defined that
+        # C macro for any target — the CMake option only ever controlled which
+        # targets got built, not a -D flag — so Layer 2 silently never compiled in
+        # even with the option ON. Define it here so the e2e test the file already
+        # contains actually runs.
+        target_compile_definitions(test_chat_modevents_sub PRIVATE WOLFRAM_BUILD_SERVER)
         add_test(NAME chat_modevents_sub COMMAND test_chat_modevents_sub)
 
         add_executable(test_relay_server test/test_relay_server.c)

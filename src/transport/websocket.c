@@ -82,9 +82,13 @@ int wf_websocket_supported(void) {
            wf_websocket_protocol_supported("wss");
 }
 
-wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
+wf_status wf_websocket_connect_with_headers(const char *url,
+                                            const char *const *headers,
+                                            size_t header_count,
+                                            wf_websocket **out) {
     if (!url || !out ||
-        (strncmp(url, "ws://", 5) != 0 && strncmp(url, "wss://", 6) != 0)) {
+        (strncmp(url, "ws://", 5) != 0 && strncmp(url, "wss://", 6) != 0) ||
+        (header_count && !headers)) {
         return WF_ERR_INVALID_ARG;
     }
     *out = NULL;
@@ -103,7 +107,27 @@ wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
-    if (curl_easy_perform(socket->curl) != CURLE_OK) {
+
+    struct curl_slist *header_list = NULL;
+    for (size_t i = 0; i < header_count; i++) {
+        if (!headers[i]) continue;
+        struct curl_slist *next = curl_slist_append(header_list, headers[i]);
+        if (!next) {
+            curl_slist_free_all(header_list);
+            curl_easy_cleanup(socket->curl);
+            free(socket);
+            return WF_ERR_ALLOC;
+        }
+        header_list = next;
+    }
+    if (header_list)
+        curl_easy_setopt(socket->curl, CURLOPT_HTTPHEADER, header_list);
+
+    /* CONNECT_ONLY completes the WS upgrade within this single perform call,
+     * so the header list is not needed past it (curl does not retain it). */
+    CURLcode result = curl_easy_perform(socket->curl);
+    curl_slist_free_all(header_list);
+    if (result != CURLE_OK) {
         curl_easy_cleanup(socket->curl);
         free(socket);
         return WF_ERR_NETWORK;
@@ -112,8 +136,14 @@ wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
     return WF_OK;
 #else
     (void)url;
+    (void)headers;
+    (void)header_count;
     return WF_ERR_INVALID_ARG;
 #endif
+}
+
+wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
+    return wf_websocket_connect_with_headers(url, NULL, 0, out);
 }
 
 #if LIBCURL_VERSION_NUM >= 0x075600
