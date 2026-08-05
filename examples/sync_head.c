@@ -41,8 +41,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    printf("root: %s\nrev:   %s\n",
-           head.root ? head.root : "(none)",
+    printf("root: %s\nrev:   %s\n", head.root ? head.root : "(none)",
            head.rev ? head.rev : "(none)");
 
     wf_sync_head_free(&head);

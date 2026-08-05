@@ -22,8 +22,8 @@ struct wf_websocket {
 #endif
 };
 
-wf_status wf_websocket_send_text(wf_websocket *socket,
-                                 const char *text, size_t text_len) {
+wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
+                                 size_t text_len) {
     if (!socket || (!text && text_len) || text_len > WF_WEBSOCKET_MAX_MESSAGE)
         return WF_ERR_INVALID_ARG;
 #if LIBCURL_VERSION_NUM >= 0x075600
@@ -46,18 +46,21 @@ wf_status wf_websocket_send_text(wf_websocket *socket,
         socket->outgoing_offset += sent;
         if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
         if (result != CURLE_OK) {
-            free(socket->outgoing); socket->outgoing = NULL;
+            free(socket->outgoing);
+            socket->outgoing = NULL;
             socket->outgoing_len = socket->outgoing_offset = 0;
             return WF_ERR_NETWORK;
         }
         if (!sent && socket->outgoing_offset < socket->outgoing_len)
             return WF_ERR_WOULD_BLOCK;
     } while (socket->outgoing_offset < socket->outgoing_len);
-    free(socket->outgoing); socket->outgoing = NULL;
+    free(socket->outgoing);
+    socket->outgoing = NULL;
     socket->outgoing_len = socket->outgoing_offset = 0;
     return WF_OK;
 #else
-    (void)text; (void)text_len;
+    (void)text;
+    (void)text_len;
     return WF_ERR_INVALID_ARG;
 #endif
 }
@@ -68,7 +71,7 @@ static int wf_websocket_protocol_supported(const char *wanted) {
 #endif
 #if LIBCURL_VERSION_NUM >= 0x075600
     const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
-    const char * const *protocol;
+    const char *const *protocol;
     if (!info || !info->protocols) return 0;
     for (protocol = info->protocols; *protocol; ++protocol) {
         if (strcmp(*protocol, wanted) == 0) return 1;
@@ -149,7 +152,8 @@ wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
 #if LIBCURL_VERSION_NUM >= 0x075600
 static wf_status wf_websocket_append(wf_websocket *socket,
                                      const unsigned char *data, size_t len) {
-    if (len > WF_WEBSOCKET_MAX_MESSAGE - socket->pending_len) return WF_ERR_PARSE;
+    if (len > WF_WEBSOCKET_MAX_MESSAGE - socket->pending_len)
+        return WF_ERR_PARSE;
     size_t needed = socket->pending_len + len + 1;
     if (needed > socket->pending_cap) {
         size_t cap = socket->pending_cap ? socket->pending_cap : 4096;
@@ -183,9 +187,9 @@ wf_status wf_websocket_receive(wf_websocket *socket,
     for (;;) {
         size_t received = 0;
         struct curl_ws_frame *meta = NULL;
-        CURLcode result = curl_ws_recv(socket->curl, chunk, sizeof(chunk),
-                                       &received,
-                                       (const struct curl_ws_frame **)&meta);
+        CURLcode result =
+            curl_ws_recv(socket->curl, chunk, sizeof(chunk), &received,
+                         (const struct curl_ws_frame **)&meta);
         if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
         if (result != CURLE_OK || !meta || (meta->flags & CURLWS_CLOSE)) {
             wf_websocket_discard_pending(socket);

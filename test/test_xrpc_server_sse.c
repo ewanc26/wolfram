@@ -23,8 +23,8 @@
 
 struct sse_thread_arg {
     wf_xrpc_sse_stream *stream;
-    int                 count;       /* number of events to emit */
-    int                 delay_ms;    /* delay between events */
+    int count;    /* number of events to emit */
+    int delay_ms; /* delay between events */
 };
 
 static void *sse_streamer(void *arg) {
@@ -164,20 +164,25 @@ static int run_test(void) {
             size_t len = res.body_len;
             size_t p1, p2, p3;
 
-            p1 = (body && strstr(body, "data: message-0")) ?
-                 (size_t)(strstr(body, "data: message-0") - body) : (size_t)-1;
-            p2 = (body && strstr(body, "data: message-1")) ?
-                 (size_t)(strstr(body, "data: message-1") - body) : (size_t)-1;
-            p3 = (body && strstr(body, "data: message-2")) ?
-                 (size_t)(strstr(body, "data: message-2") - body) : (size_t)-1;
+            p1 = (body && strstr(body, "data: message-0"))
+                     ? (size_t)(strstr(body, "data: message-0") - body)
+                     : (size_t)-1;
+            p2 = (body && strstr(body, "data: message-1"))
+                     ? (size_t)(strstr(body, "data: message-1") - body)
+                     : (size_t)-1;
+            p3 = (body && strstr(body, "data: message-2"))
+                     ? (size_t)(strstr(body, "data: message-2") - body)
+                     : (size_t)-1;
 
             if (p1 == (size_t)-1 || p2 == (size_t)-1 || p3 == (size_t)-1) {
                 fprintf(stderr, "FAIL: streaming missing event(s): '%.*s'\n",
                         (int)len, body ? body : "");
                 failures++;
             } else if (!(p1 < p2 && p2 < p3)) {
-                fprintf(stderr, "FAIL: streaming events out of order: "
-                        "p1=%zu p2=%zu p3=%zu\n", p1, p2, p3);
+                fprintf(stderr,
+                        "FAIL: streaming events out of order: "
+                        "p1=%zu p2=%zu p3=%zu\n",
+                        p1, p2, p3);
                 failures++;
             } else if (!strstr(body, "event: evt0") ||
                        !strstr(body, "event: evt1") ||
@@ -217,7 +222,7 @@ static int run_test(void) {
     {
         wf_xrpc_client_free(client);
         client = NULL;
-        wf_xrpc_server_free(server);   /* blocks until clean shutdown */
+        wf_xrpc_server_free(server); /* blocks until clean shutdown */
         server = NULL;
         printf("PASS: server teardown clean (no hang)\n");
     }

@@ -27,7 +27,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#define NSID    "io.example.many.subscribe"
+#define NSID "io.example.many.subscribe"
 #define CLIENTS 96
 
 static int test_connect(uint16_t port) {
@@ -72,11 +72,12 @@ static int test_handshake(int fd, uint16_t port) {
                       "Connection: Upgrade\r\n"
                       "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
                       "Sec-WebSocket-Version: 13\r\n"
-                      "\r\n", (unsigned)port);
+                      "\r\n",
+                      (unsigned)port);
     if (test_write_all(fd, req, (size_t)nr) != 0) return -1;
 
     while (!got_eoh && hoff < sizeof(hdr) - 1) {
-        struct pollfd pfd = { fd, POLLIN, 0 };
+        struct pollfd pfd = {fd, POLLIN, 0};
         if (poll(&pfd, 1, 5000) <= 0) break;
         ssize_t n = read(fd, hdr + hoff, sizeof(hdr) - 1 - hoff);
         if (n <= 0) break;
@@ -146,7 +147,8 @@ int main(void) {
         wf_xrpc_server_free(server);
         return 1;
     }
-    if (wf_xrpc_server_register_ws(server, NSID, many_ws_handler, NULL) != WF_OK) {
+    if (wf_xrpc_server_register_ws(server, NSID, many_ws_handler, NULL) !=
+        WF_OK) {
         fprintf(stderr, "FAIL: register WS endpoint\n");
         wf_xrpc_server_free(server);
         return 1;
@@ -166,9 +168,12 @@ int main(void) {
     /* The bug needs more streams than the old 64-entry snapshot held. Fewer
      * than that would pass against the broken code and prove nothing. */
     if (connected <= 64) {
-        fprintf(stderr, "FAIL: only %d of %d subscribers connected; need >64 "
-                        "to exercise the teardown path\n", connected, CLIENTS);
-        for (int i = 0; i < CLIENTS; i++) if (fds[i] >= 0) close(fds[i]);
+        fprintf(stderr,
+                "FAIL: only %d of %d subscribers connected; need >64 "
+                "to exercise the teardown path\n",
+                connected, CLIENTS);
+        for (int i = 0; i < CLIENTS; i++)
+            if (fds[i] >= 0) close(fds[i]);
         wf_xrpc_server_free(server);
         return 1;
     }

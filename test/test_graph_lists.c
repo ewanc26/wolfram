@@ -16,10 +16,12 @@ static void test_aturi_parse_valid(void) {
     wf_syntax_aturi parsed = {0};
     WF_CHECK(wf_syntax_aturi_parse(
         "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl", &parsed));
-    WF_CHECK(parsed.authority && strcmp(parsed.authority, "did:plc:abc123") == 0);
-    WF_CHECK(parsed.collection && strcmp(parsed.collection,
-                                         "app.bsky.graph.list") == 0);
-    WF_CHECK(parsed.record_key && strcmp(parsed.record_key, "3abcdefghijkl") == 0);
+    WF_CHECK(parsed.authority &&
+             strcmp(parsed.authority, "did:plc:abc123") == 0);
+    WF_CHECK(parsed.collection &&
+             strcmp(parsed.collection, "app.bsky.graph.list") == 0);
+    WF_CHECK(parsed.record_key &&
+             strcmp(parsed.record_key, "3abcdefghijkl") == 0);
     wf_syntax_aturi_free(&parsed);
 }
 
@@ -33,7 +35,8 @@ static void test_aturi_parse_invalid(void) {
     wf_syntax_aturi_free(&parsed);
 
     WF_CHECK(!wf_syntax_aturi_parse(
-        "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl/extra", &parsed));
+        "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl/extra",
+        &parsed));
     wf_syntax_aturi_free(&parsed);
 }
 
@@ -96,7 +99,8 @@ static void test_update_and_delete_list_validation(void) {
 static void test_list_item_validation(void) {
     wf_agent *agent = wf_agent_new("https://example.com");
     wf_agent_post_result out = {0};
-    const char *list_uri = "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl";
+    const char *list_uri =
+        "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl";
     const char *subject_did = "did:plc:subject123";
 
     WF_CHECK(agent != NULL);
@@ -123,7 +127,8 @@ static void test_list_item_validation(void) {
 static void test_mod_list_action_validation(void) {
     wf_agent *agent = wf_agent_new("https://example.com");
     wf_agent_post_result out = {0};
-    const char *list_uri = "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl";
+    const char *list_uri =
+        "at://did:plc:abc123/app.bsky.graph.list/3abcdefghijkl";
 
     WF_CHECK(agent != NULL);
     WF_CHECK(wf_agent_mute_mod_list(NULL, list_uri) == WF_ERR_INVALID_ARG);
@@ -134,9 +139,11 @@ static void test_mod_list_action_validation(void) {
     WF_CHECK(wf_agent_unmute_mod_list(agent, NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_unmute_mod_list(agent, "bad-uri") == WF_ERR_PARSE);
 
-    WF_CHECK(wf_agent_block_mod_list(NULL, list_uri, &out) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_block_mod_list(NULL, list_uri, &out) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_block_mod_list(agent, NULL, &out) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_block_mod_list(agent, list_uri, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_block_mod_list(agent, list_uri, NULL) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_block_mod_list(agent, "bad-uri", &out) == WF_ERR_PARSE);
 
     WF_CHECK(wf_agent_unblock_mod_list(NULL, list_uri) == WF_ERR_INVALID_ARG);

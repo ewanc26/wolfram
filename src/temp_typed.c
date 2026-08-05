@@ -4,7 +4,8 @@
  * lexicon-authoritative wire formats.
  *
  * Mirrors feed_typed.c / actor_typed.c: static strdup/set_string/reset helpers,
- * ownership via cJSON_DetachItemFromObject, and full cleanup on the first error.
+ * ownership via cJSON_DetachItemFromObject, and full cleanup on the first
+ * error.
  */
 
 #include "wolfram/temp_typed.h"
@@ -51,8 +52,8 @@ static void wf_temp_suggestion_reset(wf_temp_handle_suggestion *s) {
     memset(s, 0, sizeof(*s));
 }
 
-static void wf_temp_check_handle_availability_reset(
-    wf_temp_check_handle_availability *v) {
+static void
+wf_temp_check_handle_availability_reset(wf_temp_check_handle_availability *v) {
     if (!v) {
         return;
     }
@@ -68,8 +69,7 @@ static void wf_temp_check_handle_availability_reset(
 }
 
 wf_status wf_temp_check_handle_availability_parse(
-    const char *json, size_t json_len,
-    wf_temp_check_handle_availability *out) {
+    const char *json, size_t json_len, wf_temp_check_handle_availability *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -92,15 +92,16 @@ wf_status wf_temp_check_handle_availability_parse(
         if (!cJSON_IsObject(result)) {
             status = WF_ERR_PARSE;
         } else {
-            /* resultUnavailable carries "suggestions"; resultAvailable does not. */
+            /* resultUnavailable carries "suggestions"; resultAvailable does
+             * not. */
             cJSON *suggestions =
                 cJSON_GetObjectItemCaseSensitive(result, "suggestions");
             if (cJSON_IsArray(suggestions)) {
                 out->available = 0;
                 size_t n = (size_t)cJSON_GetArraySize(suggestions);
                 if (n > 0) {
-                    out->suggestions =
-                        (wf_temp_handle_suggestion *)calloc(n, sizeof(*out->suggestions));
+                    out->suggestions = (wf_temp_handle_suggestion *)calloc(
+                        n, sizeof(*out->suggestions));
                     if (!out->suggestions) {
                         status = WF_ERR_ALLOC;
                     }
@@ -117,7 +118,8 @@ wf_status wf_temp_check_handle_availability_parse(
                         status = wf_temp_set_string(&out->suggestions[i].handle,
                                                     sh->valuestring);
                     }
-                    if (status == WF_OK && cJSON_IsString(sm) && sm->valuestring) {
+                    if (status == WF_OK && cJSON_IsString(sm) &&
+                        sm->valuestring) {
                         status = wf_temp_set_string(&out->suggestions[i].method,
                                                     sm->valuestring);
                     }
@@ -153,9 +155,8 @@ void wf_temp_check_handle_availability_free(
 
 /* ---- checkSignupQueue --------------------------------------------------- */
 
-wf_status wf_temp_check_signup_queue_parse(
-    const char *json, size_t json_len,
-    wf_temp_check_signup_queue *out) {
+wf_status wf_temp_check_signup_queue_parse(const char *json, size_t json_len,
+                                           wf_temp_check_signup_queue *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -197,9 +198,8 @@ void wf_temp_check_signup_queue_free(wf_temp_check_signup_queue *v) {
 
 /* ---- fetchLabels -------------------------------------------------------- */
 
-wf_status wf_temp_fetch_labels_parse(
-    const char *json, size_t json_len,
-    wf_temp_fetch_labels *out) {
+wf_status wf_temp_fetch_labels_parse(const char *json, size_t json_len,
+                                     wf_temp_fetch_labels *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -234,9 +234,8 @@ void wf_temp_fetch_labels_free(wf_temp_fetch_labels *v) {
 
 /* ---- dereferenceScope --------------------------------------------------- */
 
-wf_status wf_temp_dereference_scope_parse(
-    const char *json, size_t json_len,
-    wf_temp_dereference_scope *out) {
+wf_status wf_temp_dereference_scope_parse(const char *json, size_t json_len,
+                                          wf_temp_dereference_scope *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -273,9 +272,9 @@ void wf_temp_dereference_scope_free(wf_temp_dereference_scope *v) {
 
 /* ---- Write-side parsers (com.atproto.temp procedures) ------------------- */
 
-wf_status wf_temp_add_reserved_handle_parse(
-    const char *json, size_t json_len,
-    wf_temp_add_reserved_handle_result *out) {
+wf_status
+wf_temp_add_reserved_handle_parse(const char *json, size_t json_len,
+                                  wf_temp_add_reserved_handle_result *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -401,15 +400,17 @@ wf_status wf_agent_check_handle_availability(wf_agent *agent,
 
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status = wf_lex_com_atproto_temp_check_handle_availability_main_call(
-        agent->client, &params, &res);
+    wf_status status =
+        wf_lex_com_atproto_temp_check_handle_availability_main_call(
+            agent->client, &params, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
     wf_temp_check_handle_availability out = {0};
-    status = wf_temp_check_handle_availability_parse(res.body, res.body_len, &out);
+    status =
+        wf_temp_check_handle_availability_parse(res.body, res.body_len, &out);
     if (status == WF_OK) {
         *out_available = out.available;
     }
@@ -418,11 +419,10 @@ wf_status wf_agent_check_handle_availability(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_check_signup_queue(wf_agent *agent,
-                                      int *out_activated,
-                                      int *out_closed,
-                                      char **out_place) {
-    if (!agent || !agent->client || !out_activated || !out_closed || !out_place) {
+wf_status wf_agent_check_signup_queue(wf_agent *agent, int *out_activated,
+                                      int *out_closed, char **out_place) {
+    if (!agent || !agent->client || !out_activated || !out_closed ||
+        !out_place) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -459,8 +459,7 @@ wf_status wf_agent_check_signup_queue(wf_agent *agent,
 }
 
 wf_status wf_agent_fetch_labels(wf_agent *agent,
-                                const char *const *did_pointers,
-                                size_t count,
+                                const char *const *did_pointers, size_t count,
                                 cJSON **out_labels) {
     if (did_pointers || count != 0) {
         return WF_ERR_INVALID_ARG;
@@ -468,9 +467,9 @@ wf_status wf_agent_fetch_labels(wf_agent *agent,
     return wf_agent_fetch_labels_query(agent, 0, 0, 0, out_labels);
 }
 
-wf_status wf_agent_fetch_labels_query(wf_agent *agent,
-                                      int has_since, int64_t since,
-                                      int limit, cJSON **out_labels) {
+wf_status wf_agent_fetch_labels_query(wf_agent *agent, int has_since,
+                                      int64_t since, int limit,
+                                      cJSON **out_labels) {
     if (!agent || !agent->client || !out_labels) {
         return WF_ERR_INVALID_ARG;
     }
@@ -498,7 +497,7 @@ wf_status wf_agent_fetch_labels_query(wf_agent *agent,
     wf_temp_fetch_labels out = {0};
     status = wf_temp_fetch_labels_parse(res.body, res.body_len, &out);
     if (status == WF_OK) {
-        *out_labels = out.labels;   /* ownership transferred to caller */
+        *out_labels = out.labels; /* ownership transferred to caller */
         out.labels = NULL;
     }
     wf_temp_fetch_labels_free(&out);
@@ -507,8 +506,8 @@ wf_status wf_agent_fetch_labels_query(wf_agent *agent,
 }
 
 wf_status wf_agent_request_phone_verification(wf_agent *agent,
-                                             const char *phone_number,
-                                             const char *code) {
+                                              const char *phone_number,
+                                              const char *code) {
     if (code) {
         return WF_ERR_INVALID_ARG;
     }
@@ -516,7 +515,7 @@ wf_status wf_agent_request_phone_verification(wf_agent *agent,
 }
 
 wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
-                                                     const char *phone_number) {
+                                                    const char *phone_number) {
     if (!agent || !agent->client || !phone_number || !phone_number[0]) {
         return WF_ERR_INVALID_ARG;
     }
@@ -526,22 +525,23 @@ wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
 
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status = wf_lex_com_atproto_temp_request_phone_verification_main_call(
-        agent->client, &input, &res);
+    wf_status status =
+        wf_lex_com_atproto_temp_request_phone_verification_main_call(
+            agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
 
-wf_status wf_agent_revoke_account_credentials(wf_agent *agent,
-                                              const char *code,
+wf_status wf_agent_revoke_account_credentials(wf_agent *agent, const char *code,
                                               const char *name,
                                               const char *description) {
     (void)code;
     (void)name;
     (void)description;
-    /* TODO: the atproto lexicon input for com.atproto.temp.revokeAccountCredentials
-     * is `account` (an at-identifier), which this helper signature does not carry.
-     * Implement once the wrapper accepts the account identifier rather than fabricating
+    /* TODO: the atproto lexicon input for
+     * com.atproto.temp.revokeAccountCredentials is `account` (an
+     * at-identifier), which this helper signature does not carry. Implement
+     * once the wrapper accepts the account identifier rather than fabricating
      * a request. Until then, fail honestly per AGENTS.md principle 3. */
     if (!agent) {
         return WF_ERR_INVALID_ARG;
@@ -565,8 +565,7 @@ wf_status wf_agent_add_reserved_handle(wf_agent *agent, const char *handle) {
     return status;
 }
 
-wf_status wf_agent_dereference_scope(wf_agent *agent,
-                                     const char *scope,
+wf_status wf_agent_dereference_scope(wf_agent *agent, const char *scope,
                                      char **out_did) {
     if (!agent || !agent->client || !scope || !scope[0] || !out_did) {
         return WF_ERR_INVALID_ARG;
@@ -587,7 +586,7 @@ wf_status wf_agent_dereference_scope(wf_agent *agent,
     wf_temp_dereference_scope out = {0};
     status = wf_temp_dereference_scope_parse(res.body, res.body_len, &out);
     if (status == WF_OK) {
-        *out_did = out.scope;   /* ownership transferred to caller */
+        *out_did = out.scope; /* ownership transferred to caller */
         out.scope = NULL;
     }
     wf_temp_dereference_scope_free(&out);
@@ -669,8 +668,8 @@ wf_status wf_agent_temp_request_phone_verification_typed(
     if (res.body_len == 0) {
         out->ok = 1;
     } else {
-        status = wf_temp_request_phone_verification_parse(res.body, res.body_len,
-                                                          out);
+        status = wf_temp_request_phone_verification_parse(res.body,
+                                                          res.body_len, out);
     }
     wf_response_free(&res);
     return status;
@@ -703,8 +702,8 @@ wf_status wf_agent_temp_revoke_account_credentials_typed(
     if (res.body_len == 0) {
         out->ok = 1;
     } else {
-        status = wf_temp_revoke_account_credentials_parse(res.body, res.body_len,
-                                                          out);
+        status = wf_temp_revoke_account_credentials_parse(res.body,
+                                                          res.body_len, out);
     }
     wf_response_free(&res);
     return status;

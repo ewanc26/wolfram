@@ -19,7 +19,8 @@
 /* server.h is intentionally NOT included here (it pulls in wolfram.h, which
  * includes agent.h, creating a cycle). The single server type referenced by
  * the management wrappers below is forward-declared. */
-typedef struct wf_server_revoke_invite_codes_input wf_server_revoke_invite_codes_input;
+typedef struct wf_server_revoke_invite_codes_input
+    wf_server_revoke_invite_codes_input;
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,14 +56,17 @@ wf_status wf_agent_set_ca_bundle(wf_agent *agent, const char *path);
  * for the data-plane client; on anything but WF_OK nothing is installed on any
  * client, so the agent is never left half-configured.
  */
-wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn, void *userdata);
+wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn,
+                               void *userdata);
 
 /* Session management */
-wf_status wf_agent_login(wf_agent *agent, const char *identifier, const char *password);
+wf_status wf_agent_login(wf_agent *agent, const char *identifier,
+                         const char *password);
 wf_status wf_agent_resume(wf_agent *agent, const wf_session_data *data);
 wf_status wf_agent_get_session(wf_agent *agent);
 wf_status wf_agent_logout(wf_agent *agent);
-/* Copies the current session credentials; free the copy with wf_agent_session_data_free. */
+/* Copies the current session credentials; free the copy with
+ * wf_agent_session_data_free. */
 wf_status wf_agent_get_session_data(wf_agent *agent, wf_session_data *out);
 void wf_agent_session_data_free(wf_session_data *data);
 const char *wf_agent_get_did(wf_agent *agent);
@@ -74,15 +78,19 @@ typedef struct wf_agent_post_result {
     char *cid;
 } wf_agent_post_result;
 
-wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result *out);
+wf_status wf_agent_post(wf_agent *agent, const char *text,
+                        wf_agent_post_result *out);
 wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
-                                    const char *facets_json, wf_agent_post_result *out);
+                                    const char *facets_json,
+                                    wf_agent_post_result *out);
 wf_status wf_agent_delete_post(wf_agent *agent, const char *uri);
 wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
-                                 const char *embed_json, wf_agent_post_result *out);
+                                   const char *embed_json,
+                                   wf_agent_post_result *out);
 /* Generic record creation – works for any collection */
 wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
-                                const char *record_json, wf_agent_post_result *out);
+                                 const char *record_json,
+                                 wf_agent_post_result *out);
 /*
  * Like wf_agent_create_record, but mints a fresh monotonic TID record key
  * internally (via wf_tid_now) instead of requiring the caller to supply one.
@@ -90,32 +98,39 @@ wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
  * unchanged.
  */
 wf_status wf_agent_create_record_with_tid(wf_agent *agent,
-                                         const char *collection,
-                                         const char *record_json,
-                                         wf_agent_post_result *out);
+                                          const char *collection,
+                                          const char *record_json,
+                                          wf_agent_post_result *out);
 void wf_agent_post_result_free(wf_agent_post_result *result);
 
 /* Update handle */
 wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle);
 
 /* Preferences */
-wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json, wf_response *out);
+wf_status wf_agent_put_preferences(wf_agent *agent, const char *prefs_json,
+                                   wf_response *out);
 wf_status wf_agent_get_preferences_typed(
-    wf_agent *agent,
-    wf_lex_app_bsky_actor_get_preferences_main_output **out);
+    wf_agent *agent, wf_lex_app_bsky_actor_get_preferences_main_output **out);
 wf_status wf_agent_put_preferences_json(
     wf_agent *agent,
     const wf_lex_app_bsky_actor_put_preferences_main_input *input,
     wf_response *out);
 
 /* Push notification registration */
-wf_status wf_agent_register_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);
-wf_status wf_agent_unregister_push(wf_agent *agent, const char *service_did, const char *token, wf_response *out);
+wf_status wf_agent_register_push(wf_agent *agent, const char *service_did,
+                                 const char *token, wf_response *out);
+wf_status wf_agent_unregister_push(wf_agent *agent, const char *service_did,
+                                   const char *token, wf_response *out);
 
 /* Extended push APIs with platform and app_id */
-wf_status wf_agent_register_push_ext(wf_agent *agent, const char *service_did, const char *token, const char *platform, const char *app_id, wf_response *out);
-wf_status wf_agent_unregister_push_ext(wf_agent *agent, const char *service_did, const char *token, const char *platform, const char *app_id, wf_response *out);
-wf_status wf_get_notif_endpoint(wf_agent *agent, const char *service_did, char **out_endpoint);
+wf_status wf_agent_register_push_ext(wf_agent *agent, const char *service_did,
+                                     const char *token, const char *platform,
+                                     const char *app_id, wf_response *out);
+wf_status wf_agent_unregister_push_ext(wf_agent *agent, const char *service_did,
+                                       const char *token, const char *platform,
+                                       const char *app_id, wf_response *out);
+wf_status wf_get_notif_endpoint(wf_agent *agent, const char *service_did,
+                                char **out_endpoint);
 
 /* Reply API */
 /* Create a reply with explicit root and parent strong references. Use this
@@ -133,27 +148,26 @@ wf_status wf_agent_reply(wf_agent *agent, const char *text,
 
 /* Quote with a record embed */
 wf_status wf_agent_quote(wf_agent *agent, const char *text,
-                          const char *quote_uri, const char *quote_cid,
-                          wf_agent_post_result *out);
+                         const char *quote_uri, const char *quote_cid,
+                         wf_agent_post_result *out);
 
 /* Quote with a record + media embed */
 wf_status wf_agent_quote_with_media(wf_agent *agent, const char *text,
-                                     const char *quote_uri, const char *quote_cid,
-                                     cJSON *media_embed,
-                                     wf_agent_post_result *out);
-
+                                    const char *quote_uri,
+                                    const char *quote_cid, cJSON *media_embed,
+                                    wf_agent_post_result *out);
 
 /* Record CRUD — wraps com.atproto.repo endpoints */
 wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
-                               const char *rkey, wf_response *out);
+                              const char *rkey, wf_response *out);
 wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
-                                const char *rkey, const char *record_json,
-                                wf_agent_post_result *out);
+                              const char *rkey, const char *record_json,
+                              wf_agent_post_result *out);
 wf_status wf_agent_delete_record(wf_agent *agent, const char *collection,
                                  const char *rkey);
 wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
-                                 int limit, const char *cursor,
-                                 wf_response *out);
+                                int limit, const char *cursor,
+                                wf_response *out);
 
 /* Profile operations */
 typedef struct wf_agent_profile {
@@ -162,22 +176,25 @@ typedef struct wf_agent_profile {
     char *display_name;
     char *description;
     char *avatar_cid;
-    char *following;     /* viewer.following record URI, or NULL */
+    char *following; /* viewer.following record URI, or NULL */
     int followers_count;
     int follows_count;
     int posts_count;
 } wf_agent_profile;
 
-wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_profile *out);
+wf_status wf_agent_get_profile(wf_agent *agent, const char *actor,
+                               wf_agent_profile *out);
 /* Parse an app.bsky.actor.getProfile response without network I/O. */
 wf_status wf_agent_parse_profile(const char *json, size_t json_len,
                                  wf_agent_profile *out);
 void wf_agent_profile_free(wf_agent_profile *profile);
 
 /* Social graph */
-wf_status wf_agent_follow(wf_agent *agent, const char *subject_did, wf_agent_post_result *out);
+wf_status wf_agent_follow(wf_agent *agent, const char *subject_did,
+                          wf_agent_post_result *out);
 wf_status wf_agent_unfollow(wf_agent *agent, const char *follow_uri);
-wf_status wf_agent_like(wf_agent *agent, const char *post_uri, const char *post_cid, wf_agent_post_result *out);
+wf_status wf_agent_like(wf_agent *agent, const char *post_uri,
+                        const char *post_cid, wf_agent_post_result *out);
 wf_status wf_agent_unlike(wf_agent *agent, const char *like_uri);
 wf_status wf_agent_mute(wf_agent *agent, const char *actor);
 wf_status wf_agent_unmute(wf_agent *agent, const char *actor);
@@ -192,84 +209,79 @@ wf_status wf_agent_unmute_actor(wf_agent *agent, const char *actor);
 wf_status wf_agent_mute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_block(wf_agent *agent, const char *subject_did,
-                          wf_agent_post_result *out);
+                         wf_agent_post_result *out);
 wf_status wf_agent_unblock(wf_agent *agent, const char *block_uri);
 
 /* Repost operations */
-wf_status wf_agent_repost(wf_agent *agent, const char *post_uri, const char *post_cid,
-                          wf_agent_post_result *out);
+wf_status wf_agent_repost(wf_agent *agent, const char *post_uri,
+                          const char *post_cid, wf_agent_post_result *out);
 wf_status wf_agent_delete_repost(wf_agent *agent, const char *repost_uri);
 
-/* Feed queries — return raw JSON in `out`; caller frees with wf_response_free. */
+/* Feed queries — return raw JSON in `out`; caller frees with wf_response_free.
+ */
 wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
                                 const char *algorithm, wf_response *out);
-wf_status wf_agent_get_timeline_lex(wf_agent *agent, int limit, const char *cursor, wf_response *out);
+wf_status wf_agent_get_timeline_lex(wf_agent *agent, int limit,
+                                    const char *cursor, wf_response *out);
 wf_status wf_agent_get_author_feed(wf_agent *agent, const char *actor,
-                                    int limit, const char *cursor, const char *filter,
-                                    bool include_pins, wf_response *out);
+                                   int limit, const char *cursor,
+                                   const char *filter, bool include_pins,
+                                   wf_response *out);
 wf_status wf_agent_get_author_feed_lex(wf_agent *agent, const char *actor,
-                                        int limit, const char *cursor, const char *filter,
-                                        wf_response *out);
+                                       int limit, const char *cursor,
+                                       const char *filter, wf_response *out);
 wf_status wf_agent_get_post_thread(wf_agent *agent, const char *uri, int depth,
                                    int parent_height, wf_response *out);
-wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t uri_count,
-                             wf_response *out);
-wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
-                                 int limit, const char *cursor, 
-                                 const char *since, const char *until,
-                                 const char *author, const char *lang,
-                                 wf_response *out);
+wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris,
+                             size_t uri_count, wf_response *out);
+wf_status wf_agent_search_posts(wf_agent *agent, const char *query, int limit,
+                                const char *cursor, const char *since,
+                                const char *until, const char *author,
+                                const char *lang, wf_response *out);
 wf_status wf_agent_search_posts_lex(wf_agent *agent, const char *query,
-                                 int limit, const char *cursor, 
-                                 const char *since, const char *until,
-                                 const char *author, const char *lang,
-                                 wf_response *out);
+                                    int limit, const char *cursor,
+                                    const char *since, const char *until,
+                                    const char *author, const char *lang,
+                                    wf_response *out);
 wf_status wf_agent_get_actor_likes(wf_agent *agent, const char *actor,
                                    int limit, const char *cursor,
                                    wf_response *out);
-wf_status wf_agent_get_likes(wf_agent *agent, const char *uri,
-                             int limit, const char *cursor,
-                             wf_response *out);
-wf_status wf_agent_get_likes_lex(wf_agent *agent, const char *uri,
-                                 int limit, const char *cursor,
-                                 wf_response *out);
-wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri,
-                                    int limit, const char *cursor,
-                                    wf_response *out);
-wf_status wf_agent_get_quotes(wf_agent *agent, const char *uri,
-                               int limit, const char *cursor,
-                               wf_response *out);
-wf_status wf_agent_get_quotes_lex(wf_agent *agent, const char *uri,
-                                 int limit, const char *cursor,
-                                 wf_response *out);
+wf_status wf_agent_get_likes(wf_agent *agent, const char *uri, int limit,
+                             const char *cursor, wf_response *out);
+wf_status wf_agent_get_likes_lex(wf_agent *agent, const char *uri, int limit,
+                                 const char *cursor, wf_response *out);
+wf_status wf_agent_get_reposted_by(wf_agent *agent, const char *uri, int limit,
+                                   const char *cursor, wf_response *out);
+wf_status wf_agent_get_quotes(wf_agent *agent, const char *uri, int limit,
+                              const char *cursor, wf_response *out);
+wf_status wf_agent_get_quotes_lex(wf_agent *agent, const char *uri, int limit,
+                                  const char *cursor, wf_response *out);
 wf_status wf_agent_get_list_feed(wf_agent *agent, const char *list_uri,
-                                  int limit, const char *cursor,
-                                  wf_response *out);
+                                 int limit, const char *cursor,
+                                 wf_response *out);
 wf_status wf_agent_get_list_feed_lex(wf_agent *agent, const char *list_uri,
-                                    int limit, const char *cursor,
-                                    wf_response *out);
-wf_status wf_agent_get_feed(wf_agent *agent, const char *feed_uri,
-                             int limit, const char *cursor,
-                             wf_response *out);
-wf_status wf_agent_get_feed_lex(wf_agent *agent, const char *feed_uri,
-                               int limit, const char *cursor,
-                               wf_response *out);
-wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
                                      int limit, const char *cursor,
                                      wf_response *out);
+wf_status wf_agent_get_feed(wf_agent *agent, const char *feed_uri, int limit,
+                            const char *cursor, wf_response *out);
+wf_status wf_agent_get_feed_lex(wf_agent *agent, const char *feed_uri,
+                                int limit, const char *cursor,
+                                wf_response *out);
+wf_status wf_agent_get_actor_feeds(wf_agent *agent, const char *actor,
+                                   int limit, const char *cursor,
+                                   wf_response *out);
 wf_status wf_agent_get_actor_feeds_lex(wf_agent *agent, const char *actor,
-                                         int limit, const char *cursor,
-                                         wf_response *out);
+                                       int limit, const char *cursor,
+                                       wf_response *out);
 wf_status wf_agent_describe_feed_generator(wf_agent *agent, wf_response *out);
 wf_status wf_agent_get_feed_generator(wf_agent *agent, const char *feed_uri,
-                                       wf_response *out);
+                                      wf_response *out);
 wf_status wf_agent_get_feed_generators(wf_agent *agent,
-                                        const char *const *feed_uris,
-                                        size_t feed_count,
-                                        wf_response *out);
+                                       const char *const *feed_uris,
+                                       size_t feed_count, wf_response *out);
 wf_status wf_agent_get_suggested_feeds(wf_agent *agent, wf_response *out);
 wf_status wf_agent_get_suggestions(wf_agent *agent, int limit,
-                                    const char *cursor, wf_response *out);
+                                   const char *cursor, wf_response *out);
 
 /* Feed skeleton — com.atproto.feed.getFeedSkeleton. Returns the raw JSON
  * skeleton produced by a feed generator (the list of post AT-URIs before
@@ -279,80 +291,78 @@ wf_status wf_agent_get_feed_skeleton(wf_agent *agent, const char *feed_uri,
                                      int limit, const char *cursor,
                                      wf_response *out);
 
-/* Graph queries — return raw JSON in `out`; caller frees with wf_response_free. */
+/* Graph queries — return raw JSON in `out`; caller frees with wf_response_free.
+ */
 wf_status wf_agent_get_profiles(wf_agent *agent, const char *const *actors,
-                                 size_t actors_count, int limit,
+                                size_t actors_count, int limit,
+                                const char *cursor, wf_response *out);
+wf_status wf_agent_get_follows(wf_agent *agent, const char *actor, int limit,
+                               const char *cursor, wf_response *out);
+wf_status wf_agent_get_followers(wf_agent *agent, const char *actor, int limit,
                                  const char *cursor, wf_response *out);
-wf_status wf_agent_get_follows(wf_agent *agent, const char *actor,
-                                 int limit, const char *cursor, wf_response *out);
-wf_status wf_agent_get_followers(wf_agent *agent, const char *actor,
-                                   int limit, const char *cursor, wf_response *out);
 wf_status wf_agent_get_blocks(wf_agent *agent, int limit, const char *cursor,
-                               wf_response *out);
-wf_status wf_agent_get_list_blocks(wf_agent *agent, int limit,
-                                    const char *cursor, wf_response *out);
-wf_status wf_agent_get_list_mutes(wf_agent *agent, int limit,
-                                   const char *cursor, wf_response *out);
-wf_status wf_agent_get_mutes(wf_agent *agent, int limit, const char *cursor,
                               wf_response *out);
+wf_status wf_agent_get_list_blocks(wf_agent *agent, int limit,
+                                   const char *cursor, wf_response *out);
+wf_status wf_agent_get_list_mutes(wf_agent *agent, int limit,
+                                  const char *cursor, wf_response *out);
+wf_status wf_agent_get_mutes(wf_agent *agent, int limit, const char *cursor,
+                             wf_response *out);
 wf_status wf_agent_get_known_followers(wf_agent *agent, const char *actor,
                                        int limit, const char *cursor,
                                        wf_response *out);
 wf_status wf_agent_get_relationships(wf_agent *agent, const char *actor,
-                                     const char *const *others, size_t others_count,
-                                     wf_response *out);
-wf_status wf_agent_get_list(wf_agent *agent, const char *list_uri,
-                            int limit, const char *cursor,
-                            wf_response *out);
-wf_status wf_agent_get_lists(wf_agent *agent, const char *actor,
-                              int limit, const char *cursor,
-                              wf_response *out);
+                                     const char *const *others,
+                                     size_t others_count, wf_response *out);
+wf_status wf_agent_get_list(wf_agent *agent, const char *list_uri, int limit,
+                            const char *cursor, wf_response *out);
+wf_status wf_agent_get_lists(wf_agent *agent, const char *actor, int limit,
+                             const char *cursor, wf_response *out);
 wf_status wf_agent_get_suggested_follows_by_actor(wf_agent *agent,
-                                                    const char *actor,
-                                                    wf_response *out);
+                                                  const char *actor,
+                                                  wf_response *out);
 
 /* Convenience alias for `wf_agent_get_suggested_follows_by_actor`:
  * com.atproto.graph.getSuggestedFollowsByActor. The raw JSON response is
- * written to `out`; the caller owns `out` and frees it with wf_response_free. */
-wf_status wf_agent_get_suggested_follows(wf_agent *agent,
-                                         const char *actor,
+ * written to `out`; the caller owns `out` and frees it with wf_response_free.
+ */
+wf_status wf_agent_get_suggested_follows(wf_agent *agent, const char *actor,
                                          wf_response *out);
 
 /* Starter packs */
 wf_status wf_agent_get_actor_starter_packs(wf_agent *agent, const char *actor,
-                                            int limit, const char *cursor,
-                                            wf_response *out);
+                                           int limit, const char *cursor,
+                                           wf_response *out);
 wf_status wf_agent_get_starter_pack(wf_agent *agent,
-                                     const char *starter_pack_uri,
-                                     wf_response *out);
-wf_status wf_agent_get_starter_packs(wf_agent *agent,
-                                      const char *const *uris,
-                                      size_t uri_count,
-                                      wf_response *out);
+                                    const char *starter_pack_uri,
+                                    wf_response *out);
+wf_status wf_agent_get_starter_packs(wf_agent *agent, const char *const *uris,
+                                     size_t uri_count, wf_response *out);
 wf_status wf_agent_search_starter_packs(wf_agent *agent, const char *query,
-                                         int limit, const char *cursor,
-                                         wf_response *out);
+                                        int limit, const char *cursor,
+                                        wf_response *out);
 wf_status wf_agent_get_starter_packs_with_membership(wf_agent *agent,
-                                                      const char *actor,
-                                                      int limit,
-                                                      const char *cursor,
-                                                      wf_response *out);
+                                                     const char *actor,
+                                                     int limit,
+                                                     const char *cursor,
+                                                     wf_response *out);
 
 /* List management — create, update, delete lists and list items. */
 typedef struct wf_agent_create_list_params {
-    const char *purpose;     /* app.bsky.graph.defs#modlist / #curatelist / #referencelist */
+    const char *purpose;     /* app.bsky.graph.defs#modlist / #curatelist /
+                                #referencelist */
     const char *name;        /* required */
     const char *description; /* optional */
     const char *description_facets_json; /* optional JSON array of facets */
-    const char *avatar_cid;  /* optional CID of a pre-uploaded blob */
+    const char *avatar_cid; /* optional CID of a pre-uploaded blob */
 } wf_agent_create_list_params;
 
 wf_status wf_agent_create_list(wf_agent *agent,
-                              const wf_agent_create_list_params *params,
-                              wf_agent_post_result *out);
+                               const wf_agent_create_list_params *params,
+                               wf_agent_post_result *out);
 
 typedef struct wf_agent_update_list_params {
-    const char *list_uri;   /* at:// URI of the list */
+    const char *list_uri; /* at:// URI of the list */
     const char *name;
     const char *description;
     const char *description_facets_json;
@@ -360,14 +370,12 @@ typedef struct wf_agent_update_list_params {
 } wf_agent_update_list_params;
 
 wf_status wf_agent_update_list(wf_agent *agent,
-                              const wf_agent_update_list_params *params);
+                               const wf_agent_update_list_params *params);
 wf_status wf_agent_delete_list(wf_agent *agent, const char *list_uri);
-wf_status wf_agent_add_list_item(wf_agent *agent,
-                                 const char *list_uri,
+wf_status wf_agent_add_list_item(wf_agent *agent, const char *list_uri,
                                  const char *subject_did,
                                  wf_agent_post_result *out);
-wf_status wf_agent_remove_list_item(wf_agent *agent,
-                                    const char *list_item_uri);
+wf_status wf_agent_remove_list_item(wf_agent *agent, const char *list_item_uri);
 wf_status wf_agent_mute_mod_list(wf_agent *agent, const char *list_uri);
 wf_status wf_agent_unmute_mod_list(wf_agent *agent, const char *list_uri);
 wf_status wf_agent_block_mod_list(wf_agent *agent, const char *list_uri,
@@ -383,10 +391,12 @@ wf_status wf_agent_unblock_mod_list(wf_agent *agent, const char *list_uri);
  * internally). */
 wf_status wf_agent_unmute_actor_list(wf_agent *agent, const char *list_uri);
 
-/* Notifications — return raw JSON in `out`; caller frees with wf_response_free. */
-wf_status wf_agent_list_notifications(wf_agent *agent, int limit, const char *cursor,
-                                     wf_response *out);
-wf_status wf_agent_update_seen_notifications(wf_agent *agent, const char *seen_at);
+/* Notifications — return raw JSON in `out`; caller frees with wf_response_free.
+ */
+wf_status wf_agent_list_notifications(wf_agent *agent, int limit,
+                                      const char *cursor, wf_response *out);
+wf_status wf_agent_update_seen_notifications(wf_agent *agent,
+                                             const char *seen_at);
 wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out);
 
 /* Notifications — typed output.
@@ -419,7 +429,7 @@ typedef struct wf_agent_notification {
     wf_agent_profile_view author;
     char *reason;
     char *reason_subject;
-    cJSON *record;          /* owned parsed record; NULL when absent */
+    cJSON *record; /* owned parsed record; NULL when absent */
     int is_read;
     char *indexed_at;
     wf_agent_label *labels;
@@ -445,41 +455,46 @@ void wf_agent_notification_list_free(wf_agent_notification_list *list);
 /* Typed unread count — writes the integer `count` from getUnreadCount. */
 wf_status wf_agent_get_unread_count_typed(wf_agent *agent, int *out_count);
 
-/* Actor search — return raw JSON in `out`; caller frees with wf_response_free. */
-wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
-                                int limit, const char *cursor, wf_response *out);
+/* Actor search — return raw JSON in `out`; caller frees with wf_response_free.
+ */
+wf_status wf_agent_search_actors(wf_agent *agent, const char *query, int limit,
+                                 const char *cursor, wf_response *out);
 wf_status wf_agent_search_actors_typeahead(wf_agent *agent, const char *query,
                                            int limit, wf_response *out);
 
 /* Profile update — upsert the caller's profile record via putRecord. */
 typedef struct wf_agent_profile_update {
-    const char *display_name;  /* NULL to omit */
-    const char *description;   /* NULL to omit */
-    const char *avatar_cid;    /* CID of a pre-uploaded blob, or NULL */
-    const char *banner_cid;    /* CID of a pre-uploaded blob, or NULL */
+    const char *display_name; /* NULL to omit */
+    const char *description;  /* NULL to omit */
+    const char *avatar_cid;   /* CID of a pre-uploaded blob, or NULL */
+    const char *banner_cid;   /* CID of a pre-uploaded blob, or NULL */
 } wf_agent_profile_update;
 
-wf_status wf_agent_update_profile(wf_agent *agent, const wf_agent_profile_update *update);
+wf_status wf_agent_update_profile(wf_agent *agent,
+                                  const wf_agent_profile_update *update);
 
 /* Blob upload — wraps wf_xrpc_upload_blob on the agent's XRPC client. */
-wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_len,
-                               const char *content_type, wf_response *out);
+wf_status wf_agent_upload_blob(wf_agent *agent, const void *data,
+                               size_t data_len, const char *content_type,
+                               wf_response *out);
 
-/* Handle resolution — resolve a handle to a DID via com.atproto.identity.resolveHandle. */
-wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **out_did);
+/* Handle resolution — resolve a handle to a DID via
+ * com.atproto.identity.resolveHandle. */
+wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle,
+                                  char **out_did);
 
 /* Sync endpoints — wraps com.atproto.sync endpoints (no auth required). */
-wf_status wf_agent_sync_get_blob(wf_agent *agent, const char *did, const char *cid,
-                                 wf_response *out);
+wf_status wf_agent_sync_get_blob(wf_agent *agent, const char *did,
+                                 const char *cid, wf_response *out);
 wf_status wf_agent_sync_get_blocks(wf_agent *agent, const char *did,
                                    const char *const *cids, size_t cid_count,
                                    wf_response *out);
 wf_status wf_agent_sync_get_record(wf_agent *agent, const char *did,
                                    const char *collection, const char *rkey,
                                    wf_response *out);
-wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did,
-                                   int limit, const char *cursor,
-                                   const char *since, wf_response *out);
+wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did, int limit,
+                                   const char *cursor, const char *since,
+                                   wf_response *out);
 
 /* Batch record operations — wraps com.atproto.repo.applyWrites */
 typedef enum {
@@ -491,13 +506,12 @@ typedef enum {
 typedef struct wf_agent_write {
     wf_agent_write_type type;
     const char *collection;
-    const char *rkey;         /* NULL for auto-generated on create */
-    const char *value_json;   /* JSON string of record value; NULL for delete */
+    const char *rkey;       /* NULL for auto-generated on create */
+    const char *value_json; /* JSON string of record value; NULL for delete */
 } wf_agent_write;
 
-wf_status wf_agent_apply_writes(wf_agent *agent,
-                                 const wf_agent_write *writes, size_t write_count,
-                                 wf_response *out);
+wf_status wf_agent_apply_writes(wf_agent *agent, const wf_agent_write *writes,
+                                size_t write_count, wf_response *out);
 
 /* Server account management — wraps com.atproto.server endpoints. */
 typedef struct wf_agent_server_description {
@@ -511,7 +525,8 @@ typedef struct wf_agent_server_description {
     char *contact_email;
 } wf_agent_server_description;
 
-wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description *out);
+wf_status wf_agent_describe_server(wf_agent *agent,
+                                   wf_agent_server_description *out);
 void wf_agent_server_description_free(wf_agent_server_description *desc);
 
 typedef struct wf_agent_app_password {
@@ -520,7 +535,8 @@ typedef struct wf_agent_app_password {
     int privileged;
 } wf_agent_app_password;
 
-wf_status wf_agent_create_app_password(wf_agent *agent, const char *name, int privileged,
+wf_status wf_agent_create_app_password(wf_agent *agent, const char *name,
+                                       int privileged,
                                        wf_agent_app_password *out);
 void wf_agent_app_password_free(wf_agent_app_password *pwd);
 
@@ -529,27 +545,30 @@ typedef struct wf_agent_app_password_list {
     size_t password_count;
 } wf_agent_app_password_list;
 
-wf_status wf_agent_list_app_passwords(wf_agent *agent, wf_agent_app_password_list *out);
+wf_status wf_agent_list_app_passwords(wf_agent *agent,
+                                      wf_agent_app_password_list *out);
 void wf_agent_app_password_list_free(wf_agent_app_password_list *list);
 
 wf_status wf_agent_revoke_app_password(wf_agent *agent, const char *name);
-wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *password,
-                                  const char *token);
+wf_status wf_agent_delete_account(wf_agent *agent, const char *did,
+                                  const char *password, const char *token);
 
-/* Repository sync — local verified repo mirror for incremental diff application. */
+/* Repository sync — local verified repo mirror for incremental diff
+ * application. */
 wf_status wf_agent_set_did(wf_agent *agent, const char *did);
 wf_status wf_agent_set_signing_key(wf_agent *agent, const char *key);
 wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car);
 wf_status wf_agent_apply_repo_diff(wf_agent *agent,
-                                   const unsigned char *car_bytes, size_t car_len);
+                                   const unsigned char *car_bytes,
+                                   size_t car_len);
 wf_status wf_agent_repo_head(wf_agent *agent, char **out_head);
 wf_status wf_agent_invert_repo_operations(wf_agent *agent,
                                           const wf_repo_operation *operations,
                                           size_t count,
                                           wf_repo_operation **out_inverse);
 wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
-                                      const char *rkey,
-                                      unsigned char **out_data, size_t *out_len);
+                                     const char *rkey, unsigned char **out_data,
+                                     size_t *out_len);
 
 /* Repository mirror persistence — bridge to the optional SQLite wf_store.
  *
@@ -599,7 +618,7 @@ wf_status wf_agent_persist_label(wf_agent *agent, const wf_mod_label *label);
  * wf_agent_load_labels_from_store). Borrowed; valid until the next load or
  * wf_agent_free. */
 const wf_mod_label *wf_agent_get_persisted_labels(const wf_agent *agent,
-                                                 size_t *out_count);
+                                                  size_t *out_count);
 #endif
 
 /* Typed feed/thread parsers — convert raw JSON from app.bsky.feed timeline,
@@ -656,15 +675,13 @@ wf_status wf_response_cursor(const wf_response *resp, char **out_cursor);
  * Either `call` or `on_page` may return a non-WF_OK status to abort the loop;
  * that status is propagated to the caller. */
 typedef wf_status (*wf_agent_page_call_fn)(wf_agent *agent, int limit,
-                                            const char *cursor,
-                                            wf_response *out, void *ud);
+                                           const char *cursor, wf_response *out,
+                                           void *ud);
 typedef wf_status (*wf_agent_page_cb)(wf_agent *agent, const char *cursor,
-                                       wf_response *resp, void *ud);
+                                      wf_response *resp, void *ud);
 
-wf_status wf_agent_page(wf_agent *agent,
-                        wf_agent_page_call_fn call,
-                        int limit, int max_pages,
-                        wf_agent_page_cb on_page, void *ud,
+wf_status wf_agent_page(wf_agent *agent, wf_agent_page_call_fn call, int limit,
+                        int max_pages, wf_agent_page_cb on_page, void *ud,
                         char **out_last_cursor);
 
 /* Typed paged wrappers. `on_page` is invoked once per page with a borrow of
@@ -672,31 +689,31 @@ wf_status wf_agent_page(wf_agent *agent,
  * a heap-allocated copy of the final cursor (caller frees with free()) or NULL
  * when the sequence was exhausted. */
 typedef wf_status (*wf_agent_timeline_page_cb)(wf_agent *agent,
-                                                const wf_agent_feed_list *feed,
-                                                const char *cursor, void *ud);
+                                               const wf_agent_feed_list *feed,
+                                               const char *cursor, void *ud);
 wf_status wf_agent_get_timeline_paged(wf_agent *agent, int limit, int max_pages,
                                       wf_agent_timeline_page_cb on_page,
                                       void *ud, char **out_last_cursor);
 
-typedef wf_status (*wf_agent_author_feed_page_cb)(wf_agent *agent,
-                                                   const wf_agent_feed_list *feed,
-                                                   const char *cursor, void *ud);
+typedef wf_status (*wf_agent_author_feed_page_cb)(
+    wf_agent *agent, const wf_agent_feed_list *feed, const char *cursor,
+    void *ud);
 wf_status wf_agent_get_author_feed_paged(wf_agent *agent, const char *actor,
                                          int limit, int max_pages,
                                          wf_agent_author_feed_page_cb on_page,
                                          void *ud, char **out_last_cursor);
 
 typedef wf_status (*wf_agent_notifications_page_cb)(
-    wf_agent *agent, const wf_agent_notification_list *list,
-    const char *cursor, void *ud);
-wf_status wf_agent_list_notifications_paged(wf_agent *agent, int limit,
-                                            int max_pages,
-                                            wf_agent_notifications_page_cb on_page,
-                                            void *ud, char **out_last_cursor);
+    wf_agent *agent, const wf_agent_notification_list *list, const char *cursor,
+    void *ud);
+wf_status
+wf_agent_list_notifications_paged(wf_agent *agent, int limit, int max_pages,
+                                  wf_agent_notifications_page_cb on_page,
+                                  void *ud, char **out_last_cursor);
 
 typedef wf_status (*wf_agent_records_page_cb)(wf_agent *agent,
-                                               const wf_response *resp,
-                                               const char *cursor, void *ud);
+                                              const wf_response *resp,
+                                              const char *cursor, void *ud);
 wf_status wf_agent_list_records_paged(wf_agent *agent, const char *collection,
                                       int limit, int max_pages,
                                       wf_agent_records_page_cb on_page,
@@ -710,7 +727,8 @@ wf_status wf_agent_list_records_paged(wf_agent *agent, const char *collection,
  * in `out`; caller frees it with wf_response_free. The body carries the full
  * profileView (including `viewer` state and `labels`) needed to build a
  * moderation subject. NULL agent/out -> WF_ERR_INVALID_ARG. */
-wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor, wf_response *out);
+wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor,
+                                   wf_response *out);
 
 /* Fetch the current user's `app.bsky.actor.getPreferences` and return the
  * `preferences` array as a heap-owned JSON string in *out_json.
@@ -734,16 +752,20 @@ wf_status wf_agent_get_preferences(wf_agent *agent, char **out_json);
 wf_status wf_agent_moderate_init_opts(wf_agent *agent, wf_mod_opts *out);
 
 /* Moderate an actor's profile: fetch it, build a wf_mod_subject_profile,
- * load the user's opts, and merge wf_mod_decide_account + wf_mod_decide_profile.
- * On WF_OK, *out is a heap-owned wf_mod_decision freed by the caller with
- * wf_mod_decision_free. NULL agent/actor/out -> WF_ERR_INVALID_ARG. */
-wf_status wf_agent_moderate_profile(wf_agent *agent, const char *actor, wf_mod_decision **out);
+ * load the user's opts, and merge wf_mod_decide_account +
+ * wf_mod_decide_profile. On WF_OK, *out is a heap-owned wf_mod_decision freed
+ * by the caller with wf_mod_decision_free. NULL agent/actor/out ->
+ * WF_ERR_INVALID_ARG. */
+wf_status wf_agent_moderate_profile(wf_agent *agent, const char *actor,
+                                    wf_mod_decision **out);
 
 /* Moderate a post: fetch its thread, build a wf_mod_subject_post (author
  * viewer/labels + post labels/text + embed), load the user's opts, and call
  * wf_mod_decide_post. On WF_OK, *out is a heap-owned wf_mod_decision freed by
- * the caller with wf_mod_decision_free. NULL agent/uri/out -> WF_ERR_INVALID_ARG. */
-wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri, wf_mod_decision **out);
+ * the caller with wf_mod_decision_free. NULL agent/uri/out ->
+ * WF_ERR_INVALID_ARG. */
+wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri,
+                                 wf_mod_decision **out);
 
 /*
  * Offline-testable JSON shims (no network). Parse a profileView JSON object
@@ -767,13 +789,10 @@ wf_status wf_agent_mod_profile_subject_from_json(const cJSON *obj,
  * wf_mod_labels_free). On WF_OK the caller must free both label arrays after
  * the decision is computed.
  */
-wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
-                                              const cJSON *author,
-                                              wf_mod_subject_post *out,
-                                              wf_mod_label **out_labels,
-                                              size_t *out_label_count,
-                                                                 wf_mod_label **out_author_labels,
-                                                                 size_t *out_author_label_count);
+wf_status wf_agent_mod_post_subject_from_json(
+    const cJSON *post, const cJSON *author, wf_mod_subject_post *out,
+    wf_mod_label **out_labels, size_t *out_label_count,
+    wf_mod_label **out_author_labels, size_t *out_author_label_count);
 
 /* ── actor status ───────────────────────────────────────────────────── */
 
@@ -785,23 +804,22 @@ wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
  * omit). On success, `*out` receives the URI and CID.
  */
 wf_status wf_agent_put_actor_status(wf_agent *agent, const char *status,
-                                     int duration_minutes,
-                                     const char *embed_json,
-                                     wf_agent_post_result *out);
+                                    int duration_minutes,
+                                    const char *embed_json,
+                                    wf_agent_post_result *out);
 
 /*
  * Poll the status of a video processing job by job ID.
  * Returns raw JSON; caller frees with wf_response_free.
  */
 wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
-                                          wf_response *out);
+                                        wf_response *out);
 
 /*
  * Get the authenticated user's video upload limits.
  * Returns raw JSON; caller frees with wf_response_free.
  */
-wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
-                                             wf_response *out);
+wf_status wf_agent_get_video_upload_limits(wf_agent *agent, wf_response *out);
 
 /* ── server wrappers ─────────────────────────────────────────────────── */
 
@@ -810,15 +828,15 @@ wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
  * Returns raw JSON; caller frees with wf_response_free.
  */
 wf_status wf_agent_create_invite_code(wf_agent *agent, int use_count,
-                                       wf_response *out);
+                                      wf_response *out);
 
 /*
  * Get the authenticated user's available invite codes.
  * Returns raw JSON; caller frees with wf_response_free.
  */
 wf_status wf_agent_get_account_invite_codes(wf_agent *agent, int limit,
-                                             const char *cursor,
-                                             wf_response *out);
+                                            const char *cursor,
+                                            wf_response *out);
 
 /* Activate or deactivate the authenticated user's account. */
 wf_status wf_agent_activate_account(wf_agent *agent, wf_response *out);
@@ -829,9 +847,9 @@ wf_status wf_agent_check_account_status(wf_agent *agent, wf_response *out);
 
 /* Confirm an email with a token, or update the account email. */
 wf_status wf_agent_confirm_email(wf_agent *agent, const char *email,
-                                  const char *token, wf_response *out);
+                                 const char *token, wf_response *out);
 wf_status wf_agent_update_email(wf_agent *agent, const char *email,
-                                 wf_response *out);
+                                wf_response *out);
 
 /* ── identity/server management ──────────────────────────────────────── */
 /* Convenience wrappers over the com.atproto.identity and com.atproto.server
@@ -849,35 +867,36 @@ wf_status wf_agent_check_handle(wf_agent *agent,
                                 wf_identity_check_handle_result *out);
 
 /* Verify that a handle bi-directionally matches its DID (local convenience). */
-wf_status wf_agent_verify_handle(wf_agent *agent, const char *handle, int *out_valid);
+wf_status wf_agent_verify_handle(wf_agent *agent, const char *handle,
+                                 int *out_valid);
 
 /* Revoke invite codes. */
-wf_status wf_agent_revoke_invite_codes(
-    wf_agent *agent, const wf_server_revoke_invite_codes_input *input);
+wf_status
+wf_agent_revoke_invite_codes(wf_agent *agent,
+                             const wf_server_revoke_invite_codes_input *input);
 
 /* ── identity wrappers ───────────────────────────────────────────────── */
 
 /* Resolve a DID to its DID document. Returns raw JSON. */
 wf_status wf_agent_resolve_did(wf_agent *agent, const char *did,
-                                wf_response *out);
+                               wf_response *out);
 
 /* Get recommended DID credentials for account creation. Returns raw JSON. */
 wf_status wf_agent_get_recommended_did_credentials(wf_agent *agent,
-                                                    wf_response *out);
+                                                   wf_response *out);
 
 /* Describe a repository (owner DID, handle, collections, etc.). */
 wf_status wf_agent_describe_repo(wf_agent *agent, const char *repo,
-                                  wf_response *out);
+                                 wf_response *out);
 
 /*
  * Send feed interactions for suggestion training.
  * `feed_uri` may be NULL. `interactions_json` is a JSON array of interaction
  * objects (see app.bsky.feed.sendInteractions).
  */
-wf_status wf_agent_send_interactions(wf_agent *agent,
-                                      const char *feed_uri,
-                                      const char *interactions_json,
-                                      wf_response *out);
+wf_status wf_agent_send_interactions(wf_agent *agent, const char *feed_uri,
+                                     const char *interactions_json,
+                                     wf_response *out);
 
 #ifdef __cplusplus
 }

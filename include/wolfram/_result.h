@@ -14,8 +14,10 @@ typedef wf_status wf_error;
 extern "C" {
 #endif
 
-#define wf_ok(t, v) ((wf_result)(t##_result){.ok = true, .error = {.ok = true}, .value = {.t = v}})
-#define wf_err(e)  ((wf_result) {.ok = false, .error = {.ok = false}, .error = e})
+#define wf_ok(t, v)                                                            \
+    ((wf_result)(t##_result){                                                  \
+        .ok = true, .error = {.ok = true}, .value = {.t = v}})
+#define wf_err(e) ((wf_result){.ok = false, .error = {.ok = false}, .error = e})
 
 typedef union wf_result_detail {
     bool ok;

@@ -22,8 +22,10 @@ static int build_commit_car(const char *did, const char *rev,
     if (s != WF_OK) return 0;
 
     wf_cid mst_root = {{0}, 0};
-    mst_root.bytes[0] = 0x01; mst_root.bytes[1] = 0x71;
-    mst_root.bytes[2] = 0x12; mst_root.bytes[3] = 0x20;
+    mst_root.bytes[0] = 0x01;
+    mst_root.bytes[1] = 0x71;
+    mst_root.bytes[2] = 0x12;
+    mst_root.bytes[3] = 0x20;
     mst_root.len = 36;
 
     wf_car car;
@@ -31,10 +33,16 @@ static int build_commit_car(const char *did, const char *rev,
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
     s = wf_commit_create(did, rev, &mst_root, NULL, &key, &car, &commit);
-    if (s != WF_OK) { wf_car_free(&car); return 0; }
+    if (s != WF_OK) {
+        wf_car_free(&car);
+        return 0;
+    }
 
     s = wf_car_write(&car, out_car, out_len);
-    if (s != WF_OK) { wf_car_free(&car); return 0; }
+    if (s != WF_OK) {
+        wf_car_free(&car);
+        return 0;
+    }
 
     *out_commit_cid = commit.cid;
     wf_car_free(&car);
@@ -47,18 +55,22 @@ static void test_verify_null_args(void) {
     wf_xrpc_client *client = test_client();
     int verified = 0;
     wf_commit commit;
-    WF_CHECK(wf_sync_verify_commit(NULL, client, &verified, &commit) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_sync_verify_commit(NULL, client, &verified, &commit) ==
+             WF_ERR_INVALID_ARG);
     {
         wf_subscribe_commit c = {0};
-        WF_CHECK(wf_sync_verify_commit(&c, NULL, &verified, &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sync_verify_commit(&c, NULL, &verified, &commit) ==
+                 WF_ERR_INVALID_ARG);
     }
     {
         wf_subscribe_commit c = {0};
-        WF_CHECK(wf_sync_verify_commit(&c, client, NULL, &commit) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sync_verify_commit(&c, client, NULL, &commit) ==
+                 WF_ERR_INVALID_ARG);
     }
     {
         wf_subscribe_commit c = {0};
-        WF_CHECK(wf_sync_verify_commit(&c, client, &verified, NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sync_verify_commit(&c, client, &verified, NULL) ==
+                 WF_ERR_INVALID_ARG);
     }
     wf_xrpc_client_free(client);
 }
@@ -68,8 +80,10 @@ static void test_verify_empty_blocks(void) {
     int verified = 0;
     wf_commit commit;
     wf_subscribe_commit c = {0};
-    c.did[0] = 'd'; c.did[1] = '\0';
-    WF_CHECK(wf_sync_verify_commit(&c, client, &verified, &commit) == WF_ERR_INVALID_ARG);
+    c.did[0] = 'd';
+    c.did[1] = '\0';
+    WF_CHECK(wf_sync_verify_commit(&c, client, &verified, &commit) ==
+             WF_ERR_INVALID_ARG);
     wf_xrpc_client_free(client);
 }
 
@@ -79,7 +93,8 @@ static void test_verify_outputs_zeroed_on_failure(void) {
     wf_commit commit;
     memset(&commit, 0xAA, sizeof(commit));
     wf_subscribe_commit c = {0};
-    WF_CHECK(wf_sync_verify_commit(&c, client, &verified, &commit) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_sync_verify_commit(&c, client, &verified, &commit) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(verified == 0);
     WF_CHECK(commit.sig_len == 0);
     wf_xrpc_client_free(client);
@@ -93,8 +108,8 @@ static void test_verify_valid_car_unresolvable_did(void) {
     wf_cid commit_cid = {{0}, 0};
 
     if (!build_commit_car("did:plc:nonexistent00000000000000",
-                          "3abcdefghijklmnop",
-                          &car_bytes, &car_len, &commit_cid)) {
+                          "3abcdefghijklmnop", &car_bytes, &car_len,
+                          &commit_cid)) {
         /* Key generation not available (no libsecp256k1) — skip gracefully */
         return;
     }
@@ -112,7 +127,8 @@ static void test_verify_valid_car_unresolvable_did(void) {
     memset(&parsed, 0, sizeof(parsed));
     wf_status status = wf_sync_verify_commit(&c, client, &verified, &parsed);
 
-    /* CAR parsing succeeds, DID resolution fails (no network / no PLC record) */
+    /* CAR parsing succeeds, DID resolution fails (no network / no PLC record)
+     */
     WF_CHECK(status != WF_OK);
     WF_CHECK(verified == 0);
 
@@ -128,10 +144,12 @@ static void test_verify_with_client_no_network(void) {
     int verified = 0;
     wf_commit commit;
     wf_subscribe_commit c = {0};
-    c.did[0] = 'd'; c.did[1] = '\0';
-    c.blocks = (unsigned char*)"";
+    c.did[0] = 'd';
+    c.did[1] = '\0';
+    c.blocks = (unsigned char *)"";
     c.blocks_len = 0;
-    WF_CHECK(wf_sync_verify_commit(&c, client, &verified, &commit) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_sync_verify_commit(&c, client, &verified, &commit) ==
+             WF_ERR_INVALID_ARG);
     wf_xrpc_client_free(client);
 }
 

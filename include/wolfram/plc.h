@@ -42,7 +42,7 @@ extern "C" {
 typedef struct wf_plc_operation_update {
     /** Rotation keys (array of did:key strings). NULL/0 -> empty array. */
     const char *const *rotation_keys;
-    size_t             rotation_keys_count;
+    size_t rotation_keys_count;
     /**
      * verificationMethods map as a JSON object string, e.g.
      * "{\"atproto\":\"did:key:...\"}". NULL -> empty object.
@@ -55,7 +55,7 @@ typedef struct wf_plc_operation_update {
     const char *services_json;
     /** alsoKnownAs entries (array of "at://..." strings). NULL/0 -> empty. */
     const char *const *also_known_as;
-    size_t             also_known_as_count;
+    size_t also_known_as_count;
     /**
      * Previous operation CID string, or NULL for a genesis operation.
      * For non-genesis updates this must be the CID of the current operation
@@ -73,7 +73,8 @@ typedef struct wf_plc_operation_update {
 wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
                                  char **out_json);
 
-/** Free a JSON string owned by wf_plc_operation_build / wf_plc_operation_sign. */
+/** Free a JSON string owned by wf_plc_operation_build / wf_plc_operation_sign.
+ */
 void wf_plc_operation_free(char *json);
 
 /**
@@ -88,8 +89,7 @@ void wf_plc_operation_free(char *json);
  * (the input with a `sig` map attached) and must be released with
  * wf_plc_operation_free.
  */
-wf_status wf_plc_operation_sign(const char *op_json,
-                                const wf_signing_key *key,
+wf_status wf_plc_operation_sign(const char *op_json, const wf_signing_key *key,
                                 char **out_signed_json);
 
 /**
@@ -114,8 +114,7 @@ wf_status wf_plc_operation_verify(const char *signed_json,
  *
  * On WF_OK, *out_signed_json must be released with wf_plc_operation_free.
  */
-wf_status wf_plc_sign_operation(wf_xrpc_client *client,
-                                const char *did,
+wf_status wf_plc_sign_operation(wf_xrpc_client *client, const char *did,
                                 const wf_plc_operation_update *update,
                                 const wf_signing_key *key,
                                 char **out_signed_json);
@@ -160,7 +159,8 @@ wf_status wf_plc_operation_compute_did(const char *signed_op_json,
  * This is used during initial account creation, bypassing the
  * com.atproto.identity.submitPlcOperation XRPC procedure.
  *
- * @param plc_directory_url Base URL of the PLC directory (e.g., "https://plc.directory")
+ * @param plc_directory_url Base URL of the PLC directory (e.g.,
+ * "https://plc.directory")
  * @param did The DID to submit the operation for (e.g., "did:plc:abc123")
  * @param signed_op_json The signed operation as a JSON string
  */

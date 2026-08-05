@@ -18,13 +18,14 @@
  * The deprecated declarations are suppressed here; migration to EVP
  * is tracked as a separate refactoring item. */
 _Pragma("GCC diagnostic push")
-_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #include <openssl/sha.h>
 #include <cJSON.h>
 
 #include "wolfram/log.h"
 
-static wf_status wf_p256_is_low_s(const BIGNUM *s, const EC_KEY *eckey) {
+        static wf_status
+    wf_p256_is_low_s(const BIGNUM *s, const EC_KEY *eckey) {
     const BIGNUM *order;
     BIGNUM *half_order;
     int low;
@@ -133,7 +134,7 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     char *didkey;
 
     WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: enter, key_type=%d",
-                key ? (int)key->type : -1);
+                 key ? (int)key->type : -1);
 
     if (!key || !out_didkey) {
         WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: invalid args");
@@ -142,7 +143,8 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     *out_didkey = NULL;
 
     if (key->type == WF_KEY_TYPE_P256) {
-        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: deriving P-256 public key");
+        WF_LOG_DEBUG("crypto",
+                     "wf_signing_key_public_didkey: deriving P-256 public key");
         EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         const EC_GROUP *group;
         const BIGNUM *priv;
@@ -151,13 +153,16 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         size_t n;
 
         if (!eckey) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: EC_KEY_new failed");
+            WF_LOG_ERROR("crypto",
+                         "wf_signing_key_public_didkey: EC_KEY_new failed");
             return WF_ERR_ALLOC;
         }
         group = EC_KEY_get0_group(eckey);
         bn_priv = BN_bin2bn(key->bytes, 32, NULL);
         if (!bn_priv || EC_KEY_set_private_key(eckey, bn_priv) != 1) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: failed to set private key");
+            WF_LOG_ERROR(
+                "crypto",
+                "wf_signing_key_public_didkey: failed to set private key");
             BN_free(bn_priv);
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
@@ -165,40 +170,49 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         priv = EC_KEY_get0_private_key(eckey);
         point = EC_POINT_new(group);
         if (!point || EC_POINT_mul(group, point, priv, NULL, NULL, NULL) != 1) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: EC_POINT_mul failed");
+            WF_LOG_ERROR("crypto",
+                         "wf_signing_key_public_didkey: EC_POINT_mul failed");
             EC_POINT_free(point);
             BN_free(bn_priv);
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
         }
-        n = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
-                               raw, sizeof(raw), NULL);
+        n = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED, raw,
+                               sizeof(raw), NULL);
         EC_POINT_free(point);
         BN_free(bn_priv);
         EC_KEY_free(eckey);
         if (n != 33) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: compressed point size != 33 (got %zu)", n);
+            WF_LOG_ERROR("crypto",
+                         "wf_signing_key_public_didkey: compressed point size "
+                         "!= 33 (got %zu)",
+                         n);
             return WF_ERR_ALLOC;
         }
         prefixed[0] = 0x80;
         prefixed[1] = 0x24;
         memcpy(prefixed + 2, raw, 33);
-        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: P-256 public key derived");
+        WF_LOG_DEBUG("crypto",
+                     "wf_signing_key_public_didkey: P-256 public key derived");
     } else if (key->type == WF_KEY_TYPE_SECP256K1) {
 #ifdef HAVE_LIBSECP256K1
-        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: deriving secp256k1 public key");
+        WF_LOG_DEBUG(
+            "crypto",
+            "wf_signing_key_public_didkey: deriving secp256k1 public key");
         secp256k1_context *ctx =
             secp256k1_context_create(SECP256K1_CONTEXT_NONE);
         secp256k1_pubkey pubkey;
         size_t clen = 33;
         if (!ctx) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1_context_create failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: "
+                                   "secp256k1_context_create failed");
             return WF_ERR_ALLOC;
         }
         if (secp256k1_ec_pubkey_create(ctx, &pubkey, key->bytes) != 1 ||
             secp256k1_ec_pubkey_serialize(ctx, raw, &clen, &pubkey,
                                           SECP256K1_EC_COMPRESSED) != 1) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1 pubkey create/serialize failed");
+            WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1 "
+                                   "pubkey create/serialize failed");
             secp256k1_context_destroy(ctx);
             return WF_ERR_ALLOC;
         }
@@ -206,21 +220,27 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         prefixed[0] = 0xe7;
         prefixed[1] = 0x01;
         memcpy(prefixed + 2, raw, 33);
-        WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: secp256k1 public key derived");
+        WF_LOG_DEBUG(
+            "crypto",
+            "wf_signing_key_public_didkey: secp256k1 public key derived");
 #else
-        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: secp256k1 not available");
+        WF_LOG_ERROR("crypto",
+                     "wf_signing_key_public_didkey: secp256k1 not available");
         (void)multicodec;
         (void)raw;
         return WF_ERR_INVALID_ARG;
 #endif
     } else {
-        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: unsupported key type %d", key->type);
+        WF_LOG_ERROR("crypto",
+                     "wf_signing_key_public_didkey: unsupported key type %d",
+                     key->type);
         return WF_ERR_INVALID_ARG;
     }
 
     b58 = wf_b58_encode(prefixed, sizeof(prefixed));
     if (!b58) {
-        WF_LOG_ERROR("crypto", "wf_signing_key_public_didkey: base58 encode failed");
+        WF_LOG_ERROR("crypto",
+                     "wf_signing_key_public_didkey: base58 encode failed");
         return WF_ERR_ALLOC;
     }
 
@@ -233,16 +253,18 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     sprintf(didkey, "did:key:z%s", b58);
     free(b58);
 
-    WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: success, didkey=%s", didkey);
+    WF_LOG_DEBUG("crypto", "wf_signing_key_public_didkey: success, didkey=%s",
+                 didkey);
     *out_didkey = didkey;
     return WF_OK;
 }
 
 /* base58btc (multibase 'z') decoder — inverse of wf_b58_encode. */
-static wf_status wf_b58_decode(const char *str, size_t len,
-                               unsigned char **out, size_t *out_len) {
+static wf_status wf_b58_decode(const char *str, size_t len, unsigned char **out,
+                               size_t *out_len) {
     if (!str || !out || !out_len) return WF_ERR_INVALID_ARG;
-    *out = NULL; *out_len = 0;
+    *out = NULL;
+    *out_len = 0;
     if (len == 0) return WF_ERR_INVALID_ARG;
 
     size_t zeros = 0;
@@ -255,7 +277,10 @@ static wf_status wf_b58_decode(const char *str, size_t len,
 
     for (size_t i = zeros; i < len; i++) {
         const char *p = strchr(wf_b58_alphabet, str[i]);
-        if (!p) { free(buf); return WF_ERR_INVALID_ARG; }
+        if (!p) {
+            free(buf);
+            return WF_ERR_INVALID_ARG;
+        }
         unsigned carry = (unsigned)(p - wf_b58_alphabet);
         for (size_t j = buf_size; j-- > 0;) {
             carry += (unsigned)buf[j] * 58u;
@@ -268,7 +293,10 @@ static wf_status wf_b58_decode(const char *str, size_t len,
     while (start < buf_size && buf[start] == 0) start++;
     size_t payload = buf_size - start;
     unsigned char *result = malloc(zeros + payload ? zeros + payload : 1);
-    if (!result) { free(buf); return WF_ERR_ALLOC; }
+    if (!result) {
+        free(buf);
+        return WF_ERR_ALLOC;
+    }
     size_t k = 0;
     for (size_t i = 0; i < zeros; i++) result[k++] = 0;
     for (size_t i = start; i < buf_size; i++) result[k++] = buf[i];
@@ -290,14 +318,15 @@ static wf_status wf_b58_decode(const char *str, size_t len,
 wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
                            size_t raw_len, char **out_didkey) {
     unsigned char prefixed[35];
-    if (!raw_pub || raw_len != 33 || !out_didkey)
-        return WF_ERR_INVALID_ARG;
+    if (!raw_pub || raw_len != 33 || !out_didkey) return WF_ERR_INVALID_ARG;
     *out_didkey = NULL;
 
     if (type == WF_KEY_TYPE_P256) {
-        prefixed[0] = 0x80; prefixed[1] = 0x24;
+        prefixed[0] = 0x80;
+        prefixed[1] = 0x24;
     } else if (type == WF_KEY_TYPE_SECP256K1) {
-        prefixed[0] = 0xe7; prefixed[1] = 0x01;
+        prefixed[0] = 0xe7;
+        prefixed[1] = 0x01;
     } else {
         return WF_ERR_INVALID_ARG;
     }
@@ -306,7 +335,10 @@ wf_status wf_didkey_encode(wf_key_type type, const unsigned char *raw_pub,
     char *b58 = wf_b58_encode(prefixed, sizeof(prefixed));
     if (!b58) return WF_ERR_ALLOC;
     char *didkey = malloc(strlen("did:key:z") + strlen(b58) + 1);
-    if (!didkey) { free(b58); return WF_ERR_ALLOC; }
+    if (!didkey) {
+        free(b58);
+        return WF_ERR_ALLOC;
+    }
     sprintf(didkey, "did:key:z%s", b58);
     free(b58);
     *out_didkey = didkey;
@@ -324,26 +356,39 @@ wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
     if (!didkey || !out_type || !out_raw || !out_raw_len)
         return WF_ERR_INVALID_ARG;
     *out_type = WF_KEY_TYPE_UNKNOWN;
-    *out_raw = NULL; *out_raw_len = 0;
+    *out_raw = NULL;
+    *out_raw_len = 0;
 
     const char *payload = didkey;
     if (strncmp(payload, "did:key:", 8) == 0) payload += 8;
-    if (payload[0] != 'z') return WF_ERR_INVALID_ARG; /* did:key: or bare multikey */
+    if (payload[0] != 'z')
+        return WF_ERR_INVALID_ARG; /* did:key: or bare multikey */
     payload += 1;
 
     unsigned char *decoded = NULL;
     size_t dlen = 0;
     wf_status s = wf_b58_decode(payload, strlen(payload), &decoded, &dlen);
     if (s != WF_OK) return s;
-    if (dlen != 35) { free(decoded); return WF_ERR_PARSE; }
+    if (dlen != 35) {
+        free(decoded);
+        return WF_ERR_PARSE;
+    }
 
     wf_key_type type;
-    if (decoded[0] == 0x80 && decoded[1] == 0x24) type = WF_KEY_TYPE_P256;
-    else if (decoded[0] == 0xe7 && decoded[1] == 0x01) type = WF_KEY_TYPE_SECP256K1;
-    else { free(decoded); return WF_ERR_PARSE; }
+    if (decoded[0] == 0x80 && decoded[1] == 0x24)
+        type = WF_KEY_TYPE_P256;
+    else if (decoded[0] == 0xe7 && decoded[1] == 0x01)
+        type = WF_KEY_TYPE_SECP256K1;
+    else {
+        free(decoded);
+        return WF_ERR_PARSE;
+    }
 
     unsigned char *raw = malloc(33);
-    if (!raw) { free(decoded); return WF_ERR_ALLOC; }
+    if (!raw) {
+        free(decoded);
+        return WF_ERR_ALLOC;
+    }
     memcpy(raw, decoded + 2, 33);
     free(decoded);
 
@@ -353,9 +398,9 @@ wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
     return WF_OK;
 }
 
-wf_status wf_didkey_from_verification_method(
-    const char *verification_type, const char *public_key_multibase,
-    char **out_didkey) {
+wf_status wf_didkey_from_verification_method(const char *verification_type,
+                                             const char *public_key_multibase,
+                                             char **out_didkey) {
     if (!verification_type || !public_key_multibase || !out_didkey)
         return WF_ERR_INVALID_ARG;
     *out_didkey = NULL;
@@ -364,8 +409,8 @@ wf_status wf_didkey_from_verification_method(
         wf_key_type type;
         unsigned char *raw = NULL;
         size_t raw_len = 0;
-        wf_status status = wf_didkey_decode(public_key_multibase, &type,
-                                            &raw, &raw_len);
+        wf_status status =
+            wf_didkey_decode(public_key_multibase, &type, &raw, &raw_len);
         if (status != WF_OK) {
             free(raw);
             return status;
@@ -376,11 +421,10 @@ wf_status wf_didkey_from_verification_method(
     }
 
     wf_key_type type;
-    if (strcmp(verification_type,
-               "EcdsaSecp256k1VerificationKey2019") == 0) {
+    if (strcmp(verification_type, "EcdsaSecp256k1VerificationKey2019") == 0) {
         type = WF_KEY_TYPE_SECP256K1;
-    } else if (strcmp(verification_type,
-                      "EcdsaSecp256r1VerificationKey2019") == 0) {
+    } else if (strcmp(verification_type, "EcdsaSecp256r1VerificationKey2019") ==
+               0) {
         type = WF_KEY_TYPE_P256;
     } else {
         return WF_ERR_NOT_IMPLEMENTED;
@@ -390,22 +434,23 @@ wf_status wf_didkey_from_verification_method(
     if (encoded[0] != 'z') return WF_ERR_INVALID_ARG;
     unsigned char *raw = NULL;
     size_t raw_len = 0;
-    wf_status status = wf_b58_decode(encoded + 1, strlen(encoded + 1),
-                                     &raw, &raw_len);
+    wf_status status =
+        wf_b58_decode(encoded + 1, strlen(encoded + 1), &raw, &raw_len);
     unsigned char compressed[33];
     const unsigned char *key_bytes = raw;
     size_t key_len = raw_len;
     EC_GROUP *group = NULL;
     EC_POINT *point = NULL;
     if (status == WF_OK && raw_len == 65) {
-        int nid = type == WF_KEY_TYPE_P256 ? NID_X9_62_prime256v1
-                                           : NID_secp256k1;
+        int nid =
+            type == WF_KEY_TYPE_P256 ? NID_X9_62_prime256v1 : NID_secp256k1;
         group = EC_GROUP_new_by_curve_name(nid);
         point = group ? EC_POINT_new(group) : NULL;
-        if (!point || EC_POINT_oct2point(group, point, raw, raw_len, NULL) != 1 ||
+        if (!point ||
+            EC_POINT_oct2point(group, point, raw, raw_len, NULL) != 1 ||
             EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED,
-                               compressed, sizeof(compressed), NULL) !=
-                sizeof(compressed)) {
+                               compressed, sizeof(compressed),
+                               NULL) != sizeof(compressed)) {
             status = WF_ERR_PARSE;
         } else {
             key_bytes = compressed;
@@ -450,28 +495,36 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
         WF_LOG_DEBUG("crypto", "wf_signing_key_generate: generating P-256 key");
         EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
         if (!eckey) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_generate: EC_KEY_new_by_curve_name failed");
+            WF_LOG_ERROR(
+                "crypto",
+                "wf_signing_key_generate: EC_KEY_new_by_curve_name failed");
             return WF_ERR_ALLOC;
         }
         if (EC_KEY_generate_key(eckey) != 1) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_generate: EC_KEY_generate_key failed");
+            WF_LOG_ERROR("crypto",
+                         "wf_signing_key_generate: EC_KEY_generate_key failed");
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
         }
         const BIGNUM *priv = EC_KEY_get0_private_key(eckey);
         if (!priv || BN_bn2binpad(priv, out->bytes, 32) != 32) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_generate: failed to extract private key");
+            WF_LOG_ERROR(
+                "crypto",
+                "wf_signing_key_generate: failed to extract private key");
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
         }
         out->type = WF_KEY_TYPE_P256;
         EC_KEY_free(eckey);
-        WF_LOG_DEBUG("crypto", "wf_signing_key_generate: P-256 key generated successfully");
+        WF_LOG_DEBUG(
+            "crypto",
+            "wf_signing_key_generate: P-256 key generated successfully");
         return WF_OK;
     }
 
     if (type != WF_KEY_TYPE_SECP256K1) {
-        WF_LOG_ERROR("crypto", "wf_signing_key_generate: unsupported key type %d", type);
+        WF_LOG_ERROR("crypto",
+                     "wf_signing_key_generate: unsupported key type %d", type);
         return WF_ERR_INVALID_ARG;
     }
 
@@ -479,27 +532,39 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
     WF_LOG_DEBUG("crypto", "wf_signing_key_generate: generating secp256k1 key");
     secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
     if (!ctx) {
-        WF_LOG_ERROR("crypto", "wf_signing_key_generate: secp256k1_context_create failed");
+        WF_LOG_ERROR(
+            "crypto",
+            "wf_signing_key_generate: secp256k1_context_create failed");
         return WF_ERR_ALLOC;
     }
 
     /* Try up to 10 times to generate a valid key */
     for (int attempt = 0; attempt < 10; attempt++) {
         if (RAND_bytes(out->bytes, 32) != 1) {
-            WF_LOG_ERROR("crypto", "wf_signing_key_generate: RAND_bytes failed on attempt %d", attempt);
+            WF_LOG_ERROR(
+                "crypto",
+                "wf_signing_key_generate: RAND_bytes failed on attempt %d",
+                attempt);
             secp256k1_context_destroy(ctx);
             return WF_ERR_ALLOC;
         }
         if (secp256k1_ec_seckey_verify(ctx, out->bytes)) {
             out->type = WF_KEY_TYPE_SECP256K1;
             secp256k1_context_destroy(ctx);
-            WF_LOG_DEBUG("crypto", "wf_signing_key_generate: secp256k1 key generated successfully on attempt %d", attempt);
+            WF_LOG_DEBUG("crypto",
+                         "wf_signing_key_generate: secp256k1 key generated "
+                         "successfully on attempt %d",
+                         attempt);
             return WF_OK;
         }
-        WF_LOG_DEBUG("crypto", "wf_signing_key_generate: secp256k1_ec_seckey_verify failed on attempt %d, retrying", attempt);
+        WF_LOG_DEBUG("crypto",
+                     "wf_signing_key_generate: secp256k1_ec_seckey_verify "
+                     "failed on attempt %d, retrying",
+                     attempt);
     }
 
-    WF_LOG_ERROR("crypto", "wf_signing_key_generate: failed to generate valid secp256k1 key after 10 attempts");
+    WF_LOG_ERROR("crypto", "wf_signing_key_generate: failed to generate valid "
+                           "secp256k1 key after 10 attempts");
     secp256k1_context_destroy(ctx);
     memset(out, 0, sizeof(*out));
     return WF_ERR_ALLOC;
@@ -510,11 +575,11 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
 #endif
 }
 
-wf_status wf_sign(const wf_signing_key *key,
-                   const unsigned char *msg, size_t msg_len,
-                   unsigned char *sig_out, size_t sig_out_cap) {
-    WF_LOG_DEBUG("crypto", "wf_sign: enter, key_type=%d, msg_len=%zu, sig_cap=%zu",
-                key ? (int)key->type : -1, msg_len, sig_out_cap);
+wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
+                  size_t msg_len, unsigned char *sig_out, size_t sig_out_cap) {
+    WF_LOG_DEBUG("crypto",
+                 "wf_sign: enter, key_type=%d, msg_len=%zu, sig_cap=%zu",
+                 key ? (int)key->type : -1, msg_len, sig_out_cap);
 
     if (!key || !msg || msg_len == 0 || !sig_out || sig_out_cap < 64) {
         WF_LOG_ERROR("crypto", "wf_sign: invalid args");
@@ -573,7 +638,8 @@ wf_status wf_sign(const wf_signing_key *key,
 
         status = wf_p256_normalize_s(eckey, &s);
         if (status != WF_OK) {
-            WF_LOG_ERROR("crypto", "wf_sign: p256_normalize_s failed status=%d", status);
+            WF_LOG_ERROR("crypto", "wf_sign: p256_normalize_s failed status=%d",
+                         status);
             BN_free(r);
             BN_free(s);
             ECDSA_SIG_free(sig);
@@ -602,7 +668,8 @@ wf_status wf_sign(const wf_signing_key *key,
 #ifdef HAVE_LIBSECP256K1
     if (key->type == WF_KEY_TYPE_SECP256K1) {
         WF_LOG_DEBUG("crypto", "wf_sign: signing with secp256k1");
-        secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+        secp256k1_context *ctx =
+            secp256k1_context_create(SECP256K1_CONTEXT_NONE);
         if (!ctx) {
             WF_LOG_ERROR("crypto", "wf_sign: secp256k1_context_create failed");
             return WF_ERR_ALLOC;
@@ -613,7 +680,7 @@ wf_status wf_sign(const wf_signing_key *key,
 
         secp256k1_ecdsa_signature sig;
         if (secp256k1_ecdsa_sign(ctx, &sig, hash, key->bytes,
-                                   secp256k1_nonce_function_rfc6979, NULL) != 1) {
+                                 secp256k1_nonce_function_rfc6979, NULL) != 1) {
             WF_LOG_ERROR("crypto", "wf_sign: secp256k1_ecdsa_sign failed");
             secp256k1_context_destroy(ctx);
             return WF_ERR_ALLOC;
@@ -621,7 +688,8 @@ wf_status wf_sign(const wf_signing_key *key,
 
         secp256k1_ecdsa_signature_serialize_compact(ctx, sig_out, &sig);
         secp256k1_context_destroy(ctx);
-        WF_LOG_DEBUG("crypto", "wf_sign: secp256k1 signature created successfully");
+        WF_LOG_DEBUG("crypto",
+                     "wf_sign: secp256k1 signature created successfully");
         return WF_OK;
     }
 #endif
@@ -634,8 +702,7 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
                                     const unsigned char *msg, size_t msg_len,
                                     const unsigned char *sig, size_t sig_len,
                                     int allow_malleable) {
-    if (!public_key_multibase || !msg || msg_len == 0 ||
-        !sig || sig_len == 0) {
+    if (!public_key_multibase || !msg || msg_len == 0 || !sig || sig_len == 0) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -695,9 +762,12 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
 
         /* Compressed 33-byte P-256 point (0x02/0x03 || X) */
         EC_POINT *point = EC_POINT_new(EC_KEY_get0_group(eckey));
-        if (!point) { EC_KEY_free(eckey); return WF_ERR_ALLOC; }
-        if (EC_POINT_oct2point(EC_KEY_get0_group(eckey), point,
-                                raw_pk, raw_pk_len, NULL) != 1) {
+        if (!point) {
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
+        if (EC_POINT_oct2point(EC_KEY_get0_group(eckey), point, raw_pk,
+                               raw_pk_len, NULL) != 1) {
             EC_POINT_free(point);
             EC_KEY_free(eckey);
             return WF_ERR_PARSE;
@@ -713,7 +783,10 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
         SHA256(msg, msg_len, hash);
 
         ECDSA_SIG *ecdsa_sig = ECDSA_SIG_new();
-        if (!ecdsa_sig) { EC_KEY_free(eckey); return WF_ERR_ALLOC; }
+        if (!ecdsa_sig) {
+            EC_KEY_free(eckey);
+            return WF_ERR_ALLOC;
+        }
         if (sig_len != 64) {
             ECDSA_SIG_free(ecdsa_sig);
             EC_KEY_free(eckey);
@@ -722,7 +795,8 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
         BIGNUM *r = BN_bin2bn(sig, 32, NULL);
         BIGNUM *s = BN_bin2bn(sig + 32, 32, NULL);
         if (!r || !s) {
-            BN_free(r); BN_free(s);
+            BN_free(r);
+            BN_free(s);
             ECDSA_SIG_free(ecdsa_sig);
             EC_KEY_free(eckey);
             return WF_ERR_ALLOC;
@@ -743,7 +817,8 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
 
 #ifdef HAVE_LIBSECP256K1
     {
-        secp256k1_context *ctx = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+        secp256k1_context *ctx =
+            secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
         if (!ctx) return WF_ERR_ALLOC;
 
         secp256k1_pubkey pubkey;
@@ -761,12 +836,13 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
         }
         secp256k1_ecdsa_signature ecdsa_sig;
         secp256k1_ecdsa_signature normalized_sig;
-        if (secp256k1_ecdsa_signature_parse_compact(ctx, &ecdsa_sig, sig) != 1) {
+        if (secp256k1_ecdsa_signature_parse_compact(ctx, &ecdsa_sig, sig) !=
+            1) {
             secp256k1_context_destroy(ctx);
             return WF_ERR_PARSE;
         }
         if (secp256k1_ecdsa_signature_normalize(ctx, &normalized_sig,
-                                               &ecdsa_sig) &&
+                                                &ecdsa_sig) &&
             !allow_malleable) {
             secp256k1_context_destroy(ctx);
             return WF_ERR_PARSE;
@@ -781,9 +857,8 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
 #endif
 }
 
-wf_status wf_verify(const char *public_key_multibase,
-                    const unsigned char *msg, size_t msg_len,
-                    const unsigned char *sig, size_t sig_len) {
+wf_status wf_verify(const char *public_key_multibase, const unsigned char *msg,
+                    size_t msg_len, const unsigned char *sig, size_t sig_len) {
     return wf_verify_internal(public_key_multibase, msg, msg_len, sig, sig_len,
                               0);
 }
@@ -806,8 +881,8 @@ wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
     return WF_OK;
 }
 
-wf_status wf_crypto_base64url_decode(const char *in,
-                                    unsigned char **out, size_t *out_len) {
+wf_status wf_crypto_base64url_decode(const char *in, unsigned char **out,
+                                     size_t *out_len) {
     size_t in_len, padded_len, padding, i;
     char *padded = NULL;
     unsigned char *decoded = NULL;
@@ -827,8 +902,10 @@ wf_status wf_crypto_base64url_decode(const char *in,
     }
     for (i = 0; i < in_len; i++) {
         char c = in[i];
-        if (c == '-') c = '+';
-        else if (c == '_') c = '/';
+        if (c == '-')
+            c = '+';
+        else if (c == '_')
+            c = '/';
         else if (!isalnum((unsigned char)c) && c != '+' && c != '/') {
             free(padded);
             free(decoded);
@@ -871,9 +948,12 @@ wf_status wf_crypto_base64url_encode(const unsigned char *in, size_t len,
     /* Translate standard base64 to base64url (no padding). */
     for (i = 0; i < padded_len; i++) {
         char c = padded[i];
-        if (c == '+') c = '-';
-        else if (c == '/') c = '_';
-        else if (c == '=') break;
+        if (c == '+')
+            c = '-';
+        else if (c == '/')
+            c = '_';
+        else if (c == '=')
+            break;
         padded[i] = c;
     }
     out_len = i;
@@ -918,10 +998,16 @@ static wf_status wf_p256_verify_hash(const unsigned char x[32],
     if (EC_KEY_set_public_key(eckey, point) != 1) goto done;
 
     ecdsa_sig = ECDSA_SIG_new();
-    if (!ecdsa_sig) { status = WF_ERR_ALLOC; goto done; }
+    if (!ecdsa_sig) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     r = BN_bin2bn(sig, 32, NULL);
     s = BN_bin2bn(sig + 32, 32, NULL);
-    if (!r || !s) { status = WF_ERR_ALLOC; goto done; }
+    if (!r || !s) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     if (wf_p256_is_low_s(s, eckey) != WF_OK) goto done;
     ECDSA_SIG_set0(ecdsa_sig, r, s);
     r = NULL;
@@ -948,8 +1034,8 @@ wf_status wf_crypto_p256_verify(const unsigned char x[32],
     return wf_p256_verify_hash(x, y, hash, sig, sig_len);
 }
 
-wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
-                                    unsigned char x[32], unsigned char y[32]) {
+wf_status wf_crypto_p256_jwk_coords(const char *jwk_json, unsigned char x[32],
+                                    unsigned char y[32]) {
     cJSON *root = NULL, *item;
     unsigned char *raw = NULL;
     size_t raw_len = 0;
@@ -971,7 +1057,10 @@ wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
         return WF_ERR_PARSE;
     }
     item = cJSON_GetObjectItemCaseSensitive(root, "x");
-    if (!cJSON_IsString(item)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsString(item)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
     status = wf_crypto_base64url_decode(item->valuestring, &raw, &raw_len);
     if (status != WF_OK || raw_len != 32) {
         free(raw);
@@ -982,7 +1071,10 @@ wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
     free(raw);
     raw = NULL;
     item = cJSON_GetObjectItemCaseSensitive(root, "y");
-    if (!cJSON_IsString(item)) { cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!cJSON_IsString(item)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
     status = wf_crypto_base64url_decode(item->valuestring, &raw, &raw_len);
     if (status != WF_OK || raw_len != 32) {
         free(raw);

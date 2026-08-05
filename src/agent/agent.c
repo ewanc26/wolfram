@@ -17,25 +17,25 @@
 #include <string.h>
 #include <time.h>
 
-#define WF_AGENT_CREATE_RECORD_NSID  "com.atproto.repo.createRecord"
-#define WF_AGENT_DELETE_RECORD_NSID  "com.atproto.repo.deleteRecord"
-#define WF_AGENT_PUT_RECORD_NSID     "com.atproto.repo.putRecord"
-#define WF_AGENT_POST_COLLECTION      "app.bsky.feed.post"
-#define WF_AGENT_POST_RECORD_TYPE     "app.bsky.feed.post"
-#define WF_AGENT_FOLLOW_COLLECTION    "app.bsky.graph.follow"
-#define WF_AGENT_FOLLOW_RECORD_TYPE   "app.bsky.graph.follow"
-#define WF_AGENT_LIKE_COLLECTION      "app.bsky.feed.like"
-#define WF_AGENT_LIKE_RECORD_TYPE     "app.bsky.feed.like"
-#define WF_AGENT_REPOST_COLLECTION    "app.bsky.feed.repost"
-#define WF_AGENT_REPOST_RECORD_TYPE   "app.bsky.feed.repost"
-#define WF_AGENT_PROFILE_COLLECTION   "app.bsky.actor.profile"
-#define WF_AGENT_PROFILE_RECORD_TYPE  "app.bsky.actor.profile"
-#define WF_AGENT_PROFILE_RKEY         "self"
-#define WF_AGENT_UPLOAD_BLOB_NSID     "com.atproto.repo.uploadBlob"
-#define WF_AGENT_RESOLVE_HANDLE_NSID  "com.atproto.identity.resolveHandle"
-#define WF_AGENT_FACET_MENTION_TYPE   "app.bsky.richtext.facet#mention"
-#define WF_AGENT_FACET_LINK_TYPE      "app.bsky.richtext.facet#link"
-#define WF_AGENT_FACET_TAG_TYPE       "app.bsky.richtext.facet#tag"
+#define WF_AGENT_CREATE_RECORD_NSID "com.atproto.repo.createRecord"
+#define WF_AGENT_DELETE_RECORD_NSID "com.atproto.repo.deleteRecord"
+#define WF_AGENT_PUT_RECORD_NSID "com.atproto.repo.putRecord"
+#define WF_AGENT_POST_COLLECTION "app.bsky.feed.post"
+#define WF_AGENT_POST_RECORD_TYPE "app.bsky.feed.post"
+#define WF_AGENT_FOLLOW_COLLECTION "app.bsky.graph.follow"
+#define WF_AGENT_FOLLOW_RECORD_TYPE "app.bsky.graph.follow"
+#define WF_AGENT_LIKE_COLLECTION "app.bsky.feed.like"
+#define WF_AGENT_LIKE_RECORD_TYPE "app.bsky.feed.like"
+#define WF_AGENT_REPOST_COLLECTION "app.bsky.feed.repost"
+#define WF_AGENT_REPOST_RECORD_TYPE "app.bsky.feed.repost"
+#define WF_AGENT_PROFILE_COLLECTION "app.bsky.actor.profile"
+#define WF_AGENT_PROFILE_RECORD_TYPE "app.bsky.actor.profile"
+#define WF_AGENT_PROFILE_RKEY "self"
+#define WF_AGENT_UPLOAD_BLOB_NSID "com.atproto.repo.uploadBlob"
+#define WF_AGENT_RESOLVE_HANDLE_NSID "com.atproto.identity.resolveHandle"
+#define WF_AGENT_FACET_MENTION_TYPE "app.bsky.richtext.facet#mention"
+#define WF_AGENT_FACET_LINK_TYPE "app.bsky.richtext.facet#link"
+#define WF_AGENT_FACET_TAG_TYPE "app.bsky.richtext.facet#tag"
 
 typedef struct wf_agent {
     wf_xrpc_client *client;
@@ -118,7 +118,8 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     memset(profile, 0, sizeof(*profile));
 }
 
-static void wf_agent_server_description_reset(wf_agent_server_description *desc) {
+static void
+wf_agent_server_description_reset(wf_agent_server_description *desc) {
     if (!desc) {
         return;
     }
@@ -180,7 +181,8 @@ static void wf_agent_session_data_reset(wf_session_data *data) {
 static wf_status wf_agent_set_string(char **dst, const char *src);
 static int wf_agent_is_logged_in(const wf_agent *agent);
 
-static wf_status wf_agent_session_data_copy(wf_session_data *dst, const wf_session_data *src) {
+static wf_status wf_agent_session_data_copy(wf_session_data *dst,
+                                            const wf_session_data *src) {
     if (!dst || !src) {
         return WF_ERR_INVALID_ARG;
     }
@@ -223,8 +225,9 @@ static void wf_agent_sync_auth(wf_agent *agent) {
         return;
     }
 
-    wf_xrpc_client_set_auth(agent->client,
-                            wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
+    wf_xrpc_client_set_auth(agent->client, wf_agent_is_logged_in(agent)
+                                               ? agent->session->data.access_jwt
+                                               : NULL);
 }
 
 /* Route the agent's PDS client at the session's discovered PDS endpoint (from
@@ -274,7 +277,8 @@ static int wf_agent_is_logged_in(const wf_agent *agent) {
            agent->session->data.did && agent->session->data.access_jwt;
 }
 
-static int wf_agent_authority_matches_session(const wf_agent *agent, const char *authority) {
+static int wf_agent_authority_matches_session(const wf_agent *agent,
+                                              const char *authority) {
     if (!agent || !agent->session || !authority) {
         return 0;
     }
@@ -318,65 +322,70 @@ static wf_status wf_agent_add_feature_json(cJSON *features,
     wf_status status = WF_OK;
 
     switch (feature->type) {
-    case WF_RICHTEXT_FEATURE_MENTION: {
-        if (!segment->text || segment->text_len < 2 || segment->text[0] != '@') {
-            status = WF_ERR_PARSE;
-            break;
-        }
+        case WF_RICHTEXT_FEATURE_MENTION: {
+            if (!segment->text || segment->text_len < 2 ||
+                segment->text[0] != '@') {
+                status = WF_ERR_PARSE;
+                break;
+            }
 
-        char *handle = wf_agent_strndup(segment->text + 1, segment->text_len - 1);
-        if (!handle) {
-            status = WF_ERR_ALLOC;
-            break;
-        }
+            char *handle =
+                wf_agent_strndup(segment->text + 1, segment->text_len - 1);
+            if (!handle) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
 
-        if (!wf_syntax_handle_is_valid(handle)) {
+            if (!wf_syntax_handle_is_valid(handle)) {
+                free(handle);
+                status = WF_ERR_PARSE;
+                break;
+            }
+
+            char *did = NULL;
+            status = wf_handle_resolve(client, handle, &did);
             free(handle);
-            status = WF_ERR_PARSE;
-            break;
-        }
+            if (status != WF_OK) {
+                break;
+            }
 
-        char *did = NULL;
-        status = wf_handle_resolve(client, handle, &did);
-        free(handle);
-        if (status != WF_OK) {
-            break;
-        }
+            if (!wf_syntax_did_is_valid(did)) {
+                free(did);
+                status = WF_ERR_PARSE;
+                break;
+            }
 
-        if (!wf_syntax_did_is_valid(did)) {
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_AGENT_FACET_MENTION_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "did", did)) {
+                free(did);
+                status = WF_ERR_ALLOC;
+                break;
+            }
+
             free(did);
-            status = WF_ERR_PARSE;
             break;
         }
 
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_AGENT_FACET_MENTION_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "did", did)) {
-            free(did);
-            status = WF_ERR_ALLOC;
+        case WF_RICHTEXT_FEATURE_LINK:
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_AGENT_FACET_LINK_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "uri", feature->uri)) {
+                status = WF_ERR_ALLOC;
+            }
             break;
-        }
 
-        free(did);
-        break;
-    }
+        case WF_RICHTEXT_FEATURE_TAG:
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_AGENT_FACET_TAG_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "tag", feature->tag)) {
+                status = WF_ERR_ALLOC;
+            }
+            break;
 
-    case WF_RICHTEXT_FEATURE_LINK:
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_AGENT_FACET_LINK_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "uri", feature->uri)) {
-            status = WF_ERR_ALLOC;
-        }
-        break;
-
-    case WF_RICHTEXT_FEATURE_TAG:
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_AGENT_FACET_TAG_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "tag", feature->tag)) {
-            status = WF_ERR_ALLOC;
-        }
-        break;
-
-    default:
-        status = WF_ERR_INVALID_ARG;
-        break;
+        default:
+            status = WF_ERR_INVALID_ARG;
+            break;
     }
 
     if (status != WF_OK) {
@@ -392,9 +401,8 @@ static wf_status wf_agent_add_feature_json(cJSON *features,
     return WF_OK;
 }
 
-static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
-                                                const wf_richtext_segment *segment,
-                                                wf_xrpc_client *client) {
+static wf_status wf_agent_add_segment_facet_json(
+    cJSON *facets, const wf_richtext_segment *segment, wf_xrpc_client *client) {
     if (!facets || !segment || !segment->facet || !segment->facet->features ||
         segment->facet->feature_count == 0) {
         return WF_ERR_INVALID_ARG;
@@ -411,8 +419,10 @@ static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddNumberToObject(index_json, "byteStart", (double)segment->facet->byte_start) ||
-        !cJSON_AddNumberToObject(index_json, "byteEnd", (double)segment->facet->byte_end) ||
+    if (!cJSON_AddNumberToObject(index_json, "byteStart",
+                                 (double)segment->facet->byte_start) ||
+        !cJSON_AddNumberToObject(index_json, "byteEnd",
+                                 (double)segment->facet->byte_end) ||
         !cJSON_AddItemToObject(facet_json, "index", index_json)) {
         cJSON_Delete(index_json);
         cJSON_Delete(facet_json);
@@ -432,8 +442,8 @@ static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
     }
 
     for (size_t i = 0; i < segment->facet->feature_count; ++i) {
-        wf_status status = wf_agent_add_feature_json(features_json, segment,
-                                                     &segment->facet->features[i], client);
+        wf_status status = wf_agent_add_feature_json(
+            features_json, segment, &segment->facet->features[i], client);
         if (status != WF_OK) {
             cJSON_Delete(facet_json);
             return status;
@@ -448,11 +458,10 @@ static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
     return WF_OK;
 }
 
-static wf_status wf_agent_build_post_record(wf_agent *agent,
-                                            const char *text,
-                                            cJSON *facets,
-                                            cJSON **out_record) {
-    if (!agent || !text || !out_record || !agent->session || !agent->session->data.did) {
+static wf_status wf_agent_build_post_record(wf_agent *agent, const char *text,
+                                            cJSON *facets, cJSON **out_record) {
+    if (!agent || !text || !out_record || !agent->session ||
+        !agent->session->data.did) {
         cJSON_Delete(facets);
         return WF_ERR_INVALID_ARG;
     }
@@ -537,8 +546,8 @@ static wf_status wf_agent_create_record_call(wf_agent *agent,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client, WF_AGENT_CREATE_RECORD_NSID,
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, WF_AGENT_CREATE_RECORD_NSID, json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -555,8 +564,8 @@ static wf_status wf_agent_create_record_call(wf_agent *agent,
 
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(resp_root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(resp_root, "cid");
-    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
-        !uri->valuestring || !cid->valuestring) {
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) || !uri->valuestring ||
+        !cid->valuestring) {
         cJSON_Delete(resp_root);
         wf_response_free(&res);
         return WF_ERR_PARSE;
@@ -608,8 +617,8 @@ static wf_status wf_agent_delete_record_call(wf_agent *agent,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client, WF_AGENT_DELETE_RECORD_NSID,
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, WF_AGENT_DELETE_RECORD_NSID, json, &res);
     free(json);
     wf_response_free(&res);
     return status;
@@ -630,9 +639,8 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
 
     cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
     cJSON *handle = cJSON_GetObjectItemCaseSensitive(root, "handle");
-    if (!cJSON_IsString(did) || !cJSON_IsString(handle) ||
-        !did->valuestring || !handle->valuestring ||
-        !wf_syntax_did_is_valid(did->valuestring) ||
+    if (!cJSON_IsString(did) || !cJSON_IsString(handle) || !did->valuestring ||
+        !handle->valuestring || !wf_syntax_did_is_valid(did->valuestring) ||
         !wf_syntax_handle_is_valid(handle->valuestring)) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
@@ -644,13 +652,17 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
     }
 
     cJSON *display_name = cJSON_GetObjectItemCaseSensitive(root, "displayName");
-    if (status == WF_OK && cJSON_IsString(display_name) && display_name->valuestring) {
-        status = wf_agent_set_string(&out->display_name, display_name->valuestring);
+    if (status == WF_OK && cJSON_IsString(display_name) &&
+        display_name->valuestring) {
+        status =
+            wf_agent_set_string(&out->display_name, display_name->valuestring);
     }
 
     cJSON *description = cJSON_GetObjectItemCaseSensitive(root, "description");
-    if (status == WF_OK && cJSON_IsString(description) && description->valuestring) {
-        status = wf_agent_set_string(&out->description, description->valuestring);
+    if (status == WF_OK && cJSON_IsString(description) &&
+        description->valuestring) {
+        status =
+            wf_agent_set_string(&out->description, description->valuestring);
     }
 
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(root, "avatar");
@@ -662,14 +674,18 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
 
     cJSON *viewer = cJSON_GetObjectItemCaseSensitive(root, "viewer");
     if (status == WF_OK && cJSON_IsObject(viewer)) {
-        cJSON *following = cJSON_GetObjectItemCaseSensitive(viewer, "following");
+        cJSON *following =
+            cJSON_GetObjectItemCaseSensitive(viewer, "following");
         if (cJSON_IsString(following) && following->valuestring) {
-            status = wf_agent_set_string(&out->following, following->valuestring);
+            status =
+                wf_agent_set_string(&out->following, following->valuestring);
         }
     }
 
-    cJSON *followers_count = cJSON_GetObjectItemCaseSensitive(root, "followersCount");
-    cJSON *follows_count = cJSON_GetObjectItemCaseSensitive(root, "followsCount");
+    cJSON *followers_count =
+        cJSON_GetObjectItemCaseSensitive(root, "followersCount");
+    cJSON *follows_count =
+        cJSON_GetObjectItemCaseSensitive(root, "followsCount");
     cJSON *posts_count = cJSON_GetObjectItemCaseSensitive(root, "postsCount");
 
     if (status == WF_OK && cJSON_IsNumber(followers_count)) {
@@ -742,7 +758,8 @@ static wf_status wf_agent_build_follow_record(wf_agent *agent,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_FOLLOW_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_FOLLOW_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "subject", subject_did) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(record);
@@ -757,7 +774,8 @@ static wf_status wf_agent_build_like_record(wf_agent *agent,
                                             const char *post_uri,
                                             const char *post_cid,
                                             cJSON **out_record) {
-    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid || !out_record) {
+    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid ||
+        !out_record) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -800,10 +818,11 @@ static wf_status wf_agent_build_like_record(wf_agent *agent,
 }
 
 static wf_status wf_agent_build_repost_record(wf_agent *agent,
-                                               const char *post_uri,
-                                               const char *post_cid,
-                                               cJSON **out_record) {
-    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid || !out_record) {
+                                              const char *post_uri,
+                                              const char *post_cid,
+                                              cJSON **out_record) {
+    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid ||
+        !out_record) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -832,7 +851,8 @@ static wf_status wf_agent_build_repost_record(wf_agent *agent,
 
     if (!cJSON_AddStringToObject(subject, "uri", post_uri) ||
         !cJSON_AddStringToObject(subject, "cid", post_cid) ||
-        !cJSON_AddStringToObject(record, "$type", WF_AGENT_REPOST_RECORD_TYPE) ||
+        !cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_REPOST_RECORD_TYPE) ||
         !cJSON_AddItemToObject(record, "subject", subject) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(subject);
@@ -845,11 +865,11 @@ static wf_status wf_agent_build_repost_record(wf_agent *agent,
 }
 
 static wf_status wf_agent_put_record_call(wf_agent *agent,
-                                           const char *collection,
-                                           const char *rkey,
-                                           cJSON *record,
-                                           wf_agent_post_result *out) {
-    if (!wf_agent_is_logged_in(agent) || !collection || !rkey || !record || !out) {
+                                          const char *collection,
+                                          const char *rkey, cJSON *record,
+                                          wf_agent_post_result *out) {
+    if (!wf_agent_is_logged_in(agent) || !collection || !rkey || !record ||
+        !out) {
         cJSON_Delete(record);
         return WF_ERR_INVALID_ARG;
     }
@@ -884,8 +904,8 @@ static wf_status wf_agent_put_record_call(wf_agent *agent,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client, WF_AGENT_PUT_RECORD_NSID,
-                                         json, &res);
+    wf_status status =
+        wf_xrpc_procedure(agent->client, WF_AGENT_PUT_RECORD_NSID, json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -902,8 +922,8 @@ static wf_status wf_agent_put_record_call(wf_agent *agent,
 
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(resp_root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(resp_root, "cid");
-    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
-        !uri->valuestring || !cid->valuestring) {
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) || !uri->valuestring ||
+        !cid->valuestring) {
         cJSON_Delete(resp_root);
         wf_response_free(&res);
         return WF_ERR_PARSE;
@@ -961,7 +981,8 @@ wf_agent *wf_agent_new(const char *service_url) {
 
     /* Enable one transparent refresh+retry on the data-plane client when an
      * access token expires mid-request. */
-    wf_xrpc_client_set_refresh_handler(agent->client, wf_agent_refresh_cb, agent);
+    wf_xrpc_client_set_refresh_handler(agent->client, wf_agent_refresh_cb,
+                                       agent);
 
     return agent;
 }
@@ -1020,7 +1041,8 @@ wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn,
     wf_status status = wf_xrpc_client_set_tls_rng(agent->client, fn, userdata);
     if (status != WF_OK) {
         /* Report the first refusal and install nothing, so the agent never
-         * ends up with some clients using the application RNG and others not. */
+         * ends up with some clients using the application RNG and others not.
+         */
         return status;
     }
 
@@ -1051,14 +1073,17 @@ void wf_agent_free(wf_agent *agent) {
     wf_car_free(&agent->mirror);
 #ifdef WOLFRAM_BUILD_STORE
     if (agent->persisted_labels) {
-        wf_mod_labels_free(agent->persisted_labels, agent->persisted_label_count);
+        wf_mod_labels_free(agent->persisted_labels,
+                           agent->persisted_label_count);
     }
 #endif
     free(agent);
 }
 
-wf_status wf_agent_login(wf_agent *agent, const char *identifier, const char *password) {
-    if (!agent || !agent->session || !agent->client || !identifier || !password) {
+wf_status wf_agent_login(wf_agent *agent, const char *identifier,
+                         const char *password) {
+    if (!agent || !agent->session || !agent->client || !identifier ||
+        !password) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -1144,7 +1169,7 @@ void wf_agent_profile_free(wf_agent_profile *profile) {
 /* ── getRecord ──────────────────────────────────────────────────────── */
 
 wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
-                               const char *rkey, wf_response *out) {
+                              const char *rkey, wf_response *out) {
     if (!agent || !collection || !rkey || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1172,9 +1197,8 @@ wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                          "com.atproto.repo.getRecord",
-                                          json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.repo.getRecord", json, out);
     free(json);
     return status;
 }
@@ -1182,8 +1206,8 @@ wf_status wf_agent_get_record(wf_agent *agent, const char *collection,
 /* ── putRecord ──────────────────────────────────────────────────────── */
 
 wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
-                               const char *rkey, const char *record_json,
-                               wf_agent_post_result *out) {
+                              const char *rkey, const char *record_json,
+                              wf_agent_post_result *out) {
     if (!agent || !collection || !rkey || !record_json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1225,9 +1249,8 @@ wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                          "com.atproto.repo.putRecord",
-                                          json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.repo.putRecord", json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -1244,8 +1267,8 @@ wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
 
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(resp_root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(resp_root, "cid");
-    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
-        !uri->valuestring || !cid->valuestring) {
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) || !uri->valuestring ||
+        !cid->valuestring) {
         cJSON_Delete(resp_root);
         wf_response_free(&res);
         return WF_ERR_PARSE;
@@ -1418,7 +1441,8 @@ done:
 
 #endif // post functions moved to post.c
 
-wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_profile *out) {
+wf_status wf_agent_get_profile(wf_agent *agent, const char *actor,
+                               wf_agent_profile *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1432,9 +1456,8 @@ wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_prof
     };
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(agent->client,
-                                             "app.bsky.actor.getProfile",
-                                             params, 1, &res);
+    wf_status status = wf_xrpc_query_params(
+        agent->client, "app.bsky.actor.getProfile", params, 1, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -1445,7 +1468,8 @@ wf_status wf_agent_get_profile(wf_agent *agent, const char *actor, wf_agent_prof
     return status;
 }
 
-wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor, wf_response *out) {
+wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor,
+                                   wf_response *out) {
     if (!agent || !actor || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1458,8 +1482,7 @@ wf_status wf_agent_get_profile_raw(wf_agent *agent, const char *actor, wf_respon
         {"actor", actor},
     };
 
-    return wf_xrpc_query_params(agent->client,
-                                "app.bsky.actor.getProfile",
+    return wf_xrpc_query_params(agent->client, "app.bsky.actor.getProfile",
                                 params, 1, out);
 }
 
@@ -1471,9 +1494,8 @@ wf_status wf_agent_get_preferences(wf_agent *agent, char **out_json) {
     *out_json = NULL;
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(agent->client,
-                                            "app.bsky.actor.getPreferences",
-                                            NULL, 0, &res);
+    wf_status status = wf_xrpc_query_params(
+        agent->client, "app.bsky.actor.getPreferences", NULL, 0, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -1500,9 +1522,7 @@ wf_status wf_agent_get_preferences(wf_agent *agent, char **out_json) {
 }
 
 wf_status wf_agent_get_preferences_typed(
-    wf_agent *agent,
-    wf_lex_app_bsky_actor_get_preferences_main_output **out)
-{
+    wf_agent *agent, wf_lex_app_bsky_actor_get_preferences_main_output **out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     *out = NULL;
 
@@ -1529,12 +1549,11 @@ wf_status wf_agent_get_preferences_typed(
 wf_status wf_agent_put_preferences_json(
     wf_agent *agent,
     const wf_lex_app_bsky_actor_put_preferences_main_input *input,
-    wf_response *out)
-{
+    wf_response *out) {
     if (!agent || !input || !out) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
-    return wf_lex_app_bsky_actor_put_preferences_main_call(
-        agent->client, input, out);
+    return wf_lex_app_bsky_actor_put_preferences_main_call(agent->client, input,
+                                                           out);
 }
 
 #if 0 // social functions moved to post.c
@@ -1721,10 +1740,9 @@ done:
     return status;
 }
 
-
 #endif // social functions moved to post.c
 
-#if 0 // feed functions moved to feed.c
+#if 0  // feed functions moved to feed.c
 
 wf_status wf_agent_get_timeline(wf_agent *agent, int limit, const char *cursor,
                                 wf_response *out) {
@@ -1910,7 +1928,7 @@ wf_status wf_agent_get_posts(wf_agent *agent, const char *const *uris, size_t ur
 }
 
 /* ── searchPosts ───────────────────────────────────────────────────── */
-#if 0 // searchPosts moved to feed.c
+#if 0  // searchPosts moved to feed.c
 
 wf_status wf_agent_search_posts(wf_agent *agent, const char *query,
                                 int limit, const char *cursor, const char *sort,
@@ -2769,8 +2787,8 @@ wf_status wf_agent_get_unread_count(wf_agent *agent, wf_response *out) {
 
 #endif // notification functions moved to notification.c
 
-wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
-                                 int limit, const char *cursor, wf_response *out) {
+wf_status wf_agent_search_actors(wf_agent *agent, const char *query, int limit,
+                                 const char *cursor, wf_response *out) {
     if (!agent || !query || !query[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -2802,7 +2820,7 @@ wf_status wf_agent_search_actors(wf_agent *agent, const char *query,
 
     wf_agent_sync_auth(agent);
     return wf_xrpc_query_params(agent->client, "app.bsky.actor.searchActors",
-                                 params, param_count, out);
+                                params, param_count, out);
 }
 
 wf_status wf_agent_search_actors_typeahead(wf_agent *agent, const char *query,
@@ -2831,11 +2849,13 @@ wf_status wf_agent_search_actors_typeahead(wf_agent *agent, const char *query,
     }
 
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client, "app.bsky.actor.searchActorsTypeahead",
-                                 params, param_count, out);
+    return wf_xrpc_query_params(agent->client,
+                                "app.bsky.actor.searchActorsTypeahead", params,
+                                param_count, out);
 }
 
-wf_status wf_agent_update_profile(wf_agent *agent, const wf_agent_profile_update *update) {
+wf_status wf_agent_update_profile(wf_agent *agent,
+                                  const wf_agent_profile_update *update) {
     if (!agent || !update) {
         return WF_ERR_INVALID_ARG;
     }
@@ -2855,21 +2875,24 @@ wf_status wf_agent_update_profile(wf_agent *agent, const wf_agent_profile_update
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_PROFILE_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_PROFILE_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(record);
         return WF_ERR_ALLOC;
     }
 
     if (update->display_name) {
-        if (!cJSON_AddStringToObject(record, "displayName", update->display_name)) {
+        if (!cJSON_AddStringToObject(record, "displayName",
+                                     update->display_name)) {
             cJSON_Delete(record);
             return WF_ERR_ALLOC;
         }
     }
 
     if (update->description) {
-        if (!cJSON_AddStringToObject(record, "description", update->description)) {
+        if (!cJSON_AddStringToObject(record, "description",
+                                     update->description)) {
             cJSON_Delete(record);
             return WF_ERR_ALLOC;
         }
@@ -2922,14 +2945,16 @@ wf_status wf_agent_update_profile(wf_agent *agent, const wf_agent_profile_update
     }
 
     wf_agent_post_result result = {0};
-    wf_status status = wf_agent_put_record_call(agent, WF_AGENT_PROFILE_COLLECTION,
-                                                WF_AGENT_PROFILE_RKEY, record, &result);
+    wf_status status =
+        wf_agent_put_record_call(agent, WF_AGENT_PROFILE_COLLECTION,
+                                 WF_AGENT_PROFILE_RKEY, record, &result);
     wf_agent_post_result_free(&result);
     return status;
 }
 
-wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_len,
-                               const char *content_type, wf_response *out) {
+wf_status wf_agent_upload_blob(wf_agent *agent, const void *data,
+                               size_t data_len, const char *content_type,
+                               wf_response *out) {
     if (!agent || !data || data_len == 0 || !content_type || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -2939,8 +2964,8 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
     }
 
     wf_agent_sync_auth(agent);
-    return wf_xrpc_upload_blob(agent->client, WF_AGENT_UPLOAD_BLOB_NSID,
-                               data, data_len, content_type, out);
+    return wf_xrpc_upload_blob(agent->client, WF_AGENT_UPLOAD_BLOB_NSID, data,
+                               data_len, content_type, out);
 }
 
 /* ── applyWrites ────────────────────────────────────────────────────── */
@@ -2949,14 +2974,18 @@ wf_status wf_agent_upload_blob(wf_agent *agent, const void *data, size_t data_le
 
 static const char *wf_agent_write_type_str(wf_agent_write_type type) {
     switch (type) {
-        case WF_AGENT_WRITE_CREATE: return "com.atproto.repo.applyWrites#create";
-        case WF_AGENT_WRITE_UPDATE: return "com.atproto.repo.applyWrites#update";
-        case WF_AGENT_WRITE_DELETE: return "com.atproto.repo.applyWrites#delete";
+        case WF_AGENT_WRITE_CREATE:
+            return "com.atproto.repo.applyWrites#create";
+        case WF_AGENT_WRITE_UPDATE:
+            return "com.atproto.repo.applyWrites#update";
+        case WF_AGENT_WRITE_DELETE:
+            return "com.atproto.repo.applyWrites#delete";
     }
     return NULL;
 }
 
-static wf_status wf_agent_add_write(cJSON *writes_array, const wf_agent_write *write) {
+static wf_status wf_agent_add_write(cJSON *writes_array,
+                                    const wf_agent_write *write) {
     cJSON *item = cJSON_CreateObject();
     if (!item) return WF_ERR_ALLOC;
 
@@ -2999,9 +3028,8 @@ static wf_status wf_agent_add_write(cJSON *writes_array, const wf_agent_write *w
     return WF_OK;
 }
 
-wf_status wf_agent_apply_writes(wf_agent *agent,
-                                 const wf_agent_write *writes, size_t write_count,
-                                 wf_response *out) {
+wf_status wf_agent_apply_writes(wf_agent *agent, const wf_agent_write *writes,
+                                size_t write_count, wf_response *out) {
     size_t i;
     wf_status status;
 
@@ -3043,44 +3071,44 @@ wf_status wf_agent_apply_writes(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    status = wf_xrpc_procedure(agent->client,
-                                "com.atproto.repo.applyWrites",
-                                json, out);
+    status = wf_xrpc_procedure(agent->client, "com.atproto.repo.applyWrites",
+                               json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **out_did) {
+wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle,
+                                  char **out_did) {
     if (!agent || !handle || !handle[0] || !out_did) {
         return WF_ERR_INVALID_ARG;
     }
-    
+
     if (!wf_syntax_handle_is_valid(handle)) {
         return WF_ERR_INVALID_ARG;
     }
-    
+
     *out_did = NULL;
-    
+
     wf_xrpc_param params[] = {
         {"handle", handle},
     };
-    
+
     wf_agent_sync_auth(agent);
-    
+
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(agent->client, WF_AGENT_RESOLVE_HANDLE_NSID,
-                                             params, 1, &res);
+    wf_status status = wf_xrpc_query_params(
+        agent->client, WF_AGENT_RESOLVE_HANDLE_NSID, params, 1, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
-    
+
     cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
     if (!root) {
         wf_response_free(&res);
         return WF_ERR_PARSE;
     }
-    
+
     cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
     if (!cJSON_IsString(did) || !did->valuestring ||
         !wf_syntax_did_is_valid(did->valuestring)) {
@@ -3088,13 +3116,13 @@ wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle, char **ou
         wf_response_free(&res);
         return WF_ERR_PARSE;
     }
-    
+
     status = wf_agent_set_string(out_did, did->valuestring);
     if (status != WF_OK) {
         free(*out_did);
         *out_did = NULL;
     }
-    
+
     cJSON_Delete(root);
     wf_response_free(&res);
     return status;
@@ -3108,14 +3136,15 @@ wf_status wf_agent_update_handle(wf_agent *agent, const char *new_handle) {
     if (!wf_syntax_handle_is_valid(new_handle)) {
         return WF_ERR_INVALID_ARG;
     }
-    wf_lex_com_atproto_identity_update_handle_main_input input = { .handle = new_handle };
+    wf_lex_com_atproto_identity_update_handle_main_input input = {
+        .handle = new_handle};
     wf_response res = {0};
     wf_agent_sync_auth(agent);
-    wf_status status = wf_lex_com_atproto_identity_update_handle_main_call(agent->client, &input, &res);
+    wf_status status = wf_lex_com_atproto_identity_update_handle_main_call(
+        agent->client, &input, &res);
     wf_response_free(&res);
     return status;
 }
-
 
 void wf_agent_server_description_free(wf_agent_server_description *desc) {
     wf_agent_server_description_reset(desc);
@@ -3129,7 +3158,8 @@ void wf_agent_app_password_list_free(wf_agent_app_password_list *list) {
     wf_agent_app_password_list_reset(list);
 }
 
-wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description *out) {
+wf_status wf_agent_describe_server(wf_agent *agent,
+                                   wf_agent_server_description *out) {
     if (!agent || !agent->client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3148,8 +3178,8 @@ wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description 
         out->phone_verification_required = sdesc.phone_verification_required;
     }
     if (status == WF_OK && sdesc.available_user_domains_count > 0) {
-        out->available_user_domains = calloc(sdesc.available_user_domains_count,
-                                             sizeof(char *));
+        out->available_user_domains =
+            calloc(sdesc.available_user_domains_count, sizeof(char *));
         if (!out->available_user_domains) {
             status = WF_ERR_ALLOC;
         }
@@ -3166,10 +3196,12 @@ wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description 
         }
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->privacy_policy, sdesc.links_privacy_policy);
+        status = wf_agent_set_string(&out->privacy_policy,
+                                     sdesc.links_privacy_policy);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->terms_of_service, sdesc.links_terms_of_service);
+        status = wf_agent_set_string(&out->terms_of_service,
+                                     sdesc.links_terms_of_service);
     }
     if (status == WF_OK) {
         status = wf_agent_set_string(&out->contact_email, sdesc.contact_email);
@@ -3183,7 +3215,8 @@ wf_status wf_agent_describe_server(wf_agent *agent, wf_agent_server_description 
     return status;
 }
 
-wf_status wf_agent_create_app_password(wf_agent *agent, const char *name, int privileged,
+wf_status wf_agent_create_app_password(wf_agent *agent, const char *name,
+                                       int privileged,
                                        wf_agent_app_password *out) {
     if (!agent || !agent->client || !out || !name || name[0] == '\0') {
         return WF_ERR_INVALID_ARG;
@@ -3202,7 +3235,8 @@ wf_status wf_agent_create_app_password(wf_agent *agent, const char *name, int pr
 
     wf_server_app_password spwd = {0};
     wf_agent_sync_auth(agent);
-    wf_status status = wf_server_create_app_password(agent->client, &input, &spwd);
+    wf_status status =
+        wf_server_create_app_password(agent->client, &input, &spwd);
     if (status != WF_OK) {
         return status;
     }
@@ -3223,7 +3257,8 @@ wf_status wf_agent_create_app_password(wf_agent *agent, const char *name, int pr
     return status;
 }
 
-wf_status wf_agent_list_app_passwords(wf_agent *agent, wf_agent_app_password_list *out) {
+wf_status wf_agent_list_app_passwords(wf_agent *agent,
+                                      wf_agent_app_password_list *out) {
     if (!agent || !agent->client || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3242,7 +3277,8 @@ wf_status wf_agent_list_app_passwords(wf_agent *agent, wf_agent_app_password_lis
     }
 
     if (slist.password_count > 0) {
-        out->passwords = calloc(slist.password_count, sizeof(wf_agent_app_password));
+        out->passwords =
+            calloc(slist.password_count, sizeof(wf_agent_app_password));
         if (!out->passwords) {
             status = WF_ERR_ALLOC;
         }
@@ -3291,8 +3327,8 @@ wf_status wf_agent_revoke_app_password(wf_agent *agent, const char *name) {
     return wf_server_revoke_app_password(agent->client, &input);
 }
 
-wf_status wf_agent_delete_account(wf_agent *agent, const char *did, const char *password,
-                                  const char *token) {
+wf_status wf_agent_delete_account(wf_agent *agent, const char *did,
+                                  const char *password, const char *token) {
     if (!agent || !agent->client || !did || !password || !token) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3328,8 +3364,7 @@ wf_status wf_agent_set_did(wf_agent *agent, const char *did) {
 }
 
 wf_status wf_agent_set_signing_key(wf_agent *agent, const char *key) {
-    if (!agent || !key || !key[0])
-        return WF_ERR_INVALID_ARG;
+    if (!agent || !key || !key[0]) return WF_ERR_INVALID_ARG;
     char *copy = wf_agent_strdup(key);
     if (!copy) return WF_ERR_ALLOC;
     free(agent->mirror_signing_key);
@@ -3362,8 +3397,7 @@ wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car) {
         for (size_t i = 0; i < car->block_count; i++) {
             existing.blocks[i].data = malloc(car->blocks[i].data_len);
             if (!existing.blocks[i].data) {
-                for (size_t j = 0; j < i; j++)
-                    free(existing.blocks[j].data);
+                for (size_t j = 0; j < i; j++) free(existing.blocks[j].data);
                 free(existing.blocks);
                 free(existing.roots);
                 return WF_ERR_ALLOC;
@@ -3389,8 +3423,7 @@ wf_status wf_agent_seed_repo(wf_agent *agent, const wf_car *car) {
 wf_status wf_agent_apply_repo_diff(wf_agent *agent,
                                    const unsigned char *car_bytes,
                                    size_t car_len) {
-    if (!agent || !car_bytes || car_len == 0)
-        return WF_ERR_INVALID_ARG;
+    if (!agent || !car_bytes || car_len == 0) return WF_ERR_INVALID_ARG;
     if (agent->mirror.root_count != 1 || !agent->mirror.roots ||
         !agent->mirror_did || !agent->mirror_signing_key)
         return WF_ERR_INVALID_ARG;
@@ -3421,8 +3454,7 @@ wf_status wf_agent_apply_repo_diff(wf_agent *agent,
 /* ── repo sync: repo_head ──────────────────────────────────────────── */
 
 wf_status wf_agent_repo_head(wf_agent *agent, char **out_head) {
-    if (!agent || !out_head)
-        return WF_ERR_INVALID_ARG;
+    if (!agent || !out_head) return WF_ERR_INVALID_ARG;
     if (agent->mirror.root_count != 1 || !agent->mirror.roots)
         return WF_ERR_INVALID_ARG;
 
@@ -3443,12 +3475,11 @@ wf_status wf_agent_invert_repo_operations(wf_agent *agent,
 /* ── repo sync: mirror_get_record ──────────────────────────────────── */
 
 wf_status wf_agent_mirror_get_record(wf_agent *agent, const char *collection,
-                                     const char *rkey,
-                                     unsigned char **out_data, size_t *out_len) {
+                                     const char *rkey, unsigned char **out_data,
+                                     size_t *out_len) {
     if (!agent || !collection || !rkey || !out_data || !out_len)
         return WF_ERR_INVALID_ARG;
-    if (agent->mirror.root_count == 0)
-        return WF_ERR_INVALID_ARG;
+    if (agent->mirror.root_count == 0) return WF_ERR_INVALID_ARG;
 
     wf_cid record_cid = {0};
     return wf_repo_get_record(&agent->mirror, &agent->mirror.roots[0],
@@ -3469,16 +3500,16 @@ static wf_status wf_agent_persist_mirror(wf_agent *agent) {
     char *head = wf_cid_to_string(&agent->mirror.roots[0]);
     if (!head) return WF_OK;
 
-    wf_status st = wf_store_save_mirror_head(agent->store, agent->mirror_did,
-                                             head);
+    wf_status st =
+        wf_store_save_mirror_head(agent->store, agent->mirror_did, head);
     free(head);
     if (st != WF_OK) return WF_OK;
 
     for (size_t i = 0; i < agent->mirror.block_count; i++) {
         wf_car_block *b = &agent->mirror.blocks[i];
         wf_store_save_mirror_block(agent->store, agent->mirror_did,
-                                   b->cid.bytes, b->cid.len,
-                                   b->data, b->data_len);
+                                   b->cid.bytes, b->cid.len, b->data,
+                                   b->data_len);
     }
     return WF_OK;
 }
@@ -3495,9 +3526,9 @@ wf_status wf_agent_mirror_load_from_store(wf_agent *agent) {
         return WF_ERR_INVALID_ARG;
 
     char *head = NULL;
-    wf_status st = wf_store_load_mirror_head(agent->store, agent->mirror_did,
-                                             &head);
-    if (st != WF_OK) return st;  /* WF_ERR_NOT_FOUND when nothing persisted */
+    wf_status st =
+        wf_store_load_mirror_head(agent->store, agent->mirror_did, &head);
+    if (st != WF_OK) return st; /* WF_ERR_NOT_FOUND when nothing persisted */
 
     wf_cid head_cid = {0};
     st = wf_cid_from_string(head, &head_cid);
@@ -3506,8 +3537,8 @@ wf_status wf_agent_mirror_load_from_store(wf_agent *agent) {
 
     wf_cid *cids = NULL;
     size_t count = 0;
-    st = wf_store_list_mirror_cids(agent->store, agent->mirror_did,
-                                   &cids, &count);
+    st = wf_store_list_mirror_cids(agent->store, agent->mirror_did, &cids,
+                                   &count);
     if (st != WF_OK) return st;
 
     wf_car mirror = {0};
@@ -3530,8 +3561,8 @@ wf_status wf_agent_mirror_load_from_store(wf_agent *agent) {
             uint8_t *block = NULL;
             size_t block_len = 0;
             if (wf_store_load_mirror_block(agent->store, agent->mirror_did,
-                                           cids[i].bytes, cids[i].len,
-                                           &block, &block_len) == WF_OK) {
+                                           cids[i].bytes, cids[i].len, &block,
+                                           &block_len) == WF_OK) {
                 mirror.blocks[mirror.block_count].cid = cids[i];
                 mirror.blocks[mirror.block_count].data = block;
                 mirror.blocks[mirror.block_count].data_len = block_len;
@@ -3556,8 +3587,8 @@ wf_store *wf_agent_get_store(wf_agent *agent) {
 
 /* ── sync.getBlob ──────────────────────────────────────────────────── */
 
-wf_status wf_agent_sync_get_blob(wf_agent *agent, const char *did, const char *cid,
-                                 wf_response *out) {
+wf_status wf_agent_sync_get_blob(wf_agent *agent, const char *did,
+                                 const char *cid, wf_response *out) {
     if (!agent || !did || !cid || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3599,8 +3630,9 @@ wf_status wf_agent_sync_get_blocks(wf_agent *agent, const char *did,
         params[i + 1].value = cids[i];
     }
 
-    wf_status status = wf_xrpc_query_params(agent->client, "com.atproto.sync.getBlocks",
-                                             params, cid_count + 1, out);
+    wf_status status =
+        wf_xrpc_query_params(agent->client, "com.atproto.sync.getBlocks",
+                             params, cid_count + 1, out);
     free(params);
     return status;
 }
@@ -3625,7 +3657,7 @@ wf_status wf_agent_sync_get_record(wf_agent *agent, const char *did,
         {"rkey", rkey},
     };
     return wf_xrpc_query_params(agent->client, "com.atproto.sync.getRecord",
-                                 params, 3, out);
+                                params, 3, out);
 }
 
 /* Expose the agent's underlying XRPC client. Needed by the typed sync layer
@@ -3637,9 +3669,9 @@ wf_xrpc_client *wf_agent_xrpc_client(wf_agent *agent) {
 
 /* ── sync.listBlobs ────────────────────────────────────────────────── */
 
-wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did,
-                                   int limit, const char *cursor,
-                                   const char *since, wf_response *out) {
+wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did, int limit,
+                                   const char *cursor, const char *since,
+                                   wf_response *out) {
     if (!agent || !did || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3684,9 +3716,9 @@ wf_status wf_agent_sync_list_blobs(wf_agent *agent, const char *did,
 /* ── actor status ───────────────────────────────────────────────────── */
 
 wf_status wf_agent_put_actor_status(wf_agent *agent, const char *status,
-                                     int duration_minutes,
-                                     const char *embed_json,
-                                     wf_agent_post_result *out) {
+                                    int duration_minutes,
+                                    const char *embed_json,
+                                    wf_agent_post_result *out) {
     if (!agent || !status || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3704,7 +3736,8 @@ wf_status wf_agent_put_actor_status(wf_agent *agent, const char *status,
     }
 
     if (duration_minutes > 0) {
-        if (!cJSON_AddNumberToObject(record, "durationMinutes", duration_minutes)) {
+        if (!cJSON_AddNumberToObject(record, "durationMinutes",
+                                     duration_minutes)) {
             cJSON_Delete(record);
             return WF_ERR_ALLOC;
         }
@@ -3739,13 +3772,13 @@ wf_status wf_agent_put_actor_status(wf_agent *agent, const char *status,
     if (!json_str) return WF_ERR_ALLOC;
 
     wf_status status_ret = wf_agent_put_record(agent, "app.bsky.actor.status",
-                                                "self", json_str, out);
+                                               "self", json_str, out);
     free(json_str);
     return status_ret;
 }
 
 wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
-                                          wf_response *out) {
+                                        wf_response *out) {
     if (!agent || !job_id || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3764,8 +3797,7 @@ wf_status wf_agent_get_video_job_status(wf_agent *agent, const char *job_id,
                                                           &params, out);
 }
 
-wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
-                                             wf_response *out) {
+wf_status wf_agent_get_video_upload_limits(wf_agent *agent, wf_response *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -3780,9 +3812,8 @@ wf_status wf_agent_get_video_upload_limits(wf_agent *agent,
 
 /* ── server wrappers ─────────────────────────────────────────────────── */
 
-wf_status wf_agent_create_invite_code(wf_agent *agent,
-                                       int use_count,
-                                       wf_response *out) {
+wf_status wf_agent_create_invite_code(wf_agent *agent, int use_count,
+                                      wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -3798,17 +3829,15 @@ wf_status wf_agent_create_invite_code(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.createInviteCode",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.createInviteCode", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_get_account_invite_codes(wf_agent *agent,
-                                              int limit,
-                                              const char *cursor,
-                                              wf_response *out) {
+wf_status wf_agent_get_account_invite_codes(wf_agent *agent, int limit,
+                                            const char *cursor,
+                                            wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -3840,8 +3869,7 @@ wf_status wf_agent_activate_account(wf_agent *agent, wf_response *out) {
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
     return wf_xrpc_procedure(agent->client,
-                              "com.atproto.server.activateAccount",
-                              "{}", out);
+                             "com.atproto.server.activateAccount", "{}", out);
 }
 
 wf_status wf_agent_deactivate_account(wf_agent *agent, wf_response *out) {
@@ -3849,21 +3877,19 @@ wf_status wf_agent_deactivate_account(wf_agent *agent, wf_response *out) {
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
     return wf_xrpc_procedure(agent->client,
-                              "com.atproto.server.deactivateAccount",
-                              "{}", out);
+                             "com.atproto.server.deactivateAccount", "{}", out);
 }
 
 wf_status wf_agent_check_account_status(wf_agent *agent, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query(agent->client,
-                          "com.atproto.server.checkAccountStatus",
-                          NULL, out);
+    return wf_xrpc_query(agent->client, "com.atproto.server.checkAccountStatus",
+                         NULL, out);
 }
 
 wf_status wf_agent_confirm_email(wf_agent *agent, const char *email,
-                                  const char *token, wf_response *out) {
+                                 const char *token, wf_response *out) {
     if (!agent || !email || !token || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -3880,15 +3906,14 @@ wf_status wf_agent_confirm_email(wf_agent *agent, const char *email,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.confirmEmail",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.confirmEmail", json, out);
     free(json);
     return status;
 }
 
 wf_status wf_agent_update_email(wf_agent *agent, const char *email,
-                                 wf_response *out) {
+                                wf_response *out) {
     if (!agent || !email || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -3904,33 +3929,28 @@ wf_status wf_agent_update_email(wf_agent *agent, const char *email,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.updateEmail",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.updateEmail", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_create_account(wf_agent *agent,
-                                   const char *email,
-                                   const char *handle,
-                                   const char *did,
-                                   const char *invite_code,
-                                   const char *verification_phone,
-                                   const char *password,
-                                   wf_response *out)
-{
+wf_status wf_agent_create_account(wf_agent *agent, const char *email,
+                                  const char *handle, const char *did,
+                                  const char *invite_code,
+                                  const char *verification_phone,
+                                  const char *password, wf_response *out) {
     if (!agent || !handle || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
 
-    if (email && email[0])
-        cJSON_AddStringToObject(body, "email", email);
-    if (!cJSON_AddStringToObject(body, "handle", handle))
-        { cJSON_Delete(body); return WF_ERR_ALLOC; }
-    if (did && did[0])
-        cJSON_AddStringToObject(body, "did", did);
+    if (email && email[0]) cJSON_AddStringToObject(body, "email", email);
+    if (!cJSON_AddStringToObject(body, "handle", handle)) {
+        cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
+    if (did && did[0]) cJSON_AddStringToObject(body, "did", did);
     if (invite_code && invite_code[0])
         cJSON_AddStringToObject(body, "inviteCode", invite_code);
     if (verification_phone && verification_phone[0])
@@ -3943,20 +3963,16 @@ wf_status wf_agent_create_account(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.createAccount",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.createAccount", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_create_invite_codes(wf_agent *agent,
-                                        int use_count,
-                                        int code_count,
-                                        const char *const *for_dids,
-                                        size_t for_did_count,
-                                        wf_response *out)
-{
+wf_status wf_agent_create_invite_codes(wf_agent *agent, int use_count,
+                                       int code_count,
+                                       const char *const *for_dids,
+                                       size_t for_did_count, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -3964,16 +3980,23 @@ wf_status wf_agent_create_invite_codes(wf_agent *agent,
     if (!body) return WF_ERR_ALLOC;
 
     if (!cJSON_AddNumberToObject(body, "useCount", use_count) ||
-        !cJSON_AddNumberToObject(body, "codeCount", code_count))
-        { cJSON_Delete(body); return WF_ERR_ALLOC; }
+        !cJSON_AddNumberToObject(body, "codeCount", code_count)) {
+        cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
 
     if (for_dids && for_did_count > 0) {
         cJSON *arr = cJSON_AddArrayToObject(body, "forDids");
-        if (!arr) { cJSON_Delete(body); return WF_ERR_ALLOC; }
+        if (!arr) {
+            cJSON_Delete(body);
+            return WF_ERR_ALLOC;
+        }
         for (size_t i = 0; i < for_did_count; i++) {
             cJSON *item = cJSON_CreateString(for_dids[i]);
-            if (!item || !cJSON_AddItemToArray(arr, item))
-                { cJSON_Delete(body); return WF_ERR_ALLOC; }
+            if (!item || !cJSON_AddItemToArray(arr, item)) {
+                cJSON_Delete(body);
+                return WF_ERR_ALLOC;
+            }
         }
     }
 
@@ -3982,151 +4005,135 @@ wf_status wf_agent_create_invite_codes(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.createInviteCodes",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.createInviteCodes", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_request_account_delete(wf_agent *agent,
-                                           wf_response *out)
-{
+wf_status wf_agent_request_account_delete(wf_agent *agent, wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
-    return wf_xrpc_procedure(agent->client,
-                              "com.atproto.server.requestAccountDelete",
-                              "{}", out);
+    return wf_xrpc_procedure(
+        agent->client, "com.atproto.server.requestAccountDelete", "{}", out);
 }
 
 wf_status wf_agent_request_email_confirmation(wf_agent *agent,
-                                               wf_response *out)
-{
+                                              wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
     return wf_xrpc_procedure(agent->client,
-                              "com.atproto.server.requestEmailConfirmation",
-                              "{}", out);
+                             "com.atproto.server.requestEmailConfirmation",
+                             "{}", out);
 }
 
-wf_status wf_agent_request_email_update(wf_agent *agent,
-                                         const char *email,
-                                         wf_response *out)
-{
+wf_status wf_agent_request_email_update(wf_agent *agent, const char *email,
+                                        wf_response *out) {
     if (!agent || !email || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
-    if (!cJSON_AddStringToObject(body, "email", email))
-        { cJSON_Delete(body); return WF_ERR_ALLOC; }
+    if (!cJSON_AddStringToObject(body, "email", email)) {
+        cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
 
     char *json = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.requestEmailUpdate",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.requestEmailUpdate", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_request_password_reset(wf_agent *agent,
-                                           const char *email,
-                                           wf_response *out)
-{
+wf_status wf_agent_request_password_reset(wf_agent *agent, const char *email,
+                                          wf_response *out) {
     if (!agent || !email || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
-    if (!cJSON_AddStringToObject(body, "email", email))
-        { cJSON_Delete(body); return WF_ERR_ALLOC; }
+    if (!cJSON_AddStringToObject(body, "email", email)) {
+        cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
 
     char *json = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.requestPasswordReset",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.requestPasswordReset", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_reset_password(wf_agent *agent,
-                                   const char *token,
-                                   const char *password,
-                                   wf_response *out)
-{
+wf_status wf_agent_reset_password(wf_agent *agent, const char *token,
+                                  const char *password, wf_response *out) {
     if (!agent || !token || !password || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
     if (!cJSON_AddStringToObject(body, "token", token) ||
-        !cJSON_AddStringToObject(body, "password", password))
-        { cJSON_Delete(body); return WF_ERR_ALLOC; }
+        !cJSON_AddStringToObject(body, "password", password)) {
+        cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
 
     char *json = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.resetPassword",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.resetPassword", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_reserve_signing_key(wf_agent *agent,
-                                        const char *did,
-                                        wf_response *out)
-{
+wf_status wf_agent_reserve_signing_key(wf_agent *agent, const char *did,
+                                       wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
-    if (did && did[0])
-        cJSON_AddStringToObject(body, "did", did);
+    if (did && did[0]) cJSON_AddStringToObject(body, "did", did);
 
     char *json = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.reserveSigningKey",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.reserveSigningKey", json, out);
     free(json);
     return status;
 }
 
-wf_status wf_agent_get_service_auth(wf_agent *agent,
-                                     const char *aud,
-                                     const char *lhf,
-                                     wf_response *out)
-{
+wf_status wf_agent_get_service_auth(wf_agent *agent, const char *aud,
+                                    const char *lhf, wf_response *out) {
     if (!agent || !aud || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
-    if (!cJSON_AddStringToObject(body, "aud", aud))
-        { cJSON_Delete(body); return WF_ERR_ALLOC; }
-    if (lhf && lhf[0])
-        cJSON_AddStringToObject(body, "lhf", lhf);
+    if (!cJSON_AddStringToObject(body, "aud", aud)) {
+        cJSON_Delete(body);
+        return WF_ERR_ALLOC;
+    }
+    if (lhf && lhf[0]) cJSON_AddStringToObject(body, "lhf", lhf);
 
     char *json = cJSON_PrintUnformatted(body);
     cJSON_Delete(body);
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.server.getServiceAuth",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.server.getServiceAuth", json, out);
     free(json);
     return status;
 }
@@ -4134,60 +4141,68 @@ wf_status wf_agent_get_service_auth(wf_agent *agent,
 /* ── identity wrappers ───────────────────────────────────────────────── */
 
 wf_status wf_agent_resolve_did(wf_agent *agent, const char *did,
-                                wf_response *out) {
+                               wf_response *out) {
     if (!agent || !did || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_did_is_valid(did)) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[] = {{"did", did}};
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client,
-                                "com.atproto.identity.resolveDid",
-                                params, 1, out);
+    return wf_xrpc_query_params(
+        agent->client, "com.atproto.identity.resolveDid", params, 1, out);
 }
 
 wf_status wf_agent_get_recommended_did_credentials(wf_agent *agent,
-                                                    wf_response *out) {
+                                                   wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
     return wf_xrpc_query(agent->client,
-                          "com.atproto.identity.getRecommendedDidCredentials",
-                          NULL, out);
+                         "com.atproto.identity.getRecommendedDidCredentials",
+                         NULL, out);
 }
 
-wf_status wf_agent_sign_plc_operation(wf_agent *agent,
-                                       const char *token,
-                                       const char *rotation_keys_json,
-                                       const char *also_known_as_json,
-                                       const char *verification_methods_json,
-                                       const char *services_json,
-                                       wf_response *out)
-{
+wf_status wf_agent_sign_plc_operation(wf_agent *agent, const char *token,
+                                      const char *rotation_keys_json,
+                                      const char *also_known_as_json,
+                                      const char *verification_methods_json,
+                                      const char *services_json,
+                                      wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_CreateObject();
     if (!body) return WF_ERR_ALLOC;
 
-    if (token && token[0])
-        cJSON_AddStringToObject(body, "token", token);
+    if (token && token[0]) cJSON_AddStringToObject(body, "token", token);
 
     if (rotation_keys_json) {
         cJSON *arr = cJSON_Parse(rotation_keys_json);
-        if (!arr) { cJSON_Delete(body); return WF_ERR_PARSE; }
+        if (!arr) {
+            cJSON_Delete(body);
+            return WF_ERR_PARSE;
+        }
         cJSON_AddItemToObject(body, "rotationKeys", arr);
     }
     if (also_known_as_json) {
         cJSON *arr = cJSON_Parse(also_known_as_json);
-        if (!arr) { cJSON_Delete(body); return WF_ERR_PARSE; }
+        if (!arr) {
+            cJSON_Delete(body);
+            return WF_ERR_PARSE;
+        }
         cJSON_AddItemToObject(body, "alsoKnownAs", arr);
     }
     if (verification_methods_json) {
         cJSON *obj = cJSON_Parse(verification_methods_json);
-        if (!obj) { cJSON_Delete(body); return WF_ERR_PARSE; }
+        if (!obj) {
+            cJSON_Delete(body);
+            return WF_ERR_PARSE;
+        }
         cJSON_AddItemToObject(body, "verificationMethods", obj);
     }
     if (services_json) {
         cJSON *obj = cJSON_Parse(services_json);
-        if (!obj) { cJSON_Delete(body); return WF_ERR_PARSE; }
+        if (!obj) {
+            cJSON_Delete(body);
+            return WF_ERR_PARSE;
+        }
         cJSON_AddItemToObject(body, "services", obj);
     }
 
@@ -4196,17 +4211,15 @@ wf_status wf_agent_sign_plc_operation(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.identity.signPlcOperation",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.identity.signPlcOperation", json, out);
     free(json);
     return status;
 }
 
 wf_status wf_agent_submit_plc_operation(wf_agent *agent,
-                                         const char *operation_json,
-                                         wf_response *out)
-{
+                                        const char *operation_json,
+                                        wf_response *out) {
     if (!agent || !operation_json || !out) return WF_ERR_INVALID_ARG;
 
     cJSON *body = cJSON_Parse(operation_json);
@@ -4217,38 +4230,34 @@ wf_status wf_agent_submit_plc_operation(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "com.atproto.identity.submitPlcOperation",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.identity.submitPlcOperation", json, out);
     free(json);
     return status;
 }
 
 wf_status wf_agent_request_plc_operation_signature(wf_agent *agent,
-                                                    wf_response *out)
-{
+                                                   wf_response *out) {
     if (!agent || !out) return WF_ERR_INVALID_ARG;
     wf_agent_sync_auth(agent);
-    return wf_xrpc_procedure(agent->client,
-                  "com.atproto.identity.requestPlcOperationSignature",
-                  "{}", out);
+    return wf_xrpc_procedure(
+        agent->client, "com.atproto.identity.requestPlcOperationSignature",
+        "{}", out);
 }
 
 wf_status wf_agent_describe_repo(wf_agent *agent, const char *repo,
-                                  wf_response *out) {
+                                 wf_response *out) {
     if (!agent || !repo || !out) return WF_ERR_INVALID_ARG;
     if (!wf_syntax_at_identifier_is_valid(repo)) return WF_ERR_INVALID_ARG;
 
     wf_xrpc_param params[] = {{"repo", repo}};
     wf_agent_sync_auth(agent);
-    return wf_xrpc_query_params(agent->client,
-                                "com.atproto.repo.describeRepo",
+    return wf_xrpc_query_params(agent->client, "com.atproto.repo.describeRepo",
                                 params, 1, out);
 }
-wf_status wf_agent_send_interactions(wf_agent *agent,
-                                      const char *feed_uri,
-                                      const char *interactions_json,
-                                      wf_response *out) {
+wf_status wf_agent_send_interactions(wf_agent *agent, const char *feed_uri,
+                                     const char *interactions_json,
+                                     wf_response *out) {
     if (!agent || !interactions_json || !out) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
 
@@ -4256,16 +4265,21 @@ wf_status wf_agent_send_interactions(wf_agent *agent,
     if (!root) return WF_ERR_PARSE;
 
     cJSON *body = cJSON_CreateObject();
-    if (!body) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    if (!body) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
 
     if (feed_uri && feed_uri[0]) {
         if (!cJSON_AddStringToObject(body, "feed", feed_uri)) {
-            cJSON_Delete(root); cJSON_Delete(body);
+            cJSON_Delete(root);
+            cJSON_Delete(body);
             return WF_ERR_ALLOC;
         }
     }
     if (!cJSON_AddItemToObject(body, "interactions", root)) {
-        cJSON_Delete(root); cJSON_Delete(body);
+        cJSON_Delete(root);
+        cJSON_Delete(body);
         return WF_ERR_ALLOC;
     }
 
@@ -4274,9 +4288,8 @@ wf_status wf_agent_send_interactions(wf_agent *agent,
     if (!json) return WF_ERR_ALLOC;
 
     wf_agent_sync_auth(agent);
-    wf_status status = wf_xrpc_procedure(agent->client,
-                            "app.bsky.feed.sendInteractions",
-                            json, out);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "app.bsky.feed.sendInteractions", json, out);
     free(json);
     return status;
 }

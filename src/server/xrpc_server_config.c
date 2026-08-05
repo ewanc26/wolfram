@@ -46,7 +46,7 @@ static void wf_cfg_opt_str(const cJSON *obj, const char *key, char **out) {
 /* Read an optional unsigned integer from a JSON object. *out is untouched
  * when the key is absent or not a number. */
 static void wf_cfg_opt_uint(const cJSON *obj, const char *key,
-                             unsigned int *out) {
+                            unsigned int *out) {
     cJSON *v = cJSON_GetObjectItemCaseSensitive(obj, key);
     if (v && cJSON_IsNumber(v)) {
         /* Clamp negative JSON numbers to 0 rather than wrapping. */
@@ -82,7 +82,7 @@ void wf_xrpc_server_config_free(wf_xrpc_server_config *cfg) {
 }
 
 wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
-                                       wf_xrpc_server_config **out) {
+                                      wf_xrpc_server_config **out) {
     wf_xrpc_server_config *cfg = NULL;
     cJSON *root = NULL;
     cJSON *routes = NULL;
@@ -147,7 +147,7 @@ wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
         if (rl && cJSON_IsObject(rl)) {
             wf_cfg_opt_uint(rl, "max_tokens", &cfg->rate_limit.max_tokens);
             wf_cfg_opt_uint(rl, "refill_per_second",
-                             &cfg->rate_limit.refill_per_second);
+                            &cfg->rate_limit.refill_per_second);
         }
     }
 
@@ -156,8 +156,8 @@ wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
     if (routes && cJSON_IsArray(routes)) {
         size_t n = (size_t)cJSON_GetArraySize(routes);
         if (n > 0) {
-            cfg->routes = (wf_xrpc_server_config_route *)calloc(
-                n, sizeof(*cfg->routes));
+            cfg->routes =
+                (wf_xrpc_server_config_route *)calloc(n, sizeof(*cfg->routes));
             if (!cfg->routes) {
                 rc = WF_ERR_ALLOC;
                 goto out;
@@ -168,8 +168,7 @@ wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
                 if (!cJSON_IsObject(entry)) {
                     continue;
                 }
-                cJSON *nsid =
-                    cJSON_GetObjectItemCaseSensitive(entry, "nsid");
+                cJSON *nsid = cJSON_GetObjectItemCaseSensitive(entry, "nsid");
                 if (!(nsid && cJSON_IsString(nsid) && nsid->valuestring &&
                       nsid->valuestring[0] != '\0')) {
                     /* Skip route entries without a usable NSID; unknown
@@ -184,10 +183,9 @@ wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
                     cfg->route_count = j;
                     goto out;
                 }
-                cfg->routes[j].method =
-                    wf_cfg_parse_method(method && cJSON_IsString(method)
-                                            ? method->valuestring
-                                            : NULL);
+                cfg->routes[j].method = wf_cfg_parse_method(
+                    method && cJSON_IsString(method) ? method->valuestring
+                                                     : NULL);
                 j++;
             }
             cfg->route_count = j;
@@ -215,7 +213,7 @@ out:
  * supplied. Replies 200 with the NSID/method and a duplicate of the request
  * params/body (the original params stay owned by the server). */
 static wf_status wf_cfg_default_handler(void *ctx, const wf_xrpc_request *req,
-                                         wf_xrpc_response *resp) {
+                                        wf_xrpc_response *resp) {
     (void)ctx;
     char *json = NULL;
     cJSON *obj = cJSON_CreateObject();
@@ -250,7 +248,7 @@ static wf_status wf_cfg_default_handler(void *ctx, const wf_xrpc_request *req,
 /* ------------------------------------------------------------------ */
 
 wf_status wf_xrpc_server_new_with_config(const wf_xrpc_server_config *cfg,
-                                          wf_xrpc_server **out) {
+                                         wf_xrpc_server **out) {
     wf_xrpc_server *server;
     const char *host;
     wf_status rc;
@@ -298,8 +296,8 @@ wf_status wf_xrpc_server_new_with_config(const wf_xrpc_server_config *cfg,
             continue;
         }
         if (r->method == WF_XRPC_CONFIG_METHOD_PROCEDURE) {
-            rc = wf_xrpc_server_register_procedure(server, r->nsid,
-                                                   wf_cfg_default_handler, NULL);
+            rc = wf_xrpc_server_register_procedure(
+                server, r->nsid, wf_cfg_default_handler, NULL);
         } else {
             rc = wf_xrpc_server_register_query(server, r->nsid,
                                                wf_cfg_default_handler, NULL);

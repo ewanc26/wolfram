@@ -48,7 +48,7 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out);
  * WF_ERR_INVALID_ARG.
  */
 wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
-                                        char **out_didkey);
+                                       char **out_didkey);
 
 /**
  * Encode a raw compressed public key (33 bytes) of the given type into its
@@ -71,9 +71,9 @@ wf_status wf_didkey_decode(const char *didkey, wf_key_type *out_type,
 /* Normalize DID verificationMethod material into `did:key:z...` form.
  * Supports Multikey and the legacy EcdsaSecp256k1/P256VerificationKey2019
  * types used by atproto DID documents. The caller frees `*out_didkey`. */
-wf_status wf_didkey_from_verification_method(
-    const char *verification_type, const char *public_key_multibase,
-    char **out_didkey);
+wf_status wf_didkey_from_verification_method(const char *verification_type,
+                                             const char *public_key_multibase,
+                                             char **out_didkey);
 
 /**
  * Compute the verification-method id for a did:key, `${did}#${did}`.
@@ -86,9 +86,8 @@ wf_status wf_didkey_verification_method_id(const char *didkey, char **out_id);
  * and write the raw signature bytes into `sig_out`, which must be at
  * least 64 bytes.
  */
-wf_status wf_sign(const wf_signing_key *key,
-                   const unsigned char *msg, size_t msg_len,
-                   unsigned char *sig_out, size_t sig_out_cap);
+wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
+                  size_t msg_len, unsigned char *sig_out, size_t sig_out_cap);
 
 /**
  * Verify a signature against a did:key- or multibase-encoded public
@@ -97,9 +96,8 @@ wf_status wf_sign(const wf_signing_key *key,
  * Accepts a `did:key:z...` or bare `z...` base58btc multikey. Supports
  * secp256k1-pub (multicodec 0xe7 0x01) and p256-pub (0x80 0x24).
  */
-wf_status wf_verify(const char *public_key_multibase,
-                      const unsigned char *msg, size_t msg_len,
-                      const unsigned char *sig, size_t sig_len);
+wf_status wf_verify(const char *public_key_multibase, const unsigned char *msg,
+                    size_t msg_len, const unsigned char *sig, size_t sig_len);
 
 /**
  * Verify an ECDSA signature while accepting either low-S or high-S form.
@@ -132,8 +130,8 @@ wf_status wf_crypto_sha256(const unsigned char *in, size_t len,
  * required). On WF_OK, *out points to a heap-allocated buffer of *out_len
  * bytes; the caller frees *out with free().
  */
-wf_status wf_crypto_base64url_decode(const char *in,
-                                    unsigned char **out, size_t *out_len);
+wf_status wf_crypto_base64url_decode(const char *in, unsigned char **out,
+                                     size_t *out_len);
 
 /**
  * Base64url-encode `in` (`len` bytes) without padding. On WF_OK, *out is a
@@ -157,8 +155,8 @@ wf_status wf_crypto_p256_verify(const unsigned char x[32],
  * Parse a public JWK ({"kty":"EC","crv":"P-256","x":"...","y":"..."}) and write
  * its P-256 affine coordinates (32 bytes each) into `x` and `y`.
  */
-wf_status wf_crypto_p256_jwk_coords(const char *jwk_json,
-                                    unsigned char x[32], unsigned char y[32]);
+wf_status wf_crypto_p256_jwk_coords(const char *jwk_json, unsigned char x[32],
+                                    unsigned char y[32]);
 
 #ifdef __cplusplus
 }

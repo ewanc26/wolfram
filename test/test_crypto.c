@@ -21,7 +21,10 @@ int main(void) {
         /* Key must be non-zero */
         int nonzero = 0;
         for (int i = 0; i < 32; i++) {
-            if (key.bytes[i]) { nonzero = 1; break; }
+            if (key.bytes[i]) {
+                nonzero = 1;
+                break;
+            }
         }
         WF_CHECK(nonzero);
 
@@ -57,7 +60,10 @@ int main(void) {
 
         int nonzero = 0;
         for (int i = 0; i < 32; i++) {
-            if (key.bytes[i]) { nonzero = 1; break; }
+            if (key.bytes[i]) {
+                nonzero = 1;
+                break;
+            }
         }
         WF_CHECK(nonzero);
 
@@ -71,7 +77,8 @@ int main(void) {
     /* Invalid key type */
     {
         wf_signing_key key;
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_UNKNOWN, &key) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_UNKNOWN, &key) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* Verify a real base58btc P-256 did:key (private scalar 1). */
@@ -83,12 +90,13 @@ int main(void) {
             "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
         unsigned char msg[] = "atproto multikey";
         unsigned char sig[64];
-        WF_CHECK(wf_sign(&key, msg, sizeof(msg) - 1, sig, sizeof(sig)) == WF_OK);
-        WF_CHECK(wf_verify(did_key, msg, sizeof(msg) - 1,
-                           sig, sizeof(sig)) == WF_OK);
+        WF_CHECK(wf_sign(&key, msg, sizeof(msg) - 1, sig, sizeof(sig)) ==
+                 WF_OK);
+        WF_CHECK(wf_verify(did_key, msg, sizeof(msg) - 1, sig, sizeof(sig)) ==
+                 WF_OK);
         sig[0] ^= 1;
-        WF_CHECK(wf_verify(did_key, msg, sizeof(msg) - 1,
-                           sig, sizeof(sig)) == WF_ERR_PARSE);
+        WF_CHECK(wf_verify(did_key, msg, sizeof(msg) - 1, sig, sizeof(sig)) ==
+                 WF_ERR_PARSE);
     }
 
     /* Sign with NULL/empty args */
@@ -98,14 +106,17 @@ int main(void) {
         unsigned char sig[64];
         WF_CHECK(wf_sign(NULL, NULL, 0, NULL, 0) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_sign(&key, NULL, 5, sig, 64) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_sign(&key, (unsigned char*)"x", 1, NULL, 64) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_sign(&key, (unsigned char*)"x", 1, sig, 4) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sign(&key, (unsigned char *)"x", 1, NULL, 64) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sign(&key, (unsigned char *)"x", 1, sig, 4) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* Verify with NULL/empty args */
     {
         WF_CHECK(wf_verify(NULL, NULL, 0, NULL, 0) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_verify("", (unsigned char*)"x", 1, NULL, 0) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_verify("", (unsigned char *)"x", 1, NULL, 0) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* did:key encode/decode round-trip (P-256 and secp256k1). */
@@ -129,7 +140,8 @@ int main(void) {
             wf_key_type dtype;
             unsigned char *draw = NULL;
             size_t draw_len = 0;
-            WF_CHECK(wf_didkey_decode(didkey, &dtype, &draw, &draw_len) == WF_OK);
+            WF_CHECK(wf_didkey_decode(didkey, &dtype, &draw, &draw_len) ==
+                     WF_OK);
             WF_CHECK(dtype == key.type);
             WF_CHECK(draw_len == 33);
 
@@ -138,27 +150,34 @@ int main(void) {
             WF_CHECK(strcmp(reenc, didkey) == 0);
 
             /* The decoded key must verify a signature made by the original. */
-            WF_CHECK(wf_sign(&key, msg, sizeof(msg) - 1, sig, sizeof(sig)) == WF_OK);
-            WF_CHECK(wf_verify(didkey, msg, sizeof(msg) - 1, sig, sizeof(sig)) == WF_OK);
+            WF_CHECK(wf_sign(&key, msg, sizeof(msg) - 1, sig, sizeof(sig)) ==
+                     WF_OK);
+            WF_CHECK(wf_verify(didkey, msg, sizeof(msg) - 1, sig,
+                               sizeof(sig)) == WF_OK);
 
             char *vm = NULL;
             WF_CHECK(wf_didkey_verification_method_id(didkey, &vm) == WF_OK);
             size_t dklen = strlen(didkey);
             WF_CHECK(strlen(vm) == dklen * 2 + 1 &&
-                     strncmp(vm, didkey, dklen) == 0 &&
-                     vm[dklen] == '#' &&
+                     strncmp(vm, didkey, dklen) == 0 && vm[dklen] == '#' &&
                      strcmp(vm + dklen + 1, didkey) == 0);
 
-            free(didkey); free(draw); free(reenc); free(vm);
+            free(didkey);
+            free(draw);
+            free(reenc);
+            free(vm);
         }
     }
 
     /* did:key decode rejects garbage; bare multikey form is accepted. */
     {
         wf_key_type dtype;
-        unsigned char *draw = NULL; size_t dlen = 0;
-        WF_CHECK(wf_didkey_decode("did:key:!!!", &dtype, &draw, &dlen) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_didkey_decode("not-a-did", &dtype, &draw, &dlen) == WF_ERR_INVALID_ARG);
+        unsigned char *draw = NULL;
+        size_t dlen = 0;
+        WF_CHECK(wf_didkey_decode("did:key:!!!", &dtype, &draw, &dlen) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_didkey_decode("not-a-did", &dtype, &draw, &dlen) ==
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_didkey_decode(
                      "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
                      &dtype, &draw, &dlen) == WF_OK);
@@ -171,22 +190,28 @@ int main(void) {
     {
         const char *modern =
             "zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF";
-        const char *legacy =
-            "zQYEBzXeuTM9UR3rfvNag6L3RNAs5pQZyYPsomTsgQhsxLdEgCrPTLgFna8yqCnxPpNT7DBk6Ym3dgPKNu86vt9GR";
+        const char *legacy = "zQYEBzXeuTM9UR3rfvNag6L3RNAs5pQZyYPsomTsgQhsxLdEg"
+                             "CrPTLgFna8yqCnxPpNT7DBk6Ym3dgPKNu86vt9GR";
         char *didkey = NULL;
-        WF_CHECK(wf_didkey_from_verification_method(
-                     "Multikey", modern, &didkey) == WF_OK);
-        WF_CHECK(didkey &&
-                 strcmp(didkey,
-                        "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+        WF_CHECK(wf_didkey_from_verification_method("Multikey", modern,
+                                                    &didkey) == WF_OK);
+        WF_CHECK(
+            didkey &&
+            strcmp(
+                didkey,
+                "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") ==
+                0);
         free(didkey);
         didkey = NULL;
         WF_CHECK(wf_didkey_from_verification_method(
-                     "EcdsaSecp256k1VerificationKey2019", legacy,
-                     &didkey) == WF_OK);
-        WF_CHECK(didkey &&
-                 strcmp(didkey,
-                        "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") == 0);
+                     "EcdsaSecp256k1VerificationKey2019", legacy, &didkey) ==
+                 WF_OK);
+        WF_CHECK(
+            didkey &&
+            strcmp(
+                didkey,
+                "did:key:zQ3shXjHeiBuRCKmM36cuYnm7YEMzhGnCmCyW92sRJ9pribSF") ==
+                0);
         free(didkey);
     }
 

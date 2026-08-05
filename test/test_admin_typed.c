@@ -50,9 +50,8 @@ int main(void) {
     /* ---- getAccountInfo (single accountView) ---- */
     {
         wf_admin_account_view out = {0};
-        wf_status s = wf_admin_parse_account_view(k_account_info_json,
-                                                  strlen(k_account_info_json),
-                                                  &out);
+        wf_status s = wf_admin_parse_account_view(
+            k_account_info_json, strlen(k_account_info_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.did && strcmp(out.did, "did:plc:aaa") == 0);
         WF_CHECK(out.handle && strcmp(out.handle, "alice.bsky.social") == 0);
@@ -76,9 +75,8 @@ int main(void) {
     /* ---- searchAccounts (account list + cursor) ---- */
     {
         wf_admin_account_view_list out = {0};
-        wf_status s = wf_admin_parse_search_accounts(k_search_json,
-                                                     strlen(k_search_json),
-                                                     &out);
+        wf_status s = wf_admin_parse_search_accounts(
+            k_search_json, strlen(k_search_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.account_count == 2);
         WF_CHECK(out.accounts != NULL);
@@ -94,12 +92,12 @@ int main(void) {
 
     /* ---- getAccountInfos (infos list) ---- */
     {
-        const char *infos_json =
-            "{\"infos\":[{\"did\":\"did:plc:aaa\",\"handle\":\"a.bsky.social\"}],"
-            "\"cursor\":\"i1\"}";
+        const char *infos_json = "{\"infos\":[{\"did\":\"did:plc:aaa\","
+                                 "\"handle\":\"a.bsky.social\"}],"
+                                 "\"cursor\":\"i1\"}";
         wf_admin_account_view_list out = {0};
-        wf_status s = wf_admin_parse_account_infos(infos_json,
-                                                   strlen(infos_json), &out);
+        wf_status s =
+            wf_admin_parse_account_infos(infos_json, strlen(infos_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.account_count == 1);
         WF_CHECK(out.accounts[0].did &&
@@ -110,9 +108,8 @@ int main(void) {
     /* ---- getSubjectStatus ---- */
     {
         wf_admin_subject_status out = {0};
-        wf_status s = wf_admin_parse_subject_status(k_subject_status_json,
-                                                    strlen(k_subject_status_json),
-                                                    &out);
+        wf_status s = wf_admin_parse_subject_status(
+            k_subject_status_json, strlen(k_subject_status_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.subject != NULL);
         WF_CHECK(out.did && strcmp(out.did, "did:plc:aaa") == 0);
@@ -126,9 +123,8 @@ int main(void) {
     /* ---- getInviteCodes ---- */
     {
         wf_admin_invite_code_list out = {0};
-        wf_status s = wf_admin_parse_invite_codes(k_invite_codes_json,
-                                                  strlen(k_invite_codes_json),
-                                                  &out);
+        wf_status s = wf_admin_parse_invite_codes(
+            k_invite_codes_json, strlen(k_invite_codes_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.code_count == 2);
         WF_CHECK(out.codes[0].code &&
@@ -193,18 +189,17 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_get_invite_codes(NULL, NULL, &ic) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_admin_update_subject_status(NULL, "did:plc:aaa", 1, 0,
-                                                      NULL) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_admin_update_subject_status(
+                     NULL, "did:plc:aaa", 1, 0, NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_update_account_handle(NULL, "did:plc:aaa",
-                                                     "a.bsky.social") ==
+                                                      "a.bsky.social") ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_admin_update_account_email(NULL, "did:plc:aaa",
-                                                    "a@b.com") ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_admin_update_account_password(NULL, "did:plc:aaa",
-                                                       "pw") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_admin_update_account_email(
+                     NULL, "did:plc:aaa", "a@b.com") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_admin_update_account_password(
+                     NULL, "did:plc:aaa", "pw") == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_update_account_signing_key(
-                    NULL, "did:plc:aaa", "did:key:z") == WF_ERR_INVALID_ARG);
+                     NULL, "did:plc:aaa", "did:key:z") == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_delete_account(NULL, "did:plc:aaa") ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_admin_enable_account_invites(NULL) ==

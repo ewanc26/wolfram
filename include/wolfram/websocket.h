@@ -20,7 +20,8 @@ typedef enum wf_websocket_message_type {
     WF_WEBSOCKET_BINARY = 2,
 } wf_websocket_message_type;
 
-/** A complete message. `data` is heap-owned; free with wf_websocket_message_free. */
+/** A complete message. `data` is heap-owned; free with
+ * wf_websocket_message_free. */
 typedef struct wf_websocket_message {
     unsigned char *data;
     size_t len;
@@ -58,12 +59,11 @@ wf_status wf_websocket_connect_with_headers(const char *url,
  * WF_ERR_WOULD_BLOCK means the socket is not readable yet and may be retried.
  * Partial message state is retained by the connection.
  */
-wf_status wf_websocket_receive(wf_websocket *socket,
-                               wf_websocket_message *out);
+wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out);
 
 /** Send one text message; retry the same payload after WF_ERR_WOULD_BLOCK. */
-wf_status wf_websocket_send_text(wf_websocket *socket,
-                                  const char *text, size_t text_len);
+wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
+                                 size_t text_len);
 
 /**
  * Send a zero-length WebSocket PING control frame for connection keepalive.

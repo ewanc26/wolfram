@@ -353,7 +353,8 @@ static wf_status wf_repo_parse_missing_blob(cJSON *obj,
     if (cJSON_IsString(cid) && cid->valuestring) {
         status = wf_repo_set_string(&b->cid, cid->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(record_uri) && record_uri->valuestring) {
+    if (status == WF_OK && cJSON_IsString(record_uri) &&
+        record_uri->valuestring) {
         status = wf_repo_set_string(&b->record_uri, record_uri->valuestring);
     }
     return status;
@@ -512,8 +513,7 @@ wf_status wf_repo_writes_builder_init(wf_repo_writes_builder **out) {
         return WF_ERR_INVALID_ARG;
     }
     *out = NULL;
-    wf_repo_writes_builder *b =
-        (wf_repo_writes_builder *)calloc(1, sizeof(*b));
+    wf_repo_writes_builder *b = (wf_repo_writes_builder *)calloc(1, sizeof(*b));
     if (!b) {
         return WF_ERR_ALLOC;
     }
@@ -814,7 +814,8 @@ wf_status wf_agent_apply_writes_typed(wf_agent *agent, const char *writes_json,
 
     wf_status status = WF_OK;
     wf_lex_com_atproto_repo_apply_writes_main_input input = {0};
-    wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union *writes = NULL;
+    wf_lex_com_atproto_repo_apply_writes_main_input_writes_item_union *writes =
+        NULL;
 
     cJSON *repo = cJSON_GetObjectItemCaseSensitive(root, "repo");
     cJSON *validate = cJSON_GetObjectItemCaseSensitive(root, "validate");
@@ -879,11 +880,11 @@ wf_status wf_agent_apply_writes_typed(wf_agent *agent, const char *writes_json,
     if (status == WF_OK) {
         wf_agent_sync_auth(agent);
         wf_response res = {0};
-        status = wf_lex_com_atproto_repo_apply_writes_main_call(
-            agent->client, &input, &res);
+        status = wf_lex_com_atproto_repo_apply_writes_main_call(agent->client,
+                                                                &input, &res);
         if (status == WF_OK) {
-            status = wf_repo_parse_apply_writes(res.body, res.body_len,
-                                                &result);
+            status =
+                wf_repo_parse_apply_writes(res.body, res.body_len, &result);
         }
         wf_response_free(&res);
     }
@@ -1030,7 +1031,8 @@ void wf_repo_upload_blob_result_free(wf_repo_upload_blob_result *r) {
     wf_repo_upload_blob_result_reset(r);
 }
 
-/* ---- createRecord / putRecord / deleteRecord / uploadBlob / importRepo ---- */
+/* ---- createRecord / putRecord / deleteRecord / uploadBlob / importRepo ----
+ */
 
 wf_status wf_agent_create_record_typed(wf_agent *agent, const char *repo,
                                        const char *collection,
@@ -1067,8 +1069,8 @@ wf_status wf_agent_create_record_typed(wf_agent *agent, const char *repo,
     wf_status status = wf_lex_com_atproto_repo_create_record_main_call(
         agent->client, &input, &res);
     if (status == WF_OK) {
-        status = wf_repo_parse_write_record_result(res.body, res.body_len,
-                                                   &result);
+        status =
+            wf_repo_parse_write_record_result(res.body, res.body_len, &result);
     }
     wf_response_free(&res);
     if (status == WF_OK) {
@@ -1116,8 +1118,8 @@ wf_status wf_agent_put_record_typed(wf_agent *agent, const char *repo,
     wf_status status = wf_lex_com_atproto_repo_put_record_main_call(
         agent->client, &input, &res);
     if (status == WF_OK) {
-        status = wf_repo_parse_write_record_result(res.body, res.body_len,
-                                                   &result);
+        status =
+            wf_repo_parse_write_record_result(res.body, res.body_len, &result);
     }
     wf_response_free(&res);
     if (status == WF_OK) {
@@ -1169,12 +1171,12 @@ wf_status wf_agent_upload_blob_typed(wf_agent *agent, const void *data,
     wf_repo_upload_blob_result result = {0};
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_upload_blob(
-        agent->client, "com.atproto.repo.uploadBlob", data, data_len,
-        content_type, &res);
+    wf_status status =
+        wf_xrpc_upload_blob(agent->client, "com.atproto.repo.uploadBlob", data,
+                            data_len, content_type, &res);
     if (status == WF_OK) {
-        status = wf_repo_parse_upload_blob_result(res.body, res.body_len,
-                                                  &result);
+        status =
+            wf_repo_parse_upload_blob_result(res.body, res.body_len, &result);
     }
     wf_response_free(&res);
     if (status == WF_OK) {
@@ -1193,9 +1195,9 @@ wf_status wf_agent_import_repo_typed(wf_agent *agent, const void *car,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_upload_blob(
-        agent->client, "com.atproto.repo.importRepo", car, car_len,
-        "application/vnd.ipld.car", &res);
+    wf_status status =
+        wf_xrpc_upload_blob(agent->client, "com.atproto.repo.importRepo", car,
+                            car_len, "application/vnd.ipld.car", &res);
     wf_response_free(&res);
     return status;
 }

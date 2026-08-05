@@ -51,7 +51,8 @@ int main(int argc, char **argv) {
         resolve_res.body, resolve_res.body_len, &resolved);
     wf_response_free(&resolve_res);
     if (status != WF_OK || !resolved || !resolved->did) {
-        fprintf(stderr, "failed to decode resolveHandle response: %d\n", (int)status);
+        fprintf(stderr, "failed to decode resolveHandle response: %d\n",
+                (int)status);
         wf_lex_com_atproto_identity_resolve_handle_main_output_free(resolved);
         wf_xrpc_client_free(client);
         return 1;
@@ -59,7 +60,7 @@ int main(int argc, char **argv) {
 
     printf("Resolved %s -> %s\n", handle, resolved->did);
 
-    const char *patterns[1] = { resolved->did };
+    const char *patterns[1] = {resolved->did};
 
     wf_lex_com_atproto_label_query_labels_main_params query_params = {0};
     query_params.uri_patterns.items = patterns;
@@ -84,19 +85,19 @@ int main(int argc, char **argv) {
     wf_response_free(&query_res);
 
     if (status != WF_OK || !labels) {
-        fprintf(stderr, "failed to decode queryLabels response: %d\n", (int)status);
+        fprintf(stderr, "failed to decode queryLabels response: %d\n",
+                (int)status);
     } else {
         size_t n = labels->labels.count;
         printf("queryLabels returned %zu label(s)\n", n);
         for (size_t i = 0; i < n; ++i) {
-            const wf_lex_com_atproto_label_defs_label *l = labels->labels.items[i];
+            const wf_lex_com_atproto_label_defs_label *l =
+                labels->labels.items[i];
             if (!l) {
                 continue;
             }
-            printf("  - src=%s uri=%s val=%s cts=%s\n",
-                   l->src ? l->src : "",
-                   l->uri ? l->uri : "",
-                   l->val ? l->val : "",
+            printf("  - src=%s uri=%s val=%s cts=%s\n", l->src ? l->src : "",
+                   l->uri ? l->uri : "", l->val ? l->val : "",
                    l->cts ? l->cts : "");
         }
     }

@@ -36,10 +36,10 @@ int main(void) {
     const char *did = "did:plc:mirrorpersist";
     const char *did_key =
         "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
-    unsigned char record_one[]   = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
-    unsigned char record_two[]   = {0xA1, 0x64, 't', 'e', 's', 't', 0x02};
+    unsigned char record_one[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
+    unsigned char record_two[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x02};
     unsigned char record_three[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x03};
-    unsigned char record_four[]  = {0xA1, 0x64, 't', 'e', 's', 't', 0x04};
+    unsigned char record_four[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x04};
 
     wf_signing_key key = {0};
     key.type = WF_KEY_TYPE_P256;
@@ -51,12 +51,12 @@ int main(void) {
     wf_cid old_keep = {0}, old_delete = {0};
 
     WF_CHECK(wf_repo_create_record(&working, NULL, did, "com.example.posts",
-                                   "keep", record_one, sizeof(record_one),
-                                   &key, &commit_one, &old_keep) == WF_OK);
+                                   "keep", record_one, sizeof(record_one), &key,
+                                   &commit_one, &old_keep) == WF_OK);
     WF_CHECK(wf_repo_create_record(&working, &commit_one, did,
-                                   "com.example.posts", "remove",
-                                   record_two, sizeof(record_two), &key,
-                                   &commit_base, &old_delete) == WF_OK);
+                                   "com.example.posts", "remove", record_two,
+                                   sizeof(record_two), &key, &commit_base,
+                                   &old_delete) == WF_OK);
 
     wf_car base = {0};
     {
@@ -72,18 +72,19 @@ int main(void) {
     }
 
     size_t first_update_block = working.block_count;
-    wf_cid intermediate = {0}, after_delete = {0}, new_keep = {0}, new_add = {0};
+    wf_cid intermediate = {0}, after_delete = {0}, new_keep = {0},
+           new_add = {0};
     WF_CHECK(wf_repo_update_record(&working, &commit_base, did,
-                                   "com.example.posts", "keep",
-                                   record_three, sizeof(record_three), &key,
-                                   &intermediate, &new_keep) == WF_OK);
+                                   "com.example.posts", "keep", record_three,
+                                   sizeof(record_three), &key, &intermediate,
+                                   &new_keep) == WF_OK);
     WF_CHECK(wf_repo_delete_record(&working, &intermediate, did,
-                                   "com.example.posts", "remove",
-                                   &key, &after_delete) == WF_OK);
+                                   "com.example.posts", "remove", &key,
+                                   &after_delete) == WF_OK);
     WF_CHECK(wf_repo_create_record(&working, &after_delete, did,
-                                   "com.example.posts", "added",
-                                   record_four, sizeof(record_four), &key,
-                                   &commit_update, &new_add) == WF_OK);
+                                   "com.example.posts", "added", record_four,
+                                   sizeof(record_four), &key, &commit_update,
+                                   &new_add) == WF_OK);
 
     wf_car update = {0};
     update.roots = &commit_update;
@@ -126,7 +127,8 @@ int main(void) {
     WF_CHECK(strcmp(seed_head, expect_base) == 0);
     free(expect_base);
 
-    WF_CHECK(wf_agent_apply_repo_diff(agent, update_bytes, update_len) == WF_OK);
+    WF_CHECK(wf_agent_apply_repo_diff(agent, update_bytes, update_len) ==
+             WF_OK);
 
     char *applied_head = NULL;
     WF_CHECK(wf_agent_repo_head(agent, &applied_head) == WF_OK);
@@ -176,15 +178,16 @@ int main(void) {
                  memcmp(data, record_three, len) == 0);
         free(data);
 
-        WF_CHECK(wf_agent_mirror_get_record(agent2, "com.example.posts", "added",
-                                            &data, &len) == WF_OK);
+        WF_CHECK(wf_agent_mirror_get_record(agent2, "com.example.posts",
+                                            "added", &data, &len) == WF_OK);
         WF_CHECK(len == sizeof(record_four) &&
                  memcmp(data, record_four, len) == 0);
         free(data);
 
         /* Deleted record is absent after the diff was applied. */
-        WF_CHECK(wf_agent_mirror_get_record(agent2, "com.example.posts", "remove",
-                                            &data, &len) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_agent_mirror_get_record(agent2, "com.example.posts",
+                                            "remove", &data,
+                                            &len) == WF_ERR_NOT_FOUND);
     }
 
     /* Best-effort guard: loading without an attached store is a clean error. */
@@ -192,8 +195,7 @@ int main(void) {
         wf_agent *agent3 = wf_agent_new("https://example.com");
         WF_CHECK(agent3 != NULL);
         WF_CHECK(wf_agent_set_did(agent3, did) == WF_OK);
-        WF_CHECK(wf_agent_mirror_load_from_store(agent3) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mirror_load_from_store(agent3) == WF_ERR_INVALID_ARG);
         wf_agent_free(agent3);
     }
 

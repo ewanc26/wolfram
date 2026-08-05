@@ -59,12 +59,12 @@ typedef struct wf_feedgen_server_config {
     char *description;  /* Long description (optional) */
     char *avatar;       /* Avatar URI (optional) */
     char *cid;          /* CID of the generator record (optional) */
-    int    is_online;   /* Emitted as view isOnline (default: 1) */
-    int    is_valid;    /* Emitted as view isValid (default: 1) */
+    int is_online;      /* Emitted as view isOnline (default: 1) */
+    int is_valid;       /* Emitted as view isValid (default: 1) */
 } wf_feedgen_server_config;
 
 /** Zero-initialiser for a config struct. */
-#define WF_FEEDGEN_SERVER_CONFIG_INIT { 0 }
+#define WF_FEEDGEN_SERVER_CONFIG_INIT {0}
 
 /** Free all owned strings in a config and zero it. Safe to call on a
  *  zeroed/partially-initialised struct. */
@@ -91,12 +91,11 @@ void wf_feedgen_server_config_free(wf_feedgen_server_config *config);
  *                 (or leave untouched) when there are no further pages.
  * @return WF_OK on success; anything else produces a 500 server error.
  */
-typedef wf_status (*wf_feedgen_server_skeleton_cb)(void *ctx,
-                                                     const char *feed,
-                                                     const char *cursor,
-                                                     size_t limit,
-                                                     cJSON **out_feed,
-                                                     char **out_cursor);
+typedef wf_status (*wf_feedgen_server_skeleton_cb)(void *ctx, const char *feed,
+                                                   const char *cursor,
+                                                   size_t limit,
+                                                   cJSON **out_feed,
+                                                   char **out_cursor);
 
 /* ------------------------------------------------------------------ */
 /* Feed generator helper                                                */
@@ -112,10 +111,9 @@ typedef struct wf_feedgen_server wf_feedgen_server;
  * call with wf_feedgen_server_config_free. Returns NULL on allocation
  * failure.
  */
-wf_feedgen_server *wf_feedgen_server_new(
-    const wf_feedgen_server_config *config,
-    wf_feedgen_server_skeleton_cb skeleton_cb,
-    void *ctx);
+wf_feedgen_server *
+wf_feedgen_server_new(const wf_feedgen_server_config *config,
+                      wf_feedgen_server_skeleton_cb skeleton_cb, void *ctx);
 
 /**
  * Start serving on the given address:port. Registers both feed endpoints and
@@ -131,7 +129,8 @@ uint16_t wf_feedgen_server_port(const wf_feedgen_server *fg);
 /** Stop accepting new requests. Safe to call more than once. */
 void wf_feedgen_server_stop(wf_feedgen_server *fg);
 
-/** Free the helper, its server, and its copied configuration. Safe with NULL. */
+/** Free the helper, its server, and its copied configuration. Safe with NULL.
+ */
 void wf_feedgen_server_free(wf_feedgen_server *fg);
 
 #ifdef __cplusplus

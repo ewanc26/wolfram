@@ -21,13 +21,14 @@ extern "C" {
 #endif
 
 /** Result/error codes returned by wolfram functions. This is the single
- *  canonical status enum; `wf_error` (in _result.h) is a typedef alias of it. */
+ *  canonical status enum; `wf_error` (in _result.h) is a typedef alias of it.
+ */
 typedef enum wf_status {
     WF_OK = 0,
     WF_ERR_INVALID_ARG = 1,
     WF_ERR_ALLOC = 2,
     WF_ERR_NETWORK = 3,
-    WF_ERR_HTTP = 4,      /* transport succeeded, server returned non-2xx */
+    WF_ERR_HTTP = 4, /* transport succeeded, server returned non-2xx */
     WF_ERR_PARSE = 5,
     WF_ERR_NOT_FOUND = 6,
     WF_ERR_WOULD_BLOCK = 7, /* non-blocking transport has no data ready yet */
@@ -44,7 +45,7 @@ typedef enum wf_status {
     WF_ERR_TIMEOUT = 18,
     WF_ERR_UNSUPPORTED = 19,
     WF_ERR_PERMISSION = 20,
-    WF_ERR_RATE_LIMIT = 21,  /* rate limiter rejected the request */
+    WF_ERR_RATE_LIMIT = 21, /* rate limiter rejected the request */
     WF_ERR_DUPLICATE = 22,
     WF_ERR_CONFLICT = 23,
     WF_ERR_NOT_IMPLEMENTED = 24,
@@ -58,16 +59,16 @@ typedef struct wf_xrpc_client wf_xrpc_client;
 
 /** A raw HTTP response. `body` is heap-owned; free with wf_response_free. */
 typedef struct wf_response {
-    long   status;
-    char  *body;
+    long status;
+    char *body;
     size_t body_len;
-    char  *dpop_nonce; /* optional owned DPoP-Nonce response header */
-    char  *set_cookie; /* optional owned Set-Cookie response header */
+    char *dpop_nonce; /* optional owned DPoP-Nonce response header */
+    char *set_cookie; /* optional owned Set-Cookie response header */
     /* Optional owned Location response header. Populated on a redirect (3xx)
      * response even though that status makes the call return WF_ERR_HTTP —
      * telling a 3xx apart from another 3xx that went somewhere else is
      * exactly the situation a caller reads this field to resolve. */
-    char  *location;
+    char *location;
 } wf_response;
 
 typedef struct wf_http_header {
@@ -191,10 +192,8 @@ void wf_xrpc_client_set_refresh_handler(wf_xrpc_client *client,
  * On WF_OK, `out` is populated and must be released with
  * wf_response_free.
  */
-wf_status wf_xrpc_query(wf_xrpc_client *client,
-                         const char *nsid,
-                         const char *query_string,
-                         wf_response *out);
+wf_status wf_xrpc_query(wf_xrpc_client *client, const char *nsid,
+                        const char *query_string, wf_response *out);
 
 /**
  * Issue an XRPC query from unencoded name/value parameters.
@@ -202,11 +201,9 @@ wf_status wf_xrpc_query(wf_xrpc_client *client,
  * Encoding remains in the transport layer so higher-level protocol APIs do
  * not need to construct URLs. NULL parameter values are rejected.
  */
-wf_status wf_xrpc_query_params(wf_xrpc_client *client,
-                                const char *nsid,
-                                const wf_xrpc_param *params,
-                                size_t param_count,
-                                wf_response *out);
+wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
+                               const wf_xrpc_param *params, size_t param_count,
+                               wf_response *out);
 
 /**
  * Issue an `xrpc/{nsid}` POST (procedure).
@@ -214,10 +211,8 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client,
  * `json_body` is a raw, already-serialised JSON payload, or NULL for
  * an empty body. Sets Content-Type: application/json.
  */
-wf_status wf_xrpc_procedure(wf_xrpc_client *client,
-                             const char *nsid,
-                             const char *json_body,
-                             wf_response *out);
+wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
+                            const char *json_body, wf_response *out);
 
 /**
  * Issue an `xrpc/{nsid}` POST with a binary body.
@@ -226,12 +221,9 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client,
  * request Content-Type (for example, "image/jpeg"). The response body is
  * JSON and returned in `out->body`.
  */
-wf_status wf_xrpc_upload_blob(wf_xrpc_client *client,
-                              const char *nsid,
-                              const void *data,
-                              size_t data_len,
-                              const char *content_type,
-                              wf_response *out);
+wf_status wf_xrpc_upload_blob(wf_xrpc_client *client, const char *nsid,
+                              const void *data, size_t data_len,
+                              const char *content_type, wf_response *out);
 
 /** Release a response's owned buffer. Safe to call on a zeroed struct. */
 void wf_response_free(wf_response *res);
@@ -251,8 +243,8 @@ void wf_response_free(wf_response *res);
  * present but malformed. Both `out_error` and `out_message` are left NULL on
  * any non-WF_OK return. Safe to call regardless of `resp->status`.
  */
-wf_status wf_xrpc_error(const wf_response *resp,
-                        char **out_error, char **out_message);
+wf_status wf_xrpc_error(const wf_response *resp, char **out_error,
+                        char **out_message);
 
 /**
  * Perform a generic HTTP GET with extra headers.
@@ -263,8 +255,8 @@ wf_status wf_xrpc_error(const wf_response *resp,
  * On WF_OK, `out` is populated and must be released with `wf_response_free`.
  */
 wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
-                                  const wf_http_header *extra, size_t extra_count,
-                                  wf_response *out);
+                                   const wf_http_header *extra,
+                                   size_t extra_count, wf_response *out);
 
 /**
  * Returns a copy of the client's base URL.
@@ -278,7 +270,8 @@ char *wf_xrpc_get_base_url(wf_xrpc_client *client);
  * absolute URL. On WF_OK, `out` is populated and must be released with
  * wf_response_free.
  */
-wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out);
+wf_status wf_http_get(wf_xrpc_client *client, const char *url,
+                      wf_response *out);
 
 /**
  * Perform a generic HTTP POST. This is the transport primitive used by
@@ -299,8 +292,8 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
  * WF_ERR_HTTP, `out` is populated and must be freed.
  */
 wf_status wf_xrpc_upload_blob_with_headers(
-    wf_xrpc_client *client, const char *nsid, const void *data,
-    size_t data_len, const char *content_type, const wf_http_header *headers,
+    wf_xrpc_client *client, const char *nsid, const void *data, size_t data_len,
+    const char *content_type, const wf_http_header *headers,
     size_t header_count, wf_response *out);
 
 /**
@@ -316,7 +309,8 @@ wf_status wf_xrpc_upload_blob_with_headers(
  * transport module, so network I/O remains isolated to xrpc.c.
  */
 typedef wf_status (*wf_xrpc_handler_fn)(void *userdata, const char *method,
-                                        const char *url, const char *content_type,
+                                        const char *url,
+                                        const char *content_type,
                                         const char *body, size_t body_len,
                                         const wf_http_header *headers,
                                         size_t header_count, wf_response *out);

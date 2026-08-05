@@ -46,7 +46,8 @@ static cJSON *make_generator(const char *uri, const char *cid,
     cJSON *labels = cJSON_CreateArray();
     cJSON_AddItemToObject(g, "labels", labels);
     cJSON *viewer = cJSON_CreateObject();
-    cJSON_AddStringToObject(viewer, "like", "at://did:plc:x/app.bsky.feed.generator.like/y");
+    cJSON_AddStringToObject(viewer, "like",
+                            "at://did:plc:x/app.bsky.feed.generator.like/y");
     cJSON_AddItemToObject(g, "viewer", viewer);
     return g;
 }
@@ -68,20 +69,19 @@ int main(void) {
              WF_ERR_INVALID_ARG);
 
     wf_feedgen_search_result_list sl = {0};
-    WF_CHECK(wf_feedgen_parse_search_posts(NULL, 0, &sl) ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_feedgen_parse_search_posts(NULL, 0, &sl) == WF_ERR_INVALID_ARG);
 
     /* ---- getFeedGenerators body (built with cJSON) ---- */
     cJSON *root = cJSON_CreateObject();
     cJSON *feeds = cJSON_CreateArray();
-    cJSON_AddItemToArray(feeds, make_generator(
-                             "at://did:plc:gen1/app.bsky.feed.generator/self",
-                             "bafygencid1111111111111111111111111111111",
-                             "What's Hot", "Trending posts.", 1234));
-    cJSON_AddItemToArray(feeds, make_generator(
-                             "at://did:plc:gen2/app.bsky.feed.generator/self",
-                             "bafygencid2222222222222222222222222222222",
-                             "Cat Pics", "Just cats.", 7));
+    cJSON_AddItemToArray(
+        feeds, make_generator("at://did:plc:gen1/app.bsky.feed.generator/self",
+                              "bafygencid1111111111111111111111111111111",
+                              "What's Hot", "Trending posts.", 1234));
+    cJSON_AddItemToArray(
+        feeds, make_generator("at://did:plc:gen2/app.bsky.feed.generator/self",
+                              "bafygencid2222222222222222222222222222222",
+                              "Cat Pics", "Just cats.", 7));
     cJSON_AddItemToObject(root, "feeds", feeds);
     cJSON_AddStringToObject(root, "cursor", "next-cursor");
     char *gen_json = json_of(root);
@@ -92,7 +92,8 @@ int main(void) {
     WF_CHECK(gl.cursor && strcmp(gl.cursor, "next-cursor") == 0);
     WF_CHECK(gl.generators[0].uri &&
              strstr(gl.generators[0].uri, "did:plc:gen1") != NULL);
-    WF_CHECK(gl.generators[0].cid && strncmp(gl.generators[0].cid, "bafy", 4) == 0);
+    WF_CHECK(gl.generators[0].cid &&
+             strncmp(gl.generators[0].cid, "bafy", 4) == 0);
     WF_CHECK(gl.generators[0].creator.did &&
              strcmp(gl.generators[0].creator.did,
                     "did:plc:creator000000000000000000") == 0);
@@ -103,29 +104,34 @@ int main(void) {
     WF_CHECK(gl.generators[0].description &&
              strcmp(gl.generators[0].description, "Trending posts.") == 0);
     WF_CHECK(gl.generators[0].avatar &&
-             strcmp(gl.generators[0].avatar, "https://cdn.bsky.app/img/gen.jpg") == 0);
-    WF_CHECK(gl.generators[0].has_like_count && gl.generators[0].like_count == 1234);
+             strcmp(gl.generators[0].avatar,
+                    "https://cdn.bsky.app/img/gen.jpg") == 0);
+    WF_CHECK(gl.generators[0].has_like_count &&
+             gl.generators[0].like_count == 1234);
     WF_CHECK(gl.generators[0].has_accepts_interactions &&
              gl.generators[0].accepts_interactions == true);
     WF_CHECK(gl.generators[0].content_mode &&
              strstr(gl.generators[0].content_mode, "contentPost") != NULL);
     WF_CHECK(gl.generators[0].indexed_at &&
-             strcmp(gl.generators[0].indexed_at, "2026-07-01T09:00:00.000Z") == 0);
+             strcmp(gl.generators[0].indexed_at, "2026-07-01T09:00:00.000Z") ==
+                 0);
     WF_CHECK(gl.generators[0].extra != NULL);
     WF_CHECK(gl.generators[1].display_name &&
              strcmp(gl.generators[1].display_name, "Cat Pics") == 0);
-    WF_CHECK(gl.generators[1].has_like_count && gl.generators[1].like_count == 7);
+    WF_CHECK(gl.generators[1].has_like_count &&
+             gl.generators[1].like_count == 7);
     wf_feedgen_generator_list_free(&gl);
-    WF_CHECK(gl.generator_count == 0 && gl.generators == NULL && gl.cursor == NULL);
+    WF_CHECK(gl.generator_count == 0 && gl.generators == NULL &&
+             gl.cursor == NULL);
     free(gen_json);
 
     /* ---- getFeedGenerator detail body ---- */
     cJSON *droot = cJSON_CreateObject();
-    cJSON_AddItemToObject(droot, "view",
-                          make_generator(
-                              "at://did:plc:gen1/app.bsky.feed.generator/self",
-                              "bafygencid1111111111111111111111111111111",
-                              "What's Hot", "Trending posts.", 1234));
+    cJSON_AddItemToObject(
+        droot, "view",
+        make_generator("at://did:plc:gen1/app.bsky.feed.generator/self",
+                       "bafygencid1111111111111111111111111111111",
+                       "What's Hot", "Trending posts.", 1234));
     cJSON_AddBoolToObject(droot, "isOnline", 1);
     cJSON_AddBoolToObject(droot, "isValid", 1);
     char *detail_json = json_of(droot);
@@ -199,7 +205,8 @@ int main(void) {
     free(search_json);
 
     /* ---- Agent wrapper NULL validation ---- */
-    const char *feeds_arr[] = {"at://did:plc:gen1/app.bsky.feed.generator/self"};
+    const char *feeds_arr[] = {
+        "at://did:plc:gen1/app.bsky.feed.generator/self"};
     const char *actor = "did:plc:alice";
     wf_feedgen_generator_detail d2 = {0};
     wf_feedgen_generator_list g2 = {0};

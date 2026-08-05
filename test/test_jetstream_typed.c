@@ -11,12 +11,14 @@ int main(void) {
             "\"seq\":123,\"kind\":\"commit\",\"commit\":{"
             "\"operation\":\"create\","
             "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"abc\","
-            "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"hello world\"},"
-            "\"cid\":\"bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu\","
+            "\"record\":{\"$type\":\"app.bsky.feed.post\",\"text\":\"hello "
+            "world\"},"
+            "\"cid\":"
+            "\"bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu\","
             "\"rev\":\"3loabcmyt2sld\"}}";
         wf_jetstream_event_typed ev = {0};
-        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
-                 == WF_OK);
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+                 WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_COMMIT);
         WF_CHECK(ev.did && strcmp(ev.did, "did:plc:abc") == 0);
         WF_CHECK(ev.seq == 123);
@@ -25,13 +27,11 @@ int main(void) {
         WF_CHECK(ev.commit.collection &&
                  strcmp(ev.commit.collection, "app.bsky.feed.post") == 0);
         WF_CHECK(ev.commit.rkey && strcmp(ev.commit.rkey, "abc") == 0);
-        WF_CHECK(ev.commit.has_record &&
-                 cJSON_IsObject(ev.commit.record));
+        WF_CHECK(ev.commit.has_record && cJSON_IsObject(ev.commit.record));
         WF_CHECK(ev.commit.cid &&
-                 strcmp(ev.commit.cid,
-                        "bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu") == 0);
-        WF_CHECK(ev.commit.rev &&
-                 strcmp(ev.commit.rev, "3loabcmyt2sld") == 0);
+                 strcmp(ev.commit.cid, "bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmz"
+                                       "jahc5q6wzlw4ourzphtu") == 0);
+        WF_CHECK(ev.commit.rev && strcmp(ev.commit.rev, "3loabcmyt2sld") == 0);
         wf_jetstream_event_typed_free(&ev);
         WF_CHECK(ev.did == NULL && ev.commit.record == NULL);
     }
@@ -42,11 +42,12 @@ int main(void) {
             "\"seq\":124,\"kind\":\"commit\",\"commit\":{"
             "\"operation\":\"delete\","
             "\"collection\":\"app.bsky.feed.post\",\"rkey\":\"abc\","
-            "\"cid\":\"bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu\","
+            "\"cid\":"
+            "\"bafyreihxojphs4rlytr3jfdj5ztqtsb3cywwmzjahc5q6wzlw4ourzphtu\","
             "\"rev\":\"3loabcmyt2sle\"}}";
         wf_jetstream_event_typed ev = {0};
-        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
-                 == WF_OK);
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+                 WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_COMMIT);
         WF_CHECK(ev.commit.operation == WF_JETSTREAM_COMMIT_DELETE);
         WF_CHECK(ev.commit.collection &&
@@ -65,8 +66,8 @@ int main(void) {
             "\"did\":\"did:plc:ident\",\"seq\":7,"
             "\"time\":\"2023-11-14T12:00:00Z\",\"prev\":\"\"}}";
         wf_jetstream_event_typed ev = {0};
-        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
-                 == WF_OK);
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+                 WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_IDENTITY);
         WF_CHECK(ev.did && strcmp(ev.did, "did:plc:ident") == 0);
         WF_CHECK(ev.seq == 7);
@@ -82,8 +83,8 @@ int main(void) {
             "\"account\":{\"active\":true,\"did\":\"did:plc:acct\",\"seq\":9,"
             "\"time\":\"2023-11-14T12:00:00Z\",\"status\":null}}";
         wf_jetstream_event_typed ev = {0};
-        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
-                 == WF_OK);
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+                 WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_ACCOUNT);
         WF_CHECK(ev.did && strcmp(ev.did, "did:plc:acct") == 0);
         WF_CHECK(ev.seq == 9);
@@ -100,8 +101,8 @@ int main(void) {
             "\"time\":\"2024-09-05T10:11:06.833Z\","
             "\"rev\":\"3-fork\",\"tooBig\":false}}";
         wf_jetstream_event_typed ev = {0};
-        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
-                 == WF_OK);
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+                 WF_OK);
         WF_CHECK(ev.kind == WF_JETSTREAM_EVENT_FORK);
         WF_CHECK(ev.sync.kind == WF_JETSTREAM_EVENT_FORK);
         WF_CHECK(ev.sync.seq && strcmp(ev.sync.seq, "42") == 0);
@@ -112,10 +113,11 @@ int main(void) {
     }
 
     {
-        const char json[] = "{\"did\":123,\"time_us\":1,\"seq\":1,\"kind\":\"commit\"}";
+        const char json[] =
+            "{\"did\":123,\"time_us\":1,\"seq\":1,\"kind\":\"commit\"}";
         wf_jetstream_event_typed ev = {0};
-        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev)
-                 == WF_ERR_PARSE);
+        WF_CHECK(wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+                 WF_ERR_PARSE);
         WF_CHECK(ev.did == NULL && ev.kind == WF_JETSTREAM_EVENT_UNKNOWN);
     }
 

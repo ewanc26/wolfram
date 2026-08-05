@@ -93,8 +93,12 @@ static int append_serialized(wf_cbor_item *item, unsigned char **buf,
         size_t ncap = (*cap ? *cap * 2 : 64);
         while (ncap < *len + slen) ncap *= 2;
         unsigned char *nb = realloc(*buf, ncap);
-        if (!nb) { free(s); return -1; }
-        *buf = nb; *cap = ncap;
+        if (!nb) {
+            free(s);
+            return -1;
+        }
+        *buf = nb;
+        *cap = ncap;
     }
     memcpy(*buf + *len, s, slen);
     *len += slen;
@@ -104,16 +108,21 @@ static int append_serialized(wf_cbor_item *item, unsigned char **buf,
 
 /* Build a full framed message: header map ++ body map, concatenated. */
 static unsigned char *build_frame(const char *keys_h[], wf_cbor_item **vals_h,
-                                  size_t nh,
-                                  const char *keys_b[], wf_cbor_item **vals_b,
-                                  size_t nb, size_t *out_len) {
+                                  size_t nh, const char *keys_b[],
+                                  wf_cbor_item **vals_b, size_t nb,
+                                  size_t *out_len) {
     wf_cbor_item *header = mk_map(keys_h, vals_h, nh);
     wf_cbor_item *body = mk_map(keys_b, vals_b, nb);
-    unsigned char *buf = NULL; size_t len = 0, cap = 0;
+    unsigned char *buf = NULL;
+    size_t len = 0, cap = 0;
     int rc = append_serialized(header, &buf, &len, &cap);
     if (rc == 0) rc = append_serialized(body, &buf, &len, &cap);
-    free_item(header); free_item(body);
-    if (rc != 0) { free(buf); return NULL; }
+    free_item(header);
+    free_item(body);
+    if (rc != 0) {
+        free(buf);
+        return NULL;
+    }
     *out_len = len;
     return buf;
 }
@@ -122,13 +131,12 @@ static unsigned char *build_frame(const char *keys_h[], wf_cbor_item **vals_h,
 
 static void test_decode_message(void) {
     const char *kh[] = {"op", "t"};
-    wf_cbor_item *vh[] = { mk_uint(1), mk_str("#eventConvoFirstMessage") };
+    wf_cbor_item *vh[] = {mk_uint(1), mk_str("#eventConvoFirstMessage")};
 
     const char *kb[] = {"seq", "convoId", "rev", "createdAt", "user"};
-    wf_cbor_item *vb[] = { mk_uint(42),
-                           mk_str("c1"), mk_str("r1"),
-                           mk_str("2024-01-01T00:00:00Z"),
-                           mk_str("did:plc:user") };
+    wf_cbor_item *vb[] = {mk_uint(42), mk_str("c1"), mk_str("r1"),
+                          mk_str("2024-01-01T00:00:00Z"),
+                          mk_str("did:plc:user")};
 
     size_t len = 0;
     unsigned char *frame = build_frame(kh, vh, 2, kb, vb, 5, &len);
@@ -139,7 +147,8 @@ static void test_decode_message(void) {
     WF_CHECK(s == WF_OK);
     WF_CHECK(fr.is_error == 0);
     WF_CHECK(fr.seq == 42);
-    WF_CHECK(fr.event.type && strcmp(fr.event.type, "#eventConvoFirstMessage") == 0);
+    WF_CHECK(fr.event.type &&
+             strcmp(fr.event.type, "#eventConvoFirstMessage") == 0);
     WF_CHECK(fr.event.convo_id && strcmp(fr.event.convo_id, "c1") == 0);
     WF_CHECK(fr.event.rev && strcmp(fr.event.rev, "r1") == 0);
     WF_CHECK(fr.event.created_at &&
@@ -154,17 +163,18 @@ static void test_decode_message(void) {
 
 static void test_decode_all_fields(void) {
     const char *kh[] = {"op", "t"};
-    wf_cbor_item *vh[] = { mk_uint(1), mk_str("#eventGroupChatMemberLeft") };
+    wf_cbor_item *vh[] = {mk_uint(1), mk_str("#eventGroupChatMemberLeft")};
 
-    const char *kb[] = {"seq", "convoId", "rev", "createdAt", "actorDid",
-                        "subjectDid", "groupName", "ownerDid"};
-    wf_cbor_item *vb[] = { mk_uint(7),
-                           mk_str("cv2"), mk_str("r7"),
-                           mk_str("2024-02-02T02:02:02Z"),
-                           mk_str("did:plc:actor"),
-                           mk_str("did:plc:subject"),
-                           mk_str("My Group"),
-                           mk_str("did:plc:owner") };
+    const char *kb[] = {"seq",      "convoId",    "rev",       "createdAt",
+                        "actorDid", "subjectDid", "groupName", "ownerDid"};
+    wf_cbor_item *vb[] = {mk_uint(7),
+                          mk_str("cv2"),
+                          mk_str("r7"),
+                          mk_str("2024-02-02T02:02:02Z"),
+                          mk_str("did:plc:actor"),
+                          mk_str("did:plc:subject"),
+                          mk_str("My Group"),
+                          mk_str("did:plc:owner")};
 
     size_t len = 0;
     unsigned char *frame = build_frame(kh, vh, 2, kb, vb, 8, &len);
@@ -180,7 +190,8 @@ static void test_decode_all_fields(void) {
     WF_CHECK(fr.event.rev && strcmp(fr.event.rev, "r7") == 0);
     WF_CHECK(fr.event.created_at &&
              strcmp(fr.event.created_at, "2024-02-02T02:02:02Z") == 0);
-    WF_CHECK(fr.event.actor_did && strcmp(fr.event.actor_did, "did:plc:actor") == 0);
+    WF_CHECK(fr.event.actor_did &&
+             strcmp(fr.event.actor_did, "did:plc:actor") == 0);
     WF_CHECK(fr.event.subject_did &&
              strcmp(fr.event.subject_did, "did:plc:subject") == 0);
     wf_chat_mod_frame_free(&fr);
@@ -190,11 +201,11 @@ static void test_decode_all_fields(void) {
 
 static void test_decode_error_frame(void) {
     const char *kh[] = {"op", "t"};
-    wf_cbor_item *vh[] = { mk_uint(-1), mk_str("#error") };
+    wf_cbor_item *vh[] = {mk_uint(-1), mk_str("#error")};
 
     const char *kb[] = {"error", "message"};
-    wf_cbor_item *vb[] = { mk_str("FutureCursor"),
-                           mk_str("cursor too far ahead") };
+    wf_cbor_item *vb[] = {mk_str("FutureCursor"),
+                          mk_str("cursor too far ahead")};
 
     size_t len = 0;
     unsigned char *frame = build_frame(kh, vh, 2, kb, vb, 2, &len);
@@ -215,9 +226,10 @@ static void test_decode_error_frame(void) {
 static void test_decode_truncated_and_garbage(void) {
     /* Truncate a valid frame (only the header, no body). */
     const char *kh[] = {"op", "t"};
-    wf_cbor_item *vh[] = { mk_uint(1), mk_str("#eventConvoFirstMessage") };
+    wf_cbor_item *vh[] = {mk_uint(1), mk_str("#eventConvoFirstMessage")};
     wf_cbor_item *header = mk_map(kh, vh, 2);
-    unsigned char *hbuf = NULL; size_t hlen = 0, hcap = 0;
+    unsigned char *hbuf = NULL;
+    size_t hlen = 0, hcap = 0;
     WF_CHECK(append_serialized(header, &hbuf, &hlen, &hcap) == 0);
     free_item(header);
 
@@ -229,7 +241,7 @@ static void test_decode_truncated_and_garbage(void) {
     free(hbuf);
 
     /* Plain garbage (not CBOR at all). */
-    unsigned char garbage[] = { 0xde, 0xad, 0xbe, 0xef, 0x00 };
+    unsigned char garbage[] = {0xde, 0xad, 0xbe, 0xef, 0x00};
     wf_chat_mod_frame fr2 = {0};
     WF_CHECK(wf_chat_mod_frame_parse_cbor(garbage, sizeof(garbage), &fr2) ==
              WF_ERR_PARSE);
@@ -245,16 +257,16 @@ static void test_url_builder(void) {
     char *url = NULL;
     WF_CHECK(wf_chat_mod_events_build_url("wss://chat.example.com", "123",
                                           &url) == WF_OK);
-    WF_CHECK(url && strcmp(url,
-              "wss://chat.example.com/xrpc/chat.bsky.moderation.subscribeModEvents"
-              "?cursor=123") == 0);
+    WF_CHECK(url && strcmp(url, "wss://chat.example.com/xrpc/"
+                                "chat.bsky.moderation.subscribeModEvents"
+                                "?cursor=123") == 0);
     free(url);
 
     WF_CHECK(wf_chat_mod_events_build_url("https://chat.example.com/", NULL,
                                           &url) == WF_OK);
-    WF_CHECK(url && strcmp(url,
-              "wss://chat.example.com/xrpc/chat.bsky.moderation.subscribeModEvents")
-              == 0);
+    WF_CHECK(url &&
+             strcmp(url, "wss://chat.example.com/xrpc/"
+                         "chat.bsky.moderation.subscribeModEvents") == 0);
     free(url);
 
     WF_CHECK(wf_chat_mod_events_build_url("ftp://nope", NULL, &url) ==
@@ -291,29 +303,32 @@ static void on_e2e_event(const wf_chat_mod_event *event, int64_t seq,
     ctx->event_count++;
     ctx->last_type = event && event->type ? strdup(event->type) : NULL;
     if (seq == 42 && event && event->convo_id &&
-        strcmp(event->convo_id, "c1") == 0 &&
-        event->created_at &&
+        strcmp(event->convo_id, "c1") == 0 && event->created_at &&
         strcmp(event->created_at, "2024-01-01T00:00:00Z") == 0)
         ctx->got_fields = 1;
 }
 
-static void on_e2e_error(wf_status status, const char *message, void *userdata) {
+static void on_e2e_error(wf_status status, const char *message,
+                         void *userdata) {
     struct e2e_ctx *ctx = (struct e2e_ctx *)userdata;
-    (void)status; (void)message;
+    (void)status;
+    (void)message;
     ctx->got_error = 1;
 }
 
 /* Server handler: send two framed CBOR mod-events, then close. */
-struct ws_arg { wf_xrpc_ws_stream *stream; };
+struct ws_arg {
+    wf_xrpc_ws_stream *stream;
+};
 
 static void *ws_streamer(void *arg) {
     struct ws_arg *a = (struct ws_arg *)arg;
 
     const char *kh[] = {"op", "t"};
-    wf_cbor_item *vh[] = { mk_uint(1), mk_str("#eventConvoFirstMessage") };
+    wf_cbor_item *vh[] = {mk_uint(1), mk_str("#eventConvoFirstMessage")};
     const char *kb[] = {"seq", "convoId", "rev", "createdAt"};
-    wf_cbor_item *vb[] = { mk_uint(42), mk_str("c1"), mk_str("r1"),
-                           mk_str("2024-01-01T00:00:00Z") };
+    wf_cbor_item *vb[] = {mk_uint(42), mk_str("c1"), mk_str("r1"),
+                          mk_str("2024-01-01T00:00:00Z")};
     size_t len = 0;
     unsigned char *frame = build_frame(kh, vh, 2, kb, vb, 4, &len);
     if (frame) {
@@ -374,9 +389,16 @@ static void *e2e_runner(void *arg) {
 
 static void test_e2e_local(void) {
     wf_xrpc_server *server = wf_xrpc_server_start("127.0.0.1", 0, 1);
-    if (!server) { printf("SKIP: server start failed\n"); return; }
+    if (!server) {
+        printf("SKIP: server start failed\n");
+        return;
+    }
     uint16_t port = wf_xrpc_server_port(server);
-    if (port == 0) { wf_xrpc_server_free(server); printf("SKIP: no port\n"); return; }
+    if (port == 0) {
+        wf_xrpc_server_free(server);
+        printf("SKIP: no port\n");
+        return;
+    }
 
     struct e2e_ctx ctx = {0};
     ctx.port = port;
@@ -398,7 +420,7 @@ static void test_e2e_local(void) {
     /* Best-effort: stop the subscription after a bounded time so we can never
      * hang CI. If the local loopback WS handshake completed, we will have
      * received the framed event by then. */
-    struct timespec ts = { .tv_sec = 5, .tv_nsec = 0 };
+    struct timespec ts = {.tv_sec = 5, .tv_nsec = 0};
     nanosleep(&ts, NULL);
     wf_chat_mod_events_stop(ctx.handle);
     pthread_join(tid, NULL);

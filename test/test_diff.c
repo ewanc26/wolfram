@@ -37,9 +37,7 @@ static char *dup_cstr(const char *value) {
 
 static void init_operation(wf_repo_operation *op,
                            wf_repo_operation_action action,
-                           const char *collection,
-                           const char *rkey,
-                           wf_cid cid,
+                           const char *collection, const char *rkey, wf_cid cid,
                            wf_cid prev) {
     memset(op, 0, sizeof(*op));
     op->action = action;
@@ -62,14 +60,14 @@ int main(void) {
     /* NULL operations with count > 0 is invalid. */
     {
         wf_repo_operation *out = NULL;
-        WF_CHECK(wf_repo_operations_invert(NULL, 1, &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_repo_operations_invert(NULL, 1, &out) ==
+                 WF_ERR_INVALID_ARG);
     }
 
     /* Inverting a single CREATE operation produces a DELETE. */
     {
         wf_repo_operation op = {0};
-        init_operation(&op, WF_REPO_CREATE,
-                       "com.example.posts", "r1",
+        init_operation(&op, WF_REPO_CREATE, "com.example.posts", "r1",
                        make_cid(1), (wf_cid){{0}, 0});
 
         wf_repo_operation *out = NULL;
@@ -86,8 +84,7 @@ int main(void) {
     /* Inverting a single DELETE operation produces a CREATE. */
     {
         wf_repo_operation op = {0};
-        init_operation(&op, WF_REPO_DELETE,
-                       "com.example.posts", "r2",
+        init_operation(&op, WF_REPO_DELETE, "com.example.posts", "r2",
                        make_cid(2), (wf_cid){{0}, 0});
 
         wf_repo_operation *out = NULL;
@@ -104,8 +101,7 @@ int main(void) {
     /* Inverting a single UPDATE operation swaps cid and prev. */
     {
         wf_repo_operation op = {0};
-        init_operation(&op, WF_REPO_UPDATE,
-                       "com.example.posts", "r3",
+        init_operation(&op, WF_REPO_UPDATE, "com.example.posts", "r3",
                        make_cid(3), make_cid(4));
 
         wf_repo_operation *out = NULL;
@@ -122,14 +118,11 @@ int main(void) {
     /* Inverting multiple operations reverses their order. */
     {
         wf_repo_operation ops[3];
-        init_operation(&ops[0], WF_REPO_CREATE,
-                       "com.example.posts", "a",
+        init_operation(&ops[0], WF_REPO_CREATE, "com.example.posts", "a",
                        make_cid(10), (wf_cid){{0}, 0});
-        init_operation(&ops[1], WF_REPO_UPDATE,
-                       "com.example.posts", "b",
+        init_operation(&ops[1], WF_REPO_UPDATE, "com.example.posts", "b",
                        make_cid(11), make_cid(12));
-        init_operation(&ops[2], WF_REPO_DELETE,
-                       "com.example.posts", "c",
+        init_operation(&ops[2], WF_REPO_DELETE, "com.example.posts", "c",
                        make_cid(13), (wf_cid){{0}, 0});
 
         wf_repo_operation *out = NULL;
@@ -189,11 +182,9 @@ int main(void) {
     /* Inverted operations can be freed with wf_repo_operations_free. */
     {
         wf_repo_operation ops[2];
-        init_operation(&ops[0], WF_REPO_CREATE,
-                       "com.example.posts", "free1",
+        init_operation(&ops[0], WF_REPO_CREATE, "com.example.posts", "free1",
                        make_cid(30), (wf_cid){{0}, 0});
-        init_operation(&ops[1], WF_REPO_UPDATE,
-                       "com.example.posts", "free2",
+        init_operation(&ops[1], WF_REPO_UPDATE, "com.example.posts", "free2",
                        make_cid(31), make_cid(32));
 
         wf_repo_operation *out = NULL;
@@ -328,10 +319,9 @@ int main(void) {
         wf_cid old_keep = {0}, old_delete = {0};
         wf_cid new_keep = {0}, new_add = {0};
 
-        WF_CHECK(wf_repo_create_record(&working, NULL, did,
-                                       "com.example.posts", "keep",
-                                       record_one, sizeof(record_one), &key,
-                                       &commit_one, &old_keep) == WF_OK);
+        WF_CHECK(wf_repo_create_record(&working, NULL, did, "com.example.posts",
+                                       "keep", record_one, sizeof(record_one),
+                                       &key, &commit_one, &old_keep) == WF_OK);
         WF_CHECK(wf_repo_create_record(&working, &commit_one, did,
                                        "com.example.posts", "remove",
                                        record_two, sizeof(record_two), &key,
@@ -353,12 +343,12 @@ int main(void) {
         wf_cid intermediate = {0};
         WF_CHECK(wf_repo_update_record(&working, &commit_base, did,
                                        "com.example.posts", "keep",
-                                       record_three, sizeof(record_three),
-                                       &key, &intermediate, &new_keep) == WF_OK);
+                                       record_three, sizeof(record_three), &key,
+                                       &intermediate, &new_keep) == WF_OK);
         wf_cid after_delete = {0};
         WF_CHECK(wf_repo_delete_record(&working, &intermediate, did,
-                                       "com.example.posts", "remove",
-                                       &key, &after_delete) == WF_OK);
+                                       "com.example.posts", "remove", &key,
+                                       &after_delete) == WF_OK);
         WF_CHECK(wf_repo_create_record(&working, &after_delete, did,
                                        "com.example.posts", "added",
                                        record_four, sizeof(record_four), &key,
@@ -384,13 +374,14 @@ int main(void) {
                     break;
                 }
             }
-            if (!duplicate) update.blocks[update.block_count++] = working.blocks[i];
+            if (!duplicate)
+                update.blocks[update.block_count++] = working.blocks[i];
         }
 
         wf_repo_verify_options options = {did, did_key, NULL};
         wf_repo_diff diff = {0};
-        wf_status diff_status = wf_repo_diff_verify(&base, &commit_base,
-                                                    &update, &options, &diff);
+        wf_status diff_status =
+            wf_repo_diff_verify(&base, &commit_base, &update, &options, &diff);
         WF_CHECK(diff_status == WF_OK);
         if (diff_status != WF_OK) {
             free(update.blocks);
@@ -425,9 +416,8 @@ int main(void) {
                  check_cid(&remove->cid, &old_delete));
 
         wf_repo_operation *inverse = NULL;
-        WF_CHECK(wf_repo_operations_invert(diff.operations,
-                                           diff.operation_count,
-                                           &inverse) == WF_OK);
+        WF_CHECK(wf_repo_operations_invert(
+                     diff.operations, diff.operation_count, &inverse) == WF_OK);
         WF_CHECK(inverse != NULL);
         if (inverse) {
             for (size_t i = 0; i < diff.operation_count; i++) {
@@ -442,7 +432,8 @@ int main(void) {
                     WF_CHECK(check_cid(&inverse[i].cid, &original->prev));
                     WF_CHECK(check_cid(&inverse[i].prev, &original->cid));
                 }
-                WF_CHECK(strcmp(inverse[i].collection, original->collection) == 0);
+                WF_CHECK(strcmp(inverse[i].collection, original->collection) ==
+                         0);
                 WF_CHECK(strcmp(inverse[i].rkey, original->rkey) == 0);
             }
             wf_repo_operations_free(inverse, diff.operation_count);
@@ -454,19 +445,19 @@ int main(void) {
         unsigned char *found_data = NULL;
         size_t found_len = 0;
         wf_cid found_cid = {0};
-        WF_CHECK(wf_repo_get_record(&base, &commit_update,
-                                    "com.example.posts", "keep",
-                                    &found_data, &found_len, &found_cid) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&base, &commit_update, "com.example.posts",
+                                    "keep", &found_data, &found_len,
+                                    &found_cid) == WF_OK);
         WF_CHECK(found_len == sizeof(record_three));
         WF_CHECK(memcmp(found_data, record_three, found_len) == 0);
         free(found_data);
 
-        WF_CHECK(wf_repo_get_record(&base, &commit_update,
-                                    "com.example.posts", "remove",
-                                    &found_data, &found_len, &found_cid) == WF_ERR_NOT_FOUND);
-        WF_CHECK(wf_repo_get_record(&base, &commit_update,
-                                    "com.example.posts", "added",
-                                    &found_data, &found_len, &found_cid) == WF_OK);
+        WF_CHECK(wf_repo_get_record(&base, &commit_update, "com.example.posts",
+                                    "remove", &found_data, &found_len,
+                                    &found_cid) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_repo_get_record(&base, &commit_update, "com.example.posts",
+                                    "added", &found_data, &found_len,
+                                    &found_cid) == WF_OK);
         WF_CHECK(found_len == sizeof(record_four));
         WF_CHECK(memcmp(found_data, record_four, found_len) == 0);
         free(found_data);

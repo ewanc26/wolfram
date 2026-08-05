@@ -76,472 +76,1280 @@
 
 namespace wolfram {
 
-using wf_actor_declaration_handle = unique_handle<wf_actor_declaration, wf_actor_declaration_free>;
-using wf_actor_preferences_handle = unique_handle<wf_actor_preferences, wf_actor_preferences_free>;
-using wf_actor_status_handle = unique_handle<wf_actor_status, wf_actor_status_free>;
-using wf_actor_status_put_result_handle = unique_handle<wf_actor_status_put_result, wf_actor_status_put_result_free>;
-using wf_actor_status_view_handle = unique_handle<wf_actor_status_view, wf_actor_status_view_free>;
-using wf_admin_account_view_handle = unique_handle<wf_admin_account_view, wf_admin_account_view_free>;
-using wf_admin_account_view_list_handle = unique_handle<wf_admin_account_view_list, wf_admin_account_view_list_free>;
-using wf_admin_invite_code_handle = unique_handle<wf_admin_invite_code, wf_admin_invite_code_free>;
-using wf_admin_invite_code_list_handle = unique_handle<wf_admin_invite_code_list, wf_admin_invite_code_list_free>;
-using wf_admin_subject_status_handle = unique_handle<wf_admin_subject_status, wf_admin_subject_status_free>;
-using wf_ageassurance_begin_handle = unique_handle<wf_ageassurance_begin, wf_ageassurance_begin_free>;
-using wf_ageassurance_config_handle = unique_handle<wf_ageassurance_config, wf_ageassurance_config_free>;
-using wf_ageassurance_state_handle = unique_handle<wf_ageassurance_state, wf_ageassurance_state_free>;
+using wf_actor_declaration_handle =
+    unique_handle<wf_actor_declaration, wf_actor_declaration_free>;
+using wf_actor_preferences_handle =
+    unique_handle<wf_actor_preferences, wf_actor_preferences_free>;
+using wf_actor_status_handle =
+    unique_handle<wf_actor_status, wf_actor_status_free>;
+using wf_actor_status_put_result_handle =
+    unique_handle<wf_actor_status_put_result, wf_actor_status_put_result_free>;
+using wf_actor_status_view_handle =
+    unique_handle<wf_actor_status_view, wf_actor_status_view_free>;
+using wf_admin_account_view_handle =
+    unique_handle<wf_admin_account_view, wf_admin_account_view_free>;
+using wf_admin_account_view_list_handle =
+    unique_handle<wf_admin_account_view_list, wf_admin_account_view_list_free>;
+using wf_admin_invite_code_handle =
+    unique_handle<wf_admin_invite_code, wf_admin_invite_code_free>;
+using wf_admin_invite_code_list_handle =
+    unique_handle<wf_admin_invite_code_list, wf_admin_invite_code_list_free>;
+using wf_admin_subject_status_handle =
+    unique_handle<wf_admin_subject_status, wf_admin_subject_status_free>;
+using wf_ageassurance_begin_handle =
+    unique_handle<wf_ageassurance_begin, wf_ageassurance_begin_free>;
+using wf_ageassurance_config_handle =
+    unique_handle<wf_ageassurance_config, wf_ageassurance_config_free>;
+using wf_ageassurance_state_handle =
+    unique_handle<wf_ageassurance_state, wf_ageassurance_state_free>;
 using wf_agent_handle = unique_handle<wf_agent, wf_agent_free>;
-using wf_agent_actor_like_list_handle = unique_handle<wf_agent_actor_like_list, wf_agent_actor_like_list_free>;
-using wf_agent_actor_list_handle = unique_handle<wf_agent_actor_list, wf_agent_actor_list_free>;
-using wf_agent_age_assurance_state_handle = unique_handle<wf_agent_age_assurance_state, wf_agent_age_assurance_state_free>;
-using wf_agent_app_password_handle = unique_handle<wf_agent_app_password, wf_agent_app_password_free>;
-using wf_agent_app_password_list_handle = unique_handle<wf_agent_app_password_list, wf_agent_app_password_list_free>;
-using wf_agent_feed_gen_describe_handle = unique_handle<wf_agent_feed_gen_describe, wf_agent_feed_gen_describe_free>;
-using wf_agent_feed_list_handle = unique_handle<wf_agent_feed_list, wf_agent_feed_list_free>;
-using wf_agent_feed_view_list_handle = unique_handle<wf_agent_feed_view_list, wf_agent_feed_view_list_free>;
-using wf_agent_generator_detail_handle = unique_handle<wf_agent_generator_detail, wf_agent_generator_detail_free>;
-using wf_agent_generator_view_list_handle = unique_handle<wf_agent_generator_view_list, wf_agent_generator_view_list_free>;
-using wf_agent_like_list_handle = unique_handle<wf_agent_like_list, wf_agent_like_list_free>;
-using wf_agent_list_item_list_handle = unique_handle<wf_agent_list_item_list, wf_agent_list_item_list_free>;
-using wf_agent_list_view_list_handle = unique_handle<wf_agent_list_view_list, wf_agent_list_view_list_free>;
-using wf_agent_notification_list_handle = unique_handle<wf_agent_notification_list, wf_agent_notification_list_free>;
-using wf_agent_post_list_handle = unique_handle<wf_agent_post_list, wf_agent_post_list_free>;
-using wf_agent_post_result_handle = unique_handle<wf_agent_post_result, wf_agent_post_result_free>;
-using wf_agent_profile_handle = unique_handle<wf_agent_profile, wf_agent_profile_free>;
-using wf_agent_profile_view_basic_list_handle = unique_handle<wf_agent_profile_view_basic_list, wf_agent_profile_view_basic_list_free>;
-using wf_agent_profile_view_list_handle = unique_handle<wf_agent_profile_view_list, wf_agent_profile_view_list_free>;
-using wf_agent_relationship_list_handle = unique_handle<wf_agent_relationship_list, wf_agent_relationship_list_free>;
-using wf_agent_server_description_handle = unique_handle<wf_agent_server_description, wf_agent_server_description_free>;
-using wf_agent_skeleton_list_handle = unique_handle<wf_agent_skeleton_list, wf_agent_skeleton_list_free>;
-using wf_agent_starter_pack_skeleton_list_handle = unique_handle<wf_agent_starter_pack_skeleton_list, wf_agent_starter_pack_skeleton_list_free>;
-using wf_agent_starter_pack_view_list_handle = unique_handle<wf_agent_starter_pack_view_list, wf_agent_starter_pack_view_list_free>;
-using wf_agent_suggestions_skeleton_handle = unique_handle<wf_agent_suggestions_skeleton, wf_agent_suggestions_skeleton_free>;
-using wf_agent_tagged_suggestions_handle = unique_handle<wf_agent_tagged_suggestions, wf_agent_tagged_suggestions_free>;
-using wf_agent_thread_handle = unique_handle<wf_agent_thread, wf_agent_thread_free>;
-using wf_agent_trending_topics_handle = unique_handle<wf_agent_trending_topics, wf_agent_trending_topics_free>;
-using wf_agent_unspecced_config_handle = unique_handle<wf_agent_unspecced_config, wf_agent_unspecced_config_free>;
-using wf_auth_client_handle = unique_handle<wf_auth_client, wf_auth_client_free>;
+using wf_agent_actor_like_list_handle =
+    unique_handle<wf_agent_actor_like_list, wf_agent_actor_like_list_free>;
+using wf_agent_actor_list_handle =
+    unique_handle<wf_agent_actor_list, wf_agent_actor_list_free>;
+using wf_agent_age_assurance_state_handle =
+    unique_handle<wf_agent_age_assurance_state,
+                  wf_agent_age_assurance_state_free>;
+using wf_agent_app_password_handle =
+    unique_handle<wf_agent_app_password, wf_agent_app_password_free>;
+using wf_agent_app_password_list_handle =
+    unique_handle<wf_agent_app_password_list, wf_agent_app_password_list_free>;
+using wf_agent_feed_gen_describe_handle =
+    unique_handle<wf_agent_feed_gen_describe, wf_agent_feed_gen_describe_free>;
+using wf_agent_feed_list_handle =
+    unique_handle<wf_agent_feed_list, wf_agent_feed_list_free>;
+using wf_agent_feed_view_list_handle =
+    unique_handle<wf_agent_feed_view_list, wf_agent_feed_view_list_free>;
+using wf_agent_generator_detail_handle =
+    unique_handle<wf_agent_generator_detail, wf_agent_generator_detail_free>;
+using wf_agent_generator_view_list_handle =
+    unique_handle<wf_agent_generator_view_list,
+                  wf_agent_generator_view_list_free>;
+using wf_agent_like_list_handle =
+    unique_handle<wf_agent_like_list, wf_agent_like_list_free>;
+using wf_agent_list_item_list_handle =
+    unique_handle<wf_agent_list_item_list, wf_agent_list_item_list_free>;
+using wf_agent_list_view_list_handle =
+    unique_handle<wf_agent_list_view_list, wf_agent_list_view_list_free>;
+using wf_agent_notification_list_handle =
+    unique_handle<wf_agent_notification_list, wf_agent_notification_list_free>;
+using wf_agent_post_list_handle =
+    unique_handle<wf_agent_post_list, wf_agent_post_list_free>;
+using wf_agent_post_result_handle =
+    unique_handle<wf_agent_post_result, wf_agent_post_result_free>;
+using wf_agent_profile_handle =
+    unique_handle<wf_agent_profile, wf_agent_profile_free>;
+using wf_agent_profile_view_basic_list_handle =
+    unique_handle<wf_agent_profile_view_basic_list,
+                  wf_agent_profile_view_basic_list_free>;
+using wf_agent_profile_view_list_handle =
+    unique_handle<wf_agent_profile_view_list, wf_agent_profile_view_list_free>;
+using wf_agent_relationship_list_handle =
+    unique_handle<wf_agent_relationship_list, wf_agent_relationship_list_free>;
+using wf_agent_server_description_handle =
+    unique_handle<wf_agent_server_description,
+                  wf_agent_server_description_free>;
+using wf_agent_skeleton_list_handle =
+    unique_handle<wf_agent_skeleton_list, wf_agent_skeleton_list_free>;
+using wf_agent_starter_pack_skeleton_list_handle =
+    unique_handle<wf_agent_starter_pack_skeleton_list,
+                  wf_agent_starter_pack_skeleton_list_free>;
+using wf_agent_starter_pack_view_list_handle =
+    unique_handle<wf_agent_starter_pack_view_list,
+                  wf_agent_starter_pack_view_list_free>;
+using wf_agent_suggestions_skeleton_handle =
+    unique_handle<wf_agent_suggestions_skeleton,
+                  wf_agent_suggestions_skeleton_free>;
+using wf_agent_tagged_suggestions_handle =
+    unique_handle<wf_agent_tagged_suggestions,
+                  wf_agent_tagged_suggestions_free>;
+using wf_agent_thread_handle =
+    unique_handle<wf_agent_thread, wf_agent_thread_free>;
+using wf_agent_trending_topics_handle =
+    unique_handle<wf_agent_trending_topics, wf_agent_trending_topics_free>;
+using wf_agent_unspecced_config_handle =
+    unique_handle<wf_agent_unspecced_config, wf_agent_unspecced_config_free>;
+using wf_auth_client_handle =
+    unique_handle<wf_auth_client, wf_auth_client_free>;
 using wf_blob_store_handle = unique_handle<wf_blob_store, wf_blob_store_free>;
-using wf_bookmark_create_result_handle = unique_handle<wf_bookmark_create_result, wf_bookmark_create_result_free>;
-using wf_bookmark_delete_result_handle = unique_handle<wf_bookmark_delete_result, wf_bookmark_delete_result_free>;
-using wf_bookmark_list_handle = unique_handle<wf_bookmark_list, wf_bookmark_list_free>;
+using wf_bookmark_create_result_handle =
+    unique_handle<wf_bookmark_create_result, wf_bookmark_create_result_free>;
+using wf_bookmark_delete_result_handle =
+    unique_handle<wf_bookmark_delete_result, wf_bookmark_delete_result_free>;
+using wf_bookmark_list_handle =
+    unique_handle<wf_bookmark_list, wf_bookmark_list_free>;
 using wf_bsky_agent_handle = unique_handle<wf_bsky_agent, wf_bsky_agent_free>;
 using wf_car_handle = unique_handle<wf_car, wf_car_free>;
-using wf_chat_actor_metadata_handle = unique_handle<wf_chat_actor_metadata, wf_chat_actor_metadata_free>;
-using wf_chat_actor_status_handle = unique_handle<wf_chat_actor_status, wf_chat_actor_status_free>;
+using wf_chat_actor_metadata_handle =
+    unique_handle<wf_chat_actor_metadata, wf_chat_actor_metadata_free>;
+using wf_chat_actor_status_handle =
+    unique_handle<wf_chat_actor_status, wf_chat_actor_status_free>;
 using wf_chat_convo_handle = unique_handle<wf_chat_convo, wf_chat_convo_free>;
-using wf_chat_convo_availability_handle = unique_handle<wf_chat_convo_availability, wf_chat_convo_availability_free>;
-using wf_chat_convo_list_handle = unique_handle<wf_chat_convo_list, wf_chat_convo_list_free>;
-using wf_chat_convo_members_handle = unique_handle<wf_chat_convo_members, wf_chat_convo_members_free>;
-using wf_chat_convo_ref_handle = unique_handle<wf_chat_convo_ref, wf_chat_convo_ref_free>;
-using wf_chat_export_account_data_handle = unique_handle<wf_chat_export_account_data, wf_chat_export_account_data_free>;
-using wf_chat_join_link_handle = unique_handle<wf_chat_join_link, wf_chat_join_link_free>;
-using wf_chat_join_link_previews_handle = unique_handle<wf_chat_join_link_previews, wf_chat_join_link_previews_free>;
-using wf_chat_join_requests_handle = unique_handle<wf_chat_join_requests, wf_chat_join_requests_free>;
+using wf_chat_convo_availability_handle =
+    unique_handle<wf_chat_convo_availability, wf_chat_convo_availability_free>;
+using wf_chat_convo_list_handle =
+    unique_handle<wf_chat_convo_list, wf_chat_convo_list_free>;
+using wf_chat_convo_members_handle =
+    unique_handle<wf_chat_convo_members, wf_chat_convo_members_free>;
+using wf_chat_convo_ref_handle =
+    unique_handle<wf_chat_convo_ref, wf_chat_convo_ref_free>;
+using wf_chat_export_account_data_handle =
+    unique_handle<wf_chat_export_account_data,
+                  wf_chat_export_account_data_free>;
+using wf_chat_join_link_handle =
+    unique_handle<wf_chat_join_link, wf_chat_join_link_free>;
+using wf_chat_join_link_previews_handle =
+    unique_handle<wf_chat_join_link_previews, wf_chat_join_link_previews_free>;
+using wf_chat_join_requests_handle =
+    unique_handle<wf_chat_join_requests, wf_chat_join_requests_free>;
 using wf_chat_log_handle = unique_handle<wf_chat_log, wf_chat_log_free>;
-using wf_chat_message_batch_handle = unique_handle<wf_chat_message_batch, wf_chat_message_batch_free>;
-using wf_chat_message_list_handle = unique_handle<wf_chat_message_list, wf_chat_message_list_free>;
-using wf_chat_mod_convo_handle = unique_handle<wf_chat_mod_convo, wf_chat_mod_convo_free>;
-using wf_chat_mod_convo_list_handle = unique_handle<wf_chat_mod_convo_list, wf_chat_mod_convo_list_free>;
-using wf_chat_mod_event_handle = unique_handle<wf_chat_mod_event, wf_chat_mod_event_free>;
-using wf_chat_mod_frame_handle = unique_handle<wf_chat_mod_frame, wf_chat_mod_frame_free>;
-using wf_chat_notification_preferences_handle = unique_handle<wf_chat_notification_preferences, wf_chat_notification_preferences_free>;
+using wf_chat_message_batch_handle =
+    unique_handle<wf_chat_message_batch, wf_chat_message_batch_free>;
+using wf_chat_message_list_handle =
+    unique_handle<wf_chat_message_list, wf_chat_message_list_free>;
+using wf_chat_mod_convo_handle =
+    unique_handle<wf_chat_mod_convo, wf_chat_mod_convo_free>;
+using wf_chat_mod_convo_list_handle =
+    unique_handle<wf_chat_mod_convo_list, wf_chat_mod_convo_list_free>;
+using wf_chat_mod_event_handle =
+    unique_handle<wf_chat_mod_event, wf_chat_mod_event_free>;
+using wf_chat_mod_frame_handle =
+    unique_handle<wf_chat_mod_frame, wf_chat_mod_frame_free>;
+using wf_chat_notification_preferences_handle =
+    unique_handle<wf_chat_notification_preferences,
+                  wf_chat_notification_preferences_free>;
 using wf_chat_ok_handle = unique_handle<wf_chat_ok, wf_chat_ok_free>;
-using wf_chat_request_join_handle = unique_handle<wf_chat_request_join, wf_chat_request_join_free>;
-using wf_chat_unread_counts_handle = unique_handle<wf_chat_unread_counts, wf_chat_unread_counts_free>;
-using wf_chat_updated_count_handle = unique_handle<wf_chat_updated_count, wf_chat_updated_count_free>;
-using wf_contact_import_result_handle = unique_handle<wf_contact_import_result, wf_contact_import_result_free>;
-using wf_contact_match_list_handle = unique_handle<wf_contact_match_list, wf_contact_match_list_free>;
-using wf_contact_sync_status_handle = unique_handle<wf_contact_sync_status, wf_contact_sync_status_free>;
-using wf_contact_verify_phone_result_handle = unique_handle<wf_contact_verify_phone_result, wf_contact_verify_phone_result_free>;
-using wf_did_document_handle = unique_handle<wf_did_document, wf_did_document_free>;
-using wf_draft_createDraft_result_handle = unique_handle<wf_draft_createDraft_result, wf_draft_createDraft_result_free>;
-using wf_draft_deleteDraft_result_handle = unique_handle<wf_draft_deleteDraft_result, wf_draft_deleteDraft_result_free>;
+using wf_chat_request_join_handle =
+    unique_handle<wf_chat_request_join, wf_chat_request_join_free>;
+using wf_chat_unread_counts_handle =
+    unique_handle<wf_chat_unread_counts, wf_chat_unread_counts_free>;
+using wf_chat_updated_count_handle =
+    unique_handle<wf_chat_updated_count, wf_chat_updated_count_free>;
+using wf_contact_import_result_handle =
+    unique_handle<wf_contact_import_result, wf_contact_import_result_free>;
+using wf_contact_match_list_handle =
+    unique_handle<wf_contact_match_list, wf_contact_match_list_free>;
+using wf_contact_sync_status_handle =
+    unique_handle<wf_contact_sync_status, wf_contact_sync_status_free>;
+using wf_contact_verify_phone_result_handle =
+    unique_handle<wf_contact_verify_phone_result,
+                  wf_contact_verify_phone_result_free>;
+using wf_did_document_handle =
+    unique_handle<wf_did_document, wf_did_document_free>;
+using wf_draft_createDraft_result_handle =
+    unique_handle<wf_draft_createDraft_result,
+                  wf_draft_createDraft_result_free>;
+using wf_draft_deleteDraft_result_handle =
+    unique_handle<wf_draft_deleteDraft_result,
+                  wf_draft_deleteDraft_result_free>;
 using wf_draft_list_handle = unique_handle<wf_draft_list, wf_draft_list_free>;
-using wf_draft_updateDraft_result_handle = unique_handle<wf_draft_updateDraft_result, wf_draft_updateDraft_result_free>;
-using wf_embed_external_view_handle = unique_handle<wf_embed_external_view, wf_embed_external_view_free>;
-using wf_embed_record_embed_view_handle = unique_handle<wf_embed_record_embed_view, wf_embed_record_embed_view_free>;
-using wf_embed_record_with_media_view_handle = unique_handle<wf_embed_record_with_media_view, wf_embed_record_with_media_view_free>;
+using wf_draft_updateDraft_result_handle =
+    unique_handle<wf_draft_updateDraft_result,
+                  wf_draft_updateDraft_result_free>;
+using wf_embed_external_view_handle =
+    unique_handle<wf_embed_external_view, wf_embed_external_view_free>;
+using wf_embed_record_embed_view_handle =
+    unique_handle<wf_embed_record_embed_view, wf_embed_record_embed_view_free>;
+using wf_embed_record_with_media_view_handle =
+    unique_handle<wf_embed_record_with_media_view,
+                  wf_embed_record_with_media_view_free>;
 using wf_embed_view_handle = unique_handle<wf_embed_view, wf_embed_view_free>;
-using wf_embed_view_external_handle = unique_handle<wf_embed_view_external, wf_embed_view_external_free>;
-using wf_embed_view_gallery_handle = unique_handle<wf_embed_view_gallery, wf_embed_view_gallery_free>;
-using wf_embed_view_images_handle = unique_handle<wf_embed_view_images, wf_embed_view_images_free>;
-using wf_embed_view_video_handle = unique_handle<wf_embed_view_video, wf_embed_view_video_free>;
-using wf_feedgen_generator_detail_handle = unique_handle<wf_feedgen_generator_detail, wf_feedgen_generator_detail_free>;
-using wf_feedgen_generator_list_handle = unique_handle<wf_feedgen_generator_list, wf_feedgen_generator_list_free>;
-using wf_feedgen_generator_view_handle = unique_handle<wf_feedgen_generator_view, wf_feedgen_generator_view_free>;
-using wf_feedgen_search_result_list_handle = unique_handle<wf_feedgen_search_result_list, wf_feedgen_search_result_list_free>;
-using wf_feedgen_server_handle = unique_handle<wf_feedgen_server, wf_feedgen_server_free>;
-using wf_feedgen_server_config_handle = unique_handle<wf_feedgen_server_config, wf_feedgen_server_config_free>;
-using wf_graph_list_item_view_list_handle = unique_handle<wf_graph_list_item_view_list, wf_graph_list_item_view_list_free>;
-using wf_graph_list_membership_handle = unique_handle<wf_graph_list_membership, wf_graph_list_membership_free>;
-using wf_graph_list_membership_list_handle = unique_handle<wf_graph_list_membership_list, wf_graph_list_membership_list_free>;
-using wf_graph_list_view_handle = unique_handle<wf_graph_list_view, wf_graph_list_view_free>;
-using wf_graph_list_view_list_handle = unique_handle<wf_graph_list_view_list, wf_graph_list_view_list_free>;
-using wf_graph_starter_pack_membership_handle = unique_handle<wf_graph_starter_pack_membership, wf_graph_starter_pack_membership_free>;
-using wf_graph_starter_pack_membership_list_handle = unique_handle<wf_graph_starter_pack_membership_list, wf_graph_starter_pack_membership_list_free>;
-using wf_graph_starter_pack_view_handle = unique_handle<wf_graph_starter_pack_view, wf_graph_starter_pack_view_free>;
-using wf_graph_starter_pack_view_list_handle = unique_handle<wf_graph_starter_pack_view_list, wf_graph_starter_pack_view_list_free>;
-using wf_identity_recommended_credentials_handle = unique_handle<wf_identity_recommended_credentials, wf_identity_recommended_credentials_free>;
-using wf_identity_recommended_did_credentials_handle = unique_handle<wf_identity_recommended_did_credentials, wf_identity_recommended_did_credentials_free>;
-using wf_identity_resolve_did_handle = unique_handle<wf_identity_resolve_did, wf_identity_resolve_did_free>;
-using wf_identity_resolve_handle_handle = unique_handle<wf_identity_resolve_handle, wf_identity_resolve_handle_free>;
-using wf_identity_resolve_identity_handle = unique_handle<wf_identity_resolve_identity, wf_identity_resolve_identity_free>;
-using wf_identity_sign_plc_operation_result_handle = unique_handle<wf_identity_sign_plc_operation_result, wf_identity_sign_plc_operation_result_free>;
-using wf_identity_signed_operation_handle = unique_handle<wf_identity_signed_operation, wf_identity_signed_operation_free>;
+using wf_embed_view_external_handle =
+    unique_handle<wf_embed_view_external, wf_embed_view_external_free>;
+using wf_embed_view_gallery_handle =
+    unique_handle<wf_embed_view_gallery, wf_embed_view_gallery_free>;
+using wf_embed_view_images_handle =
+    unique_handle<wf_embed_view_images, wf_embed_view_images_free>;
+using wf_embed_view_video_handle =
+    unique_handle<wf_embed_view_video, wf_embed_view_video_free>;
+using wf_feedgen_generator_detail_handle =
+    unique_handle<wf_feedgen_generator_detail,
+                  wf_feedgen_generator_detail_free>;
+using wf_feedgen_generator_list_handle =
+    unique_handle<wf_feedgen_generator_list, wf_feedgen_generator_list_free>;
+using wf_feedgen_generator_view_handle =
+    unique_handle<wf_feedgen_generator_view, wf_feedgen_generator_view_free>;
+using wf_feedgen_search_result_list_handle =
+    unique_handle<wf_feedgen_search_result_list,
+                  wf_feedgen_search_result_list_free>;
+using wf_feedgen_server_handle =
+    unique_handle<wf_feedgen_server, wf_feedgen_server_free>;
+using wf_feedgen_server_config_handle =
+    unique_handle<wf_feedgen_server_config, wf_feedgen_server_config_free>;
+using wf_graph_list_item_view_list_handle =
+    unique_handle<wf_graph_list_item_view_list,
+                  wf_graph_list_item_view_list_free>;
+using wf_graph_list_membership_handle =
+    unique_handle<wf_graph_list_membership, wf_graph_list_membership_free>;
+using wf_graph_list_membership_list_handle =
+    unique_handle<wf_graph_list_membership_list,
+                  wf_graph_list_membership_list_free>;
+using wf_graph_list_view_handle =
+    unique_handle<wf_graph_list_view, wf_graph_list_view_free>;
+using wf_graph_list_view_list_handle =
+    unique_handle<wf_graph_list_view_list, wf_graph_list_view_list_free>;
+using wf_graph_starter_pack_membership_handle =
+    unique_handle<wf_graph_starter_pack_membership,
+                  wf_graph_starter_pack_membership_free>;
+using wf_graph_starter_pack_membership_list_handle =
+    unique_handle<wf_graph_starter_pack_membership_list,
+                  wf_graph_starter_pack_membership_list_free>;
+using wf_graph_starter_pack_view_handle =
+    unique_handle<wf_graph_starter_pack_view, wf_graph_starter_pack_view_free>;
+using wf_graph_starter_pack_view_list_handle =
+    unique_handle<wf_graph_starter_pack_view_list,
+                  wf_graph_starter_pack_view_list_free>;
+using wf_identity_recommended_credentials_handle =
+    unique_handle<wf_identity_recommended_credentials,
+                  wf_identity_recommended_credentials_free>;
+using wf_identity_recommended_did_credentials_handle =
+    unique_handle<wf_identity_recommended_did_credentials,
+                  wf_identity_recommended_did_credentials_free>;
+using wf_identity_resolve_did_handle =
+    unique_handle<wf_identity_resolve_did, wf_identity_resolve_did_free>;
+using wf_identity_resolve_handle_handle =
+    unique_handle<wf_identity_resolve_handle, wf_identity_resolve_handle_free>;
+using wf_identity_resolve_identity_handle =
+    unique_handle<wf_identity_resolve_identity,
+                  wf_identity_resolve_identity_free>;
+using wf_identity_sign_plc_operation_result_handle =
+    unique_handle<wf_identity_sign_plc_operation_result,
+                  wf_identity_sign_plc_operation_result_free>;
+using wf_identity_signed_operation_handle =
+    unique_handle<wf_identity_signed_operation,
+                  wf_identity_signed_operation_free>;
 using wf_jetstream_handle = unique_handle<wf_jetstream, wf_jetstream_free>;
-using wf_jetstream_event_handle = unique_handle<wf_jetstream_event, wf_jetstream_event_free>;
-using wf_jetstream_event_typed_handle = unique_handle<wf_jetstream_event_typed, wf_jetstream_event_typed_free>;
-using wf_label_message_handle = unique_handle<wf_label_message, wf_label_message_free>;
-using wf_labeler_label_list_handle = unique_handle<wf_labeler_label_list, wf_labeler_label_list_free>;
-using wf_labeler_policies_handle = unique_handle<wf_labeler_policies, wf_labeler_policies_free>;
-using wf_labeler_service_list_handle = unique_handle<wf_labeler_service_list, wf_labeler_service_list_free>;
-using wf_labeler_service_record_handle = unique_handle<wf_labeler_service_record, wf_labeler_service_record_free>;
-using wf_labeler_temp_label_list_handle = unique_handle<wf_labeler_temp_label_list, wf_labeler_temp_label_list_free>;
-using wf_lex_app_bsky_actor_get_preferences_main_output_handle = unique_handle<wf_lex_app_bsky_actor_get_preferences_main_output, wf_lex_app_bsky_actor_get_preferences_main_output_free>;
-using wf_lex_app_bsky_actor_get_profiles_main_output_handle = unique_handle<wf_lex_app_bsky_actor_get_profiles_main_output, wf_lex_app_bsky_actor_get_profiles_main_output_free>;
-using wf_lex_app_bsky_actor_get_suggestions_main_output_handle = unique_handle<wf_lex_app_bsky_actor_get_suggestions_main_output, wf_lex_app_bsky_actor_get_suggestions_main_output_free>;
-using wf_lex_app_bsky_actor_search_actors_main_output_handle = unique_handle<wf_lex_app_bsky_actor_search_actors_main_output, wf_lex_app_bsky_actor_search_actors_main_output_free>;
-using wf_lex_app_bsky_actor_search_actors_typeahead_main_output_handle = unique_handle<wf_lex_app_bsky_actor_search_actors_typeahead_main_output, wf_lex_app_bsky_actor_search_actors_typeahead_main_output_free>;
-using wf_lex_app_bsky_ageassurance_get_state_main_output_handle = unique_handle<wf_lex_app_bsky_ageassurance_get_state_main_output, wf_lex_app_bsky_ageassurance_get_state_main_output_free>;
-using wf_lex_app_bsky_bookmark_get_bookmarks_main_output_handle = unique_handle<wf_lex_app_bsky_bookmark_get_bookmarks_main_output, wf_lex_app_bsky_bookmark_get_bookmarks_main_output_free>;
-using wf_lex_app_bsky_contact_dismiss_match_main_output_handle = unique_handle<wf_lex_app_bsky_contact_dismiss_match_main_output, wf_lex_app_bsky_contact_dismiss_match_main_output_free>;
-using wf_lex_app_bsky_contact_get_matches_main_output_handle = unique_handle<wf_lex_app_bsky_contact_get_matches_main_output, wf_lex_app_bsky_contact_get_matches_main_output_free>;
-using wf_lex_app_bsky_contact_get_sync_status_main_output_handle = unique_handle<wf_lex_app_bsky_contact_get_sync_status_main_output, wf_lex_app_bsky_contact_get_sync_status_main_output_free>;
-using wf_lex_app_bsky_contact_import_contacts_main_output_handle = unique_handle<wf_lex_app_bsky_contact_import_contacts_main_output, wf_lex_app_bsky_contact_import_contacts_main_output_free>;
-using wf_lex_app_bsky_contact_remove_data_main_output_handle = unique_handle<wf_lex_app_bsky_contact_remove_data_main_output, wf_lex_app_bsky_contact_remove_data_main_output_free>;
-using wf_lex_app_bsky_contact_send_notification_main_output_handle = unique_handle<wf_lex_app_bsky_contact_send_notification_main_output, wf_lex_app_bsky_contact_send_notification_main_output_free>;
-using wf_lex_app_bsky_contact_start_phone_verification_main_output_handle = unique_handle<wf_lex_app_bsky_contact_start_phone_verification_main_output, wf_lex_app_bsky_contact_start_phone_verification_main_output_free>;
-using wf_lex_app_bsky_contact_verify_phone_main_output_handle = unique_handle<wf_lex_app_bsky_contact_verify_phone_main_output, wf_lex_app_bsky_contact_verify_phone_main_output_free>;
-using wf_lex_app_bsky_draft_create_draft_main_output_handle = unique_handle<wf_lex_app_bsky_draft_create_draft_main_output, wf_lex_app_bsky_draft_create_draft_main_output_free>;
-using wf_lex_app_bsky_draft_get_drafts_main_output_handle = unique_handle<wf_lex_app_bsky_draft_get_drafts_main_output, wf_lex_app_bsky_draft_get_drafts_main_output_free>;
-using wf_lex_app_bsky_embed_get_embed_external_view_main_output_handle = unique_handle<wf_lex_app_bsky_embed_get_embed_external_view_main_output, wf_lex_app_bsky_embed_get_embed_external_view_main_output_free>;
-using wf_lex_app_bsky_feed_describe_feed_generator_main_output_handle = unique_handle<wf_lex_app_bsky_feed_describe_feed_generator_main_output, wf_lex_app_bsky_feed_describe_feed_generator_main_output_free>;
-using wf_lex_app_bsky_feed_get_actor_feeds_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_actor_feeds_main_output, wf_lex_app_bsky_feed_get_actor_feeds_main_output_free>;
-using wf_lex_app_bsky_feed_get_actor_likes_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_actor_likes_main_output, wf_lex_app_bsky_feed_get_actor_likes_main_output_free>;
-using wf_lex_app_bsky_feed_get_author_feed_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_author_feed_main_output, wf_lex_app_bsky_feed_get_author_feed_main_output_free>;
-using wf_lex_app_bsky_feed_get_feed_generator_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_feed_generator_main_output, wf_lex_app_bsky_feed_get_feed_generator_main_output_free>;
-using wf_lex_app_bsky_feed_get_feed_generators_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_feed_generators_main_output, wf_lex_app_bsky_feed_get_feed_generators_main_output_free>;
-using wf_lex_app_bsky_feed_get_feed_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_feed_main_output, wf_lex_app_bsky_feed_get_feed_main_output_free>;
-using wf_lex_app_bsky_feed_get_feed_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_feed_skeleton_main_output, wf_lex_app_bsky_feed_get_feed_skeleton_main_output_free>;
-using wf_lex_app_bsky_feed_get_likes_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_likes_main_output, wf_lex_app_bsky_feed_get_likes_main_output_free>;
-using wf_lex_app_bsky_feed_get_list_feed_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_list_feed_main_output, wf_lex_app_bsky_feed_get_list_feed_main_output_free>;
-using wf_lex_app_bsky_feed_get_post_thread_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_post_thread_main_output, wf_lex_app_bsky_feed_get_post_thread_main_output_free>;
-using wf_lex_app_bsky_feed_get_posts_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_posts_main_output, wf_lex_app_bsky_feed_get_posts_main_output_free>;
-using wf_lex_app_bsky_feed_get_quotes_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_quotes_main_output, wf_lex_app_bsky_feed_get_quotes_main_output_free>;
-using wf_lex_app_bsky_feed_get_reposted_by_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_reposted_by_main_output, wf_lex_app_bsky_feed_get_reposted_by_main_output_free>;
-using wf_lex_app_bsky_feed_get_suggested_feeds_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_suggested_feeds_main_output, wf_lex_app_bsky_feed_get_suggested_feeds_main_output_free>;
-using wf_lex_app_bsky_feed_get_timeline_main_output_handle = unique_handle<wf_lex_app_bsky_feed_get_timeline_main_output, wf_lex_app_bsky_feed_get_timeline_main_output_free>;
-using wf_lex_app_bsky_feed_search_posts_main_output_handle = unique_handle<wf_lex_app_bsky_feed_search_posts_main_output, wf_lex_app_bsky_feed_search_posts_main_output_free>;
-using wf_lex_app_bsky_feed_search_posts_v2_main_output_handle = unique_handle<wf_lex_app_bsky_feed_search_posts_v2_main_output, wf_lex_app_bsky_feed_search_posts_v2_main_output_free>;
-using wf_lex_app_bsky_feed_send_interactions_main_output_handle = unique_handle<wf_lex_app_bsky_feed_send_interactions_main_output, wf_lex_app_bsky_feed_send_interactions_main_output_free>;
-using wf_lex_app_bsky_graph_get_actor_starter_packs_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_actor_starter_packs_main_output, wf_lex_app_bsky_graph_get_actor_starter_packs_main_output_free>;
-using wf_lex_app_bsky_graph_get_blocks_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_blocks_main_output, wf_lex_app_bsky_graph_get_blocks_main_output_free>;
-using wf_lex_app_bsky_graph_get_followers_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_followers_main_output, wf_lex_app_bsky_graph_get_followers_main_output_free>;
-using wf_lex_app_bsky_graph_get_follows_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_follows_main_output, wf_lex_app_bsky_graph_get_follows_main_output_free>;
-using wf_lex_app_bsky_graph_get_known_followers_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_known_followers_main_output, wf_lex_app_bsky_graph_get_known_followers_main_output_free>;
-using wf_lex_app_bsky_graph_get_list_blocks_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_list_blocks_main_output, wf_lex_app_bsky_graph_get_list_blocks_main_output_free>;
-using wf_lex_app_bsky_graph_get_list_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_list_main_output, wf_lex_app_bsky_graph_get_list_main_output_free>;
-using wf_lex_app_bsky_graph_get_list_mutes_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_list_mutes_main_output, wf_lex_app_bsky_graph_get_list_mutes_main_output_free>;
-using wf_lex_app_bsky_graph_get_lists_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_lists_main_output, wf_lex_app_bsky_graph_get_lists_main_output_free>;
-using wf_lex_app_bsky_graph_get_lists_with_membership_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_lists_with_membership_main_output, wf_lex_app_bsky_graph_get_lists_with_membership_main_output_free>;
-using wf_lex_app_bsky_graph_get_mutes_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_mutes_main_output, wf_lex_app_bsky_graph_get_mutes_main_output_free>;
-using wf_lex_app_bsky_graph_get_relationships_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_relationships_main_output, wf_lex_app_bsky_graph_get_relationships_main_output_free>;
-using wf_lex_app_bsky_graph_get_starter_pack_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_starter_pack_main_output, wf_lex_app_bsky_graph_get_starter_pack_main_output_free>;
-using wf_lex_app_bsky_graph_get_starter_packs_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_starter_packs_main_output, wf_lex_app_bsky_graph_get_starter_packs_main_output_free>;
-using wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_output, wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_output_free>;
-using wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_output_handle = unique_handle<wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_output, wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_output_free>;
-using wf_lex_app_bsky_graph_search_starter_packs_main_output_handle = unique_handle<wf_lex_app_bsky_graph_search_starter_packs_main_output, wf_lex_app_bsky_graph_search_starter_packs_main_output_free>;
-using wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_handle = unique_handle<wf_lex_app_bsky_graph_search_starter_packs_v2_main_output, wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_free>;
-using wf_lex_app_bsky_labeler_get_services_main_output_handle = unique_handle<wf_lex_app_bsky_labeler_get_services_main_output, wf_lex_app_bsky_labeler_get_services_main_output_free>;
-using wf_lex_app_bsky_notification_get_preferences_main_output_handle = unique_handle<wf_lex_app_bsky_notification_get_preferences_main_output, wf_lex_app_bsky_notification_get_preferences_main_output_free>;
-using wf_lex_app_bsky_notification_get_unread_count_main_output_handle = unique_handle<wf_lex_app_bsky_notification_get_unread_count_main_output, wf_lex_app_bsky_notification_get_unread_count_main_output_free>;
-using wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_handle = unique_handle<wf_lex_app_bsky_notification_list_activity_subscriptions_main_output, wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_free>;
-using wf_lex_app_bsky_notification_list_notifications_main_output_handle = unique_handle<wf_lex_app_bsky_notification_list_notifications_main_output, wf_lex_app_bsky_notification_list_notifications_main_output_free>;
-using wf_lex_app_bsky_notification_put_activity_subscription_main_output_handle = unique_handle<wf_lex_app_bsky_notification_put_activity_subscription_main_output, wf_lex_app_bsky_notification_put_activity_subscription_main_output_free>;
-using wf_lex_app_bsky_notification_put_preferences_v2_main_output_handle = unique_handle<wf_lex_app_bsky_notification_put_preferences_v2_main_output, wf_lex_app_bsky_notification_put_preferences_v2_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_config_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_config_main_output, wf_lex_app_bsky_unspecced_get_config_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_output, wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_output, wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output, wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output, wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output, wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output, wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output, wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output, wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output, wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_output, wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_output, wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_trending_topics_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_trending_topics_main_output, wf_lex_app_bsky_unspecced_get_trending_topics_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_trends_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_trends_main_output, wf_lex_app_bsky_unspecced_get_trends_main_output_free>;
-using wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output, wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output, wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output, wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output_free>;
-using wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output_handle = unique_handle<wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output, wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output_free>;
-using wf_lex_app_bsky_video_get_job_status_main_output_handle = unique_handle<wf_lex_app_bsky_video_get_job_status_main_output, wf_lex_app_bsky_video_get_job_status_main_output_free>;
-using wf_lex_app_bsky_video_get_upload_limits_main_output_handle = unique_handle<wf_lex_app_bsky_video_get_upload_limits_main_output, wf_lex_app_bsky_video_get_upload_limits_main_output_free>;
-using wf_lex_app_bsky_video_upload_video_main_output_handle = unique_handle<wf_lex_app_bsky_video_upload_video_main_output, wf_lex_app_bsky_video_upload_video_main_output_free>;
-using wf_lex_chat_bsky_actor_delete_account_main_output_handle = unique_handle<wf_lex_chat_bsky_actor_delete_account_main_output, wf_lex_chat_bsky_actor_delete_account_main_output_free>;
-using wf_lex_chat_bsky_actor_get_status_main_output_handle = unique_handle<wf_lex_chat_bsky_actor_get_status_main_output, wf_lex_chat_bsky_actor_get_status_main_output_free>;
-using wf_lex_chat_bsky_convo_accept_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_accept_convo_main_output, wf_lex_chat_bsky_convo_accept_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_add_reaction_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_add_reaction_main_output, wf_lex_chat_bsky_convo_add_reaction_main_output_free>;
-using wf_lex_chat_bsky_convo_get_convo_availability_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_convo_availability_main_output, wf_lex_chat_bsky_convo_get_convo_availability_main_output_free>;
-using wf_lex_chat_bsky_convo_get_convo_for_members_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_convo_for_members_main_output, wf_lex_chat_bsky_convo_get_convo_for_members_main_output_free>;
-using wf_lex_chat_bsky_convo_get_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_convo_main_output, wf_lex_chat_bsky_convo_get_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_get_convo_members_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_convo_members_main_output, wf_lex_chat_bsky_convo_get_convo_members_main_output_free>;
-using wf_lex_chat_bsky_convo_get_log_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_log_main_output, wf_lex_chat_bsky_convo_get_log_main_output_free>;
-using wf_lex_chat_bsky_convo_get_messages_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_messages_main_output, wf_lex_chat_bsky_convo_get_messages_main_output_free>;
-using wf_lex_chat_bsky_convo_get_unread_counts_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_get_unread_counts_main_output, wf_lex_chat_bsky_convo_get_unread_counts_main_output_free>;
-using wf_lex_chat_bsky_convo_leave_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_leave_convo_main_output, wf_lex_chat_bsky_convo_leave_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_list_convo_requests_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_list_convo_requests_main_output, wf_lex_chat_bsky_convo_list_convo_requests_main_output_free>;
-using wf_lex_chat_bsky_convo_list_convos_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_list_convos_main_output, wf_lex_chat_bsky_convo_list_convos_main_output_free>;
-using wf_lex_chat_bsky_convo_lock_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_lock_convo_main_output, wf_lex_chat_bsky_convo_lock_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_mute_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_mute_convo_main_output, wf_lex_chat_bsky_convo_mute_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_remove_reaction_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_remove_reaction_main_output, wf_lex_chat_bsky_convo_remove_reaction_main_output_free>;
-using wf_lex_chat_bsky_convo_send_message_batch_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_send_message_batch_main_output, wf_lex_chat_bsky_convo_send_message_batch_main_output_free>;
-using wf_lex_chat_bsky_convo_unlock_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_unlock_convo_main_output, wf_lex_chat_bsky_convo_unlock_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_unmute_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_unmute_convo_main_output, wf_lex_chat_bsky_convo_unmute_convo_main_output_free>;
-using wf_lex_chat_bsky_convo_update_all_read_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_update_all_read_main_output, wf_lex_chat_bsky_convo_update_all_read_main_output_free>;
-using wf_lex_chat_bsky_convo_update_read_main_output_handle = unique_handle<wf_lex_chat_bsky_convo_update_read_main_output, wf_lex_chat_bsky_convo_update_read_main_output_free>;
-using wf_lex_chat_bsky_group_add_members_main_output_handle = unique_handle<wf_lex_chat_bsky_group_add_members_main_output, wf_lex_chat_bsky_group_add_members_main_output_free>;
-using wf_lex_chat_bsky_group_approve_join_request_main_output_handle = unique_handle<wf_lex_chat_bsky_group_approve_join_request_main_output, wf_lex_chat_bsky_group_approve_join_request_main_output_free>;
-using wf_lex_chat_bsky_group_create_group_main_output_handle = unique_handle<wf_lex_chat_bsky_group_create_group_main_output, wf_lex_chat_bsky_group_create_group_main_output_free>;
-using wf_lex_chat_bsky_group_create_join_link_main_output_handle = unique_handle<wf_lex_chat_bsky_group_create_join_link_main_output, wf_lex_chat_bsky_group_create_join_link_main_output_free>;
-using wf_lex_chat_bsky_group_disable_join_link_main_output_handle = unique_handle<wf_lex_chat_bsky_group_disable_join_link_main_output, wf_lex_chat_bsky_group_disable_join_link_main_output_free>;
-using wf_lex_chat_bsky_group_edit_group_main_output_handle = unique_handle<wf_lex_chat_bsky_group_edit_group_main_output, wf_lex_chat_bsky_group_edit_group_main_output_free>;
-using wf_lex_chat_bsky_group_edit_join_link_main_output_handle = unique_handle<wf_lex_chat_bsky_group_edit_join_link_main_output, wf_lex_chat_bsky_group_edit_join_link_main_output_free>;
-using wf_lex_chat_bsky_group_enable_join_link_main_output_handle = unique_handle<wf_lex_chat_bsky_group_enable_join_link_main_output, wf_lex_chat_bsky_group_enable_join_link_main_output_free>;
-using wf_lex_chat_bsky_group_get_join_link_previews_main_output_handle = unique_handle<wf_lex_chat_bsky_group_get_join_link_previews_main_output, wf_lex_chat_bsky_group_get_join_link_previews_main_output_free>;
-using wf_lex_chat_bsky_group_list_join_requests_main_output_handle = unique_handle<wf_lex_chat_bsky_group_list_join_requests_main_output, wf_lex_chat_bsky_group_list_join_requests_main_output_free>;
-using wf_lex_chat_bsky_group_list_mutual_groups_main_output_handle = unique_handle<wf_lex_chat_bsky_group_list_mutual_groups_main_output, wf_lex_chat_bsky_group_list_mutual_groups_main_output_free>;
-using wf_lex_chat_bsky_group_reject_join_request_main_output_handle = unique_handle<wf_lex_chat_bsky_group_reject_join_request_main_output, wf_lex_chat_bsky_group_reject_join_request_main_output_free>;
-using wf_lex_chat_bsky_group_remove_members_main_output_handle = unique_handle<wf_lex_chat_bsky_group_remove_members_main_output, wf_lex_chat_bsky_group_remove_members_main_output_free>;
-using wf_lex_chat_bsky_group_request_join_main_output_handle = unique_handle<wf_lex_chat_bsky_group_request_join_main_output, wf_lex_chat_bsky_group_request_join_main_output_free>;
-using wf_lex_chat_bsky_group_update_join_requests_read_main_output_handle = unique_handle<wf_lex_chat_bsky_group_update_join_requests_read_main_output, wf_lex_chat_bsky_group_update_join_requests_read_main_output_free>;
-using wf_lex_chat_bsky_group_withdraw_join_request_main_output_handle = unique_handle<wf_lex_chat_bsky_group_withdraw_join_request_main_output, wf_lex_chat_bsky_group_withdraw_join_request_main_output_free>;
-using wf_lex_chat_bsky_moderation_get_actor_metadata_main_output_handle = unique_handle<wf_lex_chat_bsky_moderation_get_actor_metadata_main_output, wf_lex_chat_bsky_moderation_get_actor_metadata_main_output_free>;
-using wf_lex_chat_bsky_moderation_get_convo_main_output_handle = unique_handle<wf_lex_chat_bsky_moderation_get_convo_main_output, wf_lex_chat_bsky_moderation_get_convo_main_output_free>;
-using wf_lex_chat_bsky_moderation_get_convo_members_main_output_handle = unique_handle<wf_lex_chat_bsky_moderation_get_convo_members_main_output, wf_lex_chat_bsky_moderation_get_convo_members_main_output_free>;
-using wf_lex_chat_bsky_moderation_get_convos_main_output_handle = unique_handle<wf_lex_chat_bsky_moderation_get_convos_main_output, wf_lex_chat_bsky_moderation_get_convos_main_output_free>;
-using wf_lex_chat_bsky_moderation_get_message_context_main_output_handle = unique_handle<wf_lex_chat_bsky_moderation_get_message_context_main_output, wf_lex_chat_bsky_moderation_get_message_context_main_output_free>;
-using wf_lex_chat_bsky_notification_get_preferences_main_output_handle = unique_handle<wf_lex_chat_bsky_notification_get_preferences_main_output, wf_lex_chat_bsky_notification_get_preferences_main_output_free>;
-using wf_lex_chat_bsky_notification_put_preferences_main_output_handle = unique_handle<wf_lex_chat_bsky_notification_put_preferences_main_output, wf_lex_chat_bsky_notification_put_preferences_main_output_free>;
-using wf_lex_com_atproto_admin_get_account_infos_main_output_handle = unique_handle<wf_lex_com_atproto_admin_get_account_infos_main_output, wf_lex_com_atproto_admin_get_account_infos_main_output_free>;
-using wf_lex_com_atproto_admin_get_invite_codes_main_output_handle = unique_handle<wf_lex_com_atproto_admin_get_invite_codes_main_output, wf_lex_com_atproto_admin_get_invite_codes_main_output_free>;
-using wf_lex_com_atproto_admin_get_subject_status_main_output_handle = unique_handle<wf_lex_com_atproto_admin_get_subject_status_main_output, wf_lex_com_atproto_admin_get_subject_status_main_output_free>;
-using wf_lex_com_atproto_admin_search_accounts_main_output_handle = unique_handle<wf_lex_com_atproto_admin_search_accounts_main_output, wf_lex_com_atproto_admin_search_accounts_main_output_free>;
-using wf_lex_com_atproto_admin_send_email_main_output_handle = unique_handle<wf_lex_com_atproto_admin_send_email_main_output, wf_lex_com_atproto_admin_send_email_main_output_free>;
-using wf_lex_com_atproto_admin_update_subject_status_main_output_handle = unique_handle<wf_lex_com_atproto_admin_update_subject_status_main_output, wf_lex_com_atproto_admin_update_subject_status_main_output_free>;
-using wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_handle = unique_handle<wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output, wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_free>;
-using wf_lex_com_atproto_identity_resolve_did_main_output_handle = unique_handle<wf_lex_com_atproto_identity_resolve_did_main_output, wf_lex_com_atproto_identity_resolve_did_main_output_free>;
-using wf_lex_com_atproto_identity_resolve_handle_main_output_handle = unique_handle<wf_lex_com_atproto_identity_resolve_handle_main_output, wf_lex_com_atproto_identity_resolve_handle_main_output_free>;
-using wf_lex_com_atproto_identity_sign_plc_operation_main_output_handle = unique_handle<wf_lex_com_atproto_identity_sign_plc_operation_main_output, wf_lex_com_atproto_identity_sign_plc_operation_main_output_free>;
-using wf_lex_com_atproto_label_query_labels_main_output_handle = unique_handle<wf_lex_com_atproto_label_query_labels_main_output, wf_lex_com_atproto_label_query_labels_main_output_free>;
-using wf_lex_com_atproto_lexicon_resolve_lexicon_main_output_handle = unique_handle<wf_lex_com_atproto_lexicon_resolve_lexicon_main_output, wf_lex_com_atproto_lexicon_resolve_lexicon_main_output_free>;
-using wf_lex_com_atproto_moderation_create_report_main_output_handle = unique_handle<wf_lex_com_atproto_moderation_create_report_main_output, wf_lex_com_atproto_moderation_create_report_main_output_free>;
-using wf_lex_com_atproto_repo_apply_writes_main_output_handle = unique_handle<wf_lex_com_atproto_repo_apply_writes_main_output, wf_lex_com_atproto_repo_apply_writes_main_output_free>;
-using wf_lex_com_atproto_repo_create_record_main_output_handle = unique_handle<wf_lex_com_atproto_repo_create_record_main_output, wf_lex_com_atproto_repo_create_record_main_output_free>;
-using wf_lex_com_atproto_repo_delete_record_main_output_handle = unique_handle<wf_lex_com_atproto_repo_delete_record_main_output, wf_lex_com_atproto_repo_delete_record_main_output_free>;
-using wf_lex_com_atproto_repo_describe_repo_main_output_handle = unique_handle<wf_lex_com_atproto_repo_describe_repo_main_output, wf_lex_com_atproto_repo_describe_repo_main_output_free>;
-using wf_lex_com_atproto_repo_get_record_main_output_handle = unique_handle<wf_lex_com_atproto_repo_get_record_main_output, wf_lex_com_atproto_repo_get_record_main_output_free>;
-using wf_lex_com_atproto_repo_list_missing_blobs_main_output_handle = unique_handle<wf_lex_com_atproto_repo_list_missing_blobs_main_output, wf_lex_com_atproto_repo_list_missing_blobs_main_output_free>;
-using wf_lex_com_atproto_repo_list_records_main_output_handle = unique_handle<wf_lex_com_atproto_repo_list_records_main_output, wf_lex_com_atproto_repo_list_records_main_output_free>;
-using wf_lex_com_atproto_repo_put_record_main_output_handle = unique_handle<wf_lex_com_atproto_repo_put_record_main_output, wf_lex_com_atproto_repo_put_record_main_output_free>;
-using wf_lex_com_atproto_repo_upload_blob_main_output_handle = unique_handle<wf_lex_com_atproto_repo_upload_blob_main_output, wf_lex_com_atproto_repo_upload_blob_main_output_free>;
-using wf_lex_com_atproto_server_check_account_status_main_output_handle = unique_handle<wf_lex_com_atproto_server_check_account_status_main_output, wf_lex_com_atproto_server_check_account_status_main_output_free>;
-using wf_lex_com_atproto_server_create_account_main_output_handle = unique_handle<wf_lex_com_atproto_server_create_account_main_output, wf_lex_com_atproto_server_create_account_main_output_free>;
-using wf_lex_com_atproto_server_create_invite_code_main_output_handle = unique_handle<wf_lex_com_atproto_server_create_invite_code_main_output, wf_lex_com_atproto_server_create_invite_code_main_output_free>;
-using wf_lex_com_atproto_server_create_invite_codes_main_output_handle = unique_handle<wf_lex_com_atproto_server_create_invite_codes_main_output, wf_lex_com_atproto_server_create_invite_codes_main_output_free>;
-using wf_lex_com_atproto_server_create_session_main_output_handle = unique_handle<wf_lex_com_atproto_server_create_session_main_output, wf_lex_com_atproto_server_create_session_main_output_free>;
-using wf_lex_com_atproto_server_describe_server_main_output_handle = unique_handle<wf_lex_com_atproto_server_describe_server_main_output, wf_lex_com_atproto_server_describe_server_main_output_free>;
-using wf_lex_com_atproto_server_get_account_invite_codes_main_output_handle = unique_handle<wf_lex_com_atproto_server_get_account_invite_codes_main_output, wf_lex_com_atproto_server_get_account_invite_codes_main_output_free>;
-using wf_lex_com_atproto_server_get_service_auth_main_output_handle = unique_handle<wf_lex_com_atproto_server_get_service_auth_main_output, wf_lex_com_atproto_server_get_service_auth_main_output_free>;
-using wf_lex_com_atproto_server_get_session_main_output_handle = unique_handle<wf_lex_com_atproto_server_get_session_main_output, wf_lex_com_atproto_server_get_session_main_output_free>;
-using wf_lex_com_atproto_server_list_app_passwords_main_output_handle = unique_handle<wf_lex_com_atproto_server_list_app_passwords_main_output, wf_lex_com_atproto_server_list_app_passwords_main_output_free>;
-using wf_lex_com_atproto_server_refresh_session_main_output_handle = unique_handle<wf_lex_com_atproto_server_refresh_session_main_output, wf_lex_com_atproto_server_refresh_session_main_output_free>;
-using wf_lex_com_atproto_server_request_email_update_main_output_handle = unique_handle<wf_lex_com_atproto_server_request_email_update_main_output, wf_lex_com_atproto_server_request_email_update_main_output_free>;
-using wf_lex_com_atproto_server_reserve_signing_key_main_output_handle = unique_handle<wf_lex_com_atproto_server_reserve_signing_key_main_output, wf_lex_com_atproto_server_reserve_signing_key_main_output_free>;
-using wf_lex_com_atproto_sync_get_head_main_output_handle = unique_handle<wf_lex_com_atproto_sync_get_head_main_output, wf_lex_com_atproto_sync_get_head_main_output_free>;
-using wf_lex_com_atproto_sync_get_host_status_main_output_handle = unique_handle<wf_lex_com_atproto_sync_get_host_status_main_output, wf_lex_com_atproto_sync_get_host_status_main_output_free>;
-using wf_lex_com_atproto_sync_get_latest_commit_main_output_handle = unique_handle<wf_lex_com_atproto_sync_get_latest_commit_main_output, wf_lex_com_atproto_sync_get_latest_commit_main_output_free>;
-using wf_lex_com_atproto_sync_get_repo_status_main_output_handle = unique_handle<wf_lex_com_atproto_sync_get_repo_status_main_output, wf_lex_com_atproto_sync_get_repo_status_main_output_free>;
-using wf_lex_com_atproto_sync_list_blobs_main_output_handle = unique_handle<wf_lex_com_atproto_sync_list_blobs_main_output, wf_lex_com_atproto_sync_list_blobs_main_output_free>;
-using wf_lex_com_atproto_sync_list_hosts_main_output_handle = unique_handle<wf_lex_com_atproto_sync_list_hosts_main_output, wf_lex_com_atproto_sync_list_hosts_main_output_free>;
-using wf_lex_com_atproto_sync_list_repos_by_collection_main_output_handle = unique_handle<wf_lex_com_atproto_sync_list_repos_by_collection_main_output, wf_lex_com_atproto_sync_list_repos_by_collection_main_output_free>;
-using wf_lex_com_atproto_sync_list_repos_main_output_handle = unique_handle<wf_lex_com_atproto_sync_list_repos_main_output, wf_lex_com_atproto_sync_list_repos_main_output_free>;
-using wf_lex_com_atproto_temp_add_reserved_handle_main_output_handle = unique_handle<wf_lex_com_atproto_temp_add_reserved_handle_main_output, wf_lex_com_atproto_temp_add_reserved_handle_main_output_free>;
-using wf_lex_com_atproto_temp_check_handle_availability_main_output_handle = unique_handle<wf_lex_com_atproto_temp_check_handle_availability_main_output, wf_lex_com_atproto_temp_check_handle_availability_main_output_free>;
-using wf_lex_com_atproto_temp_check_signup_queue_main_output_handle = unique_handle<wf_lex_com_atproto_temp_check_signup_queue_main_output, wf_lex_com_atproto_temp_check_signup_queue_main_output_free>;
-using wf_lex_com_atproto_temp_dereference_scope_main_output_handle = unique_handle<wf_lex_com_atproto_temp_dereference_scope_main_output, wf_lex_com_atproto_temp_dereference_scope_main_output_free>;
-using wf_lex_com_atproto_temp_fetch_labels_main_output_handle = unique_handle<wf_lex_com_atproto_temp_fetch_labels_main_output, wf_lex_com_atproto_temp_fetch_labels_main_output_free>;
-using wf_lex_internal_bsky_actor_get_profiles_main_output_handle = unique_handle<wf_lex_internal_bsky_actor_get_profiles_main_output, wf_lex_internal_bsky_actor_get_profiles_main_output_free>;
-using wf_lex_tools_ozone_communication_list_templates_main_output_handle = unique_handle<wf_lex_tools_ozone_communication_list_templates_main_output, wf_lex_tools_ozone_communication_list_templates_main_output_free>;
-using wf_lex_tools_ozone_hosting_get_account_history_main_output_handle = unique_handle<wf_lex_tools_ozone_hosting_get_account_history_main_output, wf_lex_tools_ozone_hosting_get_account_history_main_output_free>;
-using wf_lex_tools_ozone_moderation_get_account_timeline_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_get_account_timeline_main_output, wf_lex_tools_ozone_moderation_get_account_timeline_main_output_free>;
-using wf_lex_tools_ozone_moderation_get_records_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_get_records_main_output, wf_lex_tools_ozone_moderation_get_records_main_output_free>;
-using wf_lex_tools_ozone_moderation_get_reporter_stats_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_get_reporter_stats_main_output, wf_lex_tools_ozone_moderation_get_reporter_stats_main_output_free>;
-using wf_lex_tools_ozone_moderation_get_repos_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_get_repos_main_output, wf_lex_tools_ozone_moderation_get_repos_main_output_free>;
-using wf_lex_tools_ozone_moderation_get_subjects_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_get_subjects_main_output, wf_lex_tools_ozone_moderation_get_subjects_main_output_free>;
-using wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output, wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_free>;
-using wf_lex_tools_ozone_moderation_query_events_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_query_events_main_output, wf_lex_tools_ozone_moderation_query_events_main_output_free>;
-using wf_lex_tools_ozone_moderation_query_statuses_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_query_statuses_main_output, wf_lex_tools_ozone_moderation_query_statuses_main_output_free>;
-using wf_lex_tools_ozone_moderation_search_repos_main_output_handle = unique_handle<wf_lex_tools_ozone_moderation_search_repos_main_output, wf_lex_tools_ozone_moderation_search_repos_main_output_free>;
-using wf_lex_tools_ozone_queue_create_queue_main_output_handle = unique_handle<wf_lex_tools_ozone_queue_create_queue_main_output, wf_lex_tools_ozone_queue_create_queue_main_output_free>;
-using wf_lex_tools_ozone_queue_delete_queue_main_output_handle = unique_handle<wf_lex_tools_ozone_queue_delete_queue_main_output, wf_lex_tools_ozone_queue_delete_queue_main_output_free>;
-using wf_lex_tools_ozone_queue_get_assignments_main_output_handle = unique_handle<wf_lex_tools_ozone_queue_get_assignments_main_output, wf_lex_tools_ozone_queue_get_assignments_main_output_free>;
-using wf_lex_tools_ozone_queue_list_queues_main_output_handle = unique_handle<wf_lex_tools_ozone_queue_list_queues_main_output, wf_lex_tools_ozone_queue_list_queues_main_output_free>;
-using wf_lex_tools_ozone_queue_route_reports_main_output_handle = unique_handle<wf_lex_tools_ozone_queue_route_reports_main_output, wf_lex_tools_ozone_queue_route_reports_main_output_free>;
-using wf_lex_tools_ozone_queue_update_queue_main_output_handle = unique_handle<wf_lex_tools_ozone_queue_update_queue_main_output, wf_lex_tools_ozone_queue_update_queue_main_output_free>;
-using wf_lex_tools_ozone_report_close_reports_main_output_handle = unique_handle<wf_lex_tools_ozone_report_close_reports_main_output, wf_lex_tools_ozone_report_close_reports_main_output_free>;
-using wf_lex_tools_ozone_report_create_activity_main_output_handle = unique_handle<wf_lex_tools_ozone_report_create_activity_main_output, wf_lex_tools_ozone_report_create_activity_main_output_free>;
-using wf_lex_tools_ozone_report_get_assignments_main_output_handle = unique_handle<wf_lex_tools_ozone_report_get_assignments_main_output, wf_lex_tools_ozone_report_get_assignments_main_output_free>;
-using wf_lex_tools_ozone_report_get_historical_stats_main_output_handle = unique_handle<wf_lex_tools_ozone_report_get_historical_stats_main_output, wf_lex_tools_ozone_report_get_historical_stats_main_output_free>;
-using wf_lex_tools_ozone_report_get_latest_report_main_output_handle = unique_handle<wf_lex_tools_ozone_report_get_latest_report_main_output, wf_lex_tools_ozone_report_get_latest_report_main_output_free>;
-using wf_lex_tools_ozone_report_get_live_stats_main_output_handle = unique_handle<wf_lex_tools_ozone_report_get_live_stats_main_output, wf_lex_tools_ozone_report_get_live_stats_main_output_free>;
-using wf_lex_tools_ozone_report_list_activities_main_output_handle = unique_handle<wf_lex_tools_ozone_report_list_activities_main_output, wf_lex_tools_ozone_report_list_activities_main_output_free>;
-using wf_lex_tools_ozone_report_query_activities_main_output_handle = unique_handle<wf_lex_tools_ozone_report_query_activities_main_output, wf_lex_tools_ozone_report_query_activities_main_output_free>;
-using wf_lex_tools_ozone_report_query_reports_main_output_handle = unique_handle<wf_lex_tools_ozone_report_query_reports_main_output, wf_lex_tools_ozone_report_query_reports_main_output_free>;
-using wf_lex_tools_ozone_report_reassign_queue_main_output_handle = unique_handle<wf_lex_tools_ozone_report_reassign_queue_main_output, wf_lex_tools_ozone_report_reassign_queue_main_output_free>;
-using wf_lex_tools_ozone_report_refresh_stats_main_output_handle = unique_handle<wf_lex_tools_ozone_report_refresh_stats_main_output, wf_lex_tools_ozone_report_refresh_stats_main_output_free>;
-using wf_lex_tools_ozone_safelink_query_events_main_output_handle = unique_handle<wf_lex_tools_ozone_safelink_query_events_main_output, wf_lex_tools_ozone_safelink_query_events_main_output_free>;
-using wf_lex_tools_ozone_safelink_query_rules_main_output_handle = unique_handle<wf_lex_tools_ozone_safelink_query_rules_main_output, wf_lex_tools_ozone_safelink_query_rules_main_output_free>;
-using wf_lex_tools_ozone_server_get_config_main_output_handle = unique_handle<wf_lex_tools_ozone_server_get_config_main_output, wf_lex_tools_ozone_server_get_config_main_output_free>;
-using wf_lex_tools_ozone_set_delete_set_main_output_handle = unique_handle<wf_lex_tools_ozone_set_delete_set_main_output, wf_lex_tools_ozone_set_delete_set_main_output_free>;
-using wf_lex_tools_ozone_set_get_values_main_output_handle = unique_handle<wf_lex_tools_ozone_set_get_values_main_output, wf_lex_tools_ozone_set_get_values_main_output_free>;
-using wf_lex_tools_ozone_set_query_sets_main_output_handle = unique_handle<wf_lex_tools_ozone_set_query_sets_main_output, wf_lex_tools_ozone_set_query_sets_main_output_free>;
-using wf_lex_tools_ozone_setting_list_options_main_output_handle = unique_handle<wf_lex_tools_ozone_setting_list_options_main_output, wf_lex_tools_ozone_setting_list_options_main_output_free>;
-using wf_lex_tools_ozone_setting_remove_options_main_output_handle = unique_handle<wf_lex_tools_ozone_setting_remove_options_main_output, wf_lex_tools_ozone_setting_remove_options_main_output_free>;
-using wf_lex_tools_ozone_setting_upsert_option_main_output_handle = unique_handle<wf_lex_tools_ozone_setting_upsert_option_main_output, wf_lex_tools_ozone_setting_upsert_option_main_output_free>;
-using wf_lex_tools_ozone_signature_find_correlation_main_output_handle = unique_handle<wf_lex_tools_ozone_signature_find_correlation_main_output, wf_lex_tools_ozone_signature_find_correlation_main_output_free>;
-using wf_lex_tools_ozone_signature_find_related_accounts_main_output_handle = unique_handle<wf_lex_tools_ozone_signature_find_related_accounts_main_output, wf_lex_tools_ozone_signature_find_related_accounts_main_output_free>;
-using wf_lex_tools_ozone_signature_search_accounts_main_output_handle = unique_handle<wf_lex_tools_ozone_signature_search_accounts_main_output, wf_lex_tools_ozone_signature_search_accounts_main_output_free>;
-using wf_lex_tools_ozone_team_list_members_main_output_handle = unique_handle<wf_lex_tools_ozone_team_list_members_main_output, wf_lex_tools_ozone_team_list_members_main_output_free>;
-using wf_lex_tools_ozone_verification_grant_verifications_main_output_handle = unique_handle<wf_lex_tools_ozone_verification_grant_verifications_main_output, wf_lex_tools_ozone_verification_grant_verifications_main_output_free>;
-using wf_lex_tools_ozone_verification_list_verifications_main_output_handle = unique_handle<wf_lex_tools_ozone_verification_list_verifications_main_output, wf_lex_tools_ozone_verification_list_verifications_main_output_free>;
-using wf_lex_tools_ozone_verification_revoke_verifications_main_output_handle = unique_handle<wf_lex_tools_ozone_verification_revoke_verifications_main_output, wf_lex_tools_ozone_verification_revoke_verifications_main_output_free>;
-using wf_lexicon_registry_handle = unique_handle<wf_lexicon_registry, wf_lexicon_registry_free>;
-using wf_lexicon_resolved_handle = unique_handle<wf_lexicon_resolved, wf_lexicon_resolved_free>;
-using wf_mod_decision_handle = unique_handle<wf_mod_decision, wf_mod_decision_free>;
-using wf_mod_label_def_handle = unique_handle<wf_mod_label_def, wf_mod_label_def_free>;
-using wf_mod_list_view_result_handle = unique_handle<wf_mod_list_view_result, wf_mod_list_view_result_free>;
+using wf_jetstream_event_handle =
+    unique_handle<wf_jetstream_event, wf_jetstream_event_free>;
+using wf_jetstream_event_typed_handle =
+    unique_handle<wf_jetstream_event_typed, wf_jetstream_event_typed_free>;
+using wf_label_message_handle =
+    unique_handle<wf_label_message, wf_label_message_free>;
+using wf_labeler_label_list_handle =
+    unique_handle<wf_labeler_label_list, wf_labeler_label_list_free>;
+using wf_labeler_policies_handle =
+    unique_handle<wf_labeler_policies, wf_labeler_policies_free>;
+using wf_labeler_service_list_handle =
+    unique_handle<wf_labeler_service_list, wf_labeler_service_list_free>;
+using wf_labeler_service_record_handle =
+    unique_handle<wf_labeler_service_record, wf_labeler_service_record_free>;
+using wf_labeler_temp_label_list_handle =
+    unique_handle<wf_labeler_temp_label_list, wf_labeler_temp_label_list_free>;
+using wf_lex_app_bsky_actor_get_preferences_main_output_handle =
+    unique_handle<wf_lex_app_bsky_actor_get_preferences_main_output,
+                  wf_lex_app_bsky_actor_get_preferences_main_output_free>;
+using wf_lex_app_bsky_actor_get_profiles_main_output_handle =
+    unique_handle<wf_lex_app_bsky_actor_get_profiles_main_output,
+                  wf_lex_app_bsky_actor_get_profiles_main_output_free>;
+using wf_lex_app_bsky_actor_get_suggestions_main_output_handle =
+    unique_handle<wf_lex_app_bsky_actor_get_suggestions_main_output,
+                  wf_lex_app_bsky_actor_get_suggestions_main_output_free>;
+using wf_lex_app_bsky_actor_search_actors_main_output_handle =
+    unique_handle<wf_lex_app_bsky_actor_search_actors_main_output,
+                  wf_lex_app_bsky_actor_search_actors_main_output_free>;
+using wf_lex_app_bsky_actor_search_actors_typeahead_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_actor_search_actors_typeahead_main_output,
+        wf_lex_app_bsky_actor_search_actors_typeahead_main_output_free>;
+using wf_lex_app_bsky_ageassurance_get_state_main_output_handle =
+    unique_handle<wf_lex_app_bsky_ageassurance_get_state_main_output,
+                  wf_lex_app_bsky_ageassurance_get_state_main_output_free>;
+using wf_lex_app_bsky_bookmark_get_bookmarks_main_output_handle =
+    unique_handle<wf_lex_app_bsky_bookmark_get_bookmarks_main_output,
+                  wf_lex_app_bsky_bookmark_get_bookmarks_main_output_free>;
+using wf_lex_app_bsky_contact_dismiss_match_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_dismiss_match_main_output,
+                  wf_lex_app_bsky_contact_dismiss_match_main_output_free>;
+using wf_lex_app_bsky_contact_get_matches_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_get_matches_main_output,
+                  wf_lex_app_bsky_contact_get_matches_main_output_free>;
+using wf_lex_app_bsky_contact_get_sync_status_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_get_sync_status_main_output,
+                  wf_lex_app_bsky_contact_get_sync_status_main_output_free>;
+using wf_lex_app_bsky_contact_import_contacts_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_import_contacts_main_output,
+                  wf_lex_app_bsky_contact_import_contacts_main_output_free>;
+using wf_lex_app_bsky_contact_remove_data_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_remove_data_main_output,
+                  wf_lex_app_bsky_contact_remove_data_main_output_free>;
+using wf_lex_app_bsky_contact_send_notification_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_send_notification_main_output,
+                  wf_lex_app_bsky_contact_send_notification_main_output_free>;
+using wf_lex_app_bsky_contact_start_phone_verification_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_contact_start_phone_verification_main_output,
+        wf_lex_app_bsky_contact_start_phone_verification_main_output_free>;
+using wf_lex_app_bsky_contact_verify_phone_main_output_handle =
+    unique_handle<wf_lex_app_bsky_contact_verify_phone_main_output,
+                  wf_lex_app_bsky_contact_verify_phone_main_output_free>;
+using wf_lex_app_bsky_draft_create_draft_main_output_handle =
+    unique_handle<wf_lex_app_bsky_draft_create_draft_main_output,
+                  wf_lex_app_bsky_draft_create_draft_main_output_free>;
+using wf_lex_app_bsky_draft_get_drafts_main_output_handle =
+    unique_handle<wf_lex_app_bsky_draft_get_drafts_main_output,
+                  wf_lex_app_bsky_draft_get_drafts_main_output_free>;
+using wf_lex_app_bsky_embed_get_embed_external_view_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_embed_get_embed_external_view_main_output,
+        wf_lex_app_bsky_embed_get_embed_external_view_main_output_free>;
+using wf_lex_app_bsky_feed_describe_feed_generator_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_feed_describe_feed_generator_main_output,
+        wf_lex_app_bsky_feed_describe_feed_generator_main_output_free>;
+using wf_lex_app_bsky_feed_get_actor_feeds_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_actor_feeds_main_output,
+                  wf_lex_app_bsky_feed_get_actor_feeds_main_output_free>;
+using wf_lex_app_bsky_feed_get_actor_likes_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_actor_likes_main_output,
+                  wf_lex_app_bsky_feed_get_actor_likes_main_output_free>;
+using wf_lex_app_bsky_feed_get_author_feed_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_author_feed_main_output,
+                  wf_lex_app_bsky_feed_get_author_feed_main_output_free>;
+using wf_lex_app_bsky_feed_get_feed_generator_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_feed_generator_main_output,
+                  wf_lex_app_bsky_feed_get_feed_generator_main_output_free>;
+using wf_lex_app_bsky_feed_get_feed_generators_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_feed_generators_main_output,
+                  wf_lex_app_bsky_feed_get_feed_generators_main_output_free>;
+using wf_lex_app_bsky_feed_get_feed_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_feed_main_output,
+                  wf_lex_app_bsky_feed_get_feed_main_output_free>;
+using wf_lex_app_bsky_feed_get_feed_skeleton_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_feed_skeleton_main_output,
+                  wf_lex_app_bsky_feed_get_feed_skeleton_main_output_free>;
+using wf_lex_app_bsky_feed_get_likes_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_likes_main_output,
+                  wf_lex_app_bsky_feed_get_likes_main_output_free>;
+using wf_lex_app_bsky_feed_get_list_feed_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_list_feed_main_output,
+                  wf_lex_app_bsky_feed_get_list_feed_main_output_free>;
+using wf_lex_app_bsky_feed_get_post_thread_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_post_thread_main_output,
+                  wf_lex_app_bsky_feed_get_post_thread_main_output_free>;
+using wf_lex_app_bsky_feed_get_posts_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_posts_main_output,
+                  wf_lex_app_bsky_feed_get_posts_main_output_free>;
+using wf_lex_app_bsky_feed_get_quotes_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_quotes_main_output,
+                  wf_lex_app_bsky_feed_get_quotes_main_output_free>;
+using wf_lex_app_bsky_feed_get_reposted_by_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_reposted_by_main_output,
+                  wf_lex_app_bsky_feed_get_reposted_by_main_output_free>;
+using wf_lex_app_bsky_feed_get_suggested_feeds_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_suggested_feeds_main_output,
+                  wf_lex_app_bsky_feed_get_suggested_feeds_main_output_free>;
+using wf_lex_app_bsky_feed_get_timeline_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_get_timeline_main_output,
+                  wf_lex_app_bsky_feed_get_timeline_main_output_free>;
+using wf_lex_app_bsky_feed_search_posts_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_search_posts_main_output,
+                  wf_lex_app_bsky_feed_search_posts_main_output_free>;
+using wf_lex_app_bsky_feed_search_posts_v2_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_search_posts_v2_main_output,
+                  wf_lex_app_bsky_feed_search_posts_v2_main_output_free>;
+using wf_lex_app_bsky_feed_send_interactions_main_output_handle =
+    unique_handle<wf_lex_app_bsky_feed_send_interactions_main_output,
+                  wf_lex_app_bsky_feed_send_interactions_main_output_free>;
+using wf_lex_app_bsky_graph_get_actor_starter_packs_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_graph_get_actor_starter_packs_main_output,
+        wf_lex_app_bsky_graph_get_actor_starter_packs_main_output_free>;
+using wf_lex_app_bsky_graph_get_blocks_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_blocks_main_output,
+                  wf_lex_app_bsky_graph_get_blocks_main_output_free>;
+using wf_lex_app_bsky_graph_get_followers_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_followers_main_output,
+                  wf_lex_app_bsky_graph_get_followers_main_output_free>;
+using wf_lex_app_bsky_graph_get_follows_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_follows_main_output,
+                  wf_lex_app_bsky_graph_get_follows_main_output_free>;
+using wf_lex_app_bsky_graph_get_known_followers_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_known_followers_main_output,
+                  wf_lex_app_bsky_graph_get_known_followers_main_output_free>;
+using wf_lex_app_bsky_graph_get_list_blocks_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_list_blocks_main_output,
+                  wf_lex_app_bsky_graph_get_list_blocks_main_output_free>;
+using wf_lex_app_bsky_graph_get_list_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_list_main_output,
+                  wf_lex_app_bsky_graph_get_list_main_output_free>;
+using wf_lex_app_bsky_graph_get_list_mutes_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_list_mutes_main_output,
+                  wf_lex_app_bsky_graph_get_list_mutes_main_output_free>;
+using wf_lex_app_bsky_graph_get_lists_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_lists_main_output,
+                  wf_lex_app_bsky_graph_get_lists_main_output_free>;
+using wf_lex_app_bsky_graph_get_lists_with_membership_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_graph_get_lists_with_membership_main_output,
+        wf_lex_app_bsky_graph_get_lists_with_membership_main_output_free>;
+using wf_lex_app_bsky_graph_get_mutes_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_mutes_main_output,
+                  wf_lex_app_bsky_graph_get_mutes_main_output_free>;
+using wf_lex_app_bsky_graph_get_relationships_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_relationships_main_output,
+                  wf_lex_app_bsky_graph_get_relationships_main_output_free>;
+using wf_lex_app_bsky_graph_get_starter_pack_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_starter_pack_main_output,
+                  wf_lex_app_bsky_graph_get_starter_pack_main_output_free>;
+using wf_lex_app_bsky_graph_get_starter_packs_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_get_starter_packs_main_output,
+                  wf_lex_app_bsky_graph_get_starter_packs_main_output_free>;
+using wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_output,
+        wf_lex_app_bsky_graph_get_starter_packs_with_membership_main_output_free>;
+using wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_output,
+        wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_output_free>;
+using wf_lex_app_bsky_graph_search_starter_packs_main_output_handle =
+    unique_handle<wf_lex_app_bsky_graph_search_starter_packs_main_output,
+                  wf_lex_app_bsky_graph_search_starter_packs_main_output_free>;
+using wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_graph_search_starter_packs_v2_main_output,
+        wf_lex_app_bsky_graph_search_starter_packs_v2_main_output_free>;
+using wf_lex_app_bsky_labeler_get_services_main_output_handle =
+    unique_handle<wf_lex_app_bsky_labeler_get_services_main_output,
+                  wf_lex_app_bsky_labeler_get_services_main_output_free>;
+using wf_lex_app_bsky_notification_get_preferences_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_notification_get_preferences_main_output,
+        wf_lex_app_bsky_notification_get_preferences_main_output_free>;
+using wf_lex_app_bsky_notification_get_unread_count_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_notification_get_unread_count_main_output,
+        wf_lex_app_bsky_notification_get_unread_count_main_output_free>;
+using wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_notification_list_activity_subscriptions_main_output,
+        wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_free>;
+using wf_lex_app_bsky_notification_list_notifications_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_notification_list_notifications_main_output,
+        wf_lex_app_bsky_notification_list_notifications_main_output_free>;
+using wf_lex_app_bsky_notification_put_activity_subscription_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_notification_put_activity_subscription_main_output,
+        wf_lex_app_bsky_notification_put_activity_subscription_main_output_free>;
+using wf_lex_app_bsky_notification_put_preferences_v2_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_notification_put_preferences_v2_main_output,
+        wf_lex_app_bsky_notification_put_preferences_v2_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_config_main_output_handle =
+    unique_handle<wf_lex_app_bsky_unspecced_get_config_main_output,
+                  wf_lex_app_bsky_unspecced_get_config_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_output,
+        wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_onboarding_suggested_starter_packs_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_onboarding_suggested_users_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output,
+        wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output,
+        wf_lex_app_bsky_unspecced_get_post_thread_other_v2_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output,
+        wf_lex_app_bsky_unspecced_get_post_thread_v2_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_feeds_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_feeds_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_onboarding_users_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_starter_packs_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_starter_packs_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_discover_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_explore_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_for_see_more_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggested_users_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_suggestions_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_output,
+        wf_lex_app_bsky_unspecced_get_tagged_suggestions_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_trending_topics_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_trending_topics_main_output,
+        wf_lex_app_bsky_unspecced_get_trending_topics_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_trends_main_output_handle =
+    unique_handle<wf_lex_app_bsky_unspecced_get_trends_main_output,
+                  wf_lex_app_bsky_unspecced_get_trends_main_output_free>;
+using wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_get_trends_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_search_actors_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output_free>;
+using wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output_handle =
+    unique_handle<
+        wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output,
+        wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output_free>;
+using wf_lex_app_bsky_video_get_job_status_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_get_job_status_main_output,
+                  wf_lex_app_bsky_video_get_job_status_main_output_free>;
+using wf_lex_app_bsky_video_get_upload_limits_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_get_upload_limits_main_output,
+                  wf_lex_app_bsky_video_get_upload_limits_main_output_free>;
+using wf_lex_app_bsky_video_upload_video_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_upload_video_main_output,
+                  wf_lex_app_bsky_video_upload_video_main_output_free>;
+using wf_lex_chat_bsky_actor_delete_account_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_actor_delete_account_main_output,
+                  wf_lex_chat_bsky_actor_delete_account_main_output_free>;
+using wf_lex_chat_bsky_actor_get_status_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_actor_get_status_main_output,
+                  wf_lex_chat_bsky_actor_get_status_main_output_free>;
+using wf_lex_chat_bsky_convo_accept_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_accept_convo_main_output,
+                  wf_lex_chat_bsky_convo_accept_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_add_reaction_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_add_reaction_main_output,
+                  wf_lex_chat_bsky_convo_add_reaction_main_output_free>;
+using wf_lex_chat_bsky_convo_get_convo_availability_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_convo_get_convo_availability_main_output,
+        wf_lex_chat_bsky_convo_get_convo_availability_main_output_free>;
+using wf_lex_chat_bsky_convo_get_convo_for_members_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_convo_get_convo_for_members_main_output,
+        wf_lex_chat_bsky_convo_get_convo_for_members_main_output_free>;
+using wf_lex_chat_bsky_convo_get_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_get_convo_main_output,
+                  wf_lex_chat_bsky_convo_get_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_get_convo_members_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_get_convo_members_main_output,
+                  wf_lex_chat_bsky_convo_get_convo_members_main_output_free>;
+using wf_lex_chat_bsky_convo_get_log_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_get_log_main_output,
+                  wf_lex_chat_bsky_convo_get_log_main_output_free>;
+using wf_lex_chat_bsky_convo_get_messages_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_get_messages_main_output,
+                  wf_lex_chat_bsky_convo_get_messages_main_output_free>;
+using wf_lex_chat_bsky_convo_get_unread_counts_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_get_unread_counts_main_output,
+                  wf_lex_chat_bsky_convo_get_unread_counts_main_output_free>;
+using wf_lex_chat_bsky_convo_leave_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_leave_convo_main_output,
+                  wf_lex_chat_bsky_convo_leave_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_list_convo_requests_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_list_convo_requests_main_output,
+                  wf_lex_chat_bsky_convo_list_convo_requests_main_output_free>;
+using wf_lex_chat_bsky_convo_list_convos_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_list_convos_main_output,
+                  wf_lex_chat_bsky_convo_list_convos_main_output_free>;
+using wf_lex_chat_bsky_convo_lock_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_lock_convo_main_output,
+                  wf_lex_chat_bsky_convo_lock_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_mute_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_mute_convo_main_output,
+                  wf_lex_chat_bsky_convo_mute_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_remove_reaction_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_remove_reaction_main_output,
+                  wf_lex_chat_bsky_convo_remove_reaction_main_output_free>;
+using wf_lex_chat_bsky_convo_send_message_batch_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_send_message_batch_main_output,
+                  wf_lex_chat_bsky_convo_send_message_batch_main_output_free>;
+using wf_lex_chat_bsky_convo_unlock_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_unlock_convo_main_output,
+                  wf_lex_chat_bsky_convo_unlock_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_unmute_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_unmute_convo_main_output,
+                  wf_lex_chat_bsky_convo_unmute_convo_main_output_free>;
+using wf_lex_chat_bsky_convo_update_all_read_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_update_all_read_main_output,
+                  wf_lex_chat_bsky_convo_update_all_read_main_output_free>;
+using wf_lex_chat_bsky_convo_update_read_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_convo_update_read_main_output,
+                  wf_lex_chat_bsky_convo_update_read_main_output_free>;
+using wf_lex_chat_bsky_group_add_members_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_add_members_main_output,
+                  wf_lex_chat_bsky_group_add_members_main_output_free>;
+using wf_lex_chat_bsky_group_approve_join_request_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_approve_join_request_main_output,
+                  wf_lex_chat_bsky_group_approve_join_request_main_output_free>;
+using wf_lex_chat_bsky_group_create_group_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_create_group_main_output,
+                  wf_lex_chat_bsky_group_create_group_main_output_free>;
+using wf_lex_chat_bsky_group_create_join_link_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_create_join_link_main_output,
+                  wf_lex_chat_bsky_group_create_join_link_main_output_free>;
+using wf_lex_chat_bsky_group_disable_join_link_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_disable_join_link_main_output,
+                  wf_lex_chat_bsky_group_disable_join_link_main_output_free>;
+using wf_lex_chat_bsky_group_edit_group_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_edit_group_main_output,
+                  wf_lex_chat_bsky_group_edit_group_main_output_free>;
+using wf_lex_chat_bsky_group_edit_join_link_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_edit_join_link_main_output,
+                  wf_lex_chat_bsky_group_edit_join_link_main_output_free>;
+using wf_lex_chat_bsky_group_enable_join_link_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_enable_join_link_main_output,
+                  wf_lex_chat_bsky_group_enable_join_link_main_output_free>;
+using wf_lex_chat_bsky_group_get_join_link_previews_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_group_get_join_link_previews_main_output,
+        wf_lex_chat_bsky_group_get_join_link_previews_main_output_free>;
+using wf_lex_chat_bsky_group_list_join_requests_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_list_join_requests_main_output,
+                  wf_lex_chat_bsky_group_list_join_requests_main_output_free>;
+using wf_lex_chat_bsky_group_list_mutual_groups_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_list_mutual_groups_main_output,
+                  wf_lex_chat_bsky_group_list_mutual_groups_main_output_free>;
+using wf_lex_chat_bsky_group_reject_join_request_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_reject_join_request_main_output,
+                  wf_lex_chat_bsky_group_reject_join_request_main_output_free>;
+using wf_lex_chat_bsky_group_remove_members_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_remove_members_main_output,
+                  wf_lex_chat_bsky_group_remove_members_main_output_free>;
+using wf_lex_chat_bsky_group_request_join_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_group_request_join_main_output,
+                  wf_lex_chat_bsky_group_request_join_main_output_free>;
+using wf_lex_chat_bsky_group_update_join_requests_read_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_group_update_join_requests_read_main_output,
+        wf_lex_chat_bsky_group_update_join_requests_read_main_output_free>;
+using wf_lex_chat_bsky_group_withdraw_join_request_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_group_withdraw_join_request_main_output,
+        wf_lex_chat_bsky_group_withdraw_join_request_main_output_free>;
+using wf_lex_chat_bsky_moderation_get_actor_metadata_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_moderation_get_actor_metadata_main_output,
+        wf_lex_chat_bsky_moderation_get_actor_metadata_main_output_free>;
+using wf_lex_chat_bsky_moderation_get_convo_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_moderation_get_convo_main_output,
+                  wf_lex_chat_bsky_moderation_get_convo_main_output_free>;
+using wf_lex_chat_bsky_moderation_get_convo_members_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_moderation_get_convo_members_main_output,
+        wf_lex_chat_bsky_moderation_get_convo_members_main_output_free>;
+using wf_lex_chat_bsky_moderation_get_convos_main_output_handle =
+    unique_handle<wf_lex_chat_bsky_moderation_get_convos_main_output,
+                  wf_lex_chat_bsky_moderation_get_convos_main_output_free>;
+using wf_lex_chat_bsky_moderation_get_message_context_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_moderation_get_message_context_main_output,
+        wf_lex_chat_bsky_moderation_get_message_context_main_output_free>;
+using wf_lex_chat_bsky_notification_get_preferences_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_notification_get_preferences_main_output,
+        wf_lex_chat_bsky_notification_get_preferences_main_output_free>;
+using wf_lex_chat_bsky_notification_put_preferences_main_output_handle =
+    unique_handle<
+        wf_lex_chat_bsky_notification_put_preferences_main_output,
+        wf_lex_chat_bsky_notification_put_preferences_main_output_free>;
+using wf_lex_com_atproto_admin_get_account_infos_main_output_handle =
+    unique_handle<wf_lex_com_atproto_admin_get_account_infos_main_output,
+                  wf_lex_com_atproto_admin_get_account_infos_main_output_free>;
+using wf_lex_com_atproto_admin_get_invite_codes_main_output_handle =
+    unique_handle<wf_lex_com_atproto_admin_get_invite_codes_main_output,
+                  wf_lex_com_atproto_admin_get_invite_codes_main_output_free>;
+using wf_lex_com_atproto_admin_get_subject_status_main_output_handle =
+    unique_handle<wf_lex_com_atproto_admin_get_subject_status_main_output,
+                  wf_lex_com_atproto_admin_get_subject_status_main_output_free>;
+using wf_lex_com_atproto_admin_search_accounts_main_output_handle =
+    unique_handle<wf_lex_com_atproto_admin_search_accounts_main_output,
+                  wf_lex_com_atproto_admin_search_accounts_main_output_free>;
+using wf_lex_com_atproto_admin_send_email_main_output_handle =
+    unique_handle<wf_lex_com_atproto_admin_send_email_main_output,
+                  wf_lex_com_atproto_admin_send_email_main_output_free>;
+using wf_lex_com_atproto_admin_update_subject_status_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_admin_update_subject_status_main_output,
+        wf_lex_com_atproto_admin_update_subject_status_main_output_free>;
+using wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output,
+        wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_free>;
+using wf_lex_com_atproto_identity_resolve_did_main_output_handle =
+    unique_handle<wf_lex_com_atproto_identity_resolve_did_main_output,
+                  wf_lex_com_atproto_identity_resolve_did_main_output_free>;
+using wf_lex_com_atproto_identity_resolve_handle_main_output_handle =
+    unique_handle<wf_lex_com_atproto_identity_resolve_handle_main_output,
+                  wf_lex_com_atproto_identity_resolve_handle_main_output_free>;
+using wf_lex_com_atproto_identity_sign_plc_operation_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_identity_sign_plc_operation_main_output,
+        wf_lex_com_atproto_identity_sign_plc_operation_main_output_free>;
+using wf_lex_com_atproto_label_query_labels_main_output_handle =
+    unique_handle<wf_lex_com_atproto_label_query_labels_main_output,
+                  wf_lex_com_atproto_label_query_labels_main_output_free>;
+using wf_lex_com_atproto_lexicon_resolve_lexicon_main_output_handle =
+    unique_handle<wf_lex_com_atproto_lexicon_resolve_lexicon_main_output,
+                  wf_lex_com_atproto_lexicon_resolve_lexicon_main_output_free>;
+using wf_lex_com_atproto_moderation_create_report_main_output_handle =
+    unique_handle<wf_lex_com_atproto_moderation_create_report_main_output,
+                  wf_lex_com_atproto_moderation_create_report_main_output_free>;
+using wf_lex_com_atproto_repo_apply_writes_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_apply_writes_main_output,
+                  wf_lex_com_atproto_repo_apply_writes_main_output_free>;
+using wf_lex_com_atproto_repo_create_record_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_create_record_main_output,
+                  wf_lex_com_atproto_repo_create_record_main_output_free>;
+using wf_lex_com_atproto_repo_delete_record_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_delete_record_main_output,
+                  wf_lex_com_atproto_repo_delete_record_main_output_free>;
+using wf_lex_com_atproto_repo_describe_repo_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_describe_repo_main_output,
+                  wf_lex_com_atproto_repo_describe_repo_main_output_free>;
+using wf_lex_com_atproto_repo_get_record_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_get_record_main_output,
+                  wf_lex_com_atproto_repo_get_record_main_output_free>;
+using wf_lex_com_atproto_repo_list_missing_blobs_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_list_missing_blobs_main_output,
+                  wf_lex_com_atproto_repo_list_missing_blobs_main_output_free>;
+using wf_lex_com_atproto_repo_list_records_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_list_records_main_output,
+                  wf_lex_com_atproto_repo_list_records_main_output_free>;
+using wf_lex_com_atproto_repo_put_record_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_put_record_main_output,
+                  wf_lex_com_atproto_repo_put_record_main_output_free>;
+using wf_lex_com_atproto_repo_upload_blob_main_output_handle =
+    unique_handle<wf_lex_com_atproto_repo_upload_blob_main_output,
+                  wf_lex_com_atproto_repo_upload_blob_main_output_free>;
+using wf_lex_com_atproto_server_check_account_status_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_check_account_status_main_output,
+        wf_lex_com_atproto_server_check_account_status_main_output_free>;
+using wf_lex_com_atproto_server_create_account_main_output_handle =
+    unique_handle<wf_lex_com_atproto_server_create_account_main_output,
+                  wf_lex_com_atproto_server_create_account_main_output_free>;
+using wf_lex_com_atproto_server_create_invite_code_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_create_invite_code_main_output,
+        wf_lex_com_atproto_server_create_invite_code_main_output_free>;
+using wf_lex_com_atproto_server_create_invite_codes_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_create_invite_codes_main_output,
+        wf_lex_com_atproto_server_create_invite_codes_main_output_free>;
+using wf_lex_com_atproto_server_create_session_main_output_handle =
+    unique_handle<wf_lex_com_atproto_server_create_session_main_output,
+                  wf_lex_com_atproto_server_create_session_main_output_free>;
+using wf_lex_com_atproto_server_describe_server_main_output_handle =
+    unique_handle<wf_lex_com_atproto_server_describe_server_main_output,
+                  wf_lex_com_atproto_server_describe_server_main_output_free>;
+using wf_lex_com_atproto_server_get_account_invite_codes_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_get_account_invite_codes_main_output,
+        wf_lex_com_atproto_server_get_account_invite_codes_main_output_free>;
+using wf_lex_com_atproto_server_get_service_auth_main_output_handle =
+    unique_handle<wf_lex_com_atproto_server_get_service_auth_main_output,
+                  wf_lex_com_atproto_server_get_service_auth_main_output_free>;
+using wf_lex_com_atproto_server_get_session_main_output_handle =
+    unique_handle<wf_lex_com_atproto_server_get_session_main_output,
+                  wf_lex_com_atproto_server_get_session_main_output_free>;
+using wf_lex_com_atproto_server_list_app_passwords_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_list_app_passwords_main_output,
+        wf_lex_com_atproto_server_list_app_passwords_main_output_free>;
+using wf_lex_com_atproto_server_refresh_session_main_output_handle =
+    unique_handle<wf_lex_com_atproto_server_refresh_session_main_output,
+                  wf_lex_com_atproto_server_refresh_session_main_output_free>;
+using wf_lex_com_atproto_server_request_email_update_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_request_email_update_main_output,
+        wf_lex_com_atproto_server_request_email_update_main_output_free>;
+using wf_lex_com_atproto_server_reserve_signing_key_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_server_reserve_signing_key_main_output,
+        wf_lex_com_atproto_server_reserve_signing_key_main_output_free>;
+using wf_lex_com_atproto_sync_get_head_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_get_head_main_output,
+                  wf_lex_com_atproto_sync_get_head_main_output_free>;
+using wf_lex_com_atproto_sync_get_host_status_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_get_host_status_main_output,
+                  wf_lex_com_atproto_sync_get_host_status_main_output_free>;
+using wf_lex_com_atproto_sync_get_latest_commit_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_get_latest_commit_main_output,
+                  wf_lex_com_atproto_sync_get_latest_commit_main_output_free>;
+using wf_lex_com_atproto_sync_get_repo_status_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_get_repo_status_main_output,
+                  wf_lex_com_atproto_sync_get_repo_status_main_output_free>;
+using wf_lex_com_atproto_sync_list_blobs_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_list_blobs_main_output,
+                  wf_lex_com_atproto_sync_list_blobs_main_output_free>;
+using wf_lex_com_atproto_sync_list_hosts_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_list_hosts_main_output,
+                  wf_lex_com_atproto_sync_list_hosts_main_output_free>;
+using wf_lex_com_atproto_sync_list_repos_by_collection_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_sync_list_repos_by_collection_main_output,
+        wf_lex_com_atproto_sync_list_repos_by_collection_main_output_free>;
+using wf_lex_com_atproto_sync_list_repos_main_output_handle =
+    unique_handle<wf_lex_com_atproto_sync_list_repos_main_output,
+                  wf_lex_com_atproto_sync_list_repos_main_output_free>;
+using wf_lex_com_atproto_temp_add_reserved_handle_main_output_handle =
+    unique_handle<wf_lex_com_atproto_temp_add_reserved_handle_main_output,
+                  wf_lex_com_atproto_temp_add_reserved_handle_main_output_free>;
+using wf_lex_com_atproto_temp_check_handle_availability_main_output_handle =
+    unique_handle<
+        wf_lex_com_atproto_temp_check_handle_availability_main_output,
+        wf_lex_com_atproto_temp_check_handle_availability_main_output_free>;
+using wf_lex_com_atproto_temp_check_signup_queue_main_output_handle =
+    unique_handle<wf_lex_com_atproto_temp_check_signup_queue_main_output,
+                  wf_lex_com_atproto_temp_check_signup_queue_main_output_free>;
+using wf_lex_com_atproto_temp_dereference_scope_main_output_handle =
+    unique_handle<wf_lex_com_atproto_temp_dereference_scope_main_output,
+                  wf_lex_com_atproto_temp_dereference_scope_main_output_free>;
+using wf_lex_com_atproto_temp_fetch_labels_main_output_handle =
+    unique_handle<wf_lex_com_atproto_temp_fetch_labels_main_output,
+                  wf_lex_com_atproto_temp_fetch_labels_main_output_free>;
+using wf_lex_internal_bsky_actor_get_profiles_main_output_handle =
+    unique_handle<wf_lex_internal_bsky_actor_get_profiles_main_output,
+                  wf_lex_internal_bsky_actor_get_profiles_main_output_free>;
+using wf_lex_tools_ozone_communication_list_templates_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_communication_list_templates_main_output,
+        wf_lex_tools_ozone_communication_list_templates_main_output_free>;
+using wf_lex_tools_ozone_hosting_get_account_history_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_hosting_get_account_history_main_output,
+        wf_lex_tools_ozone_hosting_get_account_history_main_output_free>;
+using wf_lex_tools_ozone_moderation_get_account_timeline_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_moderation_get_account_timeline_main_output,
+        wf_lex_tools_ozone_moderation_get_account_timeline_main_output_free>;
+using wf_lex_tools_ozone_moderation_get_records_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_moderation_get_records_main_output,
+                  wf_lex_tools_ozone_moderation_get_records_main_output_free>;
+using wf_lex_tools_ozone_moderation_get_reporter_stats_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_moderation_get_reporter_stats_main_output,
+        wf_lex_tools_ozone_moderation_get_reporter_stats_main_output_free>;
+using wf_lex_tools_ozone_moderation_get_repos_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_moderation_get_repos_main_output,
+                  wf_lex_tools_ozone_moderation_get_repos_main_output_free>;
+using wf_lex_tools_ozone_moderation_get_subjects_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_moderation_get_subjects_main_output,
+                  wf_lex_tools_ozone_moderation_get_subjects_main_output_free>;
+using wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output,
+        wf_lex_tools_ozone_moderation_list_scheduled_actions_main_output_free>;
+using wf_lex_tools_ozone_moderation_query_events_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_moderation_query_events_main_output,
+                  wf_lex_tools_ozone_moderation_query_events_main_output_free>;
+using wf_lex_tools_ozone_moderation_query_statuses_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_moderation_query_statuses_main_output,
+        wf_lex_tools_ozone_moderation_query_statuses_main_output_free>;
+using wf_lex_tools_ozone_moderation_search_repos_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_moderation_search_repos_main_output,
+                  wf_lex_tools_ozone_moderation_search_repos_main_output_free>;
+using wf_lex_tools_ozone_queue_create_queue_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_queue_create_queue_main_output,
+                  wf_lex_tools_ozone_queue_create_queue_main_output_free>;
+using wf_lex_tools_ozone_queue_delete_queue_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_queue_delete_queue_main_output,
+                  wf_lex_tools_ozone_queue_delete_queue_main_output_free>;
+using wf_lex_tools_ozone_queue_get_assignments_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_queue_get_assignments_main_output,
+                  wf_lex_tools_ozone_queue_get_assignments_main_output_free>;
+using wf_lex_tools_ozone_queue_list_queues_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_queue_list_queues_main_output,
+                  wf_lex_tools_ozone_queue_list_queues_main_output_free>;
+using wf_lex_tools_ozone_queue_route_reports_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_queue_route_reports_main_output,
+                  wf_lex_tools_ozone_queue_route_reports_main_output_free>;
+using wf_lex_tools_ozone_queue_update_queue_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_queue_update_queue_main_output,
+                  wf_lex_tools_ozone_queue_update_queue_main_output_free>;
+using wf_lex_tools_ozone_report_close_reports_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_close_reports_main_output,
+                  wf_lex_tools_ozone_report_close_reports_main_output_free>;
+using wf_lex_tools_ozone_report_create_activity_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_create_activity_main_output,
+                  wf_lex_tools_ozone_report_create_activity_main_output_free>;
+using wf_lex_tools_ozone_report_get_assignments_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_get_assignments_main_output,
+                  wf_lex_tools_ozone_report_get_assignments_main_output_free>;
+using wf_lex_tools_ozone_report_get_historical_stats_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_report_get_historical_stats_main_output,
+        wf_lex_tools_ozone_report_get_historical_stats_main_output_free>;
+using wf_lex_tools_ozone_report_get_latest_report_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_get_latest_report_main_output,
+                  wf_lex_tools_ozone_report_get_latest_report_main_output_free>;
+using wf_lex_tools_ozone_report_get_live_stats_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_get_live_stats_main_output,
+                  wf_lex_tools_ozone_report_get_live_stats_main_output_free>;
+using wf_lex_tools_ozone_report_list_activities_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_list_activities_main_output,
+                  wf_lex_tools_ozone_report_list_activities_main_output_free>;
+using wf_lex_tools_ozone_report_query_activities_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_query_activities_main_output,
+                  wf_lex_tools_ozone_report_query_activities_main_output_free>;
+using wf_lex_tools_ozone_report_query_reports_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_query_reports_main_output,
+                  wf_lex_tools_ozone_report_query_reports_main_output_free>;
+using wf_lex_tools_ozone_report_reassign_queue_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_reassign_queue_main_output,
+                  wf_lex_tools_ozone_report_reassign_queue_main_output_free>;
+using wf_lex_tools_ozone_report_refresh_stats_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_report_refresh_stats_main_output,
+                  wf_lex_tools_ozone_report_refresh_stats_main_output_free>;
+using wf_lex_tools_ozone_safelink_query_events_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_safelink_query_events_main_output,
+                  wf_lex_tools_ozone_safelink_query_events_main_output_free>;
+using wf_lex_tools_ozone_safelink_query_rules_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_safelink_query_rules_main_output,
+                  wf_lex_tools_ozone_safelink_query_rules_main_output_free>;
+using wf_lex_tools_ozone_server_get_config_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_server_get_config_main_output,
+                  wf_lex_tools_ozone_server_get_config_main_output_free>;
+using wf_lex_tools_ozone_set_delete_set_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_set_delete_set_main_output,
+                  wf_lex_tools_ozone_set_delete_set_main_output_free>;
+using wf_lex_tools_ozone_set_get_values_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_set_get_values_main_output,
+                  wf_lex_tools_ozone_set_get_values_main_output_free>;
+using wf_lex_tools_ozone_set_query_sets_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_set_query_sets_main_output,
+                  wf_lex_tools_ozone_set_query_sets_main_output_free>;
+using wf_lex_tools_ozone_setting_list_options_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_setting_list_options_main_output,
+                  wf_lex_tools_ozone_setting_list_options_main_output_free>;
+using wf_lex_tools_ozone_setting_remove_options_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_setting_remove_options_main_output,
+                  wf_lex_tools_ozone_setting_remove_options_main_output_free>;
+using wf_lex_tools_ozone_setting_upsert_option_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_setting_upsert_option_main_output,
+                  wf_lex_tools_ozone_setting_upsert_option_main_output_free>;
+using wf_lex_tools_ozone_signature_find_correlation_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_signature_find_correlation_main_output,
+        wf_lex_tools_ozone_signature_find_correlation_main_output_free>;
+using wf_lex_tools_ozone_signature_find_related_accounts_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_signature_find_related_accounts_main_output,
+        wf_lex_tools_ozone_signature_find_related_accounts_main_output_free>;
+using wf_lex_tools_ozone_signature_search_accounts_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_signature_search_accounts_main_output,
+        wf_lex_tools_ozone_signature_search_accounts_main_output_free>;
+using wf_lex_tools_ozone_team_list_members_main_output_handle =
+    unique_handle<wf_lex_tools_ozone_team_list_members_main_output,
+                  wf_lex_tools_ozone_team_list_members_main_output_free>;
+using wf_lex_tools_ozone_verification_grant_verifications_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_verification_grant_verifications_main_output,
+        wf_lex_tools_ozone_verification_grant_verifications_main_output_free>;
+using wf_lex_tools_ozone_verification_list_verifications_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_verification_list_verifications_main_output,
+        wf_lex_tools_ozone_verification_list_verifications_main_output_free>;
+using wf_lex_tools_ozone_verification_revoke_verifications_main_output_handle =
+    unique_handle<
+        wf_lex_tools_ozone_verification_revoke_verifications_main_output,
+        wf_lex_tools_ozone_verification_revoke_verifications_main_output_free>;
+using wf_lexicon_registry_handle =
+    unique_handle<wf_lexicon_registry, wf_lexicon_registry_free>;
+using wf_lexicon_resolved_handle =
+    unique_handle<wf_lexicon_resolved, wf_lexicon_resolved_free>;
+using wf_mod_decision_handle =
+    unique_handle<wf_mod_decision, wf_mod_decision_free>;
+using wf_mod_label_def_handle =
+    unique_handle<wf_mod_label_def, wf_mod_label_def_free>;
+using wf_mod_list_view_result_handle =
+    unique_handle<wf_mod_list_view_result, wf_mod_list_view_result_free>;
 using wf_mod_prefs_handle = unique_handle<wf_mod_prefs, wf_mod_prefs_free>;
 using wf_mod_ui_handle = unique_handle<wf_mod_ui, wf_mod_ui_free>;
-using wf_moderation_report_handle = unique_handle<wf_moderation_report, wf_moderation_report_free>;
-using wf_moderation_report_record_handle = unique_handle<wf_moderation_report_record, wf_moderation_report_record_free>;
+using wf_moderation_report_handle =
+    unique_handle<wf_moderation_report, wf_moderation_report_free>;
+using wf_moderation_report_record_handle =
+    unique_handle<wf_moderation_report_record,
+                  wf_moderation_report_record_free>;
 using wf_mst_node_handle = unique_handle<wf_mst_node, wf_mst_node_free>;
-using wf_notif_v2_activity_subscription_result_handle = unique_handle<wf_notif_v2_activity_subscription_result, wf_notif_v2_activity_subscription_result_free>;
-using wf_notif_v2_preferences_handle = unique_handle<wf_notif_v2_preferences, wf_notif_v2_preferences_free>;
-using wf_notif_v2_subscription_view_list_handle = unique_handle<wf_notif_v2_subscription_view_list, wf_notif_v2_subscription_view_list_free>;
-using wf_notification_list_handle = unique_handle<wf_notification_list, wf_notification_list_free>;
-using wf_notification_prefs_handle = unique_handle<wf_notification_prefs, wf_notification_prefs_free>;
-using wf_notification_v2_preferences_handle = unique_handle<wf_notification_v2_preferences, wf_notification_v2_preferences_free>;
-using wf_oauth_authorization_begin_result_handle = unique_handle<wf_oauth_authorization_begin_result, wf_oauth_authorization_begin_result_free>;
-using wf_oauth_authorization_complete_result_handle = unique_handle<wf_oauth_authorization_complete_result, wf_oauth_authorization_complete_result_free>;
-using wf_oauth_authorization_state_handle = unique_handle<wf_oauth_authorization_state, wf_oauth_authorization_state_free>;
-using wf_oauth_callback_result_handle = unique_handle<wf_oauth_callback_result, wf_oauth_callback_result_free>;
-using wf_oauth_client_metadata_handle = unique_handle<wf_oauth_client_metadata, wf_oauth_client_metadata_free>;
-using wf_oauth_dpop_key_handle = unique_handle<wf_oauth_dpop_key, wf_oauth_dpop_key_free>;
-using wf_oauth_dpop_replay_cache_handle = unique_handle<wf_oauth_dpop_replay_cache, wf_oauth_dpop_replay_cache_free>;
-using wf_oauth_par_response_handle = unique_handle<wf_oauth_par_response, wf_oauth_par_response_free>;
-using wf_oauth_resource_metadata_handle = unique_handle<wf_oauth_resource_metadata, wf_oauth_resource_metadata_free>;
-using wf_oauth_server_metadata_handle = unique_handle<wf_oauth_server_metadata, wf_oauth_server_metadata_free>;
-using wf_oauth_session_state_handle = unique_handle<wf_oauth_session_state, wf_oauth_session_state_free>;
-using wf_oauth_token_response_handle = unique_handle<wf_oauth_token_response, wf_oauth_token_response_free>;
-using wf_oauth_trusted_keys_handle = unique_handle<wf_oauth_trusted_keys, wf_oauth_trusted_keys_free>;
-using wf_oauth_verified_token_handle = unique_handle<wf_oauth_verified_token, wf_oauth_verified_token_free>;
-using wf_ozone_ops_account_handle = unique_handle<wf_ozone_ops_account, wf_ozone_ops_account_free>;
-using wf_ozone_ops_account_list_handle = unique_handle<wf_ozone_ops_account_list, wf_ozone_ops_account_list_free>;
-using wf_ozone_ops_historical_stats_list_handle = unique_handle<wf_ozone_ops_historical_stats_list, wf_ozone_ops_historical_stats_list_free>;
-using wf_ozone_ops_live_stats_handle = unique_handle<wf_ozone_ops_live_stats, wf_ozone_ops_live_stats_free>;
-using wf_ozone_ops_queue_assignment_list_handle = unique_handle<wf_ozone_ops_queue_assignment_list, wf_ozone_ops_queue_assignment_list_free>;
-using wf_ozone_ops_queue_assignment_view_handle = unique_handle<wf_ozone_ops_queue_assignment_view, wf_ozone_ops_queue_assignment_view_free>;
-using wf_ozone_ops_queue_list_handle = unique_handle<wf_ozone_ops_queue_list, wf_ozone_ops_queue_list_free>;
-using wf_ozone_ops_queue_view_handle = unique_handle<wf_ozone_ops_queue_view, wf_ozone_ops_queue_view_free>;
-using wf_ozone_ops_related_account_list_handle = unique_handle<wf_ozone_ops_related_account_list, wf_ozone_ops_related_account_list_free>;
-using wf_ozone_ops_report_activity_list_handle = unique_handle<wf_ozone_ops_report_activity_list, wf_ozone_ops_report_activity_list_free>;
-using wf_ozone_ops_report_activity_view_handle = unique_handle<wf_ozone_ops_report_activity_view, wf_ozone_ops_report_activity_view_free>;
-using wf_ozone_ops_report_assignment_list_handle = unique_handle<wf_ozone_ops_report_assignment_list, wf_ozone_ops_report_assignment_list_free>;
-using wf_ozone_ops_report_assignment_view_handle = unique_handle<wf_ozone_ops_report_assignment_view, wf_ozone_ops_report_assignment_view_free>;
-using wf_ozone_ops_report_list_handle = unique_handle<wf_ozone_ops_report_list, wf_ozone_ops_report_list_free>;
-using wf_ozone_ops_report_view_handle = unique_handle<wf_ozone_ops_report_view, wf_ozone_ops_report_view_free>;
-using wf_ozone_ops_sig_detail_list_handle = unique_handle<wf_ozone_ops_sig_detail_list, wf_ozone_ops_sig_detail_list_free>;
-using wf_ozone_subject_status_list_handle = unique_handle<wf_ozone_subject_status_list, wf_ozone_subject_status_list_free>;
-using wf_ozone_team_member_list_handle = unique_handle<wf_ozone_team_member_list, wf_ozone_team_member_list_free>;
-using wf_platform_mutex_handle = unique_handle<wf_platform_mutex, wf_platform_mutex_free>;
-using wf_rate_limiter_handle = unique_handle<wf_rate_limiter, wf_rate_limiter_free>;
-using wf_relay_config_handle = unique_handle<wf_relay_config, wf_relay_config_free>;
-using wf_relay_server_handle = unique_handle<wf_relay_server, wf_relay_server_free>;
-using wf_repo_apply_writes_result_handle = unique_handle<wf_repo_apply_writes_result, wf_repo_apply_writes_result_free>;
-using wf_repo_description_handle = unique_handle<wf_repo_description, wf_repo_description_free>;
+using wf_notif_v2_activity_subscription_result_handle =
+    unique_handle<wf_notif_v2_activity_subscription_result,
+                  wf_notif_v2_activity_subscription_result_free>;
+using wf_notif_v2_preferences_handle =
+    unique_handle<wf_notif_v2_preferences, wf_notif_v2_preferences_free>;
+using wf_notif_v2_subscription_view_list_handle =
+    unique_handle<wf_notif_v2_subscription_view_list,
+                  wf_notif_v2_subscription_view_list_free>;
+using wf_notification_list_handle =
+    unique_handle<wf_notification_list, wf_notification_list_free>;
+using wf_notification_prefs_handle =
+    unique_handle<wf_notification_prefs, wf_notification_prefs_free>;
+using wf_notification_v2_preferences_handle =
+    unique_handle<wf_notification_v2_preferences,
+                  wf_notification_v2_preferences_free>;
+using wf_oauth_authorization_begin_result_handle =
+    unique_handle<wf_oauth_authorization_begin_result,
+                  wf_oauth_authorization_begin_result_free>;
+using wf_oauth_authorization_complete_result_handle =
+    unique_handle<wf_oauth_authorization_complete_result,
+                  wf_oauth_authorization_complete_result_free>;
+using wf_oauth_authorization_state_handle =
+    unique_handle<wf_oauth_authorization_state,
+                  wf_oauth_authorization_state_free>;
+using wf_oauth_callback_result_handle =
+    unique_handle<wf_oauth_callback_result, wf_oauth_callback_result_free>;
+using wf_oauth_client_metadata_handle =
+    unique_handle<wf_oauth_client_metadata, wf_oauth_client_metadata_free>;
+using wf_oauth_dpop_key_handle =
+    unique_handle<wf_oauth_dpop_key, wf_oauth_dpop_key_free>;
+using wf_oauth_dpop_replay_cache_handle =
+    unique_handle<wf_oauth_dpop_replay_cache, wf_oauth_dpop_replay_cache_free>;
+using wf_oauth_par_response_handle =
+    unique_handle<wf_oauth_par_response, wf_oauth_par_response_free>;
+using wf_oauth_resource_metadata_handle =
+    unique_handle<wf_oauth_resource_metadata, wf_oauth_resource_metadata_free>;
+using wf_oauth_server_metadata_handle =
+    unique_handle<wf_oauth_server_metadata, wf_oauth_server_metadata_free>;
+using wf_oauth_session_state_handle =
+    unique_handle<wf_oauth_session_state, wf_oauth_session_state_free>;
+using wf_oauth_token_response_handle =
+    unique_handle<wf_oauth_token_response, wf_oauth_token_response_free>;
+using wf_oauth_trusted_keys_handle =
+    unique_handle<wf_oauth_trusted_keys, wf_oauth_trusted_keys_free>;
+using wf_oauth_verified_token_handle =
+    unique_handle<wf_oauth_verified_token, wf_oauth_verified_token_free>;
+using wf_ozone_ops_account_handle =
+    unique_handle<wf_ozone_ops_account, wf_ozone_ops_account_free>;
+using wf_ozone_ops_account_list_handle =
+    unique_handle<wf_ozone_ops_account_list, wf_ozone_ops_account_list_free>;
+using wf_ozone_ops_historical_stats_list_handle =
+    unique_handle<wf_ozone_ops_historical_stats_list,
+                  wf_ozone_ops_historical_stats_list_free>;
+using wf_ozone_ops_live_stats_handle =
+    unique_handle<wf_ozone_ops_live_stats, wf_ozone_ops_live_stats_free>;
+using wf_ozone_ops_queue_assignment_list_handle =
+    unique_handle<wf_ozone_ops_queue_assignment_list,
+                  wf_ozone_ops_queue_assignment_list_free>;
+using wf_ozone_ops_queue_assignment_view_handle =
+    unique_handle<wf_ozone_ops_queue_assignment_view,
+                  wf_ozone_ops_queue_assignment_view_free>;
+using wf_ozone_ops_queue_list_handle =
+    unique_handle<wf_ozone_ops_queue_list, wf_ozone_ops_queue_list_free>;
+using wf_ozone_ops_queue_view_handle =
+    unique_handle<wf_ozone_ops_queue_view, wf_ozone_ops_queue_view_free>;
+using wf_ozone_ops_related_account_list_handle =
+    unique_handle<wf_ozone_ops_related_account_list,
+                  wf_ozone_ops_related_account_list_free>;
+using wf_ozone_ops_report_activity_list_handle =
+    unique_handle<wf_ozone_ops_report_activity_list,
+                  wf_ozone_ops_report_activity_list_free>;
+using wf_ozone_ops_report_activity_view_handle =
+    unique_handle<wf_ozone_ops_report_activity_view,
+                  wf_ozone_ops_report_activity_view_free>;
+using wf_ozone_ops_report_assignment_list_handle =
+    unique_handle<wf_ozone_ops_report_assignment_list,
+                  wf_ozone_ops_report_assignment_list_free>;
+using wf_ozone_ops_report_assignment_view_handle =
+    unique_handle<wf_ozone_ops_report_assignment_view,
+                  wf_ozone_ops_report_assignment_view_free>;
+using wf_ozone_ops_report_list_handle =
+    unique_handle<wf_ozone_ops_report_list, wf_ozone_ops_report_list_free>;
+using wf_ozone_ops_report_view_handle =
+    unique_handle<wf_ozone_ops_report_view, wf_ozone_ops_report_view_free>;
+using wf_ozone_ops_sig_detail_list_handle =
+    unique_handle<wf_ozone_ops_sig_detail_list,
+                  wf_ozone_ops_sig_detail_list_free>;
+using wf_ozone_subject_status_list_handle =
+    unique_handle<wf_ozone_subject_status_list,
+                  wf_ozone_subject_status_list_free>;
+using wf_ozone_team_member_list_handle =
+    unique_handle<wf_ozone_team_member_list, wf_ozone_team_member_list_free>;
+using wf_platform_mutex_handle =
+    unique_handle<wf_platform_mutex, wf_platform_mutex_free>;
+using wf_rate_limiter_handle =
+    unique_handle<wf_rate_limiter, wf_rate_limiter_free>;
+using wf_relay_config_handle =
+    unique_handle<wf_relay_config, wf_relay_config_free>;
+using wf_relay_server_handle =
+    unique_handle<wf_relay_server, wf_relay_server_free>;
+using wf_repo_apply_writes_result_handle =
+    unique_handle<wf_repo_apply_writes_result,
+                  wf_repo_apply_writes_result_free>;
+using wf_repo_description_handle =
+    unique_handle<wf_repo_description, wf_repo_description_free>;
 using wf_repo_diff_handle = unique_handle<wf_repo_diff, wf_repo_diff_free>;
-using wf_repo_missing_blob_list_handle = unique_handle<wf_repo_missing_blob_list, wf_repo_missing_blob_list_free>;
-using wf_repo_record_handle = unique_handle<wf_repo_record, wf_repo_record_free>;
-using wf_repo_record_list_handle = unique_handle<wf_repo_record_list, wf_repo_record_list_free>;
-using wf_repo_upload_blob_result_handle = unique_handle<wf_repo_upload_blob_result, wf_repo_upload_blob_result_free>;
-using wf_repo_write_record_result_handle = unique_handle<wf_repo_write_record_result, wf_repo_write_record_result_free>;
-using wf_repo_writes_builder_handle = unique_handle<wf_repo_writes_builder, wf_repo_writes_builder_free>;
+using wf_repo_missing_blob_list_handle =
+    unique_handle<wf_repo_missing_blob_list, wf_repo_missing_blob_list_free>;
+using wf_repo_record_handle =
+    unique_handle<wf_repo_record, wf_repo_record_free>;
+using wf_repo_record_list_handle =
+    unique_handle<wf_repo_record_list, wf_repo_record_list_free>;
+using wf_repo_upload_blob_result_handle =
+    unique_handle<wf_repo_upload_blob_result, wf_repo_upload_blob_result_free>;
+using wf_repo_write_record_result_handle =
+    unique_handle<wf_repo_write_record_result,
+                  wf_repo_write_record_result_free>;
+using wf_repo_writes_builder_handle =
+    unique_handle<wf_repo_writes_builder, wf_repo_writes_builder_free>;
 using wf_response_handle = unique_handle<wf_response, wf_response_free>;
 using wf_richtext_handle = unique_handle<wf_richtext, wf_richtext_free>;
-using wf_server_account_status_handle = unique_handle<wf_server_account_status, wf_server_account_status_free>;
-using wf_server_app_password_handle = unique_handle<wf_server_app_password, wf_server_app_password_free>;
-using wf_server_app_password_list_handle = unique_handle<wf_server_app_password_list, wf_server_app_password_list_free>;
-using wf_server_auth_token_handle = unique_handle<wf_server_auth_token, wf_server_auth_token_free>;
-using wf_server_create_account_result_handle = unique_handle<wf_server_create_account_result, wf_server_create_account_result_free>;
-using wf_server_create_invite_code_result_handle = unique_handle<wf_server_create_invite_code_result, wf_server_create_invite_code_result_free>;
-using wf_server_create_invite_codes_result_handle = unique_handle<wf_server_create_invite_codes_result, wf_server_create_invite_codes_result_free>;
-using wf_server_email_update_request_handle = unique_handle<wf_server_email_update_request, wf_server_email_update_request_free>;
-using wf_server_invite_code_list_handle = unique_handle<wf_server_invite_code_list, wf_server_invite_code_list_free>;
-using wf_server_session_info_handle = unique_handle<wf_server_session_info, wf_server_session_info_free>;
-using wf_server_session_tokens_handle = unique_handle<wf_server_session_tokens, wf_server_session_tokens_free>;
-using wf_service_auth_claims_handle = unique_handle<wf_service_auth_claims, wf_service_auth_claims_free>;
+using wf_server_account_status_handle =
+    unique_handle<wf_server_account_status, wf_server_account_status_free>;
+using wf_server_app_password_handle =
+    unique_handle<wf_server_app_password, wf_server_app_password_free>;
+using wf_server_app_password_list_handle =
+    unique_handle<wf_server_app_password_list,
+                  wf_server_app_password_list_free>;
+using wf_server_auth_token_handle =
+    unique_handle<wf_server_auth_token, wf_server_auth_token_free>;
+using wf_server_create_account_result_handle =
+    unique_handle<wf_server_create_account_result,
+                  wf_server_create_account_result_free>;
+using wf_server_create_invite_code_result_handle =
+    unique_handle<wf_server_create_invite_code_result,
+                  wf_server_create_invite_code_result_free>;
+using wf_server_create_invite_codes_result_handle =
+    unique_handle<wf_server_create_invite_codes_result,
+                  wf_server_create_invite_codes_result_free>;
+using wf_server_email_update_request_handle =
+    unique_handle<wf_server_email_update_request,
+                  wf_server_email_update_request_free>;
+using wf_server_invite_code_list_handle =
+    unique_handle<wf_server_invite_code_list, wf_server_invite_code_list_free>;
+using wf_server_session_info_handle =
+    unique_handle<wf_server_session_info, wf_server_session_info_free>;
+using wf_server_session_tokens_handle =
+    unique_handle<wf_server_session_tokens, wf_server_session_tokens_free>;
+using wf_service_auth_claims_handle =
+    unique_handle<wf_service_auth_claims, wf_service_auth_claims_free>;
 using wf_session_handle = unique_handle<wf_session, wf_session_free>;
-using wf_subscribe_event_handle = unique_handle<wf_subscribe_event, wf_subscribe_event_free>;
-using wf_sync_blob_cid_list_handle = unique_handle<wf_sync_blob_cid_list, wf_sync_blob_cid_list_free>;
-using wf_sync_blob_list_handle = unique_handle<wf_sync_blob_list, wf_sync_blob_list_free>;
-using wf_sync_block_list_handle = unique_handle<wf_sync_block_list, wf_sync_block_list_free>;
-using wf_sync_commit_info_handle = unique_handle<wf_sync_commit_info, wf_sync_commit_info_free>;
+using wf_subscribe_event_handle =
+    unique_handle<wf_subscribe_event, wf_subscribe_event_free>;
+using wf_sync_blob_cid_list_handle =
+    unique_handle<wf_sync_blob_cid_list, wf_sync_blob_cid_list_free>;
+using wf_sync_blob_list_handle =
+    unique_handle<wf_sync_blob_list, wf_sync_blob_list_free>;
+using wf_sync_block_list_handle =
+    unique_handle<wf_sync_block_list, wf_sync_block_list_free>;
+using wf_sync_commit_info_handle =
+    unique_handle<wf_sync_commit_info, wf_sync_commit_info_free>;
 using wf_sync_head_handle = unique_handle<wf_sync_head, wf_sync_head_free>;
-using wf_sync_head_typed_handle = unique_handle<wf_sync_head_typed, wf_sync_head_typed_free>;
+using wf_sync_head_typed_handle =
+    unique_handle<wf_sync_head_typed, wf_sync_head_typed_free>;
 using wf_sync_host_handle = unique_handle<wf_sync_host, wf_sync_host_free>;
-using wf_sync_host_list_handle = unique_handle<wf_sync_host_list, wf_sync_host_list_free>;
-using wf_sync_latest_commit_handle = unique_handle<wf_sync_latest_commit, wf_sync_latest_commit_free>;
-using wf_sync_record_handle = unique_handle<wf_sync_record, wf_sync_record_free>;
-using wf_sync_repo_by_collection_list_handle = unique_handle<wf_sync_repo_by_collection_list, wf_sync_repo_by_collection_list_free>;
-using wf_sync_repo_list_handle = unique_handle<wf_sync_repo_list, wf_sync_repo_list_free>;
-using wf_sync_repo_ref_list_handle = unique_handle<wf_sync_repo_ref_list, wf_sync_repo_ref_list_free>;
-using wf_sync_repo_status_handle = unique_handle<wf_sync_repo_status, wf_sync_repo_status_free>;
-using wf_sync_repo_status_typed_handle = unique_handle<wf_sync_repo_status_typed, wf_sync_repo_status_typed_free>;
-using wf_syntax_aturi_handle = unique_handle<wf_syntax_aturi, wf_syntax_aturi_free>;
-using wf_temp_add_reserved_handle_result_handle = unique_handle<wf_temp_add_reserved_handle_result, wf_temp_add_reserved_handle_result_free>;
-using wf_temp_check_handle_availability_handle = unique_handle<wf_temp_check_handle_availability, wf_temp_check_handle_availability_free>;
-using wf_temp_check_signup_queue_handle = unique_handle<wf_temp_check_signup_queue, wf_temp_check_signup_queue_free>;
-using wf_temp_dereference_scope_handle = unique_handle<wf_temp_dereference_scope, wf_temp_dereference_scope_free>;
-using wf_temp_fetch_labels_handle = unique_handle<wf_temp_fetch_labels, wf_temp_fetch_labels_free>;
-using wf_temp_request_phone_verification_result_handle = unique_handle<wf_temp_request_phone_verification_result, wf_temp_request_phone_verification_result_free>;
-using wf_temp_revoke_account_credentials_result_handle = unique_handle<wf_temp_revoke_account_credentials_result, wf_temp_revoke_account_credentials_result_free>;
-using wf_unspecced_thread_v2_handle = unique_handle<wf_unspecced_thread_v2, wf_unspecced_thread_v2_free>;
-using wf_unspecced_trend_list_handle = unique_handle<wf_unspecced_trend_list, wf_unspecced_trend_list_free>;
-using wf_uploaded_blob_handle = unique_handle<wf_uploaded_blob, wf_uploaded_blob_free>;
-using wf_validate_result_handle = unique_handle<wf_validate_result, wf_validate_result_free>;
+using wf_sync_host_list_handle =
+    unique_handle<wf_sync_host_list, wf_sync_host_list_free>;
+using wf_sync_latest_commit_handle =
+    unique_handle<wf_sync_latest_commit, wf_sync_latest_commit_free>;
+using wf_sync_record_handle =
+    unique_handle<wf_sync_record, wf_sync_record_free>;
+using wf_sync_repo_by_collection_list_handle =
+    unique_handle<wf_sync_repo_by_collection_list,
+                  wf_sync_repo_by_collection_list_free>;
+using wf_sync_repo_list_handle =
+    unique_handle<wf_sync_repo_list, wf_sync_repo_list_free>;
+using wf_sync_repo_ref_list_handle =
+    unique_handle<wf_sync_repo_ref_list, wf_sync_repo_ref_list_free>;
+using wf_sync_repo_status_handle =
+    unique_handle<wf_sync_repo_status, wf_sync_repo_status_free>;
+using wf_sync_repo_status_typed_handle =
+    unique_handle<wf_sync_repo_status_typed, wf_sync_repo_status_typed_free>;
+using wf_syntax_aturi_handle =
+    unique_handle<wf_syntax_aturi, wf_syntax_aturi_free>;
+using wf_temp_add_reserved_handle_result_handle =
+    unique_handle<wf_temp_add_reserved_handle_result,
+                  wf_temp_add_reserved_handle_result_free>;
+using wf_temp_check_handle_availability_handle =
+    unique_handle<wf_temp_check_handle_availability,
+                  wf_temp_check_handle_availability_free>;
+using wf_temp_check_signup_queue_handle =
+    unique_handle<wf_temp_check_signup_queue, wf_temp_check_signup_queue_free>;
+using wf_temp_dereference_scope_handle =
+    unique_handle<wf_temp_dereference_scope, wf_temp_dereference_scope_free>;
+using wf_temp_fetch_labels_handle =
+    unique_handle<wf_temp_fetch_labels, wf_temp_fetch_labels_free>;
+using wf_temp_request_phone_verification_result_handle =
+    unique_handle<wf_temp_request_phone_verification_result,
+                  wf_temp_request_phone_verification_result_free>;
+using wf_temp_revoke_account_credentials_result_handle =
+    unique_handle<wf_temp_revoke_account_credentials_result,
+                  wf_temp_revoke_account_credentials_result_free>;
+using wf_unspecced_thread_v2_handle =
+    unique_handle<wf_unspecced_thread_v2, wf_unspecced_thread_v2_free>;
+using wf_unspecced_trend_list_handle =
+    unique_handle<wf_unspecced_trend_list, wf_unspecced_trend_list_free>;
+using wf_uploaded_blob_handle =
+    unique_handle<wf_uploaded_blob, wf_uploaded_blob_free>;
+using wf_validate_result_handle =
+    unique_handle<wf_validate_result, wf_validate_result_free>;
 using wf_video_blob_handle = unique_handle<wf_video_blob, wf_video_blob_free>;
-using wf_video_job_status_handle = unique_handle<wf_video_job_status, wf_video_job_status_free>;
-using wf_video_job_status_def_handle = unique_handle<wf_video_job_status_def, wf_video_job_status_def_free>;
-using wf_video_upload_limits_handle = unique_handle<wf_video_upload_limits, wf_video_upload_limits_free>;
+using wf_video_job_status_handle =
+    unique_handle<wf_video_job_status, wf_video_job_status_free>;
+using wf_video_job_status_def_handle =
+    unique_handle<wf_video_job_status_def, wf_video_job_status_def_free>;
+using wf_video_upload_limits_handle =
+    unique_handle<wf_video_upload_limits, wf_video_upload_limits_free>;
 using wf_websocket_handle = unique_handle<wf_websocket, wf_websocket_free>;
-using wf_websocket_message_handle = unique_handle<wf_websocket_message, wf_websocket_message_free>;
-using wf_xrpc_client_handle = unique_handle<wf_xrpc_client, wf_xrpc_client_free>;
-using wf_xrpc_server_handle = unique_handle<wf_xrpc_server, wf_xrpc_server_free>;
-using wf_xrpc_server_auth_config_handle = unique_handle<wf_xrpc_server_auth_config, wf_xrpc_server_auth_config_free>;
-using wf_xrpc_server_config_handle = unique_handle<wf_xrpc_server_config, wf_xrpc_server_config_free>;
+using wf_websocket_message_handle =
+    unique_handle<wf_websocket_message, wf_websocket_message_free>;
+using wf_xrpc_client_handle =
+    unique_handle<wf_xrpc_client, wf_xrpc_client_free>;
+using wf_xrpc_server_handle =
+    unique_handle<wf_xrpc_server, wf_xrpc_server_free>;
+using wf_xrpc_server_auth_config_handle =
+    unique_handle<wf_xrpc_server_auth_config, wf_xrpc_server_auth_config_free>;
+using wf_xrpc_server_config_handle =
+    unique_handle<wf_xrpc_server_config, wf_xrpc_server_config_free>;
 
 } // namespace wolfram
 

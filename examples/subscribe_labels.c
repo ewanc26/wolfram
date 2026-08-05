@@ -25,10 +25,8 @@ static void on_label(const wf_label *label, void *userdata) {
     (void)userdata;
     g_count++;
     printf("label: seq=%lld src=%s uri=%s val=%s neg=%d\n",
-           (long long)label->seq,
-           label->src ? label->src : "?",
-           label->uri ? label->uri : "?",
-           label->val ? label->val : "?",
+           (long long)label->seq, label->src ? label->src : "?",
+           label->uri ? label->uri : "?", label->val ? label->val : "?",
            label->neg);
     if (g_handle_ptr && *g_handle_ptr && g_count >= MAX_LABELS) {
         wf_label_subscribe_stop(*g_handle_ptr);
@@ -38,10 +36,8 @@ static void on_label(const wf_label *label, void *userdata) {
 static void on_neg(const wf_label *label, void *userdata) {
     (void)userdata;
     g_count++;
-    printf("neg label: seq=%lld src=%s uri=%s val=%s\n",
-           (long long)label->seq,
-           label->src ? label->src : "?",
-           label->uri ? label->uri : "?",
+    printf("neg label: seq=%lld src=%s uri=%s val=%s\n", (long long)label->seq,
+           label->src ? label->src : "?", label->uri ? label->uri : "?",
            label->val ? label->val : "?");
     if (g_handle_ptr && *g_handle_ptr && g_count >= MAX_LABELS) {
         wf_label_subscribe_stop(*g_handle_ptr);
@@ -50,8 +46,7 @@ static void on_neg(const wf_label *label, void *userdata) {
 
 static void on_info(const wf_label_info *info, void *userdata) {
     (void)userdata;
-    printf("info: name=%s message=%s\n",
-           info->name ? info->name : "?",
+    printf("info: name=%s message=%s\n", info->name ? info->name : "?",
            info->message ? info->message : "(none)");
     if (g_handle_ptr && *g_handle_ptr && info->name &&
         strcmp(info->name, "OutdatedCursor") == 0) {
@@ -68,7 +63,8 @@ static void on_error(wf_status status, const char *msg, void *userdata) {
 }
 
 int main(int argc, char **argv) {
-    const char *service = argc > 1 && argv[1][0] ? argv[1] : "https://mod.bsky.app";
+    const char *service =
+        argc > 1 && argv[1][0] ? argv[1] : "https://mod.bsky.app";
     int64_t cursor = 0;
     int has_cursor = 0;
     if (argc > 2) {

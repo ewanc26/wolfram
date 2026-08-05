@@ -54,8 +54,7 @@ extern "C" {
  * is NULL/empty, or `out_valid` is NULL.
  */
 wf_status wf_verify_record_commit(const char *signing_key_multibase,
-                                  const uint8_t *commit_cbor,
-                                  size_t commit_len,
+                                  const uint8_t *commit_cbor, size_t commit_len,
                                   int *out_valid);
 
 /**
@@ -70,11 +69,9 @@ wf_status wf_verify_record_commit(const char *signing_key_multibase,
  *
  * On success *out_valid is set to 1 (commit authentic) or 0 (not).
  */
-wf_status wf_agent_verify_record(wf_agent *agent,
-                                  const char *did,
-                                  const char *collection,
-                                  const char *rkey,
-                                  int *out_valid);
+wf_status wf_agent_verify_record(wf_agent *agent, const char *did,
+                                 const char *collection, const char *rkey,
+                                 int *out_valid);
 
 /**
  * Injectable DID-key resolver for commit/label verification.
@@ -103,10 +100,8 @@ wf_status wf_agent_verify_record(wf_agent *agent,
  * @return WF_OK with a non-NULL *out_key on success; WF_ERR_NOT_FOUND when the
  *         DID has no usable signing key; or another WF_ERR_* on failure.
  */
-typedef wf_status (*wf_verify_key_resolver)(const char *did,
-                                            const char *key_id,
-                                            void *userdata,
-                                            char **out_key);
+typedef wf_status (*wf_verify_key_resolver)(const char *did, const char *key_id,
+                                            void *userdata, char **out_key);
 
 /**
  * Install (or clear) the process-wide DID-key resolver used by
@@ -126,10 +121,8 @@ void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata);
  * `#atproto` signing key. `key_id` may be NULL, "atproto", "#atproto", or the
  * absolute `<did>#atproto`; any other key ID returns WF_ERR_NOT_FOUND.
  */
-wf_status wf_verify_resolve_via_did(const char *did,
-                                    const char *key_id,
-                                    void *userdata,
-                                    char **out_key);
+wf_status wf_verify_resolve_via_did(const char *did, const char *key_id,
+                                    void *userdata, char **out_key);
 
 /**
  * Resolve the signing key for `did` via the installed resolver, falling back
@@ -139,10 +132,8 @@ wf_status wf_verify_resolve_via_did(const char *did,
  * record-commit and stream paths; when no resolver is set and `client` is
  * NULL it returns an honest WF_ERR_INVALID_ARG.
  */
-wf_status wf_verify_resolve_signing_key(const char *did,
-                                        const char *key_id,
-                                        wf_xrpc_client *client,
-                                        char **out_key);
+wf_status wf_verify_resolve_signing_key(const char *did, const char *key_id,
+                                        wf_xrpc_client *client, char **out_key);
 
 /**
  * Verify a signed commit CAR using the injected resolver to obtain the DID's
@@ -157,9 +148,8 @@ wf_status wf_verify_resolve_signing_key(const char *did,
  * false pass.
  */
 wf_status wf_verify_record_commit_resolved(const char *did,
-                                            const uint8_t *commit_cbor,
-                                            size_t commit_len,
-                                            int *out_valid);
+                                           const uint8_t *commit_cbor,
+                                           size_t commit_len, int *out_valid);
 
 #ifdef __cplusplus
 }

@@ -10,14 +10,16 @@ namespace wolfram {
 // deleter is `std::free`; for cJSON-backed strings pass the specific
 // `wf_*_json_free(char*)` as the deleter.
 class cstring {
-public:
+  public:
     using deleter_type = void (*)(char *);
 
     cstring() noexcept : ptr_(nullptr), del_(nullptr) {}
     explicit cstring(char *p, deleter_type del = &cstring::free_char) noexcept
         : ptr_(p), del_(del ? del : &cstring::free_char) {}
 
-    ~cstring() { reset(); }
+    ~cstring() {
+        reset();
+    }
 
     cstring(const cstring &) = delete;
     cstring &operator=(const cstring &) = delete;
@@ -35,9 +37,15 @@ public:
         return *this;
     }
 
-    const char *get() const noexcept { return ptr_; }
-    explicit operator bool() const noexcept { return ptr_ != nullptr; }
-    std::string str() const { return ptr_ ? std::string(ptr_) : std::string(); }
+    const char *get() const noexcept {
+        return ptr_;
+    }
+    explicit operator bool() const noexcept {
+        return ptr_ != nullptr;
+    }
+    std::string str() const {
+        return ptr_ ? std::string(ptr_) : std::string();
+    }
 
     char *release() noexcept {
         char *p = ptr_;
@@ -53,8 +61,10 @@ public:
         del_ = del ? del : &cstring::free_char;
     }
 
-private:
-    static void free_char(char *p) noexcept { std::free(p); }
+  private:
+    static void free_char(char *p) noexcept {
+        std::free(p);
+    }
 
     char *ptr_;
     deleter_type del_;

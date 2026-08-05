@@ -62,8 +62,9 @@ static inline void wf_agent_sync_auth(wf_agent *agent) {
     if (!agent || !agent->client || !agent->session) {
         return;
     }
-    wf_xrpc_client_set_auth(agent->client,
-        wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
+    wf_xrpc_client_set_auth(agent->client, wf_agent_is_logged_in(agent)
+                                               ? agent->session->data.access_jwt
+                                               : NULL);
 }
 
 /* Helper: set auth on the chat XRPC client based on session. Safe no-op when
@@ -72,7 +73,8 @@ static inline void wf_agent_sync_chat_auth(wf_agent *agent) {
     if (!agent || !agent->chat_client || !agent->session) {
         return;
     }
-    wf_xrpc_client_set_auth(agent->chat_client,
+    wf_xrpc_client_set_auth(
+        agent->chat_client,
         wf_agent_is_logged_in(agent) ? agent->session->data.access_jwt : NULL);
 }
 

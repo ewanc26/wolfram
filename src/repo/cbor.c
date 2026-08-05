@@ -50,7 +50,7 @@ static int wf_cbor_cid_valid(const unsigned char *data, size_t len) {
 }
 
 static int wf_cbor_key_before(const cbor_item_t *left,
-                               const cbor_item_t *right) {
+                              const cbor_item_t *right) {
     unsigned char *left_bytes = NULL, *right_bytes = NULL;
     size_t left_len = 0, right_len = 0, common;
     int cmp, result = 0;
@@ -70,139 +70,144 @@ done:
 static int wf_cbor_int_is_canonical(const cbor_item_t *item) {
     uint64_t value = cbor_get_int(item);
     switch (cbor_int_get_width(item)) {
-    case CBOR_INT_8:
-        return 1;
-    case CBOR_INT_16:
-        return value > UINT8_MAX;
-    case CBOR_INT_32:
-        return value > UINT16_MAX;
-    case CBOR_INT_64:
-        return value > UINT32_MAX;
+        case CBOR_INT_8:
+            return 1;
+        case CBOR_INT_16:
+            return value > UINT8_MAX;
+        case CBOR_INT_32:
+            return value > UINT16_MAX;
+        case CBOR_INT_64:
+            return value > UINT32_MAX;
     }
     return 0;
 }
 
 static wf_cbor_item *wf_cbor_from_libcbor(const cbor_item_t *source,
-                                           unsigned depth) {
+                                          unsigned depth) {
     wf_cbor_item *item;
     size_t count, i;
     if (!source || depth > WF_CBOR_MAX_DEPTH) return NULL;
     item = calloc(1, sizeof(*item));
     if (!item) return NULL;
     switch (cbor_typeof(source)) {
-    case CBOR_TYPE_UINT:
-        if (!wf_cbor_int_is_canonical(source)) break;
-        item->type = WF_CBOR_UNSIGNED;
-        item->uinteger = cbor_get_int(source);
-        return item;
-    case CBOR_TYPE_NEGINT:
-        if (!wf_cbor_int_is_canonical(source)) break;
-        item->type = WF_CBOR_NEGATIVE;
-        item->neginteger = cbor_get_int(source);
-        return item;
-    case CBOR_TYPE_BYTESTRING:
-        if (!cbor_bytestring_is_definite(source)) break;
-        item->type = WF_CBOR_BYTES;
-        item->bytes.len = cbor_bytestring_length(source);
-        if (item->bytes.len > 0) {
+        case CBOR_TYPE_UINT:
+            if (!wf_cbor_int_is_canonical(source)) break;
+            item->type = WF_CBOR_UNSIGNED;
+            item->uinteger = cbor_get_int(source);
+            return item;
+        case CBOR_TYPE_NEGINT:
+            if (!wf_cbor_int_is_canonical(source)) break;
+            item->type = WF_CBOR_NEGATIVE;
+            item->neginteger = cbor_get_int(source);
+            return item;
+        case CBOR_TYPE_BYTESTRING:
+            if (!cbor_bytestring_is_definite(source)) break;
+            item->type = WF_CBOR_BYTES;
+            item->bytes.len = cbor_bytestring_length(source);
+            if (item->bytes.len > 0) {
+                item->bytes.data = malloc(item->bytes.len);
+                if (!item->bytes.data) break;
+                memcpy(item->bytes.data, cbor_bytestring_handle(source),
+                       item->bytes.len);
+            }
+            return item;
+        case CBOR_TYPE_STRING:
+            if (!cbor_string_is_definite(source) ||
+                (cbor_string_length(source) > 0 &&
+                 cbor_string_codepoint_count(source) == 0))
+                break;
+            item->type = WF_CBOR_STRING;
+            item->string.len = cbor_string_length(source);
+            item->string.str = malloc(item->string.len + 1);
+            if (!item->string.str) break;
+            if (item->string.len > 0)
+                memcpy(item->string.str, cbor_string_handle(source),
+                       item->string.len);
+            item->string.str[item->string.len] = '\0';
+            return item;
+        case CBOR_TYPE_ARRAY:
+            if (!cbor_array_is_definite(source)) break;
+            item->type = WF_CBOR_ARRAY;
+            count = cbor_array_size(source);
+            item->children.count = count;
+            if (count > 0) {
+                cbor_item_t **children = cbor_array_handle(source);
+                item->children.items =
+                    calloc(count, sizeof(*item->children.items));
+                if (!item->children.items) break;
+                for (i = 0; i < count; i++) {
+                    item->children.items[i] =
+                        wf_cbor_from_libcbor(children[i], depth + 1);
+                    if (!item->children.items[i]) break;
+                }
+                if (i != count) break;
+            }
+            return item;
+        case CBOR_TYPE_MAP: {
+            struct cbor_pair *pairs;
+            if (!cbor_map_is_definite(source)) break;
+            item->type = WF_CBOR_MAP;
+            count = cbor_map_size(source);
+            item->map.count = count;
+            pairs = cbor_map_handle(source);
+            if (count > 0) {
+                item->map.pairs = calloc(count, sizeof(*item->map.pairs));
+                if (!item->map.pairs) break;
+                for (i = 0; i < count; i++) {
+                    if (!cbor_isa_string(pairs[i].key) ||
+                        (i > 0 &&
+                         !wf_cbor_key_before(pairs[i - 1].key, pairs[i].key)))
+                        break;
+                    item->map.pairs[i].key =
+                        wf_cbor_from_libcbor(pairs[i].key, depth + 1);
+                    item->map.pairs[i].value =
+                        wf_cbor_from_libcbor(pairs[i].value, depth + 1);
+                    if (!item->map.pairs[i].key || !item->map.pairs[i].value)
+                        break;
+                }
+                if (i != count) break;
+            }
+            return item;
+        }
+        case CBOR_TYPE_TAG: {
+            cbor_item_t *tagged = cbor_tag_item(source);
+            const unsigned char *bytes;
+            size_t bytes_len;
+            if (cbor_tag_value(source) != 42 || !cbor_isa_bytestring(tagged) ||
+                !cbor_bytestring_is_definite(tagged)) {
+                cbor_decref(&tagged);
+                break;
+            }
+            bytes = cbor_bytestring_handle(tagged);
+            bytes_len = cbor_bytestring_length(tagged);
+            if (bytes_len < 2 || bytes[0] != 0 ||
+                !wf_cbor_cid_valid(bytes + 1, bytes_len - 1)) {
+                cbor_decref(&tagged);
+                break;
+            }
+            item->type = WF_CBOR_LINK;
+            item->bytes.len = bytes_len - 1;
             item->bytes.data = malloc(item->bytes.len);
-            if (!item->bytes.data) break;
-            memcpy(item->bytes.data, cbor_bytestring_handle(source),
-                   item->bytes.len);
-        }
-        return item;
-    case CBOR_TYPE_STRING:
-        if (!cbor_string_is_definite(source) ||
-            (cbor_string_length(source) > 0 &&
-             cbor_string_codepoint_count(source) == 0)) break;
-        item->type = WF_CBOR_STRING;
-        item->string.len = cbor_string_length(source);
-        item->string.str = malloc(item->string.len + 1);
-        if (!item->string.str) break;
-        if (item->string.len > 0)
-            memcpy(item->string.str, cbor_string_handle(source), item->string.len);
-        item->string.str[item->string.len] = '\0';
-        return item;
-    case CBOR_TYPE_ARRAY:
-        if (!cbor_array_is_definite(source)) break;
-        item->type = WF_CBOR_ARRAY;
-        count = cbor_array_size(source);
-        item->children.count = count;
-        if (count > 0) {
-            cbor_item_t **children = cbor_array_handle(source);
-            item->children.items = calloc(count, sizeof(*item->children.items));
-            if (!item->children.items) break;
-            for (i = 0; i < count; i++) {
-                item->children.items[i] = wf_cbor_from_libcbor(
-                    children[i], depth + 1);
-                if (!item->children.items[i]) break;
+            if (!item->bytes.data) {
+                cbor_decref(&tagged);
+                break;
             }
-            if (i != count) break;
-        }
-        return item;
-    case CBOR_TYPE_MAP: {
-        struct cbor_pair *pairs;
-        if (!cbor_map_is_definite(source)) break;
-        item->type = WF_CBOR_MAP;
-        count = cbor_map_size(source);
-        item->map.count = count;
-        pairs = cbor_map_handle(source);
-        if (count > 0) {
-            item->map.pairs = calloc(count, sizeof(*item->map.pairs));
-            if (!item->map.pairs) break;
-            for (i = 0; i < count; i++) {
-                if (!cbor_isa_string(pairs[i].key) ||
-                    (i > 0 && !wf_cbor_key_before(pairs[i - 1].key,
-                                                  pairs[i].key))) break;
-                item->map.pairs[i].key = wf_cbor_from_libcbor(pairs[i].key,
-                                                               depth + 1);
-                item->map.pairs[i].value = wf_cbor_from_libcbor(pairs[i].value,
-                                                                 depth + 1);
-                if (!item->map.pairs[i].key || !item->map.pairs[i].value) break;
-            }
-            if (i != count) break;
-        }
-        return item;
-    }
-    case CBOR_TYPE_TAG: {
-        cbor_item_t *tagged = cbor_tag_item(source);
-        const unsigned char *bytes;
-        size_t bytes_len;
-        if (cbor_tag_value(source) != 42 || !cbor_isa_bytestring(tagged) ||
-            !cbor_bytestring_is_definite(tagged)) {
+            memcpy(item->bytes.data, bytes + 1, item->bytes.len);
             cbor_decref(&tagged);
-            break;
-        }
-        bytes = cbor_bytestring_handle(tagged);
-        bytes_len = cbor_bytestring_length(tagged);
-        if (bytes_len < 2 || bytes[0] != 0 ||
-            !wf_cbor_cid_valid(bytes + 1, bytes_len - 1)) {
-            cbor_decref(&tagged);
-            break;
-        }
-        item->type = WF_CBOR_LINK;
-        item->bytes.len = bytes_len - 1;
-        item->bytes.data = malloc(item->bytes.len);
-        if (!item->bytes.data) {
-            cbor_decref(&tagged);
-            break;
-        }
-        memcpy(item->bytes.data, bytes + 1, item->bytes.len);
-        cbor_decref(&tagged);
-        return item;
-    }
-    case CBOR_TYPE_FLOAT_CTRL:
-        if (cbor_is_bool(source)) {
-            item->type = WF_CBOR_SIMPLE;
-            item->simple_value = cbor_get_bool(source) ? 21 : 20;
             return item;
         }
-        if (cbor_is_null(source) || cbor_is_undef(source)) {
-            item->type = WF_CBOR_SIMPLE;
-            item->simple_value = 22;
-            return item;
-        }
-        break;
+        case CBOR_TYPE_FLOAT_CTRL:
+            if (cbor_is_bool(source)) {
+                item->type = WF_CBOR_SIMPLE;
+                item->simple_value = cbor_get_bool(source) ? 21 : 20;
+                return item;
+            }
+            if (cbor_is_null(source) || cbor_is_undef(source)) {
+                item->type = WF_CBOR_SIMPLE;
+                item->simple_value = 22;
+                return item;
+            }
+            break;
     }
     wf_cbor_free(item);
     return NULL;
@@ -232,27 +237,27 @@ void wf_cbor_free(wf_cbor_item *item) {
     if (!item) return;
 
     switch (item->type) {
-    case WF_CBOR_BYTES:
-    case WF_CBOR_LINK:
-        free(item->bytes.data);
-        break;
-    case WF_CBOR_STRING:
-        free(item->string.str);
-        break;
-    case WF_CBOR_ARRAY:
-        for (size_t i = 0; i < item->children.count; i++)
-            wf_cbor_free(item->children.items[i]);
-        free(item->children.items);
-        break;
-    case WF_CBOR_MAP:
-        for (size_t i = 0; i < item->map.count; i++) {
-            wf_cbor_free(item->map.pairs[i].key);
-            wf_cbor_free(item->map.pairs[i].value);
-        }
-        free(item->map.pairs);
-        break;
-    default:
-        break;
+        case WF_CBOR_BYTES:
+        case WF_CBOR_LINK:
+            free(item->bytes.data);
+            break;
+        case WF_CBOR_STRING:
+            free(item->string.str);
+            break;
+        case WF_CBOR_ARRAY:
+            for (size_t i = 0; i < item->children.count; i++)
+                wf_cbor_free(item->children.items[i]);
+            free(item->children.items);
+            break;
+        case WF_CBOR_MAP:
+            for (size_t i = 0; i < item->map.count; i++) {
+                wf_cbor_free(item->map.pairs[i].key);
+                wf_cbor_free(item->map.pairs[i].value);
+            }
+            free(item->map.pairs);
+            break;
+        default:
+            break;
     }
 
     free(item);
@@ -278,15 +283,23 @@ static int wf_cbor_item_key_cmp(const wf_cbor_item *a, const wf_cbor_item *b) {
     int res;
     ka = wf_cbor_serialize(a, &la);
     kb = wf_cbor_serialize(b, &lb);
-    if (!ka || !kb) { res = 0; goto done; }
+    if (!ka || !kb) {
+        res = 0;
+        goto done;
+    }
     common = la < lb ? la : lb;
     int c = memcmp(ka, kb, common);
-    if (c != 0) res = c < 0 ? -1 : 1;
-    else if (la < lb) res = -1;
-    else if (la > lb) res = 1;
-    else res = 0;
+    if (c != 0)
+        res = c < 0 ? -1 : 1;
+    else if (la < lb)
+        res = -1;
+    else if (la > lb)
+        res = 1;
+    else
+        res = 0;
 done:
-    free(ka); free(kb);
+    free(ka);
+    free(kb);
     return res;
 }
 
@@ -334,14 +347,16 @@ static size_t wf_cbor_ser_item_size(const wf_cbor_item *item) {
         }
     } else if (item->type == WF_CBOR_SIMPLE) {
         int sv = item->simple_value;
-        if (sv >= 20 && sv <= 23) s += 1;
-        else s += 2; /* 0xF8 + value */
+        if (sv >= 20 && sv <= 23)
+            s += 1;
+        else
+            s += 2; /* 0xF8 + value */
     }
     return s;
 }
 
 static void wf_cbor_ser_write_uint(unsigned major, uint64_t val,
-                                    unsigned char **pos) {
+                                   unsigned char **pos) {
     unsigned char m = (unsigned)(major << 5);
     if (val <= 23) {
         *(*pos)++ = m | (unsigned char)val;
@@ -372,85 +387,92 @@ static void wf_cbor_ser_write_uint(unsigned major, uint64_t val,
 }
 
 static void wf_cbor_ser_write_item(const wf_cbor_item *item,
-                                    unsigned char **pos) {
+                                   unsigned char **pos) {
     if (!item) return;
 
     switch (item->type) {
-    case WF_CBOR_UNSIGNED:
-        wf_cbor_ser_write_uint(0, item->uinteger, pos);
-        break;
-    case WF_CBOR_NEGATIVE:
-        wf_cbor_ser_write_uint(1, item->neginteger, pos);
-        break;
-    case WF_CBOR_BYTES:
-        wf_cbor_ser_write_uint(2, item->bytes.len, pos);
-        if (item->bytes.len > 0) {
-            memcpy(*pos, item->bytes.data, item->bytes.len);
-            *pos += item->bytes.len;
-        }
-        break;
-    case WF_CBOR_LINK:
-        *(*pos)++ = 0xD8;
-        *(*pos)++ = 0x2A;
-        wf_cbor_ser_write_uint(2, item->bytes.len + 1, pos);
-        *(*pos)++ = 0x00;
-        if (item->bytes.len > 0) {
-            memcpy(*pos, item->bytes.data, item->bytes.len);
-            *pos += item->bytes.len;
-        }
-        break;
-    case WF_CBOR_STRING:
-        wf_cbor_ser_write_uint(3, item->string.len, pos);
-        if (item->string.len > 0) {
-            memcpy(*pos, item->string.str, item->string.len);
-            *pos += item->string.len;
-        }
-        break;
-    case WF_CBOR_ARRAY:
-        wf_cbor_ser_write_uint(4, item->children.count, pos);
-        for (size_t i = 0; i < item->children.count; i++)
-            wf_cbor_ser_write_item(item->children.items[i], pos);
-        break;
-    case WF_CBOR_MAP: {
-        wf_cbor_ser_write_uint(5, item->map.count, pos);
-        if (item->map.count > 0) {
-            /* DRISL (rule 1): emit map keys in ascending bytewise order. */
-            wf_cbor_pair *sorted = malloc(item->map.count * sizeof(*sorted));
-            const wf_cbor_pair *pairs = item->map.pairs;
-            if (sorted) {
-                memcpy(sorted, item->map.pairs,
-                       item->map.count * sizeof(*sorted));
-                qsort(sorted, item->map.count, sizeof(*sorted),
-                      wf_cbor_pair_key_cmp);
-                pairs = sorted;
+        case WF_CBOR_UNSIGNED:
+            wf_cbor_ser_write_uint(0, item->uinteger, pos);
+            break;
+        case WF_CBOR_NEGATIVE:
+            wf_cbor_ser_write_uint(1, item->neginteger, pos);
+            break;
+        case WF_CBOR_BYTES:
+            wf_cbor_ser_write_uint(2, item->bytes.len, pos);
+            if (item->bytes.len > 0) {
+                memcpy(*pos, item->bytes.data, item->bytes.len);
+                *pos += item->bytes.len;
             }
-            for (size_t i = 0; i < item->map.count; i++) {
-                wf_cbor_ser_write_item(pairs[i].key, pos);
-                wf_cbor_ser_write_item(pairs[i].value, pos);
+            break;
+        case WF_CBOR_LINK:
+            *(*pos)++ = 0xD8;
+            *(*pos)++ = 0x2A;
+            wf_cbor_ser_write_uint(2, item->bytes.len + 1, pos);
+            *(*pos)++ = 0x00;
+            if (item->bytes.len > 0) {
+                memcpy(*pos, item->bytes.data, item->bytes.len);
+                *pos += item->bytes.len;
             }
-            free(sorted);
+            break;
+        case WF_CBOR_STRING:
+            wf_cbor_ser_write_uint(3, item->string.len, pos);
+            if (item->string.len > 0) {
+                memcpy(*pos, item->string.str, item->string.len);
+                *pos += item->string.len;
+            }
+            break;
+        case WF_CBOR_ARRAY:
+            wf_cbor_ser_write_uint(4, item->children.count, pos);
+            for (size_t i = 0; i < item->children.count; i++)
+                wf_cbor_ser_write_item(item->children.items[i], pos);
+            break;
+        case WF_CBOR_MAP: {
+            wf_cbor_ser_write_uint(5, item->map.count, pos);
+            if (item->map.count > 0) {
+                /* DRISL (rule 1): emit map keys in ascending bytewise order. */
+                wf_cbor_pair *sorted =
+                    malloc(item->map.count * sizeof(*sorted));
+                const wf_cbor_pair *pairs = item->map.pairs;
+                if (sorted) {
+                    memcpy(sorted, item->map.pairs,
+                           item->map.count * sizeof(*sorted));
+                    qsort(sorted, item->map.count, sizeof(*sorted),
+                          wf_cbor_pair_key_cmp);
+                    pairs = sorted;
+                }
+                for (size_t i = 0; i < item->map.count; i++) {
+                    wf_cbor_ser_write_item(pairs[i].key, pos);
+                    wf_cbor_ser_write_item(pairs[i].value, pos);
+                }
+                free(sorted);
+            }
+            break;
         }
-        break;
-    }
-    case WF_CBOR_SIMPLE: {
-        int sv = item->simple_value;
-        if (sv >= 20 && sv <= 23) {
-            *(*pos)++ = (unsigned char)(0xE0 | sv);
-        } else if (sv < 256) {
-            *(*pos)++ = 0xF8;
-            *(*pos)++ = (unsigned char)sv;
+        case WF_CBOR_SIMPLE: {
+            int sv = item->simple_value;
+            if (sv >= 20 && sv <= 23) {
+                *(*pos)++ = (unsigned char)(0xE0 | sv);
+            } else if (sv < 256) {
+                *(*pos)++ = 0xF8;
+                *(*pos)++ = (unsigned char)sv;
+            }
+            break;
         }
-        break;
-    }
     }
 }
 
 unsigned char *wf_cbor_serialize(const wf_cbor_item *item, size_t *out_len) {
-    if (!item || !out_len) { if (out_len) *out_len = 0; return NULL; }
+    if (!item || !out_len) {
+        if (out_len) *out_len = 0;
+        return NULL;
+    }
 
     size_t len = wf_cbor_ser_item_size(item);
     unsigned char *buf = malloc(len);
-    if (!buf) { *out_len = 0; return NULL; }
+    if (!buf) {
+        *out_len = 0;
+        return NULL;
+    }
 
     unsigned char *pos = buf;
     wf_cbor_ser_write_item(item, &pos);
@@ -466,4 +488,3 @@ unsigned char *wf_cbor_serialize(const wf_cbor_item *item, size_t *out_len) {
     *out_len = len;
     return buf;
 }
-

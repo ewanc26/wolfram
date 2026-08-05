@@ -57,7 +57,7 @@ wf_status wf_agent_graph_mute_actor_list(wf_agent *agent, const char *list_uri);
 
 /* app.bsky.graph.unmuteActorList — body {list: at-uri}. */
 wf_status wf_agent_graph_unmute_actor_list(wf_agent *agent,
-                                            const char *list_uri);
+                                           const char *list_uri);
 
 /* ------------------------------------------------------------------ */
 /* Record writes — create returns an owned wf_agent_post_result          */
@@ -89,16 +89,16 @@ wf_status wf_agent_graph_create_list_item(wf_agent *agent, const char *list_uri,
                                           const char *subject_did,
                                           wf_agent_post_result *out);
 wf_status wf_agent_graph_delete_list_item(wf_agent *agent,
-                                         const char *list_item_uri);
+                                          const char *list_item_uri);
 
 /* app.bsky.graph.starterpack — `list_uri` is the AT-URI of the list record;
  * `description` and `feeds_json` may be NULL; `feeds_json` is a JSON array of
  * feedItem values ([{"uri": ...}]) when present. */
 wf_status wf_agent_graph_create_starter_pack(wf_agent *agent, const char *name,
-                                              const char *list_uri,
-                                              const char *description,
-                                              const char *feeds_json,
-                                              wf_agent_post_result *out);
+                                             const char *list_uri,
+                                             const char *description,
+                                             const char *feeds_json,
+                                             wf_agent_post_result *out);
 wf_status wf_agent_graph_update_starter_pack(wf_agent *agent, const char *rkey,
                                              const char *record_json,
                                              wf_agent_post_result *out);

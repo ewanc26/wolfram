@@ -53,10 +53,8 @@ wf_status wf_response_cursor(const wf_response *resp, char **out_cursor) {
     return WF_OK;
 }
 
-wf_status wf_agent_page(wf_agent *agent,
-                        wf_agent_page_call_fn call,
-                        int limit, int max_pages,
-                        wf_agent_page_cb on_page, void *ud,
+wf_status wf_agent_page(wf_agent *agent, wf_agent_page_call_fn call, int limit,
+                        int max_pages, wf_agent_page_cb on_page, void *ud,
                         char **out_last_cursor) {
     if (out_last_cursor) {
         *out_last_cursor = NULL;
@@ -243,10 +241,10 @@ wf_status wf_agent_get_author_feed_paged(wf_agent *agent, const char *actor,
     return WF_OK;
 }
 
-wf_status wf_agent_list_notifications_paged(wf_agent *agent, int limit,
-                                            int max_pages,
-                                            wf_agent_notifications_page_cb on_page,
-                                            void *ud, char **out_last_cursor) {
+wf_status
+wf_agent_list_notifications_paged(wf_agent *agent, int limit, int max_pages,
+                                  wf_agent_notifications_page_cb on_page,
+                                  void *ud, char **out_last_cursor) {
     if (out_last_cursor) {
         *out_last_cursor = NULL;
     }

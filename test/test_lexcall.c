@@ -15,14 +15,12 @@
 #include "test.h"
 
 /* Minimal fixture loader modeled on test/test_crypto_interop.c. */
-static char *load_fixture(const char *name, size_t *out_len)
-{
+static char *load_fixture(const char *name, size_t *out_len) {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s", WF_TEST_FIXTURE_DIR, name);
 
     FILE *fp = fopen(path, "rb");
-    if (!fp)
-        return NULL;
+    if (!fp) return NULL;
 
     fseek(fp, 0, SEEK_END);
     long sz = ftell(fp);
@@ -40,38 +38,33 @@ static char *load_fixture(const char *name, size_t *out_len)
     size_t got = fread(buf, 1, (size_t)sz, fp);
     fclose(fp);
     buf[got] = '\0';
-    if (out_len)
-        *out_len = got;
+    if (out_len) *out_len = got;
     return buf;
 }
 
-static void test_null_args(void)
-{
+static void test_null_args(void) {
     void *out = NULL;
     WF_CHECK(wf_lex_decode_output(NULL, "{}", 2, &out) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_lex_decode_output("x", NULL, 0, &out) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_lex_decode_output("x", "{}", 2, NULL) == WF_ERR_INVALID_ARG);
 }
 
-static void test_unknown_nsid(void)
-{
+static void test_unknown_nsid(void) {
     void *out = NULL;
     WF_CHECK(wf_lex_decode_output("com.example.unknown", "{}", 2, &out) ==
              WF_ERR_NOT_FOUND);
     WF_CHECK(out == NULL);
 }
 
-static void test_unread_count(void)
-{
+static void test_unread_count(void) {
     size_t len = 0;
     char *json = load_fixture("lexcall_unread.json", &len);
     WF_CHECK(json != NULL);
-    if (!json)
-        return;
+    if (!json) return;
 
     void *out = NULL;
-    wf_status st = wf_lex_decode_output(
-        "app.bsky.notification.getUnreadCount", json, len, &out);
+    wf_status st = wf_lex_decode_output("app.bsky.notification.getUnreadCount",
+                                        json, len, &out);
     WF_CHECK(st == WF_OK);
     WF_CHECK(out != NULL);
     if (out) {
@@ -83,9 +76,10 @@ static void test_unread_count(void)
     free(json);
 }
 
-static void test_get_head(void)
-{
-    const char *json = "{\"root\":\"bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}";
+static void test_get_head(void) {
+    const char *json =
+        "{\"root\":"
+        "\"bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}";
     void *out = NULL;
     wf_status st = wf_lex_decode_output("com.atproto.sync.getHead", json,
                                         strlen(json), &out);
@@ -95,21 +89,18 @@ static void test_get_head(void)
         wf_lex_com_atproto_sync_get_head_main_output *h =
             (wf_lex_com_atproto_sync_get_head_main_output *)out;
         WF_CHECK(h->root != NULL);
-        WF_CHECK(strcmp(h->root,
-                        "bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") ==
-                 0);
+        WF_CHECK(strcmp(h->root, "bafyreiaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                 "aaaaaaaaaaaaaaaaaaa") == 0);
         wf_lex_output_free("com.atproto.sync.getHead", out);
     }
 }
 
-static void test_free_unknown_nsid_is_noop(void)
-{
+static void test_free_unknown_nsid_is_noop(void) {
     wf_lex_output_free("com.example.unknown", NULL);
     wf_lex_output_free("com.example.unknown", (void *)0x1);
 }
 
-int main(void)
-{
+int main(void) {
     test_null_args();
     test_unknown_nsid();
     test_unread_count();

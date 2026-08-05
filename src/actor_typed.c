@@ -85,8 +85,8 @@ static wf_status wf_actor_parse_profile_view(wf_agent_profile_view *p,
 }
 
 /* Parse a profileViewBasic, taking ownership of an arbitrary viewer subtree. */
-static wf_status wf_actor_parse_profile_view_basic(wf_agent_profile_view_basic *p,
-                                                   cJSON *obj) {
+static wf_status
+wf_actor_parse_profile_view_basic(wf_agent_profile_view_basic *p, cJSON *obj) {
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
     cJSON *handle = cJSON_GetObjectItemCaseSensitive(obj, "handle");
@@ -218,7 +218,8 @@ wf_status wf_agent_parse_actors(const char *json, size_t json_len,
 }
 
 wf_status wf_agent_parse_profile_views(const char *json, size_t json_len,
-                                       const char *key, wf_agent_actor_list *out) {
+                                       const char *key,
+                                       wf_agent_actor_list *out) {
     return wf_actor_parse_actor_list(json, json_len, key, out);
 }
 
@@ -297,8 +298,9 @@ wf_status wf_agent_parse_profiles(const char *json, size_t json_len,
     return status;
 }
 
-wf_status wf_agent_parse_actor_typeahead(const char *json, size_t json_len,
-                                         wf_agent_profile_view_basic_list *out) {
+wf_status
+wf_agent_parse_actor_typeahead(const char *json, size_t json_len,
+                               wf_agent_profile_view_basic_list *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -409,10 +411,12 @@ wf_status wf_agent_parse_actor_likes(const char *json, size_t json_len,
         } else {
             status = WF_ERR_PARSE;
         }
-        if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
+        if (status == WF_OK && cJSON_IsString(created) &&
+            created->valuestring) {
             status = wf_actor_set_string(&l->created_at, created->valuestring);
         }
-        if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
+        if (status == WF_OK && cJSON_IsString(indexed) &&
+            indexed->valuestring) {
             status = wf_actor_set_string(&l->indexed_at, indexed->valuestring);
         }
 
@@ -474,7 +478,8 @@ void wf_agent_profile_view_list_free(wf_agent_profile_view_list *list) {
     memset(list, 0, sizeof(*list));
 }
 
-void wf_agent_profile_view_basic_list_free(wf_agent_profile_view_basic_list *list) {
+void wf_agent_profile_view_basic_list_free(
+    wf_agent_profile_view_basic_list *list) {
     if (!list) {
         return;
     }
@@ -514,15 +519,15 @@ wf_status wf_agent_get_profiles_typed(wf_agent *agent,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_profiles(agent, actors, actors_count,
-                                             limit, cursor, &res);
+    wf_status status =
+        wf_agent_get_profiles(agent, actors, actors_count, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
-    status = wf_agent_parse_profile_views(res.body, res.body_len, "profiles",
-                                           out);
+    status =
+        wf_agent_parse_profile_views(res.body, res.body_len, "profiles", out);
     wf_response_free(&res);
     return status;
 }
@@ -535,7 +540,8 @@ wf_status wf_agent_search_actors_typed(wf_agent *agent, const char *query,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_search_actors(agent, query, limit, cursor, &res);
+    wf_status status =
+        wf_agent_search_actors(agent, query, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -546,15 +552,17 @@ wf_status wf_agent_search_actors_typed(wf_agent *agent, const char *query,
     return status;
 }
 
-wf_status wf_agent_search_actors_typeahead_typed(wf_agent *agent,
-                                                 const char *query, int limit,
-                                                 wf_agent_profile_view_basic_list *out) {
+wf_status
+wf_agent_search_actors_typeahead_typed(wf_agent *agent, const char *query,
+                                       int limit,
+                                       wf_agent_profile_view_basic_list *out) {
     if (!agent || !query || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_search_actors_typeahead(agent, query, limit, &res);
+    wf_status status =
+        wf_agent_search_actors_typeahead(agent, query, limit, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -565,8 +573,8 @@ wf_status wf_agent_search_actors_typeahead_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_get_likes_typed(wf_agent *agent, const char *uri,
-                                   int limit, const char *cursor,
+wf_status wf_agent_get_likes_typed(wf_agent *agent, const char *uri, int limit,
+                                   const char *cursor,
                                    wf_agent_actor_like_list *out) {
     if (!agent || !uri || !out) {
         return WF_ERR_INVALID_ARG;
@@ -592,7 +600,8 @@ wf_status wf_agent_get_reposted_by_typed(wf_agent *agent, const char *uri,
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_get_reposted_by(agent, uri, limit, cursor, &res);
+    wf_status status =
+        wf_agent_get_reposted_by(agent, uri, limit, cursor, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;

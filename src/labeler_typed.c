@@ -6,7 +6,8 @@
  * Mirrors contact_typed.c / admin_typed.c: static strdup/set_string/reset
  * helpers, owned strings, detached `extra` cJSON subtrees where shapes are
  * open/unbounded, and full cleanup on the first error. The agent wrappers call
- * the generated lex wrappers directly after syncing auth via wf_agent_sync_auth.
+ * the generated lex wrappers directly after syncing auth via
+ * wf_agent_sync_auth.
  */
 
 #include "wolfram/labeler_typed.h"
@@ -158,8 +159,8 @@ static wf_status wf_labeler_parse_labels_into(cJSON *arr,
 
 /* ---- label value definitions ---- */
 
-static void wf_labeler_label_value_def_locale_reset(
-    wf_labeler_label_value_def_locale *l) {
+static void
+wf_labeler_label_value_def_locale_reset(wf_labeler_label_value_def_locale *l) {
     if (!l) {
         return;
     }
@@ -184,8 +185,9 @@ static void wf_labeler_label_value_def_reset(wf_labeler_label_value_def *d) {
     memset(d, 0, sizeof(*d));
 }
 
-static wf_status wf_labeler_parse_label_value_def_locale(
-    cJSON *obj, wf_labeler_label_value_def_locale *l) {
+static wf_status
+wf_labeler_parse_label_value_def_locale(cJSON *obj,
+                                        wf_labeler_label_value_def_locale *l) {
     wf_status status = WF_OK;
     cJSON *lang = cJSON_GetObjectItemCaseSensitive(obj, "lang");
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "name");
@@ -202,8 +204,8 @@ static wf_status wf_labeler_parse_label_value_def_locale(
     return status;
 }
 
-static wf_status wf_labeler_parse_label_value_def(cJSON *obj,
-                                                  wf_labeler_label_value_def *d) {
+static wf_status
+wf_labeler_parse_label_value_def(cJSON *obj, wf_labeler_label_value_def *d) {
     wf_status status = WF_OK;
     cJSON *identifier = cJSON_GetObjectItemCaseSensitive(obj, "identifier");
     cJSON *severity = cJSON_GetObjectItemCaseSensitive(obj, "severity");
@@ -243,8 +245,8 @@ static wf_status wf_labeler_parse_label_value_def(cJSON *obj,
                     status = WF_ERR_PARSE;
                     break;
                 }
-                status = wf_labeler_parse_label_value_def_locale(lo,
-                                                                 &d->locales[i]);
+                status =
+                    wf_labeler_parse_label_value_def_locale(lo, &d->locales[i]);
                 if (status != WF_OK) {
                     wf_labeler_label_value_def_locale_reset(&d->locales[i]);
                 }
@@ -296,7 +298,8 @@ void wf_labeler_policies_free(wf_labeler_policies *p) {
 static wf_status wf_labeler_parse_policies(cJSON *obj, wf_labeler_policies *p) {
     wf_status status = WF_OK;
     cJSON *values = cJSON_GetObjectItemCaseSensitive(obj, "labelValues");
-    cJSON *defs = cJSON_GetObjectItemCaseSensitive(obj, "labelValueDefinitions");
+    cJSON *defs =
+        cJSON_GetObjectItemCaseSensitive(obj, "labelValueDefinitions");
 
     if (cJSON_IsArray(values)) {
         size_t n = (size_t)cJSON_GetArraySize(values);
@@ -311,8 +314,8 @@ static wf_status wf_labeler_parse_policies(cJSON *obj, wf_labeler_policies *p) {
                     status = WF_ERR_PARSE;
                     break;
                 }
-                status = wf_labeler_set_string(&p->label_values[i],
-                                               it->valuestring);
+                status =
+                    wf_labeler_set_string(&p->label_values[i], it->valuestring);
             }
             if (status == WF_OK) {
                 p->label_value_count = n;
@@ -335,8 +338,8 @@ static wf_status wf_labeler_parse_policies(cJSON *obj, wf_labeler_policies *p) {
     if (cJSON_IsArray(defs)) {
         size_t n = (size_t)cJSON_GetArraySize(defs);
         if (n > 0) {
-            p->label_value_definitions =
-                (wf_labeler_label_value_def *)calloc(n, sizeof(*p->label_value_definitions));
+            p->label_value_definitions = (wf_labeler_label_value_def *)calloc(
+                n, sizeof(*p->label_value_definitions));
             if (!p->label_value_definitions) {
                 status = WF_ERR_ALLOC;
             }
@@ -520,8 +523,8 @@ static wf_status wf_labeler_parse_service_view(cJSON *obj,
         status = wf_labeler_set_string(&v->indexed_at, indexed->valuestring);
     }
     if (status == WF_OK && cJSON_IsArray(labels)) {
-        status = wf_labeler_parse_labels_into(labels, &v->labels,
-                                              &v->label_count);
+        status =
+            wf_labeler_parse_labels_into(labels, &v->labels, &v->label_count);
     }
     if (status == WF_OK && cJSON_IsObject(policies)) {
         v->has_policies = true;
@@ -591,9 +594,8 @@ void wf_labeler_service_record_free(wf_labeler_service_record *r) {
     memset(r, 0, sizeof(*r));
 }
 
-wf_status wf_labeler_parse_service_record(const char *json,
-                                                 size_t json_len,
-                                                 wf_labeler_service_record *out) {
+wf_status wf_labeler_parse_service_record(const char *json, size_t json_len,
+                                          wf_labeler_service_record *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -898,7 +900,8 @@ wf_status wf_agent_query_labels(wf_agent *agent, const char *const *uris,
     return status;
 }
 
-wf_status wf_agent_get_labeler_services(wf_agent *agent, const char *const *dids,
+wf_status wf_agent_get_labeler_services(wf_agent *agent,
+                                        const char *const *dids,
                                         size_t did_count, bool detailed,
                                         wf_labeler_service_list *out) {
     if (!agent || !agent->client || !dids || did_count == 0 || !out) {
@@ -936,15 +939,15 @@ wf_status wf_agent_get_labeler_services(wf_agent *agent, const char *const *dids
 }
 
 wf_status wf_agent_fetch_labels_typed(wf_agent *agent, const char *did,
-                                       wf_labeler_temp_label_list *out) {
+                                      wf_labeler_temp_label_list *out) {
     (void)agent;
     (void)did;
     (void)out;
     return WF_ERR_INVALID_ARG;
 }
 
-wf_status wf_agent_fetch_labels_list(wf_agent *agent,
-                                     int has_since, int64_t since, int limit,
+wf_status wf_agent_fetch_labels_list(wf_agent *agent, int has_since,
+                                     int64_t since, int limit,
                                      wf_labeler_temp_label_list *out) {
     if (!agent || !agent->client || !out || limit < 0 || limit > 250) {
         return WF_ERR_INVALID_ARG;

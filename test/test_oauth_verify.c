@@ -46,13 +46,20 @@ static char *b64url(const unsigned char *in, size_t len) {
     size_t plen = ((len + 2) / 3) * 4;
     char *p = malloc(plen + 1), *out = malloc(plen + 1);
     size_t i, n = 0;
-    if (!p || !out) { free(p); free(out); return NULL; }
+    if (!p || !out) {
+        free(p);
+        free(out);
+        return NULL;
+    }
     EVP_EncodeBlock((unsigned char *)p, in, (int)len);
     for (i = 0; i < plen; i++) {
         char c = p[i];
-        if (c == '+') c = '-';
-        else if (c == '/') c = '_';
-        else if (c == '=') break;
+        if (c == '+')
+            c = '-';
+        else if (c == '/')
+            c = '_';
+        else if (c == '=')
+            break;
         out[n++] = c;
     }
     out[n] = '\0';
@@ -68,7 +75,8 @@ static int jwt_signature_is_low_s(const char *jwt) {
     BIGNUM *order = NULL, *half = NULL, *s = NULL;
     int low = 0;
     if (!dot || wf_crypto_base64url_decode(dot + 1, &raw, &raw_len) != WF_OK ||
-        raw_len != 64) goto done;
+        raw_len != 64)
+        goto done;
     group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     order = BN_new();
     s = BN_bin2bn(raw + 32, 32, NULL);
@@ -78,7 +86,11 @@ static int jwt_signature_is_low_s(const char *jwt) {
     if (!half || BN_rshift1(half, half) != 1) goto done;
     low = BN_cmp(s, half) <= 0;
 done:
-    free(raw); BN_free(order); BN_free(half); BN_free(s); EC_GROUP_free(group);
+    free(raw);
+    BN_free(order);
+    BN_free(half);
+    BN_free(s);
+    EC_GROUP_free(group);
     return low;
 }
 
@@ -113,7 +125,8 @@ static char *es256_sign(EC_KEY *ec, const char *signing_input) {
     return b64url(raw, 64);
 }
 
-static wf_status pub_coords(EC_KEY *ec, unsigned char x[32], unsigned char y[32]) {
+static wf_status pub_coords(EC_KEY *ec, unsigned char x[32],
+                            unsigned char y[32]) {
     const EC_GROUP *g = EC_KEY_get0_group(ec);
     const EC_POINT *pt = EC_KEY_get0_public_key(ec);
     BIGNUM *bx = BN_new(), *by = BN_new();
@@ -229,7 +242,11 @@ static char *client_jwk_json(EC_KEY *ec, const char *kid) {
     if (pub_coords(ec, x, y) != WF_OK) return NULL;
     xb = b64url(x, 32);
     yb = b64url(y, 32);
-    if (!xb || !yb) { free(xb); free(yb); return NULL; }
+    if (!xb || !yb) {
+        free(xb);
+        free(yb);
+        return NULL;
+    }
     j = cJSON_CreateObject();
     cJSON_AddStringToObject(j, "kty", "EC");
     cJSON_AddStringToObject(j, "crv", "P-256");
@@ -307,16 +324,17 @@ int main(void) {
 
     /* --- Build the happy-path tokens (DPoP-bound access token). --- */
     access_token = make_access_token(at_ec, did, "https://op.example.com",
-                                     "https://api.example.com",
-                                     "atproto repo", dp_jkt, now, now + 3600);
+                                     "https://api.example.com", "atproto repo",
+                                     dp_jkt, now, now + 3600);
     {
         unsigned char digest[32];
         char *ath;
-        SHA256((const unsigned char *)access_token, strlen(access_token), digest);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest);
         ath = b64url(digest, 32);
         cJSON *jwk = cJSON_Parse(dp_jwk);
-        dpop_proof = make_dpop_proof(dp_ec, jwk, "POST", uri, ath,
-                                     "jti-happy-1", now);
+        dpop_proof =
+            make_dpop_proof(dp_ec, jwk, "POST", uri, ath, "jti-happy-1", now);
         free(ath);
     }
     WF_CHECK(access_token && dpop_proof);
@@ -325,8 +343,7 @@ int main(void) {
      * required by its strict verifier, independent of OpenSSL's random form. */
     {
         wf_oauth_dpop_proof_options options = {
-            "POST", uri, NULL, access_token, "sdk-low-s-proof", now
-        };
+            "POST", uri, NULL, access_token, "sdk-low-s-proof", now};
         char *sdk_proof = NULL;
         WF_CHECK(wf_oauth_dpop_proof_create(dp_key, &options, &sdk_proof) ==
                  WF_OK);
@@ -338,15 +355,17 @@ int main(void) {
 
     /* --- Happy path: wf_oauth_verify_request --- */
     {
-        wf_status st = wf_oauth_verify_request(auth_hdr, dpop_proof, "POST", uri,
-                                               keys, replay, &tok);
+        wf_status st = wf_oauth_verify_request(auth_hdr, dpop_proof, "POST",
+                                               uri, keys, replay, &tok);
         WF_CHECK(st == WF_OK);
         WF_CHECK(tok != NULL);
         if (tok) {
             WF_CHECK(tok->dpop_bound == 1);
             WF_CHECK(tok->sub && strcmp(tok->sub, did) == 0);
-            WF_CHECK(tok->iss && strcmp(tok->iss, "https://op.example.com") == 0);
-            WF_CHECK(tok->aud && strcmp(tok->aud, "https://api.example.com") == 0);
+            WF_CHECK(tok->iss &&
+                     strcmp(tok->iss, "https://op.example.com") == 0);
+            WF_CHECK(tok->aud &&
+                     strcmp(tok->aud, "https://api.example.com") == 0);
             WF_CHECK(tok->scope && strcmp(tok->scope, "atproto repo") == 0);
             WF_CHECK(tok->dpop_jkt && strcmp(tok->dpop_jkt, dp_jkt) == 0);
             WF_CHECK(tok->exp == now + 3600);
@@ -362,14 +381,15 @@ int main(void) {
         /* fresh proof with a unique jti to avoid the replay cache */
         unsigned char digest2[32];
         char *ath2;
-        SHA256((const unsigned char *)access_token, strlen(access_token), digest2);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest2);
         ath2 = b64url(digest2, 32);
         cJSON *jwk2 = cJSON_Parse(dp_jwk);
         char *dpop_proof2 = make_dpop_proof(dp_ec, jwk2, "POST", uri, ath2,
                                             "jti-happy-dpop", now);
         free(ath2);
-        wf_status st = wf_oauth_verify_request(dpop_auth, dpop_proof2, "POST", uri,
-                                                keys, replay, &tok);
+        wf_status st = wf_oauth_verify_request(dpop_auth, dpop_proof2, "POST",
+                                               uri, keys, replay, &tok);
         free(dpop_auth);
         free(dpop_proof2);
         WF_CHECK(st == WF_OK);
@@ -384,8 +404,8 @@ int main(void) {
         char *bad = str_dup(dpop_proof);
         size_t len = strlen(bad);
         bad[len - 1] = (bad[len - 1] == 'A') ? 'B' : 'A';
-        wf_status st = wf_oauth_verify_request(auth_hdr, bad, "POST", uri,
-                                               keys, replay, &tok);
+        wf_status st = wf_oauth_verify_request(auth_hdr, bad, "POST", uri, keys,
+                                               replay, &tok);
         WF_CHECK(st != WF_OK);
         WF_CHECK(tok == NULL);
         free(bad);
@@ -398,8 +418,8 @@ int main(void) {
                                          dp_jkt, now - 100, now - 10);
         char *exp_auth = malloc(strlen(exp_at) + 8);
         sprintf(exp_auth, "Bearer %s", exp_at);
-        wf_status st = wf_oauth_verify_request(exp_auth, dpop_proof, "POST", uri,
-                                               keys, replay, &tok);
+        wf_status st = wf_oauth_verify_request(exp_auth, dpop_proof, "POST",
+                                               uri, keys, replay, &tok);
         WF_CHECK(st != WF_OK);
         free(exp_at);
         free(exp_auth);
@@ -409,11 +429,12 @@ int main(void) {
     {
         unsigned char digest[32];
         char *ath;
-        SHA256((const unsigned char *)access_token, strlen(access_token), digest);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest);
         ath = b64url(digest, 32);
         cJSON *jwk = cJSON_Parse(dp_jwk);
-        char *proof = make_dpop_proof(dp_ec, jwk, "GET", uri, ath,
-                                      "jti-htm-1", now);
+        char *proof =
+            make_dpop_proof(dp_ec, jwk, "GET", uri, ath, "jti-htm-1", now);
         wf_status st = wf_oauth_verify_request(auth_hdr, proof, "POST", uri,
                                                keys, replay, &tok);
         WF_CHECK(st != WF_OK);
@@ -425,7 +446,8 @@ int main(void) {
     {
         unsigned char digest[32];
         char *ath;
-        SHA256((const unsigned char *)access_token, strlen(access_token), digest);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest);
         ath = b64url(digest, 32);
         cJSON *jwk = cJSON_Parse(dp_jwk);
         char *proof = make_dpop_proof(dp_ec, jwk, "POST",
@@ -441,9 +463,9 @@ int main(void) {
     /* --- Negative: ath mismatch --- */
     {
         cJSON *jwk = cJSON_Parse(dp_jwk);
-        char *proof = make_dpop_proof(dp_ec, jwk, "POST", uri,
-                                      "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                                      "jti-ath-1", now);
+        char *proof = make_dpop_proof(
+            dp_ec, jwk, "POST", uri,
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "jti-ath-1", now);
         wf_status st = wf_oauth_verify_request(auth_hdr, proof, "POST", uri,
                                                keys, replay, &tok);
         WF_CHECK(st != WF_OK);
@@ -455,11 +477,12 @@ int main(void) {
         /* First verify with a fresh jti succeeds... */
         unsigned char digest[32];
         char *ath;
-        SHA256((const unsigned char *)access_token, strlen(access_token), digest);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest);
         ath = b64url(digest, 32);
         cJSON *jwk = cJSON_Parse(dp_jwk);
-        char *proof = make_dpop_proof(dp_ec, jwk, "POST", uri, ath,
-                                      "jti-replay-1", now);
+        char *proof =
+            make_dpop_proof(dp_ec, jwk, "POST", uri, ath, "jti-replay-1", now);
         wf_status st1 = wf_oauth_verify_request(auth_hdr, proof, "POST", uri,
                                                 keys, replay, &tok);
         wf_oauth_verified_token_free(tok);
@@ -467,8 +490,8 @@ int main(void) {
         WF_CHECK(st1 == WF_OK);
         /* ...then the same jti is rejected. */
         cJSON *jwk2 = cJSON_Parse(dp_jwk);
-        char *proof2 = make_dpop_proof(dp_ec, jwk2, "POST", uri, ath,
-                                       "jti-replay-1", now);
+        char *proof2 =
+            make_dpop_proof(dp_ec, jwk2, "POST", uri, ath, "jti-replay-1", now);
         wf_status st2 = wf_oauth_verify_request(auth_hdr, proof2, "POST", uri,
                                                 keys, replay, &tok);
         WF_CHECK(st2 == WF_ERR_DUPLICATE);
@@ -533,13 +556,14 @@ int main(void) {
     {
         unsigned char digest[32];
         char *ath;
-        SHA256((const unsigned char *)access_token, strlen(access_token), digest);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest);
         ath = b64url(digest, 32);
         cJSON *jwk = cJSON_Parse(dp_jwk);
-        char *proof = make_dpop_proof(dp_ec, jwk, "POST", uri, NULL,
-                                      "jti-dponly-1", now);
-        wf_status st = wf_oauth_verify_request(NULL, proof, "POST", uri,
-                                               keys, replay, &tok);
+        char *proof =
+            make_dpop_proof(dp_ec, jwk, "POST", uri, NULL, "jti-dponly-1", now);
+        wf_status st = wf_oauth_verify_request(NULL, proof, "POST", uri, keys,
+                                               replay, &tok);
         WF_CHECK(st == WF_OK);
         if (tok) {
             WF_CHECK(tok->dpop_bound == 1);
@@ -584,7 +608,8 @@ int main(void) {
         wf_oauth_client_assertion_verified *ca = NULL;
         unsigned char client_scalar[32];
 
-        for (size_t i = 0; i < 32; i++) client_scalar[i] = (unsigned char)(i * 7 + 3);
+        for (size_t i = 0; i < 32; i++)
+            client_scalar[i] = (unsigned char)(i * 7 + 3);
         client_ec = key_from_scalar(client_scalar);
         WF_CHECK(client_ec != NULL);
         client_jwk = client_jwk_json(client_ec, "client-key-1");
@@ -593,12 +618,12 @@ int main(void) {
         WF_CHECK(wf_oauth_trusted_keys_add_jwk(ckeys, client_jwk) == WF_OK);
 
         /* Happy path. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a1",
-                                   now, now + 60);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a1", now, now + 60);
         WF_CHECK(assertion != NULL);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_OK);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys, &ca) == WF_OK);
         WF_CHECK(ca && strcmp(ca->client_id, client_id) == 0 &&
                  strcmp(ca->kid, "client-key-1") == 0 &&
                  strcmp(ca->jti, "jti-a1") == 0 && ca->exp == now + 60);
@@ -608,12 +633,12 @@ int main(void) {
         assertion = NULL;
 
         /* Wrong expected client_id. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a2",
-                                   now, now + 60);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a2", now, now + 60);
         WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, "https://other.example/metadata.json",
-                     issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+                     assertion, "https://other.example/metadata.json", issuer,
+                     ckeys, &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
@@ -621,106 +646,113 @@ int main(void) {
         assertion = make_assertion(client_ec, "ES256", "client-key-1",
                                    client_id, client_id, "https://evil.example",
                                    "jti-a3", now, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* iss != sub. */
         assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, "did:web:impersonator",
-                                   issuer, "jti-a4", now, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+                                   client_id, "did:web:impersonator", issuer,
+                                   "jti-a4", now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* iat too old (> 60s). */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a5",
-                                   now - 120, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a5", now - 120, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* iat in the future beyond clock skew. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a6",
-                                   now + 120, now + 180);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a6", now + 120, now + 180);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* Expired. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a7",
-                                   now - 100, now - 50);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a7", now - 100, now - 50);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* Tampered signature. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a8",
-                                   now, now + 60);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a8", now, now + 60);
         /* Tampered signature: flip a char in the middle of the signature
          * segment. (Flipping the final base64url char can be a no-op — its
          * contribution to the last signature byte is only v>>4.) */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a8",
-                                   now, now + 60);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, "jti-a8", now, now + 60);
         {
             const char *dot2 = strrchr(assertion, '.');
             size_t idx = (size_t)(dot2 - assertion) + 10;
             assertion[idx] = assertion[idx] == 'a' ? 'b' : 'a';
         }
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_PARSE);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys, &ca) == WF_ERR_PARSE);
         free(assertion);
         assertion = NULL;
 
         /* Header kid that no trusted key advertises. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-999",
-                                   client_id, client_id, issuer, "jti-a9",
-                                   now, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_PARSE);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-999", client_id,
+                           client_id, issuer, "jti-a9", now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys, &ca) == WF_ERR_PARSE);
         free(assertion);
         assertion = NULL;
 
         /* Missing header kid. */
-        assertion = make_assertion(client_ec, "ES256", NULL,
-                                   client_id, client_id, issuer, "jti-a10",
-                                   now, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        assertion = make_assertion(client_ec, "ES256", NULL, client_id,
+                                   client_id, issuer, "jti-a10", now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* Missing jti. */
-        assertion = make_assertion(client_ec, "ES256", "client-key-1",
-                                   client_id, client_id, issuer, NULL,
-                                   now, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        assertion =
+            make_assertion(client_ec, "ES256", "client-key-1", client_id,
+                           client_id, issuer, NULL, now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* Non-ES256 algorithm. */
-        assertion = make_assertion(client_ec, "none", "client-key-1",
-                                   client_id, client_id, issuer, "jti-a11",
-                                   now, now + 60);
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     assertion, client_id, issuer, ckeys, &ca) == WF_ERR_INVALID_ARG);
+        assertion = make_assertion(client_ec, "none", "client-key-1", client_id,
+                                   client_id, issuer, "jti-a11", now, now + 60);
+        WF_CHECK(wf_oauth_verify_client_assertion(assertion, client_id, issuer,
+                                                  ckeys,
+                                                  &ca) == WF_ERR_INVALID_ARG);
         free(assertion);
         assertion = NULL;
 
         /* Malformed (no dots). */
-        WF_CHECK(wf_oauth_verify_client_assertion(
-                     "not-a-jwt", client_id, issuer, ckeys, &ca) == WF_ERR_PARSE);
+        WF_CHECK(wf_oauth_verify_client_assertion("not-a-jwt", client_id,
+                                                  issuer, ckeys,
+                                                  &ca) == WF_ERR_PARSE);
 
         wf_oauth_client_assertion_verified_free(ca);
         wf_oauth_trusted_keys_free(ckeys);

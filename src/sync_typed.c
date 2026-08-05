@@ -68,7 +68,7 @@ void wf_sync_repo_status_typed_free(wf_sync_repo_status_typed *s) {
 }
 
 wf_status wf_sync_repo_status_typed_parse(const char *json, size_t json_len,
-                                   wf_sync_repo_status_typed *out) {
+                                          wf_sync_repo_status_typed *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -123,7 +123,7 @@ void wf_sync_latest_commit_free(wf_sync_latest_commit *c) {
 }
 
 wf_status wf_sync_latest_commit_parse(const char *json, size_t json_len,
-                                     wf_sync_latest_commit *out) {
+                                      wf_sync_latest_commit *out) {
     if (!json || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -174,8 +174,7 @@ void wf_sync_block_list_free(wf_sync_block_list *list) {
 }
 
 wf_status wf_sync_block_list_parse_car(const unsigned char *car_bytes,
-                                      size_t len,
-                                      wf_sync_block_list *out) {
+                                       size_t len, wf_sync_block_list *out) {
     if (!car_bytes || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -204,8 +203,8 @@ wf_status wf_sync_block_list_parse_car(const unsigned char *car_bytes,
             status = WF_ERR_ALLOC;
             break;
         }
-        b->value = wf_sync_bytes_dup(car.blocks[i].data,
-                                      car.blocks[i].data_len);
+        b->value =
+            wf_sync_bytes_dup(car.blocks[i].data, car.blocks[i].data_len);
         if (car.blocks[i].data_len > 0 && !b->value) {
             free(cid);
             status = WF_ERR_ALLOC;
@@ -242,13 +241,11 @@ void wf_sync_record_free(wf_sync_record *r) {
     memset(r, 0, sizeof(*r));
 }
 
-wf_status wf_sync_record_parse_car(const unsigned char *car_bytes,
-                                  size_t len,
-                                  const char *collection,
-                                  const char *rkey,
-                                  wf_sync_record *out) {
-    if (!car_bytes || !out || !collection || !collection[0] ||
-        !rkey || !rkey[0]) {
+wf_status wf_sync_record_parse_car(const unsigned char *car_bytes, size_t len,
+                                   const char *collection, const char *rkey,
+                                   wf_sync_record *out) {
+    if (!car_bytes || !out || !collection || !collection[0] || !rkey ||
+        !rkey[0]) {
         return WF_ERR_INVALID_ARG;
     }
     memset(out, 0, sizeof(*out));
@@ -274,8 +271,8 @@ wf_status wf_sync_record_parse_car(const unsigned char *car_bytes,
 
     wf_commit commit;
     memset(&commit, 0, sizeof(commit));
-    status = wf_commit_parse(commit_block->data, commit_block->data_len,
-                             &commit);
+    status =
+        wf_commit_parse(commit_block->data, commit_block->data_len, &commit);
     if (status != WF_OK) {
         wf_car_free(&car);
         return status;
@@ -294,8 +291,8 @@ wf_status wf_sync_record_parse_car(const unsigned char *car_bytes,
     size_t data_len = 0;
     wf_cid rec_cid;
     memset(&rec_cid, 0, sizeof(rec_cid));
-    status = wf_repo_get_record(&car, &car.roots[0], collection, rkey,
-                                &data, &data_len, &rec_cid);
+    status = wf_repo_get_record(&car, &car.roots[0], collection, rkey, &data,
+                                &data_len, &rec_cid);
     if (status == WF_OK) {
         /* wf_repo_get_record owns `data` to the caller; take it directly. */
         out->record_cbor = data;
@@ -357,7 +354,7 @@ wf_status wf_sync_head_typed_parse(const char *json, size_t json_len,
 /* ── Agent convenience wrappers ─────────────────────────────────── */
 
 wf_status wf_agent_get_repo_status_typed(wf_agent *agent, const char *did,
-                                        wf_sync_repo_status_typed *out) {
+                                         wf_sync_repo_status_typed *out) {
     if (!agent || !did || !did[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -370,9 +367,8 @@ wf_status wf_agent_get_repo_status_typed(wf_agent *agent, const char *did,
         {"did", did},
     };
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(client,
-                                            "com.atproto.sync.getRepoStatus",
-                                            params, 1, &res);
+    wf_status status = wf_xrpc_query_params(
+        client, "com.atproto.sync.getRepoStatus", params, 1, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -397,9 +393,8 @@ wf_status wf_agent_get_latest_commit_typed(wf_agent *agent, const char *did,
         {"did", did},
     };
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(client,
-                                            "com.atproto.sync.getLatestCommit",
-                                            params, 1, &res);
+    wf_status status = wf_xrpc_query_params(
+        client, "com.atproto.sync.getLatestCommit", params, 1, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
@@ -424,8 +419,7 @@ wf_status wf_agent_get_head_typed(wf_agent *agent, const char *did,
         {"did", did},
     };
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(client,
-                                            "com.atproto.sync.getHead",
+    wf_status status = wf_xrpc_query_params(client, "com.atproto.sync.getHead",
                                             params, 1, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -438,8 +432,8 @@ wf_status wf_agent_get_head_typed(wf_agent *agent, const char *did,
 }
 
 wf_status wf_agent_sync_get_blocks_typed(wf_agent *agent, const char *did,
-                                    const char *const *cids, size_t n,
-                                    wf_sync_block_list *out) {
+                                         const char *const *cids, size_t n,
+                                         wf_sync_block_list *out) {
     if (!agent || !did || !did[0] || !cids || n == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -458,23 +452,24 @@ wf_status wf_agent_sync_get_blocks_typed(wf_agent *agent, const char *did,
 }
 
 wf_status wf_agent_sync_get_record_typed(wf_agent *agent, const char *did,
-                                    const char *collection, const char *rkey,
-                                    wf_sync_record *out) {
-    if (!agent || !did || !did[0] || !collection || !collection[0] ||
-        !rkey || !rkey[0] || !out) {
+                                         const char *collection,
+                                         const char *rkey,
+                                         wf_sync_record *out) {
+    if (!agent || !did || !did[0] || !collection || !collection[0] || !rkey ||
+        !rkey[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_response res = {0};
-    wf_status status = wf_agent_sync_get_record(agent, did, collection, rkey,
-                                                &res);
+    wf_status status =
+        wf_agent_sync_get_record(agent, did, collection, rkey, &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
 
     status = wf_sync_record_parse_car((const unsigned char *)res.body,
-                                       res.body_len, collection, rkey, out);
+                                      res.body_len, collection, rkey, out);
     wf_response_free(&res);
     return status;
 }
@@ -483,8 +478,7 @@ wf_status wf_agent_sync_get_record_typed(wf_agent *agent, const char *did,
 wf_status wf_agent_get_blob_typed(wf_agent *agent, const char *did,
                                   const char *cid, uint8_t **out_data,
                                   size_t *out_len) {
-    if (!agent || !did || !did[0] || !cid || !cid[0] || !out_data ||
-        !out_len) {
+    if (!agent || !did || !did[0] || !cid || !cid[0] || !out_data || !out_len) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -498,8 +492,7 @@ wf_status wf_agent_get_blob_typed(wf_agent *agent, const char *did,
         {"cid", cid},
     };
     wf_response res = {0};
-    wf_status status = wf_xrpc_query_params(client,
-                                            "com.atproto.sync.getBlob",
+    wf_status status = wf_xrpc_query_params(client, "com.atproto.sync.getBlob",
                                             params, 2, &res);
     if (status != WF_OK) {
         wf_response_free(&res);

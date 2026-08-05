@@ -46,45 +46,46 @@
 extern "C" {
 #endif
 
-/* ---- activitySubscription (#activitySubscription: post/reply booleans) ---- */
+/* ---- activitySubscription (#activitySubscription: post/reply booleans) ----
+ */
 
 typedef struct wf_notif_v2_activity_subscription {
-    int    has_post;     /* 1 if `post` was present in the source JSON */
-    int    post;         /* boolean value when has_post != 0 */
-    int    has_reply;    /* 1 if `reply` was present in the source JSON */
-    int    reply;        /* boolean value when has_reply != 0 */
-    cJSON *extra;        /* owned remaining object fields; NULL if absent */
+    int has_post;  /* 1 if `post` was present in the source JSON */
+    int post;      /* boolean value when has_post != 0 */
+    int has_reply; /* 1 if `reply` was present in the source JSON */
+    int reply;     /* boolean value when has_reply != 0 */
+    cJSON *extra;  /* owned remaining object fields; NULL if absent */
 } wf_notif_v2_activity_subscription;
 
 /* ---- putActivitySubscription output ---- */
 
 typedef struct wf_notif_v2_activity_subscription_result {
-    char   *subject;     /* owned did string; NULL if absent */
-    int     has_activity_subscription;
+    char *subject; /* owned did string; NULL if absent */
+    int has_activity_subscription;
     wf_notif_v2_activity_subscription activity_subscription;
-    cJSON  *extra;       /* owned remaining object fields; NULL if absent */
+    cJSON *extra; /* owned remaining object fields; NULL if absent */
 } wf_notif_v2_activity_subscription_result;
 
 /* ---- listActivitySubscriptions output (subscriptions: profileView[]) ---- */
 
 typedef struct wf_notif_v2_subscription_view {
-    char   *did;
-    char   *handle;
-    char   *display_name;
-    char   *avatar;
-    cJSON  *extra;       /* owned remaining profileView fields; NULL if absent */
+    char *did;
+    char *handle;
+    char *display_name;
+    char *avatar;
+    cJSON *extra; /* owned remaining profileView fields; NULL if absent */
 } wf_notif_v2_subscription_view;
 
 typedef struct wf_notif_v2_subscription_view_list {
     wf_notif_v2_subscription_view *items;
-    size_t                         count;
-    char                          *cursor;
+    size_t count;
+    char *cursor;
 } wf_notif_v2_subscription_view_list;
 
 /* ---- putPreferencesV2 output (preferences object) ---- */
 
 typedef struct wf_notif_v2_preferences {
-    cJSON *preferences;  /* owned full preferences object; NULL if absent */
+    cJSON *preferences; /* owned full preferences object; NULL if absent */
 } wf_notif_v2_preferences;
 
 /* ----------------------------------------------------------------------------
@@ -112,60 +113,60 @@ typedef enum wf_notif_v2_include {
 
 /* A filterablePreference: { include?, list?, push? }. */
 typedef struct wf_notif_v2_filterable_pref {
-    int              has_include;
+    int has_include;
     wf_notif_v2_include include; /* valid only when has_include != 0 */
-    int              has_list;
-    int              list;        /* boolean when has_list != 0 */
-    int              has_push;
-    int              push;        /* boolean when has_push != 0 */
+    int has_list;
+    int list; /* boolean when has_list != 0 */
+    int has_push;
+    int push; /* boolean when has_push != 0 */
 } wf_notif_v2_filterable_pref;
 
 /* A plain preference: { list?, push? }. */
 typedef struct wf_notif_v2_pref {
     int has_list;
-    int list;  /* boolean when has_list != 0 */
+    int list; /* boolean when has_list != 0 */
     int has_push;
-    int push;  /* boolean when has_push != 0 */
+    int push; /* boolean when has_push != 0 */
 } wf_notif_v2_pref;
 
 /* The deprecated chatPreference: { include?, push? }. */
 typedef struct wf_notif_v2_chat_pref {
-    int              has_include;
+    int has_include;
     wf_notif_v2_include include; /* valid only when has_include != 0 */
-    int              has_push;
-    int              push;        /* boolean when has_push != 0 */
+    int has_push;
+    int push; /* boolean when has_push != 0 */
 } wf_notif_v2_chat_pref;
 
 /* All 13 v2 preference slots. A slot is emitted only when `has_<slot>` != 0. */
 typedef struct wf_notification_v2_preferences {
-    int                   has_chat;
+    int has_chat;
     wf_notif_v2_chat_pref chat;
 
-    int                        has_follow;
+    int has_follow;
     wf_notif_v2_filterable_pref follow;
-    int                        has_like;
+    int has_like;
     wf_notif_v2_filterable_pref like;
-    int                        has_like_via_repost;
+    int has_like_via_repost;
     wf_notif_v2_filterable_pref like_via_repost;
-    int                        has_mention;
+    int has_mention;
     wf_notif_v2_filterable_pref mention;
-    int                        has_quote;
+    int has_quote;
     wf_notif_v2_filterable_pref quote;
-    int                        has_reply;
+    int has_reply;
     wf_notif_v2_filterable_pref reply;
-    int                        has_repost;
+    int has_repost;
     wf_notif_v2_filterable_pref repost;
-    int                        has_repost_via_repost;
+    int has_repost_via_repost;
     wf_notif_v2_filterable_pref repost_via_repost;
 
-    int                   has_starterpack_joined;
-    wf_notif_v2_pref      starterpack_joined;
-    int                   has_subscribed_post;
-    wf_notif_v2_pref      subscribed_post;
-    int                   has_unverified;
-    wf_notif_v2_pref      unverified;
-    int                   has_verified;
-    wf_notif_v2_pref      verified;
+    int has_starterpack_joined;
+    wf_notif_v2_pref starterpack_joined;
+    int has_subscribed_post;
+    wf_notif_v2_pref subscribed_post;
+    int has_unverified;
+    wf_notif_v2_pref unverified;
+    int has_verified;
+    wf_notif_v2_pref verified;
 } wf_notification_v2_preferences;
 
 /*
@@ -187,8 +188,9 @@ wf_status wf_notification_v2_preferences_build(
  * WF_ERR_PARSE if the document is not a JSON object / lacks a preferences
  * object. On error `out` is left zeroed.
  */
-wf_status wf_notification_v2_preferences_parse(const char *json, size_t len,
-                                               wf_notification_v2_preferences *out);
+wf_status
+wf_notification_v2_preferences_parse(const char *json, size_t len,
+                                     wf_notification_v2_preferences *out);
 
 /* Zero an owned typed preferences struct. Safe to call on a zeroed struct. */
 void wf_notification_v2_preferences_free(wf_notification_v2_preferences *p);
@@ -208,8 +210,7 @@ wf_status wf_notif_v2_parse_put_activity_subscription(
  * error `out` is left zeroed and any partial allocations are released.
  */
 wf_status wf_notif_v2_parse_list_activity_subscriptions(
-    const char *json, size_t json_len,
-    wf_notif_v2_subscription_view_list *out);
+    const char *json, size_t json_len, wf_notif_v2_subscription_view_list *out);
 
 /*
  * Parse a putPreferencesV2 response body (`{ preferences: {...} }`) into an
@@ -261,16 +262,17 @@ wf_status wf_agent_put_notification_preferences_v2_typed(
  * `cursor` may be NULL. On success `*out` holds the owned list.
  * Returns WF_ERR_INVALID_ARG if `agent` or `out` is NULL.
  */
-wf_status wf_agent_list_activity_subscriptions(
-    wf_agent *agent, int limit, const char *cursor,
-    wf_notif_v2_subscription_view_list *out);
+wf_status
+wf_agent_list_activity_subscriptions(wf_agent *agent, int limit,
+                                     const char *cursor,
+                                     wf_notif_v2_subscription_view_list *out);
 
 /*
  * Put (create or update) a single activity subscription. `subscription_json`
- * is the input object `{ "subject": did, "activitySubscription": {post,reply} }`
- * as a raw JSON string. On success `*out` holds the owned result.
- * Returns WF_ERR_INVALID_ARG if `agent`, `subscription_json`, or `out` is NULL,
- * or WF_ERR_PARSE if the JSON is malformed or missing required fields.
+ * is the input object `{ "subject": did, "activitySubscription": {post,reply}
+ * }` as a raw JSON string. On success `*out` holds the owned result. Returns
+ * WF_ERR_INVALID_ARG if `agent`, `subscription_json`, or `out` is NULL, or
+ * WF_ERR_PARSE if the JSON is malformed or missing required fields.
  */
 wf_status wf_agent_put_activity_subscription(
     wf_agent *agent, const char *subscription_json,

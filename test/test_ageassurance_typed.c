@@ -82,9 +82,9 @@ int main(void) {
                                          &s) == WF_OK);
     WF_CHECK(s.state.status && strcmp(s.state.status, "pending") == 0);
     WF_CHECK(s.state.access && strcmp(s.state.access, "none") == 0);
-    WF_CHECK(s.metadata.account_created_at &&
-             strcmp(s.metadata.account_created_at,
-                    "2024-01-02T03:04:05.000Z") == 0);
+    WF_CHECK(
+        s.metadata.account_created_at &&
+        strcmp(s.metadata.account_created_at, "2024-01-02T03:04:05.000Z") == 0);
     wf_ageassurance_state_free(&s);
     WF_CHECK(s.state.status == NULL && s.metadata.account_created_at == NULL);
 

@@ -6,7 +6,8 @@
  * password for app-specific sessions.
  *
  * Usage:
- *   create_app_password <service-url> <handle-or-email> <password> <app-password-name>
+ *   create_app_password <service-url> <handle-or-email> <password>
+ * <app-password-name>
  */
 
 #include <stdio.h>
@@ -19,7 +20,8 @@
 int main(int argc, char **argv) {
     if (argc != 5) {
         fprintf(stderr,
-                "usage: %s <service-url> <handle-or-email> <password> <app-password-name>\n",
+                "usage: %s <service-url> <handle-or-email> <password> "
+                "<app-password-name>\n",
                 argv[0]);
         return 1;
     }
@@ -49,7 +51,8 @@ int main(int argc, char **argv) {
     wf_server_app_password pwd = {0};
     status = wf_server_create_app_password(session->client, &input, &pwd);
     if (status != WF_OK) {
-        fprintf(stderr, "createAppPassword failed: status code %d\n", (int)status);
+        fprintf(stderr, "createAppPassword failed: status code %d\n",
+                (int)status);
         wf_session_free(session);
         return 1;
     }
@@ -60,8 +63,7 @@ int main(int argc, char **argv) {
     }
     printf("  created_at: %s\n", pwd.created_at ? pwd.created_at : "(null)");
     printf("  privileged: %s\n",
-           pwd.privileged < 0 ? "unknown"
-                              : (pwd.privileged ? "yes" : "no"));
+           pwd.privileged < 0 ? "unknown" : (pwd.privileged ? "yes" : "no"));
 
     wf_server_app_password_free(&pwd);
     wf_session_free(session);

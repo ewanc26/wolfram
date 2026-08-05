@@ -48,7 +48,7 @@ static int json_field_eq(const char *body, const char *obj, const char *key,
 /* Assert a string field `key` inside object `obj` (NULL = top level) exists
  * and is a non-NULL string (value not yet checked). */
 static int json_field_present(const char *body, const char *obj,
-                             const char *key) {
+                              const char *key) {
     cJSON *root = cJSON_Parse(body);
     if (root == NULL) {
         return 0;
@@ -145,10 +145,12 @@ int main(void) {
         WF_CHECK(out.uri != NULL && out.cid != NULL);
         WF_CHECK(strncmp(out.uri, "at://", 5) == 0);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "com.atproto.repo.createRecord") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "com.atproto.repo.createRecord") == 0);
         WF_CHECK(last_method && strcmp(last_method, "POST") == 0);
         WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.list"));
-        WF_CHECK(json_field_eq(last_body, "record", "$type", "app.bsky.graph.list"));
+        WF_CHECK(
+            json_field_eq(last_body, "record", "$type", "app.bsky.graph.list"));
         WF_CHECK(json_field_eq(last_body, "record", "name", "My List"));
         WF_CHECK(json_field_eq(last_body, "record", "purpose",
                                "app.bsky.graph.defs#curatelist"));
@@ -166,10 +168,13 @@ int main(void) {
         WF_CHECK(st == WF_OK);
         WF_CHECK(out.uri != NULL && out.cid != NULL);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.listitem"));
-        WF_CHECK(json_field_eq(last_body, "record", "subject", "did:plc:subject1"));
-        WF_CHECK(json_field_eq(last_body, "record", "list",
-                               "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.listitem"));
+        WF_CHECK(
+            json_field_eq(last_body, "record", "subject", "did:plc:subject1"));
+        WF_CHECK(
+            json_field_eq(last_body, "record", "list",
+                          "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
         wf_agent_post_result_free(&out);
     }
 
@@ -178,19 +183,24 @@ int main(void) {
         wf_agent_post_result out = {0};
         wf_status st = wf_agent_graph_create_starter_pack(
             agent, "My Pack", "at://did:plc:abc123/app.bsky.graph.list/abcXX1",
-            "a pack", "[{\"uri\":\"at://did:plc:abc123/app.bsky.feed.generator/feed1\"}]",
+            "a pack",
+            "[{\"uri\":\"at://did:plc:abc123/app.bsky.feed.generator/feed1\"}]",
             &out);
         WF_CHECK(st == WF_OK);
         WF_CHECK(out.uri != NULL && out.cid != NULL);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.starterpack"));
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.starterpack"));
         WF_CHECK(json_field_eq(last_body, "record", "name", "My Pack"));
         WF_CHECK(json_field_eq(last_body, "record", "description", "a pack"));
-        WF_CHECK(json_field_eq(last_body, "record", "list",
-                               "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
+        WF_CHECK(
+            json_field_eq(last_body, "record", "list",
+                          "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
         cJSON *root = cJSON_Parse(last_body);
-        cJSON *rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
-        cJSON *feeds = rec ? cJSON_GetObjectItemCaseSensitive(rec, "feeds") : NULL;
+        cJSON *rec =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
+        cJSON *feeds =
+            rec ? cJSON_GetObjectItemCaseSensitive(rec, "feeds") : NULL;
         WF_CHECK(cJSON_IsArray(feeds) && cJSON_GetArraySize(feeds) == 1);
         cJSON_Delete(root);
         wf_agent_post_result_free(&out);
@@ -204,9 +214,11 @@ int main(void) {
         WF_CHECK(st == WF_OK);
         WF_CHECK(out.uri != NULL && out.cid != NULL);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.listblock"));
-        WF_CHECK(json_field_eq(last_body, "record", "subject",
-                               "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.listblock"));
+        WF_CHECK(
+            json_field_eq(last_body, "record", "subject",
+                          "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
         wf_agent_post_result_free(&out);
     }
 
@@ -218,7 +230,8 @@ int main(void) {
         WF_CHECK(out.uri != NULL && out.cid != NULL);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
         WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.block"));
-        WF_CHECK(json_field_eq(last_body, "record", "subject", "did:plc:blockme"));
+        WF_CHECK(
+            json_field_eq(last_body, "record", "subject", "did:plc:blockme"));
         wf_agent_post_result_free(&out);
     }
 
@@ -229,13 +242,15 @@ int main(void) {
             "{\"$type\":\"app.bsky.graph.starterpack\",\"name\":\"Renamed\","
             "\"list\":\"at://did:plc:abc123/app.bsky.graph.list/abcXX1\","
             "\"createdAt\":\"2026-07-09T00:00:00Z\"}";
-        wf_status st = wf_agent_graph_update_starter_pack(
-            agent, "abcXX2", new_rec, &out);
+        wf_status st =
+            wf_agent_graph_update_starter_pack(agent, "abcXX2", new_rec, &out);
         WF_CHECK(st == WF_OK);
         WF_CHECK(out.uri != NULL && strstr(out.uri, "starterpack") != NULL);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "com.atproto.repo.putRecord") == 0);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.starterpack"));
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "com.atproto.repo.putRecord") == 0);
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.starterpack"));
         WF_CHECK(json_top_eq(last_body, "rkey", "abcXX2"));
         wf_agent_post_result_free(&out);
     }
@@ -246,7 +261,8 @@ int main(void) {
             agent, "at://did:plc:abc123/app.bsky.graph.list/abcXX1");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "com.atproto.repo.deleteRecord") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "com.atproto.repo.deleteRecord") == 0);
         WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.list"));
         WF_CHECK(json_top_eq(last_body, "rkey", "abcXX1"));
     }
@@ -255,21 +271,24 @@ int main(void) {
             agent, "at://did:plc:abc123/app.bsky.graph.listitem/abcXX9");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.listitem"));
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.listitem"));
     }
     {
         wf_status st = wf_agent_graph_delete_starter_pack(
             agent, "at://did:plc:abc123/app.bsky.graph.starterpack/abcXX2");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.starterpack"));
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.starterpack"));
     }
     {
         wf_status st = wf_agent_graph_delete_list_block(
             agent, "at://did:plc:abc123/app.bsky.graph.listblock/abcXX3");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(json_top_eq(last_body, "collection", "app.bsky.graph.listblock"));
+        WF_CHECK(
+            json_top_eq(last_body, "collection", "app.bsky.graph.listblock"));
     }
     {
         wf_status st = wf_agent_graph_unblock(
@@ -285,32 +304,36 @@ int main(void) {
             agent, "at://did:plc:abc123/app.bsky.feed.post/root1");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "app.bsky.graph.muteThread") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "app.bsky.graph.muteThread") == 0);
         WF_CHECK(json_top_eq(last_body, "root",
-                              "at://did:plc:abc123/app.bsky.feed.post/root1"));
+                             "at://did:plc:abc123/app.bsky.feed.post/root1"));
     }
     {
         wf_status st = wf_agent_graph_unmute_thread(
             agent, "at://did:plc:abc123/app.bsky.feed.post/root1");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "app.bsky.graph.unmuteThread") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "app.bsky.graph.unmuteThread") == 0);
     }
     {
         wf_status st = wf_agent_graph_mute_actor_list(
             agent, "at://did:plc:abc123/app.bsky.graph.list/abcXX1");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "app.bsky.graph.muteActorList") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "app.bsky.graph.muteActorList") == 0);
         WF_CHECK(json_top_eq(last_body, "list",
-                              "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
+                             "at://did:plc:abc123/app.bsky.graph.list/abcXX1"));
     }
     {
         wf_status st = wf_agent_graph_unmute_actor_list(
             agent, "at://did:plc:abc123/app.bsky.graph.list/abcXX1");
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "app.bsky.graph.unmuteActorList") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "app.bsky.graph.unmuteActorList") == 0);
     }
 
     /* ---- invalid-arg guards ---- */

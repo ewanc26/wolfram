@@ -26,9 +26,8 @@ extern "C" {
  *         failed.
  */
 wf_status wf_sync_verify_commit(const wf_subscribe_commit *commit,
-                                 wf_xrpc_client *client,
-                                 int *out_verified,
-                                 wf_commit *out_commit);
+                                wf_xrpc_client *client, int *out_verified,
+                                wf_commit *out_commit);
 
 #ifdef __cplusplus
 }

@@ -37,13 +37,14 @@ extern "C" {
  * `nsid` and `upstream_url` are required. `reconnect_delay_ms` is optional.
  */
 typedef struct wf_relay_config {
-    char    *nsid;               /* downstream NSID to register (required) */
-    char    *upstream_url;       /* absolute ws(s):// URL to relay from (required) */
-    uint32_t reconnect_delay_ms; /* upstream reconnect delay; 0 disables reconnect */
+    char *nsid;         /* downstream NSID to register (required) */
+    char *upstream_url; /* absolute ws(s):// URL to relay from (required) */
+    uint32_t
+        reconnect_delay_ms; /* upstream reconnect delay; 0 disables reconnect */
 } wf_relay_config;
 
 /** Zero-initialiser for a config struct. */
-#define WF_RELAY_CONFIG_INIT { 0 }
+#define WF_RELAY_CONFIG_INIT {0}
 
 /** Free all owned strings in a config and zero it. Safe to call on a
  *  zeroed/partially-initialised struct, or with NULL. */
@@ -69,16 +70,16 @@ typedef struct wf_relay_server wf_relay_server;
  * Register a WebSocket subscription relay on `server`.
  *
  * When a downstream client connects to `cfg->nsid`, the relay opens an upstream
- * WebSocket connection to `cfg->upstream_url` and forwards each received message
- * to the client byte-for-byte until either side closes or errors. The config is
- * deep-copied; on success returns an opaque handle (free with
+ * WebSocket connection to `cfg->upstream_url` and forwards each received
+ * message to the client byte-for-byte until either side closes or errors. The
+ * config is deep-copied; on success returns an opaque handle (free with
  * wf_relay_server_free), or NULL on invalid input or registration failure.
  *
  * Threading: the relay's WS handler runs on the server's per-connection upgrade
  * worker thread (as required by the server's streaming contract). It spawns a
  * separate forward worker thread that drives the upstream connect/receive loop
- * and pushes frames with wf_xrpc_server_ws_send; the server thread then runs its
- * control-frame loop (answering client ping, honouring client close). The
+ * and pushes frames with wf_xrpc_server_ws_send; the server thread then runs
+ * its control-frame loop (answering client ping, honouring client close). The
  * forward thread closes the downstream stream with wf_xrpc_server_ws_close when
  * the upstream ends or errors.
  *

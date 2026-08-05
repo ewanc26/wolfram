@@ -41,7 +41,8 @@ typedef struct wf_subscribe_commit {
     wf_subscribe_repo_op *ops;
     size_t ops_count;
     char time[64];
-    wf_cid prev_data;   /* inductive-firehose prev MST root CID (prevData), optional */
+    wf_cid prev_data; /* inductive-firehose prev MST root CID (prevData),
+                         optional */
     int has_prev_data;
 } wf_subscribe_commit;
 
@@ -97,12 +98,17 @@ typedef struct wf_subscribe_event {
         wf_subscribe_account account;
         wf_subscribe_info info;
         wf_subscribe_labels labels;
-        struct { char *error; char *message; } error;
+        struct {
+            char *error;
+            char *message;
+        } error;
     } data;
 } wf_subscribe_event;
 
-typedef void (*wf_subscribe_event_cb)(const wf_subscribe_event *event, void *userdata);
-typedef void (*wf_subscribe_error_cb)(wf_status status, const char *msg, void *userdata);
+typedef void (*wf_subscribe_event_cb)(const wf_subscribe_event *event,
+                                      void *userdata);
+typedef void (*wf_subscribe_error_cb)(wf_status status, const char *msg,
+                                      void *userdata);
 
 typedef struct wf_subscribe_options {
     const char *service;
@@ -122,7 +128,8 @@ typedef struct wf_subscribe_options {
 
 typedef struct wf_subscribe_handle wf_subscribe_handle;
 
-wf_status wf_subscribe_start(const wf_subscribe_options *opts, wf_subscribe_handle **out);
+wf_status wf_subscribe_start(const wf_subscribe_options *opts,
+                             wf_subscribe_handle **out);
 void wf_subscribe_stop(wf_subscribe_handle *handle);
 
 /* Decode a single framed subscription message (the exact output of
@@ -135,7 +142,8 @@ void wf_subscribe_stop(wf_subscribe_handle *handle);
 wf_status wf_subscribe_decode_frame(const unsigned char *data, size_t len,
                                     wf_subscribe_event *out);
 
-/* Free heap-allocated members of a decoded event (does not free `ev` itself). */
+/* Free heap-allocated members of a decoded event (does not free `ev` itself).
+ */
 void wf_subscribe_event_free(wf_subscribe_event *ev);
 
 #ifdef __cplusplus

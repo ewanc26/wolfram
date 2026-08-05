@@ -4,9 +4,10 @@
  *
  * Covers argument validation (NULL agent/actor/out), malformed JSON, missing
  * arrays, and parsing of the blocks/mutes/knownFollowers fixtures asserting
- * actor_count / cursor / field values. The shared `wf_agent_parse_profile_views`
- * parser is exercised directly against the fixtures; the wrappers themselves
- * are exercised for their NULL-argument guards (network calls are not run here).
+ * actor_count / cursor / field values. The shared
+ * `wf_agent_parse_profile_views` parser is exercised directly against the
+ * fixtures; the wrappers themselves are exercised for their NULL-argument
+ * guards (network calls are not run here).
  */
 
 #include "wolfram/moderation_typed.h"
@@ -68,9 +69,8 @@ static char *load_fixture(const char *filename, size_t *len_out) {
     return read_entire_file(path, len_out);
 }
 
-static void assert_actor(wf_agent_actor_list *list, size_t idx,
-                         const char *did, const char *handle,
-                         const char *display_name) {
+static void assert_actor(wf_agent_actor_list *list, size_t idx, const char *did,
+                         const char *handle, const char *display_name) {
     WF_CHECK(idx < list->actor_count);
     if (idx >= list->actor_count) return;
     wf_agent_profile_view *p = &list->actors[idx];
@@ -127,7 +127,8 @@ int main(void) {
             WF_CHECK(wf_agent_parse_profile_views(json, len, "blocks", &list) ==
                      WF_OK);
             WF_CHECK(list.actor_count == 2);
-            WF_CHECK(list.cursor && strcmp(list.cursor, "blocks-cursor-123") == 0);
+            WF_CHECK(list.cursor &&
+                     strcmp(list.cursor, "blocks-cursor-123") == 0);
             assert_actor(&list, 0, "did:plc:blocksalice", "alice.bsky.social",
                          "Alice");
             assert_actor(&list, 1, "did:plc:blocksbob", "bob.bsky.social",
@@ -147,7 +148,8 @@ int main(void) {
             WF_CHECK(wf_agent_parse_profile_views(json, len, "mutes", &list) ==
                      WF_OK);
             WF_CHECK(list.actor_count == 2);
-            WF_CHECK(list.cursor && strcmp(list.cursor, "mutes-cursor-456") == 0);
+            WF_CHECK(list.cursor &&
+                     strcmp(list.cursor, "mutes-cursor-456") == 0);
             assert_actor(&list, 0, "did:plc:mutescarol", "carol.bsky.social",
                          "Carol");
             assert_actor(&list, 1, "did:plc:mutesdave", "dave.bsky.social",

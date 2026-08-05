@@ -61,7 +61,8 @@ static const char *k_likes_json =
 
 /* getRepostedBy -> "repostedBy" array of profileView */
 static const char *k_reposted_json =
-    "{\"repostedBy\":[{\"did\":\"did:plc:r\",\"handle\":\"reposter.bsky.social\"}],"
+    "{\"repostedBy\":[{\"did\":\"did:plc:r\",\"handle\":\"reposter.bsky."
+    "social\"}],"
     "\"uri\":\"at://did:plc:post\",\"cursor\":\"cr\"}";
 
 /* getSuggestionsSkeleton (app.bsky.unspecced) -> "actors" of {did} */
@@ -105,9 +106,8 @@ int main(void) {
     /* ---- getSuggestions metadata survives parsing ---- */
     {
         wf_agent_actor_list out = {0};
-        wf_status s = wf_agent_parse_actor_search(k_suggestions_json,
-                                                  strlen(k_suggestions_json),
-                                                  &out);
+        wf_status s = wf_agent_parse_actor_search(
+            k_suggestions_json, strlen(k_suggestions_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.actor_count == 1);
         WF_CHECK(out.has_rec_id == 1);
@@ -119,9 +119,9 @@ int main(void) {
     /* ---- getSuggestions legacy string recId is accepted ---- */
     {
         wf_agent_actor_list out = {0};
-        wf_status s = wf_agent_parse_actor_search(k_suggestions_legacy_recid_json,
-                                                  strlen(k_suggestions_legacy_recid_json),
-                                                  &out);
+        wf_status s = wf_agent_parse_actor_search(
+            k_suggestions_legacy_recid_json,
+            strlen(k_suggestions_legacy_recid_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.actor_count == 1);
         WF_CHECK(out.has_rec_id == 0);
@@ -133,17 +133,16 @@ int main(void) {
     /* ---- searchActorsTypeahead (profileViewBasic + detached viewer) ---- */
     {
         wf_agent_profile_view_basic_list out = {0};
-        wf_status s = wf_agent_parse_actor_typeahead(k_typeahead_json,
-                                                     strlen(k_typeahead_json),
-                                                     &out);
+        wf_status s = wf_agent_parse_actor_typeahead(
+            k_typeahead_json, strlen(k_typeahead_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.actor_count == 1);
         WF_CHECK(out.actors[0].did &&
                  strcmp(out.actors[0].did, "did:plc:x") == 0);
         WF_CHECK(out.actors[0].viewer != NULL);
         if (out.actors[0].viewer) {
-            cJSON *muted = cJSON_GetObjectItemCaseSensitive(out.actors[0].viewer,
-                                                            "muted");
+            cJSON *muted =
+                cJSON_GetObjectItemCaseSensitive(out.actors[0].viewer, "muted");
             WF_CHECK(cJSON_IsBool(muted) && cJSON_IsTrue(muted));
         }
         wf_agent_profile_view_basic_list_free(&out);
@@ -181,9 +180,8 @@ int main(void) {
     /* ---- getSuggestionsSkeleton (re-exposed from unspecced_typed.h) ---- */
     {
         wf_agent_suggestions_skeleton out = {0};
-        wf_status s = wf_agent_parse_suggestions_skeleton(k_skeleton_json,
-                                                         strlen(k_skeleton_json),
-                                                         &out);
+        wf_status s = wf_agent_parse_suggestions_skeleton(
+            k_skeleton_json, strlen(k_skeleton_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.actor_count == 1);
         WF_CHECK(out.actors[0].did &&
@@ -198,8 +196,10 @@ int main(void) {
         wf_agent_profile_view_basic_list blist = {0};
         wf_agent_actor_like_list llist = {0};
 
-        WF_CHECK(wf_agent_parse_profiles(NULL, 0, &plist) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_parse_profiles(k_profiles_json, strlen(k_profiles_json),
+        WF_CHECK(wf_agent_parse_profiles(NULL, 0, &plist) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_parse_profiles(k_profiles_json,
+                                         strlen(k_profiles_json),
                                          NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_parse_profiles("not json{", 9, &plist) ==
                  WF_ERR_PARSE);
@@ -226,8 +226,8 @@ int main(void) {
         wf_agent_actor_like_list out3 = {0};
         const char *actors[1] = {"did:plc:aaa"};
 
-        WF_CHECK(wf_agent_get_profiles_typed(NULL, actors, 1, 10, NULL, &out1) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_get_profiles_typed(NULL, actors, 1, 10, NULL,
+                                             &out1) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_profiles_typed((wf_agent *)1, NULL, 0, 10, NULL,
                                              &out1) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_search_actors_typed(NULL, "q", 10, NULL, &out1) ==
@@ -242,9 +242,8 @@ int main(void) {
         /* limit must not exceed upstream maximum (100) */
         WF_CHECK(wf_agent_search_actors_typed((wf_agent *)1, "q", 101, NULL,
                                               &out1) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_search_actors_typeahead_typed((wf_agent *)1, "q", 101,
-                                                       &out2) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_search_actors_typeahead_typed(
+                     (wf_agent *)1, "q", 101, &out2) == WF_ERR_INVALID_ARG);
 
         /* reset/freed lists free safely */
         wf_agent_actor_list_free(&out1);

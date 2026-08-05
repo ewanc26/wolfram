@@ -42,8 +42,8 @@ struct wf_websocket {
      * past the header block belongs to the frame stream, not the HTTP
      * response, and must not be dropped. */
     unsigned char *raw_buf;
-    size_t raw_len;   /* total bytes held */
-    size_t raw_pos;   /* index of the first unconsumed byte */
+    size_t raw_len; /* total bytes held */
+    size_t raw_pos; /* index of the first unconsumed byte */
     size_t raw_cap;
 
     /* Reassembly buffer for a fragmented message (opcode 0x0 continuations
@@ -54,18 +54,20 @@ struct wf_websocket {
     wf_websocket_message_type pending_type;
     int have_pending_type;
 
-    int closed;  /* a close frame was sent or received; no further I/O */
+    int closed; /* a close frame was sent or received; no further I/O */
 };
 
 /* ── RFC 4648 standard base64 (Sec-WebSocket-Key/-Accept; not base64url) ── */
 
-static void wii_ws_base64_encode(const unsigned char *in, size_t len, char *out) {
+static void wii_ws_base64_encode(const unsigned char *in, size_t len,
+                                 char *out) {
     static const char tab[] =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     size_t i, o = 0;
     for (i = 0; i + 3 <= len; i += 3) {
         unsigned int n = ((unsigned int)in[i] << 16) |
-                         ((unsigned int)in[i + 1] << 8) | (unsigned int)in[i + 2];
+                         ((unsigned int)in[i + 1] << 8) |
+                         (unsigned int)in[i + 2];
         out[o++] = tab[(n >> 18) & 0x3f];
         out[o++] = tab[(n >> 12) & 0x3f];
         out[o++] = tab[(n >> 6) & 0x3f];
@@ -192,7 +194,9 @@ static wf_status wii_ws_send_frame(wf_websocket *ws, unsigned char opcode,
 
     unsigned char header[14];
     size_t hlen = 0;
-    header[hlen++] = (unsigned char)(0x80 | (opcode & 0x0F)); /* FIN, no fragmentation on send */
+    header[hlen++] =
+        (unsigned char)(0x80 |
+                        (opcode & 0x0F)); /* FIN, no fragmentation on send */
     if (len <= 125) {
         header[hlen++] = (unsigned char)(0x80 | len);
     } else if (len <= 0xFFFF) {
@@ -245,7 +249,8 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     char host[256];
     uint16_t port = 443;
     char path[2048];
-    if (wii_ws_parse_url(url, host, sizeof(host), &port, path, sizeof(path)) != WF_OK)
+    if (wii_ws_parse_url(url, host, sizeof(host), &port, path, sizeof(path)) !=
+        WF_OK)
         return WF_ERR_INVALID_ARG;
 
     wii_tls_conn *conn = wii_tls_connect(host, port);
@@ -324,7 +329,8 @@ wf_status wf_websocket_connect_with_headers(const char *url,
             }
         }
         if (header_done) break;
-        if (ws->raw_len > 8192) { /* handshake headers this large are not legitimate */
+        if (ws->raw_len >
+            8192) { /* handshake headers this large are not legitimate */
             wf_websocket_free(ws);
             return WF_ERR_PARSE;
         }
@@ -383,8 +389,8 @@ wf_status wf_websocket_connect_with_headers(const char *url,
      * is the client-side half of the same check the SDK's own XRPC server
      * performs when acting as the WS endpoint. */
     char concat[128];
-    snprintf(concat, sizeof(concat),
-             "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11", key_b64);
+    snprintf(concat, sizeof(concat), "%s258EAFA5-E914-47DA-95CA-C5AB0DC85B11",
+             key_b64);
     unsigned char digest[20];
     mbedtls_sha1((const unsigned char *)concat, strlen(concat), digest);
     char expect_accept[32];
@@ -406,7 +412,8 @@ wf_status wf_websocket_connect(const char *url, wf_websocket **out) {
     return wf_websocket_connect_with_headers(url, NULL, 0, out);
 }
 
-wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out) {
+wf_status wf_websocket_receive(wf_websocket *socket,
+                               wf_websocket_message *out) {
     if (!socket || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
     if (socket->closed) return WF_ERR_NETWORK;
@@ -422,7 +429,8 @@ wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out) 
             if (ready == 0) return WF_ERR_WOULD_BLOCK;
         }
 
-        if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + 2) != WF_OK) {
+        if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + 2) !=
+            WF_OK) {
             socket->closed = 1;
             wii_ws_discard_pending(socket);
             return WF_ERR_NETWORK;
@@ -445,14 +453,22 @@ wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out) 
 
         if (plen == 126) {
             unsigned char ext[2];
-            if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + 2) != WF_OK)
-                { socket->closed = 1; wii_ws_discard_pending(socket); return WF_ERR_NETWORK; }
+            if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + 2) !=
+                WF_OK) {
+                socket->closed = 1;
+                wii_ws_discard_pending(socket);
+                return WF_ERR_NETWORK;
+            }
             wii_ws_consume(socket, 2, ext);
             plen = ((uint64_t)ext[0] << 8) | ext[1];
         } else if (plen == 127) {
             unsigned char ext[8];
-            if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + 8) != WF_OK)
-                { socket->closed = 1; wii_ws_discard_pending(socket); return WF_ERR_NETWORK; }
+            if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + 8) !=
+                WF_OK) {
+                socket->closed = 1;
+                wii_ws_discard_pending(socket);
+                return WF_ERR_NETWORK;
+            }
             wii_ws_consume(socket, 8, ext);
             plen = 0;
             for (int i = 0; i < 8; i++) plen = (plen << 8) | ext[i];
@@ -468,7 +484,8 @@ wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out) 
         if (plen > 0) {
             payload = malloc((size_t)plen);
             if (!payload) return WF_ERR_ALLOC;
-            if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos + (size_t)plen) != WF_OK) {
+            if (wii_ws_fill(socket, socket->raw_len - socket->raw_pos +
+                                        (size_t)plen) != WF_OK) {
                 free(payload);
                 socket->closed = 1;
                 wii_ws_discard_pending(socket);
@@ -478,64 +495,69 @@ wf_status wf_websocket_receive(wf_websocket *socket, wf_websocket_message *out) 
         }
 
         switch (opcode) {
-        case 0x0: /* continuation */
-        case 0x1: /* text */
-        case 0x2: /* binary */ {
-            if (opcode != 0x0) {
-                if (socket->have_pending_type) {
+            case 0x0: /* continuation */
+            case 0x1: /* text */
+            case 0x2: /* binary */ {
+                if (opcode != 0x0) {
+                    if (socket->have_pending_type) {
+                        free(payload);
+                        wii_ws_discard_pending(socket);
+                        socket->closed = 1;
+                        return WF_ERR_PARSE; /* new message while one is still
+                                                open */
+                    }
+                    socket->pending_type = (opcode == 0x1)
+                                               ? WF_WEBSOCKET_TEXT
+                                               : WF_WEBSOCKET_BINARY;
+                    socket->have_pending_type = 1;
+                } else if (!socket->have_pending_type) {
                     free(payload);
+                    socket->closed = 1;
+                    return WF_ERR_PARSE; /* continuation with nothing to
+                                            continue */
+                }
+
+                wf_status status =
+                    plen ? wii_ws_append(socket, payload, (size_t)plen) : WF_OK;
+                free(payload);
+                if (status != WF_OK) {
                     wii_ws_discard_pending(socket);
                     socket->closed = 1;
-                    return WF_ERR_PARSE; /* new message while one is still open */
+                    return status;
                 }
-                socket->pending_type = (opcode == 0x1) ? WF_WEBSOCKET_TEXT
-                                                        : WF_WEBSOCKET_BINARY;
-                socket->have_pending_type = 1;
-            } else if (!socket->have_pending_type) {
+
+                if (fin) {
+                    out->data = socket->pending;
+                    out->len = socket->pending_len;
+                    out->type = socket->pending_type;
+                    socket->pending = NULL;
+                    socket->pending_len = 0;
+                    socket->pending_cap = 0;
+                    socket->pending_type = 0;
+                    socket->have_pending_type = 0;
+                    return WF_OK;
+                }
+                continue;
+            }
+            case 0x8: /* close */
                 free(payload);
                 socket->closed = 1;
-                return WF_ERR_PARSE; /* continuation with nothing to continue */
-            }
-
-            wf_status status = plen ? wii_ws_append(socket, payload, (size_t)plen) : WF_OK;
-            free(payload);
-            if (status != WF_OK) {
                 wii_ws_discard_pending(socket);
+                (void)wii_ws_send_frame(socket, 0x8, NULL,
+                                        0); /* best-effort echo close */
+                return WF_ERR_NETWORK;
+            case 0x9: /* ping: answer with pong carrying the same payload */
+                (void)wii_ws_send_frame(socket, 0xA, payload, (size_t)plen);
+                free(payload);
+                continue;
+            case 0xA: /* pong: no action needed */
+                free(payload);
+                continue;
+            default:
+                free(payload);
                 socket->closed = 1;
-                return status;
-            }
-
-            if (fin) {
-                out->data = socket->pending;
-                out->len = socket->pending_len;
-                out->type = socket->pending_type;
-                socket->pending = NULL;
-                socket->pending_len = 0;
-                socket->pending_cap = 0;
-                socket->pending_type = 0;
-                socket->have_pending_type = 0;
-                return WF_OK;
-            }
-            continue;
-        }
-        case 0x8: /* close */
-            free(payload);
-            socket->closed = 1;
-            wii_ws_discard_pending(socket);
-            (void)wii_ws_send_frame(socket, 0x8, NULL, 0); /* best-effort echo close */
-            return WF_ERR_NETWORK;
-        case 0x9: /* ping: answer with pong carrying the same payload */
-            (void)wii_ws_send_frame(socket, 0xA, payload, (size_t)plen);
-            free(payload);
-            continue;
-        case 0xA: /* pong: no action needed */
-            free(payload);
-            continue;
-        default:
-            free(payload);
-            socket->closed = 1;
-            wii_ws_discard_pending(socket);
-            return WF_ERR_PARSE;
+                wii_ws_discard_pending(socket);
+                return WF_ERR_PARSE;
         }
     }
 }
@@ -544,7 +566,8 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
                                  size_t text_len) {
     if (!socket || (!text && text_len) || text_len > WF_WEBSOCKET_MAX_MESSAGE)
         return WF_ERR_INVALID_ARG;
-    return wii_ws_send_frame(socket, 0x1, (const unsigned char *)text, text_len);
+    return wii_ws_send_frame(socket, 0x1, (const unsigned char *)text,
+                             text_len);
 }
 
 wf_status wf_websocket_send_ping(wf_websocket *socket) {

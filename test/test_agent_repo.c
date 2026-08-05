@@ -40,10 +40,10 @@ int main(void) {
     const char *did = "did:plc:repodifftest";
     const char *did_key =
         "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
-    unsigned char record_one[]   = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
-    unsigned char record_two[]   = {0xA1, 0x64, 't', 'e', 's', 't', 0x02};
+    unsigned char record_one[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x01};
+    unsigned char record_two[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x02};
     unsigned char record_three[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x03};
-    unsigned char record_four[]  = {0xA1, 0x64, 't', 'e', 's', 't', 0x04};
+    unsigned char record_four[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x04};
 
     wf_agent *agent = wf_agent_new("https://example.com");
     WF_CHECK(agent != NULL);
@@ -62,14 +62,13 @@ int main(void) {
     wf_cid old_keep = {0}, old_delete = {0};
     wf_cid new_keep = {0}, new_add = {0};
 
-    WF_CHECK(wf_repo_create_record(&working, NULL, did,
-                                   "com.example.posts", "keep",
-                                   record_one, sizeof(record_one), &key,
+    WF_CHECK(wf_repo_create_record(&working, NULL, did, "com.example.posts",
+                                   "keep", record_one, sizeof(record_one), &key,
                                    &commit_one, &old_keep) == WF_OK);
     WF_CHECK(wf_repo_create_record(&working, &commit_one, did,
-                                   "com.example.posts", "remove",
-                                   record_two, sizeof(record_two), &key,
-                                   &commit_base, &old_delete) == WF_OK);
+                                   "com.example.posts", "remove", record_two,
+                                   sizeof(record_two), &key, &commit_base,
+                                   &old_delete) == WF_OK);
 
     wf_car base = {0};
     {
@@ -88,17 +87,17 @@ int main(void) {
 
     wf_cid intermediate = {0};
     WF_CHECK(wf_repo_update_record(&working, &commit_base, did,
-                                   "com.example.posts", "keep",
-                                   record_three, sizeof(record_three),
-                                   &key, &intermediate, &new_keep) == WF_OK);
+                                   "com.example.posts", "keep", record_three,
+                                   sizeof(record_three), &key, &intermediate,
+                                   &new_keep) == WF_OK);
     wf_cid after_delete = {0};
     WF_CHECK(wf_repo_delete_record(&working, &intermediate, did,
-                                   "com.example.posts", "remove",
-                                   &key, &after_delete) == WF_OK);
+                                   "com.example.posts", "remove", &key,
+                                   &after_delete) == WF_OK);
     WF_CHECK(wf_repo_create_record(&working, &after_delete, did,
-                                   "com.example.posts", "added",
-                                   record_four, sizeof(record_four), &key,
-                                   &commit_update, &new_add) == WF_OK);
+                                   "com.example.posts", "added", record_four,
+                                   sizeof(record_four), &key, &commit_update,
+                                   &new_add) == WF_OK);
 
     wf_car update = {0};
     update.roots = &commit_update;
@@ -145,8 +144,8 @@ int main(void) {
         probe_opts.expected_did = did;
         probe_opts.signing_key = did_key;
         wf_repo_diff probe_diff = {0};
-        wf_status probe = wf_repo_diff_verify(&base, &commit_base,
-                                               &update, &probe_opts, &probe_diff);
+        wf_status probe = wf_repo_diff_verify(&base, &commit_base, &update,
+                                              &probe_opts, &probe_diff);
         fprintf(stderr, "direct verify status=%d\n", (int)probe);
         wf_repo_diff_free(&probe_diff);
 
@@ -156,14 +155,15 @@ int main(void) {
                 (int)p2, parsed_update.root_count);
         if (p2 == WF_OK) {
             wf_repo_diff probe_diff2 = {0};
-            wf_status p3 = wf_repo_diff_verify(&base, &commit_base,
-                                               &parsed_update, &probe_opts, &probe_diff2);
+            wf_status p3 = wf_repo_diff_verify(
+                &base, &commit_base, &parsed_update, &probe_opts, &probe_diff2);
             fprintf(stderr, "verify parsed update status=%d\n", (int)p3);
             wf_repo_diff_free(&probe_diff2);
         }
         wf_car_free(&parsed_update);
 
-        wf_status apply_status = wf_agent_apply_repo_diff(agent, update_bytes, update_len);
+        wf_status apply_status =
+            wf_agent_apply_repo_diff(agent, update_bytes, update_len);
         if (apply_status != WF_OK) {
             fprintf(stderr, "apply_repo_diff status=%d\n", (int)apply_status);
         }
@@ -191,9 +191,9 @@ int main(void) {
                  memcmp(found, record_three, found_len) == 0);
         free(found);
 
-        WF_CHECK(wf_agent_mirror_get_record(agent, "com.example.posts", "remove",
-                                            &found, &found_len) ==
-                 WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_agent_mirror_get_record(agent, "com.example.posts",
+                                            "remove", &found,
+                                            &found_len) == WF_ERR_NOT_FOUND);
         WF_CHECK(wf_agent_mirror_get_record(agent, "com.example.posts", "added",
                                             &found, &found_len) == WF_OK);
         WF_CHECK(found_len == sizeof(record_four) &&
@@ -220,8 +220,8 @@ int main(void) {
         ops[1].prev = make_cid(12);
 
         wf_repo_operation *inverse = NULL;
-        WF_CHECK(wf_agent_invert_repo_operations(agent, ops, 2,
-                                                  &inverse) == WF_OK);
+        WF_CHECK(wf_agent_invert_repo_operations(agent, ops, 2, &inverse) ==
+                 WF_OK);
         WF_CHECK(inverse != NULL);
         if (inverse) {
             /* wf_repo_operations_invert reverses order: inverse[0] is the

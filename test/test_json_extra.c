@@ -57,12 +57,9 @@ static void test_canonicalize_empty_containers(void) {
 
 static void test_canonicalize_invalid(void) {
     const char *cases[] = {
-        "{ not valid json ",
-        "{\"unterminated\":",
-        "1 2 trailing",
-        "",
-        "{\"a\": }",
-        "[1,2",
+        "{ not valid json ", "{\"unterminated\":",
+        "1 2 trailing",      "",
+        "{\"a\": }",         "[1,2",
     };
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
         char *out = NULL;
@@ -81,13 +78,12 @@ static void test_canonicalize_null_args(void) {
 
 /* ── validate: nested properties + required ── */
 static void test_validate_nested(void) {
-    const char *sch =
-        "{\"type\":\"object\","
-         "\"required\":[\"user\"],"
-         "\"properties\":{"
-         "  \"user\":{\"type\":\"object\",\"required\":[\"id\"],"
-         "    \"properties\":{\"id\":{\"type\":\"string\"},"
-         "      \"age\":{\"type\":\"number\"}}}}}";
+    const char *sch = "{\"type\":\"object\","
+                      "\"required\":[\"user\"],"
+                      "\"properties\":{"
+                      "  \"user\":{\"type\":\"object\",\"required\":[\"id\"],"
+                      "    \"properties\":{\"id\":{\"type\":\"string\"},"
+                      "      \"age\":{\"type\":\"number\"}}}}}";
     const char *ok = "{\"user\":{\"id\":\"x\",\"age\":4}}";
     char *err = NULL;
     WF_CHECK(wf_json_validate(sch, strlen(sch), ok, strlen(ok), &err) == WF_OK);
@@ -108,10 +104,9 @@ static void test_validate_nested(void) {
 
 /* ── validate: items applied to every element ── */
 static void test_validate_items_objects(void) {
-    const char *sch =
-        "{\"type\":\"array\","
-         "\"items\":{\"type\":\"object\",\"required\":[\"v\"],"
-         "  \"properties\":{\"v\":{\"type\":\"number\"}}}}";
+    const char *sch = "{\"type\":\"array\","
+                      "\"items\":{\"type\":\"object\",\"required\":[\"v\"],"
+                      "  \"properties\":{\"v\":{\"type\":\"number\"}}}}";
     const char *ok = "[{\"v\":1},{\"v\":2},{\"v\":3}]";
     char *err = NULL;
     WF_CHECK(wf_json_validate(sch, strlen(sch), ok, strlen(ok), &err) == WF_OK);
@@ -119,7 +114,8 @@ static void test_validate_items_objects(void) {
 
     const char *bad = "[{\"v\":1},{\"v\":\"x\"}]";
     err = NULL;
-    WF_CHECK(wf_json_validate(sch, strlen(sch), bad, strlen(bad), &err) != WF_OK);
+    WF_CHECK(wf_json_validate(sch, strlen(sch), bad, strlen(bad), &err) !=
+             WF_OK);
     if (err) free(err);
 }
 
@@ -127,7 +123,7 @@ static void test_validate_items_objects(void) {
 static void test_validate_additional_schema(void) {
     const char *sch =
         "{\"type\":\"object\",\"properties\":{\"known\":{\"type\":\"number\"}},"
-         "\"additionalProperties\":{\"type\":\"string\"}}";
+        "\"additionalProperties\":{\"type\":\"string\"}}";
     const char *ok = "{\"known\":1,\"extra\":\"hi\"}";
     char *err = NULL;
     WF_CHECK(wf_json_validate(sch, strlen(sch), ok, strlen(ok), &err) == WF_OK);
@@ -135,7 +131,8 @@ static void test_validate_additional_schema(void) {
 
     const char *bad = "{\"known\":1,\"extra\":5}";
     err = NULL;
-    WF_CHECK(wf_json_validate(sch, strlen(sch), bad, strlen(bad), &err) != WF_OK);
+    WF_CHECK(wf_json_validate(sch, strlen(sch), bad, strlen(bad), &err) !=
+             WF_OK);
     if (err) free(err);
 }
 
@@ -171,7 +168,8 @@ static void test_validate_oneof_and_not(void) {
     if (err) free(err);
     WF_CHECK(wf_json_validate(one, strlen(one), "5", 1, &err) == WF_OK);
     if (err) free(err);
-    /* both match (number is also accepted? no, number not string -> exactly one) */
+    /* both match (number is also accepted? no, number not string -> exactly
+     * one) */
     WF_CHECK(wf_json_validate(one, strlen(one), "true", 4, &err) != WF_OK);
     if (err) free(err);
 
@@ -202,11 +200,13 @@ static void test_validate_pattern_anchors(void) {
     if (err) free(err);
     WF_CHECK(wf_json_validate(sch, strlen(sch), "\"12a3\"", 6, &err) != WF_OK);
     if (err) free(err);
-    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"abc123\"", 7, &err) != WF_OK);
+    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"abc123\"", 7, &err) !=
+             WF_OK);
     if (err) free(err);
 
     const char *casey = "{\"pattern\":\"abc\"}";
-    WF_CHECK(wf_json_validate(casey, strlen(casey), "\"ABC\"", 5, &err) != WF_OK);
+    WF_CHECK(wf_json_validate(casey, strlen(casey), "\"ABC\"", 5, &err) !=
+             WF_OK);
     if (err) free(err);
 }
 
@@ -228,11 +228,14 @@ static void test_validate_numeric_bounds(void) {
 static void test_validate_format_uri(void) {
     const char *sch = "{\"format\":\"uri\"}";
     char *err = NULL;
-    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"http://x\"", 10, &err) == WF_OK);
+    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"http://x\"", 10, &err) ==
+             WF_OK);
     if (err) free(err);
-    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"ftp://x\"", 9, &err) == WF_OK);
+    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"ftp://x\"", 9, &err) ==
+             WF_OK);
     if (err) free(err);
-    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"example.com\"", 13, &err) != WF_OK);
+    WF_CHECK(wf_json_validate(sch, strlen(sch), "\"example.com\"", 13, &err) !=
+             WF_OK);
     if (err) free(err);
 }
 

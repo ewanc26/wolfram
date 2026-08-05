@@ -2,7 +2,8 @@
  * graph_lists.c — list management and moderation list helpers.
  *
  * Implements list CRUD, list item management, and mute/block wrappers for
- * app.bsky.graph.list / listitem / listblock plus muteActorList/unmuteActorList.
+ * app.bsky.graph.list / listitem / listblock plus
+ * muteActorList/unmuteActorList.
  */
 
 #include "wolfram/agent.h"
@@ -15,14 +16,14 @@
 #include <string.h>
 #include <time.h>
 
-#define WF_AGENT_GRAPH_LIST_COLLECTION        "app.bsky.graph.list"
-#define WF_AGENT_GRAPH_LIST_ITEM_COLLECTION   "app.bsky.graph.listitem"
-#define WF_AGENT_GRAPH_LIST_BLOCK_COLLECTION  "app.bsky.graph.listblock"
-#define WF_AGENT_GRAPH_LIST_RECORD_TYPE       "app.bsky.graph.list"
-#define WF_AGENT_GRAPH_LIST_ITEM_RECORD_TYPE  "app.bsky.graph.listitem"
+#define WF_AGENT_GRAPH_LIST_COLLECTION "app.bsky.graph.list"
+#define WF_AGENT_GRAPH_LIST_ITEM_COLLECTION "app.bsky.graph.listitem"
+#define WF_AGENT_GRAPH_LIST_BLOCK_COLLECTION "app.bsky.graph.listblock"
+#define WF_AGENT_GRAPH_LIST_RECORD_TYPE "app.bsky.graph.list"
+#define WF_AGENT_GRAPH_LIST_ITEM_RECORD_TYPE "app.bsky.graph.listitem"
 #define WF_AGENT_GRAPH_LIST_BLOCK_RECORD_TYPE "app.bsky.graph.listblock"
-#define WF_AGENT_GRAPH_MUTE_LIST_NSID         "app.bsky.graph.muteActorList"
-#define WF_AGENT_GRAPH_UNMUTE_LIST_NSID       "app.bsky.graph.unmuteActorList"
+#define WF_AGENT_GRAPH_MUTE_LIST_NSID "app.bsky.graph.muteActorList"
+#define WF_AGENT_GRAPH_UNMUTE_LIST_NSID "app.bsky.graph.unmuteActorList"
 
 static int wf_graph_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     time_t now = time(NULL);
@@ -46,7 +47,8 @@ static int wf_graph_list_purpose_is_valid(const char *purpose) {
            strcmp(purpose, "app.bsky.graph.defs#referencelist") == 0;
 }
 
-static wf_status wf_graph_set_item(cJSON *object, const char *key, cJSON *item) {
+static wf_status wf_graph_set_item(cJSON *object, const char *key,
+                                   cJSON *item) {
     if (!object || !key || !item) {
         return WF_ERR_INVALID_ARG;
     }
@@ -133,8 +135,7 @@ static wf_status wf_graph_print_and_create_record(wf_agent *agent,
 
 static wf_status wf_graph_print_and_put_record(wf_agent *agent,
                                                const char *collection,
-                                               const char *rkey,
-                                               cJSON *record,
+                                               const char *rkey, cJSON *record,
                                                wf_agent_post_result *out) {
     if (!record) {
         return WF_ERR_INVALID_ARG;
@@ -182,15 +183,15 @@ static wf_status wf_graph_delete_record(wf_agent *agent, const char *collection,
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                         "com.atproto.repo.deleteRecord",
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "com.atproto.repo.deleteRecord", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
-static wf_status wf_graph_validate_list_uri(wf_agent *agent, const char *list_uri,
+static wf_status wf_graph_validate_list_uri(wf_agent *agent,
+                                            const char *list_uri,
                                             const char *expected_collection,
                                             int require_local_repo,
                                             wf_syntax_aturi *parsed) {
@@ -220,7 +221,8 @@ static wf_status wf_graph_validate_list_uri(wf_agent *agent, const char *list_ur
 }
 
 static wf_status wf_graph_validate_subject_did(const char *subject_did) {
-    if (!subject_did || !subject_did[0] || !wf_syntax_did_is_valid(subject_did)) {
+    if (!subject_did || !subject_did[0] ||
+        !wf_syntax_did_is_valid(subject_did)) {
         return WF_ERR_INVALID_ARG;
     }
     return WF_OK;
@@ -244,7 +246,8 @@ static wf_status wf_graph_extract_blocked_uri(const char *json, size_t json_len,
     if (cJSON_IsObject(list)) {
         cJSON *viewer = cJSON_GetObjectItemCaseSensitive(list, "viewer");
         if (cJSON_IsObject(viewer)) {
-            cJSON *blocked = cJSON_GetObjectItemCaseSensitive(viewer, "blocked");
+            cJSON *blocked =
+                cJSON_GetObjectItemCaseSensitive(viewer, "blocked");
             if (cJSON_IsString(blocked) && blocked->valuestring) {
                 char *copy = strdup(blocked->valuestring);
                 if (!copy) {
@@ -266,8 +269,8 @@ static wf_status wf_graph_extract_blocked_uri(const char *json, size_t json_len,
 }
 
 wf_status wf_agent_create_list(wf_agent *agent,
-                              const wf_agent_create_list_params *params,
-                              wf_agent_post_result *out) {
+                               const wf_agent_create_list_params *params,
+                               wf_agent_post_result *out) {
     if (!agent || !params || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -287,7 +290,8 @@ wf_status wf_agent_create_list(wf_agent *agent,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_GRAPH_LIST_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_GRAPH_LIST_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at) ||
         !cJSON_AddStringToObject(record, "purpose", params->purpose) ||
         !cJSON_AddStringToObject(record, "name", params->name)) {
@@ -302,8 +306,8 @@ wf_status wf_agent_create_list(wf_agent *agent,
     }
 
     if (params->description_facets_json) {
-        wf_status status = wf_graph_set_array_item(record, "descriptionFacets",
-                                                   params->description_facets_json);
+        wf_status status = wf_graph_set_array_item(
+            record, "descriptionFacets", params->description_facets_json);
         if (status != WF_OK) {
             cJSON_Delete(record);
             return status;
@@ -311,27 +315,28 @@ wf_status wf_agent_create_list(wf_agent *agent,
     }
 
     if (params->avatar_cid) {
-        wf_status status = wf_graph_set_blob_item(record, "avatar", params->avatar_cid);
+        wf_status status =
+            wf_graph_set_blob_item(record, "avatar", params->avatar_cid);
         if (status != WF_OK) {
             cJSON_Delete(record);
             return status;
         }
     }
 
-    return wf_graph_print_and_create_record(agent, WF_AGENT_GRAPH_LIST_COLLECTION,
-                                            record, out);
+    return wf_graph_print_and_create_record(
+        agent, WF_AGENT_GRAPH_LIST_COLLECTION, record, out);
 }
 
 wf_status wf_agent_update_list(wf_agent *agent,
-                              const wf_agent_update_list_params *params) {
-    if (!agent || !params || !params->list_uri || !params->name || !params->name[0]) {
+                               const wf_agent_update_list_params *params) {
+    if (!agent || !params || !params->list_uri || !params->name ||
+        !params->name[0]) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, params->list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  1, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, params->list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 1, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -366,7 +371,8 @@ wf_status wf_agent_update_list(wf_agent *agent,
         return WF_ERR_ALLOC;
     }
 
-    status = wf_graph_set_string_item(record, "$type", WF_AGENT_GRAPH_LIST_RECORD_TYPE);
+    status = wf_graph_set_string_item(record, "$type",
+                                      WF_AGENT_GRAPH_LIST_RECORD_TYPE);
     if (status != WF_OK) {
         cJSON_Delete(record);
         wf_syntax_aturi_free(&parsed);
@@ -381,7 +387,8 @@ wf_status wf_agent_update_list(wf_agent *agent,
     }
 
     if (params->description) {
-        status = wf_graph_set_string_item(record, "description", params->description);
+        status = wf_graph_set_string_item(record, "description",
+                                          params->description);
         if (status != WF_OK) {
             cJSON_Delete(record);
             wf_syntax_aturi_free(&parsed);
@@ -409,8 +416,9 @@ wf_status wf_agent_update_list(wf_agent *agent,
     }
 
     wf_agent_post_result result = {0};
-    status = wf_graph_print_and_put_record(agent, WF_AGENT_GRAPH_LIST_COLLECTION,
-                                           parsed.record_key, record, &result);
+    status =
+        wf_graph_print_and_put_record(agent, WF_AGENT_GRAPH_LIST_COLLECTION,
+                                      parsed.record_key, record, &result);
     wf_agent_post_result_free(&result);
     wf_syntax_aturi_free(&parsed);
     return status;
@@ -422,9 +430,8 @@ wf_status wf_agent_delete_list(wf_agent *agent, const char *list_uri) {
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  1, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 1, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -435,8 +442,7 @@ wf_status wf_agent_delete_list(wf_agent *agent, const char *list_uri) {
     return status;
 }
 
-wf_status wf_agent_add_list_item(wf_agent *agent,
-                                 const char *list_uri,
+wf_status wf_agent_add_list_item(wf_agent *agent, const char *list_uri,
                                  const char *subject_did,
                                  wf_agent_post_result *out) {
     if (!agent || !list_uri || !subject_did || !out) {
@@ -447,9 +453,8 @@ wf_status wf_agent_add_list_item(wf_agent *agent,
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  1, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 1, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -467,7 +472,8 @@ wf_status wf_agent_add_list_item(wf_agent *agent,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_GRAPH_LIST_ITEM_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_GRAPH_LIST_ITEM_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at) ||
         !cJSON_AddStringToObject(record, "subject", subject_did) ||
         !cJSON_AddStringToObject(record, "list", list_uri)) {
@@ -476,8 +482,8 @@ wf_status wf_agent_add_list_item(wf_agent *agent,
         return WF_ERR_ALLOC;
     }
 
-    status = wf_graph_print_and_create_record(agent, WF_AGENT_GRAPH_LIST_ITEM_COLLECTION,
-                                              record, out);
+    status = wf_graph_print_and_create_record(
+        agent, WF_AGENT_GRAPH_LIST_ITEM_COLLECTION, record, out);
     wf_syntax_aturi_free(&parsed);
     return status;
 }
@@ -489,9 +495,8 @@ wf_status wf_agent_remove_list_item(wf_agent *agent,
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_item_uri,
-                                                  WF_AGENT_GRAPH_LIST_ITEM_COLLECTION,
-                                                  1, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_item_uri, WF_AGENT_GRAPH_LIST_ITEM_COLLECTION, 1, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -508,9 +513,8 @@ wf_status wf_agent_mute_mod_list(wf_agent *agent, const char *list_uri) {
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  0, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 0, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -551,9 +555,8 @@ wf_status wf_agent_unmute_mod_list(wf_agent *agent, const char *list_uri) {
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  0, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 0, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -595,9 +598,8 @@ wf_status wf_agent_block_mod_list(wf_agent *agent, const char *list_uri,
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  0, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 0, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -614,15 +616,16 @@ wf_status wf_agent_block_mod_list(wf_agent *agent, const char *list_uri,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_GRAPH_LIST_BLOCK_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_GRAPH_LIST_BLOCK_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at) ||
         !cJSON_AddStringToObject(record, "subject", list_uri)) {
         cJSON_Delete(record);
         return WF_ERR_ALLOC;
     }
 
-    return wf_graph_print_and_create_record(agent, WF_AGENT_GRAPH_LIST_BLOCK_COLLECTION,
-                                            record, out);
+    return wf_graph_print_and_create_record(
+        agent, WF_AGENT_GRAPH_LIST_BLOCK_COLLECTION, record, out);
 }
 
 wf_status wf_agent_unblock_mod_list(wf_agent *agent, const char *list_uri) {
@@ -631,9 +634,8 @@ wf_status wf_agent_unblock_mod_list(wf_agent *agent, const char *list_uri) {
     }
 
     wf_syntax_aturi parsed = {0};
-    wf_status status = wf_graph_validate_list_uri(agent, list_uri,
-                                                  WF_AGENT_GRAPH_LIST_COLLECTION,
-                                                  0, &parsed);
+    wf_status status = wf_graph_validate_list_uri(
+        agent, list_uri, WF_AGENT_GRAPH_LIST_COLLECTION, 0, &parsed);
     if (status != WF_OK) {
         return status;
     }
@@ -659,8 +661,8 @@ wf_status wf_agent_unblock_mod_list(wf_agent *agent, const char *list_uri) {
 
     wf_syntax_aturi block_uri = {0};
     status = wf_graph_validate_list_uri(agent, blocked_uri,
-                                        WF_AGENT_GRAPH_LIST_BLOCK_COLLECTION,
-                                        1, &block_uri);
+                                        WF_AGENT_GRAPH_LIST_BLOCK_COLLECTION, 1,
+                                        &block_uri);
     free(blocked_uri);
     if (status != WF_OK) {
         return status;

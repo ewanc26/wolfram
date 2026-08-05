@@ -47,7 +47,8 @@ wf_status wf_oauth_json_string(const cJSON *object, const char *name,
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(object, name);
     *out = NULL;
     if (!item) return required ? WF_ERR_PARSE : WF_OK;
-    if (!cJSON_IsString(item) || !item->valuestring || item->valuestring[0] == '\0') {
+    if (!cJSON_IsString(item) || !item->valuestring ||
+        item->valuestring[0] == '\0') {
         return WF_ERR_PARSE;
     }
     *out = wf_oauth_strdup(item->valuestring);
@@ -61,12 +62,14 @@ wf_status wf_oauth_json_array(const cJSON *object, const char *name,
     size_t index = 0;
     memset(out, 0, sizeof(*out));
     if (!array) return required ? WF_ERR_PARSE : WF_OK;
-    if (!cJSON_IsArray(array) || cJSON_GetArraySize(array) == 0) return WF_ERR_PARSE;
+    if (!cJSON_IsArray(array) || cJSON_GetArraySize(array) == 0)
+        return WF_ERR_PARSE;
     out->count = (size_t)cJSON_GetArraySize(array);
     out->items = calloc(out->count, sizeof(*out->items));
     if (!out->items) return WF_ERR_ALLOC;
     cJSON_ArrayForEach(item, array) {
-        if (!cJSON_IsString(item) || !item->valuestring || item->valuestring[0] == '\0') {
+        if (!cJSON_IsString(item) || !item->valuestring ||
+            item->valuestring[0] == '\0') {
             wf_oauth_string_list_free(out);
             return WF_ERR_PARSE;
         }
@@ -80,8 +83,8 @@ wf_status wf_oauth_json_array(const cJSON *object, const char *name,
     return WF_OK;
 }
 
-wf_status wf_oauth_json_bool(const cJSON *object, const char *name,
-                             int *value, int *present) {
+wf_status wf_oauth_json_bool(const cJSON *object, const char *name, int *value,
+                             int *present) {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(object, name);
     *value = 0;
     if (present) *present = item != NULL;
@@ -108,7 +111,8 @@ wf_status wf_oauth_positive_integer(const cJSON *root, const char *name,
     if (present) *present = item != NULL;
     if (!item) return required ? WF_ERR_PARSE : WF_OK;
     if (!cJSON_IsNumber(item) || item->valuedouble <= 0 ||
-        item->valuedouble > 9007199254740991.0) return WF_ERR_PARSE;
+        item->valuedouble > 9007199254740991.0)
+        return WF_ERR_PARSE;
     value = (int64_t)item->valuedouble;
     if ((double)value != item->valuedouble) return WF_ERR_PARSE;
     *out = value;
@@ -123,7 +127,8 @@ int wf_oauth_url_valid(const char *url, int https_only, int origin_only,
     if (!url || !*url) return 0;
     parsed = curl_url();
     if (!parsed) return 0;
-    if (curl_url_set(parsed, CURLUPART_URL, url, CURLU_NON_SUPPORT_SCHEME) != CURLUE_OK) {
+    if (curl_url_set(parsed, CURLUPART_URL, url, CURLU_NON_SUPPORT_SCHEME) !=
+        CURLUE_OK) {
         goto done;
     }
     if (curl_url_get(parsed, CURLUPART_SCHEME, &scheme, 0) != CURLUE_OK ||
@@ -132,14 +137,20 @@ int wf_oauth_url_valid(const char *url, int https_only, int origin_only,
         goto done;
     }
     if (https_only && strcmp(scheme, "https") != 0) goto done;
-    if (!https_only && strcmp(scheme, "https") != 0 && strcmp(scheme, "http") != 0) {
+    if (!https_only && strcmp(scheme, "https") != 0 &&
+        strcmp(scheme, "http") != 0) {
         goto done;
     }
     if (curl_url_get(parsed, CURLUPART_USER, &part, 0) == CURLUE_OK) goto done;
-    if (curl_url_get(parsed, CURLUPART_PASSWORD, &part, 0) == CURLUE_OK) goto done;
-    if (curl_url_get(parsed, CURLUPART_FRAGMENT, &part, 0) == CURLUE_OK) goto done;
-    if (reject_port && curl_url_get(parsed, CURLUPART_PORT, &part, 0) == CURLUE_OK) goto done;
-    if (origin_only && curl_url_get(parsed, CURLUPART_PORT, &part, 0) == CURLUE_OK) {
+    if (curl_url_get(parsed, CURLUPART_PASSWORD, &part, 0) == CURLUE_OK)
+        goto done;
+    if (curl_url_get(parsed, CURLUPART_FRAGMENT, &part, 0) == CURLUE_OK)
+        goto done;
+    if (reject_port &&
+        curl_url_get(parsed, CURLUPART_PORT, &part, 0) == CURLUE_OK)
+        goto done;
+    if (origin_only &&
+        curl_url_get(parsed, CURLUPART_PORT, &part, 0) == CURLUE_OK) {
         if ((strcmp(scheme, "https") == 0 && strcmp(part, "443") == 0) ||
             (strcmp(scheme, "http") == 0 && strcmp(part, "80") == 0)) {
             goto done;
@@ -148,7 +159,8 @@ int wf_oauth_url_valid(const char *url, int https_only, int origin_only,
         part = NULL;
     }
     if (origin_only) {
-        if (curl_url_get(parsed, CURLUPART_QUERY, &part, 0) == CURLUE_OK) goto done;
+        if (curl_url_get(parsed, CURLUPART_QUERY, &part, 0) == CURLUE_OK)
+            goto done;
         if (curl_url_get(parsed, CURLUPART_PATH, &part, 0) == CURLUE_OK &&
             part && strcmp(part, "/") != 0 && part[0] != '\0') {
             goto done;
@@ -168,7 +180,8 @@ done:
 int wf_oauth_ascii_equal_fold(const char *left, const char *right) {
     if (!left || !right) return 0;
     while (*left && *right) {
-        if (tolower((unsigned char)*left) != tolower((unsigned char)*right)) return 0;
+        if (tolower((unsigned char)*left) != tolower((unsigned char)*right))
+            return 0;
         left++;
         right++;
     }
@@ -204,7 +217,8 @@ int wf_oauth_client_id_valid(const char *client_id) {
     int host_is_ipv4 = 1, valid = 0;
     if (!wf_oauth_url_valid(client_id, 1, 0, 1)) return 0;
     parsed = curl_url();
-    if (!parsed || curl_url_set(parsed, CURLUPART_URL, client_id, 0) != CURLUE_OK ||
+    if (!parsed ||
+        curl_url_set(parsed, CURLUPART_URL, client_id, 0) != CURLUE_OK ||
         curl_url_get(parsed, CURLUPART_PATH, &path, 0) != CURLUE_OK ||
         curl_url_get(parsed, CURLUPART_HOST, &host, 0) != CURLUE_OK) {
         goto done;
@@ -266,8 +280,10 @@ wf_status wf_oauth_base64url(const unsigned char *input, size_t input_len,
     while (result > 0 && encoded[result - 1] == '=') result--;
     encoded[result] = '\0';
     for (int i = 0; i < result; i++) {
-        if (encoded[i] == '+') encoded[i] = '-';
-        else if (encoded[i] == '/') encoded[i] = '_';
+        if (encoded[i] == '+')
+            encoded[i] = '-';
+        else if (encoded[i] == '/')
+            encoded[i] = '_';
     }
     *out = encoded;
     return WF_OK;

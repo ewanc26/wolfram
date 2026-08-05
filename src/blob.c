@@ -8,14 +8,16 @@
 
 #define WF_UPLOAD_VIDEO_NSID "app.bsky.video.uploadVideo"
 
-wf_status wf_agent_upload_blob_ex(wf_agent *agent, const void *data, size_t data_len,
-                                 const char *content_type, wf_uploaded_blob *out) {
+wf_status wf_agent_upload_blob_ex(wf_agent *agent, const void *data,
+                                  size_t data_len, const char *content_type,
+                                  wf_uploaded_blob *out) {
     if (!agent || !data || data_len == 0 || !content_type || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_response resp = {0};
-    wf_status status = wf_agent_upload_blob(agent, data, data_len, content_type, &resp);
+    wf_status status =
+        wf_agent_upload_blob(agent, data, data_len, content_type, &resp);
     if (status != WF_OK) {
         return status;
     }
@@ -35,7 +37,8 @@ wf_status wf_agent_upload_blob_ex(wf_agent *agent, const void *data, size_t data
     }
 
     cJSON *type = cJSON_GetObjectItem(blob_obj, "$type");
-    if (!type || !cJSON_IsString(type) || !wf_ascii_iequals(type->valuestring, "blob")) {
+    if (!type || !cJSON_IsString(type) ||
+        !wf_ascii_iequals(type->valuestring, "blob")) {
         cJSON_Delete(root);
         wf_response_free(&resp);
         return WF_ERR_PARSE;
@@ -48,7 +51,8 @@ wf_status wf_agent_upload_blob_ex(wf_agent *agent, const void *data, size_t data
     }
     cJSON *mime = cJSON_GetObjectItem(blob_obj, "mimeType");
     cJSON *size = cJSON_GetObjectItem(blob_obj, "size");
-    if (!link || !cJSON_IsString(link) || !mime || !cJSON_IsString(mime) || !size || !cJSON_IsNumber(size)) {
+    if (!link || !cJSON_IsString(link) || !mime || !cJSON_IsString(mime) ||
+        !size || !cJSON_IsNumber(size)) {
         cJSON_Delete(root);
         wf_response_free(&resp);
         return WF_ERR_PARSE;
@@ -63,15 +67,16 @@ wf_status wf_agent_upload_blob_ex(wf_agent *agent, const void *data, size_t data
     return WF_OK;
 }
 
-wf_status wf_agent_upload_video(wf_agent *agent, const void *data, size_t data_len,
-                               const char *content_type, wf_uploaded_blob *out) {
+wf_status wf_agent_upload_video(wf_agent *agent, const void *data,
+                                size_t data_len, const char *content_type,
+                                wf_uploaded_blob *out) {
     if (!agent || !data || data_len == 0 || !content_type || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     wf_response resp = {0};
     wf_status status = wf_xrpc_upload_blob(agent->client, WF_UPLOAD_VIDEO_NSID,
-                                            data, data_len, content_type, &resp);
+                                           data, data_len, content_type, &resp);
     if (status != WF_OK) {
         return status;
     }
@@ -88,7 +93,8 @@ wf_status wf_agent_upload_video(wf_agent *agent, const void *data, size_t data_l
         return WF_ERR_PARSE;
     }
     cJSON *type = cJSON_GetObjectItem(blob_obj, "$type");
-    if (!type || !cJSON_IsString(type) || !wf_ascii_iequals(type->valuestring, "blob")) {
+    if (!type || !cJSON_IsString(type) ||
+        !wf_ascii_iequals(type->valuestring, "blob")) {
         cJSON_Delete(root);
         wf_response_free(&resp);
         return WF_ERR_PARSE;
@@ -100,7 +106,8 @@ wf_status wf_agent_upload_video(wf_agent *agent, const void *data, size_t data_l
     }
     cJSON *mime = cJSON_GetObjectItem(blob_obj, "mimeType");
     cJSON *size = cJSON_GetObjectItem(blob_obj, "size");
-    if (!link || !cJSON_IsString(link) || !mime || !cJSON_IsString(mime) || !size || !cJSON_IsNumber(size)) {
+    if (!link || !cJSON_IsString(link) || !mime || !cJSON_IsString(mime) ||
+        !size || !cJSON_IsNumber(size)) {
         cJSON_Delete(root);
         wf_response_free(&resp);
         return WF_ERR_PARSE;

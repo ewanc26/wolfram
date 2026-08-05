@@ -3,7 +3,8 @@
  *
  * Demonstrates:
  *   1. High-level agent login with wf_agent
- *   2. Fetching a post thread via the typed wrapper wf_agent_get_post_thread_typed
+ *   2. Fetching a post thread via the typed wrapper
+ * wf_agent_get_post_thread_typed
  *   3. Walking the owned recursive thread tree (parent + replies) and printing
  *      each post's text, author, and engagement counts.
  *
@@ -33,38 +34,39 @@ static void print_node(const wf_agent_thread_node *node, int indent) {
     }
 
     switch (node->kind) {
-    case WF_AGENT_THREAD_KIND_POST: {
-        const wf_agent_thread_post *p = &node->post;
-        const char *author = p->author.handle ? p->author.handle
-                            : (p->author.did ? p->author.did : "?");
-        const char *text = "?";
-        if (p->record) {
-            cJSON *t = cJSON_GetObjectItemCaseSensitive(p->record, "text");
-            if (cJSON_IsString(t) && t->valuestring) {
-                text = t->valuestring;
+        case WF_AGENT_THREAD_KIND_POST: {
+            const wf_agent_thread_post *p = &node->post;
+            const char *author = p->author.handle
+                                     ? p->author.handle
+                                     : (p->author.did ? p->author.did : "?");
+            const char *text = "?";
+            if (p->record) {
+                cJSON *t = cJSON_GetObjectItemCaseSensitive(p->record, "text");
+                if (cJSON_IsString(t) && t->valuestring) {
+                    text = t->valuestring;
+                }
             }
+            printf("post: %s\n", p->uri ? p->uri : "?");
+            for (int i = 0; i < indent; ++i) {
+                printf("  ");
+            }
+            printf("  by %s  replies=%d reposts=%d likes=%d quotes=%d\n",
+                   author, p->reply_count, p->repost_count, p->like_count,
+                   p->quote_count);
+            for (int i = 0; i < indent; ++i) {
+                printf("  ");
+            }
+            printf("  \"%.100s\"\n", text);
+            break;
         }
-        printf("post: %s\n", p->uri ? p->uri : "?");
-        for (int i = 0; i < indent; ++i) {
-            printf("  ");
-        }
-        printf("  by %s  replies=%d reposts=%d likes=%d quotes=%d\n",
-               author, p->reply_count, p->repost_count, p->like_count,
-               p->quote_count);
-        for (int i = 0; i < indent; ++i) {
-            printf("  ");
-        }
-        printf("  \"%.100s\"\n", text);
-        break;
-    }
 
-    case WF_AGENT_THREAD_KIND_NOT_FOUND:
-        printf("notFound: %s\n", node->uri ? node->uri : "?");
-        break;
+        case WF_AGENT_THREAD_KIND_NOT_FOUND:
+            printf("notFound: %s\n", node->uri ? node->uri : "?");
+            break;
 
-    case WF_AGENT_THREAD_KIND_BLOCKED:
-        printf("blocked: %s\n", node->uri ? node->uri : "?");
-        break;
+        case WF_AGENT_THREAD_KIND_BLOCKED:
+            printf("blocked: %s\n", node->uri ? node->uri : "?");
+            break;
     }
 
     for (size_t i = 0; i < node->replies_count; ++i) {
@@ -75,15 +77,16 @@ static void print_node(const wf_agent_thread_node *node, int indent) {
 int main(int argc, char **argv) {
     if (argc < 5) {
         fprintf(stderr,
-                "usage: %s <service-url> <handle> <password> <post-at-uri> [depth]\n",
+                "usage: %s <service-url> <handle> <password> <post-at-uri> "
+                "[depth]\n",
                 argv[0]);
         return 1;
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
-    const char *post_uri    = argv[4];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
+    const char *post_uri = argv[4];
     int depth = (argc > 5) ? (int)strtol(argv[5], NULL, 10) : 6;
     if (depth <= 0) {
         depth = 6;

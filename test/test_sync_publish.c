@@ -14,102 +14,114 @@ static int cid_eq(const wf_cid *a, const wf_cid *b) {
     return cid_equal(a, b);
 }
 
-static int event_equal(const wf_subscribe_event *a, const wf_subscribe_event *b) {
+static int event_equal(const wf_subscribe_event *a,
+                       const wf_subscribe_event *b) {
     if (a->type != b->type) return 0;
     if (a->seq != b->seq) return 0;
 
     switch (a->type) {
-    case WF_SUBSCRIBE_EVENT_COMMIT: {
-        const wf_subscribe_commit *x = &a->data.commit, *y = &b->data.commit;
-        if (strcmp(x->did, y->did)) return 0;
-        if (strcmp(x->rev, y->rev)) return 0;
-        if (strcmp(x->since, y->since)) return 0;
-        if (strcmp(x->time, y->time)) return 0;
-        if (!cid_eq(&x->commit_cid, &y->commit_cid)) return 0;
-        if (x->blocks_len != y->blocks_len) return 0;
-        if (x->blocks_len && memcmp(x->blocks, y->blocks, x->blocks_len)) return 0;
-        if (x->ops_count != y->ops_count) return 0;
-        for (size_t i = 0; i < x->ops_count; i++) {
-            if (strcmp(x->ops[i].action, y->ops[i].action)) return 0;
-            if (strcmp(x->ops[i].path, y->ops[i].path)) return 0;
-            if (x->ops[i].has_cid != y->ops[i].has_cid) return 0;
-            if (x->ops[i].has_cid && !cid_eq(&x->ops[i].cid, &y->ops[i].cid)) return 0;
-            if (x->ops[i].has_prev != y->ops[i].has_prev) return 0;
-            if (x->ops[i].has_prev && !cid_eq(&x->ops[i].prev, &y->ops[i].prev)) return 0;
-        }
-        if (x->has_prev_data != y->has_prev_data) return 0;
-        if (x->has_prev_data && !cid_eq(&x->prev_data, &y->prev_data)) return 0;
-        return 1;
-    }
-    case WF_SUBSCRIBE_EVENT_SYNC: {
-        const wf_subscribe_sync *x = &a->data.sync, *y = &b->data.sync;
-        if (strcmp(x->did, y->did)) return 0;
-        if (strcmp(x->rev, y->rev)) return 0;
-        if (strcmp(x->time, y->time)) return 0;
-        if (x->blocks_len != y->blocks_len) return 0;
-        if (x->blocks_len && memcmp(x->blocks, y->blocks, x->blocks_len)) return 0;
-        return 1;
-    }
-    case WF_SUBSCRIBE_EVENT_IDENTITY: {
-        const wf_subscribe_identity *x = &a->data.identity, *y = &b->data.identity;
-        if (strcmp(x->did, y->did)) return 0;
-        if (strcmp(x->time, y->time)) return 0;
-        if (x->has_handle != y->has_handle) return 0;
-        if (x->has_handle && strcmp(x->handle, y->handle)) return 0;
-        return 1;
-    }
-    case WF_SUBSCRIBE_EVENT_ACCOUNT: {
-        const wf_subscribe_account *x = &a->data.account, *y = &b->data.account;
-        if (strcmp(x->did, y->did)) return 0;
-        if (strcmp(x->time, y->time)) return 0;
-        if (x->active != y->active) return 0;
-        if (x->has_status != y->has_status) return 0;
-        if (x->has_status && strcmp(x->status, y->status)) return 0;
-        return 1;
-    }
-    case WF_SUBSCRIBE_EVENT_INFO: {
-        const wf_subscribe_info *x = &a->data.info, *y = &b->data.info;
-        if (strcmp(x->name, y->name)) return 0;
-        if (x->has_message != y->has_message) return 0;
-        if (x->has_message && strcmp(x->message, y->message)) return 0;
-        return 1;
-    }
-    case WF_SUBSCRIBE_EVENT_ERROR: {
-        const char *xe = a->data.error.error ? a->data.error.error : "";
-        const char *ye = b->data.error.error ? b->data.error.error : "";
-        if (strcmp(xe, ye)) return 0;
-        const char *xm = a->data.error.message ? a->data.error.message : "";
-        const char *ym = b->data.error.message ? b->data.error.message : "";
-        if (strcmp(xm, ym)) return 0;
-        return 1;
-    }
-    case WF_SUBSCRIBE_EVENT_LABELS: {
-        const wf_subscribe_labels *x = &a->data.labels, *y = &b->data.labels;
-        if (x->labels_count != y->labels_count) return 0;
-        for (size_t i = 0; i < x->labels_count; i++) {
-            const wf_label *lx = &x->labels[i], *ly = &y->labels[i];
-            if (lx->has_ver != ly->has_ver) return 0;
-            if (lx->has_ver && lx->ver != ly->ver) return 0;
-            if (strcmp(lx->src, ly->src)) return 0;
-            if (strcmp(lx->uri, ly->uri)) return 0;
-            if (lx->has_cid != ly->has_cid) return 0;
-            if (lx->has_cid && strcmp(lx->cid, ly->cid)) return 0;
-            if (strcmp(lx->val, ly->val)) return 0;
-            if (lx->has_neg != ly->has_neg) return 0;
-            if (lx->has_neg && !!lx->neg != !!ly->neg) return 0;
-            if (strcmp(lx->cts, ly->cts)) return 0;
-            if (lx->has_exp != ly->has_exp) return 0;
-            if (lx->has_exp && strcmp(lx->exp, ly->exp)) return 0;
-            if (lx->has_sig != ly->has_sig) return 0;
-            if (lx->has_sig) {
-                if (!lx->sig || !ly->sig) return 0;
-                if (strcmp(lx->sig, ly->sig)) return 0;
+        case WF_SUBSCRIBE_EVENT_COMMIT: {
+            const wf_subscribe_commit *x = &a->data.commit,
+                                      *y = &b->data.commit;
+            if (strcmp(x->did, y->did)) return 0;
+            if (strcmp(x->rev, y->rev)) return 0;
+            if (strcmp(x->since, y->since)) return 0;
+            if (strcmp(x->time, y->time)) return 0;
+            if (!cid_eq(&x->commit_cid, &y->commit_cid)) return 0;
+            if (x->blocks_len != y->blocks_len) return 0;
+            if (x->blocks_len && memcmp(x->blocks, y->blocks, x->blocks_len))
+                return 0;
+            if (x->ops_count != y->ops_count) return 0;
+            for (size_t i = 0; i < x->ops_count; i++) {
+                if (strcmp(x->ops[i].action, y->ops[i].action)) return 0;
+                if (strcmp(x->ops[i].path, y->ops[i].path)) return 0;
+                if (x->ops[i].has_cid != y->ops[i].has_cid) return 0;
+                if (x->ops[i].has_cid &&
+                    !cid_eq(&x->ops[i].cid, &y->ops[i].cid))
+                    return 0;
+                if (x->ops[i].has_prev != y->ops[i].has_prev) return 0;
+                if (x->ops[i].has_prev &&
+                    !cid_eq(&x->ops[i].prev, &y->ops[i].prev))
+                    return 0;
             }
+            if (x->has_prev_data != y->has_prev_data) return 0;
+            if (x->has_prev_data && !cid_eq(&x->prev_data, &y->prev_data))
+                return 0;
+            return 1;
         }
-        return 1;
-    }
-    default:
-        return 0;
+        case WF_SUBSCRIBE_EVENT_SYNC: {
+            const wf_subscribe_sync *x = &a->data.sync, *y = &b->data.sync;
+            if (strcmp(x->did, y->did)) return 0;
+            if (strcmp(x->rev, y->rev)) return 0;
+            if (strcmp(x->time, y->time)) return 0;
+            if (x->blocks_len != y->blocks_len) return 0;
+            if (x->blocks_len && memcmp(x->blocks, y->blocks, x->blocks_len))
+                return 0;
+            return 1;
+        }
+        case WF_SUBSCRIBE_EVENT_IDENTITY: {
+            const wf_subscribe_identity *x = &a->data.identity,
+                                        *y = &b->data.identity;
+            if (strcmp(x->did, y->did)) return 0;
+            if (strcmp(x->time, y->time)) return 0;
+            if (x->has_handle != y->has_handle) return 0;
+            if (x->has_handle && strcmp(x->handle, y->handle)) return 0;
+            return 1;
+        }
+        case WF_SUBSCRIBE_EVENT_ACCOUNT: {
+            const wf_subscribe_account *x = &a->data.account,
+                                       *y = &b->data.account;
+            if (strcmp(x->did, y->did)) return 0;
+            if (strcmp(x->time, y->time)) return 0;
+            if (x->active != y->active) return 0;
+            if (x->has_status != y->has_status) return 0;
+            if (x->has_status && strcmp(x->status, y->status)) return 0;
+            return 1;
+        }
+        case WF_SUBSCRIBE_EVENT_INFO: {
+            const wf_subscribe_info *x = &a->data.info, *y = &b->data.info;
+            if (strcmp(x->name, y->name)) return 0;
+            if (x->has_message != y->has_message) return 0;
+            if (x->has_message && strcmp(x->message, y->message)) return 0;
+            return 1;
+        }
+        case WF_SUBSCRIBE_EVENT_ERROR: {
+            const char *xe = a->data.error.error ? a->data.error.error : "";
+            const char *ye = b->data.error.error ? b->data.error.error : "";
+            if (strcmp(xe, ye)) return 0;
+            const char *xm = a->data.error.message ? a->data.error.message : "";
+            const char *ym = b->data.error.message ? b->data.error.message : "";
+            if (strcmp(xm, ym)) return 0;
+            return 1;
+        }
+        case WF_SUBSCRIBE_EVENT_LABELS: {
+            const wf_subscribe_labels *x = &a->data.labels,
+                                      *y = &b->data.labels;
+            if (x->labels_count != y->labels_count) return 0;
+            for (size_t i = 0; i < x->labels_count; i++) {
+                const wf_label *lx = &x->labels[i], *ly = &y->labels[i];
+                if (lx->has_ver != ly->has_ver) return 0;
+                if (lx->has_ver && lx->ver != ly->ver) return 0;
+                if (strcmp(lx->src, ly->src)) return 0;
+                if (strcmp(lx->uri, ly->uri)) return 0;
+                if (lx->has_cid != ly->has_cid) return 0;
+                if (lx->has_cid && strcmp(lx->cid, ly->cid)) return 0;
+                if (strcmp(lx->val, ly->val)) return 0;
+                if (lx->has_neg != ly->has_neg) return 0;
+                if (lx->has_neg && !!lx->neg != !!ly->neg) return 0;
+                if (strcmp(lx->cts, ly->cts)) return 0;
+                if (lx->has_exp != ly->has_exp) return 0;
+                if (lx->has_exp && strcmp(lx->exp, ly->exp)) return 0;
+                if (lx->has_sig != ly->has_sig) return 0;
+                if (lx->has_sig) {
+                    if (!lx->sig || !ly->sig) return 0;
+                    if (strcmp(lx->sig, ly->sig)) return 0;
+                }
+            }
+            return 1;
+        }
+        default:
+            return 0;
     }
 }
 
@@ -130,8 +142,10 @@ static void check_frame_layout(const unsigned char *buf, size_t len,
         if (cbor_isa_string(pairs[i].key)) {
             size_t kl = cbor_string_length(pairs[i].key);
             const char *ks = (const char *)cbor_string_handle(pairs[i].key);
-            if (kl == 2 && memcmp(ks, "op", 2) == 0) op = pairs[i].value;
-            else if (kl == 1 && memcmp(ks, "t", 1) == 0) t = pairs[i].value;
+            if (kl == 2 && memcmp(ks, "op", 2) == 0)
+                op = pairs[i].value;
+            else if (kl == 1 && memcmp(ks, "t", 1) == 0)
+                t = pairs[i].value;
         }
     }
     WF_CHECK(op != NULL);
@@ -174,7 +188,6 @@ static void roundtrip(const wf_subscribe_event *ev, int expect_error) {
     wf_subscribe_event_free(&dec);
     free(buf);
 }
-
 
 /*
  * Every CID link on the wire must be tag 42 wrapping a byte string that starts
@@ -223,8 +236,10 @@ static void test_cid_links_carry_multibase_prefix(void) {
         links++;
         /* buf[i+2] is the bytestring header; the payload starts after it. */
         size_t payload = 0;
-        if (buf[i + 2] == 0x58) payload = i + 4;        /* 1-byte length */
-        else if ((buf[i + 2] & 0xE0) == 0x40) payload = i + 3;  /* inline len */
+        if (buf[i + 2] == 0x58)
+            payload = i + 4; /* 1-byte length */
+        else if ((buf[i + 2] & 0xE0) == 0x40)
+            payload = i + 3; /* inline len */
         if (payload && payload < len && buf[payload] == 0x00) prefixed++;
     }
     /* commit, prevData, ops[0].cid, ops[0].prev */
@@ -261,7 +276,10 @@ static void test_create_op_omits_prev(void) {
     static const unsigned char needle[] = {0x64, 'p', 'r', 'e', 'v'};
     int found = 0;
     for (size_t i = 0; i + sizeof(needle) <= len; i++)
-        if (memcmp(buf + i, needle, sizeof(needle)) == 0) { found = 1; break; }
+        if (memcmp(buf + i, needle, sizeof(needle)) == 0) {
+            found = 1;
+            break;
+        }
     WF_CHECK(!found);
     free(buf);
 }
@@ -274,7 +292,8 @@ static void test_commit(void) {
     snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:abc123");
     ev.data.commit.commit_cid = sample_cid(1);
     snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2a");
-    snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2fke3oy29");
+    snprintf(ev.data.commit.since, sizeof(ev.data.commit.since),
+             "3kf2fke3oy29");
     snprintf(ev.data.commit.time, sizeof(ev.data.commit.time),
              "2024-01-02T03:04:05.000Z");
     ev.data.commit.has_prev_data = 1;
@@ -297,7 +316,7 @@ static void test_commit(void) {
     ev.data.commit.ops[0].has_prev = 0;
     strcpy(ev.data.commit.ops[1].action, "delete");
     ev.data.commit.ops[1].path = strdup(paths[1]);
-    ev.data.commit.ops[1].has_cid = 0;  /* deletion: null cid */
+    ev.data.commit.ops[1].has_cid = 0; /* deletion: null cid */
     ev.data.commit.ops[1].has_prev = 1;
     ev.data.commit.ops[1].prev = sample_cid(20);
 
@@ -316,7 +335,8 @@ static void test_sync(void) {
     ev.data.sync.seq = 7;
     snprintf(ev.data.sync.did, sizeof(ev.data.sync.did), "did:plc:syncme");
     snprintf(ev.data.sync.rev, sizeof(ev.data.sync.rev), "3kf2fke3oy2b");
-    snprintf(ev.data.sync.time, sizeof(ev.data.sync.time), "2024-05-06T07:08:09.000Z");
+    snprintf(ev.data.sync.time, sizeof(ev.data.sync.time),
+             "2024-05-06T07:08:09.000Z");
     unsigned char blocks[4] = {0xde, 0xad, 0xbe, 0xef};
     ev.data.sync.blocks = malloc(sizeof(blocks));
     memcpy(ev.data.sync.blocks, blocks, sizeof(blocks));
@@ -331,7 +351,8 @@ static void test_identity(void) {
     ev.type = WF_SUBSCRIBE_EVENT_IDENTITY;
     ev.seq = 11;
     ev.data.identity.seq = 11;
-    snprintf(ev.data.identity.did, sizeof(ev.data.identity.did), "did:plc:idme");
+    snprintf(ev.data.identity.did, sizeof(ev.data.identity.did),
+             "did:plc:idme");
     snprintf(ev.data.identity.time, sizeof(ev.data.identity.time),
              "2024-07-08T09:10:11.000Z");
     ev.data.identity.has_handle = 1;
@@ -351,7 +372,8 @@ static void test_account(void) {
              "2024-09-10T11:12:13.000Z");
     ev.data.account.active = 0;
     ev.data.account.has_status = 1;
-    snprintf(ev.data.account.status, sizeof(ev.data.account.status), "takendown");
+    snprintf(ev.data.account.status, sizeof(ev.data.account.status),
+             "takendown");
 
     roundtrip(&ev, 0);
 }
@@ -389,7 +411,8 @@ static void test_error(void) {
     free(ev.data.error.message);
 
     /* Also exercise the dedicated error-builder entry point. */
-    buf = NULL; len = 0;
+    buf = NULL;
+    len = 0;
     s = wf_sync_publish_error(99, "ConsumerTooSlow", NULL, &buf, &len);
     WF_CHECK(s == WF_OK);
     check_frame_layout(buf, len, 1);
@@ -414,7 +437,8 @@ static void test_commit_no_prev_data(void) {
     snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:noPrev");
     ev.data.commit.commit_cid = sample_cid(2);
     snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2c");
-    snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2fke3oy2b");
+    snprintf(ev.data.commit.since, sizeof(ev.data.commit.since),
+             "3kf2fke3oy2b");
     snprintf(ev.data.commit.time, sizeof(ev.data.commit.time),
              "2024-01-02T03:04:06.000Z");
     ev.data.commit.has_prev_data = 0;
@@ -438,17 +462,21 @@ static void test_labels(void) {
 
     /* First label: fully populated (ver, cid, neg, exp, sig). */
     wf_label *a = &ev.data.labels.labels[0];
-    a->ver = 1; a->has_ver = 1;
+    a->ver = 1;
+    a->has_ver = 1;
     a->src = strdup("did:plc:labeler");
     a->uri = strdup("at://did:plc:alice/app.bsky.feed.post/abc");
-    a->cid = strdup("bafyreictrgtcg7wph56xjgu3ke7c2tjjgbj5dssviw6staozglsfg5nlu");
+    a->cid =
+        strdup("bafyreictrgtcg7wph56xjgu3ke7c2tjjgbj5dssviw6staozglsfg5nlu");
     a->has_cid = 1;
     a->val = strdup("!no-unauthenticated");
-    a->neg = 1; a->has_neg = 1;
+    a->neg = 1;
+    a->has_neg = 1;
     a->cts = strdup("2024-01-02T03:04:05.000Z");
     a->exp = strdup("2025-01-02T03:04:05.000Z");
     a->has_exp = 1;
-    unsigned char sig_bytes[8] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    unsigned char sig_bytes[8] = {0x01, 0x02, 0x03, 0x04,
+                                  0x05, 0x06, 0x07, 0x08};
     WF_CHECK(wf_crypto_base64url_encode(sig_bytes, sizeof(sig_bytes),
                                         &a->sig) == WF_OK);
     a->has_sig = 1;
@@ -462,9 +490,17 @@ static void test_labels(void) {
 
     roundtrip(&ev, 0);
 
-    free(a->src); free(a->uri); free(a->cid); free(a->val);
-    free(a->cts); free(a->exp); free(a->sig);
-    free(b->src); free(b->uri); free(b->val); free(b->cts);
+    free(a->src);
+    free(a->uri);
+    free(a->cid);
+    free(a->val);
+    free(a->cts);
+    free(a->exp);
+    free(a->sig);
+    free(b->src);
+    free(b->uri);
+    free(b->val);
+    free(b->cts);
     free(ev.data.labels.labels);
 }
 
@@ -502,8 +538,8 @@ static void test_map_keys_are_canonically_ordered(void) {
      * each in turn and requiring the offsets to increase is enough, and does
      * not need a CBOR parser in the test. */
     static const char *expected[] = {
-        "ops", "rev", "seq", "repo", "time", "blobs", "since",
-        "blocks", "commit", "rebase", "tooBig",
+        "ops",   "rev",    "seq",    "repo",   "time",   "blobs",
+        "since", "blocks", "commit", "rebase", "tooBig",
     };
     size_t previous = 0;
     int ordered = 1;
@@ -523,7 +559,10 @@ static void test_map_keys_are_canonically_ordered(void) {
             }
         }
         WF_CHECK(found);
-        if (!found) { ordered = 0; break; }
+        if (!found) {
+            ordered = 0;
+            break;
+        }
         if (at < previous) ordered = 0;
         previous = at;
     }
@@ -539,20 +578,29 @@ static void test_map_keys_are_canonically_ordered(void) {
  * decoder accepts any width — the frame decodes perfectly here and is dropped
  * by the consumer. So walk the encoded bytes and check every integer head.
  */
-static size_t check_minimal_ints(const unsigned char *b, size_t len,
-                                 size_t i, int *bad);
+static size_t check_minimal_ints(const unsigned char *b, size_t len, size_t i,
+                                 int *bad);
 
 static size_t read_head(const unsigned char *b, size_t i, uint8_t *maj,
                         uint8_t *minor, uint64_t *val) {
     *maj = b[i] >> 5;
     *minor = b[i] & 0x1F;
     i++;
-    if (*minor < 24) { *val = *minor; return i; }
-    if (*minor == 24) { *val = b[i]; return i + 1; }
-    if (*minor == 25) { *val = ((uint64_t)b[i] << 8) | b[i+1]; return i + 2; }
+    if (*minor < 24) {
+        *val = *minor;
+        return i;
+    }
+    if (*minor == 24) {
+        *val = b[i];
+        return i + 1;
+    }
+    if (*minor == 25) {
+        *val = ((uint64_t)b[i] << 8) | b[i + 1];
+        return i + 2;
+    }
     if (*minor == 26) {
-        *val = ((uint64_t)b[i] << 24) | ((uint64_t)b[i+1] << 16) |
-               ((uint64_t)b[i+2] << 8) | b[i+3];
+        *val = ((uint64_t)b[i] << 24) | ((uint64_t)b[i + 1] << 16) |
+               ((uint64_t)b[i + 2] << 8) | b[i + 3];
         return i + 4;
     }
     *val = 0;
@@ -568,31 +616,33 @@ static uint8_t canonical_minor(uint64_t v) {
     return 27;
 }
 
-static size_t check_minimal_ints(const unsigned char *b, size_t len,
-                                 size_t i, int *bad) {
+static size_t check_minimal_ints(const unsigned char *b, size_t len, size_t i,
+                                 int *bad) {
     uint8_t maj, minor;
     uint64_t val;
     if (i >= len) return i;
     i = read_head(b, i, &maj, &minor, &val);
     if ((maj == 0 || maj == 1) && minor != canonical_minor(val)) (*bad)++;
     switch (maj) {
-    case 2: case 3:
-        i += (size_t)val;
-        break;
-    case 4:
-        for (uint64_t k = 0; k < val; k++) i = check_minimal_ints(b, len, i, bad);
-        break;
-    case 5:
-        for (uint64_t k = 0; k < val; k++) {
+        case 2:
+        case 3:
+            i += (size_t)val;
+            break;
+        case 4:
+            for (uint64_t k = 0; k < val; k++)
+                i = check_minimal_ints(b, len, i, bad);
+            break;
+        case 5:
+            for (uint64_t k = 0; k < val; k++) {
+                i = check_minimal_ints(b, len, i, bad);
+                i = check_minimal_ints(b, len, i, bad);
+            }
+            break;
+        case 6:
             i = check_minimal_ints(b, len, i, bad);
-            i = check_minimal_ints(b, len, i, bad);
-        }
-        break;
-    case 6:
-        i = check_minimal_ints(b, len, i, bad);
-        break;
-    default:
-        break;
+            break;
+        default:
+            break;
     }
     return i;
 }
@@ -620,8 +670,8 @@ static void test_integers_are_minimally_encoded(void) {
     if (!frame) return;
 
     int bad = 0;
-    size_t i = check_minimal_ints(frame, len, 0, &bad);   /* header */
-    check_minimal_ints(frame, len, i, &bad);              /* body */
+    size_t i = check_minimal_ints(frame, len, 0, &bad); /* header */
+    check_minimal_ints(frame, len, i, &bad);            /* body */
     WF_CHECK(bad == 0);
     free(frame);
 }
@@ -642,200 +692,252 @@ static void test_integers_are_minimally_encoded(void) {
  * links as tag 42 wrapping a byte string that begins 0x00; no floats.
  */
 typedef struct {
-	int nonminimal;
-	int indefinite;
-	int unsorted_keys;
-	int bad_cid_link;
-	int floats;
+    int nonminimal;
+    int indefinite;
+    int unsorted_keys;
+    int bad_cid_link;
+    int floats;
 } canon_report;
 
 static size_t canon_walk(const unsigned char *b, size_t len, size_t i,
-                          canon_report *r);
+                         canon_report *r);
 
 static size_t canon_head(const unsigned char *b, size_t i, uint8_t *maj,
-                          uint8_t *minor, uint64_t *val, canon_report *r) {
-	*maj = b[i] >> 5;
-	*minor = b[i] & 0x1F;
-	i++;
-	if (*minor < 24) { *val = *minor; return i; }
-	if (*minor == 24) { *val = b[i]; i += 1; }
-	else if (*minor == 25) { *val = ((uint64_t)b[i] << 8) | b[i + 1]; i += 2; }
-	else if (*minor == 26) {
-		*val = ((uint64_t)b[i] << 24) | ((uint64_t)b[i + 1] << 16) |
-		       ((uint64_t)b[i + 2] << 8) | b[i + 3];
-		i += 4;
-	} else if (*minor == 27) {
-		*val = 0;
-		for (int k = 0; k < 8; k++) *val = (*val << 8) | b[i + k];
-		i += 8;
-	} else {
-		/* 31 is indefinite length, which DAG-CBOR forbids outright. */
-		r->indefinite++;
-		*val = 0;
-	}
-	/* Every head must use the shortest form that holds its argument. */
-	uint8_t want = *val < 24      ? (uint8_t)*val
-	             : *val <= 0xFF   ? 24
-	             : *val <= 0xFFFF ? 25
-	             : *val <= 0xFFFFFFFFu ? 26 : 27;
-	if (*minor <= 27 && *minor != want) r->nonminimal++;
-	return i;
+                         uint8_t *minor, uint64_t *val, canon_report *r) {
+    *maj = b[i] >> 5;
+    *minor = b[i] & 0x1F;
+    i++;
+    if (*minor < 24) {
+        *val = *minor;
+        return i;
+    }
+    if (*minor == 24) {
+        *val = b[i];
+        i += 1;
+    } else if (*minor == 25) {
+        *val = ((uint64_t)b[i] << 8) | b[i + 1];
+        i += 2;
+    } else if (*minor == 26) {
+        *val = ((uint64_t)b[i] << 24) | ((uint64_t)b[i + 1] << 16) |
+               ((uint64_t)b[i + 2] << 8) | b[i + 3];
+        i += 4;
+    } else if (*minor == 27) {
+        *val = 0;
+        for (int k = 0; k < 8; k++) *val = (*val << 8) | b[i + k];
+        i += 8;
+    } else {
+        /* 31 is indefinite length, which DAG-CBOR forbids outright. */
+        r->indefinite++;
+        *val = 0;
+    }
+    /* Every head must use the shortest form that holds its argument. */
+    uint8_t want = *val < 24             ? (uint8_t)*val
+                   : *val <= 0xFF        ? 24
+                   : *val <= 0xFFFF      ? 25
+                   : *val <= 0xFFFFFFFFu ? 26
+                                         : 27;
+    if (*minor <= 27 && *minor != want) r->nonminimal++;
+    return i;
 }
 
 static size_t canon_walk(const unsigned char *b, size_t len, size_t i,
-                          canon_report *r) {
-	uint8_t maj, minor;
-	uint64_t val;
-	if (i >= len) return i;
-	i = canon_head(b, i, &maj, &minor, &val, r);
-	switch (maj) {
-	case 2: case 3:
-		i += (size_t)val;
-		break;
-	case 4:
-		for (uint64_t k = 0; k < val; k++) i = canon_walk(b, len, i, r);
-		break;
-	case 5: {
-		/* Keys must be sorted shorter-first, then bytewise. */
-		size_t prev_at = 0, prev_len = 0;
-		for (uint64_t k = 0; k < val; k++) {
-			uint8_t kmaj, kminor;
-			uint64_t klen;
-			size_t head = i;
-			i = canon_head(b, i, &kmaj, &kminor, &klen, r);
-			size_t at = i;
-			if (kmaj == 3) {
-				if (k > 0) {
-					bool ordered =
-					    (prev_len < klen) ||
-					    (prev_len == klen &&
-					     memcmp(b + prev_at, b + at, (size_t)klen) < 0);
-					if (!ordered) r->unsorted_keys++;
-				}
-				prev_at = at;
-				prev_len = (size_t)klen;
-				i += (size_t)klen;
-			} else {
-				i = head;
-				i = canon_walk(b, len, i, r);
-			}
-			i = canon_walk(b, len, i, r);   /* value */
-		}
-		break;
-	}
-	case 6:
-		if (val == 42) {
-			/* A CID link wraps a byte string whose first byte is 0x00. */
-			uint8_t tmaj, tminor;
-			uint64_t tlen;
-			size_t at = canon_head(b, i, &tmaj, &tminor, &tlen, r);
-			if (tmaj != 2 || tlen == 0 || b[at] != 0x00) r->bad_cid_link++;
-			i = at + (size_t)tlen;
-		} else {
-			i = canon_walk(b, len, i, r);
-		}
-		break;
-	case 7:
-		/* 25/26/27 in major 7 are half/single/double floats. */
-		if (minor == 25) { r->floats++; i += 2; }
-		else if (minor == 26) { r->floats++; i += 4; }
-		else if (minor == 27) { r->floats++; i += 8; }
-		break;
-	default:
-		break;
-	}
-	return i;
+                         canon_report *r) {
+    uint8_t maj, minor;
+    uint64_t val;
+    if (i >= len) return i;
+    i = canon_head(b, i, &maj, &minor, &val, r);
+    switch (maj) {
+        case 2:
+        case 3:
+            i += (size_t)val;
+            break;
+        case 4:
+            for (uint64_t k = 0; k < val; k++) i = canon_walk(b, len, i, r);
+            break;
+        case 5: {
+            /* Keys must be sorted shorter-first, then bytewise. */
+            size_t prev_at = 0, prev_len = 0;
+            for (uint64_t k = 0; k < val; k++) {
+                uint8_t kmaj, kminor;
+                uint64_t klen;
+                size_t head = i;
+                i = canon_head(b, i, &kmaj, &kminor, &klen, r);
+                size_t at = i;
+                if (kmaj == 3) {
+                    if (k > 0) {
+                        bool ordered =
+                            (prev_len < klen) ||
+                            (prev_len == klen &&
+                             memcmp(b + prev_at, b + at, (size_t)klen) < 0);
+                        if (!ordered) r->unsorted_keys++;
+                    }
+                    prev_at = at;
+                    prev_len = (size_t)klen;
+                    i += (size_t)klen;
+                } else {
+                    i = head;
+                    i = canon_walk(b, len, i, r);
+                }
+                i = canon_walk(b, len, i, r); /* value */
+            }
+            break;
+        }
+        case 6:
+            if (val == 42) {
+                /* A CID link wraps a byte string whose first byte is 0x00. */
+                uint8_t tmaj, tminor;
+                uint64_t tlen;
+                size_t at = canon_head(b, i, &tmaj, &tminor, &tlen, r);
+                if (tmaj != 2 || tlen == 0 || b[at] != 0x00) r->bad_cid_link++;
+                i = at + (size_t)tlen;
+            } else {
+                i = canon_walk(b, len, i, r);
+            }
+            break;
+        case 7:
+            /* 25/26/27 in major 7 are half/single/double floats. */
+            if (minor == 25) {
+                r->floats++;
+                i += 2;
+            } else if (minor == 26) {
+                r->floats++;
+                i += 4;
+            } else if (minor == 27) {
+                r->floats++;
+                i += 8;
+            }
+            break;
+        default:
+            break;
+    }
+    return i;
 }
 
-static void canon_check(const unsigned char *frame, size_t len, const char *what) {
-	canon_report r = {0};
-	size_t i = canon_walk(frame, len, 0, &r);   /* header */
-	canon_walk(frame, len, i, &r);              /* body */
-	if (r.nonminimal) fprintf(stderr, "  %s: %d non-minimal heads\n", what, r.nonminimal);
-	if (r.indefinite) fprintf(stderr, "  %s: %d indefinite lengths\n", what, r.indefinite);
-	if (r.unsorted_keys) fprintf(stderr, "  %s: %d unsorted map keys\n", what, r.unsorted_keys);
-	if (r.bad_cid_link) fprintf(stderr, "  %s: %d malformed CID links\n", what, r.bad_cid_link);
-	if (r.floats) fprintf(stderr, "  %s: %d floats\n", what, r.floats);
-	WF_CHECK(r.nonminimal == 0 && r.indefinite == 0 && r.unsorted_keys == 0 &&
-	         r.bad_cid_link == 0 && r.floats == 0);
+static void canon_check(const unsigned char *frame, size_t len,
+                        const char *what) {
+    canon_report r = {0};
+    size_t i = canon_walk(frame, len, 0, &r); /* header */
+    canon_walk(frame, len, i, &r);            /* body */
+    if (r.nonminimal)
+        fprintf(stderr, "  %s: %d non-minimal heads\n", what, r.nonminimal);
+    if (r.indefinite)
+        fprintf(stderr, "  %s: %d indefinite lengths\n", what, r.indefinite);
+    if (r.unsorted_keys)
+        fprintf(stderr, "  %s: %d unsorted map keys\n", what, r.unsorted_keys);
+    if (r.bad_cid_link)
+        fprintf(stderr, "  %s: %d malformed CID links\n", what, r.bad_cid_link);
+    if (r.floats) fprintf(stderr, "  %s: %d floats\n", what, r.floats);
+    WF_CHECK(r.nonminimal == 0 && r.indefinite == 0 && r.unsorted_keys == 0 &&
+             r.bad_cid_link == 0 && r.floats == 0);
 }
 
 /* Build one of every event kind and hold them all to the same standard. */
 static void test_every_event_is_canonical(void) {
-	unsigned char *frame = NULL;
-	size_t len = 0;
-	const char *now = "2024-01-02T03:04:05.000Z";
+    unsigned char *frame = NULL;
+    size_t len = 0;
+    const char *now = "2024-01-02T03:04:05.000Z";
 
-	{	wf_subscribe_event ev = {0};
-		ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
-		ev.seq = 1785119372; ev.data.commit.seq = ev.seq;
-		snprintf(ev.data.commit.did, sizeof(ev.data.commit.did), "did:plc:canon");
-		ev.data.commit.commit_cid = sample_cid(1);
-		ev.data.commit.has_prev_data = 1;
-		ev.data.commit.prev_data = sample_cid(2);
-		snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev), "3kf2fke3oy2c");
-		snprintf(ev.data.commit.since, sizeof(ev.data.commit.since), "3kf2fke3oy2b");
-		snprintf(ev.data.commit.time, sizeof(ev.data.commit.time), "%s", now);
-		unsigned char blocks[3] = {1, 2, 3};
-		ev.data.commit.blocks = malloc(sizeof(blocks));
-		memcpy(ev.data.commit.blocks, blocks, sizeof(blocks));
-		ev.data.commit.blocks_len = sizeof(blocks);
-		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
-			canon_check(frame, len, "#commit"); free(frame); frame = NULL;
-		}
-		free(ev.data.commit.blocks);
-	}
-	{	wf_subscribe_event ev = {0};
-		ev.type = WF_SUBSCRIBE_EVENT_SYNC;
-		ev.seq = 300; ev.data.sync.seq = ev.seq;
-		snprintf(ev.data.sync.did, sizeof(ev.data.sync.did), "did:plc:canon");
-		snprintf(ev.data.sync.rev, sizeof(ev.data.sync.rev), "3kf2fke3oy2c");
-		snprintf(ev.data.sync.time, sizeof(ev.data.sync.time), "%s", now);
-		unsigned char blocks[2] = {9, 9};
-		ev.data.sync.blocks = malloc(sizeof(blocks));
-		memcpy(ev.data.sync.blocks, blocks, sizeof(blocks));
-		ev.data.sync.blocks_len = sizeof(blocks);
-		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
-			canon_check(frame, len, "#sync"); free(frame); frame = NULL;
-		}
-		free(ev.data.sync.blocks);
-	}
-	{	wf_subscribe_event ev = {0};
-		ev.type = WF_SUBSCRIBE_EVENT_IDENTITY;
-		ev.seq = 70000; ev.data.identity.seq = ev.seq;
-		snprintf(ev.data.identity.did, sizeof(ev.data.identity.did), "did:plc:canon");
-		snprintf(ev.data.identity.handle, sizeof(ev.data.identity.handle), "a.example.com");
-		ev.data.identity.has_handle = 1;
-		snprintf(ev.data.identity.time, sizeof(ev.data.identity.time), "%s", now);
-		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
-			canon_check(frame, len, "#identity"); free(frame); frame = NULL;
-		}
-	}
-	{	wf_subscribe_event ev = {0};
-		ev.type = WF_SUBSCRIBE_EVENT_ACCOUNT;
-		ev.seq = 23; ev.data.account.seq = ev.seq;
-		snprintf(ev.data.account.did, sizeof(ev.data.account.did), "did:plc:canon");
-		ev.data.account.active = 0;
-		snprintf(ev.data.account.status, sizeof(ev.data.account.status), "deactivated");
-		ev.data.account.has_status = 1;
-		snprintf(ev.data.account.time, sizeof(ev.data.account.time), "%s", now);
-		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
-			canon_check(frame, len, "#account"); free(frame); frame = NULL;
-		}
-	}
-	{	wf_subscribe_event ev = {0};
-		ev.type = WF_SUBSCRIBE_EVENT_INFO;
-		snprintf(ev.data.info.name, sizeof(ev.data.info.name), "OutdatedCursor");
-		snprintf(ev.data.info.message, sizeof(ev.data.info.message), "Requested cursor exceeded limit");
-		ev.data.info.has_message = 1;
-		if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
-			canon_check(frame, len, "#info"); free(frame); frame = NULL;
-		}
-	}
-	if (wf_sync_publish_error(1234567, "FutureCursor", "Cursor in the future.",
-	                          &frame, &len) == WF_OK) {
-		canon_check(frame, len, "error frame"); free(frame); frame = NULL;
-	}
+    {
+        wf_subscribe_event ev = {0};
+        ev.type = WF_SUBSCRIBE_EVENT_COMMIT;
+        ev.seq = 1785119372;
+        ev.data.commit.seq = ev.seq;
+        snprintf(ev.data.commit.did, sizeof(ev.data.commit.did),
+                 "did:plc:canon");
+        ev.data.commit.commit_cid = sample_cid(1);
+        ev.data.commit.has_prev_data = 1;
+        ev.data.commit.prev_data = sample_cid(2);
+        snprintf(ev.data.commit.rev, sizeof(ev.data.commit.rev),
+                 "3kf2fke3oy2c");
+        snprintf(ev.data.commit.since, sizeof(ev.data.commit.since),
+                 "3kf2fke3oy2b");
+        snprintf(ev.data.commit.time, sizeof(ev.data.commit.time), "%s", now);
+        unsigned char blocks[3] = {1, 2, 3};
+        ev.data.commit.blocks = malloc(sizeof(blocks));
+        memcpy(ev.data.commit.blocks, blocks, sizeof(blocks));
+        ev.data.commit.blocks_len = sizeof(blocks);
+        if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+            canon_check(frame, len, "#commit");
+            free(frame);
+            frame = NULL;
+        }
+        free(ev.data.commit.blocks);
+    }
+    {
+        wf_subscribe_event ev = {0};
+        ev.type = WF_SUBSCRIBE_EVENT_SYNC;
+        ev.seq = 300;
+        ev.data.sync.seq = ev.seq;
+        snprintf(ev.data.sync.did, sizeof(ev.data.sync.did), "did:plc:canon");
+        snprintf(ev.data.sync.rev, sizeof(ev.data.sync.rev), "3kf2fke3oy2c");
+        snprintf(ev.data.sync.time, sizeof(ev.data.sync.time), "%s", now);
+        unsigned char blocks[2] = {9, 9};
+        ev.data.sync.blocks = malloc(sizeof(blocks));
+        memcpy(ev.data.sync.blocks, blocks, sizeof(blocks));
+        ev.data.sync.blocks_len = sizeof(blocks);
+        if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+            canon_check(frame, len, "#sync");
+            free(frame);
+            frame = NULL;
+        }
+        free(ev.data.sync.blocks);
+    }
+    {
+        wf_subscribe_event ev = {0};
+        ev.type = WF_SUBSCRIBE_EVENT_IDENTITY;
+        ev.seq = 70000;
+        ev.data.identity.seq = ev.seq;
+        snprintf(ev.data.identity.did, sizeof(ev.data.identity.did),
+                 "did:plc:canon");
+        snprintf(ev.data.identity.handle, sizeof(ev.data.identity.handle),
+                 "a.example.com");
+        ev.data.identity.has_handle = 1;
+        snprintf(ev.data.identity.time, sizeof(ev.data.identity.time), "%s",
+                 now);
+        if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+            canon_check(frame, len, "#identity");
+            free(frame);
+            frame = NULL;
+        }
+    }
+    {
+        wf_subscribe_event ev = {0};
+        ev.type = WF_SUBSCRIBE_EVENT_ACCOUNT;
+        ev.seq = 23;
+        ev.data.account.seq = ev.seq;
+        snprintf(ev.data.account.did, sizeof(ev.data.account.did),
+                 "did:plc:canon");
+        ev.data.account.active = 0;
+        snprintf(ev.data.account.status, sizeof(ev.data.account.status),
+                 "deactivated");
+        ev.data.account.has_status = 1;
+        snprintf(ev.data.account.time, sizeof(ev.data.account.time), "%s", now);
+        if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+            canon_check(frame, len, "#account");
+            free(frame);
+            frame = NULL;
+        }
+    }
+    {
+        wf_subscribe_event ev = {0};
+        ev.type = WF_SUBSCRIBE_EVENT_INFO;
+        snprintf(ev.data.info.name, sizeof(ev.data.info.name),
+                 "OutdatedCursor");
+        snprintf(ev.data.info.message, sizeof(ev.data.info.message),
+                 "Requested cursor exceeded limit");
+        ev.data.info.has_message = 1;
+        if (wf_sync_publish_event(&ev, &frame, &len) == WF_OK) {
+            canon_check(frame, len, "#info");
+            free(frame);
+            frame = NULL;
+        }
+    }
+    if (wf_sync_publish_error(1234567, "FutureCursor", "Cursor in the future.",
+                              &frame, &len) == WF_OK) {
+        canon_check(frame, len, "error frame");
+        free(frame);
+        frame = NULL;
+    }
 }
 
 int main(void) {

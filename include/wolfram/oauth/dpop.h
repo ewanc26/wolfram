@@ -29,16 +29,15 @@ wf_status wf_oauth_dpop_key_thumbprint(const wf_oauth_dpop_key *key,
  * heap-owned and freed with wf_oauth_string_free. Useful for publishing the
  * key in a client metadata document's `jwks` array.
  */
-wf_status wf_oauth_dpop_jwk_json(const wf_oauth_dpop_key *key,
-                                 char **out_jwk);
+wf_status wf_oauth_dpop_jwk_json(const wf_oauth_dpop_key *key, char **out_jwk);
 
 typedef struct wf_oauth_dpop_proof_options {
     const char *http_method;
     const char *http_uri;
     const char *nonce;        /* optional server-provided DPoP nonce */
     const char *access_token; /* optional; produces the `ath` claim */
-    const char *jti;          /* optional test/persistence hook; random if NULL */
-    int64_t issued_at;        /* seconds since epoch; current time if <= 0 */
+    const char *jti;   /* optional test/persistence hook; random if NULL */
+    int64_t issued_at; /* seconds since epoch; current time if <= 0 */
 } wf_oauth_dpop_proof_options;
 
 /**
@@ -49,7 +48,7 @@ wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
                                      const wf_oauth_dpop_proof_options *options,
                                      char **jwt_out);
 
-#define WF_OAUTH_CLIENT_ASSERTION_TYPE \
+#define WF_OAUTH_CLIENT_ASSERTION_TYPE                                         \
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
 
 typedef struct wf_oauth_client_assertion_options {
@@ -63,8 +62,7 @@ typedef struct wf_oauth_client_assertion_options {
 /** Create an RFC 7523 ES256 private_key_jwt client assertion. */
 wf_status wf_oauth_client_assertion_create(
     const wf_oauth_dpop_key *signing_key,
-    const wf_oauth_client_assertion_options *options,
-    char **jwt_out);
+    const wf_oauth_client_assertion_options *options, char **jwt_out);
 
 #ifdef __cplusplus
 }

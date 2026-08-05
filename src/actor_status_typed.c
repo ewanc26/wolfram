@@ -7,9 +7,9 @@
  * Mirrors labeler_typed.c / actor_typed.c: static strdup/set_string/reset
  * helpers, owned strings, detached `extra` cJSON subtrees where shapes are
  * open/unbounded, and full cleanup on the first error. The agent wrappers call
- * the generated lex wrappers directly after syncing auth via wf_agent_sync_auth;
- * because those helpers are absent for this namespace they are honest stubs
- * (see the notes in the header).
+ * the generated lex wrappers directly after syncing auth via
+ * wf_agent_sync_auth; because those helpers are absent for this namespace they
+ * are honest stubs (see the notes in the header).
  */
 
 #include "wolfram/actor_status_typed.h"
@@ -168,8 +168,8 @@ wf_status wf_actor_status_parse_record(const char *json, size_t json_len,
         status = wf_actor_status_take_string(root, "status", &out->status);
     }
     if (status == WF_OK) {
-        status = wf_actor_status_take_string(root, "createdAt",
-                                              &out->created_at);
+        status =
+            wf_actor_status_take_string(root, "createdAt", &out->created_at);
     }
     if (status == WF_OK) {
         wf_actor_status_take_int(root, "durationMinutes",
@@ -224,8 +224,8 @@ wf_status wf_actor_status_parse_view(const char *json, size_t json_len,
         status = wf_actor_status_take_string(root, "status", &out->status);
     }
     if (status == WF_OK) {
-        status = wf_actor_status_take_string(root, "createdAt",
-                                              &out->created_at);
+        status =
+            wf_actor_status_take_string(root, "createdAt", &out->created_at);
     }
     if (status == WF_OK) {
         wf_actor_status_take_int(root, "durationMinutes",
@@ -234,8 +234,8 @@ wf_status wf_actor_status_parse_view(const char *json, size_t json_len,
         cJSON_DetachItemFromObject(root, "durationMinutes");
     }
     if (status == WF_OK) {
-        status = wf_actor_status_take_string(root, "expiresAt",
-                                              &out->expires_at);
+        status =
+            wf_actor_status_take_string(root, "expiresAt", &out->expires_at);
     }
     if (status == WF_OK) {
         wf_actor_status_take_bool(root, "isActive", &out->has_is_active,
@@ -251,7 +251,7 @@ wf_status wf_actor_status_parse_view(const char *json, size_t json_len,
     }
     if (status == WF_OK) {
         status = wf_actor_status_take_string(root, "lastUpdated",
-                                              &out->last_updated);
+                                             &out->last_updated);
     }
     if (status == WF_OK) {
         cJSON *embed = wf_actor_status_take_object(root, "embed");

@@ -116,7 +116,8 @@ static char *oauth_access_jwk(const wf_signing_key *key) {
 
     if (wf_signing_key_public_didkey(key, &didkey) != WF_OK ||
         wf_didkey_decode(didkey, &type, &raw, &raw_len) != WF_OK ||
-        type != WF_KEY_TYPE_P256 || raw_len != 33) goto done;
+        type != WF_KEY_TYPE_P256 || raw_len != 33)
+        goto done;
     group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     point = group ? EC_POINT_new(group) : NULL;
     bx = BN_new();
@@ -127,16 +128,24 @@ static char *oauth_access_jwk(const wf_signing_key *key) {
         BN_bn2binpad(bx, x, sizeof(x)) != (int)sizeof(x) ||
         BN_bn2binpad(by, y, sizeof(y)) != (int)sizeof(y) ||
         wf_crypto_base64url_encode(x, sizeof(x), &x_b64) != WF_OK ||
-        wf_crypto_base64url_encode(y, sizeof(y), &y_b64) != WF_OK) goto done;
+        wf_crypto_base64url_encode(y, sizeof(y), &y_b64) != WF_OK)
+        goto done;
     size_t n = strlen(x_b64) + strlen(y_b64) + 64;
     json = malloc(n);
-    if (json) snprintf(json, n,
-        "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"%s\",\"y\":\"%s\"}",
-        x_b64, y_b64);
+    if (json)
+        snprintf(json, n,
+                 "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"%s\",\"y\":\"%s\"}",
+                 x_b64, y_b64);
 
 done:
-    free(didkey); free(raw); free(x_b64); free(y_b64);
-    BN_free(bx); BN_free(by); EC_POINT_free(point); EC_GROUP_free(group);
+    free(didkey);
+    free(raw);
+    free(x_b64);
+    free(y_b64);
+    BN_free(bx);
+    BN_free(by);
+    EC_POINT_free(point);
+    EC_GROUP_free(group);
     return json;
 }
 
@@ -161,8 +170,10 @@ static char *oauth_access_token(const wf_signing_key *key, const char *sub,
     hj = cJSON_PrintUnformatted(header);
     pj = cJSON_PrintUnformatted(payload);
     if (!hj || !pj ||
-        wf_crypto_base64url_encode((unsigned char *)hj, strlen(hj), &hb) != WF_OK ||
-        wf_crypto_base64url_encode((unsigned char *)pj, strlen(pj), &pb) != WF_OK)
+        wf_crypto_base64url_encode((unsigned char *)hj, strlen(hj), &hb) !=
+            WF_OK ||
+        wf_crypto_base64url_encode((unsigned char *)pj, strlen(pj), &pb) !=
+            WF_OK)
         goto done;
     size_t input_len = strlen(hb) + strlen(pb) + 2;
     input = malloc(input_len);
@@ -170,14 +181,22 @@ static char *oauth_access_token(const wf_signing_key *key, const char *sub,
     snprintf(input, input_len, "%s.%s", hb, pb);
     if (wf_sign(key, (unsigned char *)input, strlen(input), sig, sizeof(sig)) !=
             WF_OK ||
-        wf_crypto_base64url_encode(sig, sizeof(sig), &sb) != WF_OK) goto done;
+        wf_crypto_base64url_encode(sig, sizeof(sig), &sb) != WF_OK)
+        goto done;
     size_t jwt_len = strlen(input) + strlen(sb) + 2;
     jwt = malloc(jwt_len);
     if (jwt) snprintf(jwt, jwt_len, "%s.%s", input, sb);
 
 done:
-    cJSON_Delete(header); cJSON_Delete(payload); cJSON_Delete(cnf);
-    free(hj); free(pj); free(hb); free(pb); free(input); free(sb);
+    cJSON_Delete(header);
+    cJSON_Delete(payload);
+    cJSON_Delete(cnf);
+    free(hj);
+    free(pj);
+    free(hb);
+    free(pb);
+    free(input);
+    free(sb);
     return jwt;
 }
 
@@ -322,8 +341,8 @@ static int run_test(void) {
 
     WF_CHECK(wf_xrpc_server_register_query(server, protected_nsid,
                                            protected_handler, NULL) == WF_OK);
-    WF_CHECK(wf_xrpc_server_register_query(server, public_nsid,
-                                           public_handler, NULL) == WF_OK);
+    WF_CHECK(wf_xrpc_server_register_query(server, public_nsid, public_handler,
+                                           NULL) == WF_OK);
 
     /* ---- Build a DPoP-bound OAuth access token + proof ---- */
     wf_signing_key oauth_key = {0};
@@ -343,14 +362,13 @@ static int run_test(void) {
     snprintf(protected_url, sizeof(protected_url), "%s/xrpc/%s", base_url,
              protected_nsid);
     wf_oauth_dpop_proof_options proof_opts = {
-        "GET", protected_url, NULL, oauth_token, "middleware-proof-1", 0
-    };
+        "GET", protected_url, NULL, oauth_token, "middleware-proof-1", 0};
     WF_CHECK(wf_oauth_dpop_proof_create(dpop_key, &proof_opts, &oauth_proof) ==
              WF_OK);
     oauth_auth = malloc(strlen(oauth_token) + 6);
     WF_CHECK(oauth_auth != NULL);
-    if (oauth_auth) snprintf(oauth_auth, strlen(oauth_token) + 6, "DPoP %s",
-                             oauth_token);
+    if (oauth_auth)
+        snprintf(oauth_auth, strlen(oauth_token) + 6, "DPoP %s", oauth_token);
 
     /* ---- Configure + attach the middleware ---- */
     wf_xrpc_server_auth_config *cfg = NULL;
@@ -407,9 +425,8 @@ static int run_test(void) {
             req.iss = issuer_didkey;
             req.aud = fragment_aud;
             req.lxm = protected_nsid;
-            WF_CHECK(wf_server_create_service_auth(&req, &key,
-                                                   &fragment_aud_token) ==
-                     WF_OK);
+            WF_CHECK(wf_server_create_service_auth(
+                         &req, &key, &fragment_aud_token) == WF_OK);
         }
         free(fragment_aud);
     }
@@ -448,9 +465,10 @@ static int run_test(void) {
         }
     }
 
-    #define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
+#define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
 
-    /* ---- 1. Protected route WITH a valid token → 200, subject propagated ---- */
+    /* ---- 1. Protected route WITH a valid token → 200, subject propagated ----
+     */
     {
         SET_AUTH(good_token);
         wf_response_free(&res);
@@ -547,17 +565,18 @@ static int run_test(void) {
 
     /* ---- 9. DPoP-bound OAuth token → user principal; replay → 401 ---- */
     {
-        wf_http_header headers[] = {
-            {"Authorization", oauth_auth}, {"DPoP", oauth_proof}
-        };
+        wf_http_header headers[] = {{"Authorization", oauth_auth},
+                                    {"DPoP", oauth_proof}};
         wf_response_free(&res);
-        wf_status s = wf_http_get_with_headers(client, protected_url, headers,
-                                               2, &res);
+        wf_status s =
+            wf_http_get_with_headers(client, protected_url, headers, 2, &res);
         WF_CHECK(s == WF_OK);
         WF_CHECK(res.status == 200);
         cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-        cJSON *sub = root ? cJSON_GetObjectItemCaseSensitive(root, "subject") : NULL;
-        cJSON *kind = root ? cJSON_GetObjectItemCaseSensitive(root, "kind") : NULL;
+        cJSON *sub =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "subject") : NULL;
+        cJSON *kind =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "kind") : NULL;
         WF_CHECK(sub && cJSON_IsString(sub) &&
                  strcmp(sub->valuestring, "did:plc:oauth-user") == 0);
         WF_CHECK(kind && cJSON_IsNumber(kind) &&
@@ -570,7 +589,7 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
-    #undef SET_AUTH
+#undef SET_AUTH
 
 cleanup_server:
     wf_xrpc_client_free(client);
@@ -620,7 +639,8 @@ static int run_labeler_test(void) {
     WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &atproto_key) == WF_OK);
     WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &label_key) == WF_OK);
     WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &server_key) == WF_OK);
-    WF_CHECK(wf_signing_key_public_didkey(&atproto_key, &atproto_didkey) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&atproto_key, &atproto_didkey) ==
+             WF_OK);
     WF_CHECK(wf_signing_key_public_didkey(&label_key, &label_didkey) == WF_OK);
     WF_CHECK(wf_signing_key_public_didkey(&server_key, &server_did) == WF_OK);
 
@@ -632,14 +652,19 @@ static int run_labeler_test(void) {
         labeler_doc = malloc(len);
         WF_CHECK(labeler_doc != NULL);
         if (labeler_doc) {
-            snprintf(labeler_doc, len,
-                     "{\"@context\":\"https://www.w3.org/ns/did/v1\","
-                     "\"id\":\"did:plc:labeler\",\"verificationMethod\":["
-                     "{\"id\":\"did:plc:labeler#atproto\",\"type\":\"Multikey\","
-                     "\"controller\":\"did:plc:labeler\",\"publicKeyMultibase\":\"%s\"},"
-                     "{\"id\":\"did:plc:labeler#atproto_label\",\"type\":\"Multikey\","
-                     "\"controller\":\"did:plc:labeler\",\"publicKeyMultibase\":\"%s\"}"
-                     "]}", atproto_mb, label_mb);
+            snprintf(
+                labeler_doc, len,
+                "{\"@context\":\"https://www.w3.org/ns/did/v1\","
+                "\"id\":\"did:plc:labeler\",\"verificationMethod\":["
+                "{\"id\":\"did:plc:labeler#atproto\",\"type\":\"Multikey\","
+                "\"controller\":\"did:plc:labeler\",\"publicKeyMultibase\":\"%"
+                "s\"},"
+                "{\"id\":\"did:plc:labeler#atproto_label\",\"type\":"
+                "\"Multikey\","
+                "\"controller\":\"did:plc:labeler\",\"publicKeyMultibase\":\"%"
+                "s\"}"
+                "]}",
+                atproto_mb, label_mb);
         }
     }
     g_labeler_doc = labeler_doc;
@@ -666,12 +691,13 @@ static int run_labeler_test(void) {
 
     wf_xrpc_server_auth_config *cfg = NULL;
     WF_CHECK(wf_xrpc_server_auth_config_new(&cfg) == WF_OK);
-    WF_CHECK(wf_xrpc_server_auth_config_set_server_did(cfg, server_did) == WF_OK);
-    WF_CHECK(wf_xrpc_server_auth_config_set_server_origin(cfg, base_url) == WF_OK);
-    WF_CHECK(wf_xrpc_server_auth_config_protect(cfg, protected_nsid) == WF_OK);
-    WF_CHECK(wf_xrpc_server_auth_config_set_resolver_client(cfg,
-                                                            resolver_client) ==
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_did(cfg, server_did) ==
              WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_server_origin(cfg, base_url) ==
+             WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_protect(cfg, protected_nsid) == WF_OK);
+    WF_CHECK(wf_xrpc_server_auth_config_set_resolver_client(
+                 cfg, resolver_client) == WF_OK);
     WF_CHECK(wf_xrpc_server_set_auth_middleware(server, cfg) == WF_OK);
     wf_xrpc_server_auth_config_free(cfg);
     cfg = NULL;
@@ -683,7 +709,8 @@ static int run_labeler_test(void) {
     }
 
     /* Mint service tokens: bare issuer, labeler-fragment issuer signed by the
-     * labeler key, and labeler-fragment issuer signed by the WRONG (repo) key. */
+     * labeler key, and labeler-fragment issuer signed by the WRONG (repo) key.
+     */
     {
         wf_service_auth_request req = {0};
         req.iss = "did:plc:labeler";
@@ -709,7 +736,7 @@ static int run_labeler_test(void) {
                                                &wrong_key_token) == WF_OK);
     }
 
-    #define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
+#define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
 
     /* 1. Bare issuer resolves to #atproto → 200. */
     {
@@ -758,7 +785,7 @@ static int run_labeler_test(void) {
         free(bad_aud);
     }
 
-    #undef SET_AUTH
+#undef SET_AUTH
 
 cleanup_middleware:
     wf_xrpc_client_free(client);
@@ -781,10 +808,11 @@ cleanup_keys:
     return 1;
 }
 
-/* Drives the per-route principal policies (wf_xrpc_server_auth_config_require_principal):
- * service-only routes reject OAuth user credentials, user-only routes reject
- * service tokens, an ANY rule overrides a broader SERVICE rule
- * (longest-prefix wins), and a policy rule implies protection. */
+/* Drives the per-route principal policies
+ * (wf_xrpc_server_auth_config_require_principal): service-only routes reject
+ * OAuth user credentials, user-only routes reject service tokens, an ANY rule
+ * overrides a broader SERVICE rule (longest-prefix wins), and a policy rule
+ * implies protection. */
 static int run_principal_policy_test(void) {
     const char *service_only_nsid = "tools.ozone.moderation.queryStatuses";
     const char *overridden_nsid = "tools.ozone.moderation.queryEvents";
@@ -810,7 +838,8 @@ static int run_principal_policy_test(void) {
     WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &issuer_key) == WF_OK);
     WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &server_key) == WF_OK);
     WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &oauth_key) == WF_OK);
-    WF_CHECK(wf_signing_key_public_didkey(&issuer_key, &issuer_didkey) == WF_OK);
+    WF_CHECK(wf_signing_key_public_didkey(&issuer_key, &issuer_didkey) ==
+             WF_OK);
     WF_CHECK(wf_signing_key_public_didkey(&server_key, &server_did) == WF_OK);
 
     server = wf_xrpc_server_start("127.0.0.1", 0, 1);
@@ -823,12 +852,11 @@ static int run_principal_policy_test(void) {
     char base_url[64];
     snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u", (unsigned)port);
 
-    const char *routes[] = {service_only_nsid, overridden_nsid,
-                            user_only_nsid, both_nsid};
+    const char *routes[] = {service_only_nsid, overridden_nsid, user_only_nsid,
+                            both_nsid};
     for (size_t i = 0; i < 4; i++) {
-        WF_CHECK(wf_xrpc_server_register_query(server, routes[i],
-                                               protected_handler, NULL) ==
-                 WF_OK);
+        WF_CHECK(wf_xrpc_server_register_query(
+                     server, routes[i], protected_handler, NULL) == WF_OK);
     }
 
     oauth_jwk = oauth_access_jwk(&oauth_key);
@@ -874,7 +902,7 @@ static int run_principal_policy_test(void) {
         goto cleanup_server;
     }
 
-    #define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
+#define SET_AUTH(tok) wf_xrpc_client_set_auth(client, (tok))
 
     /* ---- 1. Service-only rule implies protection: no token → 401 ---- */
     {
@@ -885,7 +913,8 @@ static int run_principal_policy_test(void) {
         wf_response_free(&res);
     }
 
-    /* ---- 2. Service-only route: service token → 200 SERVICE; user → 401 ---- */
+    /* ---- 2. Service-only route: service token → 200 SERVICE; user → 401 ----
+     */
     {
         char *tok = mint_service_token(issuer_didkey, server_did,
                                        service_only_nsid, &issuer_key);
@@ -972,7 +1001,7 @@ static int run_principal_policy_test(void) {
         wf_xrpc_server_auth_config_free(c2);
     }
 
-    #undef SET_AUTH
+#undef SET_AUTH
 
 cleanup_server:
     wf_xrpc_client_free(client);

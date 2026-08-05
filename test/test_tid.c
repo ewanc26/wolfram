@@ -40,9 +40,9 @@ static void test_roundtrip(void) {
         1023,
         1024,
         (uint64_t)1 << 10,
-        (uint64_t)1 << 53,            /* max 53-bit timestamp, clk 0 */
+        (uint64_t)1 << 53, /* max 53-bit timestamp, clk 0 */
         (((uint64_t)1 << 53) - 1) << 10 | 1023, /* max 53-bit ts, clk max */
-        UINT64_MAX >> 1,              /* large but bit 63 clear */
+        UINT64_MAX >> 1,                        /* large but bit 63 clear */
     };
     char buf[15];
     for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
@@ -69,7 +69,8 @@ static void test_from_time_shape(void) {
         for (uint32_t clk = 0; clk <= 1023; clk++) {
             WF_CHECK(wf_tid_from_time(ts, clk, buf) == WF_OK);
             WF_CHECK(wf_syntax_tid_is_valid(buf) == 1);
-            WF_CHECK(buf[0] != '\0' && strchr("234567abcdefghij", buf[0]) != NULL);
+            WF_CHECK(buf[0] != '\0' &&
+                     strchr("234567abcdefghij", buf[0]) != NULL);
         }
     }
 }

@@ -22,8 +22,8 @@
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        fprintf(stderr,
-                "usage: %s <service-url> <handle> <password>\n", argv[0]);
+        fprintf(stderr, "usage: %s <service-url> <handle> <password>\n",
+                argv[0]);
         return 0;
     }
 
@@ -49,8 +49,7 @@ int main(int argc, char **argv) {
            session->data.did ? session->data.did : "");
 
     wf_lex_app_bsky_notification_defs_filterable_preference follow_pref = {
-        "all", true, true
-    };
+        "all", true, true};
 
     wf_lex_app_bsky_notification_put_preferences_v2_main_input put_input = {0};
     put_input.has_follow = true;
@@ -73,13 +72,16 @@ int main(int argc, char **argv) {
     }
 
     wf_lex_app_bsky_notification_put_preferences_v2_main_output *prefs = NULL;
-    status = wf_lex_app_bsky_notification_put_preferences_v2_main_output_decode_json(
-        put_res.body, put_res.body_len, &prefs);
+    status =
+        wf_lex_app_bsky_notification_put_preferences_v2_main_output_decode_json(
+            put_res.body, put_res.body_len, &prefs);
     wf_response_free(&put_res);
     if (status != WF_OK || !prefs || !prefs->preferences) {
-        fprintf(stderr, "failed to decode putPreferencesV2 response: %d\n", (int)status);
+        fprintf(stderr, "failed to decode putPreferencesV2 response: %d\n",
+                (int)status);
     } else {
-        const wf_lex_app_bsky_notification_defs_preferences *p = prefs->preferences;
+        const wf_lex_app_bsky_notification_defs_preferences *p =
+            prefs->preferences;
         printf("putPreferencesV2 OK\n");
         printf("  follow: include=%s list=%d push=%d\n",
                p->follow ? p->follow->include : "",
@@ -92,7 +94,8 @@ int main(int argc, char **argv) {
     }
     wf_lex_app_bsky_notification_put_preferences_v2_main_output_free(prefs);
 
-    wf_lex_app_bsky_notification_list_activity_subscriptions_main_params list_params = {0};
+    wf_lex_app_bsky_notification_list_activity_subscriptions_main_params
+        list_params = {0};
     list_params.has_limit = true;
     list_params.limit = 50;
 
@@ -106,28 +109,32 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    wf_lex_app_bsky_notification_list_activity_subscriptions_main_output *subs = NULL;
-    status = wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_decode_json(
-        list_res.body, list_res.body_len, &subs);
+    wf_lex_app_bsky_notification_list_activity_subscriptions_main_output *subs =
+        NULL;
+    status =
+        wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_decode_json(
+            list_res.body, list_res.body_len, &subs);
     wf_response_free(&list_res);
     if (status != WF_OK || !subs) {
-        fprintf(stderr, "failed to decode listActivitySubscriptions response: %d\n",
+        fprintf(stderr,
+                "failed to decode listActivitySubscriptions response: %d\n",
                 (int)status);
     } else {
         size_t n = subs->subscriptions.count;
         printf("listActivitySubscriptions returned %zu subscription(s)\n", n);
         for (size_t i = 0; i < n; ++i) {
-            const wf_lex_app_bsky_actor_defs_profile_view *pv = subs->subscriptions.items[i];
+            const wf_lex_app_bsky_actor_defs_profile_view *pv =
+                subs->subscriptions.items[i];
             if (!pv) {
                 continue;
             }
-            printf("  - did=%s handle=%s display=%s\n",
-                   pv->did ? pv->did : "",
+            printf("  - did=%s handle=%s display=%s\n", pv->did ? pv->did : "",
                    pv->handle ? pv->handle : "",
                    pv->has_display_name ? pv->display_name : "");
         }
     }
-    wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_free(subs);
+    wf_lex_app_bsky_notification_list_activity_subscriptions_main_output_free(
+        subs);
 
     wf_session_free(session);
     return status == WF_OK ? 0 : 1;

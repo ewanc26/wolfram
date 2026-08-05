@@ -16,7 +16,8 @@ int wf_ascii_iequals(const char *a, const char *b) {
         if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
             return 0;
         }
-        ++a; ++b;
+        ++a;
+        ++b;
     }
     return *a == '\0' && *b == '\0';
 }

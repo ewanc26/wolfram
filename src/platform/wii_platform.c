@@ -34,7 +34,9 @@ void wf_platform_shutdown(void) {
 
 /* ── Mutex ──────────────────────────────────────────────────────────── */
 
-struct wf_platform_mutex { mutex_t handle; };
+struct wf_platform_mutex {
+    mutex_t handle;
+};
 
 wf_platform_mutex *wf_platform_mutex_new(void) {
     wf_platform_mutex *mutex = calloc(1, sizeof(*mutex));

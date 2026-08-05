@@ -33,7 +33,8 @@ int main(void) {
 
     /* Gated skip: no credentials -> pass without network. */
     if (!handle || handle[0] == '\0' || !password || password[0] == '\0') {
-        printf("SKIP: set BSKY_HANDLE and BSKY_PASSWORD to run live example test\n");
+        printf("SKIP: set BSKY_HANDLE and BSKY_PASSWORD to run live example "
+               "test\n");
         return 0;
     }
 

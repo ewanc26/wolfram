@@ -1,9 +1,11 @@
 /*
- * preferences_and_push.c — demonstrate updating preferences and push notification registration.
+ * preferences_and_push.c — demonstrate updating preferences and push
+ * notification registration.
  *
  * Usage: prog <service_url> <handle> <password> <service_did> <push_token>
  *
- * Logs in, sends an empty preferences array, registers a push token, then unregisters it.
+ * Logs in, sends an empty preferences array, registers a push token, then
+ * unregisters it.
  */
 
 #include "wolfram/agent.h"
@@ -11,7 +13,10 @@
 
 int main(int argc, char **argv) {
     if (argc < 6) {
-        fprintf(stderr, "Usage: %s <service_url> <handle> <password> <service_did> <push_token>\n", argv[0]);
+        fprintf(stderr,
+                "Usage: %s <service_url> <handle> <password> <service_did> "
+                "<push_token>\n",
+                argv[0]);
         return 1;
     }
     const char *service_url = argv[1];

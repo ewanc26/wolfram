@@ -32,7 +32,7 @@ struct wf_xrpc_client {
 /* ── Growable byte buffer ───────────────────────────────────────────── */
 
 struct wf_buffer {
-    char  *data;
+    char *data;
     size_t len;
     size_t cap;
 };
@@ -121,7 +121,7 @@ static wf_status wf_parse_url(const char *url, char *host, size_t host_cap,
     }
 
     const char *path_start = p;
-    if (*path_start != '/') path_start = "/";  /* implicit root */
+    if (*path_start != '/') path_start = "/"; /* implicit root */
     size_t plen = strlen(path_start);
     if (plen + 1 > path_cap) return WF_ERR_INVALID_ARG;
     memcpy(path, path_start, plen + 1);
@@ -157,16 +157,16 @@ static int wf_find_header_value(const char *headers, const char *name,
 static int wf_has_header(const wf_http_header *headers, size_t count,
                          const char *name) {
     for (size_t i = 0; i < count; i++) {
-        if (headers[i].name && strcasecmp(headers[i].name, name) == 0)
-            return 1;
+        if (headers[i].name && strcasecmp(headers[i].name, name) == 0) return 1;
     }
     return 0;
 }
 
 /* Read the full HTTP response (headers + body) over `conn` into `buf`,
  * capturing the DPoP-Nonce. Sets *status and returns WF_OK / WF_ERR_* . */
-static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf,
-                                       long *status, char **dpop_nonce) {
+static wf_status wf_http_read_response(wii_tls_conn *conn,
+                                       struct wf_buffer *buf, long *status,
+                                       char **dpop_nonce) {
     /* Phase 1: read until we have the complete header block. */
     int header_done = 0;
     size_t header_end = 0;
@@ -207,7 +207,8 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
 
     /* Isolate the header window for name lookups. */
     char *hdr_win = buf->data;
-    if (header_done) hdr_win[header_end - 2] = '\0';  /* terminate before final CRLF */
+    if (header_done)
+        hdr_win[header_end - 2] = '\0'; /* terminate before final CRLF */
 
     char cl_buf[32] = {0};
     long content_length = -1;
@@ -220,7 +221,8 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
                              sizeof(cl_buf)) &&
         strncasecmp(cl_buf, "chunked", 7) == 0)
         chunked = 1;
-    if (wf_find_header_value(hdr_win, "DPoP-Nonce", nonce_buf, sizeof(nonce_buf))) {
+    if (wf_find_header_value(hdr_win, "DPoP-Nonce", nonce_buf,
+                             sizeof(nonce_buf))) {
         *dpop_nonce = strdup(nonce_buf);
     }
 
@@ -246,7 +248,8 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
             size_t line_end = off;
             while (line_end + 1 < buf->len &&
                    !(buf->data[line_end] == '\r' &&
-                     buf->data[line_end + 1] == '\n')) line_end++;
+                     buf->data[line_end + 1] == '\n'))
+                line_end++;
             if (line_end + 1 >= buf->len) {
                 free(decoded.data);
                 return WF_ERR_PARSE;
@@ -258,9 +261,12 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
                 char c = buf->data[i];
                 if (c == ';') break;
                 int d = -1;
-                if (c >= '0' && c <= '9') d = c - '0';
-                else if (c >= 'a' && c <= 'f') d = c - 'a' + 10;
-                else if (c >= 'A' && c <= 'F') d = c - 'A' + 10;
+                if (c >= '0' && c <= '9')
+                    d = c - '0';
+                else if (c >= 'a' && c <= 'f')
+                    d = c - 'a' + 10;
+                else if (c >= 'A' && c <= 'F')
+                    d = c - 'A' + 10;
                 if (d < 0) {
                     free(decoded.data);
                     return WF_ERR_PARSE;
@@ -275,8 +281,7 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
             }
             size_t data_start = line_end + 2;
             if (sz == 0) break;
-            if (sz > buf->len - data_start ||
-                buf->len - data_start - sz < 2 ||
+            if (sz > buf->len - data_start || buf->len - data_start - sz < 2 ||
                 buf->data[data_start + sz] != '\r' ||
                 buf->data[data_start + sz + 1] != '\n' ||
                 wf_buffer_append(&decoded, buf->data + data_start, sz) != 0) {
@@ -294,9 +299,10 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
         while (body_have < body_want) {
             char tmp[1024];
             size_t need = body_want - body_have;
-            long n = wii_tls_recv(conn, tmp, need < sizeof(tmp) ? need : sizeof(tmp));
+            long n = wii_tls_recv(conn, tmp,
+                                  need < sizeof(tmp) ? need : sizeof(tmp));
             if (n < 0) return WF_ERR_NETWORK;
-            if (n == 0) break;  /* short read; accept what we have */
+            if (n == 0) break; /* short read; accept what we have */
             if (wf_buffer_append(buf, tmp, (size_t)n) != 0) return WF_ERR_ALLOC;
             body_have += (size_t)n;
         }
@@ -328,8 +334,8 @@ static wf_status wf_http_read_response(wii_tls_conn *conn, struct wf_buffer *buf
 static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
                                  const char *url, const char *content_type,
                                  const void *body, size_t body_len,
-                                 const wf_http_header *extra, size_t extra_count,
-                                 wf_response *out) {
+                                 const wf_http_header *extra,
+                                 size_t extra_count, wf_response *out) {
     memset(out, 0, sizeof(*out));
 
     /* Test seam: a handler replaces real network I/O. */
@@ -346,9 +352,9 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
             }
             hcount = extra_count;
         }
-        wf_status s = client->handler(client->handler_userdata, method, url,
-                                      content_type, (const char *)body,
-                                      body_len, harr, hcount, out);
+        wf_status s =
+            client->handler(client->handler_userdata, method, url, content_type,
+                            (const char *)body, body_len, harr, hcount, out);
         for (size_t i = 0; i < hcount; i++) {
             free((void *)harr[i].name);
             free((void *)harr[i].value);
@@ -360,7 +366,8 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     char host[256];
     uint16_t port = 443;
     char path[2048];
-    if (wf_parse_url(url, host, sizeof(host), &port, path, sizeof(path)) != WF_OK)
+    if (wf_parse_url(url, host, sizeof(host), &port, path, sizeof(path)) !=
+        WF_OK)
         return WF_ERR_INVALID_ARG;
 
     wii_tls_conn *conn = wii_tls_connect(host, port);
@@ -373,7 +380,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         cl = malloc(24);
         snprintf(cl, 24, "%zu", body_len);
     }
-    const char *host_header = host;  /* path already carries query */
+    const char *host_header = host; /* path already carries query */
     (void)host_header;
 
     char line[320];
@@ -394,8 +401,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
                                strlen(client->auth_header)) == 0;
         ok &= wf_buffer_append(&req, "\r\n", 2) == 0;
     }
-    if (content_type &&
-        !wf_has_header(extra, extra_count, "Content-Type")) {
+    if (content_type && !wf_has_header(extra, extra_count, "Content-Type")) {
         snprintf(line, sizeof(line), "Content-Type: %s\r\n", content_type);
         ok &= wf_buffer_append(&req, line, strlen(line)) == 0;
     }
@@ -446,7 +452,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     }
 
     out->status = status;
-    out->body = resp.data;       /* ownership transferred to caller */
+    out->body = resp.data; /* ownership transferred to caller */
     out->body_len = resp.len;
     out->dpop_nonce = nonce;
 
@@ -494,14 +500,10 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
 
 /* Shared request path for both query (GET) and POST variants, with one
  * refresh+retry on an expired token. */
-static wf_status wf_xrpc_request(wf_xrpc_client *client,
-                                 const char *nsid,
-                                 const char *query_string,
-                                 const void *body,
-                                 size_t body_len,
-                                 const char *content_type,
-                                 int is_post,
-                                 wf_response *out) {
+static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
+                                 const char *query_string, const void *body,
+                                 size_t body_len, const char *content_type,
+                                 int is_post, wf_response *out) {
     if (!client || !nsid || !out || (body_len > 0 && !body) ||
         (is_post && !content_type)) {
         return WF_ERR_INVALID_ARG;
@@ -511,7 +513,7 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
     wf_status status = WF_OK;
     char *url = NULL;
 
-    for (int attempt = 0; ; attempt++) {
+    for (int attempt = 0;; attempt++) {
         free(url);
         size_t url_cap = strlen(client->base_url) + strlen("/xrpc/") +
                          strlen(nsid) + 1 +
@@ -527,13 +529,13 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client,
 
         wf_http_header *headers = NULL;
         size_t hcount = 0;
-        status = wf_xrpc_build_headers(client, is_post, content_type,
-                                       &headers, &hcount);
+        status = wf_xrpc_build_headers(client, is_post, content_type, &headers,
+                                       &hcount);
         if (status != WF_OK) break;
 
-        status = wf_xrpc_perform(client, is_post ? "POST" : "GET", url,
-                                 content_type, body, body_len,
-                                 headers, hcount, out);
+        status =
+            wf_xrpc_perform(client, is_post ? "POST" : "GET", url, content_type,
+                            body, body_len, headers, hcount, out);
         free(headers);
 
         if (attempt == 0 && had_auth && client->refresh_cb &&
@@ -560,7 +562,10 @@ wf_xrpc_client *wf_xrpc_client_new(const char *service_base_url) {
     wf_xrpc_client *client = calloc(1, sizeof(*client));
     if (!client) return NULL;
     client->base_url = wf_normalise_base(service_base_url);
-    if (!client->base_url) { free(client); return NULL; }
+    if (!client->base_url) {
+        free(client);
+        return NULL;
+    }
     return client;
 }
 
@@ -603,7 +608,7 @@ wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
 }
 
 void wf_xrpc_client_set_refresh_handler(wf_xrpc_client *client,
-                                         wf_xrpc_refresh_fn fn, void *userdata) {
+                                        wf_xrpc_refresh_fn fn, void *userdata) {
     if (!client) return;
     client->refresh_cb = fn;
     client->refresh_userdata = userdata;
@@ -624,36 +629,38 @@ void wf_response_free(wf_response *res) {
     res->status = 0;
 }
 
-wf_status wf_xrpc_query(wf_xrpc_client *client,
-                         const char *nsid,
-                         const char *query_string,
-                         wf_response *out) {
+wf_status wf_xrpc_query(wf_xrpc_client *client, const char *nsid,
+                        const char *query_string, wf_response *out) {
     return wf_xrpc_request(client, nsid, query_string, NULL, 0, NULL, 0, out);
 }
 
-wf_status wf_xrpc_query_params(wf_xrpc_client *client,
-                                const char *nsid,
-                                const wf_xrpc_param *params,
-                                size_t param_count,
-                                wf_response *out) {
+wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
+                               const wf_xrpc_param *params, size_t param_count,
+                               wf_response *out) {
     if (!client || !nsid || !out || (param_count > 0 && !params))
         return WF_ERR_INVALID_ARG;
-    if (param_count == 0)
-        return wf_xrpc_query(client, nsid, NULL, out);
+    if (param_count == 0) return wf_xrpc_query(client, nsid, NULL, out);
 
     size_t query_len = 1;
     wf_status status = WF_OK;
     char **names = calloc(param_count, sizeof(*names));
     char **values = calloc(param_count, sizeof(*values));
     if (!names || !values) {
-        free(names); free(values);
+        free(names);
+        free(values);
         return WF_ERR_ALLOC;
     }
     for (size_t i = 0; i < param_count; i++) {
-        if (!params[i].name || !params[i].value) { status = WF_ERR_INVALID_ARG; break; }
+        if (!params[i].name || !params[i].value) {
+            status = WF_ERR_INVALID_ARG;
+            break;
+        }
         names[i] = wf_url_encode(params[i].name);
         values[i] = wf_url_encode(params[i].value);
-        if (!names[i] || !values[i]) { status = WF_ERR_ALLOC; break; }
+        if (!names[i] || !values[i]) {
+            status = WF_ERR_ALLOC;
+            break;
+        }
         query_len += strlen(names[i]) + 1 + strlen(values[i]);
         if (i > 0) query_len++;
     }
@@ -668,12 +675,19 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client,
         for (size_t i = 0; i < param_count; i++) {
             int w = snprintf(query + off, query_len - off, "%s%s=%s",
                              i ? "&" : "", names[i], values[i]);
-            if (w < 0 || (size_t)w >= query_len - off) { status = WF_ERR_ALLOC; break; }
+            if (w < 0 || (size_t)w >= query_len - off) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
             off += (size_t)w;
         }
     }
-    for (size_t i = 0; i < param_count; i++) { free(names[i]); free(values[i]); }
-    free(names); free(values);
+    for (size_t i = 0; i < param_count; i++) {
+        free(names[i]);
+        free(values[i]);
+    }
+    free(names);
+    free(values);
 
     if (status == WF_OK) {
         status = wf_xrpc_query(client, nsid, query, out);
@@ -682,22 +696,17 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client,
     return status;
 }
 
-wf_status wf_xrpc_procedure(wf_xrpc_client *client,
-                             const char *nsid,
-                             const char *json_body,
-                             wf_response *out) {
+wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
+                            const char *json_body, wf_response *out) {
     if (!client || !nsid || !out) return WF_ERR_INVALID_ARG;
     size_t body_len = json_body ? strlen(json_body) : 0;
     return wf_xrpc_request(client, nsid, NULL, json_body, body_len,
                            "application/json", 1, out);
 }
 
-wf_status wf_xrpc_upload_blob(wf_xrpc_client *client,
-                               const char *nsid,
-                               const void *data,
-                               size_t data_len,
-                               const char *content_type,
-                               wf_response *out) {
+wf_status wf_xrpc_upload_blob(wf_xrpc_client *client, const char *nsid,
+                              const void *data, size_t data_len,
+                              const char *content_type, wf_response *out) {
     if (!client || !nsid || !data || data_len == 0 || !content_type ||
         !*content_type || !out)
         return WF_ERR_INVALID_ARG;
@@ -706,8 +715,8 @@ wf_status wf_xrpc_upload_blob(wf_xrpc_client *client,
 }
 
 wf_status wf_xrpc_upload_blob_with_headers(
-    wf_xrpc_client *client, const char *nsid, const void *data,
-    size_t data_len, const char *content_type, const wf_http_header *headers,
+    wf_xrpc_client *client, const char *nsid, const void *data, size_t data_len,
+    const char *content_type, const wf_http_header *headers,
     size_t header_count, wf_response *out) {
     if (!client || !nsid || !data || data_len == 0 || !content_type ||
         !*content_type || !out || (header_count && !headers))
@@ -718,20 +727,26 @@ wf_status wf_xrpc_upload_blob_with_headers(
     if (!base_url) return WF_ERR_ALLOC;
     size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
     char *url = malloc(url_cap);
-    if (!url) { free(base_url); return WF_ERR_ALLOC; }
+    if (!url) {
+        free(base_url);
+        return WF_ERR_ALLOC;
+    }
     snprintf(url, url_cap, "%s/xrpc/%s", base_url, nsid);
     free(base_url);
 
     /* Combine caller headers with the standard Content-Type. */
     size_t total = header_count + 1;
     wf_http_header *all = calloc(total, sizeof(*all));
-    if (!all) { free(url); return WF_ERR_ALLOC; }
+    if (!all) {
+        free(url);
+        return WF_ERR_ALLOC;
+    }
     all[0].name = "Content-Type";
     all[0].value = content_type;
     for (size_t i = 0; i < header_count; i++) all[1 + i] = headers[i];
 
-    wf_status status = wf_xrpc_perform(client, "POST", url, content_type,
-                                       data, data_len, all, total, out);
+    wf_status status = wf_xrpc_perform(client, "POST", url, content_type, data,
+                                       data_len, all, total, out);
     free(all);
     free(url);
     return status;
@@ -743,18 +758,19 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
     if (!client || !url || !out || (extra_count && !extra))
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
-    return wf_xrpc_perform(client, "GET", url, NULL, NULL, 0,
-                           extra, extra_count, out);
+    return wf_xrpc_perform(client, "GET", url, NULL, NULL, 0, extra,
+                           extra_count, out);
 }
 
-wf_status wf_http_get(wf_xrpc_client *client, const char *url, wf_response *out) {
+wf_status wf_http_get(wf_xrpc_client *client, const char *url,
+                      wf_response *out) {
     return wf_http_get_with_headers(client, url, NULL, 0, out);
 }
 
 wf_status wf_http_post(wf_xrpc_client *client, const char *url,
-                        const char *content_type, const char *body,
-                        const wf_http_header *extra, size_t extra_count,
-                        wf_response *out) {
+                       const char *content_type, const char *body,
+                       const wf_http_header *extra, size_t extra_count,
+                       wf_response *out) {
     if (!client || !url || !content_type || !body || !out ||
         (extra_count && !extra))
         return WF_ERR_INVALID_ARG;
@@ -765,14 +781,14 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
 
 /* ── Error envelope decoding ─────────────────────────────────────────── */
 
-wf_status wf_xrpc_error(const wf_response *resp,
-                        char **out_error, char **out_message) {
+wf_status wf_xrpc_error(const wf_response *resp, char **out_error,
+                        char **out_message) {
     if (out_error) *out_error = NULL;
     if (out_message) *out_message = NULL;
     if (!resp) return WF_ERR_INVALID_ARG;
 
-    cJSON *root = cJSON_ParseWithLength(resp->body ? resp->body : "",
-                                        resp->body_len);
+    cJSON *root =
+        cJSON_ParseWithLength(resp->body ? resp->body : "", resp->body_len);
     if (!root) return WF_ERR_PARSE;
     if (!cJSON_IsObject(root)) {
         cJSON_Delete(root);
@@ -793,10 +809,20 @@ wf_status wf_xrpc_error(const wf_response *resp,
     size_t n = strlen(err->valuestring) + 1;
     e = malloc(n);
     if (e) memcpy(e, err->valuestring, n);
-    if (!e) { free(m); cJSON_Delete(root); return WF_ERR_PARSE; }
+    if (!e) {
+        free(m);
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
 
-    if (out_error) *out_error = e; else free(e);
-    if (out_message) *out_message = m; else free(m);
+    if (out_error)
+        *out_error = e;
+    else
+        free(e);
+    if (out_message)
+        *out_message = m;
+    else
+        free(m);
     cJSON_Delete(root);
     return WF_OK;
 }

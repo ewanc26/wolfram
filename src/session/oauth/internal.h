@@ -20,8 +20,8 @@ wf_status wf_oauth_json_string(const cJSON *object, const char *name,
                                int required, char **out);
 wf_status wf_oauth_json_array(const cJSON *object, const char *name,
                               int required, wf_oauth_string_list *out);
-wf_status wf_oauth_json_bool(const cJSON *object, const char *name,
-                             int *value, int *present);
+wf_status wf_oauth_json_bool(const cJSON *object, const char *name, int *value,
+                             int *present);
 wf_status wf_oauth_json_object_encoded(const cJSON *object, const char *name,
                                        char **out);
 wf_status wf_oauth_positive_integer(const cJSON *root, const char *name,
@@ -42,8 +42,7 @@ wf_status wf_oauth_dpop_coordinates(const wf_oauth_dpop_key *key,
 wf_status wf_oauth_dpop_jwk(const wf_oauth_dpop_key *key, cJSON **out,
                             char **x_out, char **y_out);
 wf_status wf_oauth_verify_token_subject(wf_xrpc_client *transport,
-                                        const char *subject,
-                                        const char *issuer,
+                                        const char *subject, const char *issuer,
                                         char **audience_out);
 
 #ifdef __cplusplus

@@ -20,59 +20,54 @@
 /* ------------------------------------------------------------------ */
 
 const wf_mod_behavior WF_MOD_BLOCK_BEHAVIOR = {
-    .profile_list  = WF_MOD_ACTION_BLUR,
-    .profile_view  = WF_MOD_ACTION_ALERT,
-    .avatar        = WF_MOD_ACTION_BLUR,
-    .banner        = WF_MOD_ACTION_BLUR,
-    .display_name  = WF_MOD_ACTION_NONE,
-    .content_list  = WF_MOD_ACTION_BLUR,
-    .content_view  = WF_MOD_ACTION_BLUR,
-    .content_media = WF_MOD_ACTION_NONE
-};
+    .profile_list = WF_MOD_ACTION_BLUR,
+    .profile_view = WF_MOD_ACTION_ALERT,
+    .avatar = WF_MOD_ACTION_BLUR,
+    .banner = WF_MOD_ACTION_BLUR,
+    .display_name = WF_MOD_ACTION_NONE,
+    .content_list = WF_MOD_ACTION_BLUR,
+    .content_view = WF_MOD_ACTION_BLUR,
+    .content_media = WF_MOD_ACTION_NONE};
 
 const wf_mod_behavior WF_MOD_MUTE_BEHAVIOR = {
-    .profile_list  = WF_MOD_ACTION_INFORM,
-    .profile_view  = WF_MOD_ACTION_ALERT,
-    .avatar        = WF_MOD_ACTION_NONE,
-    .banner        = WF_MOD_ACTION_NONE,
-    .display_name  = WF_MOD_ACTION_NONE,
-    .content_list  = WF_MOD_ACTION_BLUR,
-    .content_view  = WF_MOD_ACTION_INFORM,
-    .content_media = WF_MOD_ACTION_NONE
-};
+    .profile_list = WF_MOD_ACTION_INFORM,
+    .profile_view = WF_MOD_ACTION_ALERT,
+    .avatar = WF_MOD_ACTION_NONE,
+    .banner = WF_MOD_ACTION_NONE,
+    .display_name = WF_MOD_ACTION_NONE,
+    .content_list = WF_MOD_ACTION_BLUR,
+    .content_view = WF_MOD_ACTION_INFORM,
+    .content_media = WF_MOD_ACTION_NONE};
 
 const wf_mod_behavior WF_MOD_MUTEWORD_BEHAVIOR = {
-    .profile_list  = WF_MOD_ACTION_NONE,
-    .profile_view  = WF_MOD_ACTION_NONE,
-    .avatar        = WF_MOD_ACTION_NONE,
-    .banner        = WF_MOD_ACTION_NONE,
-    .display_name  = WF_MOD_ACTION_NONE,
-    .content_list  = WF_MOD_ACTION_BLUR,
-    .content_view  = WF_MOD_ACTION_BLUR,
-    .content_media = WF_MOD_ACTION_NONE
-};
+    .profile_list = WF_MOD_ACTION_NONE,
+    .profile_view = WF_MOD_ACTION_NONE,
+    .avatar = WF_MOD_ACTION_NONE,
+    .banner = WF_MOD_ACTION_NONE,
+    .display_name = WF_MOD_ACTION_NONE,
+    .content_list = WF_MOD_ACTION_BLUR,
+    .content_view = WF_MOD_ACTION_BLUR,
+    .content_media = WF_MOD_ACTION_NONE};
 
 const wf_mod_behavior WF_MOD_HIDE_BEHAVIOR = {
-    .profile_list  = WF_MOD_ACTION_NONE,
-    .profile_view  = WF_MOD_ACTION_NONE,
-    .avatar        = WF_MOD_ACTION_NONE,
-    .banner        = WF_MOD_ACTION_NONE,
-    .display_name  = WF_MOD_ACTION_NONE,
-    .content_list  = WF_MOD_ACTION_BLUR,
-    .content_view  = WF_MOD_ACTION_BLUR,
-    .content_media = WF_MOD_ACTION_NONE
-};
+    .profile_list = WF_MOD_ACTION_NONE,
+    .profile_view = WF_MOD_ACTION_NONE,
+    .avatar = WF_MOD_ACTION_NONE,
+    .banner = WF_MOD_ACTION_NONE,
+    .display_name = WF_MOD_ACTION_NONE,
+    .content_list = WF_MOD_ACTION_BLUR,
+    .content_view = WF_MOD_ACTION_BLUR,
+    .content_media = WF_MOD_ACTION_NONE};
 
 const wf_mod_behavior WF_MOD_NOOP_BEHAVIOR = {
-    .profile_list  = WF_MOD_ACTION_NONE,
-    .profile_view  = WF_MOD_ACTION_NONE,
-    .avatar        = WF_MOD_ACTION_NONE,
-    .banner        = WF_MOD_ACTION_NONE,
-    .display_name  = WF_MOD_ACTION_NONE,
-    .content_list  = WF_MOD_ACTION_NONE,
-    .content_view  = WF_MOD_ACTION_NONE,
-    .content_media = WF_MOD_ACTION_NONE
-};
+    .profile_list = WF_MOD_ACTION_NONE,
+    .profile_view = WF_MOD_ACTION_NONE,
+    .avatar = WF_MOD_ACTION_NONE,
+    .banner = WF_MOD_ACTION_NONE,
+    .display_name = WF_MOD_ACTION_NONE,
+    .content_list = WF_MOD_ACTION_NONE,
+    .content_view = WF_MOD_ACTION_NONE,
+    .content_media = WF_MOD_ACTION_NONE};
 
 /* ------------------------------------------------------------------ */
 /* Utility functions                                                    */
@@ -113,8 +108,8 @@ static int str_eq(const char *a, const char *b) {
     return strcmp(a, b) == 0;
 }
 
-__attribute__((unused))
-static int str_starts_with(const char *s, const char *prefix) {
+__attribute__((unused)) static int str_starts_with(const char *s,
+                                                   const char *prefix) {
     if (!s || !prefix) return 0;
     size_t lp = strlen(prefix);
     return strncmp(s, prefix, lp) == 0;
@@ -131,15 +126,24 @@ wf_mod_action wf_mod_behavior_get(const wf_mod_behavior *beh,
                                   wf_mod_context ctx) {
     if (!beh) return WF_MOD_ACTION_NONE;
     switch (ctx) {
-        case WF_MOD_CTX_PROFILE_LIST:  return beh->profile_list;
-        case WF_MOD_CTX_PROFILE_VIEW:  return beh->profile_view;
-        case WF_MOD_CTX_AVATAR:        return beh->avatar;
-        case WF_MOD_CTX_BANNER:        return beh->banner;
-        case WF_MOD_CTX_DISPLAY_NAME:  return beh->display_name;
-        case WF_MOD_CTX_CONTENT_LIST:  return beh->content_list;
-        case WF_MOD_CTX_CONTENT_VIEW:  return beh->content_view;
-        case WF_MOD_CTX_CONTENT_MEDIA: return beh->content_media;
-        default: return WF_MOD_ACTION_NONE;
+        case WF_MOD_CTX_PROFILE_LIST:
+            return beh->profile_list;
+        case WF_MOD_CTX_PROFILE_VIEW:
+            return beh->profile_view;
+        case WF_MOD_CTX_AVATAR:
+            return beh->avatar;
+        case WF_MOD_CTX_BANNER:
+            return beh->banner;
+        case WF_MOD_CTX_DISPLAY_NAME:
+            return beh->display_name;
+        case WF_MOD_CTX_CONTENT_LIST:
+            return beh->content_list;
+        case WF_MOD_CTX_CONTENT_VIEW:
+            return beh->content_view;
+        case WF_MOD_CTX_CONTENT_MEDIA:
+            return beh->content_media;
+        default:
+            return WF_MOD_ACTION_NONE;
     }
 }
 
@@ -148,8 +152,8 @@ wf_mod_action wf_mod_behavior_get(const wf_mod_behavior *beh,
 /* ------------------------------------------------------------------ */
 
 const wf_mod_label_def *wf_mod_find_label_def(const wf_mod_opts *opts,
-                                               const char *identifier,
-                                               const char *labeler_did) {
+                                              const char *identifier,
+                                              const char *labeler_did) {
     if (!opts || !identifier) return NULL;
 
     /* First, check labeler-specific definitions */
@@ -185,7 +189,8 @@ wf_mod_label_pref wf_mod_get_label_pref(const wf_mod_opts *opts,
     }
 
     /* If adult and adult content not enabled, hide */
-    if ((def->flags & WF_MOD_FLAG_ADULT) && !opts->prefs.adult_content_enabled) {
+    if ((def->flags & WF_MOD_FLAG_ADULT) &&
+        !opts->prefs.adult_content_enabled) {
         return WF_MOD_PREF_HIDE;
     }
 
@@ -220,10 +225,8 @@ wf_mod_label_pref wf_mod_get_label_pref(const wf_mod_opts *opts,
 
 wf_status wf_mod_interpret_label_def(wf_mod_label_def *out,
                                      const char *identifier,
-                                     const char *defined_by,
-                                     const char *blurs,
-                                     const char *severity,
-                                     int adult_only,
+                                     const char *defined_by, const char *blurs,
+                                     const char *severity, int adult_only,
                                      const char *default_setting) {
     if (!out || !identifier) return WF_ERR_INVALID_ARG;
 
@@ -263,42 +266,45 @@ wf_status wf_mod_interpret_label_def(wf_mod_label_def *out,
     /* Compute behaviors based on blurs target */
     if (blurs && str_eq(blurs, "content")) {
         /* target=account */
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_view  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_list  = WF_MOD_ACTION_BLUR;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_view  = adult_only ? WF_MOD_ACTION_BLUR : alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_view = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_list = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_view =
+            adult_only ? WF_MOD_ACTION_BLUR : alert_or_inform;
         /* target=profile */
-        out->behaviors[WF_MOD_TARGET_PROFILE].profile_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_PROFILE].profile_view  = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_PROFILE].profile_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_PROFILE].profile_view = alert_or_inform;
         /* target=content */
-        out->behaviors[WF_MOD_TARGET_CONTENT].content_list  = WF_MOD_ACTION_BLUR;
-        out->behaviors[WF_MOD_TARGET_CONTENT].content_view  = adult_only ? WF_MOD_ACTION_BLUR : alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_CONTENT].content_list = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_CONTENT].content_view =
+            adult_only ? WF_MOD_ACTION_BLUR : alert_or_inform;
     } else if (blurs && str_eq(blurs, "media")) {
         /* target=account */
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_view  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].avatar        = WF_MOD_ACTION_BLUR;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].banner        = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_view = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].avatar = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].banner = WF_MOD_ACTION_BLUR;
         /* target=profile */
-        out->behaviors[WF_MOD_TARGET_PROFILE].profile_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_PROFILE].profile_view  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_PROFILE].avatar        = WF_MOD_ACTION_BLUR;
-        out->behaviors[WF_MOD_TARGET_PROFILE].banner        = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_PROFILE].profile_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_PROFILE].profile_view = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_PROFILE].avatar = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_PROFILE].banner = WF_MOD_ACTION_BLUR;
         /* target=content */
-        out->behaviors[WF_MOD_TARGET_CONTENT].content_media = WF_MOD_ACTION_BLUR;
+        out->behaviors[WF_MOD_TARGET_CONTENT].content_media =
+            WF_MOD_ACTION_BLUR;
     } else {
         /* blurs=none */
         /* target=account */
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_view  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_view  = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].profile_view = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_ACCOUNT].content_view = alert_or_inform;
         /* target=profile */
-        out->behaviors[WF_MOD_TARGET_PROFILE].profile_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_PROFILE].profile_view  = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_PROFILE].profile_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_PROFILE].profile_view = alert_or_inform;
         /* target=content */
-        out->behaviors[WF_MOD_TARGET_CONTENT].content_list  = alert_or_inform;
-        out->behaviors[WF_MOD_TARGET_CONTENT].content_view  = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_CONTENT].content_list = alert_or_inform;
+        out->behaviors[WF_MOD_TARGET_CONTENT].content_view = alert_or_inform;
     }
 
     return WF_OK;
@@ -404,8 +410,7 @@ static wf_status cause_copy_deep(wf_mod_cause *dst, const wf_mod_cause *src) {
     return WF_OK;
 }
 
-wf_status wf_mod_decision_merge(wf_mod_decision *out,
-                                const wf_mod_decision *a,
+wf_status wf_mod_decision_merge(wf_mod_decision *out, const wf_mod_decision *a,
                                 const wf_mod_decision *b) {
     if (!out) return WF_ERR_INVALID_ARG;
     wf_status st = wf_mod_decision_init(out);
@@ -504,8 +509,7 @@ static wf_status ui_append(wf_mod_cause **arr, size_t *count, size_t *cap,
     return WF_OK;
 }
 
-wf_status wf_mod_decision_ui(const wf_mod_decision *d,
-                             wf_mod_context ctx,
+wf_status wf_mod_decision_ui(const wf_mod_decision *d, wf_mod_context ctx,
                              wf_mod_ui *out) {
     if (!d || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
@@ -515,33 +519,39 @@ wf_status wf_mod_decision_ui(const wf_mod_decision *d,
 
         if (cause_is_block(c)) {
             if (d->is_me) continue;
-            if (ctx == WF_MOD_CTX_PROFILE_LIST || ctx == WF_MOD_CTX_CONTENT_LIST) {
+            if (ctx == WF_MOD_CTX_PROFILE_LIST ||
+                ctx == WF_MOD_CTX_CONTENT_LIST) {
                 ui_append(&out->filters, &out->filter_count, &(size_t){0}, c);
             }
             if (!c->downgraded) {
-                wf_mod_action a = wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, ctx);
+                wf_mod_action a =
+                    wf_mod_behavior_get(&WF_MOD_BLOCK_BEHAVIOR, ctx);
                 if (a == WF_MOD_ACTION_BLUR) {
                     out->no_override = 1;
                     ui_append(&out->blurs, &out->blur_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_ALERT) {
                     ui_append(&out->alerts, &out->alert_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_INFORM) {
-                    ui_append(&out->informs, &out->inform_count, &(size_t){0}, c);
+                    ui_append(&out->informs, &out->inform_count, &(size_t){0},
+                              c);
                 }
             }
         } else if (c->type == WF_MOD_CAUSE_MUTED) {
             if (d->is_me) continue;
-            if (ctx == WF_MOD_CTX_PROFILE_LIST || ctx == WF_MOD_CTX_CONTENT_LIST) {
+            if (ctx == WF_MOD_CTX_PROFILE_LIST ||
+                ctx == WF_MOD_CTX_CONTENT_LIST) {
                 ui_append(&out->filters, &out->filter_count, &(size_t){0}, c);
             }
             if (!c->downgraded) {
-                wf_mod_action a = wf_mod_behavior_get(&WF_MOD_MUTE_BEHAVIOR, ctx);
+                wf_mod_action a =
+                    wf_mod_behavior_get(&WF_MOD_MUTE_BEHAVIOR, ctx);
                 if (a == WF_MOD_ACTION_BLUR) {
                     ui_append(&out->blurs, &out->blur_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_ALERT) {
                     ui_append(&out->alerts, &out->alert_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_INFORM) {
-                    ui_append(&out->informs, &out->inform_count, &(size_t){0}, c);
+                    ui_append(&out->informs, &out->inform_count, &(size_t){0},
+                              c);
                 }
             }
         } else if (c->type == WF_MOD_CAUSE_MUTE_WORD) {
@@ -550,39 +560,48 @@ wf_status wf_mod_decision_ui(const wf_mod_decision *d,
                 ui_append(&out->filters, &out->filter_count, &(size_t){0}, c);
             }
             if (!c->downgraded) {
-                wf_mod_action a = wf_mod_behavior_get(&WF_MOD_MUTEWORD_BEHAVIOR, ctx);
+                wf_mod_action a =
+                    wf_mod_behavior_get(&WF_MOD_MUTEWORD_BEHAVIOR, ctx);
                 if (a == WF_MOD_ACTION_BLUR) {
                     ui_append(&out->blurs, &out->blur_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_ALERT) {
                     ui_append(&out->alerts, &out->alert_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_INFORM) {
-                    ui_append(&out->informs, &out->inform_count, &(size_t){0}, c);
+                    ui_append(&out->informs, &out->inform_count, &(size_t){0},
+                              c);
                 }
             }
         } else if (c->type == WF_MOD_CAUSE_HIDDEN) {
-            if (ctx == WF_MOD_CTX_PROFILE_LIST || ctx == WF_MOD_CTX_CONTENT_LIST) {
+            if (ctx == WF_MOD_CTX_PROFILE_LIST ||
+                ctx == WF_MOD_CTX_CONTENT_LIST) {
                 ui_append(&out->filters, &out->filter_count, &(size_t){0}, c);
             }
             if (!c->downgraded) {
-                wf_mod_action a = wf_mod_behavior_get(&WF_MOD_HIDE_BEHAVIOR, ctx);
+                wf_mod_action a =
+                    wf_mod_behavior_get(&WF_MOD_HIDE_BEHAVIOR, ctx);
                 if (a == WF_MOD_ACTION_BLUR) {
                     ui_append(&out->blurs, &out->blur_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_ALERT) {
                     ui_append(&out->alerts, &out->alert_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_INFORM) {
-                    ui_append(&out->informs, &out->inform_count, &(size_t){0}, c);
+                    ui_append(&out->informs, &out->inform_count, &(size_t){0},
+                              c);
                 }
             }
         } else if (c->type == WF_MOD_CAUSE_LABEL) {
             /* Filter logic for hide settings */
-            if (ctx == WF_MOD_CTX_PROFILE_LIST && c->target == WF_MOD_TARGET_ACCOUNT) {
+            if (ctx == WF_MOD_CTX_PROFILE_LIST &&
+                c->target == WF_MOD_TARGET_ACCOUNT) {
                 if (c->setting == WF_MOD_PREF_HIDE && !d->is_me) {
-                    ui_append(&out->filters, &out->filter_count, &(size_t){0}, c);
+                    ui_append(&out->filters, &out->filter_count, &(size_t){0},
+                              c);
                 }
             } else if (ctx == WF_MOD_CTX_CONTENT_LIST &&
-                       (c->target == WF_MOD_TARGET_ACCOUNT || c->target == WF_MOD_TARGET_CONTENT)) {
+                       (c->target == WF_MOD_TARGET_ACCOUNT ||
+                        c->target == WF_MOD_TARGET_CONTENT)) {
                 if (c->setting == WF_MOD_PREF_HIDE && !d->is_me) {
-                    ui_append(&out->filters, &out->filter_count, &(size_t){0}, c);
+                    ui_append(&out->filters, &out->filter_count, &(size_t){0},
+                              c);
                 }
             }
             if (!c->downgraded) {
@@ -595,7 +614,8 @@ wf_status wf_mod_decision_ui(const wf_mod_decision *d,
                 } else if (a == WF_MOD_ACTION_ALERT) {
                     ui_append(&out->alerts, &out->alert_count, &(size_t){0}, c);
                 } else if (a == WF_MOD_ACTION_INFORM) {
-                    ui_append(&out->informs, &out->inform_count, &(size_t){0}, c);
+                    ui_append(&out->informs, &out->inform_count, &(size_t){0},
+                              c);
                 }
             }
         }
@@ -681,14 +701,13 @@ wf_status wf_mod_add_muted_word(wf_mod_decision *d,
     return add_cause(d, &c);
 }
 
-wf_status wf_mod_add_label(wf_mod_decision *d,
-                           wf_mod_label_target target,
-                           const wf_mod_label *label,
-                           const wf_mod_opts *opts) {
+wf_status wf_mod_add_label(wf_mod_decision *d, wf_mod_label_target target,
+                           const wf_mod_label *label, const wf_mod_opts *opts) {
     if (!d || !label || !opts) return WF_ERR_INVALID_ARG;
 
     /* Find label definition */
-    const wf_mod_label_def *def = wf_mod_find_label_def(opts, label->val, label->src);
+    const wf_mod_label_def *def =
+        wf_mod_find_label_def(opts, label->val, label->src);
     if (!def) {
         /* Ignore labels we don't understand */
         return WF_OK;
@@ -732,7 +751,8 @@ wf_status wf_mod_add_label(wf_mod_decision *d,
     int no_override = 0;
 
     if ((def->flags & WF_MOD_FLAG_NO_OVERRIDE) ||
-        ((def->flags & WF_MOD_FLAG_ADULT) && !opts->prefs.adult_content_enabled)) {
+        ((def->flags & WF_MOD_FLAG_ADULT) &&
+         !opts->prefs.adult_content_enabled)) {
         priority = 1;
         no_override = 1;
     } else if (pref == WF_MOD_PREF_HIDE) {
@@ -740,9 +760,11 @@ wf_status wf_mod_add_label(wf_mod_decision *d,
     } else {
         /* Determine severity from behavior */
         const wf_mod_behavior *beh = &def->behaviors[target];
-        if (beh->profile_view == WF_MOD_ACTION_BLUR || beh->content_view == WF_MOD_ACTION_BLUR) {
+        if (beh->profile_view == WF_MOD_ACTION_BLUR ||
+            beh->content_view == WF_MOD_ACTION_BLUR) {
             priority = 5;
-        } else if (beh->content_list == WF_MOD_ACTION_BLUR || beh->content_media == WF_MOD_ACTION_BLUR) {
+        } else if (beh->content_list == WF_MOD_ACTION_BLUR ||
+                   beh->content_media == WF_MOD_ACTION_BLUR) {
             priority = 7;
         } else {
             priority = 8;
@@ -798,8 +820,8 @@ static int is_profile_label(const wf_mod_label *label) {
  * label (neg==1) of the same value from the same source, scoped to the same
  * subject (by cid when both carry a cid, otherwise by uri). Implements atproto
  * label-negation semantics (a later negated label cancels an earlier one). */
-static int label_is_negated(const wf_mod_label *L,
-                            const wf_mod_label *labels, size_t count) {
+static int label_is_negated(const wf_mod_label *L, const wf_mod_label *labels,
+                            size_t count) {
     for (size_t i = 0; i < count; i++) {
         const wf_mod_label *N = &labels[i];
         if (!N->neg) continue;
@@ -817,13 +839,12 @@ static int label_is_negated(const wf_mod_label *L,
 }
 
 /* Add a label to the decision, honoring negation: a negation label produces no
- * active cause, and a label revoked by a negation label in the set is skipped. */
-static wf_status add_label_negation_aware(wf_mod_decision *out,
-                                          wf_mod_label_target target,
-                                          const wf_mod_label *label,
-                                          const wf_mod_label *labels,
-                                          size_t count,
-                                          const wf_mod_opts *opts) {
+ * active cause, and a label revoked by a negation label in the set is skipped.
+ */
+static wf_status
+add_label_negation_aware(wf_mod_decision *out, wf_mod_label_target target,
+                         const wf_mod_label *label, const wf_mod_label *labels,
+                         size_t count, const wf_mod_opts *opts) {
     if (label->neg) return WF_OK;
     if (label_is_negated(label, labels, count)) return WF_OK;
     return wf_mod_add_label(out, target, label, opts);
@@ -856,8 +877,8 @@ wf_status wf_mod_decide_account(wf_mod_decision *out,
     for (size_t i = 0; i < subject->label_count; i++) {
         if (is_account_label(&subject->labels[i])) {
             add_label_negation_aware(out, WF_MOD_TARGET_ACCOUNT,
-                                     &subject->labels[i],
-                                     subject->labels, subject->label_count, opts);
+                                     &subject->labels[i], subject->labels,
+                                     subject->label_count, opts);
         }
     }
 
@@ -878,8 +899,8 @@ wf_status wf_mod_decide_profile(wf_mod_decision *out,
     for (size_t i = 0; i < subject->label_count; i++) {
         if (is_profile_label(&subject->labels[i])) {
             add_label_negation_aware(out, WF_MOD_TARGET_PROFILE,
-                                     &subject->labels[i],
-                                     subject->labels, subject->label_count, opts);
+                                     &subject->labels[i], subject->labels,
+                                     subject->label_count, opts);
         }
     }
 
@@ -901,8 +922,8 @@ wf_status wf_mod_decide_post(wf_mod_decision *out,
     /* Content labels */
     for (size_t i = 0; i < subject->label_count; i++) {
         add_label_negation_aware(&subject_d, WF_MOD_TARGET_CONTENT,
-                                 &subject->labels[i],
-                                 subject->labels, subject->label_count, opts);
+                                 &subject->labels[i], subject->labels,
+                                 subject->label_count, opts);
     }
 
     /* Check hidden posts */
@@ -919,10 +940,9 @@ wf_status wf_mod_decide_post(wf_mod_decision *out,
     if (!subject_d.is_me && opts->prefs.muted_word_count > 0 && subject->text) {
         wf_mod_mute_word_match *matches = NULL;
         size_t match_count = 0;
-        wf_mod_match_mute_words(&matches, &match_count,
-                                opts->prefs.muted_words,
-                                opts->prefs.muted_word_count,
-                                subject->text, NULL, 0, NULL, 0);
+        wf_mod_match_mute_words(&matches, &match_count, opts->prefs.muted_words,
+                                opts->prefs.muted_word_count, subject->text,
+                                NULL, 0, NULL, 0);
         if (match_count > 0) {
             wf_mod_add_muted_word(&subject_d, matches, match_count);
             wf_mod_mute_word_matches_free(matches, match_count);
@@ -1011,8 +1031,8 @@ wf_status wf_mod_decide_feed_generator(wf_mod_decision *out,
     set_did_and_me(&content_d, subject->creator.did, opts);
     for (size_t i = 0; i < subject->label_count; i++) {
         add_label_negation_aware(&content_d, WF_MOD_TARGET_CONTENT,
-                                 &subject->labels[i],
-                                 subject->labels, subject->label_count, opts);
+                                 &subject->labels[i], subject->labels,
+                                 subject->label_count, opts);
     }
 
     wf_mod_decision merged1;
@@ -1061,8 +1081,8 @@ wf_status wf_mod_decide_user_list(wf_mod_decision *out,
     set_did_and_me(&content_d, subject->creator.did, opts);
     for (size_t i = 0; i < subject->label_count; i++) {
         add_label_negation_aware(&content_d, WF_MOD_TARGET_CONTENT,
-                                 &subject->labels[i],
-                                 subject->labels, subject->label_count, opts);
+                                 &subject->labels[i], subject->labels,
+                                 subject->label_count, opts);
     }
 
     wf_mod_decision merged1;
@@ -1097,9 +1117,8 @@ wf_status wf_mod_decide_status(wf_mod_decision *out,
 /* Language exceptions — languages that don't use spaces */
 static int is_language_exception(const char *lang) {
     if (!lang) return 0;
-    return str_eq(lang, "ja") || str_eq(lang, "zh") ||
-           str_eq(lang, "ko") || str_eq(lang, "th") ||
-           str_eq(lang, "vi");
+    return str_eq(lang, "ja") || str_eq(lang, "zh") || str_eq(lang, "ko") ||
+           str_eq(lang, "th") || str_eq(lang, "vi");
 }
 
 /* Check if a character is a punctuation character (simplified) */
@@ -1110,7 +1129,8 @@ static int is_punct(char c) {
 
 /* Check if a character is whitespace */
 static int is_space(char c) {
-    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' ||
+           c == '\v';
 }
 
 /* Lowercase a string in-place */
@@ -1120,20 +1140,25 @@ static void to_lower(char *s) {
 
 /* Check if word contains any punctuation */
 static int word_has_punct(const char *w) {
-    for (; *w; w++) if (is_punct(*w)) return 1;
+    for (; *w; w++)
+        if (is_punct(*w)) return 1;
     return 0;
 }
 
 /* Check if word contains space or punctuation */
 static int word_has_space_or_punct(const char *w) {
-    for (; *w; w++) if (is_space(*w) || is_punct(*w)) return 1;
+    for (; *w; w++)
+        if (is_space(*w) || is_punct(*w)) return 1;
     return 0;
 }
 
 /* Trim leading/trailing punctuation from a word (returns pointer into s) */
 static const char *trim_punct(const char *s, size_t *out_len) {
     size_t len = strlen(s);
-    while (len > 0 && is_punct(s[0])) { s++; len--; }
+    while (len > 0 && is_punct(s[0])) {
+        s++;
+        len--;
+    }
     while (len > 0 && is_punct(s[len - 1])) len--;
     *out_len = len;
     return s;
@@ -1142,12 +1167,9 @@ static const char *trim_punct(const char *s, size_t *out_len) {
 wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                                   size_t *out_count,
                                   const wf_mod_muted_word *muted_words,
-                                  size_t muted_word_count,
-                                  const char *text,
-                                  const char *const *tags,
-                                  size_t tag_count,
-                                  const char *lang,
-                                  int following) {
+                                  size_t muted_word_count, const char *text,
+                                  const char *const *tags, size_t tag_count,
+                                  const char *lang, int following) {
     if (!out_matches || !out_count) return WF_ERR_INVALID_ARG;
     *out_matches = NULL;
     *out_count = 0;
@@ -1167,7 +1189,10 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
     char **lower_tags = NULL;
     if (tag_count > 0) {
         lower_tags = calloc(tag_count, sizeof(char *));
-        if (!lower_tags) { free(post_text); return WF_ERR_ALLOC; }
+        if (!lower_tags) {
+            free(post_text);
+            return WF_ERR_ALLOC;
+        }
         for (size_t i = 0; i < tag_count; i++) {
             if (tags[i]) {
                 lower_tags[i] = dup_str(tags[i]);
@@ -1177,10 +1202,12 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
     }
 
     /* Allocate result array (max = muted_word_count) */
-    wf_mod_mute_word_match *results = calloc(muted_word_count, sizeof(wf_mod_mute_word_match));
+    wf_mod_mute_word_match *results =
+        calloc(muted_word_count, sizeof(wf_mod_mute_word_match));
     if (!results) {
         free(post_text);
-        for (size_t i = 0; i < tag_count; i++) free(lower_tags ? lower_tags[i] : NULL);
+        for (size_t i = 0; i < tag_count; i++)
+            free(lower_tags ? lower_tags[i] : NULL);
         free(lower_tags);
         return WF_ERR_ALLOC;
     }
@@ -1202,7 +1229,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         }
 
         /* Check actor target */
-        if (mw->actor_target && str_eq(mw->actor_target, "exclude-following") && following) {
+        if (mw->actor_target && str_eq(mw->actor_target, "exclude-following") &&
+            following) {
             free(muted_word);
             continue;
         }
@@ -1210,7 +1238,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         /* Check tags */
         int tag_match = 0;
         for (size_t t = 0; t < tag_count; t++) {
-            if (lower_tags && lower_tags[t] && str_eq(lower_tags[t], muted_word)) {
+            if (lower_tags && lower_tags[t] &&
+                str_eq(lower_tags[t], muted_word)) {
                 tag_match = 1;
                 break;
             }
@@ -1256,7 +1285,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         }
 
         /* Muted phrase with space or punctuation */
-        if (word_has_space_or_punct(muted_word) && strstr(post_text, muted_word)) {
+        if (word_has_space_or_punct(muted_word) &&
+            strstr(post_text, muted_word)) {
             results[result_count].value = dup_str(mw->value);
             results[result_count].predicate = dup_str(mw->value);
             result_count++;
@@ -1279,7 +1309,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                 size_t word_len = (size_t)(p - word_start);
 
                 /* Compare exact word */
-                if (word_len == mw_len && strncmp(word_start, muted_word, mw_len) == 0) {
+                if (word_len == mw_len &&
+                    strncmp(word_start, muted_word, mw_len) == 0) {
                     results[result_count].value = dup_str(mw->value);
                     /* Copy the matched word */
                     char *pred = malloc(word_len + 1);
@@ -1297,7 +1328,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                 size_t trimmed_len;
                 const char *trimmed = trim_punct(word_start, &trimmed_len);
                 if (trimmed_len > 0) {
-                    if (trimmed_len == mw_len && strncmp(trimmed, muted_word, mw_len) == 0) {
+                    if (trimmed_len == mw_len &&
+                        strncmp(trimmed, muted_word, mw_len) == 0) {
                         results[result_count].value = dup_str(mw->value);
                         char *pred = malloc(word_len + 1);
                         if (pred) {
@@ -1321,7 +1353,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                                 if (is_punct(spaced[c])) spaced[c] = ' ';
                             }
                             if (strcmp(spaced, muted_word) == 0) {
-                                results[result_count].value = dup_str(mw->value);
+                                results[result_count].value =
+                                    dup_str(mw->value);
                                 char *pred = malloc(word_len + 1);
                                 if (pred) {
                                     memcpy(pred, word_start, word_len);
@@ -1339,11 +1372,13 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                             if (contig) {
                                 size_t ci = 0;
                                 for (size_t c = 0; c < trimmed_len; c++) {
-                                    if (!is_space(spaced[c])) contig[ci++] = spaced[c];
+                                    if (!is_space(spaced[c]))
+                                        contig[ci++] = spaced[c];
                                 }
                                 contig[ci] = '\0';
                                 if (strcmp(contig, muted_word) == 0) {
-                                    results[result_count].value = dup_str(mw->value);
+                                    results[result_count].value =
+                                        dup_str(mw->value);
                                     char *pred = malloc(word_len + 1);
                                     if (pred) {
                                         memcpy(pred, word_start, word_len);
@@ -1369,7 +1404,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
     }
 
     free(post_text);
-    for (size_t i = 0; i < tag_count; i++) free(lower_tags ? lower_tags[i] : NULL);
+    for (size_t i = 0; i < tag_count; i++)
+        free(lower_tags ? lower_tags[i] : NULL);
     free(lower_tags);
 
     if (result_count > 0) {
@@ -1382,7 +1418,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
     return WF_OK;
 }
 
-void wf_mod_mute_word_matches_free(wf_mod_mute_word_match *matches, size_t count) {
+void wf_mod_mute_word_matches_free(wf_mod_mute_word_match *matches,
+                                   size_t count) {
     if (!matches) return;
     for (size_t i = 0; i < count; i++) {
         free(matches[i].value);
@@ -1422,7 +1459,8 @@ static wf_status json_labeler_push(wf_mod_labeler_pref **arr, size_t *count,
     if (!did) return WF_OK;
     if (*count >= *cap) {
         size_t nc = (*cap == 0) ? 2 : *cap * 2;
-        wf_mod_labeler_pref *na = realloc(*arr, nc * sizeof(wf_mod_labeler_pref));
+        wf_mod_labeler_pref *na =
+            realloc(*arr, nc * sizeof(wf_mod_labeler_pref));
         if (!na) return WF_ERR_ALLOC;
         *arr = na;
         *cap = nc;
@@ -1488,38 +1526,47 @@ static wf_status apply_global_label(wf_mod_prefs *p, const char *label,
     if (p->global_label_count >= p->global_label_cap) {
         size_t nc = (p->global_label_cap == 0) ? 4 : p->global_label_cap * 2;
         char **ids = realloc(p->global_label_identifiers, nc * sizeof(char *));
-        wf_mod_label_pref *prefs = realloc(p->global_label_prefs, nc * sizeof(wf_mod_label_pref));
-        if (!ids || !prefs) { free(ids); free(prefs); return WF_ERR_ALLOC; }
+        wf_mod_label_pref *prefs =
+            realloc(p->global_label_prefs, nc * sizeof(wf_mod_label_pref));
+        if (!ids || !prefs) {
+            free(ids);
+            free(prefs);
+            return WF_ERR_ALLOC;
+        }
         p->global_label_identifiers = ids;
         p->global_label_prefs = prefs;
         p->global_label_cap = nc;
     }
     p->global_label_identifiers[p->global_label_count] = dup_str(label);
     p->global_label_prefs[p->global_label_count] = pref;
-    if (!p->global_label_identifiers[p->global_label_count]) return WF_ERR_ALLOC;
+    if (!p->global_label_identifiers[p->global_label_count])
+        return WF_ERR_ALLOC;
     p->global_label_count++;
     return WF_OK;
 }
 
 /* Apply one muted-word object (with value/targets/actorTarget/expiresAt). */
 static wf_status apply_muted_word(wf_mod_prefs *p, const cJSON *word) {
-    const char *value = json_str(cJSON_GetObjectItemCaseSensitive(word, "value"));
+    const char *value =
+        json_str(cJSON_GetObjectItemCaseSensitive(word, "value"));
     if (!value) return WF_OK;
     wf_mod_muted_word mw;
     memset(&mw, 0, sizeof(mw));
     mw.value = (char *)value;
-    mw.actor_target = (char *)json_str(
-        cJSON_GetObjectItemCaseSensitive(word, "actorTarget"));
-    mw.expires_at = (char *)json_str(
-        cJSON_GetObjectItemCaseSensitive(word, "expiresAt"));
+    mw.actor_target =
+        (char *)json_str(cJSON_GetObjectItemCaseSensitive(word, "actorTarget"));
+    mw.expires_at =
+        (char *)json_str(cJSON_GetObjectItemCaseSensitive(word, "expiresAt"));
     cJSON *targets = cJSON_GetObjectItemCaseSensitive(word, "targets");
     if (cJSON_IsArray(targets)) {
         cJSON *t;
         cJSON_ArrayForEach(t, targets) {
             const char *ts = json_str(t);
             if (!ts) continue;
-            if (strcmp(ts, "content") == 0) mw.targets_content = 1;
-            else if (strcmp(ts, "tag") == 0) mw.targets_tag = 1;
+            if (strcmp(ts, "content") == 0)
+                mw.targets_content = 1;
+            else if (strcmp(ts, "tag") == 0)
+                mw.targets_tag = 1;
         }
     }
     return json_muted_word_push(&p->muted_words, &p->muted_word_count,
@@ -1528,7 +1575,8 @@ static wf_status apply_muted_word(wf_mod_prefs *p, const cJSON *word) {
 
 /* Parse a single preference item (by its $type). */
 static wf_status parse_pref_item(wf_mod_prefs *p, const cJSON *item) {
-    const char *type = json_str(cJSON_GetObjectItemCaseSensitive(item, "$type"));
+    const char *type =
+        json_str(cJSON_GetObjectItemCaseSensitive(item, "$type"));
     if (!type) return WF_OK;
 
     if (str_ends_with(type, "#adultContentPref")) {
@@ -1543,9 +1591,10 @@ static wf_status parse_pref_item(wf_mod_prefs *p, const cJSON *item) {
         if (cJSON_IsArray(labelers)) {
             cJSON *l;
             cJSON_ArrayForEach(l, labelers) {
-                const char *did = json_str(cJSON_GetObjectItemCaseSensitive(l, "did"));
-                wf_status st = json_labeler_push(&p->labelers, &p->labeler_count,
-                                                 &p->labeler_cap, did);
+                const char *did =
+                    json_str(cJSON_GetObjectItemCaseSensitive(l, "did"));
+                wf_status st = json_labeler_push(
+                    &p->labelers, &p->labeler_count, &p->labeler_cap, did);
                 if (st != WF_OK) return st;
             }
         }
@@ -1556,8 +1605,10 @@ static wf_status parse_pref_item(wf_mod_prefs *p, const cJSON *item) {
         if (cJSON_IsArray(values)) {
             cJSON *v;
             cJSON_ArrayForEach(v, values) {
-                const char *label = json_str(cJSON_GetObjectItemCaseSensitive(v, "label"));
-                const char *vis = json_str(cJSON_GetObjectItemCaseSensitive(v, "visibility"));
+                const char *label =
+                    json_str(cJSON_GetObjectItemCaseSensitive(v, "label"));
+                const char *vis =
+                    json_str(cJSON_GetObjectItemCaseSensitive(v, "visibility"));
                 wf_status st = apply_global_label(p, label, vis);
                 if (st != WF_OK) return st;
             }
@@ -1569,10 +1620,9 @@ static wf_status parse_pref_item(wf_mod_prefs *p, const cJSON *item) {
         if (cJSON_IsArray(posts)) {
             cJSON *pp;
             cJSON_ArrayForEach(pp, posts) {
-                wf_status st = json_strarr_push(&p->hidden_posts,
-                                                &p->hidden_post_count,
-                                                &p->hidden_post_cap,
-                                                json_str(pp));
+                wf_status st =
+                    json_strarr_push(&p->hidden_posts, &p->hidden_post_count,
+                                     &p->hidden_post_cap, json_str(pp));
                 if (st != WF_OK) return st;
             }
         }
@@ -1605,7 +1655,8 @@ static wf_status parse_moderation_prefs(wf_mod_prefs *p, const cJSON *mp) {
     if (cJSON_IsArray(labelers)) {
         cJSON *l;
         cJSON_ArrayForEach(l, labelers) {
-            const char *did = json_str(cJSON_GetObjectItemCaseSensitive(l, "did"));
+            const char *did =
+                json_str(cJSON_GetObjectItemCaseSensitive(l, "did"));
             wf_status st = json_labeler_push(&p->labelers, &p->labeler_count,
                                              &p->labeler_cap, did);
             if (st != WF_OK) return st;
@@ -1615,8 +1666,10 @@ static wf_status parse_moderation_prefs(wf_mod_prefs *p, const cJSON *mp) {
     if (cJSON_IsArray(labels)) {
         cJSON *v;
         cJSON_ArrayForEach(v, labels) {
-            const char *label = json_str(cJSON_GetObjectItemCaseSensitive(v, "label"));
-            const char *vis = json_str(cJSON_GetObjectItemCaseSensitive(v, "visibility"));
+            const char *label =
+                json_str(cJSON_GetObjectItemCaseSensitive(v, "label"));
+            const char *vis =
+                json_str(cJSON_GetObjectItemCaseSensitive(v, "visibility"));
             wf_status st = apply_global_label(p, label, vis);
             if (st != WF_OK) return st;
         }
@@ -1625,8 +1678,9 @@ static wf_status parse_moderation_prefs(wf_mod_prefs *p, const cJSON *mp) {
     if (cJSON_IsArray(hidden)) {
         cJSON *pp;
         cJSON_ArrayForEach(pp, hidden) {
-            wf_status st = json_strarr_push(&p->hidden_posts, &p->hidden_post_count,
-                                            &p->hidden_post_cap, json_str(pp));
+            wf_status st =
+                json_strarr_push(&p->hidden_posts, &p->hidden_post_count,
+                                 &p->hidden_post_cap, json_str(pp));
             if (st != WF_OK) return st;
         }
     }
@@ -1722,11 +1776,13 @@ wf_status wf_mod_label_defs_from_labeler(const char *labeler_did,
     if (!root) return WF_ERR_INVALID_ARG;
 
     wf_status st = WF_OK;
-    cJSON *defs = cJSON_GetObjectItemCaseSensitive(root, "labelValueDefinitions");
+    cJSON *defs =
+        cJSON_GetObjectItemCaseSensitive(root, "labelValueDefinitions");
     if (!defs) {
         cJSON *policies = cJSON_GetObjectItemCaseSensitive(root, "policies");
         if (cJSON_IsObject(policies)) {
-            defs = cJSON_GetObjectItemCaseSensitive(policies, "labelValueDefinitions");
+            defs = cJSON_GetObjectItemCaseSensitive(policies,
+                                                    "labelValueDefinitions");
         }
     }
     if (!cJSON_IsArray(defs)) {
@@ -1738,26 +1794,31 @@ wf_status wf_mod_label_defs_from_labeler(const char *labeler_did,
     wf_mod_label_def *arr = NULL;
     cJSON *d;
     cJSON_ArrayForEach(d, defs) {
-        const char *id = json_str(cJSON_GetObjectItemCaseSensitive(d, "identifier"));
-        const char *blurs = json_str(cJSON_GetObjectItemCaseSensitive(d, "blurs"));
-        const char *severity = json_str(cJSON_GetObjectItemCaseSensitive(d, "severity"));
-        const char *default_setting = json_str(
-            cJSON_GetObjectItemCaseSensitive(d, "defaultSetting"));
+        const char *id =
+            json_str(cJSON_GetObjectItemCaseSensitive(d, "identifier"));
+        const char *blurs =
+            json_str(cJSON_GetObjectItemCaseSensitive(d, "blurs"));
+        const char *severity =
+            json_str(cJSON_GetObjectItemCaseSensitive(d, "severity"));
+        const char *default_setting =
+            json_str(cJSON_GetObjectItemCaseSensitive(d, "defaultSetting"));
         cJSON *adult = cJSON_GetObjectItemCaseSensitive(d, "adultOnly");
         int adult_only = cJSON_IsTrue(adult) ? 1 : 0;
         if (!id) continue;
         if (*out_count >= cap) {
             size_t nc = (cap == 0) ? 4 : cap * 2;
             wf_mod_label_def *na = realloc(arr, nc * sizeof(wf_mod_label_def));
-            if (!na) { st = WF_ERR_ALLOC; goto done; }
+            if (!na) {
+                st = WF_ERR_ALLOC;
+                goto done;
+            }
             arr = na;
             cap = nc;
         }
         wf_mod_label_def *def = &arr[*out_count];
         memset(def, 0, sizeof(*def));
-        st = wf_mod_interpret_label_def(def, id, labeler_did,
-                                        blurs, severity, adult_only,
-                                        default_setting);
+        st = wf_mod_interpret_label_def(def, id, labeler_did, blurs, severity,
+                                        adult_only, default_setting);
         if (st != WF_OK) goto done;
         (*out_count)++;
     }
@@ -1766,7 +1827,8 @@ done:
     cJSON_Delete(root);
     if (st != WF_OK) {
         if (arr) {
-            for (size_t i = 0; i < *out_count; i++) wf_mod_label_def_free(&arr[i]);
+            for (size_t i = 0; i < *out_count; i++)
+                wf_mod_label_def_free(&arr[i]);
             free(arr);
         }
         *out = NULL;
@@ -1785,8 +1847,7 @@ void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count) {
     free(defs);
 }
 
-wf_status wf_mod_labels_from_json(wf_mod_label **out,
-                                  size_t *out_count,
+wf_status wf_mod_labels_from_json(wf_mod_label **out, size_t *out_count,
                                   const char *json) {
     if (!out || !out_count || !json) return WF_ERR_INVALID_ARG;
     *out = NULL;
@@ -1824,7 +1885,10 @@ wf_status wf_mod_labels_from_json(wf_mod_label **out,
         if (*out_count >= cap) {
             size_t nc = (cap == 0) ? 4 : cap * 2;
             wf_mod_label *na = realloc(arr, nc * sizeof(wf_mod_label));
-            if (!na) { st = WF_ERR_ALLOC; goto done; }
+            if (!na) {
+                st = WF_ERR_ALLOC;
+                goto done;
+            }
             arr = na;
             cap = nc;
         }
@@ -1852,9 +1916,12 @@ done:
     if (st != WF_OK) {
         if (arr) {
             for (size_t i = 0; i < *out_count; i++) {
-                free(arr[i].src); free(arr[i].uri);
-                free(arr[i].val); free(arr[i].cts);
-                free(arr[i].cid); free(arr[i].exp);
+                free(arr[i].src);
+                free(arr[i].uri);
+                free(arr[i].val);
+                free(arr[i].cts);
+                free(arr[i].cid);
+                free(arr[i].exp);
             }
             free(arr);
         }

@@ -6,11 +6,14 @@
 /* ── grapheme length counts UTF-8 codepoints ── */
 static void test_grapheme_len_codepoints(void) {
     WF_CHECK(wf_richtext_grapheme_len("a", 1) == 1);
-    WF_CHECK(wf_richtext_grapheme_len("h\xc3\xa9llo", 6) == 5); /* é counts as 1 */
+    WF_CHECK(wf_richtext_grapheme_len("h\xc3\xa9llo", 6) ==
+             5); /* é counts as 1 */
     /* emoji U+1F642 (F0 9F 99 82) is one codepoint */
     WF_CHECK(wf_richtext_grapheme_len("\xf0\x9f\x99\x82", 4) == 1);
     /* 'a' + emoji + 'b' = 3 codepoints */
-    WF_CHECK(wf_richtext_grapheme_len("a\xf0\x9f\x99\x82" "b", 6) == 3);
+    WF_CHECK(wf_richtext_grapheme_len("a\xf0\x9f\x99\x82"
+                                      "b",
+                                      6) == 3);
     /* e + combining acute (U+0301, CC 81) = 2 codepoints */
     WF_CHECK(wf_richtext_grapheme_len("e\xcc\x81", 3) == 2);
     WF_CHECK(wf_richtext_grapheme_len("", 0) == 0);
@@ -33,11 +36,13 @@ static void test_mention_multibyte_prefix(void) {
 /* ── multiple mentions ── */
 static void test_mention_multiple(void) {
     wf_richtext rt;
-    WF_CHECK(wf_richtext_init(&rt, "@a.bsky.social and @b.bsky.social") == WF_OK);
+    WF_CHECK(wf_richtext_init(&rt, "@a.bsky.social and @b.bsky.social") ==
+             WF_OK);
     WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
     WF_CHECK(rt.facet_count == 2);
     WF_CHECK(rt.facets[0].byte_start == 0);
-    WF_CHECK(rt.facets[1].byte_start == 19); /* "@a.bsky.social and " is 19 bytes */
+    WF_CHECK(rt.facets[1].byte_start ==
+             19); /* "@a.bsky.social and " is 19 bytes */
     wf_richtext_free(&rt);
 }
 
@@ -70,7 +75,8 @@ static void test_link_trailing_punct(void) {
     WF_CHECK(rt.facets[0].byte_start == 4);
     size_t ulen = strlen(rt.facets[0].features[0].uri);
     WF_CHECK(rt.facets[0].byte_end == 4 + ulen);
-    WF_CHECK(rt.facets[0].byte_end == 23); /* "https://bsky.social" is 19 bytes */
+    WF_CHECK(rt.facets[0].byte_end ==
+             23); /* "https://bsky.social" is 19 bytes */
     WF_CHECK(rt.facets[0].features[0].uri[ulen - 1] != '.');
     wf_richtext_free(&rt);
 }
@@ -92,7 +98,8 @@ static void test_link_bare_trailing_comma(void) {
 /* ── tag: fullwidth hash byte offset and capture ── */
 static void test_tag_fullwidth_offset(void) {
     wf_richtext rt;
-    const char *text = "test \xef\xbc\x83" "bluesky end"; /* U+FF03 then "bluesky" */
+    const char *text = "test \xef\xbc\x83"
+                       "bluesky end"; /* U+FF03 then "bluesky" */
     WF_CHECK(wf_richtext_init(&rt, text) == WF_OK);
     WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
     WF_CHECK(rt.facet_count == 1);
@@ -127,7 +134,8 @@ static void test_cashtag_bounds(void) {
     WF_CHECK(rt.facet_count == 0);
     wf_richtext_free(&rt);
 
-    WF_CHECK(wf_richtext_init(&rt, "$1ABC") == WF_OK); /* must start with letter */
+    WF_CHECK(wf_richtext_init(&rt, "$1ABC") ==
+             WF_OK); /* must start with letter */
     WF_CHECK(wf_richtext_detect_facets(&rt) == WF_OK);
     WF_CHECK(rt.facet_count == 0);
     wf_richtext_free(&rt);

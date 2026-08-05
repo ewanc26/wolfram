@@ -62,11 +62,14 @@ static void test_identity_invalid(void) {
     WF_CHECK(wf_identity_check_handle(client, &check_in, &check_out) ==
              WF_ERR_INVALID_ARG);
 
-    WF_CHECK(wf_identity_verify_handle(NULL, "h", &valid) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_identity_verify_handle(NULL, "h", &valid) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_identity_verify_handle(client, NULL, &valid) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_identity_verify_handle(client, "h", NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_identity_verify_handle(client, "", &valid) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_identity_verify_handle(client, "h", NULL) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_identity_verify_handle(client, "", &valid) ==
+             WF_ERR_INVALID_ARG);
 
     wf_xrpc_client_free(client);
 }
@@ -109,14 +112,18 @@ static void test_server_invalid(void) {
     WF_CHECK(wf_server_create_invite_codes(client, &cics_in, &cics_out) ==
              WF_ERR_INVALID_ARG); /* code_count == 0 */
 
-    WF_CHECK(wf_server_revoke_invite_codes(NULL, &rev_in) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_revoke_invite_codes(NULL, &rev_in) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_server_revoke_invite_codes(client, NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_server_revoke_invite_codes(client, &rev_in) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_revoke_invite_codes(client, &rev_in) ==
+             WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_server_activate_account(NULL) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_server_deactivate_account(NULL, &deact_in) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_deactivate_account(NULL, &deact_in) ==
+             WF_ERR_INVALID_ARG);
     /* NULL input is valid (no optional deleteAfter): must not be rejected as
-     * an invalid-arg error at the wrapper layer; it proceeds to the transport. */
+     * an invalid-arg error at the wrapper layer; it proceeds to the transport.
+     */
     WF_CHECK(wf_server_deactivate_account(client, NULL) != WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_server_confirm_email(NULL, &conf_in) == WF_ERR_INVALID_ARG);
@@ -125,7 +132,8 @@ static void test_server_invalid(void) {
 
     WF_CHECK(wf_server_request_email_update(NULL, &req_out) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_server_request_email_update(client, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_server_request_email_update(client, NULL) ==
+             WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_server_request_email_confirmation(NULL) == WF_ERR_INVALID_ARG);
 
@@ -162,7 +170,8 @@ static void test_agent_invalid(void) {
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_verify_handle(agent, "h", &valid) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_verify_handle(agent, NULL, &valid) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_revoke_invite_codes(agent, &rev_in) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_revoke_invite_codes(agent, &rev_in) ==
+             WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_revoke_invite_codes(agent, NULL) == WF_ERR_INVALID_ARG);
 }
 
@@ -189,8 +198,9 @@ static void test_construct_sign_plc_operation(void) {
     in.services.data = "{\"atproto_pds\":\"https://pds.example\"}";
     in.services.length = strlen(in.services.data);
 
-    WF_CHECK(wf_lex_com_atproto_identity_sign_plc_operation_main_input_encode_json(
-                 &in, &json) == WF_OK);
+    WF_CHECK(
+        wf_lex_com_atproto_identity_sign_plc_operation_main_input_encode_json(
+            &in, &json) == WF_OK);
     WF_CHECK(json != NULL);
 
     cJSON *root = cJSON_Parse(json);
@@ -199,7 +209,8 @@ static void test_construct_sign_plc_operation(void) {
         cJSON *tok = cJSON_GetObjectItemCaseSensitive(root, "token");
         cJSON *rkeys = cJSON_GetObjectItemCaseSensitive(root, "rotationKeys");
         cJSON *aka_j = cJSON_GetObjectItemCaseSensitive(root, "alsoKnownAs");
-        cJSON *vm = cJSON_GetObjectItemCaseSensitive(root, "verificationMethods");
+        cJSON *vm =
+            cJSON_GetObjectItemCaseSensitive(root, "verificationMethods");
         cJSON *svc = cJSON_GetObjectItemCaseSensitive(root, "services");
         WF_CHECK(tok && cJSON_IsString(tok) &&
                  strcmp(tok->valuestring, "tok123") == 0);
@@ -222,8 +233,9 @@ static void test_construct_create_invite_code(void) {
     in.has_for_account = 1;
     in.for_account = "did:plc:abc";
 
-    WF_CHECK(wf_lex_com_atproto_server_create_invite_code_main_input_encode_json(
-                 &in, &json) == WF_OK);
+    WF_CHECK(
+        wf_lex_com_atproto_server_create_invite_code_main_input_encode_json(
+            &in, &json) == WF_OK);
     WF_CHECK(json != NULL);
 
     cJSON *root = cJSON_Parse(json);
@@ -273,21 +285,19 @@ static void test_construct_update_email(void) {
 static void test_parse_get_recommended_did_credentials(void) {
     const char *json =
         "{\"rotationKeys\":[\"did:key:zA\",\"did:key:zB\"],"
-         "\"alsoKnownAs\":[\"at://a.example\",\"at://b.example\"],"
-         "\"verificationMethods\":{\"atproto\":\"did:key:zA\"},"
-         "\"services\":{\"atproto_pds\":\"https://pds.example\"}}";
-    wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output *out =
-        NULL;
+        "\"alsoKnownAs\":[\"at://a.example\",\"at://b.example\"],"
+        "\"verificationMethods\":{\"atproto\":\"did:key:zA\"},"
+        "\"services\":{\"atproto_pds\":\"https://pds.example\"}}";
+    wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output
+        *out = NULL;
 
     WF_CHECK(
         wf_lex_com_atproto_identity_get_recommended_did_credentials_main_output_decode_json(
             json, strlen(json), &out) == WF_OK);
     WF_CHECK(out != NULL);
     if (out) {
-        WF_CHECK(out->has_rotation_keys &&
-                 out->rotation_keys.count == 2);
-        WF_CHECK(out->has_also_known_as &&
-                 out->also_known_as.count == 2);
+        WF_CHECK(out->has_rotation_keys && out->rotation_keys.count == 2);
+        WF_CHECK(out->has_also_known_as && out->also_known_as.count == 2);
         WF_CHECK(out->has_verification_methods &&
                  out->verification_methods.length > 0);
         WF_CHECK(out->has_services && out->services.length > 0);
@@ -297,9 +307,8 @@ static void test_parse_get_recommended_did_credentials(void) {
 }
 
 static void test_parse_create_invite_codes(void) {
-    const char *json =
-        "{\"codes\":[{\"account\":\"did:plc:abc\","
-         "\"codes\":[\"a1b2c3\",\"d4e5f6\"]}]}";
+    const char *json = "{\"codes\":[{\"account\":\"did:plc:abc\","
+                       "\"codes\":[\"a1b2c3\",\"d4e5f6\"]}]}";
     wf_lex_com_atproto_server_create_invite_codes_main_output *out = NULL;
 
     WF_CHECK(
@@ -309,10 +318,9 @@ static void test_parse_create_invite_codes(void) {
     if (out) {
         WF_CHECK(out->codes.count == 1);
         if (out->codes.count == 1) {
-            const wf_lex_com_atproto_server_create_invite_codes_account_codes *ac =
-                out->codes.items[0];
-            WF_CHECK(ac->account &&
-                     strcmp(ac->account, "did:plc:abc") == 0);
+            const wf_lex_com_atproto_server_create_invite_codes_account_codes
+                *ac = out->codes.items[0];
+            WF_CHECK(ac->account && strcmp(ac->account, "did:plc:abc") == 0);
             WF_CHECK(ac->codes.count == 2);
         }
         wf_lex_com_atproto_server_create_invite_codes_main_output_free(out);

@@ -10,8 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* A real getBookmarks wire body: bookmarks are app.bsky.bookmark.defs#bookmarkView
- * objects with the record at-uri under `subject.uri` and `createdAt`. */
+/* A real getBookmarks wire body: bookmarks are
+ * app.bsky.bookmark.defs#bookmarkView objects with the record at-uri under
+ * `subject.uri` and `createdAt`. */
 static const char *k_get_bookmarks_json =
     "{"
     "  \"bookmarks\": ["
@@ -62,8 +63,7 @@ int main(void) {
 
     /* ── parse: happy path ── */
     wf_status st = wf_bookmark_parse_list(k_get_bookmarks_json,
-                                           strlen(k_get_bookmarks_json),
-                                           &list);
+                                          strlen(k_get_bookmarks_json), &list);
     WF_CHECK(st == WF_OK);
     WF_CHECK(list.count == 2);
     WF_CHECK(list.items != NULL);
@@ -71,8 +71,7 @@ int main(void) {
     WF_CHECK(strcmp(list.items[0].uri,
                     "at://did:plc:abc123/app.bsky.feed.post/aaabbbccc") == 0);
     WF_CHECK(list.items[0].created_at != NULL);
-    WF_CHECK(strcmp(list.items[0].created_at,
-                    "2026-01-02T03:04:05.000Z") == 0);
+    WF_CHECK(strcmp(list.items[0].created_at, "2026-01-02T03:04:05.000Z") == 0);
     WF_CHECK(strcmp(list.items[1].uri,
                     "at://did:plc:abc123/app.bsky.feed.post/dddeeefff") == 0);
     WF_CHECK(list.cursor != NULL);
@@ -173,21 +172,21 @@ int main(void) {
     WF_CHECK(wf_agent_bookmark_create_typed(NULL, k_create_uri, &tcr) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_bookmark_create_typed((wf_agent *)dummy_agent,
-                                            "not-a-uri", &tcr) ==
-             WF_ERR_INVALID_ARG);
+                                            "not-a-uri",
+                                            &tcr) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_bookmark_create_typed((wf_agent *)dummy_agent,
-                                            k_create_uri, NULL) ==
-             WF_ERR_INVALID_ARG);
+                                            k_create_uri,
+                                            NULL) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_bookmark_delete_typed(NULL, NULL, NULL) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_bookmark_delete_typed(NULL, k_create_uri, &tdr) ==
              WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_bookmark_delete_typed((wf_agent *)dummy_agent,
-                                            "not-a-uri", &tdr) ==
-             WF_ERR_INVALID_ARG);
+                                            "not-a-uri",
+                                            &tdr) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_agent_bookmark_delete_typed((wf_agent *)dummy_agent,
-                                            k_create_uri, NULL) ==
-             WF_ERR_INVALID_ARG);
+                                            k_create_uri,
+                                            NULL) == WF_ERR_INVALID_ARG);
 
     WF_TEST_SUMMARY();
 }

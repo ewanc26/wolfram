@@ -6,7 +6,8 @@
  *   1. High-level agent login with wf_agent
  *   2. Listing chat conversations via the typed wrapper
  *      wf_agent_chat_list_convos
- *   3. Printing each conversation's id, members, last message, and unread count.
+ *   3. Printing each conversation's id, members, last message, and unread
+ * count.
  *
  * IMPORTANT — chat service endpoint:
  *   chat.bsky.convo.* endpoints are served by a SEPARATE Bluesky chat service
@@ -42,15 +43,14 @@
 
 int main(int argc, char **argv) {
     if (argc < 4) {
-        fprintf(stderr,
-                "usage: %s <service-url> <handle> <password> [limit]\n",
+        fprintf(stderr, "usage: %s <service-url> <handle> <password> [limit]\n",
                 argv[0]);
         return 1;
     }
 
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
     int limit = (argc > 4) ? (int)strtol(argv[4], NULL, 10) : 50;
     if (limit <= 0) {
         limit = 50;
@@ -98,10 +98,8 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < list.convo_count; ++i) {
         const wf_chat_convo *c = &list.convos[i];
         printf("  [%zu] id=%s rev=%s type=%s unread=%d\n", i,
-               c->id ? c->id : "?",
-               c->rev ? c->rev : "?",
-               c->type ? c->type : "?",
-               c->unread_count);
+               c->id ? c->id : "?", c->rev ? c->rev : "?",
+               c->type ? c->type : "?", c->unread_count);
         printf("        members (%zu):", c->member_count);
         for (size_t m = 0; m < c->member_count; ++m) {
             const wf_agent_profile_view *p = &c->members[m];

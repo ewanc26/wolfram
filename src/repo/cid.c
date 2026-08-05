@@ -42,16 +42,16 @@ static void wf_base32_encode(const unsigned char *in, size_t in_len,
 static size_t wf_cid_from_hash_codec(const unsigned char hash[32],
                                      unsigned char codec,
                                      unsigned char *cid_buf) {
-    cid_buf[0] = 0x01;              /* CIDv1 */
-    cid_buf[1] = codec;             /* multicodec */
-    cid_buf[2] = 0x12;              /* sha2-256 multihash code */
+    cid_buf[0] = 0x01;             /* CIDv1 */
+    cid_buf[1] = codec;            /* multicodec */
+    cid_buf[2] = 0x12;             /* sha2-256 multihash code */
     cid_buf[3] = 0x20;             /* 32-byte digest length */
-    memcpy(cid_buf + 4, hash, 32);  /* the digest itself */
+    memcpy(cid_buf + 4, hash, 32); /* the digest itself */
     return 36;
 }
 
 static size_t wf_cid_from_hash(const unsigned char hash[32],
-                                unsigned char *cid_buf) {
+                               unsigned char *cid_buf) {
     return wf_cid_from_hash_codec(hash, 0x71, cid_buf); /* dag-cbor */
 }
 
@@ -69,7 +69,7 @@ char *wf_cid_to_string(const wf_cid *cid) {
 }
 
 wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
-                           wf_cid *out) {
+                          wf_cid *out) {
     if (!cbor || cbor_len == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -82,7 +82,7 @@ wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
 }
 
 wf_status wf_cid_of_bytes(const unsigned char *data, size_t data_len,
-                           wf_cid *out) {
+                          wf_cid *out) {
     if (!data || data_len == 0 || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -101,16 +101,19 @@ int cid_equal(const wf_cid *a, const wf_cid *b) {
 
 /* RFC 4648 base32 (lowercase, no padding) decoder.
  * Writes at most 64 bytes; returns 1 on success, 0 on invalid input. */
-static int wf_base32_decode(const char *in, size_t in_len,
-                            unsigned char *out, size_t *out_len) {
+static int wf_base32_decode(const char *in, size_t in_len, unsigned char *out,
+                            size_t *out_len) {
     size_t i = 0, o = 0, bits = 0;
     uint32_t buf = 0;
     while (i < in_len) {
         int v;
         char c = in[i++];
-        if (c >= 'a' && c <= 'z') v = c - 'a';
-        else if (c >= '2' && c <= '7') v = c - '2' + 26;
-        else return 0;
+        if (c >= 'a' && c <= 'z')
+            v = c - 'a';
+        else if (c >= '2' && c <= '7')
+            v = c - '2' + 26;
+        else
+            return 0;
         buf = (buf << 5) | (uint32_t)v;
         bits += 5;
         if (bits >= 8) {

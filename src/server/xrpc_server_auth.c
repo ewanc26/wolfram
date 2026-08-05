@@ -48,7 +48,8 @@ wf_status wf_xrpc_server_auth_config_new(wf_xrpc_server_auth_config **out) {
     if (!cfg) {
         return WF_ERR_ALLOC;
     }
-    /* Aud/lxm binding checks are on by default; everything else borrowed/NULL. */
+    /* Aud/lxm binding checks are on by default; everything else borrowed/NULL.
+     */
     cfg->require_aud = 1;
     cfg->require_lxm = 1;
     *out = cfg;
@@ -73,8 +74,9 @@ void wf_xrpc_server_auth_config_free(wf_xrpc_server_auth_config *cfg) {
     free(cfg);
 }
 
-wf_status wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *cfg,
-                                                    const char *server_did) {
+wf_status
+wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *cfg,
+                                          const char *server_did) {
     char *copy;
     if (!cfg) {
         return WF_ERR_INVALID_ARG;
@@ -88,8 +90,9 @@ wf_status wf_xrpc_server_auth_config_set_server_did(wf_xrpc_server_auth_config *
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_auth_config_set_server_origin(
-    wf_xrpc_server_auth_config *cfg, const char *server_origin) {
+wf_status
+wf_xrpc_server_auth_config_set_server_origin(wf_xrpc_server_auth_config *cfg,
+                                             const char *server_origin) {
     char *copy;
     if (!cfg) return WF_ERR_INVALID_ARG;
     copy = server_origin ? strdup(server_origin) : NULL;
@@ -130,8 +133,9 @@ wf_status wf_xrpc_server_auth_config_protect(wf_xrpc_server_auth_config *cfg,
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config *cfg,
-                                                     int require) {
+wf_status
+wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config *cfg,
+                                           int require) {
     if (!cfg) {
         return WF_ERR_INVALID_ARG;
     }
@@ -139,9 +143,10 @@ wf_status wf_xrpc_server_auth_config_set_require_aud(wf_xrpc_server_auth_config 
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_auth_config_require_principal(
-    wf_xrpc_server_auth_config *cfg, const char *nsid_prefix,
-    wf_xrpc_principal_kind kind) {
+wf_status
+wf_xrpc_server_auth_config_require_principal(wf_xrpc_server_auth_config *cfg,
+                                             const char *nsid_prefix,
+                                             wf_xrpc_principal_kind kind) {
     wf_xrpc_server_auth_principal_rule *grown;
     char *copy;
 
@@ -157,8 +162,7 @@ wf_status wf_xrpc_server_auth_config_require_principal(
         return WF_ERR_ALLOC;
     }
     grown = (wf_xrpc_server_auth_principal_rule *)realloc(
-        cfg->principal_rules,
-        (cfg->principal_rule_count + 1) * sizeof(*grown));
+        cfg->principal_rules, (cfg->principal_rule_count + 1) * sizeof(*grown));
     if (!grown) {
         free(copy);
         return WF_ERR_ALLOC;
@@ -170,8 +174,9 @@ wf_status wf_xrpc_server_auth_config_require_principal(
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_auth_config_set_require_lxm(wf_xrpc_server_auth_config *cfg,
-                                                     int require) {
+wf_status
+wf_xrpc_server_auth_config_set_require_lxm(wf_xrpc_server_auth_config *cfg,
+                                           int require) {
     if (!cfg) {
         return WF_ERR_INVALID_ARG;
     }
@@ -179,9 +184,10 @@ wf_status wf_xrpc_server_auth_config_set_require_lxm(wf_xrpc_server_auth_config 
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_auth_config_set_resolver(wf_xrpc_server_auth_config *cfg,
-                                                  wf_xrpc_server_auth_resolve_fn fn,
-                                                  void *ctx) {
+wf_status
+wf_xrpc_server_auth_config_set_resolver(wf_xrpc_server_auth_config *cfg,
+                                        wf_xrpc_server_auth_resolve_fn fn,
+                                        void *ctx) {
     if (!cfg) {
         return WF_ERR_INVALID_ARG;
     }
@@ -190,8 +196,9 @@ wf_status wf_xrpc_server_auth_config_set_resolver(wf_xrpc_server_auth_config *cf
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_auth_config_set_resolver_client(
-    wf_xrpc_server_auth_config *cfg, wf_xrpc_client *client) {
+wf_status
+wf_xrpc_server_auth_config_set_resolver_client(wf_xrpc_server_auth_config *cfg,
+                                               wf_xrpc_client *client) {
     if (!cfg) {
         return WF_ERR_INVALID_ARG;
     }
@@ -265,8 +272,9 @@ static int nsid_has_rule(const wf_xrpc_server_auth_config *cfg,
 /* Longest-prefix-wins lookup of the per-route principal policy for `nsid`.
  * Returns WF_XRPC_PRINCIPAL_ANY (no restriction) when no rule matches; on
  * equal prefix length the first-added rule wins. */
-static wf_xrpc_principal_kind effective_principal_kind(
-    const wf_xrpc_server_auth_config *cfg, const char *nsid) {
+static wf_xrpc_principal_kind
+effective_principal_kind(const wf_xrpc_server_auth_config *cfg,
+                         const char *nsid) {
     size_t best_len = 0;
     wf_xrpc_principal_kind best = WF_XRPC_PRINCIPAL_ANY;
 
@@ -365,8 +373,7 @@ static wf_status decode_jwt_claims(const char *token, char **out_iss,
 /* True when `aud` equals `server_did` or is `server_did#serviceId`. */
 static int aud_matches(const char *aud, const char *server_did) {
     size_t n = strlen(server_did);
-    if (strncmp(aud, server_did, n) == 0 &&
-        (aud[n] == '\0' || aud[n] == '#')) {
+    if (strncmp(aud, server_did, n) == 0 && (aud[n] == '\0' || aud[n] == '#')) {
         return 1;
     }
     return 0;
@@ -414,8 +421,8 @@ static wf_status default_resolver(const char *iss, char **out_didkey,
 
     if (m && m->cfg.resolver_client) {
         char *didkey = NULL;
-        if (wf_did_resolve_verification_key(m->cfg.resolver_client, did,
-                                            key_id, &didkey) == WF_OK &&
+        if (wf_did_resolve_verification_key(m->cfg.resolver_client, did, key_id,
+                                            &didkey) == WF_OK &&
             didkey) {
             *out_didkey = didkey;
             rc = WF_OK;
@@ -480,8 +487,8 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
         didkey = NULL;
         wf_service_auth_claims_free(&claims);
         if (resolve(iss, &didkey, rctx) == WF_OK) {
-            service_status = wf_server_verify_service_auth(token, didkey, 0,
-                                                           &claims);
+            service_status =
+                wf_server_verify_service_auth(token, didkey, 0, &claims);
         }
     }
     if (service_status == WF_OK) {
@@ -497,8 +504,7 @@ static wf_status mw_auth_cb(wf_xrpc_request *req, void *ctx) {
         /* Match verifyJwt: when an lxm is required, the claim must be present
          * and exactly equal to the XRPC method being authorized. */
         if (cfg->require_lxm &&
-            (!claims.lxm || !req->nsid ||
-             strcmp(claims.lxm, req->nsid) != 0)) {
+            (!claims.lxm || !req->nsid || strcmp(claims.lxm, req->nsid) != 0)) {
             goto done;
         }
         req->authed_subject = strdup(claims.iss);
@@ -522,8 +528,7 @@ oauth:
         }
         if (wf_oauth_verify_request(req->auth_header, req->dpop_header,
                                     req->method, http_uri, cfg->trusted_keys,
-                                    cfg->replay_cache, &vt) ==
-                WF_OK &&
+                                    cfg->replay_cache, &vt) == WF_OK &&
             vt->sub) {
             if (required == WF_XRPC_PRINCIPAL_SERVICE) {
                 /* This route must never accept user credentials. */
@@ -638,8 +643,9 @@ static wf_status mw_ctx_init(mw_ctx *m, const wf_xrpc_server_auth_config *src) {
     return WF_OK;
 }
 
-wf_status wf_xrpc_server_set_auth_middleware(
-    wf_xrpc_server *server, const wf_xrpc_server_auth_config *cfg) {
+wf_status
+wf_xrpc_server_set_auth_middleware(wf_xrpc_server *server,
+                                   const wf_xrpc_server_auth_config *cfg) {
     mw_ctx *m;
 
     if (!server || !cfg) {

@@ -22,7 +22,8 @@
 static const char WF_MOD_TRUE[] = "1";
 
 /* Parse a `viewer` object into a moderation viewer state. Strings are borrowed
- * from `obj`; blockedBy/muted booleans are mapped to the WF_MOD_TRUE literal. */
+ * from `obj`; blockedBy/muted booleans are mapped to the WF_MOD_TRUE literal.
+ */
 static void parse_viewer(const cJSON *obj, wf_mod_viewer_state *v) {
     memset(v, 0, sizeof(*v));
     if (!obj) return;
@@ -32,11 +33,14 @@ static void parse_viewer(const cJSON *obj, wf_mod_viewer_state *v) {
         v->blocking = blocking->valuestring;
     }
     cJSON *muted_by_list = cJSON_GetObjectItemCaseSensitive(obj, "mutedByList");
-    if (muted_by_list && cJSON_IsString(muted_by_list) && muted_by_list->valuestring) {
+    if (muted_by_list && cJSON_IsString(muted_by_list) &&
+        muted_by_list->valuestring) {
         v->muted_by_list = muted_by_list->valuestring;
     }
-    cJSON *blocking_by_list = cJSON_GetObjectItemCaseSensitive(obj, "blockingByList");
-    if (blocking_by_list && cJSON_IsString(blocking_by_list) && blocking_by_list->valuestring) {
+    cJSON *blocking_by_list =
+        cJSON_GetObjectItemCaseSensitive(obj, "blockingByList");
+    if (blocking_by_list && cJSON_IsString(blocking_by_list) &&
+        blocking_by_list->valuestring) {
         v->blocking_by_list = blocking_by_list->valuestring;
     }
     cJSON *following = cJSON_GetObjectItemCaseSensitive(obj, "following");
@@ -116,7 +120,8 @@ static wf_status mod_merge_persisted_labels(wf_agent *agent, const char *uri,
     for (size_t i = 0; i < pcount; i++) {
         if (!label_uri_applies(uri, plabels[i].uri)) continue;
 
-        wf_mod_label *grown = realloc(*labels, (*count + 1) * sizeof(wf_mod_label));
+        wf_mod_label *grown =
+            realloc(*labels, (*count + 1) * sizeof(wf_mod_label));
         if (!grown) return WF_ERR_ALLOC;
         *labels = grown;
 
@@ -131,10 +136,14 @@ static wf_status mod_merge_persisted_labels(wf_agent *agent, const char *uri,
         dst->neg = plabels[i].neg;
         dst->has_cid = plabels[i].has_cid;
         dst->ver = plabels[i].ver;
-        if (!dst->src || !dst->uri || !dst->val || (plabels[i].cid && !dst->cid) ||
-            (plabels[i].exp && !dst->exp)) {
-            free(dst->src); free(dst->uri); free(dst->val); free(dst->cts);
-            free(dst->cid); free(dst->exp);
+        if (!dst->src || !dst->uri || !dst->val ||
+            (plabels[i].cid && !dst->cid) || (plabels[i].exp && !dst->exp)) {
+            free(dst->src);
+            free(dst->uri);
+            free(dst->val);
+            free(dst->cts);
+            free(dst->cid);
+            free(dst->exp);
             return WF_ERR_ALLOC;
         }
         (*count)++;
@@ -170,13 +179,10 @@ wf_status wf_agent_mod_profile_subject_from_json(const cJSON *obj,
     return extract_labels(obj, "labels", out_labels, out_label_count);
 }
 
-wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
-                                              const cJSON *author,
-                                              wf_mod_subject_post *out,
-                                              wf_mod_label **out_labels,
-                                              size_t *out_label_count,
-                                              wf_mod_label **out_author_labels,
-                                              size_t *out_author_label_count) {
+wf_status wf_agent_mod_post_subject_from_json(
+    const cJSON *post, const cJSON *author, wf_mod_subject_post *out,
+    wf_mod_label **out_labels, size_t *out_label_count,
+    wf_mod_label **out_author_labels, size_t *out_author_label_count) {
     if (!post || !out || !out_labels || !out_label_count ||
         !out_author_labels || !out_author_label_count) {
         return WF_ERR_INVALID_ARG;
@@ -229,7 +235,8 @@ wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
         }
         cJSON *emb_record = cJSON_GetObjectItemCaseSensitive(embed, "record");
         if (emb_record) {
-            cJSON *emb_uri = cJSON_GetObjectItemCaseSensitive(emb_record, "uri");
+            cJSON *emb_uri =
+                cJSON_GetObjectItemCaseSensitive(emb_record, "uri");
             if (emb_uri && cJSON_IsString(emb_uri) && emb_uri->valuestring) {
                 out->embed_uri = emb_uri->valuestring;
             }
@@ -254,12 +261,13 @@ wf_status wf_agent_mod_post_subject_from_json(const cJSON *post,
 /* Append `bcount` label defs owned by `batch` into `out->label_defs`, taking
  * over ownership of the batch's internal allocations and freeing only the
  * batch's outer array. */
-static wf_status append_label_defs(wf_mod_opts *out,
-                                   wf_mod_label_def *batch, size_t bcount) {
+static wf_status append_label_defs(wf_mod_opts *out, wf_mod_label_def *batch,
+                                   size_t bcount) {
     if (bcount == 0) return WF_OK;
 
-    wf_mod_label_def *grown = realloc(out->label_defs,
-        (out->label_def_count + bcount) * sizeof(wf_mod_label_def));
+    wf_mod_label_def *grown =
+        realloc(out->label_defs,
+                (out->label_def_count + bcount) * sizeof(wf_mod_label_def));
     if (!grown) {
         return WF_ERR_ALLOC;
     }
@@ -290,14 +298,15 @@ wf_status wf_agent_moderate_init_opts(wf_agent *agent, wf_mod_opts *out) {
 
     /* Resolve label value definitions for each configured labeler. This is
      * best-effort: a labeler record we cannot fetch is simply skipped, leaving
-     * its labels without a definition (the engine ignores unrecognised ones). */
+     * its labels without a definition (the engine ignores unrecognised ones).
+     */
     for (size_t i = 0; i < out->prefs.labeler_count; i++) {
         const char *did = out->prefs.labelers[i].did;
         if (!did) continue;
 
         wf_response res = {0};
-        wf_status rs = wf_agent_get_record(agent, "app.bsky.labeler.service",
-                                           did, &res);
+        wf_status rs =
+            wf_agent_get_record(agent, "app.bsky.labeler.service", did, &res);
         if (rs != WF_OK) continue;
 
         wf_mod_label_def *batch = NULL;
@@ -305,11 +314,12 @@ wf_status wf_agent_moderate_init_opts(wf_agent *agent, wf_mod_opts *out) {
         cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
         if (root) {
             cJSON *value = cJSON_GetObjectItemCaseSensitive(root, "value");
-            cJSON *policies = value
-                ? cJSON_GetObjectItemCaseSensitive(value, "policies") : NULL;
-            cJSON *defs = policies
-                ? cJSON_GetObjectItemCaseSensitive(policies, "labelValueDefinitions")
-                : NULL;
+            cJSON *policies =
+                value ? cJSON_GetObjectItemCaseSensitive(value, "policies")
+                      : NULL;
+            cJSON *defs = policies ? cJSON_GetObjectItemCaseSensitive(
+                                         policies, "labelValueDefinitions")
+                                   : NULL;
             if (cJSON_IsArray(defs)) {
                 char *defs_json = cJSON_PrintUnformatted(defs);
                 if (defs_json) {
@@ -320,7 +330,8 @@ wf_status wf_agent_moderate_init_opts(wf_agent *agent, wf_mod_opts *out) {
                     if (wrapped) {
                         snprintf(wrapped, need,
                                  "{\"labelValueDefinitions\":%s}", defs_json);
-                        wf_mod_label_defs_from_labeler(did, wrapped, &batch, &bcount);
+                        wf_mod_label_defs_from_labeler(did, wrapped, &batch,
+                                                       &bcount);
                         free(wrapped);
                     }
                     free(defs_json);
@@ -371,8 +382,8 @@ wf_status wf_agent_moderate_profile(wf_agent *agent, const char *actor,
         goto done;
     }
 
-    status = wf_agent_mod_profile_subject_from_json(root, &subj,
-                                                    &labels, &label_count);
+    status = wf_agent_mod_profile_subject_from_json(root, &subj, &labels,
+                                                    &label_count);
     if (status != WF_OK) {
         goto done;
     }
@@ -421,7 +432,8 @@ wf_status wf_agent_moderate_profile(wf_agent *agent, const char *actor,
 done:
     if (root) cJSON_Delete(root);
     if (labels) wf_mod_labels_free(labels, label_count);
-    if (opts.label_def_count) wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
+    if (opts.label_def_count)
+        wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
     wf_mod_prefs_free(&opts.prefs);
     wf_response_free(&res);
     free(dec);
@@ -464,9 +476,8 @@ wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri,
 
     cJSON *author = cJSON_GetObjectItemCaseSensitive(post, "author");
 
-    status = wf_agent_mod_post_subject_from_json(post, author, &subj,
-                                                 &labels, &label_count,
-                                                 &author_labels,
+    status = wf_agent_mod_post_subject_from_json(post, author, &subj, &labels,
+                                                 &label_count, &author_labels,
                                                  &author_label_count);
     if (status != WF_OK) {
         goto done;
@@ -476,8 +487,8 @@ wf_status wf_agent_moderate_post(wf_agent *agent, const char *uri,
     if (status != WF_OK) {
         goto done;
     }
-    status = mod_merge_persisted_labels(agent, subj.author.did,
-                                        &author_labels, &author_label_count);
+    status = mod_merge_persisted_labels(agent, subj.author.did, &author_labels,
+                                        &author_label_count);
     if (status != WF_OK) {
         goto done;
     }
@@ -510,7 +521,8 @@ done:
     if (root) cJSON_Delete(root);
     if (labels) wf_mod_labels_free(labels, label_count);
     if (author_labels) wf_mod_labels_free(author_labels, author_label_count);
-    if (opts.label_def_count) wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
+    if (opts.label_def_count)
+        wf_mod_label_defs_free(opts.label_defs, opts.label_def_count);
     wf_mod_prefs_free(&opts.prefs);
     wf_response_free(&res);
     free(dec);

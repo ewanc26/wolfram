@@ -76,7 +76,8 @@ int main(void) {
     WF_CHECK(wf_agent_parse_thread("not json", 8, &t) == WF_ERR_PARSE);
 
     /* Missing `thread`. */
-    WF_CHECK(wf_agent_parse_thread("{\"cursor\":\"x\"}", 12, &t) == WF_ERR_PARSE);
+    WF_CHECK(wf_agent_parse_thread("{\"cursor\":\"x\"}", 12, &t) ==
+             WF_ERR_PARSE);
 
     /* Valid fixture. */
     size_t len = 0;
@@ -91,7 +92,8 @@ int main(void) {
         WF_CHECK(t.root.post.uri &&
                  strcmp(t.root.post.uri,
                         "at://did:plc:root/example.com/post/abc") == 0);
-        WF_CHECK(t.root.post.cid && strcmp(t.root.post.cid, "bafyrootcid") == 0);
+        WF_CHECK(t.root.post.cid &&
+                 strcmp(t.root.post.cid, "bafyrootcid") == 0);
         WF_CHECK(t.root.post.author.handle &&
                  strcmp(t.root.post.author.handle, "root.example.com") == 0);
         WF_CHECK(t.root.post.author.display_name &&
@@ -102,8 +104,9 @@ int main(void) {
         WF_CHECK(t.root.post.quote_count == 0);
         WF_CHECK(t.root.post.viewer_like &&
                  strstr(t.root.post.viewer_like, "app.bsky.feed.like/like1"));
-        WF_CHECK(t.root.post.viewer_repost &&
-                 strstr(t.root.post.viewer_repost, "app.bsky.feed.repost/repost1"));
+        WF_CHECK(
+            t.root.post.viewer_repost &&
+            strstr(t.root.post.viewer_repost, "app.bsky.feed.repost/repost1"));
         WF_CHECK(t.root.post.indexed_at &&
                  strcmp(t.root.post.indexed_at, "2026-07-01T10:01:00Z") == 0);
         WF_CHECK(t.root.post.record != NULL);
@@ -147,9 +150,12 @@ int main(void) {
     wf_agent *agent = wf_agent_new("https://example.com");
     WF_CHECK(agent != NULL);
     wf_agent_thread t2 = {0};
-    WF_CHECK(wf_agent_get_post_thread_typed(NULL, "at://x", 1, &t2) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_post_thread_typed(agent, NULL, 1, &t2) == WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_agent_get_post_thread_typed(agent, "at://x", 1, NULL) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_post_thread_typed(NULL, "at://x", 1, &t2) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_post_thread_typed(agent, NULL, 1, &t2) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_get_post_thread_typed(agent, "at://x", 1, NULL) ==
+             WF_ERR_INVALID_ARG);
     wf_agent_free(agent);
 
     WF_TEST_SUMMARY();

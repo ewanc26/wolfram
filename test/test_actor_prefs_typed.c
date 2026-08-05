@@ -26,7 +26,8 @@ static char *mkstr(const char *s) {
     return c;
 }
 
-/* A getPreferences "preferences" array with three known types and one unknown. */
+/* A getPreferences "preferences" array with three known types and one unknown.
+ */
 static const char *k_prefs_json =
     "["
     "{\"$type\":\"app.bsky.actor.defs#adultContentPref\",\"enabled\":true},"
@@ -46,7 +47,8 @@ static const char *k_prefs_envelope =
 /* A declaration record. */
 static const char *k_decl_json =
     "{\"actorType\":\"app.bsky.actor.declaration#appUser\","
-    "\"since\":\"2024-01-01T00:00:00Z\",\"password\":\"secret\",\"note\":\"x\"}";
+    "\"since\":\"2024-01-01T00:00:00Z\",\"password\":\"secret\",\"note\":"
+    "\"x\"}";
 
 int main(void) {
     /* ---- parse a bare preferences array ---- */
@@ -73,9 +75,9 @@ int main(void) {
             WF_CHECK(cJSON_GetArraySize(out.extra) == 1);
             cJSON *unk = cJSON_GetArrayItem(out.extra, 0);
             cJSON *t = cJSON_GetObjectItemCaseSensitive(unk, "$type");
-            WF_CHECK(cJSON_IsString(t) && t->valuestring &&
-                     strcmp(t->valuestring,
-                            "app.bsky.actor.defs#mysteryPref") == 0);
+            WF_CHECK(
+                cJSON_IsString(t) && t->valuestring &&
+                strcmp(t->valuestring, "app.bsky.actor.defs#mysteryPref") == 0);
             cJSON *foo = cJSON_GetObjectItemCaseSensitive(unk, "foo");
             WF_CHECK(cJSON_IsString(foo) && foo->valuestring &&
                      strcmp(foo->valuestring, "bar") == 0);
@@ -87,8 +89,8 @@ int main(void) {
     /* ---- parse the envelope form + round-trip via builder ---- */
     {
         wf_actor_preferences out = {0};
-        wf_status s = wf_actor_parse_preferences(k_prefs_envelope,
-                                                 strlen(k_prefs_envelope), &out);
+        wf_status s = wf_actor_parse_preferences(
+            k_prefs_envelope, strlen(k_prefs_envelope), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.thread_view.sort &&
                  strcmp(out.thread_view.sort, "newest") == 0);
@@ -128,8 +130,7 @@ int main(void) {
 
         p.labelers.labelers = (char **)calloc(1, sizeof(char *));
         p.labelers.labeler_count = 1;
-        p.labelers.labelers[0] =
-            mkstr("did:plc:lab");
+        p.labelers.labelers[0] = mkstr("did:plc:lab");
 
         char *json = NULL;
         wf_status s = wf_actor_build_preferences(&p, &json);
@@ -154,14 +155,13 @@ int main(void) {
     /* ---- declaration parse / build ---- */
     {
         wf_actor_declaration out = {0};
-        wf_status s = wf_actor_parse_declaration(k_decl_json,
-                                                 strlen(k_decl_json), &out);
+        wf_status s =
+            wf_actor_parse_declaration(k_decl_json, strlen(k_decl_json), &out);
         WF_CHECK(s == WF_OK);
         WF_CHECK(out.actor_type &&
-                 strcmp(out.actor_type,
-                        "app.bsky.actor.declaration#appUser") == 0);
-        WF_CHECK(out.since &&
-                 strcmp(out.since, "2024-01-01T00:00:00Z") == 0);
+                 strcmp(out.actor_type, "app.bsky.actor.declaration#appUser") ==
+                     0);
+        WF_CHECK(out.since && strcmp(out.since, "2024-01-01T00:00:00Z") == 0);
         WF_CHECK(out.password && strcmp(out.password, "secret") == 0);
         WF_CHECK(out.extra != NULL); /* "note" preserved */
         if (out.extra) {
@@ -193,8 +193,7 @@ int main(void) {
     {
         wf_actor_preferences p = {0};
         wf_actor_declaration d = {0};
-        WF_CHECK(wf_actor_parse_preferences(NULL, 0, &p) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_actor_parse_preferences(NULL, 0, &p) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_parse_preferences(k_prefs_json, strlen(k_prefs_json),
                                             NULL) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_parse_preferences("not json{", 9, &p) ==
@@ -203,8 +202,7 @@ int main(void) {
         WF_CHECK(wf_actor_build_preferences(NULL, (char **)&p) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_build_preferences(&p, NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_actor_parse_declaration(NULL, 0, &d) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_actor_parse_declaration(NULL, 0, &d) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_actor_build_declaration(NULL, (char **)&d) ==
                  WF_ERR_INVALID_ARG);
     }
@@ -229,8 +227,7 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_get_suggestions(agent, -1, NULL, &res) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_suggestions(agent, 101, NULL,
-                                          &res) ==
+        WF_CHECK(wf_agent_get_suggestions(agent, 101, NULL, &res) ==
                  WF_ERR_INVALID_ARG);
         /* No app.bsky.actor.declareActor exists upstream — a declaration is a
          * record, not a procedure — so this reports NOT_IMPLEMENTED rather

@@ -20,10 +20,8 @@
 static wf_verify_key_resolver g_resolver = NULL;
 static void *g_resolver_userdata = NULL;
 
-static int is_atproto_key_id(const char *did, const char *key_id)
-{
-    if (!key_id || key_id[0] == '\0')
-        return 1;
+static int is_atproto_key_id(const char *did, const char *key_id) {
+    if (!key_id || key_id[0] == '\0') return 1;
     if (strcmp(key_id, "atproto") == 0 || strcmp(key_id, "#atproto") == 0)
         return 1;
     if (did) {
@@ -34,8 +32,7 @@ static int is_atproto_key_id(const char *did, const char *key_id)
     return 0;
 }
 
-void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata)
-{
+void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata) {
     g_resolver = cb;
     g_resolver_userdata = userdata;
 }
@@ -43,16 +40,12 @@ void wf_verify_set_key_resolver(wf_verify_key_resolver cb, void *userdata)
 /* Resolve `did`'s signing key strictly through the installed resolver. No
  * network fallback: absence of a resolver is the honest "no capability"
  * error. On WF_OK, *out_key is heap-allocated and owned by the caller. */
-static wf_status resolve_via_resolver(const char *did,
-                                      const char *key_id,
-                                      char **out_key)
-{
-    if (!out_key)
-        return WF_ERR_INVALID_ARG;
+static wf_status resolve_via_resolver(const char *did, const char *key_id,
+                                      char **out_key) {
+    if (!out_key) return WF_ERR_INVALID_ARG;
     *out_key = NULL;
 
-    if (!did || did[0] == '\0')
-        return WF_ERR_INVALID_ARG;
+    if (!did || did[0] == '\0') return WF_ERR_INVALID_ARG;
 
     if (!g_resolver)
         return WF_ERR_INVALID_ARG; /* honest: no resolver, no key source */
@@ -60,25 +53,18 @@ static wf_status resolve_via_resolver(const char *did,
     return g_resolver(did, key_id, g_resolver_userdata, out_key);
 }
 
-wf_status wf_verify_resolve_via_did(const char *did,
-                                    const char *key_id,
-                                    void *userdata,
-                                    char **out_key)
-{
+wf_status wf_verify_resolve_via_did(const char *did, const char *key_id,
+                                    void *userdata, char **out_key) {
     wf_xrpc_client *client = (wf_xrpc_client *)userdata;
-    if (!did || did[0] == '\0' || !out_key)
-        return WF_ERR_INVALID_ARG;
-    if (!client)
-        return WF_ERR_INVALID_ARG;
+    if (!did || did[0] == '\0' || !out_key) return WF_ERR_INVALID_ARG;
+    if (!client) return WF_ERR_INVALID_ARG;
     *out_key = NULL;
-    if (!is_atproto_key_id(did, key_id))
-        return WF_ERR_NOT_FOUND;
+    if (!is_atproto_key_id(did, key_id)) return WF_ERR_NOT_FOUND;
 
     wf_did_document doc;
     memset(&doc, 0, sizeof(doc));
     wf_status s = wf_did_resolve(client, did, &doc);
-    if (s != WF_OK)
-        return s;
+    if (s != WF_OK) return s;
     if (!doc.signing_key) {
         wf_did_document_free(&doc);
         return WF_ERR_NOT_FOUND;
@@ -92,32 +78,25 @@ wf_status wf_verify_resolve_via_did(const char *did,
     return WF_OK;
 }
 
-wf_status wf_verify_resolve_signing_key(const char *did,
-                                        const char *key_id,
+wf_status wf_verify_resolve_signing_key(const char *did, const char *key_id,
                                         wf_xrpc_client *client,
-                                        char **out_key)
-{
-    if (!out_key)
-        return WF_ERR_INVALID_ARG;
+                                        char **out_key) {
+    if (!out_key) return WF_ERR_INVALID_ARG;
     *out_key = NULL;
 
     /* Prefer the injected resolver. */
     wf_status s = resolve_via_resolver(did, key_id, out_key);
-    if (s != WF_ERR_INVALID_ARG)
-        return s;
+    if (s != WF_ERR_INVALID_ARG) return s;
 
     /* No resolver installed: fall back to a live wf_did_resolve when a
      * transport client is available. Without both, resolution is impossible. */
-    if (!client)
-        return WF_ERR_INVALID_ARG;
-    if (!is_atproto_key_id(did, key_id))
-        return WF_ERR_NOT_FOUND;
+    if (!client) return WF_ERR_INVALID_ARG;
+    if (!is_atproto_key_id(did, key_id)) return WF_ERR_NOT_FOUND;
 
     wf_did_document doc;
     memset(&doc, 0, sizeof(doc));
     s = wf_did_resolve(client, did, &doc);
-    if (s != WF_OK)
-        return s;
+    if (s != WF_OK) return s;
     if (!doc.signing_key) {
         wf_did_document_free(&doc);
         return WF_ERR_NOT_FOUND;
@@ -129,12 +108,9 @@ wf_status wf_verify_resolve_signing_key(const char *did,
 }
 
 wf_status wf_verify_record_commit(const char *signing_key_multibase,
-                                  const uint8_t *commit_cbor,
-                                  size_t commit_len,
-                                  int *out_valid)
-{
-    if (!out_valid)
-        return WF_ERR_INVALID_ARG;
+                                  const uint8_t *commit_cbor, size_t commit_len,
+                                  int *out_valid) {
+    if (!out_valid) return WF_ERR_INVALID_ARG;
     *out_valid = 0;
 
     if (!signing_key_multibase || signing_key_multibase[0] == '\0' ||
@@ -144,8 +120,7 @@ wf_status wf_verify_record_commit(const char *signing_key_multibase,
     wf_car car;
     memset(&car, 0, sizeof(car));
     wf_status s = wf_car_parse(commit_cbor, commit_len, &car);
-    if (s != WF_OK)
-        return s;
+    if (s != WF_OK) return s;
 
     int valid = 0;
 
@@ -165,8 +140,7 @@ wf_status wf_verify_record_commit(const char *signing_key_multibase,
 
                 wf_commit out;
                 s = wf_repo_verify(&car, &opts, &out);
-                if (s == WF_OK)
-                    valid = 1;
+                if (s == WF_OK) valid = 1;
             } else {
                 s = WF_ERR_PARSE;
             }
@@ -184,15 +158,11 @@ wf_status wf_verify_record_commit(const char *signing_key_multibase,
 
 wf_status wf_verify_record_commit_resolved(const char *did,
                                            const uint8_t *commit_cbor,
-                                           size_t commit_len,
-                                           int *out_valid)
-{
-    if (!out_valid)
-        return WF_ERR_INVALID_ARG;
+                                           size_t commit_len, int *out_valid) {
+    if (!out_valid) return WF_ERR_INVALID_ARG;
     *out_valid = 0;
 
-    if (!did || did[0] == '\0' ||
-        !commit_cbor || commit_len == 0)
+    if (!did || did[0] == '\0' || !commit_cbor || commit_len == 0)
         return WF_ERR_INVALID_ARG;
 
     /* Fetch the DID's signing key from the injected resolver. With no
@@ -200,28 +170,23 @@ wf_status wf_verify_record_commit_resolved(const char *did,
      * fabricated key, no false pass. */
     char *signing_key = NULL;
     wf_status s = resolve_via_resolver(did, NULL, &signing_key);
-    if (s != WF_OK)
-        return s;
+    if (s != WF_OK) return s;
 
-    s = wf_verify_record_commit(signing_key, commit_cbor, commit_len, out_valid);
+    s = wf_verify_record_commit(signing_key, commit_cbor, commit_len,
+                                out_valid);
 
     free(signing_key);
     return s;
 }
 
-wf_status wf_agent_verify_record(wf_agent *agent,
-                                 const char *did,
-                                 const char *collection,
-                                 const char *rkey,
-                                 int *out_valid)
-{
-    if (!out_valid)
-        return WF_ERR_INVALID_ARG;
+wf_status wf_agent_verify_record(wf_agent *agent, const char *did,
+                                 const char *collection, const char *rkey,
+                                 int *out_valid) {
+    if (!out_valid) return WF_ERR_INVALID_ARG;
     *out_valid = 0;
 
-    if (!agent || !did || did[0] == '\0' ||
-        !collection || collection[0] == '\0' ||
-        !rkey || rkey[0] == '\0')
+    if (!agent || !did || did[0] == '\0' || !collection ||
+        collection[0] == '\0' || !rkey || rkey[0] == '\0')
         return WF_ERR_INVALID_ARG;
 
     /* Resolve the DID's signing key via the injected resolver. Without a
@@ -229,8 +194,7 @@ wf_status wf_agent_verify_record(wf_agent *agent,
      * rather than fabricating a signature check. */
     char *signing_key = NULL;
     wf_status s = resolve_via_resolver(did, NULL, &signing_key);
-    if (s != WF_OK)
-        return s;
+    if (s != WF_OK) return s;
 
     /* Confirm the record is retrievable and fetch its commit CAR. */
     wf_agent_sync_auth(agent);
@@ -259,10 +223,8 @@ wf_status wf_agent_verify_record(wf_agent *agent,
         return s;
     }
 
-    s = wf_verify_record_commit(signing_key,
-                                (const uint8_t *)res.body,
-                                res.body_len,
-                                out_valid);
+    s = wf_verify_record_commit(signing_key, (const uint8_t *)res.body,
+                                res.body_len, out_valid);
 
     wf_response_free(&res);
     free(signing_key);

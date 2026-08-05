@@ -18,28 +18,29 @@
 /* Known IDN handles and their expected IDNA2008 ASCII (ACE) forms.
  * "münchen.example" uses U+00FC (ü); "faß.de" exercises the sharp-s (ß). */
 static const struct {
-    const char *unicode;   /* UTF-8 input handle */
-    const char *ascii;     /* expected xn--… punycode */
+    const char *unicode; /* UTF-8 input handle */
+    const char *ascii;   /* expected xn--… punycode */
 } kCases[] = {
     {"m\xc3\xbcnchen.example", "xn--mnchen-3ya.example"},
-    {"fa\xc3\x9f.de",          "xn--fa-hia.de"},
-    {"example.com",            "example.com"},
+    {"fa\xc3\x9f.de", "xn--fa-hia.de"},
+    {"example.com", "example.com"},
 };
 
 static int test_encode(void) {
     for (size_t i = 0; i < sizeof(kCases) / sizeof(kCases[0]); i++) {
         char *ascii = NULL;
-        int rc = idn2_to_ascii_8z(kCases[i].unicode, &ascii, IDN2_NONTRANSITIONAL);
+        int rc =
+            idn2_to_ascii_8z(kCases[i].unicode, &ascii, IDN2_NONTRANSITIONAL);
         if (rc != IDN2_OK) {
-            fprintf(stderr, "encode failed for %s: %s\n",
-                    kCases[i].unicode, idn2_strerror(rc));
+            fprintf(stderr, "encode failed for %s: %s\n", kCases[i].unicode,
+                    idn2_strerror(rc));
             WF_CHECK(0);
             continue;
         }
         WF_CHECK(strcmp(ascii, kCases[i].ascii) == 0);
         if (strcmp(ascii, kCases[i].ascii) != 0) {
-            fprintf(stderr, "encode mismatch: got %s expected %s\n",
-                    ascii, kCases[i].ascii);
+            fprintf(stderr, "encode mismatch: got %s expected %s\n", ascii,
+                    kCases[i].ascii);
         }
         idn2_free(ascii);
     }
@@ -49,7 +50,8 @@ static int test_encode(void) {
 static int test_roundtrip(void) {
     for (size_t i = 0; i < sizeof(kCases) / sizeof(kCases[0]); i++) {
         char *ascii = NULL;
-        int rc = idn2_to_ascii_8z(kCases[i].unicode, &ascii, IDN2_NONTRANSITIONAL);
+        int rc =
+            idn2_to_ascii_8z(kCases[i].unicode, &ascii, IDN2_NONTRANSITIONAL);
         WF_CHECK(rc == IDN2_OK && ascii);
         if (rc != IDN2_OK || !ascii) continue;
 
@@ -59,8 +61,8 @@ static int test_roundtrip(void) {
         if (rc == IDN2_OK && uni) {
             WF_CHECK(strcmp(uni, kCases[i].unicode) == 0);
             if (strcmp(uni, kCases[i].unicode) != 0) {
-                fprintf(stderr, "roundtrip mismatch: got %s expected %s\n",
-                        uni, kCases[i].unicode);
+                fprintf(stderr, "roundtrip mismatch: got %s expected %s\n", uni,
+                        kCases[i].unicode);
             }
             idn2_free(uni);
         }

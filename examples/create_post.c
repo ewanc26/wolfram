@@ -27,11 +27,11 @@
 #include "wolfram/xrpc.h"
 
 #define WF_CREATE_RECORD_NSID "com.atproto.repo.createRecord"
-#define WF_POST_COLLECTION     "app.bsky.feed.post"
-#define WF_POST_RECORD_TYPE    "app.bsky.feed.post"
-#define WF_FACET_MENTION_TYPE  "app.bsky.richtext.facet#mention"
-#define WF_FACET_LINK_TYPE     "app.bsky.richtext.facet#link"
-#define WF_FACET_TAG_TYPE      "app.bsky.richtext.facet#tag"
+#define WF_POST_COLLECTION "app.bsky.feed.post"
+#define WF_POST_RECORD_TYPE "app.bsky.feed.post"
+#define WF_FACET_MENTION_TYPE "app.bsky.richtext.facet#mention"
+#define WF_FACET_LINK_TYPE "app.bsky.richtext.facet#link"
+#define WF_FACET_TAG_TYPE "app.bsky.richtext.facet#tag"
 
 static char *wf_dup_span(const char *s, size_t len) {
     char *out = malloc(len + 1);
@@ -105,58 +105,63 @@ static wf_status wf_add_feature_json(cJSON *features,
     wf_status status = WF_OK;
 
     switch (feature->type) {
-    case WF_RICHTEXT_FEATURE_MENTION: {
-        if (!segment->text || segment->text_len < 2 || segment->text[0] != '@') {
-            status = WF_ERR_PARSE;
-            break;
-        }
+        case WF_RICHTEXT_FEATURE_MENTION: {
+            if (!segment->text || segment->text_len < 2 ||
+                segment->text[0] != '@') {
+                status = WF_ERR_PARSE;
+                break;
+            }
 
-        char *handle = wf_dup_span(segment->text + 1, segment->text_len - 1);
-        if (!handle) {
-            status = WF_ERR_ALLOC;
-            break;
-        }
+            char *handle =
+                wf_dup_span(segment->text + 1, segment->text_len - 1);
+            if (!handle) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
 
-        char *did = NULL;
-        status = wf_handle_resolve(client, handle, &did);
-        free(handle);
-        if (status != WF_OK) {
-            break;
-        }
-        if (!did || !wf_syntax_did_is_valid(did)) {
+            char *did = NULL;
+            status = wf_handle_resolve(client, handle, &did);
+            free(handle);
+            if (status != WF_OK) {
+                break;
+            }
+            if (!did || !wf_syntax_did_is_valid(did)) {
+                free(did);
+                status = WF_ERR_PARSE;
+                break;
+            }
+
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_FACET_MENTION_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "did", did)) {
+                free(did);
+                status = WF_ERR_ALLOC;
+                break;
+            }
+
             free(did);
-            status = WF_ERR_PARSE;
             break;
         }
 
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_FACET_MENTION_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "did", did)) {
-            free(did);
-            status = WF_ERR_ALLOC;
+        case WF_RICHTEXT_FEATURE_LINK:
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_FACET_LINK_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "uri", feature->uri)) {
+                status = WF_ERR_ALLOC;
+            }
             break;
-        }
 
-        free(did);
-        break;
-    }
+        case WF_RICHTEXT_FEATURE_TAG:
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_FACET_TAG_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "tag", feature->tag)) {
+                status = WF_ERR_ALLOC;
+            }
+            break;
 
-    case WF_RICHTEXT_FEATURE_LINK:
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_FACET_LINK_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "uri", feature->uri)) {
-            status = WF_ERR_ALLOC;
-        }
-        break;
-
-    case WF_RICHTEXT_FEATURE_TAG:
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_FACET_TAG_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "tag", feature->tag)) {
-            status = WF_ERR_ALLOC;
-        }
-        break;
-
-    default:
-        status = WF_ERR_INVALID_ARG;
-        break;
+        default:
+            status = WF_ERR_INVALID_ARG;
+            break;
     }
 
     if (status != WF_OK) {
@@ -191,8 +196,10 @@ static wf_status wf_add_segment_facet_json(cJSON *facets,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddNumberToObject(index_json, "byteStart", (double)segment->facet->byte_start) ||
-        !cJSON_AddNumberToObject(index_json, "byteEnd", (double)segment->facet->byte_end) ||
+    if (!cJSON_AddNumberToObject(index_json, "byteStart",
+                                 (double)segment->facet->byte_start) ||
+        !cJSON_AddNumberToObject(index_json, "byteEnd",
+                                 (double)segment->facet->byte_end) ||
         !cJSON_AddItemToObject(facet_json, "index", index_json)) {
         cJSON_Delete(index_json);
         cJSON_Delete(facet_json);
@@ -212,8 +219,8 @@ static wf_status wf_add_segment_facet_json(cJSON *facets,
     }
 
     for (size_t i = 0; i < segment->facet->feature_count; ++i) {
-        wf_status status = wf_add_feature_json(features_json, segment,
-                                               &segment->facet->features[i], client);
+        wf_status status = wf_add_feature_json(
+            features_json, segment, &segment->facet->features[i], client);
         if (status != WF_OK) {
             cJSON_Delete(facet_json);
             return status;
@@ -243,7 +250,8 @@ static wf_status wf_build_create_record_body(const wf_richtext *rt,
         return WF_ERR_INVALID_ARG;
     }
 
-    if (!wf_syntax_did_is_valid(repo_did) || !wf_syntax_datetime_is_valid(created_at)) {
+    if (!wf_syntax_did_is_valid(repo_did) ||
+        !wf_syntax_datetime_is_valid(created_at)) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -335,8 +343,8 @@ static void wf_print_create_record_response(const wf_response *res) {
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
     if (cJSON_IsString(uri) && cJSON_IsString(cid)) {
-        printf("HTTP %ld\nCreated record:\n  uri: %s\n  cid: %s\n",
-               res->status, uri->valuestring, cid->valuestring);
+        printf("HTTP %ld\nCreated record:\n  uri: %s\n  cid: %s\n", res->status,
+               uri->valuestring, cid->valuestring);
     } else {
         printf("HTTP %ld\n%s\n", res->status, res->body);
     }
@@ -347,7 +355,8 @@ static void wf_print_create_record_response(const wf_response *res) {
 int main(int argc, char **argv) {
     if (argc < 5) {
         fprintf(stderr,
-                "usage: %s <service-url> <handle-or-email> <password> <post text...>\n",
+                "usage: %s <service-url> <handle-or-email> <password> <post "
+                "text...>\n",
                 argv[0]);
         return 1;
     }
@@ -423,7 +432,8 @@ int main(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    status = wf_xrpc_procedure(session->client, WF_CREATE_RECORD_NSID, body_json, &res);
+    status = wf_xrpc_procedure(session->client, WF_CREATE_RECORD_NSID,
+                               body_json, &res);
     free(body_json);
 
     if (status != WF_OK && status != WF_ERR_HTTP) {

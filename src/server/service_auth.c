@@ -130,8 +130,8 @@ static unsigned char *wf_sa_base64url_decode(const char *in, size_t in_len,
             free(out);
             return NULL;
         }
-        uint32_t n = ((uint32_t)a << 18) | ((uint32_t)b << 12) |
-                     ((uint32_t)c << 6);
+        uint32_t n =
+            ((uint32_t)a << 18) | ((uint32_t)b << 12) | ((uint32_t)c << 6);
         out[o++] = (unsigned char)((n >> 16) & 0xff);
         out[o++] = (unsigned char)((n >> 8) & 0xff);
     }
@@ -139,7 +139,8 @@ static unsigned char *wf_sa_base64url_decode(const char *in, size_t in_len,
     return out;
 }
 
-/* ── jti nonce (16 random bytes, hex) — matches crypto.randomStr(16,'hex') ── */
+/* ── jti nonce (16 random bytes, hex) — matches crypto.randomStr(16,'hex') ──
+ */
 
 static wf_status wf_sa_random_jti(char **out) {
     unsigned char raw[16];
@@ -291,7 +292,8 @@ wf_status wf_server_create_service_auth(const wf_service_auth_request *req,
     snprintf(signing_input, input_len + 1, "%s.%s", header_b64, payload_b64);
 
     /* wf_sign hashes with SHA-256, signs (ES256/ES256K), and normalises to
-     * low-S, producing the 64-byte compact r||s the atproto wire format uses. */
+     * low-S, producing the 64-byte compact r||s the atproto wire format uses.
+     */
     status = wf_sign(key, (const unsigned char *)signing_input, input_len, sig,
                      sizeof(sig));
     if (status != WF_OK) {

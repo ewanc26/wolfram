@@ -78,21 +78,24 @@ static int seen_count(void) {
 
 static wf_status ok_handler(void *ctx, const wf_xrpc_request *req,
                             wf_xrpc_response *resp) {
-    (void)ctx; (void)req;
+    (void)ctx;
+    (void)req;
     wf_xrpc_response_set_body(resp, "{\"ok\":true}", 11);
     return WF_OK;
 }
 
 static wf_status failing_handler(void *ctx, const wf_xrpc_request *req,
                                  wf_xrpc_response *resp) {
-    (void)ctx; (void)req;
+    (void)ctx;
+    (void)req;
     wf_xrpc_response_set_error(resp, 418, "Teapot", "no coffee here");
     return WF_OK;
 }
 
 static wf_status http_handler(void *ctx, const wf_xrpc_request *req,
                               wf_xrpc_response *resp) {
-    (void)ctx; (void)req;
+    (void)ctx;
+    (void)req;
     wf_xrpc_response_set_content_type(resp, "text/plain");
     wf_xrpc_response_set_body(resp, "hello", 5);
     return WF_OK;
@@ -111,7 +114,9 @@ int main(void) {
 
     wf_xrpc_server *server = wf_xrpc_server_start("127.0.0.1", 0, 2);
     WF_CHECK(server != NULL);
-    if (!server) { WF_TEST_SUMMARY(); }
+    if (!server) {
+        WF_TEST_SUMMARY();
+    }
 
     WF_CHECK(wf_xrpc_server_register_query(server, "test.ok", ok_handler,
                                            NULL) == WF_OK);

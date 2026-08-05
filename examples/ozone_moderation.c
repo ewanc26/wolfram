@@ -29,7 +29,8 @@ static void print_usage(const char *prog) {
     printf("  (no arguments: build a labeler service record offline, "
            "print it, exit 0)\n");
     printf("usage: %s <service-url> <handle-or-email> <password> "
-           "[subject-did]\n", prog);
+           "[subject-did]\n",
+           prog);
     printf("  logs in and demonstrates ozone report/query/label-defs calls\n");
 }
 
@@ -60,8 +61,8 @@ int main(int argc, char **argv) {
 
     /* ---- Network-gated portion. ---- */
     const char *service_url = argv[1];
-    const char *identifier  = argv[2];
-    const char *password    = argv[3];
+    const char *identifier = argv[2];
+    const char *password = argv[3];
     const char *subject_did = (argc >= 5) ? argv[4] : NULL;
 
     wf_session *session = wf_session_new(service_url);

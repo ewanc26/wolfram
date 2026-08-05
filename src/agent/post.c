@@ -18,28 +18,28 @@
 #include <string.h>
 #include <time.h>
 
-#define WF_AGENT_CREATE_RECORD_NSID  "com.atproto.repo.createRecord"
-#define WF_AGENT_DELETE_RECORD_NSID  "com.atproto.repo.deleteRecord"
-#define WF_AGENT_PUT_RECORD_NSID     "com.atproto.repo.putRecord"
-#define WF_AGENT_POST_COLLECTION      "app.bsky.feed.post"
-#define WF_AGENT_POST_RECORD_TYPE     "app.bsky.feed.post"
-#define WF_AGENT_FOLLOW_COLLECTION    "app.bsky.graph.follow"
-#define WF_AGENT_FOLLOW_RECORD_TYPE   "app.bsky.graph.follow"
-#define WF_AGENT_LIKE_COLLECTION      "app.bsky.feed.like"
-#define WF_AGENT_LIKE_RECORD_TYPE     "app.bsky.feed.like"
-#define WF_AGENT_REPOST_COLLECTION    "app.bsky.feed.repost"
-#define WF_AGENT_REPOST_RECORD_TYPE   "app.bsky.feed.repost"
-#define WF_AGENT_BLOCK_COLLECTION     "app.bsky.graph.block"
-#define WF_AGENT_BLOCK_RECORD_TYPE    "app.bsky.graph.block"
-#define WF_AGENT_PROFILE_COLLECTION   "app.bsky.actor.profile"
-#define WF_AGENT_PROFILE_RECORD_TYPE  "app.bsky.actor.profile"
-#define WF_AGENT_PROFILE_RKEY         "self"
-#define WF_AGENT_RESOLVE_HANDLE_NSID  "com.atproto.identity.resolveHandle"
-#define WF_AGENT_UPLOAD_BLOB_NSID     "com.atproto.repo.uploadBlob"
-#define WF_AGENT_RESOLVE_HANDLE_NSID  "com.atproto.identity.resolveHandle"
-#define WF_AGENT_FACET_MENTION_TYPE   "app.bsky.richtext.facet#mention"
-#define WF_AGENT_FACET_LINK_TYPE      "app.bsky.richtext.facet#link"
-#define WF_AGENT_FACET_TAG_TYPE       "app.bsky.richtext.facet#tag"
+#define WF_AGENT_CREATE_RECORD_NSID "com.atproto.repo.createRecord"
+#define WF_AGENT_DELETE_RECORD_NSID "com.atproto.repo.deleteRecord"
+#define WF_AGENT_PUT_RECORD_NSID "com.atproto.repo.putRecord"
+#define WF_AGENT_POST_COLLECTION "app.bsky.feed.post"
+#define WF_AGENT_POST_RECORD_TYPE "app.bsky.feed.post"
+#define WF_AGENT_FOLLOW_COLLECTION "app.bsky.graph.follow"
+#define WF_AGENT_FOLLOW_RECORD_TYPE "app.bsky.graph.follow"
+#define WF_AGENT_LIKE_COLLECTION "app.bsky.feed.like"
+#define WF_AGENT_LIKE_RECORD_TYPE "app.bsky.feed.like"
+#define WF_AGENT_REPOST_COLLECTION "app.bsky.feed.repost"
+#define WF_AGENT_REPOST_RECORD_TYPE "app.bsky.feed.repost"
+#define WF_AGENT_BLOCK_COLLECTION "app.bsky.graph.block"
+#define WF_AGENT_BLOCK_RECORD_TYPE "app.bsky.graph.block"
+#define WF_AGENT_PROFILE_COLLECTION "app.bsky.actor.profile"
+#define WF_AGENT_PROFILE_RECORD_TYPE "app.bsky.actor.profile"
+#define WF_AGENT_PROFILE_RKEY "self"
+#define WF_AGENT_RESOLVE_HANDLE_NSID "com.atproto.identity.resolveHandle"
+#define WF_AGENT_UPLOAD_BLOB_NSID "com.atproto.repo.uploadBlob"
+#define WF_AGENT_RESOLVE_HANDLE_NSID "com.atproto.identity.resolveHandle"
+#define WF_AGENT_FACET_MENTION_TYPE "app.bsky.richtext.facet#mention"
+#define WF_AGENT_FACET_LINK_TYPE "app.bsky.richtext.facet#link"
+#define WF_AGENT_FACET_TAG_TYPE "app.bsky.richtext.facet#tag"
 
 #include "_internal.h"
 
@@ -192,8 +192,6 @@ static wf_status wf_agent_session_data_copy(wf_session_data *dst, const wf_sessi
 static wf_status wf_agent_set_string(char **dst, const char *src);
 static int wf_agent_is_logged_in(const wf_agent *agent);
 
-
-
 static int wf_agent_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     time_t now = time(NULL);
     struct tm tm_utc;
@@ -206,9 +204,8 @@ static int wf_agent_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     return strftime(buf, buf_len, "%Y-%m-%dT%H:%M:%SZ", &tm_utc) != 0;
 }
 
-
-
-static int wf_agent_authority_matches_session(const wf_agent *agent, const char *authority) {
+static int wf_agent_authority_matches_session(const wf_agent *agent,
+                                              const char *authority) {
     if (!agent || !agent->session || !authority) {
         return 0;
     }
@@ -252,65 +249,70 @@ static wf_status wf_agent_add_feature_json(cJSON *features,
     wf_status status = WF_OK;
 
     switch (feature->type) {
-    case WF_RICHTEXT_FEATURE_MENTION: {
-        if (!segment->text || segment->text_len < 2 || segment->text[0] != '@') {
-            status = WF_ERR_PARSE;
-            break;
-        }
+        case WF_RICHTEXT_FEATURE_MENTION: {
+            if (!segment->text || segment->text_len < 2 ||
+                segment->text[0] != '@') {
+                status = WF_ERR_PARSE;
+                break;
+            }
 
-        char *handle = wf_agent_strndup(segment->text + 1, segment->text_len - 1);
-        if (!handle) {
-            status = WF_ERR_ALLOC;
-            break;
-        }
+            char *handle =
+                wf_agent_strndup(segment->text + 1, segment->text_len - 1);
+            if (!handle) {
+                status = WF_ERR_ALLOC;
+                break;
+            }
 
-        if (!wf_syntax_handle_is_valid(handle)) {
+            if (!wf_syntax_handle_is_valid(handle)) {
+                free(handle);
+                status = WF_ERR_PARSE;
+                break;
+            }
+
+            char *did = NULL;
+            status = wf_handle_resolve(client, handle, &did);
             free(handle);
-            status = WF_ERR_PARSE;
-            break;
-        }
+            if (status != WF_OK) {
+                break;
+            }
 
-        char *did = NULL;
-        status = wf_handle_resolve(client, handle, &did);
-        free(handle);
-        if (status != WF_OK) {
-            break;
-        }
+            if (!wf_syntax_did_is_valid(did)) {
+                free(did);
+                status = WF_ERR_PARSE;
+                break;
+            }
 
-        if (!wf_syntax_did_is_valid(did)) {
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_AGENT_FACET_MENTION_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "did", did)) {
+                free(did);
+                status = WF_ERR_ALLOC;
+                break;
+            }
+
             free(did);
-            status = WF_ERR_PARSE;
             break;
         }
 
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_AGENT_FACET_MENTION_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "did", did)) {
-            free(did);
-            status = WF_ERR_ALLOC;
+        case WF_RICHTEXT_FEATURE_LINK:
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_AGENT_FACET_LINK_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "uri", feature->uri)) {
+                status = WF_ERR_ALLOC;
+            }
             break;
-        }
 
-        free(did);
-        break;
-    }
+        case WF_RICHTEXT_FEATURE_TAG:
+            if (!cJSON_AddStringToObject(feature_json, "$type",
+                                         WF_AGENT_FACET_TAG_TYPE) ||
+                !cJSON_AddStringToObject(feature_json, "tag", feature->tag)) {
+                status = WF_ERR_ALLOC;
+            }
+            break;
 
-    case WF_RICHTEXT_FEATURE_LINK:
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_AGENT_FACET_LINK_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "uri", feature->uri)) {
-            status = WF_ERR_ALLOC;
-        }
-        break;
-
-    case WF_RICHTEXT_FEATURE_TAG:
-        if (!cJSON_AddStringToObject(feature_json, "$type", WF_AGENT_FACET_TAG_TYPE) ||
-            !cJSON_AddStringToObject(feature_json, "tag", feature->tag)) {
-            status = WF_ERR_ALLOC;
-        }
-        break;
-
-    default:
-        status = WF_ERR_INVALID_ARG;
-        break;
+        default:
+            status = WF_ERR_INVALID_ARG;
+            break;
     }
 
     if (status != WF_OK) {
@@ -326,9 +328,8 @@ static wf_status wf_agent_add_feature_json(cJSON *features,
     return WF_OK;
 }
 
-static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
-                                                const wf_richtext_segment *segment,
-                                                wf_xrpc_client *client) {
+static wf_status wf_agent_add_segment_facet_json(
+    cJSON *facets, const wf_richtext_segment *segment, wf_xrpc_client *client) {
     if (!facets || !segment || !segment->facet || !segment->facet->features ||
         segment->facet->feature_count == 0) {
         return WF_ERR_INVALID_ARG;
@@ -345,8 +346,10 @@ static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddNumberToObject(index_json, "byteStart", (double)segment->facet->byte_start) ||
-        !cJSON_AddNumberToObject(index_json, "byteEnd", (double)segment->facet->byte_end) ||
+    if (!cJSON_AddNumberToObject(index_json, "byteStart",
+                                 (double)segment->facet->byte_start) ||
+        !cJSON_AddNumberToObject(index_json, "byteEnd",
+                                 (double)segment->facet->byte_end) ||
         !cJSON_AddItemToObject(facet_json, "index", index_json)) {
         cJSON_Delete(index_json);
         cJSON_Delete(facet_json);
@@ -366,8 +369,8 @@ static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
     }
 
     for (size_t i = 0; i < segment->facet->feature_count; ++i) {
-        wf_status status = wf_agent_add_feature_json(features_json, segment,
-                                                     &segment->facet->features[i], client);
+        wf_status status = wf_agent_add_feature_json(
+            features_json, segment, &segment->facet->features[i], client);
         if (status != WF_OK) {
             cJSON_Delete(facet_json);
             return status;
@@ -382,11 +385,10 @@ static wf_status wf_agent_add_segment_facet_json(cJSON *facets,
     return WF_OK;
 }
 
-static wf_status wf_agent_build_post_record(wf_agent *agent,
-                                            const char *text,
-                                            cJSON *facets,
-                                            cJSON **out_record) {
-    if (!agent || !text || !out_record || !agent->session || !agent->session->data.did) {
+static wf_status wf_agent_build_post_record(wf_agent *agent, const char *text,
+                                            cJSON *facets, cJSON **out_record) {
+    if (!agent || !text || !out_record || !agent->session ||
+        !agent->session->data.did) {
         cJSON_Delete(facets);
         return WF_ERR_INVALID_ARG;
     }
@@ -471,8 +473,8 @@ static wf_status wf_agent_create_record_call(wf_agent *agent,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client, WF_AGENT_CREATE_RECORD_NSID,
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, WF_AGENT_CREATE_RECORD_NSID, json, &res);
     free(json);
     if (status != WF_OK) {
         wf_response_free(&res);
@@ -489,8 +491,8 @@ static wf_status wf_agent_create_record_call(wf_agent *agent,
 
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(resp_root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(resp_root, "cid");
-    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) ||
-        !uri->valuestring || !cid->valuestring) {
+    if (!cJSON_IsString(uri) || !cJSON_IsString(cid) || !uri->valuestring ||
+        !cid->valuestring) {
         cJSON_Delete(resp_root);
         wf_response_free(&res);
         return WF_ERR_PARSE;
@@ -542,8 +544,8 @@ static wf_status wf_agent_delete_record_call(wf_agent *agent,
     wf_agent_sync_auth(agent);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client, WF_AGENT_DELETE_RECORD_NSID,
-                                         json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, WF_AGENT_DELETE_RECORD_NSID, json, &res);
     free(json);
     wf_response_free(&res);
     return status;
@@ -662,7 +664,8 @@ static wf_status wf_agent_build_follow_record(wf_agent *agent,
         return WF_ERR_ALLOC;
     }
 
-    if (!cJSON_AddStringToObject(record, "$type", WF_AGENT_FOLLOW_RECORD_TYPE) ||
+    if (!cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_FOLLOW_RECORD_TYPE) ||
         !cJSON_AddStringToObject(record, "subject", subject_did) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(record);
@@ -677,7 +680,8 @@ static wf_status wf_agent_build_like_record(wf_agent *agent,
                                             const char *post_uri,
                                             const char *post_cid,
                                             cJSON **out_record) {
-    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid || !out_record) {
+    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid ||
+        !out_record) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -720,10 +724,11 @@ static wf_status wf_agent_build_like_record(wf_agent *agent,
 }
 
 static wf_status wf_agent_build_repost_record(wf_agent *agent,
-                                               const char *post_uri,
-                                               const char *post_cid,
-                                               cJSON **out_record) {
-    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid || !out_record) {
+                                              const char *post_uri,
+                                              const char *post_cid,
+                                              cJSON **out_record) {
+    if (!wf_agent_is_logged_in(agent) || !post_uri || !post_cid || !*post_cid ||
+        !out_record) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -752,7 +757,8 @@ static wf_status wf_agent_build_repost_record(wf_agent *agent,
 
     if (!cJSON_AddStringToObject(subject, "uri", post_uri) ||
         !cJSON_AddStringToObject(subject, "cid", post_cid) ||
-        !cJSON_AddStringToObject(record, "$type", WF_AGENT_REPOST_RECORD_TYPE) ||
+        !cJSON_AddStringToObject(record, "$type",
+                                 WF_AGENT_REPOST_RECORD_TYPE) ||
         !cJSON_AddItemToObject(record, "subject", subject) ||
         !cJSON_AddStringToObject(record, "createdAt", created_at)) {
         cJSON_Delete(subject);
@@ -764,7 +770,8 @@ static wf_status wf_agent_build_repost_record(wf_agent *agent,
     return WF_OK;
 }
 wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
-                                    const char *facets_json, wf_agent_post_result *out) {
+                                    const char *facets_json,
+                                    wf_agent_post_result *out) {
     if (!agent || !text || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -787,10 +794,12 @@ wf_status wf_agent_post_with_facets(wf_agent *agent, const char *text,
         return status;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record,
+                                       out);
 }
 
-wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result *out) {
+wf_status wf_agent_post(wf_agent *agent, const char *text,
+                        wf_agent_post_result *out) {
     if (!agent || !text || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -811,7 +820,8 @@ wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result 
     size_t segment_count = wf_richtext_segment_count(&rt);
     for (size_t i = 0; i < segment_count; ++i) {
         wf_richtext_segment segment = wf_richtext_get_segment(&rt, i);
-        if (!segment.facet || !segment.facet->features || segment.facet->feature_count == 0) {
+        if (!segment.facet || !segment.facet->features ||
+            segment.facet->feature_count == 0) {
             continue;
         }
 
@@ -823,9 +833,8 @@ wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result 
             }
         }
 
-
-
-        status = wf_agent_add_segment_facet_json(facets, &segment, agent->client);
+        status =
+            wf_agent_add_segment_facet_json(facets, &segment, agent->client);
         if (status != WF_OK) {
             cJSON_Delete(facets);
             wf_richtext_free(&rt);
@@ -841,12 +850,14 @@ wf_status wf_agent_post(wf_agent *agent, const char *text, wf_agent_post_result 
         return status;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record,
+                                       out);
 }
 
 /* Post with embed */
 wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
-                                 const char *embed_json, wf_agent_post_result *out) {
+                                   const char *embed_json,
+                                   wf_agent_post_result *out) {
     if (!agent || !text || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -881,7 +892,8 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
     size_t segment_count = wf_richtext_segment_count(&rt);
     for (size_t i = 0; i < segment_count; ++i) {
         wf_richtext_segment segment = wf_richtext_get_segment(&rt, i);
-        if (!segment.facet || !segment.facet->features || segment.facet->feature_count == 0) {
+        if (!segment.facet || !segment.facet->features ||
+            segment.facet->feature_count == 0) {
             continue;
         }
         if (!facets) {
@@ -892,7 +904,8 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
                 return WF_ERR_ALLOC;
             }
         }
-        status = wf_agent_add_segment_facet_json(facets, &segment, agent->client);
+        status =
+            wf_agent_add_segment_facet_json(facets, &segment, agent->client);
         if (status != WF_OK) {
             cJSON_Delete(facets);
             wf_richtext_free(&rt);
@@ -914,16 +927,17 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
         return WF_ERR_ALLOC;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record,
+                                       out);
 }
 
 /* Reply with separate root and parent strong references. */
 wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
-                             const char *root_uri, const char *root_cid,
-                             const char *parent_uri, const char *parent_cid,
-                             wf_agent_post_result *out) {
-    if (!agent || !text || !root_uri || !root_cid ||
-        !parent_uri || !parent_cid || !out) {
+                              const char *root_uri, const char *root_cid,
+                              const char *parent_uri, const char *parent_cid,
+                              wf_agent_post_result *out) {
+    if (!agent || !text || !root_uri || !root_cid || !parent_uri ||
+        !parent_cid || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -932,18 +946,29 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
     wf_status status = wf_richtext_init(&rt, text);
     if (status != WF_OK) return status;
     status = wf_richtext_detect_facets(&rt);
-    if (status != WF_OK) { wf_richtext_free(&rt); return status; }
+    if (status != WF_OK) {
+        wf_richtext_free(&rt);
+        return status;
+    }
     cJSON *facets = NULL;
     size_t seg_cnt = wf_richtext_segment_count(&rt);
     for (size_t i = 0; i < seg_cnt; ++i) {
         wf_richtext_segment seg = wf_richtext_get_segment(&rt, i);
-        if (!seg.facet || !seg.facet->features || seg.facet->feature_count == 0) continue;
+        if (!seg.facet || !seg.facet->features || seg.facet->feature_count == 0)
+            continue;
         if (!facets) {
             facets = cJSON_CreateArray();
-            if (!facets) { wf_richtext_free(&rt); return WF_ERR_ALLOC; }
+            if (!facets) {
+                wf_richtext_free(&rt);
+                return WF_ERR_ALLOC;
+            }
         }
         status = wf_agent_add_segment_facet_json(facets, &seg, agent->client);
-        if (status != WF_OK) { cJSON_Delete(facets); wf_richtext_free(&rt); return status; }
+        if (status != WF_OK) {
+            cJSON_Delete(facets);
+            wf_richtext_free(&rt);
+            return status;
+        }
     }
     wf_richtext_free(&rt);
 
@@ -953,10 +978,17 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
 
     // Build reply object
     cJSON *reply = cJSON_CreateObject();
-    if (!reply) { cJSON_Delete(record); return WF_ERR_ALLOC; }
+    if (!reply) {
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
     cJSON *root = cJSON_CreateObject();
     cJSON *parent = cJSON_CreateObject();
-    if (!root || !parent) { cJSON_Delete(reply); cJSON_Delete(record); return WF_ERR_ALLOC; }
+    if (!root || !parent) {
+        cJSON_Delete(reply);
+        cJSON_Delete(record);
+        return WF_ERR_ALLOC;
+    }
     cJSON_AddStringToObject(root, "uri", root_uri);
     cJSON_AddStringToObject(root, "cid", root_cid);
     cJSON_AddStringToObject(parent, "uri", parent_uri);
@@ -968,14 +1000,15 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
         cJSON_Delete(record);
         return WF_ERR_ALLOC;
     }
-    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record,
+                                       out);
 }
 
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
-                        const char *parent_uri, const char *parent_cid,
-                        wf_agent_post_result *out) {
-    return wf_agent_reply_refs(agent, text, parent_uri, parent_cid,
-                               parent_uri, parent_cid, out);
+                         const char *parent_uri, const char *parent_cid,
+                         wf_agent_post_result *out) {
+    return wf_agent_reply_refs(agent, text, parent_uri, parent_cid, parent_uri,
+                               parent_cid, out);
 }
 
 /* Quote a post (record embed) */
@@ -997,8 +1030,8 @@ wf_status wf_agent_quote(wf_agent *agent, const char *text,
 
 /* Quote a post with media (recordWithMedia embed) */
 wf_status wf_agent_quote_with_media(wf_agent *agent, const char *text,
-                                    const char *quote_uri, const char *quote_cid,
-                                    cJSON *media_embed,
+                                    const char *quote_uri,
+                                    const char *quote_cid, cJSON *media_embed,
                                     wf_agent_post_result *out) {
     if (!agent || !text || !quote_uri || !quote_cid || !media_embed || !out) {
         return WF_ERR_INVALID_ARG;
@@ -1008,7 +1041,8 @@ wf_status wf_agent_quote_with_media(wf_agent *agent, const char *text,
     cJSON *combined = wf_embed_record_with_media_new(record_embed, media_embed);
     // wf_embed_record_with_media_new takes ownership of its arguments
     if (!combined) {
-        // Record embed already transferred ownership if combined succeeded, otherwise free it
+        // Record embed already transferred ownership if combined succeeded,
+        // otherwise free it
         cJSON_Delete(record_embed);
         return WF_ERR_ALLOC;
     }
@@ -1031,34 +1065,37 @@ wf_status wf_agent_delete_post(wf_agent *agent, const char *uri) {
     }
 
     wf_status status = WF_OK;
-    if (!parsed.authority || !wf_agent_authority_matches_session(agent, parsed.authority) ||
+    if (!parsed.authority ||
+        !wf_agent_authority_matches_session(agent, parsed.authority) ||
         !parsed.collection || !parsed.record_key ||
         strcmp(parsed.collection, WF_AGENT_POST_COLLECTION) != 0) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
 
-    status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
+    status = wf_agent_delete_record_call(agent, parsed.collection,
+                                         parsed.record_key);
 
 done:
     wf_syntax_aturi_free(&parsed);
     return status;
 }
 
-
-
-wf_status wf_agent_follow(wf_agent *agent, const char *subject_did, wf_agent_post_result *out) {
+wf_status wf_agent_follow(wf_agent *agent, const char *subject_did,
+                          wf_agent_post_result *out) {
     if (!agent || !subject_did || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     cJSON *record = NULL;
-    wf_status status = wf_agent_build_follow_record(agent, subject_did, &record);
+    wf_status status =
+        wf_agent_build_follow_record(agent, subject_did, &record);
     if (status != WF_OK) {
         return status;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_FOLLOW_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_FOLLOW_COLLECTION,
+                                       record, out);
 }
 
 wf_status wf_agent_unfollow(wf_agent *agent, const char *follow_uri) {
@@ -1072,32 +1109,37 @@ wf_status wf_agent_unfollow(wf_agent *agent, const char *follow_uri) {
     }
 
     wf_status status = WF_OK;
-    if (!parsed.authority || !wf_agent_authority_matches_session(agent, parsed.authority) ||
+    if (!parsed.authority ||
+        !wf_agent_authority_matches_session(agent, parsed.authority) ||
         !parsed.collection || !parsed.record_key ||
         strcmp(parsed.collection, WF_AGENT_FOLLOW_COLLECTION) != 0) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
 
-    status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
+    status = wf_agent_delete_record_call(agent, parsed.collection,
+                                         parsed.record_key);
 
 done:
     wf_syntax_aturi_free(&parsed);
     return status;
 }
 
-wf_status wf_agent_like(wf_agent *agent, const char *post_uri, const char *post_cid, wf_agent_post_result *out) {
+wf_status wf_agent_like(wf_agent *agent, const char *post_uri,
+                        const char *post_cid, wf_agent_post_result *out) {
     if (!agent || !post_uri || !post_cid || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     cJSON *record = NULL;
-    wf_status status = wf_agent_build_like_record(agent, post_uri, post_cid, &record);
+    wf_status status =
+        wf_agent_build_like_record(agent, post_uri, post_cid, &record);
     if (status != WF_OK) {
         return status;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_LIKE_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_LIKE_COLLECTION, record,
+                                       out);
 }
 
 wf_status wf_agent_unlike(wf_agent *agent, const char *like_uri) {
@@ -1111,14 +1153,16 @@ wf_status wf_agent_unlike(wf_agent *agent, const char *like_uri) {
     }
 
     wf_status status = WF_OK;
-    if (!parsed.authority || !wf_agent_authority_matches_session(agent, parsed.authority) ||
+    if (!parsed.authority ||
+        !wf_agent_authority_matches_session(agent, parsed.authority) ||
         !parsed.collection || !parsed.record_key ||
         strcmp(parsed.collection, WF_AGENT_LIKE_COLLECTION) != 0) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
 
-    status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
+    status = wf_agent_delete_record_call(agent, parsed.collection,
+                                         parsed.record_key);
 
 done:
     wf_syntax_aturi_free(&parsed);
@@ -1150,9 +1194,8 @@ wf_status wf_agent_mute(wf_agent *agent, const char *actor) {
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                          "app.bsky.graph.muteActor",
-                                          json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "app.bsky.graph.muteActor", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
@@ -1181,27 +1224,28 @@ wf_status wf_agent_unmute(wf_agent *agent, const char *actor) {
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_xrpc_procedure(agent->client,
-                                          "app.bsky.graph.unmuteActor",
-                                          json, &res);
+    wf_status status = wf_xrpc_procedure(
+        agent->client, "app.bsky.graph.unmuteActor", json, &res);
     free(json);
     wf_response_free(&res);
     return status;
 }
 
-wf_status wf_agent_repost(wf_agent *agent, const char *post_uri, const char *post_cid,
-                          wf_agent_post_result *out) {
+wf_status wf_agent_repost(wf_agent *agent, const char *post_uri,
+                          const char *post_cid, wf_agent_post_result *out) {
     if (!agent || !post_uri || !post_cid || !out) {
         return WF_ERR_INVALID_ARG;
     }
 
     cJSON *record = NULL;
-    wf_status status = wf_agent_build_repost_record(agent, post_uri, post_cid, &record);
+    wf_status status =
+        wf_agent_build_repost_record(agent, post_uri, post_cid, &record);
     if (status != WF_OK) {
         return status;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_REPOST_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_REPOST_COLLECTION,
+                                       record, out);
 }
 
 wf_status wf_agent_delete_repost(wf_agent *agent, const char *repost_uri) {
@@ -1215,23 +1259,24 @@ wf_status wf_agent_delete_repost(wf_agent *agent, const char *repost_uri) {
     }
 
     wf_status status = WF_OK;
-    if (!parsed.authority || !wf_agent_authority_matches_session(agent, parsed.authority) ||
+    if (!parsed.authority ||
+        !wf_agent_authority_matches_session(agent, parsed.authority) ||
         !parsed.collection || !parsed.record_key ||
         strcmp(parsed.collection, WF_AGENT_REPOST_COLLECTION) != 0) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
 
-    status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
+    status = wf_agent_delete_record_call(agent, parsed.collection,
+                                         parsed.record_key);
 
-
-    done:
-        wf_syntax_aturi_free(&parsed);
-        return status;
+done:
+    wf_syntax_aturi_free(&parsed);
+    return status;
 }
 
 wf_status wf_agent_block(wf_agent *agent, const char *subject_did,
-                          wf_agent_post_result *out) {
+                         wf_agent_post_result *out) {
     if (!agent || !subject_did || !out) {
         return WF_ERR_INVALID_ARG;
     }
@@ -1255,7 +1300,8 @@ wf_status wf_agent_block(wf_agent *agent, const char *subject_did,
         return WF_ERR_ALLOC;
     }
 
-    return wf_agent_create_record_call(agent, WF_AGENT_BLOCK_COLLECTION, record, out);
+    return wf_agent_create_record_call(agent, WF_AGENT_BLOCK_COLLECTION, record,
+                                       out);
 }
 
 wf_status wf_agent_unblock(wf_agent *agent, const char *block_uri) {
@@ -1269,21 +1315,23 @@ wf_status wf_agent_unblock(wf_agent *agent, const char *block_uri) {
     }
 
     wf_status status = WF_OK;
-    if (!parsed.authority || !wf_agent_authority_matches_session(agent, parsed.authority) ||
+    if (!parsed.authority ||
+        !wf_agent_authority_matches_session(agent, parsed.authority) ||
         !parsed.collection || !parsed.record_key ||
         strcmp(parsed.collection, WF_AGENT_BLOCK_COLLECTION) != 0) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
 
-    status = wf_agent_delete_record_call(agent, parsed.collection, parsed.record_key);
+    status = wf_agent_delete_record_call(agent, parsed.collection,
+                                         parsed.record_key);
 
-    done:
-        wf_syntax_aturi_free(&parsed);
-        return status;
+done:
+    wf_syntax_aturi_free(&parsed);
+    return status;
 }
 
 wf_status wf_agent_delete_record(wf_agent *agent, const char *collection,
-                                  const char *rkey) {
+                                 const char *rkey) {
     return wf_agent_delete_record_call(agent, collection, rkey);
 }

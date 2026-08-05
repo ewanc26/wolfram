@@ -1,8 +1,8 @@
 /*
  * test_unspecced_trends_typed.c — offline tests for the owned typed parsers
- * and agent wrappers in unspecced_trends_typed.c. Builds sample JSON with cJSON,
- * exercises each parser, asserts fields, frees, and asserts the agent wrappers
- * reject NULL/invalid arguments with WF_ERR_INVALID_ARG.
+ * and agent wrappers in unspecced_trends_typed.c. Builds sample JSON with
+ * cJSON, exercises each parser, asserts fields, frees, and asserts the agent
+ * wrappers reject NULL/invalid arguments with WF_ERR_INVALID_ARG.
  */
 
 #include "wolfram/unspecced_trends_typed.h"
@@ -32,9 +32,11 @@ static int test_parse_trends(void) {
     cJSON *trends = cJSON_CreateArray();
     cJSON *t = cJSON_CreateObject();
     cJSON_AddItemToObject(t, "topic", cJSON_CreateString("BreakingNews"));
-    cJSON_AddItemToObject(t, "displayName", cJSON_CreateString("Breaking News"));
+    cJSON_AddItemToObject(t, "displayName",
+                          cJSON_CreateString("Breaking News"));
     cJSON_AddItemToObject(t, "link", cJSON_CreateString("#breakingnews"));
-    cJSON_AddItemToObject(t, "startedAt", cJSON_CreateString("2026-01-01T00:00:00Z"));
+    cJSON_AddItemToObject(t, "startedAt",
+                          cJSON_CreateString("2026-01-01T00:00:00Z"));
     cJSON_AddItemToObject(t, "postCount", cJSON_CreateNumber(1234));
     cJSON_AddItemToObject(t, "status", cJSON_CreateString("active"));
     cJSON_AddItemToObject(t, "category", cJSON_CreateString("news"));
@@ -94,7 +96,8 @@ static int test_parse_suggested_users(void) {
     CHECK(json != NULL);
 
     wf_agent_actor_list list = {0};
-    wf_status st = wf_unspecced_parse_suggested_users(json, strlen(json), &list);
+    wf_status st =
+        wf_unspecced_parse_suggested_users(json, strlen(json), &list);
     free(json);
     CHECK(st == WF_OK);
     CHECK(list.actor_count == 1);
@@ -109,7 +112,8 @@ static int test_parse_suggested_feeds(void) {
     cJSON *root = cJSON_CreateObject();
     cJSON *feeds = cJSON_CreateArray();
     cJSON *f = cJSON_CreateObject();
-    cJSON_AddItemToObject(f, "uri", cJSON_CreateString("at://did/app.bsky.feed.generator/1"));
+    cJSON_AddItemToObject(
+        f, "uri", cJSON_CreateString("at://did/app.bsky.feed.generator/1"));
     cJSON_AddItemToObject(f, "displayName", cJSON_CreateString("My Feed"));
     cJSON_AddItemToArray(feeds, f);
     cJSON_AddItemToObject(root, "feeds", feeds);
@@ -119,7 +123,8 @@ static int test_parse_suggested_feeds(void) {
     CHECK(json != NULL);
 
     wf_agent_generator_view_list list = {0};
-    wf_status st = wf_unspecced_parse_suggested_feeds(json, strlen(json), &list);
+    wf_status st =
+        wf_unspecced_parse_suggested_feeds(json, strlen(json), &list);
     free(json);
     CHECK(st == WF_OK);
     CHECK(list.generator_count == 1);
@@ -134,7 +139,8 @@ static int test_parse_thread_v2(void) {
     cJSON *root = cJSON_CreateObject();
     cJSON *thread = cJSON_CreateArray();
     cJSON *it = cJSON_CreateObject();
-    cJSON_AddItemToObject(it, "uri", cJSON_CreateString("at://did/app.bsky.feed.post/1"));
+    cJSON_AddItemToObject(it, "uri",
+                          cJSON_CreateString("at://did/app.bsky.feed.post/1"));
     cJSON_AddItemToObject(it, "depth", cJSON_CreateNumber(0));
     cJSON *val = cJSON_CreateObject();
     cJSON_AddItemToObject(val, "text", cJSON_CreateString("hello"));
@@ -189,7 +195,8 @@ static int test_parse_suggested_users_with_recid(void) {
     CHECK(json != NULL);
 
     wf_agent_actor_list list = {0};
-    wf_status st = wf_unspecced_parse_suggested_users(json, strlen(json), &list);
+    wf_status st =
+        wf_unspecced_parse_suggested_users(json, strlen(json), &list);
     free(json);
     CHECK(st == WF_OK);
     CHECK(list.actor_count == 1);
@@ -211,16 +218,18 @@ static int test_invalid_args(void) {
     CHECK(wf_agent_get_trends_typed(NULL, 10, &t) == WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_trends_typed((wf_agent *)1, 26, &t) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_typed(NULL, NULL, 10, &a) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_typed(NULL, NULL, 10, &a) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_typed((wf_agent *)1, NULL, 51, &a) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_feeds_typed(NULL, 10, &g) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_feeds_typed(NULL, 10, &g) ==
+          WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_feeds_typed((wf_agent *)1, 26, &g) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_post_thread_v2_typed(NULL, "at://x", 1, 6, 10, NULL, &th) ==
-          WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_post_thread_v2_typed((wf_agent *)1, NULL, 1, 6, 10, NULL, &th) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_post_thread_v2_typed(NULL, "at://x", 1, 6, 10, NULL,
+                                            &th) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_post_thread_v2_typed((wf_agent *)1, NULL, 1, 6, 10, NULL,
+                                            &th) == WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_post_thread_other_v2_typed(NULL, "at://x", &th) ==
           WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_post_thread_other_v2_typed((wf_agent *)1, NULL, &th) ==
@@ -229,35 +238,28 @@ static int test_invalid_args(void) {
     /* Sibling suggested-user feeds reject NULL agent and NULL out. */
     CHECK(wf_agent_get_suggested_users_for_discover_typed(NULL, 10, &a) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_for_discover_typed((wf_agent *)1, 51,
-                                                          &a) ==
-          WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_for_discover_typed((wf_agent *)1, 10, NULL) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_discover_typed(
+              (wf_agent *)1, 51, &a) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_discover_typed(
+              (wf_agent *)1, 10, NULL) == WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_explore_typed(NULL, NULL, 10, &a) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_for_explore_typed((wf_agent *)1, "art", 51,
-                                                         &a) ==
-          WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_for_explore_typed((wf_agent *)1, "art", 10,
-                                                         NULL) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_explore_typed(
+              (wf_agent *)1, "art", 51, &a) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_explore_typed(
+              (wf_agent *)1, "art", 10, NULL) == WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_users_for_see_more_typed(NULL, NULL, 10, &a) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_for_see_more_typed((wf_agent *)1, "art", 51,
-                                                          &a) ==
-          WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_users_for_see_more_typed((wf_agent *)1, "art", 10,
-                                                          NULL) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_see_more_typed(
+              (wf_agent *)1, "art", 51, &a) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_users_for_see_more_typed(
+              (wf_agent *)1, "art", 10, NULL) == WF_ERR_INVALID_ARG);
     CHECK(wf_agent_get_suggested_onboarding_users_typed(NULL, NULL, 10, &a) ==
           WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_onboarding_users_typed((wf_agent *)1, NULL, 51,
-                                                        &a) ==
-          WF_ERR_INVALID_ARG);
-    CHECK(wf_agent_get_suggested_onboarding_users_typed((wf_agent *)1, NULL, 10,
-                                                        NULL) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_onboarding_users_typed(
+              (wf_agent *)1, NULL, 51, &a) == WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_get_suggested_onboarding_users_typed(
+              (wf_agent *)1, NULL, 10, NULL) == WF_ERR_INVALID_ARG);
 
     CHECK(wf_unspecced_parse_trends(NULL, 0, &t) == WF_ERR_INVALID_ARG);
     CHECK(wf_unspecced_parse_thread_v2(NULL, 0, &th) == WF_ERR_INVALID_ARG);

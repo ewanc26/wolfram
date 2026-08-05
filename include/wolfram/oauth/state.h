@@ -17,9 +17,9 @@ typedef struct wf_oauth_session_state {
     char *audience;
     char *scope;
     char *access_token;
-    char *refresh_token;       /* optional */
-    char *client_auth_key_id;  /* optional; private_key_jwt when populated */
-    int64_t expires_at;        /* Unix seconds; zero when unspecified */
+    char *refresh_token;      /* optional */
+    char *client_auth_key_id; /* optional; private_key_jwt when populated */
+    int64_t expires_at;       /* Unix seconds; zero when unspecified */
     wf_oauth_dpop_key *dpop_key;
 } wf_oauth_session_state;
 
@@ -27,9 +27,9 @@ typedef struct wf_oauth_session_state {
 typedef struct wf_oauth_authorization_state {
     char *issuer;
     char *code_verifier;
-    char *app_state; /* optional */
+    char *app_state;          /* optional */
     char *client_auth_key_id; /* optional; private_key_jwt when populated */
-    int64_t expires_at; /* Unix seconds */
+    int64_t expires_at;       /* Unix seconds */
     wf_oauth_dpop_key *dpop_key;
 } wf_oauth_authorization_state;
 
@@ -48,23 +48,22 @@ wf_status wf_oauth_authorization_state_serialize(
     const wf_oauth_authorization_state *state, char **json_out);
 
 /** Restore and validate unexpired state. `now` is Unix seconds. */
-wf_status wf_oauth_authorization_state_parse(
-    const char *json, size_t json_len, int64_t now,
-    wf_oauth_authorization_state *out);
+wf_status wf_oauth_authorization_state_parse(const char *json, size_t json_len,
+                                             int64_t now,
+                                             wf_oauth_authorization_state *out);
 
 void wf_oauth_authorization_state_free(wf_oauth_authorization_state *state);
 
 wf_status wf_oauth_session_state_create(
-    const char *issuer, const char *audience,
-    const wf_oauth_dpop_key *dpop_key,
+    const char *issuer, const char *audience, const wf_oauth_dpop_key *dpop_key,
     const wf_oauth_token_response *token_response,
-    const char *client_auth_key_id, int64_t now,
-    wf_oauth_session_state *out);
-wf_status wf_oauth_session_state_serialize(
-    const wf_oauth_session_state *session, char **json_out);
-wf_status wf_oauth_session_state_parse(
-    const char *json, size_t json_len, const char *expected_subject,
-    wf_oauth_session_state *out);
+    const char *client_auth_key_id, int64_t now, wf_oauth_session_state *out);
+wf_status
+wf_oauth_session_state_serialize(const wf_oauth_session_state *session,
+                                 char **json_out);
+wf_status wf_oauth_session_state_parse(const char *json, size_t json_len,
+                                       const char *expected_subject,
+                                       wf_oauth_session_state *out);
 void wf_oauth_session_state_free(wf_oauth_session_state *session);
 
 #ifdef __cplusplus

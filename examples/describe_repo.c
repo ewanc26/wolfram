@@ -35,7 +35,8 @@ int main(int argc, char **argv) {
     snprintf(query, sizeof(query), "repo=%s", repo);
 
     wf_response res = {0};
-    wf_status status = wf_xrpc_query(client, "com.atproto.repo.describeRepo", query, &res);
+    wf_status status =
+        wf_xrpc_query(client, "com.atproto.repo.describeRepo", query, &res);
 
     if (status != WF_OK && status != WF_ERR_HTTP) {
         fprintf(stderr, "request failed: status code %d\n", (int)status);

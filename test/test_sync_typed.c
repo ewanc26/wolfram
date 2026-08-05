@@ -65,12 +65,12 @@ static unsigned char *build_fixture_car(size_t *out_len) {
 int main(void) {
     /* ── getRepoStatus parse ─────────────────────────────────────── */
     {
-        const char *json =
-            "{\"did\":\"did:plc:abc123\",\"active\":true,"
-            "\"status\":\"deactivated\",\"rev\":\"3lkabc\"}";
+        const char *json = "{\"did\":\"did:plc:abc123\",\"active\":true,"
+                           "\"status\":\"deactivated\",\"rev\":\"3lkabc\"}";
         wf_sync_repo_status_typed s;
         memset(&s, 0, sizeof(s));
-        WF_CHECK(wf_sync_repo_status_typed_parse(json, strlen(json), &s) == WF_OK);
+        WF_CHECK(wf_sync_repo_status_typed_parse(json, strlen(json), &s) ==
+                 WF_OK);
         WF_CHECK(s.did && strcmp(s.did, "did:plc:abc123") == 0);
         WF_CHECK(s.active == 1);
         WF_CHECK(s.status && strcmp(s.status, "deactivated") == 0);
@@ -84,7 +84,8 @@ int main(void) {
         const char *json = "{\"did\":\"did:plc:x\",\"active\":false}";
         wf_sync_repo_status_typed s;
         memset(&s, 0, sizeof(s));
-        WF_CHECK(wf_sync_repo_status_typed_parse(json, strlen(json), &s) == WF_OK);
+        WF_CHECK(wf_sync_repo_status_typed_parse(json, strlen(json), &s) ==
+                 WF_OK);
         WF_CHECK(s.active == 0);
         WF_CHECK(s.status == NULL);
         WF_CHECK(s.rev == NULL);
@@ -124,14 +125,17 @@ int main(void) {
     {
         wf_sync_repo_status_typed s;
         memset(&s, 0, sizeof(s));
-        WF_CHECK(wf_sync_repo_status_typed_parse(NULL, 0, &s) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_sync_repo_status_typed_parse("{not json", 9, &s) == WF_ERR_PARSE);
+        WF_CHECK(wf_sync_repo_status_typed_parse(NULL, 0, &s) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sync_repo_status_typed_parse("{not json", 9, &s) ==
+                 WF_ERR_PARSE);
         WF_CHECK(wf_sync_repo_status_typed_parse("{}", 2, &s) == WF_ERR_PARSE);
         wf_sync_repo_status_typed_free(&s);
 
         wf_sync_latest_commit c;
         memset(&c, 0, sizeof(c));
-        WF_CHECK(wf_sync_latest_commit_parse(NULL, 0, &c) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_sync_latest_commit_parse(NULL, 0, &c) ==
+                 WF_ERR_INVALID_ARG);
         WF_CHECK(wf_sync_latest_commit_parse("{\"cid\":\"x\"}", 11, &c) ==
                  WF_ERR_PARSE);
         wf_sync_latest_commit_free(&c);
@@ -184,7 +188,7 @@ int main(void) {
         wf_sync_block_list bad;
         memset(&bad, 0, sizeof(bad));
         WF_CHECK(wf_sync_block_list_parse_car((const unsigned char *)"garbage",
-                                             7, &bad) != WF_OK);
+                                              7, &bad) != WF_OK);
         wf_sync_block_list_free(&bad);
 
         wf_sync_record badrec;
@@ -234,28 +238,28 @@ int main(void) {
         const char *cids[] = {"bafycid"};
         wf_sync_block_list bl;
         memset(&bl, 0, sizeof(bl));
-        WF_CHECK(wf_agent_sync_get_blocks_typed(NULL, "did:plc:x", cids, 1, &bl) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_blocks_typed(NULL, "did:plc:x", cids, 1,
+                                                &bl) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_sync_get_blocks_typed(agent, NULL, cids, 1, &bl) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_sync_get_blocks_typed(agent, "did:plc:x", NULL, 0, &bl) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_sync_get_blocks_typed(agent, "did:plc:x", cids, 0, &bl) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_blocks_typed(agent, "did:plc:x", NULL, 0,
+                                                &bl) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_blocks_typed(agent, "did:plc:x", cids, 0,
+                                                &bl) == WF_ERR_INVALID_ARG);
         wf_sync_block_list_free(&bl);
 
         wf_sync_record rec;
         memset(&rec, 0, sizeof(rec));
-        WF_CHECK(wf_agent_sync_get_record_typed(NULL, "did:plc:x", "c", "r", &rec) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_record_typed(NULL, "did:plc:x", "c", "r",
+                                                &rec) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_sync_get_record_typed(agent, NULL, "c", "r", &rec) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_sync_get_record_typed(agent, "did:plc:x", NULL, "r", &rec) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_sync_get_record_typed(agent, "did:plc:x", "c", NULL, &rec) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_sync_get_record_typed(agent, "did:plc:x", "c", "r", NULL) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_record_typed(agent, "did:plc:x", NULL, "r",
+                                                &rec) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_record_typed(agent, "did:plc:x", "c", NULL,
+                                                &rec) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_sync_get_record_typed(agent, "did:plc:x", "c", "r",
+                                                NULL) == WF_ERR_INVALID_ARG);
         wf_sync_record_free(&rec);
 
         /* ---- getBlob argument validation ---- */
@@ -263,15 +267,15 @@ int main(void) {
             uint8_t *data = NULL;
             size_t len = 0;
             WF_CHECK(wf_agent_get_blob_typed(NULL, "did:plc:x", "cid", &data,
-                                            &len) == WF_ERR_INVALID_ARG);
-            WF_CHECK(wf_agent_get_blob_typed(agent, NULL, "cid", &data,
-                                            &len) == WF_ERR_INVALID_ARG);
+                                             &len) == WF_ERR_INVALID_ARG);
+            WF_CHECK(wf_agent_get_blob_typed(agent, NULL, "cid", &data, &len) ==
+                     WF_ERR_INVALID_ARG);
             WF_CHECK(wf_agent_get_blob_typed(agent, "did:plc:x", NULL, &data,
-                                            &len) == WF_ERR_INVALID_ARG);
+                                             &len) == WF_ERR_INVALID_ARG);
             WF_CHECK(wf_agent_get_blob_typed(agent, "did:plc:x", "cid", NULL,
-                                            &len) == WF_ERR_INVALID_ARG);
+                                             &len) == WF_ERR_INVALID_ARG);
             WF_CHECK(wf_agent_get_blob_typed(agent, "did:plc:x", "cid", &data,
-                                            NULL) == WF_ERR_INVALID_ARG);
+                                             NULL) == WF_ERR_INVALID_ARG);
         }
 
         wf_agent_free(agent);

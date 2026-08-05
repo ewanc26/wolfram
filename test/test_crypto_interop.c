@@ -85,7 +85,9 @@ static unsigned char *base64_decode_any(const char *encoded, size_t len,
     }
 
     for (i = 0; i < len; i++) {
-        padded[i] = encoded[i] == '-' ? '+' : encoded[i] == '_' ? '/' : encoded[i];
+        padded[i] = encoded[i] == '-'   ? '+'
+                    : encoded[i] == '_' ? '/'
+                                        : encoded[i];
     }
     for (; i < padded_len; i++) padded[i] = '=';
     padded[padded_len] = '\0';
@@ -123,10 +125,8 @@ static wf_status hex_decode_32(const char *hex, unsigned char out[32]) {
     return WF_OK;
 }
 
-static wf_status base58btc_decode(const char *encoded,
-                                  unsigned char *out,
-                                  size_t out_cap,
-                                  size_t *out_len) {
+static wf_status base58btc_decode(const char *encoded, unsigned char *out,
+                                  size_t out_cap, size_t *out_len) {
     static const char alphabet[] =
         "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     unsigned char tmp[128] = {0};
@@ -165,10 +165,8 @@ static wf_status base58btc_decode(const char *encoded,
     return WF_OK;
 }
 
-static wf_status parse_multikey(const char *value,
-                                unsigned char *raw,
-                                size_t raw_cap,
-                                size_t *raw_len,
+static wf_status parse_multikey(const char *value, unsigned char *raw,
+                                size_t raw_cap, size_t *raw_len,
                                 wf_key_type *type) {
     const char *encoded = value;
     wf_status status;
@@ -191,8 +189,7 @@ static wf_status parse_multikey(const char *value,
     return WF_OK;
 }
 
-static wf_status load_signing_key_from_hex(wf_key_type type,
-                                           const char *hex,
+static wf_status load_signing_key_from_hex(wf_key_type type, const char *hex,
                                            wf_signing_key *out) {
     wf_status status;
 
@@ -209,8 +206,7 @@ static wf_status load_signing_key_from_hex(wf_key_type type,
     return WF_OK;
 }
 
-static wf_status load_signing_key_from_base58(wf_key_type type,
-                                              const char *b58,
+static wf_status load_signing_key_from_base58(wf_key_type type, const char *b58,
                                               wf_signing_key *out) {
     wf_status status;
     size_t decoded_len = 0;
@@ -219,7 +215,8 @@ static wf_status load_signing_key_from_base58(wf_key_type type,
     memset(out, 0, sizeof(*out));
     out->type = type;
 
-    status = base58btc_decode(b58, out->bytes, sizeof(out->bytes), &decoded_len);
+    status =
+        base58btc_decode(b58, out->bytes, sizeof(out->bytes), &decoded_len);
     if (status != WF_OK || decoded_len != sizeof(out->bytes)) {
         memset(out, 0, sizeof(*out));
         return status != WF_OK ? status : WF_ERR_PARSE;
@@ -228,10 +225,8 @@ static wf_status load_signing_key_from_base58(wf_key_type type,
     return WF_OK;
 }
 
-static wf_status decode_bare_multibase(const char *value,
-                                       unsigned char *raw,
-                                       size_t raw_cap,
-                                       size_t *raw_len) {
+static wf_status decode_bare_multibase(const char *value, unsigned char *raw,
+                                       size_t raw_cap, size_t *raw_len) {
     const char *encoded = value;
 
     if (!value || !raw || !raw_len) return WF_ERR_INVALID_ARG;
@@ -253,9 +248,12 @@ static void test_w3c_didkey_fixture(const char *filename, wf_key_type type) {
     }
 
     cJSON_ArrayForEach(item, root) {
-        const cJSON *hex_item = cJSON_GetObjectItemCaseSensitive(item, "privateKeyBytesHex");
-        const cJSON *base58_item = cJSON_GetObjectItemCaseSensitive(item, "privateKeyBytesBase58");
-        const cJSON *did_item = cJSON_GetObjectItemCaseSensitive(item, "publicDidKey");
+        const cJSON *hex_item =
+            cJSON_GetObjectItemCaseSensitive(item, "privateKeyBytesHex");
+        const cJSON *base58_item =
+            cJSON_GetObjectItemCaseSensitive(item, "privateKeyBytesBase58");
+        const cJSON *did_item =
+            cJSON_GetObjectItemCaseSensitive(item, "publicDidKey");
         wf_signing_key key;
         unsigned char raw_key[64];
         size_t raw_key_len = 0;
@@ -265,12 +263,16 @@ static void test_w3c_didkey_fixture(const char *filename, wf_key_type type) {
 
         WF_CHECK(cJSON_IsString(did_item));
         WF_CHECK(cJSON_IsString(hex_item) || cJSON_IsString(base58_item));
-        if (!cJSON_IsString(did_item) || (!cJSON_IsString(hex_item) && !cJSON_IsString(base58_item))) continue;
+        if (!cJSON_IsString(did_item) ||
+            (!cJSON_IsString(hex_item) && !cJSON_IsString(base58_item)))
+            continue;
 
         if (cJSON_IsString(hex_item)) {
-            status = load_signing_key_from_hex(type, hex_item->valuestring, &key);
+            status =
+                load_signing_key_from_hex(type, hex_item->valuestring, &key);
         } else {
-            status = load_signing_key_from_base58(type, base58_item->valuestring, &key);
+            status = load_signing_key_from_base58(
+                type, base58_item->valuestring, &key);
         }
         WF_CHECK(status == WF_OK);
         WF_CHECK(key.type == type);
@@ -286,11 +288,13 @@ static void test_w3c_didkey_fixture(const char *filename, wf_key_type type) {
         status = wf_sign(&key, msg, msg_len, sig, sizeof(sig));
 #ifdef HAVE_LIBSECP256K1
         WF_CHECK(status == WF_OK);
-        WF_CHECK(wf_verify(did_item->valuestring, msg, msg_len, sig, sizeof(sig)) == WF_OK);
+        WF_CHECK(wf_verify(did_item->valuestring, msg, msg_len, sig,
+                           sizeof(sig)) == WF_OK);
 #else
         if (type == WF_KEY_TYPE_P256) {
             WF_CHECK(status == WF_OK);
-            WF_CHECK(wf_verify(did_item->valuestring, msg, msg_len, sig, sizeof(sig)) == WF_OK);
+            WF_CHECK(wf_verify(did_item->valuestring, msg, msg_len, sig,
+                               sizeof(sig)) == WF_OK);
         } else {
             WF_CHECK(status == WF_ERR_INVALID_ARG);
         }
@@ -312,12 +316,18 @@ static void test_signature_fixtures(void) {
     }
 
     cJSON_ArrayForEach(item, root) {
-        const cJSON *algorithm = cJSON_GetObjectItemCaseSensitive(item, "algorithm");
-        const cJSON *did_item = cJSON_GetObjectItemCaseSensitive(item, "publicKeyDid");
-        const cJSON *multibase_item = cJSON_GetObjectItemCaseSensitive(item, "publicKeyMultibase");
-        const cJSON *message_item = cJSON_GetObjectItemCaseSensitive(item, "messageBase64");
-        const cJSON *signature_item = cJSON_GetObjectItemCaseSensitive(item, "signatureBase64");
-        const cJSON *valid_item = cJSON_GetObjectItemCaseSensitive(item, "validSignature");
+        const cJSON *algorithm =
+            cJSON_GetObjectItemCaseSensitive(item, "algorithm");
+        const cJSON *did_item =
+            cJSON_GetObjectItemCaseSensitive(item, "publicKeyDid");
+        const cJSON *multibase_item =
+            cJSON_GetObjectItemCaseSensitive(item, "publicKeyMultibase");
+        const cJSON *message_item =
+            cJSON_GetObjectItemCaseSensitive(item, "messageBase64");
+        const cJSON *signature_item =
+            cJSON_GetObjectItemCaseSensitive(item, "signatureBase64");
+        const cJSON *valid_item =
+            cJSON_GetObjectItemCaseSensitive(item, "validSignature");
         unsigned char *message = NULL;
         unsigned char *signature = NULL;
         size_t message_len = 0;
@@ -345,12 +355,12 @@ static void test_signature_fixtures(void) {
         }
 
         valid_signature = cJSON_IsTrue(valid_item) ? 1 : 0;
-        message = base64_decode_any(message_item->valuestring,
-                                   strlen(message_item->valuestring),
-                                   &message_len);
+        message =
+            base64_decode_any(message_item->valuestring,
+                              strlen(message_item->valuestring), &message_len);
         signature = base64_decode_any(signature_item->valuestring,
-                                     strlen(signature_item->valuestring),
-                                     &signature_len);
+                                      strlen(signature_item->valuestring),
+                                      &signature_len);
         WF_CHECK(message != NULL);
         WF_CHECK(signature != NULL);
         if (!message || !signature) {
@@ -359,11 +369,11 @@ static void test_signature_fixtures(void) {
             continue;
         }
 
-        did_status = parse_multikey(did_item->valuestring, did_raw, sizeof(did_raw),
-                                    &did_raw_len, &did_type);
-        multibase_status = decode_bare_multibase(multibase_item->valuestring,
-                                                multibase_raw, sizeof(multibase_raw),
-                                                &multibase_raw_len);
+        did_status = parse_multikey(did_item->valuestring, did_raw,
+                                    sizeof(did_raw), &did_raw_len, &did_type);
+        multibase_status =
+            decode_bare_multibase(multibase_item->valuestring, multibase_raw,
+                                  sizeof(multibase_raw), &multibase_raw_len);
         WF_CHECK(did_status == WF_OK);
         WF_CHECK(multibase_status == WF_OK);
         WF_CHECK(did_raw_len == multibase_raw_len + 2);

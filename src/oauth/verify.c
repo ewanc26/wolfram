@@ -35,8 +35,8 @@ static char *wf_strdup(const char *s) {
 
 /* Parse a positive (or zero) integer claim. Returns WF_OK and sets *out (and
  * *present=1) when present; *present=0 when absent. */
-static wf_status json_int(const cJSON *root, const char *name,
-                          int64_t *out, int *present) {
+static wf_status json_int(const cJSON *root, const char *name, int64_t *out,
+                          int *present) {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, name);
     if (!cJSON_IsNumber(item)) {
         if (present) *present = 0;
@@ -169,8 +169,9 @@ int wf_oauth_dpop_replay_cache_is_seen(const wf_oauth_dpop_replay_cache *cache,
     return 0;
 }
 
-wf_status wf_oauth_dpop_replay_cache_mark_seen(wf_oauth_dpop_replay_cache *cache,
-                                               const char *jti, int64_t ttl) {
+wf_status
+wf_oauth_dpop_replay_cache_mark_seen(wf_oauth_dpop_replay_cache *cache,
+                                     const char *jti, int64_t ttl) {
     int64_t now = (int64_t)time(NULL);
     if (!cache || !jti) return WF_ERR_INVALID_ARG;
     replay_evict(cache, now);
@@ -207,13 +208,13 @@ void wf_oauth_dpop_replay_cache_free(wf_oauth_dpop_replay_cache *cache) {
 /* ------------------------------------------------------------------ */
 
 typedef struct wf_jwt {
-    char *header_b64;  /* owned */
-    char *payload_b64; /* owned */
-    char *sig_b64;     /* owned */
+    char *header_b64;   /* owned */
+    char *payload_b64;  /* owned */
+    char *sig_b64;      /* owned */
     unsigned char *sig; /* raw signature bytes (owned) */
     size_t sig_len;
-    cJSON *header;   /* owned */
-    cJSON *payload;  /* owned */
+    cJSON *header;  /* owned */
+    cJSON *payload; /* owned */
 } wf_jwt;
 
 static void wf_jwt_free(wf_jwt *j) {
@@ -250,7 +251,10 @@ static wf_status wf_jwt_parse(const char *jwt, wf_jwt **out) {
     {
         size_t hlen = (size_t)(p1 - jwt);
         char *hb = malloc(hlen + 1);
-        if (!hb) { status = WF_ERR_ALLOC; goto done; }
+        if (!hb) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
         memcpy(hb, jwt, hlen);
         hb[hlen] = '\0';
         j->header_b64 = hb;
@@ -260,13 +264,19 @@ static wf_status wf_jwt_parse(const char *jwt, wf_jwt **out) {
     j->header = cJSON_ParseWithLength((const char *)raw, raw_len);
     free(raw);
     raw = NULL;
-    if (!j->header) { status = WF_ERR_PARSE; goto done; }
+    if (!j->header) {
+        status = WF_ERR_PARSE;
+        goto done;
+    }
 
     /* Payload. */
     {
         size_t plen = (size_t)(p2 - (p1 + 1));
         char *pb = malloc(plen + 1);
-        if (!pb) { status = WF_ERR_ALLOC; goto done; }
+        if (!pb) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
         memcpy(pb, p1 + 1, plen);
         pb[plen] = '\0';
         j->payload_b64 = pb;
@@ -276,13 +286,19 @@ static wf_status wf_jwt_parse(const char *jwt, wf_jwt **out) {
     j->payload = cJSON_ParseWithLength((const char *)raw, raw_len);
     free(raw);
     raw = NULL;
-    if (!j->payload) { status = WF_ERR_PARSE; goto done; }
+    if (!j->payload) {
+        status = WF_ERR_PARSE;
+        goto done;
+    }
 
     /* Signature. */
     {
         size_t slen = strlen(p2 + 1);
         char *sb = malloc(slen + 1);
-        if (!sb) { status = WF_ERR_ALLOC; goto done; }
+        if (!sb) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
         memcpy(sb, p2 + 1, slen);
         sb[slen] = '\0';
         j->sig_b64 = sb;
@@ -305,7 +321,8 @@ done:
 /* Returns an owned normalized htu (scheme://host/path, no query/fragment,
  * no userinfo) or NULL on malformed input. */
 static char *normalize_htu(const char *uri) {
-    /* Minimal parser: require http/https scheme, strip userinfo, query, frag. */
+    /* Minimal parser: require http/https scheme, strip userinfo, query, frag.
+     */
     const char *scheme_end, *host_start, *host_end, *path, *end;
     size_t scheme_len, host_len, path_len;
     char *out;
@@ -314,9 +331,12 @@ static char *normalize_htu(const char *uri) {
     scheme_end = strstr(uri, "://");
     if (!scheme_end) return NULL;
     scheme_len = (size_t)(scheme_end - uri);
-    if (scheme_len == 5 && strncmp(uri, "https", 5) == 0) https = 1;
-    else if (scheme_len == 4 && strncmp(uri, "http", 4) == 0) https = 0;
-    else return NULL;
+    if (scheme_len == 5 && strncmp(uri, "https", 5) == 0)
+        https = 1;
+    else if (scheme_len == 4 && strncmp(uri, "http", 4) == 0)
+        https = 0;
+    else
+        return NULL;
     host_start = scheme_end + 3;
     /* Strip userinfo. */
     {
@@ -376,8 +396,9 @@ static wf_status dpop_thumbprint(const cJSON *jwk, char out_jkt[44]) {
     y = cJSON_GetObjectItemCaseSensitive(jwk, "y");
     if (!cJSON_IsString(x) || !cJSON_IsString(y)) return WF_ERR_PARSE;
     /* Canonical member order per RFC 7638: crv, kty, x, y. */
-    size_t need = strlen(x->valuestring) + strlen(y->valuestring) +
-                  strlen("{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"\",\"y\":\"\"}") + 1;
+    size_t need =
+        strlen(x->valuestring) + strlen(y->valuestring) +
+        strlen("{\"crv\":\"P-256\",\"kty\":\"EC\",\"x\":\"\",\"y\":\"\"}") + 1;
     canonical = malloc(need);
     if (!canonical) return WF_ERR_ALLOC;
     snprintf(canonical, need,
@@ -386,8 +407,10 @@ static wf_status dpop_thumbprint(const cJSON *jwk, char out_jkt[44]) {
     SHA256((const unsigned char *)canonical, strlen(canonical), digest);
     status = wf_crypto_base64url_encode(digest, sizeof(digest), &encoded);
     if (status == WF_OK) {
-        if (strlen(encoded) != 43) status = WF_ERR_PARSE;
-        else memcpy(out_jkt, encoded, 44);
+        if (strlen(encoded) != 43)
+            status = WF_ERR_PARSE;
+        else
+            memcpy(out_jkt, encoded, 44);
     }
     free(canonical);
     free(encoded);
@@ -492,7 +515,10 @@ wf_status wf_oauth_verify_bearer(const char *access_token,
 
     /* Build the principal. */
     tok = verified_new();
-    if (!tok) { status = WF_ERR_ALLOC; goto done; }
+    if (!tok) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     status = json_string_dup(j->payload, "sub", &tok->sub);
     if (status == WF_OK) status = json_string_dup(j->payload, "iss", &tok->iss);
     if (status != WF_OK) goto done;
@@ -536,10 +562,8 @@ done:
 /* DPoP proof verification                                             */
 /* ------------------------------------------------------------------ */
 
-wf_status wf_oauth_verify_dpop(const char *dpop_proof,
-                               const char *access_token,
-                               const char *http_method,
-                               const char *http_uri,
+wf_status wf_oauth_verify_dpop(const char *dpop_proof, const char *access_token,
+                               const char *http_method, const char *http_uri,
                                wf_oauth_dpop_replay_cache *replay,
                                wf_oauth_verified_token **out) {
     wf_jwt *j = NULL;
@@ -590,10 +614,13 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof,
     /* Verify the proof signature with its own JWK. */
     silen = strlen(j->header_b64) + 1 + strlen(j->payload_b64);
     signing_input = malloc(silen + 1);
-    if (!signing_input) { status = WF_ERR_ALLOC; goto done; }
+    if (!signing_input) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     snprintf(signing_input, silen + 1, "%s.%s", j->header_b64, j->payload_b64);
-    if (wf_crypto_p256_verify(x, y, (const unsigned char *)signing_input,
-                              silen, j->sig, j->sig_len) != WF_OK) {
+    if (wf_crypto_p256_verify(x, y, (const unsigned char *)signing_input, silen,
+                              j->sig, j->sig_len) != WF_OK) {
         status = WF_ERR_PARSE;
         goto done;
     }
@@ -616,17 +643,18 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof,
         goto done;
     }
     jti = cJSON_GetObjectItemCaseSensitive(j->payload, "jti");
-    if (!cJSON_IsString(jti) || (jti_s = jti->valuestring) == NULL ||
-        !*jti_s) {
+    if (!cJSON_IsString(jti) || (jti_s = jti->valuestring) == NULL || !*jti_s) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
 
     status = json_int(j->payload, "iat", &iat, &iat_present);
     if (status != WF_OK) goto done;
-    if (!iat_present) { status = WF_ERR_INVALID_ARG; goto done; }
-    if (iat > now + WF_OAUTH_CLOCK_SKEW ||
-        now - iat > WF_OAUTH_DPOP_MAX_AGE) {
+    if (!iat_present) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    if (iat > now + WF_OAUTH_CLOCK_SKEW || now - iat > WF_OAUTH_DPOP_MAX_AGE) {
         status = WF_ERR_INVALID_ARG; /* iat outside freshness window */
         goto done;
     }
@@ -675,9 +703,15 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof,
     if (status != WF_OK) goto done;
 
     tok = verified_new();
-    if (!tok) { status = WF_ERR_ALLOC; goto done; }
+    if (!tok) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     tok->dpop_jkt = wf_strdup(proof_jkt);
-    if (!tok->dpop_jkt) { status = WF_ERR_ALLOC; goto done; }
+    if (!tok->dpop_jkt) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     tok->dpop_bound = 1;
     tok->exp = exp;
     *out = tok;
@@ -705,8 +739,7 @@ done:
 
 wf_status wf_oauth_verify_request(const char *authorization,
                                   const char *dpop_proof,
-                                  const char *http_method,
-                                  const char *http_uri,
+                                  const char *http_method, const char *http_uri,
                                   const wf_oauth_trusted_keys *keys,
                                   wf_oauth_dpop_replay_cache *replay,
                                   wf_oauth_verified_token **out) {
@@ -730,16 +763,15 @@ wf_status wf_oauth_verify_request(const char *authorization,
         }
         status = wf_oauth_verify_bearer(token, keys, &bearer);
         if (status != WF_OK) return status;
-        status = wf_oauth_verify_dpop(dpop_proof, token, http_method,
-                                      http_uri, replay, &dpop);
+        status = wf_oauth_verify_dpop(dpop_proof, token, http_method, http_uri,
+                                      replay, &dpop);
         if (status != WF_OK) {
             wf_oauth_verified_token_free(bearer);
             return status;
         }
         /* Confirmation: if the access token carried a cnf.jkt, it must match
          * the DPoP proof key thumbprint. */
-        if (bearer->dpop_jkt &&
-            strcmp(bearer->dpop_jkt, dpop->dpop_jkt) != 0) {
+        if (bearer->dpop_jkt && strcmp(bearer->dpop_jkt, dpop->dpop_jkt) != 0) {
             wf_oauth_verified_token_free(bearer);
             wf_oauth_verified_token_free(dpop);
             return WF_ERR_INVALID_ARG;
@@ -763,8 +795,8 @@ wf_status wf_oauth_verify_request(const char *authorization,
 
     if (!authorization && dpop_proof) {
         /* DPoP-only (no identity token). */
-        status = wf_oauth_verify_dpop(dpop_proof, NULL, http_method,
-                                      http_uri, replay, out);
+        status = wf_oauth_verify_dpop(dpop_proof, NULL, http_method, http_uri,
+                                      replay, out);
         return status;
     }
 
@@ -785,12 +817,12 @@ void wf_oauth_client_assertion_verified_free(
 }
 
 /* True when the payload `aud` claim names `expected` (a single string, or an
- * array that contains it). Mirrors jose's audience handling in the reference. */
+ * array that contains it). Mirrors jose's audience handling in the reference.
+ */
 static int jwt_aud_matches(const cJSON *payload, const char *expected) {
     const cJSON *aud = cJSON_GetObjectItemCaseSensitive(payload, "aud");
     const cJSON *item;
-    if (cJSON_IsString(aud))
-        return strcmp(aud->valuestring, expected) == 0;
+    if (cJSON_IsString(aud)) return strcmp(aud->valuestring, expected) == 0;
     if (cJSON_IsArray(aud)) {
         cJSON_ArrayForEach(item, aud) {
             if (cJSON_IsString(item) &&
@@ -833,8 +865,7 @@ wf_status wf_oauth_verify_client_assertion(
         goto done;
     }
     kid = cJSON_GetObjectItemCaseSensitive(j->header, "kid");
-    if (!cJSON_IsString(kid) || (kid_s = kid->valuestring) == NULL ||
-        !*kid_s) {
+    if (!cJSON_IsString(kid) || (kid_s = kid->valuestring) == NULL || !*kid_s) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
@@ -862,8 +893,7 @@ wf_status wf_oauth_verify_client_assertion(
     }
     /* jti required (the reference's requiredClaims). */
     jti = cJSON_GetObjectItemCaseSensitive(j->payload, "jti");
-    if (!cJSON_IsString(jti) || (jti_s = jti->valuestring) == NULL ||
-        !*jti_s) {
+    if (!cJSON_IsString(jti) || (jti_s = jti->valuestring) == NULL || !*jti_s) {
         status = WF_ERR_INVALID_ARG;
         goto done;
     }
@@ -871,7 +901,10 @@ wf_status wf_oauth_verify_client_assertion(
      * exp, when present, must not have passed. */
     status = json_int(j->payload, "iat", &iat, &iat_present);
     if (status != WF_OK) goto done;
-    if (!iat_present) { status = WF_ERR_INVALID_ARG; goto done; }
+    if (!iat_present) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
     if (iat > now + WF_OAUTH_CLOCK_SKEW ||
         now - iat > WF_OAUTH_CLIENT_ASSERTION_MAX_AGE) {
         status = WF_ERR_INVALID_ARG; /* iat outside freshness window */
@@ -885,7 +918,10 @@ wf_status wf_oauth_verify_client_assertion(
     }
 
     outa = calloc(1, sizeof(*outa));
-    if (!outa) { status = WF_ERR_ALLOC; goto done; }
+    if (!outa) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
     outa->client_id = wf_strdup(expected_client_id);
     outa->kid = wf_strdup(kid_s);
     outa->jti = wf_strdup(jti_s);

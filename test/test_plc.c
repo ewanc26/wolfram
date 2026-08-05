@@ -18,21 +18,21 @@
 
 static int failures = 0;
 
-#define CHECK(cond, msg)                                                    \
-    do {                                                                    \
-        if (!(cond)) {                                                      \
-            fprintf(stderr, "FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__); \
-            failures++;                                                     \
-        }                                                                   \
+#define CHECK(cond, msg)                                                       \
+    do {                                                                       \
+        if (!(cond)) {                                                         \
+            fprintf(stderr, "FAIL: %s (%s:%d)\n", msg, __FILE__, __LINE__);    \
+            failures++;                                                        \
+        }                                                                      \
     } while (0)
 
 static int build_and_sign_roundtrip(wf_key_type key_type) {
     wf_signing_key key;
     char *didkey = NULL;
     char *didkey2 = NULL;
-    const char *also_known_as[] = {"at://alice.example", "at://alice.bsky.social"};
-    const char *services_json =
-        "{\"atproto_pds\":\"https://pds.example.com\"}";
+    const char *also_known_as[] = {"at://alice.example",
+                                   "at://alice.bsky.social"};
+    const char *services_json = "{\"atproto_pds\":\"https://pds.example.com\"}";
     wf_plc_operation_update update = {
         .rotation_keys = NULL,
         .rotation_keys_count = 0,
@@ -56,10 +56,11 @@ static int build_and_sign_roundtrip(wf_key_type key_type) {
     CHECK(status == WF_OK, "wf_signing_key_public_didkey");
     CHECK(didkey != NULL, "didkey allocated");
     if (didkey) {
-        CHECK(strncmp(didkey, "did:key:z", 9) == 0, "didkey has did:key:z prefix");
+        CHECK(strncmp(didkey, "did:key:z", 9) == 0,
+              "didkey has did:key:z prefix");
     }
 
-    const char *rotation_keys[] = { didkey, "did:key:zQ3shABCrotation" };
+    const char *rotation_keys[] = {didkey, "did:key:zQ3shABCrotation"};
     update.rotation_keys = rotation_keys;
     update.rotation_keys_count = 2;
 
@@ -71,8 +72,7 @@ static int build_and_sign_roundtrip(wf_key_type key_type) {
     CHECK(op != NULL, "op_json parses");
     CHECK(cJSON_GetObjectItemCaseSensitive(op, "sig") == NULL,
           "unsigned op has no sig");
-    CHECK(cJSON_GetObjectItemCaseSensitive(op, "type") != NULL,
-          "op has type");
+    CHECK(cJSON_GetObjectItemCaseSensitive(op, "type") != NULL, "op has type");
     cJSON_Delete(op);
     op = NULL;
 
@@ -83,8 +83,7 @@ static int build_and_sign_roundtrip(wf_key_type key_type) {
     signed_root = cJSON_Parse(signed_json);
     CHECK(signed_root != NULL, "signed_json parses");
     if (signed_root) {
-        const cJSON *sig =
-            cJSON_GetObjectItemCaseSensitive(signed_root, "sig");
+        const cJSON *sig = cJSON_GetObjectItemCaseSensitive(signed_root, "sig");
         CHECK(sig != NULL && cJSON_IsString(sig), "signed op has sig string");
         if (sig && didkey) {
             CHECK(sig->valuestring != NULL && sig->valuestring[0] != '\0',
