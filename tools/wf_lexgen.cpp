@@ -893,10 +893,10 @@ class Generator {
                 has_status = true;
         }
         if (has_invalid)
-            lines.insert(
-                lines.end(),
-                {"invalid:", "    cJSON_Delete(item); cJSON_Delete(root); "
-                             "return WF_ERR_INVALID_ARG;"});
+            lines.insert(lines.end(),
+                         {"invalid:",
+                          "    cJSON_Delete(item); cJSON_Delete(root); "
+                          "return WF_ERR_INVALID_ARG;"});
         if (has_fail)
             lines.insert(lines.end(),
                          {"fail:", "    cJSON_Delete(item); "

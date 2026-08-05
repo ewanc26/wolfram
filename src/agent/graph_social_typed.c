@@ -958,7 +958,7 @@ wf_status wf_agent_get_suggested_follows_by_actor_typed(
     params.actor = actor;
     return wf_graph_call_actor_list(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_get_suggested_follows_by_actor_main_call,
         &params, "suggestions", out);
 }
@@ -1016,7 +1016,7 @@ wf_status wf_agent_get_list_mutes_typed(wf_agent *agent, int limit,
                                &params.has_cursor, &params.cursor);
     return wf_graph_call_list_views(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_get_list_mutes_main_call,
         &params, out);
 }
@@ -1038,7 +1038,7 @@ wf_status wf_agent_get_list_blocks_typed(wf_agent *agent, int limit,
                                &params.has_cursor, &params.cursor);
     return wf_graph_call_list_views(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_get_list_blocks_main_call,
         &params, out);
 }
@@ -1095,7 +1095,7 @@ wf_agent_get_starter_packs_typed(wf_agent *agent, const char *const *uris,
     params.uris.count = uri_count;
     return wf_graph_call_starter_packs(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_get_starter_packs_main_call,
         &params, out);
 }
@@ -1119,7 +1119,7 @@ wf_agent_get_actor_starter_packs_typed(wf_agent *agent, const char *actor,
                                &params.has_cursor, &params.cursor);
     return wf_graph_call_starter_packs(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_get_actor_starter_packs_main_call,
         &params, out);
 }
@@ -1288,8 +1288,8 @@ wf_status wf_agent_mute_actor_typed(wf_agent *agent, const char *actor) {
     input.actor = actor;
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
-            wf_lex_app_bsky_graph_mute_actor_main_call,
+        (wf_status(*)(wf_xrpc_client *, const void *,
+                      wf_response *))wf_lex_app_bsky_graph_mute_actor_main_call,
         &input);
 }
 
@@ -1301,7 +1301,7 @@ wf_status wf_agent_unmute_actor_typed(wf_agent *agent, const char *actor) {
     input.actor = actor;
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_unmute_actor_main_call,
         &input);
 }
@@ -1315,7 +1315,7 @@ wf_status wf_agent_mute_actor_list_typed(wf_agent *agent,
     input.list = list_uri;
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_mute_actor_list_main_call,
         &input);
 }
@@ -1329,7 +1329,7 @@ wf_status wf_agent_unmute_actor_list_typed(wf_agent *agent,
     input.list = list_uri;
     return wf_graph_call_procedure(
         agent,
-        (wf_status (*)(wf_xrpc_client *, const void *, wf_response *))
+        (wf_status(*)(wf_xrpc_client *, const void *, wf_response *))
             wf_lex_app_bsky_graph_unmute_actor_list_main_call,
         &input);
 }
