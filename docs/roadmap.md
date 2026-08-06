@@ -516,8 +516,13 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 
 ## Next planned work
 
-- Exercise the gated live example test (`test_examples_live`) in CI with real
-  credentials (it SKIPs cleanly when `BSKY_HANDLE`/`BSKY_PASSWORD` are unset).
+- The "full" CI job now passes `BSKY_HANDLE`/`BSKY_PASSWORD`/`BSKY_SERVICE`
+  through to `test_examples_live` from repo secrets (`.github/workflows/ci.yml`),
+  pointed at MetalBear's own dev PDS (`ewan.bear1.croft.click` on
+  bear1.croft.click) rather than production Bluesky -- once the three
+  secrets are provisioned, every push to main becomes a live smoke test of
+  that deployment, not just an offline build. Still SKIPs cleanly (and CI
+  still passes) on a fork or before the secrets are set.
 - Continue evaluating upstream C libraries for server-side infrastructure
   (event loop, config parsing).
 - Generated typed-wrapper coverage is complete: every query/procedure NSID in

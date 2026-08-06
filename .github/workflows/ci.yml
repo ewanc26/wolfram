@@ -81,7 +81,19 @@ jobs:
       - name: Build
         run: cmake --build build -j"$(nproc)"
 
+      # examples_live (test/test_examples_live.c) is a gated live end-to-end
+      # test: it SKIPs cleanly and ctest still passes when BSKY_HANDLE/
+      # BSKY_PASSWORD are unset (a fork's CI, which has no access to repo
+      # secrets, gets the same clean skip). When set, it logs in, posts, and
+      # reads back through the real network -- against MetalBear's own dev
+      # PDS (ewan.bear1.croft.click on bear1.croft.click, an app password
+      # scoped to CI), not production Bluesky, so this doubles as a live
+      # smoke test of that deployment on every push to main.
       - name: Test (ctest)
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
+          BSKY_SERVICE: ${{ secrets.BSKY_SERVICE }}
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
   # C# interop wrapper. Requires the .NET SDK; gated so the overall CI does
