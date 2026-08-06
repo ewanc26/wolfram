@@ -5,33 +5,31 @@
 
 #include "wolfram/crypto.h"
 
+#include "crypto_internal.h"
+
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <openssl/bn.h>
+#include <openssl/core_names.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
 #include <openssl/obj_mac.h>
+#include <openssl/param_build.h>
 #include <openssl/rand.h>
 
-/* OpenSSL 3.0 deprecated the EC_KEY/ECDSA API in favor of EVP_PKEY.
- * The deprecated declarations are suppressed here; migration to EVP
- * is tracked as a separate refactoring item. */
-_Pragma("GCC diagnostic push")
-    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #include <openssl/sha.h>
 #include <cJSON.h>
 
 #include "wolfram/log.h"
 
-        static wf_status
-    wf_p256_is_low_s(const BIGNUM *s, const EC_KEY *eckey) {
+static wf_status wf_p256_is_low_s(const BIGNUM *s, const EC_GROUP *group) {
     const BIGNUM *order;
     BIGNUM *half_order;
     int low;
 
-    if (!s || !eckey) return WF_ERR_INVALID_ARG;
-    order = EC_GROUP_get0_order(EC_KEY_get0_group(eckey));
+    if (!s || !group) return WF_ERR_INVALID_ARG;
+    order = EC_GROUP_get0_order(group);
     if (!order) return WF_ERR_ALLOC;
 
     half_order = BN_dup(order);
@@ -46,14 +44,14 @@ _Pragma("GCC diagnostic push")
     return low ? WF_OK : WF_ERR_PARSE;
 }
 
-static wf_status wf_p256_normalize_s(const EC_KEY *eckey, BIGNUM **s_io) {
+static wf_status wf_p256_normalize_s(const EC_GROUP *group, BIGNUM **s_io) {
     const BIGNUM *order;
     BIGNUM *half_order;
     BIGNUM *s;
 
-    if (!eckey || !s_io || !*s_io) return WF_ERR_INVALID_ARG;
+    if (!group || !s_io || !*s_io) return WF_ERR_INVALID_ARG;
     s = *s_io;
-    order = EC_GROUP_get0_order(EC_KEY_get0_group(eckey));
+    order = EC_GROUP_get0_order(group);
     if (!order) return WF_ERR_ALLOC;
 
     half_order = BN_dup(order);
@@ -76,6 +74,217 @@ static wf_status wf_p256_normalize_s(const EC_KEY *eckey, BIGNUM **s_io) {
 
     BN_free(half_order);
     return WF_OK;
+}
+
+/* ------------------------------------------------------------------ */
+/* P-256 EVP_PKEY construction (OpenSSL 3.0 API, no EC_KEY object)     */
+/* ------------------------------------------------------------------ */
+
+/* Build a full P-256 keypair EVP_PKEY (private + its derived public point)
+ * from a raw 32-byte private scalar. The public point is computed the same
+ * way wf_signing_key_public_didkey does (EC_GROUP + EC_POINT_mul) and
+ * supplied explicitly, rather than relying on EVP_PKEY_fromdata to derive it
+ * from "priv" alone. */
+wf_status wf_p256_pkey_from_private(const unsigned char priv_bytes[32],
+                                    EVP_PKEY **out) {
+    EC_GROUP *group = NULL;
+    EC_POINT *pub_point = NULL;
+    BIGNUM *priv_bn = NULL;
+    unsigned char pub_oct[65];
+    size_t pub_oct_len;
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    wf_status status = WF_ERR_ALLOC;
+
+    *out = NULL;
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    priv_bn = BN_bin2bn(priv_bytes, 32, NULL);
+    pub_point = group ? EC_POINT_new(group) : NULL;
+    if (!group || !priv_bn || !pub_point ||
+        EC_POINT_mul(group, pub_point, priv_bn, NULL, NULL, NULL) != 1) {
+        goto done;
+    }
+    pub_oct_len =
+        EC_POINT_point2oct(group, pub_point, POINT_CONVERSION_UNCOMPRESSED,
+                           pub_oct, sizeof(pub_oct), NULL);
+    if (pub_oct_len != sizeof(pub_oct)) goto done;
+
+    bld = OSSL_PARAM_BLD_new();
+    if (!bld ||
+        !OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME,
+                                         "P-256", 0) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, priv_bn) ||
+        !OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY, pub_oct,
+                                          pub_oct_len)) {
+        goto done;
+    }
+    params = OSSL_PARAM_BLD_to_param(bld);
+    pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+    if (!params || !pctx || EVP_PKEY_fromdata_init(pctx) != 1 ||
+        EVP_PKEY_fromdata(pctx, out, EVP_PKEY_KEYPAIR, params) != 1 || !*out) {
+        goto done;
+    }
+    status = WF_OK;
+done:
+    EVP_PKEY_CTX_free(pctx);
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    EC_POINT_free(pub_point);
+    BN_free(priv_bn);
+    EC_GROUP_free(group);
+    return status;
+}
+
+/* Build a public-only P-256 EVP_PKEY from a SEC1 octet-encoded point
+ * (compressed 33 bytes or uncompressed 65 bytes, as produced by
+ * EC_POINT_point2oct / consumed by EC_POINT_oct2point). */
+wf_status wf_p256_pkey_from_public_point(const unsigned char *pub_oct,
+                                         size_t pub_oct_len, EVP_PKEY **out) {
+    OSSL_PARAM_BLD *bld = NULL;
+    OSSL_PARAM *params = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    wf_status status = WF_ERR_ALLOC;
+
+    *out = NULL;
+    bld = OSSL_PARAM_BLD_new();
+    if (!bld ||
+        !OSSL_PARAM_BLD_push_utf8_string(bld, OSSL_PKEY_PARAM_GROUP_NAME,
+                                         "P-256", 0) ||
+        !OSSL_PARAM_BLD_push_octet_string(bld, OSSL_PKEY_PARAM_PUB_KEY, pub_oct,
+                                          pub_oct_len)) {
+        goto done;
+    }
+    params = OSSL_PARAM_BLD_to_param(bld);
+    pctx = EVP_PKEY_CTX_new_from_name(NULL, "EC", NULL);
+    if (!params || !pctx || EVP_PKEY_fromdata_init(pctx) != 1 ||
+        EVP_PKEY_fromdata(pctx, out, EVP_PKEY_PUBLIC_KEY, params) != 1 ||
+        !*out) {
+        goto done;
+    }
+    status = WF_OK;
+done:
+    EVP_PKEY_CTX_free(pctx);
+    OSSL_PARAM_free(params);
+    OSSL_PARAM_BLD_free(bld);
+    return status;
+}
+
+/* Sign a precomputed 32-byte hash with `pkey` (P-256), producing a raw
+ * (r||s) 64-byte signature with S normalized to the lower half of the curve
+ * order (low-S), matching this SDK's existing verification convention.
+ * EVP_PKEY_sign produces a standard DER ECDSA-Sig-Value; d2i_ECDSA_SIG (not
+ * deprecated -- it decodes the signature *value*, unlike the EC_KEY-taking
+ * ECDSA_do_sign/verify) recovers r/s for the raw-encoding + low-S rewrite.
+ * No ECDSA math is hand-rolled: signing itself is entirely EVP_PKEY_sign's
+ * job. */
+wf_status wf_p256_sign_hash(EVP_PKEY *pkey, const unsigned char hash[32],
+                            unsigned char sig_out[64]) {
+    EVP_PKEY_CTX *pctx = NULL;
+    unsigned char *der = NULL;
+    size_t der_len = 0;
+    const unsigned char *der_p;
+    ECDSA_SIG *sig = NULL;
+    const BIGNUM *r0, *s0;
+    BIGNUM *r = NULL, *s = NULL;
+    EC_GROUP *group = NULL;
+    wf_status status = WF_ERR_ALLOC;
+
+    pctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (!pctx || EVP_PKEY_sign_init(pctx) != 1 ||
+        EVP_PKEY_sign(pctx, NULL, &der_len, hash, 32) != 1)
+        goto done;
+    der = malloc(der_len);
+    if (!der || EVP_PKEY_sign(pctx, der, &der_len, hash, 32) != 1) goto done;
+
+    der_p = der;
+    sig = d2i_ECDSA_SIG(NULL, &der_p, (long)der_len);
+    if (!sig) goto done;
+    ECDSA_SIG_get0(sig, &r0, &s0);
+    if (!r0 || !s0) goto done;
+    r = BN_dup(r0);
+    s = BN_dup(s0);
+    if (!r || !s) goto done;
+
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if (!group || wf_p256_normalize_s(group, &s) != WF_OK) goto done;
+
+    if (BN_bn2binpad(r, sig_out, 32) != 32 ||
+        BN_bn2binpad(s, sig_out + 32, 32) != 32)
+        goto done;
+    status = WF_OK;
+done:
+    EC_GROUP_free(group);
+    BN_free(r);
+    BN_free(s);
+    ECDSA_SIG_free(sig);
+    free(der);
+    EVP_PKEY_CTX_free(pctx);
+    return status;
+}
+
+/* Verify a raw (r||s) 64-byte P-256 signature over a precomputed 32-byte
+ * hash. Rejects a non-low-S signature unless `allow_malleable`. Builds a DER
+ * ECDSA-Sig-Value via i2d_ECDSA_SIG (not deprecated) since EVP_PKEY_verify
+ * expects the standard encoding, not raw r||s. */
+wf_status wf_p256_verify_hash_pkey(EVP_PKEY *pkey, const unsigned char hash[32],
+                                   const unsigned char sig[64],
+                                   int allow_malleable) {
+    ECDSA_SIG *ecdsa_sig = NULL;
+    BIGNUM *r = NULL, *s = NULL;
+    EC_GROUP *group = NULL;
+    unsigned char *der = NULL;
+    int der_len;
+    EVP_PKEY_CTX *pctx = NULL;
+    wf_status status = WF_ERR_PARSE;
+
+    r = BN_bin2bn(sig, 32, NULL);
+    s = BN_bin2bn(sig + 32, 32, NULL);
+    if (!r || !s) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
+    if (!group) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    if (!allow_malleable && wf_p256_is_low_s(s, group) != WF_OK) goto done;
+
+    ecdsa_sig = ECDSA_SIG_new();
+    if (!ecdsa_sig) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    if (ECDSA_SIG_set0(ecdsa_sig, r, s) != 1) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    r = NULL;
+    s = NULL; /* ownership moved into ecdsa_sig */
+
+    der_len = i2d_ECDSA_SIG(ecdsa_sig, &der);
+    if (der_len <= 0) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+
+    pctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (!pctx || EVP_PKEY_verify_init(pctx) != 1) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    status = EVP_PKEY_verify(pctx, der, (size_t)der_len, hash, 32) == 1
+                 ? WF_OK
+                 : WF_ERR_PARSE;
+done:
+    EVP_PKEY_CTX_free(pctx);
+    OPENSSL_free(der);
+    ECDSA_SIG_free(ecdsa_sig);
+    BN_free(r);
+    BN_free(s);
+    EC_GROUP_free(group);
+    return status;
 }
 
 #ifdef HAVE_LIBSECP256K1
@@ -145,43 +354,36 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     if (key->type == WF_KEY_TYPE_P256) {
         WF_LOG_DEBUG("crypto",
                      "wf_signing_key_public_didkey: deriving P-256 public key");
-        EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-        const EC_GROUP *group;
-        const BIGNUM *priv;
+        /* EC_GROUP/EC_POINT are the still-current OpenSSL group-arithmetic
+         * API; the legacy EC_KEY object wrapper is deprecated as of OpenSSL
+         * 3.0 and nothing here needs it -- the group is all EC_POINT_mul
+         * requires to turn the raw private scalar into the public point. */
+        EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
         EC_POINT *point;
         BIGNUM *bn_priv;
         size_t n;
 
-        if (!eckey) {
+        if (!group) {
             WF_LOG_ERROR("crypto",
-                         "wf_signing_key_public_didkey: EC_KEY_new failed");
+                         "wf_signing_key_public_didkey: EC_GROUP_new failed");
             return WF_ERR_ALLOC;
         }
-        group = EC_KEY_get0_group(eckey);
         bn_priv = BN_bin2bn(key->bytes, 32, NULL);
-        if (!bn_priv || EC_KEY_set_private_key(eckey, bn_priv) != 1) {
-            WF_LOG_ERROR(
-                "crypto",
-                "wf_signing_key_public_didkey: failed to set private key");
-            BN_free(bn_priv);
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-        priv = EC_KEY_get0_private_key(eckey);
-        point = EC_POINT_new(group);
-        if (!point || EC_POINT_mul(group, point, priv, NULL, NULL, NULL) != 1) {
+        point = bn_priv ? EC_POINT_new(group) : NULL;
+        if (!bn_priv || !point ||
+            EC_POINT_mul(group, point, bn_priv, NULL, NULL, NULL) != 1) {
             WF_LOG_ERROR("crypto",
                          "wf_signing_key_public_didkey: EC_POINT_mul failed");
             EC_POINT_free(point);
             BN_free(bn_priv);
-            EC_KEY_free(eckey);
+            EC_GROUP_free(group);
             return WF_ERR_ALLOC;
         }
         n = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED, raw,
                                sizeof(raw), NULL);
         EC_POINT_free(point);
         BN_free(bn_priv);
-        EC_KEY_free(eckey);
+        EC_GROUP_free(group);
         if (n != 33) {
             WF_LOG_ERROR("crypto",
                          "wf_signing_key_public_didkey: compressed point size "
@@ -493,29 +695,28 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
 
     if (type == WF_KEY_TYPE_P256) {
         WF_LOG_DEBUG("crypto", "wf_signing_key_generate: generating P-256 key");
-        EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-        if (!eckey) {
-            WF_LOG_ERROR(
-                "crypto",
-                "wf_signing_key_generate: EC_KEY_new_by_curve_name failed");
-            return WF_ERR_ALLOC;
-        }
-        if (EC_KEY_generate_key(eckey) != 1) {
+        /* EVP_PKEY_Q_keygen is the current OpenSSL 3.0 one-shot keygen
+         * helper; EC_KEY_new_by_curve_name + EC_KEY_generate_key is the
+         * deprecated legacy-object equivalent. */
+        EVP_PKEY *pkey = EVP_PKEY_Q_keygen(NULL, NULL, "EC", "P-256");
+        BIGNUM *priv = NULL;
+        if (!pkey) {
             WF_LOG_ERROR("crypto",
-                         "wf_signing_key_generate: EC_KEY_generate_key failed");
-            EC_KEY_free(eckey);
+                         "wf_signing_key_generate: EVP_PKEY_Q_keygen failed");
             return WF_ERR_ALLOC;
         }
-        const BIGNUM *priv = EC_KEY_get0_private_key(eckey);
-        if (!priv || BN_bn2binpad(priv, out->bytes, 32) != 32) {
+        if (EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, &priv) != 1 ||
+            !priv || BN_bn2binpad(priv, out->bytes, 32) != 32) {
             WF_LOG_ERROR(
                 "crypto",
                 "wf_signing_key_generate: failed to extract private key");
-            EC_KEY_free(eckey);
+            BN_free(priv);
+            EVP_PKEY_free(pkey);
             return WF_ERR_ALLOC;
         }
         out->type = WF_KEY_TYPE_P256;
-        EC_KEY_free(eckey);
+        BN_free(priv);
+        EVP_PKEY_free(pkey);
         WF_LOG_DEBUG(
             "crypto",
             "wf_signing_key_generate: P-256 key generated successfully");
@@ -588,79 +789,23 @@ wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
 
     if (key->type == WF_KEY_TYPE_P256) {
         WF_LOG_DEBUG("crypto", "wf_sign: signing with P-256");
-        EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-        if (!eckey) {
-            WF_LOG_ERROR("crypto", "wf_sign: EC_KEY_new_by_curve_name failed");
-            return WF_ERR_ALLOC;
+        EVP_PKEY *pkey = NULL;
+        wf_status status = wf_p256_pkey_from_private(key->bytes, &pkey);
+        if (status != WF_OK) {
+            WF_LOG_ERROR("crypto", "wf_sign: failed to build P-256 key");
+            return status;
         }
-
-        BIGNUM *priv = BN_bin2bn(key->bytes, 32, NULL);
-        if (!priv || EC_KEY_set_private_key(eckey, priv) != 1) {
-            WF_LOG_ERROR("crypto", "wf_sign: failed to set private key");
-            BN_free(priv);
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-        BN_free(priv);
 
         unsigned char hash[32];
         SHA256(msg, msg_len, hash);
 
-        ECDSA_SIG *sig = ECDSA_do_sign(hash, 32, eckey);
-        if (!sig) {
-            WF_LOG_ERROR("crypto", "wf_sign: ECDSA_do_sign failed");
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-
-        const BIGNUM *r0, *s0;
-        BIGNUM *r = NULL;
-        BIGNUM *s = NULL;
-        wf_status status = WF_OK;
-
-        ECDSA_SIG_get0(sig, &r0, &s0);
-        if (!r0 || !s0) {
-            WF_LOG_ERROR("crypto", "wf_sign: ECDSA_SIG_get0 failed");
-            ECDSA_SIG_free(sig);
-            return WF_ERR_ALLOC;
-        }
-
-        r = BN_dup(r0);
-        s = BN_dup(s0);
-        if (!r || !s) {
-            WF_LOG_ERROR("crypto", "wf_sign: BN_dup failed");
-            BN_free(r);
-            BN_free(s);
-            ECDSA_SIG_free(sig);
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-
-        status = wf_p256_normalize_s(eckey, &s);
+        status = wf_p256_sign_hash(pkey, hash, sig_out);
+        EVP_PKEY_free(pkey);
         if (status != WF_OK) {
-            WF_LOG_ERROR("crypto", "wf_sign: p256_normalize_s failed status=%d",
+            WF_LOG_ERROR("crypto", "wf_sign: P-256 signing failed status=%d",
                          status);
-            BN_free(r);
-            BN_free(s);
-            ECDSA_SIG_free(sig);
-            EC_KEY_free(eckey);
             return status;
         }
-
-        if (BN_bn2binpad(r, sig_out, 32) != 32 ||
-            BN_bn2binpad(s, sig_out + 32, 32) != 32) {
-            WF_LOG_ERROR("crypto", "wf_sign: BN_bn2binpad failed");
-            BN_free(r);
-            BN_free(s);
-            ECDSA_SIG_free(sig);
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-
-        BN_free(r);
-        BN_free(s);
-        ECDSA_SIG_free(sig);
-        EC_KEY_free(eckey);
         WF_LOG_DEBUG("crypto", "wf_sign: P-256 signature created successfully");
         return WF_OK;
     }
@@ -757,62 +902,19 @@ static wf_status wf_verify_internal(const char *public_key_multibase,
     }
 
     if (is_p256) {
-        EC_KEY *eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-        if (!eckey) return WF_ERR_ALLOC;
+        if (sig_len != 64) return WF_ERR_INVALID_ARG;
 
-        /* Compressed 33-byte P-256 point (0x02/0x03 || X) */
-        EC_POINT *point = EC_POINT_new(EC_KEY_get0_group(eckey));
-        if (!point) {
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-        if (EC_POINT_oct2point(EC_KEY_get0_group(eckey), point, raw_pk,
-                               raw_pk_len, NULL) != 1) {
-            EC_POINT_free(point);
-            EC_KEY_free(eckey);
-            return WF_ERR_PARSE;
-        }
-        if (EC_KEY_set_public_key(eckey, point) != 1) {
-            EC_POINT_free(point);
-            EC_KEY_free(eckey);
-            return WF_ERR_PARSE;
-        }
-        EC_POINT_free(point);
+        EVP_PKEY *pkey = NULL;
+        wf_status status =
+            wf_p256_pkey_from_public_point(raw_pk, raw_pk_len, &pkey);
+        if (status != WF_OK) return WF_ERR_PARSE;
 
         unsigned char hash[32];
         SHA256(msg, msg_len, hash);
 
-        ECDSA_SIG *ecdsa_sig = ECDSA_SIG_new();
-        if (!ecdsa_sig) {
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-        if (sig_len != 64) {
-            ECDSA_SIG_free(ecdsa_sig);
-            EC_KEY_free(eckey);
-            return WF_ERR_INVALID_ARG;
-        }
-        BIGNUM *r = BN_bin2bn(sig, 32, NULL);
-        BIGNUM *s = BN_bin2bn(sig + 32, 32, NULL);
-        if (!r || !s) {
-            BN_free(r);
-            BN_free(s);
-            ECDSA_SIG_free(ecdsa_sig);
-            EC_KEY_free(eckey);
-            return WF_ERR_ALLOC;
-        }
-        ECDSA_SIG_set0(ecdsa_sig, r, s);
-
-        if (!allow_malleable && wf_p256_is_low_s(s, eckey) != WF_OK) {
-            ECDSA_SIG_free(ecdsa_sig);
-            EC_KEY_free(eckey);
-            return WF_ERR_PARSE;
-        }
-
-        int ok = ECDSA_do_verify(hash, 32, ecdsa_sig, eckey);
-        ECDSA_SIG_free(ecdsa_sig);
-        EC_KEY_free(eckey);
-        return ok == 1 ? WF_OK : WF_ERR_PARSE;
+        status = wf_p256_verify_hash_pkey(pkey, hash, sig, allow_malleable);
+        EVP_PKEY_free(pkey);
+        return status;
     }
 
 #ifdef HAVE_LIBSECP256K1
@@ -975,52 +1077,21 @@ static wf_status wf_p256_verify_hash(const unsigned char x[32],
                                      const unsigned char y[32],
                                      const unsigned char hash[32],
                                      const unsigned char *sig, size_t sig_len) {
-    EC_KEY *eckey = NULL;
-    EC_POINT *point = NULL;
-    ECDSA_SIG *ecdsa_sig = NULL;
-    BIGNUM *r = NULL, *s = NULL;
     unsigned char point_oct[65];
-    int ok;
-    wf_status status = WF_ERR_PARSE;
+    EVP_PKEY *pkey = NULL;
+    wf_status status;
 
     if (!x || !y || !hash || !sig || sig_len != 64) return WF_ERR_INVALID_ARG;
-    eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-    if (!eckey) return WF_ERR_ALLOC;
-    point = EC_POINT_new(EC_KEY_get0_group(eckey));
-    if (!point) goto done;
     point_oct[0] = 0x04;
     memcpy(point_oct + 1, x, 32);
     memcpy(point_oct + 33, y, 32);
-    if (EC_POINT_oct2point(EC_KEY_get0_group(eckey), point, point_oct,
-                           sizeof(point_oct), NULL) != 1) {
-        goto done;
-    }
-    if (EC_KEY_set_public_key(eckey, point) != 1) goto done;
 
-    ecdsa_sig = ECDSA_SIG_new();
-    if (!ecdsa_sig) {
-        status = WF_ERR_ALLOC;
-        goto done;
-    }
-    r = BN_bin2bn(sig, 32, NULL);
-    s = BN_bin2bn(sig + 32, 32, NULL);
-    if (!r || !s) {
-        status = WF_ERR_ALLOC;
-        goto done;
-    }
-    if (wf_p256_is_low_s(s, eckey) != WF_OK) goto done;
-    ECDSA_SIG_set0(ecdsa_sig, r, s);
-    r = NULL;
-    s = NULL;
+    status =
+        wf_p256_pkey_from_public_point(point_oct, sizeof(point_oct), &pkey);
+    if (status != WF_OK) return WF_ERR_PARSE;
 
-    ok = ECDSA_do_verify(hash, 32, ecdsa_sig, eckey);
-    status = ok == 1 ? WF_OK : WF_ERR_PARSE;
-done:
-    BN_free(r);
-    BN_free(s);
-    ECDSA_SIG_free(ecdsa_sig);
-    EC_POINT_free(point);
-    EC_KEY_free(eckey);
+    status = wf_p256_verify_hash_pkey(pkey, hash, sig, /*allow_malleable=*/0);
+    EVP_PKEY_free(pkey);
     return status;
 }
 
@@ -1086,5 +1157,3 @@ wf_status wf_crypto_p256_jwk_coords(const char *jwk_json, unsigned char x[32],
     cJSON_Delete(root);
     return WF_OK;
 }
-
-_Pragma("GCC diagnostic pop")

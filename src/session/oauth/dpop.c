@@ -1,7 +1,10 @@
 #include "internal.h"
 
+#include "../../crypto/crypto_internal.h"
+
 #include <curl/curl.h>
 #include <openssl/bn.h>
+#include <openssl/core_names.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
@@ -9,103 +12,95 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
-/* OpenSSL 3.0 deprecated the EC_KEY/ECDSA API in favor of EVP_PKEY.
- * The deprecated declarations are suppressed here; migration to EVP
- * is tracked as a separate refactoring item. */
-_Pragma("GCC diagnostic push")
-    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
-
 #include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-        struct wf_oauth_dpop_key {
-    EC_KEY *ec;
+struct wf_oauth_dpop_key {
+    EVP_PKEY *pkey;
 };
 
-static wf_status wf_oauth_dpop_key_wrap(EC_KEY *ec, wf_oauth_dpop_key **out) {
+static wf_status wf_oauth_dpop_key_wrap(EVP_PKEY *pkey,
+                                        wf_oauth_dpop_key **out) {
     wf_oauth_dpop_key *key;
-    if (!ec || !out) return WF_ERR_INVALID_ARG;
+    if (!pkey || !out) return WF_ERR_INVALID_ARG;
     key = calloc(1, sizeof(*key));
     if (!key) {
-        EC_KEY_free(ec);
+        EVP_PKEY_free(pkey);
         return WF_ERR_ALLOC;
     }
-    key->ec = ec;
+    key->pkey = pkey;
     *out = key;
     return WF_OK;
 }
 
 wf_status wf_oauth_dpop_key_generate(wf_oauth_dpop_key **out) {
-    EC_KEY *ec;
+    EVP_PKEY *pkey;
     if (!out) return WF_ERR_INVALID_ARG;
     *out = NULL;
-    ec = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-    if (!ec) return WF_ERR_ALLOC;
-    if (EC_KEY_generate_key(ec) != 1) {
-        EC_KEY_free(ec);
-        return WF_ERR_PARSE;
-    }
-    return wf_oauth_dpop_key_wrap(ec, out);
+    pkey = EVP_PKEY_Q_keygen(NULL, NULL, "EC", "P-256");
+    if (!pkey) return WF_ERR_ALLOC;
+    return wf_oauth_dpop_key_wrap(pkey, out);
 }
 
 wf_status wf_oauth_dpop_key_import(const unsigned char private_key[32],
                                    wf_oauth_dpop_key **out) {
-    EC_KEY *ec = NULL;
+    EC_GROUP *group = NULL;
     BIGNUM *scalar = NULL, *order = NULL;
-    EC_POINT *public_key = NULL;
-    const EC_GROUP *group;
+    EVP_PKEY *pkey = NULL;
     wf_status status = WF_ERR_PARSE;
     if (!private_key || !out) return WF_ERR_INVALID_ARG;
     *out = NULL;
-    ec = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+    group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1);
     scalar = BN_bin2bn(private_key, 32, NULL);
     order = BN_new();
-    if (!ec || !scalar || !order) {
+    if (!group || !scalar || !order) {
         status = WF_ERR_ALLOC;
         goto done;
     }
-    group = EC_KEY_get0_group(ec);
+    /* Reject a scalar outside the valid private-key range before it is ever
+     * handed to key construction -- this is the untrusted-input validation
+     * EC_KEY_check_key used to perform as part of building the legacy
+     * EC_KEY object; wf_p256_pkey_from_private itself does not re-derive
+     * or re-validate the scalar, so callers importing external/untrusted
+     * bytes must do this check themselves. */
     if (EC_GROUP_get_order(group, order, NULL) != 1 || BN_is_zero(scalar) ||
         BN_is_negative(scalar) || BN_cmp(scalar, order) >= 0) {
         goto done;
     }
-    public_key = EC_POINT_new(group);
-    if (!public_key) {
-        status = WF_ERR_ALLOC;
-        goto done;
-    }
-    if (EC_POINT_mul(group, public_key, scalar, NULL, NULL, NULL) != 1 ||
-        EC_KEY_set_private_key(ec, scalar) != 1 ||
-        EC_KEY_set_public_key(ec, public_key) != 1 ||
-        EC_KEY_check_key(ec) != 1) {
-        goto done;
-    }
-    status = wf_oauth_dpop_key_wrap(ec, out);
-    if (status == WF_OK) ec = NULL;
+    status = wf_p256_pkey_from_private(private_key, &pkey);
+    if (status != WF_OK) goto done;
+    status = wf_oauth_dpop_key_wrap(pkey, out);
+    if (status == WF_OK) pkey = NULL;
 done:
-    EC_POINT_free(public_key);
+    EVP_PKEY_free(pkey);
     BN_clear_free(scalar);
     BN_free(order);
-    EC_KEY_free(ec);
+    EC_GROUP_free(group);
     return status;
 }
 
 wf_status wf_oauth_dpop_key_export(const wf_oauth_dpop_key *key,
                                    unsigned char private_key_out[32]) {
-    const BIGNUM *scalar;
-    if (!key || !key->ec || !private_key_out) return WF_ERR_INVALID_ARG;
-    scalar = EC_KEY_get0_private_key(key->ec);
-    if (!scalar || BN_bn2binpad(scalar, private_key_out, 32) != 32)
-        return WF_ERR_PARSE;
-    return WF_OK;
+    BIGNUM *scalar = NULL;
+    wf_status status;
+    if (!key || !key->pkey || !private_key_out) return WF_ERR_INVALID_ARG;
+    if (EVP_PKEY_get_bn_param(key->pkey, OSSL_PKEY_PARAM_PRIV_KEY, &scalar) !=
+            1 ||
+        !scalar || BN_bn2binpad(scalar, private_key_out, 32) != 32) {
+        status = WF_ERR_PARSE;
+    } else {
+        status = WF_OK;
+    }
+    BN_free(scalar);
+    return status;
 }
 
 void wf_oauth_dpop_key_free(wf_oauth_dpop_key *key) {
     if (!key) return;
-    EC_KEY_free(key->ec);
+    EVP_PKEY_free(key->pkey);
     free(key);
 }
 
@@ -135,30 +130,21 @@ done:
 
 wf_status wf_oauth_dpop_coordinates(const wf_oauth_dpop_key *key,
                                     unsigned char x[32], unsigned char y[32]) {
-    const EC_GROUP *group;
-    const EC_POINT *point;
-    BIGNUM *x_bn = NULL, *y_bn = NULL;
-    wf_status status = WF_ERR_PARSE;
-    if (!key || !key->ec) return WF_ERR_INVALID_ARG;
-    group = EC_KEY_get0_group(key->ec);
-    point = EC_KEY_get0_public_key(key->ec);
-    if (!group || !point) return WF_ERR_PARSE;
-    x_bn = BN_new();
-    y_bn = BN_new();
-    if (!x_bn || !y_bn) {
-        status = WF_ERR_ALLOC;
-        goto done;
+    unsigned char point_oct[65];
+    size_t point_oct_len = 0;
+    if (!key || !key->pkey) return WF_ERR_INVALID_ARG;
+    /* The public key as a SEC1 octet string is 0x04 || X(32) || Y(32) for
+     * an uncompressed P-256 point -- EVP_PKEY's own encoding, not a
+     * hand-rolled one. */
+    if (EVP_PKEY_get_octet_string_param(key->pkey, OSSL_PKEY_PARAM_PUB_KEY,
+                                        point_oct, sizeof(point_oct),
+                                        &point_oct_len) != 1 ||
+        point_oct_len != sizeof(point_oct) || point_oct[0] != 0x04) {
+        return WF_ERR_PARSE;
     }
-    if (EC_POINT_get_affine_coordinates_GFp(group, point, x_bn, y_bn, NULL) !=
-            1 ||
-        BN_bn2binpad(x_bn, x, 32) != 32 || BN_bn2binpad(y_bn, y, 32) != 32) {
-        goto done;
-    }
-    status = WF_OK;
-done:
-    BN_free(x_bn);
-    BN_free(y_bn);
-    return status;
+    memcpy(x, point_oct + 1, 32);
+    memcpy(y, point_oct + 33, 32);
+    return WF_OK;
 }
 
 wf_status wf_oauth_dpop_jwk(const wf_oauth_dpop_key *key, cJSON **out,
@@ -285,43 +271,9 @@ static wf_status wf_oauth_es256_sign(const wf_oauth_dpop_key *key,
                                      size_t input_len,
                                      unsigned char signature[64]) {
     unsigned char digest[SHA256_DIGEST_LENGTH];
-    ECDSA_SIG *sig;
-    const BIGNUM *r, *s;
-    const EC_GROUP *group;
-    BIGNUM *order = NULL, *half_order = NULL, *normalized_s = NULL;
-    wf_status status = WF_ERR_PARSE;
-    if (!key || !key->ec || !input || !signature) return WF_ERR_INVALID_ARG;
+    if (!key || !key->pkey || !input || !signature) return WF_ERR_INVALID_ARG;
     SHA256(input, input_len, digest);
-    sig = ECDSA_do_sign(digest, sizeof(digest), key->ec);
-    if (!sig) return WF_ERR_PARSE;
-    ECDSA_SIG_get0(sig, &r, &s);
-    group = EC_KEY_get0_group(key->ec);
-    order = BN_new();
-    if (!group || !order || EC_GROUP_get_order(group, order, NULL) != 1) {
-        status = WF_ERR_ALLOC;
-        goto done;
-    }
-    half_order = BN_dup(order);
-    normalized_s = BN_dup(s);
-    if (!half_order || !normalized_s) {
-        status = WF_ERR_ALLOC;
-        goto done;
-    }
-    if (BN_rshift1(half_order, half_order) != 1) goto done;
-    if (BN_cmp(normalized_s, half_order) > 0 &&
-        BN_sub(normalized_s, order, normalized_s) != 1)
-        goto done;
-    if (BN_bn2binpad(r, signature, 32) != 32 ||
-        BN_bn2binpad(normalized_s, signature + 32, 32) != 32)
-        goto done;
-    status = WF_OK;
-
-done:
-    BN_free(order);
-    BN_free(half_order);
-    BN_free(normalized_s);
-    ECDSA_SIG_free(sig);
-    return status;
+    return wf_p256_sign_hash(key->pkey, digest, signature);
 }
 
 wf_status wf_oauth_dpop_proof_create(const wf_oauth_dpop_key *key,
@@ -540,5 +492,3 @@ done:
     free(jwt);
     return status;
 }
-
-_Pragma("GCC diagnostic pop")
