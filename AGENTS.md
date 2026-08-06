@@ -63,11 +63,28 @@ Agentic principles and technical context for the `wolfram` repository.
 ## Repository map and generated-code contract
 
 - `include/wolfram/` is the installed C API. Public structs must document ownership, optional fields, lifetime, and the matching free routine; preserve C++ guards and avoid leaking private dependency types unnecessarily.
-- `src/transport`, `src/session`, `src/identity`, `src/repo`, `src/crypto`, `src/sync`, and `src/agent` contain the principal client layers. `src/agent/*_typed.c` add owned parsers/builders and agent conveniences around generated calls, regardless of which lexicon namespace (com.atproto/app.bsky/chat.bsky/tools.ozone) they wrap.
+- `src/transport`, `src/session`, `src/identity`, `src/repo`, `src/crypto`, `src/sync`, and `src/agent` contain the principal client layers. `src/agent/*_typed.c` add owned parsers/builders and agent conveniences around generated calls, regardless of which lexicon namespace (com.atproto/app.bsky/chat.bsky/tools.ozone) they wrap. Within that, a subsystem that uses a genuinely different transport mechanism from the rest of the file (a WebSocket subscription loop next to HTTP request/response wrappers, e.g. `chat.bsky.moderation.subscribeModEvents` living in `src/agent/chat_mod_events.c` rather than `chat_typed.c`) gets its own file even when it shares the same lexicon namespace as its neighbors — the split follows what a function actually does, not just which `.json` it's declared in.
 - `src/server` and `src/blob` are optional service-building infrastructure, not ports of the upstream PDS/AppView/Ozone backends. `src/store` and the server repo store have separate CMake gates and storage/security assumptions.
 - `lexicons/` is a checked-in snapshot of the upstream lexicon tree. `tools/wf_lexgen.cpp` (built as the `wf_lexgen_tool` CMake target) generates `include/wolfram/atproto_lex.h` and `src/atproto_lex.c`; both generated files are checked in. Never hand-edit either generated file. Update the source lexicons, regenerate both outputs, run the C++ `test_lexgen` CTest, and review the generated diff together.
 - `test/fixtures/` includes copied upstream interoperability vectors and API-shaped JSON. Keep fixture provenance and byte-level data intact; update a fixture only when the authoritative upstream format or the behavior under test changes.
 - `cpp/` and `dotnet/` are bindings with their own generated ownership/interop layers. A C ABI or ownership change is incomplete until affected bindings and smoke tests are rebuilt.
+- **Splitting an oversized file**: when a hand-written file (never a
+  generated one — `atproto_lex.c` is off-limits regardless of size) grows
+  large enough to bundle more than one real concern, split along that
+  concern, not an arbitrary line count. Each module keeps a private
+  `_internal.h` (e.g. `src/agent/_internal.h` for the real, non-opaque
+  `struct wf_agent`) that every file in the module may include for the
+  fields/helpers genuinely shared across files in that module — never add
+  such a helper to the public `include/wolfram/*.h` surface just to reach it
+  from a second `.c` file. Small generic helpers (a local `strdup`/`set_string`
+  pair) are deliberately *not* centralized: every `*_typed.c` keeps its own
+  copy, marked static, per the "Local copies of the small string/reset
+  helpers (kept static per TU)" comment already at the top of each one — a
+  new split file follows that same convention rather than introducing a
+  shared header for something that trivial. Verify each split with a full
+  rebuild and `ctest` run (check for the specific test covering what moved,
+  not just an overall pass) before committing, and again after
+  `clang-format` reformats the touched files.
 
 The bundled lexicon filenames currently match the local upstream checkout, but file parity is not semantic proof. For every protocol change, inspect the relevant lexicon and TypeScript implementation/tests under `/Volumes/Storage/Developer/Local/atproto`; check canonical encoding, validation order, limits, error semantics, pagination, union tags, and ownership rather than comparing endpoint names alone.
 
