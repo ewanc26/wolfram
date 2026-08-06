@@ -237,6 +237,7 @@ add_library(
   src/agent/temp_typed.c
   src/agent/notification_prefs_typed.c
   src/agent/chat_typed.c
+  src/agent/chat_mod_events.c
   src/agent/admin_typed.c
   src/agent/sync_typed.c
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/agent/server_typed.c>
