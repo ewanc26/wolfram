@@ -52,7 +52,7 @@ static char *wf_strdup(const char *s) {
     char *copy;
     if (!s) return NULL;
     len = strlen(s) + 1;
-    copy = static_cast<char*>(std::malloc(len));
+    copy = static_cast<char *>(std::malloc(len));
     if (!copy) return NULL;
     memcpy(copy, s, len);
     return copy;
@@ -67,7 +67,7 @@ static char *wf_vformat(const char *fmt, va_list ap) {
     needed = vsnprintf(NULL, 0, fmt, ap2);
     va_end(ap2);
     if (needed < 0) return NULL;
-    buf = static_cast<char*>(std::malloc((size_t)needed + 1));
+    buf = static_cast<char *>(std::malloc((size_t)needed + 1));
     if (!buf) return NULL;
     if (vsnprintf(buf, (size_t)needed + 1, fmt, ap) < 0) {
         std::free(buf);
@@ -90,7 +90,7 @@ static void wf_ctx_error(wf_validation_ctx *ctx, const char *path,
     va_end(ap);
     if (!message) return;
 
-    error = static_cast<wf_validate_error*>(std::calloc(1, sizeof(*error)));
+    error = static_cast<wf_validate_error *>(std::calloc(1, sizeof(*error)));
     if (!error) {
         std::free(message);
         return;
@@ -125,7 +125,7 @@ static char *wf_path_join(const char *base, const char *child) {
 
     base_len = strlen(base);
     child_len = strlen(child);
-    path = static_cast<char*>(std::malloc(base_len + 1 + child_len + 1));
+    path = static_cast<char *>(std::malloc(base_len + 1 + child_len + 1));
     if (!path) return NULL;
     memcpy(path, base, base_len);
     path[base_len] = '/';
@@ -144,7 +144,7 @@ static int wf_json_value_is_null(const cJSON *item) {
 
 static int wf_is_json_integer(const cJSON *item, int64_t *out) {
     double value;
-    if (!item || !cJSON_IsNumber(item) || !isfinite(item->valuedouble))
+    if (!item || !cJSON_IsNumber(item) || !std::isfinite(item->valuedouble))
         return 0;
     value = item->valuedouble;
     if (trunc(value) != value) return 0;
@@ -419,7 +419,7 @@ static int wf_is_valid_cid_string(const char *cid) {
     len = strlen(cid);
     if (len < 2) return 0;
 
-    bytes = static_cast<unsigned char*>(std::malloc(((len - 1) * 5 / 8) + 2));
+    bytes = static_cast<unsigned char *>(std::malloc(((len - 1) * 5 / 8) + 2));
     if (!bytes) return 0;
 
     for (i = 1; i < len; i++) {
@@ -561,7 +561,7 @@ static char *wf_canonicalize_ref(const char *current_lexicon_id,
         if (!current_lexicon_id || !*current_lexicon_id) return NULL;
         current_len = strlen(current_lexicon_id);
         ref_len = strlen(ref);
-        canon = static_cast<char*>(std::malloc(current_len + ref_len + 1));
+        canon = static_cast<char *>(std::malloc(current_len + ref_len + 1));
         if (!canon) return NULL;
         memcpy(canon, current_lexicon_id, current_len);
         memcpy(canon + current_len, ref, ref_len + 1);
@@ -569,7 +569,7 @@ static char *wf_canonicalize_ref(const char *current_lexicon_id,
     }
     if (strchr(ref, '#')) return wf_strdup(ref);
     ref_len = strlen(ref);
-    canon = static_cast<char*>(std::malloc(ref_len + 6));
+    canon = static_cast<char *>(std::malloc(ref_len + 6));
     if (!canon) return NULL;
     memcpy(canon, ref, ref_len);
     memcpy(canon + ref_len, "#main", 6);
@@ -665,7 +665,8 @@ static wf_status wf_validate_object_schema(wf_validation_ctx *ctx,
                 if (cJSON_IsArray(nullable)) {
                     cJSON_ArrayForEach(nullable_name, nullable) {
                         if (wf_is_json_string(nullable_name) &&
-                            strcmp(nullable_name->valuestring, prop_name) == 0) {
+                            strcmp(nullable_name->valuestring, prop_name) ==
+                                0) {
                             is_nullable = 1;
                             break;
                         }
@@ -1570,7 +1571,7 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
         return WF_OK;
     }
 
-    doc = static_cast<wf_lexicon_doc*>(std::calloc(1, sizeof(*doc)));
+    doc = static_cast<wf_lexicon_doc *>(std::calloc(1, sizeof(*doc)));
     if (!doc) {
         cJSON_Delete(root);
         return WF_ERR_ALLOC;
@@ -1655,7 +1656,7 @@ wf_validate_result wf_validate_value(const wf_lexicon_registry *registry,
     if (strchr(def_id, '#')) {
         const char *hash = strchr(def_id, '#');
         size_t lex_len = (size_t)(hash - def_id);
-        lookup_lexicon_id = static_cast<char*>(std::malloc(lex_len + 1));
+        lookup_lexicon_id = static_cast<char *>(std::malloc(lex_len + 1));
         if (lookup_lexicon_id) {
             memcpy(lookup_lexicon_id, def_id, lex_len);
             lookup_lexicon_id[lex_len] = '\0';
@@ -1722,7 +1723,7 @@ static char *wf_read_file_contents(const char *path, size_t *out_len) {
         fclose(f);
         return NULL;
     }
-    buf = static_cast<char*>(std::malloc((size_t)size + 1));
+    buf = static_cast<char *>(std::malloc((size_t)size + 1));
     if (!buf) {
         fclose(f);
         return NULL;
