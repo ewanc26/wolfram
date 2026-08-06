@@ -11,7 +11,7 @@
  */
 
 #include "wolfram/crypto.h"
-#include "openssl_compat.h"
+#include "platform/openssl_compat.h"
 
 #include <stdlib.h>
 #include <string.h>

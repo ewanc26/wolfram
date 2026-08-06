@@ -1,7 +1,7 @@
 #include "wolfram/blob.h"
 #include "wolfram/util.h"
 #include "wolfram/atproto_lex.h"
-#include "agent/_internal.h" // for internal agent fields
+#include "_internal.h" // for internal agent fields
 #include <cJSON.h>
 #include <stdlib.h>
 #include <string.h>
