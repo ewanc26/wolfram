@@ -51,8 +51,9 @@ alternative, and that choice is deliberate rather than incidental:
 - **Stable ABI, stable API.** C's stable calling convention makes FFI
   straightforward and future-proof. Generated Lexicon clients are plain C
   structures and functions.
-- **Licensing flexibility.** MIT, with no dual-licensing friction for embedded
-  or proprietary use.
+- **Copyleft by default.** AGPL-3.0, matching MetalBear: a modified `wolfram`
+  running as part of a network service obliges its operator to offer users
+  the corresponding source, the same way MetalBear itself does.
 
 This is not a claim that C is universally better — the TypeScript and Rust
 ecosystems have far richer tooling. `wolfram` targets the case where you want a

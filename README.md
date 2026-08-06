@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml"><img src="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ewanc26/wolfram/releases/latest"><img src="https://img.shields.io/github/v/release/ewanc26/wolfram?sort=semver" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/ewanc26/wolfram" alt="MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ewanc26/wolfram" alt="AGPL-3.0"></a>
   <a href="https://github.com/sponsors/ewanc26"><img src="https://img.shields.io/github/sponsors/ewanc26?logo=githubsponsors&logoColor=white&label=sponsors" alt="Sponsor"></a>
 </p>
 
@@ -223,4 +223,5 @@ If you find this project useful, consider supporting its development:
 
 ## License
 
-MIT
+[GNU AGPL-3.0](LICENSE). Running a modified Wolfram as part of a public network
+service obliges you to offer its users the corresponding source.
