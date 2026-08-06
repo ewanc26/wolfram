@@ -34,7 +34,9 @@
  *     app.bsky.graph.getBlocks                -> moderation_typed (wf_agent_actor_list)
  *     app.bsky.graph.getListMutes             -> wf_graph_list_view_list ("lists") [this module]
  *     app.bsky.graph.getListBlocks            -> wf_graph_list_view_list ("lists") [this module]
- *     app.bsky.graph.getActorLists            -> TODO (no generated wrapper)
+ *     app.bsky.graph.getActorLists            -> does not exist upstream (internal
+ *                                                 bsky data-plane RPC, not a public
+ *                                                 lexicon); use getLists
  *     app.bsky.graph.getLists                 -> list_typed (wf_agent_list_view_list)
  *     app.bsky.graph.getList                  -> list_typed (wf_agent_list_item_list)
  *     app.bsky.graph.getStarterPacks          -> wf_graph_starter_pack_view_list [this module]
@@ -55,8 +57,20 @@
  *   WRITE (procedures; return wf_status, no owned output)
  *     app.bsky.graph.muteActor / unmuteActor
  *     app.bsky.graph.muteActorList / unmuteActorList
- *     app.bsky.graph.blockActor / unblockActor           -> TODO (no wrapper)
- *     app.bsky.graph.blockActorList / unblockActorList    -> TODO (no wrapper)
+ *     app.bsky.graph.blockActor / unblockActor           -> no such procedure
+ *                                                            upstream; write/
+ *                                                            delete an
+ *                                                            app.bsky.graph.block
+ *                                                            record instead
+ *                                                            (wf_agent_graph_block/
+ *                                                            _unblock)
+ *     app.bsky.graph.blockActorList / unblockActorList    -> no such procedure
+ *                                                            upstream; write/
+ *                                                            delete an
+ *                                                            app.bsky.graph.listblock
+ *                                                            record instead
+ *                                                            (wf_agent_graph_create_list_block/
+ *                                                            _delete_list_block)
  * clang-format on
  */
 
