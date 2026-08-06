@@ -494,7 +494,14 @@ static void test_authorization_complete_denial(void) {
     wf_xrpc_client_free(transport);
 }
 
-static void test_dpop(void) {
+/* OpenSSL 3.0 deprecated the EC_KEY/ECDSA API in favor of EVP_PKEY, matching
+ * src/crypto/crypto.c and src/session/oauth/dpop.c: the deprecated
+ * declarations are suppressed here for these two verification helpers;
+ * migration to EVP is tracked as a separate refactoring item. */
+_Pragma("GCC diagnostic push")
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+
+        static void test_dpop(void) {
     unsigned char private_key[32] = {0};
     unsigned char exported[32] = {0};
     wf_oauth_dpop_key *key = NULL;
@@ -709,7 +716,9 @@ done:
     wf_oauth_dpop_key_free(key);
 }
 
-int main(void) {
+_Pragma("GCC diagnostic pop")
+
+    int main(void) {
     test_pkce();
     test_metadata();
     test_endpoint_responses();

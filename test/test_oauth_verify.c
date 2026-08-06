@@ -25,11 +25,19 @@
 #include <string.h>
 #include <time.h>
 
-/* ------------------------------------------------------------------ */
-/* Test signing helpers (OpenSSL, low-S normalized)                   */
-/* ------------------------------------------------------------------ */
+/* OpenSSL 3.0 deprecated the EC_KEY/ECDSA API in favor of EVP_PKEY, matching
+ * src/crypto/crypto.c and src/session/oauth/dpop.c: the deprecated
+ * declarations are suppressed here (EC_KEY is threaded through every helper
+ * in this file); migration to EVP is tracked as a separate refactoring
+ * item. */
+_Pragma("GCC diagnostic push")
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 
-static EC_KEY *key_from_scalar(const unsigned char priv[32]) {
+    /* ------------------------------------------------------------------ */
+    /* Test signing helpers (OpenSSL, low-S normalized)                   */
+    /* ------------------------------------------------------------------ */
+
+    static EC_KEY *key_from_scalar(const unsigned char priv[32]) {
     EC_KEY *ec = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
     BIGNUM *s = BN_bin2bn(priv, 32, NULL);
     const EC_GROUP *g = EC_KEY_get0_group(ec);
@@ -807,3 +815,5 @@ int main(void) {
 
     WF_TEST_SUMMARY();
 }
+
+_Pragma("GCC diagnostic pop")
