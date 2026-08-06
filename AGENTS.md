@@ -66,6 +66,25 @@ Agentic principles and technical context for the `wolfram` repository.
 - **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
 - **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
+## Public updates on ewan.bear1.croft.click
+
+The account `ewan.bear1.croft.click` (DID `did:plc:74wjsq6fb6xx62lauj3fma2w`)
+on the bear1 dev PDS is the project's public test, documentation, and update
+channel. Test content, federation checks, and release/development updates are
+published from it so they are visible to the network and serve as the public
+devlog. Credentials live in `/Volumes/Storage/Server/bear/.env` —
+`METALBEAR_PASSWORD` is the account password, `METALBEAR_APP_PASSWORD` is the
+`dev-tooling` app password the tooling uses. Never commit them.
+
+Post an update with this SDK's own CLI from a shell that has sourced that `.env`:
+
+    wolfram post https://bear1.croft.click ewan.bear1.croft.click "$METALBEAR_APP_PASSWORD" <text>
+
+Verify the post with `com.atproto.repo.getRecord` on the published URI. The
+host routes through a Cloudflare tunnel; if it does not resolve from the build
+host, curl `https://bear1.croft.click/xrpc/_health` after DNS recovers before
+assuming the host is down.
+
 ## Repository map and generated-code contract
 
 - `include/wolfram/` is the installed C API. Public structs must document ownership, optional fields, lifetime, and the matching free routine; preserve C++ guards and avoid leaking private dependency types unnecessarily.
