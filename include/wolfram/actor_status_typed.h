@@ -116,17 +116,21 @@ void wf_actor_status_view_free(wf_actor_status_view *v);
 void wf_actor_status_put_result_free(wf_actor_status_put_result *r);
 
 /* ---- Agent convenience wrappers ----
- * Each issues the corresponding lex call against the agent's primary XRPC
- * client (after syncing auth) and parses the body into `out`. On success `out`
- * is owned by the caller (free with the matching `_free`); on error it is left
- * reset. Required inputs are validated and return WF_ERR_INVALID_ARG when
- * NULL/empty.
+ * On success `out` is owned by the caller (free with the matching `_free`);
+ * on error it is left reset. Required inputs are validated and return
+ * WF_ERR_INVALID_ARG when NULL/empty.
  *
- * NOTE: the atproto lexicon corpus currently provides no generated call helper
- * for app.bsky.actor.status query/procedure endpoints
- * (getActorStatus/getStatus/putStatus), so these are honest stubs returning
- * WF_ERR_INVALID_ARG with a TODO until the generated lex bindings exist. The
- * parsers/builder above are fully functional and network-independent. */
+ * getActorStatus/getStatus/putStatus are not real endpoints -- neither the
+ * local lexicon corpus nor the reference implementation (bluesky-social/
+ * atproto, bluesky-social/social-app) defines dedicated RPCs for
+ * app.bsky.actor.status. The actual feature is read from the "status" field
+ * of an ordinary getProfile(s) response and written with a plain
+ * com.atproto.repo.putRecord (collection app.bsky.actor.status, rkey "self").
+ * These wrappers do exactly that: wf_agent_get_actor_status fetches and
+ * decodes the named actor's profile (WF_ERR_NOT_FOUND when it has no live
+ * status), wf_agent_get_status is the same for the logged-in agent's own
+ * profile, and wf_agent_put_status builds the record via
+ * wf_actor_status_build_record and calls wf_agent_put_record. */
 wf_status wf_agent_get_actor_status(wf_agent *agent, const char *actor,
                                     wf_actor_status_view *out);
 wf_status wf_agent_get_status(wf_agent *agent, wf_actor_status_view *out);
