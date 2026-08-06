@@ -189,9 +189,9 @@ add_library(
   # Label subscriptions
   src/label/label.c
   # Label query/get (request/response)
-  src/label_query.c
+  src/label/label_query.c
   # Label subscribeLabels agent consumption wrapper
-  src/label_subscribe_typed.c
+  src/agent/label_subscribe_typed.c
   # Syntax validation
   cpp/wolfram/syntax.cpp
   # TID generation clock
@@ -212,34 +212,34 @@ add_library(
   src/agent/graph_typed.c
   src/agent/graph_social_typed.c
   src/agent/graph_write.c
-  src/actor_typed.c
-  src/sync_list_typed.c
-  src/actor_prefs_typed.c
-  src/actor_status_typed.c
-  src/moderation_report_typed.c
-  src/contact_typed.c
-  src/labeler_typed.c
-  src/video_typed.c
-  src/identity_typed.c
-  src/notification_v2_typed.c
-  src/bookmark_typed.c
+  src/agent/actor_typed.c
+  src/agent/sync_list_typed.c
+  src/agent/actor_prefs_typed.c
+  src/agent/actor_status_typed.c
+  src/agent/moderation_report_typed.c
+  src/agent/contact_typed.c
+  src/agent/labeler_typed.c
+  src/agent/video_typed.c
+  src/agent/identity_typed.c
+  src/agent/notification_v2_typed.c
+  src/agent/bookmark_typed.c
   src/agent/list_typed.c
   src/agent/moderation_typed.c
-  src/notification_typed.c
-  src/repo_typed.c
-  src/ageassurance_typed.c
+  src/agent/notification_typed.c
+  src/agent/repo_typed.c
+  src/agent/ageassurance_typed.c
   src/agent/feedgen_typed.c
   src/agent/feed_gen_typed.c
   # getFeedSkeleton builder (validate/dedupe/cursor pagination)
-  src/feedgen.c
-  src/unspecced_typed.c
-  src/draft_typed.c
-  src/temp_typed.c
-  src/notification_prefs_typed.c
+  src/server/feedgen.c
+  src/agent/unspecced_typed.c
+  src/agent/draft_typed.c
+  src/agent/temp_typed.c
+  src/agent/notification_prefs_typed.c
   src/agent/chat_typed.c
-  src/admin_typed.c
-  src/sync_typed.c
-  $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/server_typed.c>
+  src/agent/admin_typed.c
+  src/agent/sync_typed.c
+  $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/agent/server_typed.c>
   src/agent/lexicon_typed.c
   src/agent/threadgate_postgate.c
   src/agent/moderation_actions.c
@@ -254,7 +254,7 @@ add_library(
   # Owned typed wrappers for tools.ozone.report/queue/signature moderation ops
   src/agent/ozone_moderation_ops_typed.c
   # High-level BskyAgent convenience wrapper
-  src/bsky_agent.c
+  src/agent/bsky_agent.c
   # Rich text / facet detection
   src/richtext/richtext.c
   src/richtext/detection.c
@@ -265,7 +265,7 @@ add_library(
   # Firehose commit verification
   src/sync/sync_verify.c
   # End-to-end record commit signature verification
-  src/verify.c
+  src/repo/verify.c
   # Generated lexicon endpoint wrappers
   src/atproto_lex.c
   # Server account management (PDS server-side)
@@ -276,15 +276,15 @@ add_library(
   src/plc/plc.c
   # New utilities and embed support
   src/util.c
-  src/blob.c
+  src/agent/blob.c
   # Blob persistence removed: migrated to MetalBear project.
-  src/embed.c
+  src/agent/embed.c
   # Ozone moderation / labeler helper
   src/ozone/ozone.c
   # Owned typed wrappers for trends / suggested users / thread v2
-  src/unspecced_trends_typed.c
+  src/agent/unspecced_trends_typed.c
   # Owned typed wrappers for the tools.ozone.* namespaces
-  src/ozone_typed.c
+  src/agent/ozone_typed.c
   # Owned typed wrappers for the remaining tools.ozone.moderation.* endpoints
   src/agent/ozone_admin_typed.c
   # Generic JSON round-trip / schema-subset validation
@@ -334,7 +334,7 @@ endif()
 # Embedded/console platform support
 if(WOLFRAM_BUILD_WII)
   target_sources(wolfram PRIVATE src/platform/wii_platform.c
-                                 src/openssl_compat.c src/transport/wii_tls.c)
+                                 src/platform/openssl_compat.c src/transport/wii_tls.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_WII)
   target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
                                              ${LIBOGC}/include)
@@ -367,7 +367,7 @@ elseif(WOLFRAM_BUILD_WIIU)
   # On the Wii that symbol lives in wii_tls.c, which the Wii U does not build
   # (libogc-only, and the Wii U uses the curl transport instead).
   target_sources(wolfram PRIVATE src/platform/wiiu_platform.c
-                                 src/crypto/wiiu_random.c src/openssl_compat.c)
+                                 src/crypto/wiiu_random.c src/platform/openssl_compat.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_WIIU)
   target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -415,7 +415,7 @@ elseif(WOLFRAM_BUILD_WIIU)
   )
 elseif(WOLFRAM_BUILD_3DS)
   target_sources(wolfram PRIVATE src/platform/3ds_platform.c
-                                 src/openssl_compat.c)
+                                 src/platform/openssl_compat.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_3DS)
   target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   if(DEFINED ENV{DEVKITPRO})
@@ -488,7 +488,7 @@ if(WOLFRAM_BUILD_SERVER)
   target_sources(wolfram PRIVATE src/server/xrpc_server_config.c)
   # Blob store server routes removed: migrated to MetalBear project.
   # Feed-generator skeleton server helper (builds on the XRPC server).
-  target_sources(wolfram PRIVATE src/feedgen_server.c)
+  target_sources(wolfram PRIVATE src/server/feedgen_server.c)
   # Generic upstream→downstream WebSocket subscription relay (builds on the XRPC
   # server and the always-built WebSocket client transport).
   target_sources(wolfram PRIVATE src/server/relay_server.c)
