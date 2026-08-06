@@ -1354,7 +1354,8 @@ wf_status wf_agent_unblock_actor_typed(wf_agent *agent, const char *actor) {
 wf_status wf_agent_block_actor_list_typed(wf_agent *agent,
                                           const char *list_uri) {
     /* No such procedure upstream. Blocking a mod list is an
-     * app.bsky.graph.listblock record; see wf_agent_graph_listblock. */
+     * app.bsky.graph.listblock record; see
+     * wf_agent_graph_create_list_block. */
     (void)agent;
     (void)list_uri;
     return WF_ERR_NOT_IMPLEMENTED;
