@@ -959,7 +959,7 @@ endif()
 # already owns the `wolfram` target name; OUTPUT_NAME keeps the binary
 # `wolfram`.
 if(NOT WOLFRAM_BUILD_EMBEDDED)
-  add_executable(wolfram_cli src/cli/main.c)
+  add_executable(wolfram_cli src/cli/main.c src/cli/cli_oauth.c)
   target_link_libraries(wolfram_cli PRIVATE wolfram)
   target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR}
                                                  ${cjson_BINARY_DIR})
