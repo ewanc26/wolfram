@@ -486,6 +486,8 @@ if(WOLFRAM_BUILD_SERVER)
     find_library(MICROHTTPD_LIBRARY NAMES microhttpd REQUIRED)
   endif()
   target_sources(wolfram PRIVATE src/server/xrpc_server.c)
+  # RFC 6455 WebSocket upgrade/framing, split out of xrpc_server.c.
+  target_sources(wolfram PRIVATE src/server/xrpc_server_ws.c)
   # JSON configuration loader for the XRPC server.
   target_sources(wolfram PRIVATE src/server/xrpc_server_config.c)
   # Blob store server routes removed: migrated to MetalBear project.
