@@ -6,10 +6,10 @@
  *
  * Mirrors labeler_typed.c / actor_typed.c: static strdup/set_string/reset
  * helpers, owned strings, detached `extra` cJSON subtrees where shapes are
- * open/unbounded, and full cleanup on the first error. The agent wrappers call
- * the generated lex wrappers directly after syncing auth via
- * wf_agent_sync_auth; because those helpers are absent for this namespace they
- * are honest stubs (see the notes in the header).
+ * open/unbounded, and full cleanup on the first error. The agent wrappers
+ * route through the generic getProfile/putRecord primitives rather than a
+ * dedicated lex call -- see the notes in the header and above
+ * wf_agent_get_actor_status below.
  */
 
 #include "wolfram/actor_status_typed.h"
@@ -223,15 +223,29 @@ wf_status wf_actor_status_parse_view(const char *json, size_t json_len,
     if (status == WF_OK) {
         status = wf_actor_status_take_string(root, "status", &out->status);
     }
+    /*
+     * createdAt/durationMinutes are NOT top-level statusView fields --
+     * lexicons/app/bsky/actor/defs.json defines statusView.record as
+     * {"type": "unknown"}, the raw, unvalidated app.bsky.actor.status
+     * record the status references. That record is where createdAt and
+     * durationMinutes actually live; a real AppView's statusView never
+     * carries them at the top level, so reading them from `root` directly
+     * always left these two fields unset. Pull them out of `record`
+     * instead, then discard the rest of it -- wf_actor_status_view has no
+     * field for the raw record itself, only these two derived values.
+     */
     if (status == WF_OK) {
-        status =
-            wf_actor_status_take_string(root, "createdAt", &out->created_at);
-    }
-    if (status == WF_OK) {
-        wf_actor_status_take_int(root, "durationMinutes",
-                                 &out->has_duration_minutes,
-                                 &out->duration_minutes);
-        cJSON_DetachItemFromObject(root, "durationMinutes");
+        cJSON *record = wf_actor_status_take_object(root, "record");
+        if (record) {
+            status = wf_actor_status_take_string(record, "createdAt",
+                                                 &out->created_at);
+            if (status == WF_OK) {
+                wf_actor_status_take_int(record, "durationMinutes",
+                                         &out->has_duration_minutes,
+                                         &out->duration_minutes);
+            }
+            cJSON_Delete(record);
+        }
     }
     if (status == WF_OK) {
         status =
@@ -328,37 +342,65 @@ wf_status wf_actor_status_build_record(const char *created_at,
 }
 
 /* ---- Agent convenience wrappers ----
- * The atproto lexicon corpus for app.bsky.actor.status only ships a `main`
- * record type and a `live` token; it does NOT define the getActorStatus /
- * getStatus / putStatus query/procedure endpoints. Because the lexicon
- * generator only emits `*_main_call` transport helpers for query/procedure
- * `main` defs, no wf_lex_app_bsky_actor_status_{getActorStatus,getStatus,
- * putStatus}_main_call bindings exist. These wrappers are therefore honest
- * stubs: they validate required inputs and return WF_ERR_INVALID_ARG with a
- * TODO explaining what is missing until the upstream lexicon adds those
- * endpoints. (Re-running the regenerated lexgen does not change this.) */
+ * The atproto lexicon corpus for app.bsky.actor.status ships only a `main`
+ * record type and a `live` token -- it does NOT define getActorStatus /
+ * getStatus / putStatus as query/procedure endpoints, and searching the
+ * reference implementation (bluesky-social/atproto, bluesky-social/social-app)
+ * confirms those endpoints do not exist there either. The real feature has no
+ * bespoke RPCs at all: social-app's liveNow feature (src/features/liveNow/
+ * index.tsx) reads the status from the `status` field embedded in
+ * app.bsky.actor.defs#profileView(Detailed) (i.e. an ordinary getProfile/
+ * getProfiles response) and writes it with a plain com.atproto.repo.putRecord
+ * to collection "app.bsky.actor.status", rkey "self" -- exactly the generic
+ * primitives wf_agent_get_profile_raw and wf_agent_put_record already wrap.
+ * These wrappers therefore go through those, not a nonexistent dedicated
+ * call. */
 
 wf_status wf_agent_get_actor_status(wf_agent *agent, const char *actor,
                                     wf_actor_status_view *out) {
     if (!agent || !actor || !actor[0] || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    /* TODO: once wf_lex_app_bsky_actor_status_get_actor_status_main_call and
-     * its _main_output_decode_json/_free exist, sync auth, call the wrapper,
-     * decode res.body into `out`, and free the response. The atproto lexicon
-     * does not yet ship this endpoint's generated binding. */
-    return WF_ERR_INVALID_ARG;
+    wf_response res = {0};
+    wf_status status = wf_agent_get_profile_raw(agent, actor, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+    cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+    wf_response_free(&res);
+    if (!root) {
+        return WF_ERR_PARSE;
+    }
+    /* statusView is embedded under the profile's "status" key; its absence
+     * means the actor simply has no live status right now, not a parse
+     * failure. */
+    cJSON *status_view = cJSON_GetObjectItemCaseSensitive(root, "status");
+    if (!cJSON_IsObject(status_view)) {
+        cJSON_Delete(root);
+        memset(out, 0, sizeof(*out));
+        return WF_ERR_NOT_FOUND;
+    }
+    char *status_json = cJSON_PrintUnformatted(status_view);
+    cJSON_Delete(root);
+    if (!status_json) {
+        return WF_ERR_ALLOC;
+    }
+    wf_status parse_status =
+        wf_actor_status_parse_view(status_json, strlen(status_json), out);
+    free(status_json);
+    return parse_status;
 }
 
 wf_status wf_agent_get_status(wf_agent *agent, wf_actor_status_view *out) {
     if (!agent || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    /* TODO: once wf_lex_app_bsky_actor_status_get_status_main_call and its
-     * _main_output_decode_json/_free exist, sync auth, call the wrapper,
-     * decode res.body into `out`, and free the response. The atproto lexicon
-     * does not yet ship this endpoint's generated binding. */
-    return WF_ERR_INVALID_ARG;
+    const char *did = wf_agent_get_did(agent);
+    if (!did || !did[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_agent_get_actor_status(agent, did, out);
 }
 
 wf_status wf_agent_put_status(wf_agent *agent, const wf_actor_status *in,
@@ -366,11 +408,22 @@ wf_status wf_agent_put_status(wf_agent *agent, const wf_actor_status *in,
     if (!agent || !in || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    /* TODO: once wf_lex_app_bsky_actor_status_put_status_main_call and its
-     * _main_output_decode_json/_free exist, build the record via
-     * wf_actor_status_build_record, sync auth, call the wrapper with the record
-     * input, decode res.body into `out` (uri/cid/value), and free the
-     * response. The atproto lexicon does not yet ship this endpoint's
-     * generated binding. */
-    return WF_ERR_INVALID_ARG;
+    char *record_json = NULL;
+    wf_status status = wf_actor_status_build_record(in->created_at, in->status,
+                                                    in->embed, &record_json);
+    if (status != WF_OK) {
+        return status;
+    }
+    wf_agent_post_result post = {0};
+    status = wf_agent_put_record(agent, "app.bsky.actor.status", "self",
+                                 record_json, &post);
+    if (status != WF_OK) {
+        free(record_json);
+        return status;
+    }
+    memset(out, 0, sizeof(*out));
+    out->uri = post.uri;      /* transferred */
+    out->cid = post.cid;      /* transferred */
+    out->value = record_json; /* transferred */
+    return WF_OK;
 }
