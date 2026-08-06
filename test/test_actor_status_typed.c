@@ -22,13 +22,18 @@ static const char *k_record_json =
     "\"customField\":\"kept\"}";
 
 /* A statusView (app.bsky.actor.defs#statusView) plus task-described envelope
- * fields when present. */
+ * fields when present. Per lexicons/app/bsky/actor/defs.json, createdAt and
+ * durationMinutes are NOT top-level statusView fields -- they live inside the
+ * opaque `record` (the raw app.bsky.actor.status record being referenced).
+ * `embed` at the top level is the *view*-shaped embed (distinct from the
+ * record's raw embed input), which is why both appear below. */
 static const char *k_view_json =
     "{\"uri\":\"at://did:plc:abc/app.bsky.actor.status/self\","
     "\"cid\":\"bafyreigh\","
     "\"status\":\"app.bsky.actor.status#live\","
-    "\"createdAt\":\"2024-06-01T12:00:00Z\","
-    "\"durationMinutes\":30,"
+    "\"record\":{\"$type\":\"app.bsky.actor.status\","
+    "\"status\":\"app.bsky.actor.status#live\","
+    "\"createdAt\":\"2024-06-01T12:00:00Z\",\"durationMinutes\":30},"
     "\"expiresAt\":\"2024-06-01T12:30:00Z\","
     "\"isActive\":true,\"isDisabled\":false,"
     "\"actor\":\"did:plc:abc\",\"lastUpdated\":\"2024-06-01T12:00:05Z\","
@@ -144,30 +149,13 @@ int main(void) {
         WF_CHECK(wf_actor_status_build_record("2024-06-01T00:00:00Z", "x", NULL,
                                               NULL) == WF_ERR_INVALID_ARG);
 
-        /* agent wrappers: honest stubs return WF_ERR_INVALID_ARG.
-         * NULL-required-input validation returns the same code. */
+        /* agent wrappers: NULL-required-input validation. (Behavioral
+         * coverage against a real agent lives in
+         * test_actor_status_typed_httpd.c.) */
         WF_CHECK(wf_agent_get_actor_status(NULL, "did:plc:abc", &v) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_actor_status((wf_agent *)1, NULL, &v) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_actor_status((wf_agent *)1, "did:plc:abc",
-                                           NULL) == WF_ERR_INVALID_ARG);
-        /* even with valid inputs the generated binding is absent -> stub */
-        WF_CHECK(wf_agent_get_actor_status((wf_agent *)1, "did:plc:abc", &v) ==
-                 WF_ERR_INVALID_ARG);
-
         WF_CHECK(wf_agent_get_status(NULL, &v) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_status((wf_agent *)1, NULL) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_get_status((wf_agent *)1, &v) == WF_ERR_INVALID_ARG);
-
         WF_CHECK(wf_agent_put_status(NULL, &rec, &res) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_put_status((wf_agent *)1, NULL, &res) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_put_status((wf_agent *)1, &rec, NULL) ==
-                 WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_agent_put_status((wf_agent *)1, &rec, &res) ==
-                 WF_ERR_INVALID_ARG);
 
         wf_actor_status_free(&rec);
         wf_actor_status_view_free(&v);

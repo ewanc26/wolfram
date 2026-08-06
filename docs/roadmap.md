@@ -137,11 +137,16 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     and getThread (all delegating to the existing `wf_agent_*` API). Tested.
 39. `app.bsky.actor.status` typed wrappers (`actor_status_typed.h`) — owned
     parsers + a record builder for status records/views following the
-    labeler/actor ownership model. The `getActorStatus`/`getStatus`/`putStatus`
-    agent wrappers are honest stubs (`WF_ERR_INVALID_ARG` + `TODO`) because the
-    local lexicon snapshot lacks generated bindings for those endpoints.
-    Replace these stubs with real implementations in the next major 0.x.0
-    update when the upstream lexicon adds query/procedure defs. Tested.
+    labeler/actor ownership model. `getActorStatus`/`getStatus`/`putStatus`
+    are not real endpoints in the reference (confirmed against
+    bluesky-social/atproto and bluesky-social/social-app: no such RPCs
+    exist anywhere, only the `app.bsky.actor.status` record type), so the
+    agent wrappers read the status embedded in a getProfile(s) response and
+    write it via a plain `com.atproto.repo.putRecord`, matching how
+    social-app's liveNow feature actually does it. `wf_actor_status_parse_view`
+    also had a bug fixed alongside this: createdAt/durationMinutes live inside
+    statusView's opaque `record` field, not at the top level, so real
+    responses always left both unset. Tested.
  40. `tools.ozone.*` typed coverage (`ozone.h`/`ozone.c`) — initial batch of
      typed convenience wrappers for moderation (queryStatuses, getLabelDefs,
      emitEvent, queryEvents, getEvent, getReporterStats, getSubjects),

@@ -1917,6 +1917,16 @@ if(WOLFRAM_BUILD_TESTS)
       test_video_typed_httpd PRIVATE test ${MICROHTTPD_INCLUDE_DIR}
                                      ${cjson_SOURCE_DIR})
     add_test(NAME video_typed_httpd COMMAND test_video_typed_httpd)
+
+    add_executable(test_actor_status_typed_httpd
+                   test/test_actor_status_typed_httpd.c test/mock_pds.c)
+    target_link_libraries(test_actor_status_typed_httpd
+                          PRIVATE wolfram ${MICROHTTPD_LIBRARY})
+    target_include_directories(
+      test_actor_status_typed_httpd PRIVATE test ${MICROHTTPD_INCLUDE_DIR}
+                                     ${cjson_SOURCE_DIR})
+    add_test(NAME actor_status_typed_httpd
+             COMMAND test_actor_status_typed_httpd)
   endif()
 endif()
 
