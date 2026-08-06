@@ -448,8 +448,17 @@ wf_status wf_ozone_get_suggestions(wf_xrpc_client *client,
     if (!client || !out) {
         return WF_ERR_INVALID_ARG;
     }
-    /* TODO: getSuggestions is not in the local lexicon snapshot, so parameter
-     * names follow the current upstream lexicon and should be confirmed. */
+    /* UNCONFIRMED: exhaustive searches of bluesky-social/atproto (every file
+     * under lexicons/tools/ozone/moderation, the ozone and bsky package
+     * sources, and a GitHub code search for "getSuggestions" across the
+     * whole repo) turn up no lexicon file, server route, or test for
+     * tools.ozone.moderation.getSuggestions -- only the unrelated
+     * app.bsky.actor.getSuggestions.
+     * This wrapper's parameter names are therefore a guess, not a match
+     * against a confirmed reference; the endpoint may be private-only Ozone
+     * surface never published as a lexicon, or may not exist at all. Treat
+     * calls through this wrapper as unverified until a real Ozone deployment
+     * confirms the shape, and do not add more callers depending on it. */
     wf_xrpc_param params[2 + n];
     size_t p = 0;
     char limit_buf[32];

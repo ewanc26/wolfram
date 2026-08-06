@@ -144,8 +144,12 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     update when the upstream lexicon adds query/procedure defs. Tested.
  40. `tools.ozone.*` typed coverage (`ozone.h`/`ozone.c`) — initial batch of
      typed convenience wrappers for moderation (queryStatuses, getLabelDefs,
-     emitEvent, queryEvents, getEvent, getReporterStats, getSubjects,
-     getSuggestions), communication templates, and set values. Tested.
+     emitEvent, queryEvents, getEvent, getReporterStats, getSubjects),
+     communication templates, and set values. Tested. `getSuggestions` is
+     also wrapped but unconfirmed against the reference -- no lexicon,
+     server route, or test for `tools.ozone.moderation.getSuggestions`
+     exists anywhere in bluesky-social/atproto as of this writing; see the
+     comment on `wf_ozone_get_suggestions`.
  41. `wolfram` CLI social commands — `profile`, `timeline`, `follow`,
      `unfollow`, `like`, `repost`, `search`, `notifications`, `mute`, `unmute`,
      and `thread`, reusing the existing `wf_agent_*` APIs.
