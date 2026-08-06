@@ -460,6 +460,33 @@ int main(void) {
         free(proof);
     }
 
+    /* --- Positive: htu carrying a query string still matches --- *
+     * RFC 9449's htu is scheme+authority+path only, but per the reference
+     * implementation's own compatibility note, some real clients append a
+     * query (and/or fragment) to the claim. The server's own request URI
+     * never carries one, so both sides must be normalized the same way
+     * before comparing rather than raw-comparing the client's claim as-is. */
+    {
+        unsigned char digest[32];
+        char *ath;
+        char uri_with_query[256];
+        snprintf(uri_with_query, sizeof(uri_with_query), "%s?foo=bar", uri);
+        SHA256((const unsigned char *)access_token, strlen(access_token),
+               digest);
+        ath = b64url(digest, 32);
+        cJSON *jwk = cJSON_Parse(dp_jwk);
+        char *proof = make_dpop_proof(dp_ec, jwk, "POST", uri_with_query, ath,
+                                      "jti-htu-query-1", now);
+        wf_status st = wf_oauth_verify_request(auth_hdr, proof, "POST", uri,
+                                               keys, replay, &tok);
+        WF_CHECK(st == WF_OK);
+        WF_CHECK(tok != NULL);
+        wf_oauth_verified_token_free(tok);
+        tok = NULL;
+        free(ath);
+        free(proof);
+    }
+
     /* --- Negative: ath mismatch --- */
     {
         cJSON *jwk = cJSON_Parse(dp_jwk);
