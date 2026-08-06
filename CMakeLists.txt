@@ -200,6 +200,7 @@ add_library(
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:cpp/wolfram/validate.cpp>
   # High-level agent API
   src/agent/agent.c
+  src/agent/agent_repo_sync.c
   src/agent/post.c
   src/agent/embed_typed.c
   src/agent/feed.c
