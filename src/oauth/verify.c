@@ -570,7 +570,8 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof, const char *access_token,
     const cJSON *alg, *typ, *jwk, *htm, *htu, *jti, *ath, *nonce;
     const char *alg_s, *typ_s, *htm_s, *htu_s, *jti_s, *ath_s;
     unsigned char x[32], y[32];
-    char *signing_input = NULL, *norm_htu = NULL, *calc_ath = NULL;
+    char *signing_input = NULL, *norm_htu = NULL, *norm_claim_htu = NULL,
+         *calc_ath = NULL;
     unsigned char digest[SHA256_DIGEST_LENGTH];
     char proof_jkt[44];
     size_t silen;
@@ -638,7 +639,14 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof, const char *access_token,
         goto done;
     }
     norm_htu = normalize_htu(http_uri);
-    if (!norm_htu || strcmp(norm_htu, htu_s) != 0) {
+    /* RFC 9449 htu is scheme+authority+path only, but per the reference
+     * implementation's own compatibility note, some real clients include a
+     * query and/or fragment in the claim; normalize the client's htu the
+     * same way the server's own request URL is normalized (strip
+     * userinfo/query/fragment) before comparing, rather than raw-comparing
+     * the client's claim as-is against an already-normalized server value. */
+    norm_claim_htu = normalize_htu(htu_s);
+    if (!norm_htu || !norm_claim_htu || strcmp(norm_htu, norm_claim_htu) != 0) {
         status = WF_ERR_INVALID_ARG; /* htu mismatch */
         goto done;
     }
@@ -728,6 +736,7 @@ done:
     wf_jwt_free(j);
     free(signing_input);
     free(norm_htu);
+    free(norm_claim_htu);
     free(calc_ath);
     wf_oauth_verified_token_free(tok);
     return status;
