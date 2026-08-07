@@ -204,8 +204,10 @@ static wf_status wf_video_parse_job_status_def(cJSON *obj,
     if (status == WF_OK && cJSON_IsString(error) && error->valuestring) {
         status = wf_video_set_string(&d->error, error->valuestring);
     }
-    if (status == WF_OK && cJSON_IsString(failure_code) && failure_code->valuestring) {
-        status = wf_video_set_string(&d->failure_code, failure_code->valuestring);
+    if (status == WF_OK && cJSON_IsString(failure_code) &&
+        failure_code->valuestring) {
+        status =
+            wf_video_set_string(&d->failure_code, failure_code->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(message) && message->valuestring) {
         status = wf_video_set_string(&d->message, message->valuestring);
@@ -329,12 +331,12 @@ wf_status wf_video_job_status_def_build(const wf_video_job_status_def *in,
     }
     if (status == WF_OK && in->failure_code &&
         !cJSON_AddItemToObject(obj, "failureCode",
-                                cJSON_CreateString(in->failure_code))) {
+                               cJSON_CreateString(in->failure_code))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->message &&
         !cJSON_AddItemToObject(obj, "message",
-                                cJSON_CreateString(in->message))) {
+                               cJSON_CreateString(in->message))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->extra) {
