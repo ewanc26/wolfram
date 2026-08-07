@@ -1318,11 +1318,15 @@ wf_status wf_agent_get_suggestions_typed(wf_agent *agent, int limit,
 
 wf_status wf_agent_declare_actor_typed(wf_agent *agent,
                                        const wf_actor_declaration *decl) {
-    /* TODO: app.bsky.actor.declareActor has no generated lex wrapper in this
-     * tree (declaration.json is absent from the local lexicons), so the typed
-     * declaration parser/builder exist but the network call cannot be issued.
-     * Implement once a generated wf_lex_app_bsky_actor_declare_actor_* wrapper
-     * is available. */
+    /* Not a TODO: app.bsky.actor.declareActor does not exist as a lexicon
+     * anywhere in the reference (verified against the full bundled corpus,
+     * not just this tree) -- see the header's comment above this
+     * declaration. A "declaration" in atproto is a record type (e.g.
+     * chat.bsky.actor.declaration), written through com.atproto.repo.*
+     * like any other record, not called as its own procedure. This stub
+     * exists only so wf_actor_declaration's parse/build helpers have a
+     * matching agent-wrapper shape for callers who expect one; there is no
+     * endpoint to wire it to. */
     (void)agent;
     (void)decl;
     return WF_ERR_NOT_IMPLEMENTED;
