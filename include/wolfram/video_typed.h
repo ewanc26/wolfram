@@ -60,6 +60,7 @@ typedef struct wf_video_job_status_def {
     bool has_blob;
     wf_video_blob blob;
     char *error;
+    char *failure_code;
     char *message;
     cJSON *extra; /* owned detached subtree of unknown fields; NULL absent */
 } wf_video_job_status_def;
