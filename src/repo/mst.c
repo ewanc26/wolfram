@@ -516,7 +516,11 @@ static size_t mst_collect_items(const wf_mst_node *node, mst_split_item **out) {
         n++;
         if (node->entries[i].subtree.len > 0) n++;
     }
-    mst_split_item *items = calloc(n ? n : 1, sizeof(mst_split_item));
+    if (n == 0) {
+        *out = NULL;
+        return 0;
+    }
+    mst_split_item *items = calloc(n, sizeof(mst_split_item));
     if (!items) return 0;
     size_t k = 0;
     if (node->left.len > 0) {
@@ -619,7 +623,10 @@ static wf_status mst_build_from_items(wf_car *car, unsigned layer,
  */
 static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
                                   const unsigned char *key, size_t key_len,
-                                  wf_cid *out_left, wf_cid *out_right) {
+                                  wf_cid *out_left, wf_cid *out_right,
+                                  size_t depth) {
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     *out_left = (wf_cid){{0}, 0};
     *out_right = (wf_cid){{0}, 0};
 
@@ -656,7 +663,8 @@ static wf_status mst_split_around(wf_car *car, const wf_cid *subtree_cid,
         s = mst_build_from_items(car, layer, items, index - 1, &base_left);
         if (s == WF_OK) {
             wf_cid sl = {{0}, 0}, sr = {{0}, 0};
-            s = mst_split_around(car, &tree_cid, key, key_len, &sl, &sr);
+            s = mst_split_around(car, &tree_cid, key, key_len, &sl, &sr,
+                                 depth + 1);
             if (s == WF_OK) {
                 if (sl.len > 0) {
                     mst_split_item *comb =
@@ -741,7 +749,7 @@ static wf_status mst_add_at_layer(wf_car *car, const wf_mst_node *node,
         idx == 0 ? &node->left : &node->entries[idx - 1].subtree;
     if (preceding_tree->len > 0) {
         wf_status ss = mst_split_around(car, preceding_tree, key, key_len,
-                                        &pred_subtree, &new_subtree);
+                                        &pred_subtree, &new_subtree, 0);
         if (ss != WF_OK) {
             free(new_entries);
             return ss;
@@ -963,7 +971,7 @@ static wf_status mst_add_at_higher_layer(wf_car *car, const wf_mst_node *node,
     wf_cid left = {{0}, 0};
     wf_cid right = {{0}, 0};
     wf_status s =
-        mst_split_around(car, &node->cid, key, key_len, &left, &right);
+        mst_split_around(car, &node->cid, key, key_len, &left, &right, 0);
     if (s != WF_OK) return s;
 
     /*
@@ -1056,7 +1064,10 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
 }
 
 static wf_status mst_merge_subtrees(wf_car *car, const wf_cid *a,
-                                    const wf_cid *b, wf_cid *out) {
+                                    const wf_cid *b, wf_cid *out,
+                                    size_t depth) {
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     if (a->len == 0) {
         *out = *b;
         return WF_OK;
@@ -1138,11 +1149,11 @@ static wf_status mst_merge_subtrees(wf_car *car, const wf_cid *a,
     if (left_node.count > 0) {
         s = mst_merge_subtrees(car,
                                &left_node.entries[left_node.count - 1].subtree,
-                               &right_node.left, &boundary);
+                               &right_node.left, &boundary, depth + 1);
         if (s == WF_OK) entries[left_node.count - 1].subtree = boundary;
     } else {
         s = mst_merge_subtrees(car, &left_node.left, &right_node.left,
-                               &new_left);
+                               &new_left, depth + 1);
     }
 
     wf_mst_node merged_node;
@@ -1189,7 +1200,7 @@ static wf_status mst_delete_at_layer(wf_car *car, const wf_mst_node *node,
 
     wf_cid merged;
     wf_status s =
-        mst_merge_subtrees(car, &left_subtree, &right_subtree, &merged);
+        mst_merge_subtrees(car, &left_subtree, &right_subtree, &merged, 0);
     if (s != WF_OK) return s;
 
     if (new_count == 0) {
