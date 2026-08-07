@@ -367,7 +367,8 @@ static wf_status commit_unsigned_bytes(const wf_commit *commit,
 
 static wf_status verify_mst_links(const wf_car *car, const wf_cid *cid,
                                   size_t depth) {
-    if (depth > car->block_count) return WF_ERR_PARSE;
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     wf_car_block *block = wf_car_find_block((wf_car *)car, cid);
     if (!block) return WF_ERR_NOT_FOUND;
     wf_mst_node node;

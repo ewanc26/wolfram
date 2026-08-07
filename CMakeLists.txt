@@ -1234,6 +1234,11 @@ if(WOLFRAM_BUILD_TESTS)
     PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   add_test(NAME mst_interop COMMAND test_mst_interop)
 
+  add_executable(test_mst_depth test/test_mst_depth.c)
+  target_link_libraries(test_mst_depth PRIVATE wolfram)
+  target_include_directories(test_mst_depth PRIVATE test)
+  add_test(NAME mst_depth COMMAND test_mst_depth)
+
   add_executable(test_session test/test_session.c)
   target_link_libraries(test_session PRIVATE wolfram)
   target_include_directories(test_session PRIVATE test)
