@@ -601,6 +601,94 @@ static int cmd_login(int argc, char **argv) {
     return 0;
 }
 
+/* wolfram whoami <service> <handle> <password> */
+static int cmd_whoami(int argc, char **argv) {
+    if (argc < 4) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) return 1;
+
+    wf_session_data sd = {0};
+    wf_agent_get_session_data(agent, &sd);
+    printf("did: %s\n", sd.did ? sd.did : "?");
+    printf("handle: %s\n", sd.handle ? sd.handle : "?");
+    wf_agent_session_data_free(&sd);
+    wf_agent_free(agent);
+    return 0;
+}
+
+/* wolfram describe-server <service> */
+static int cmd_describe_server(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+
+    wf_agent *agent = wf_agent_new(service);
+    if (!agent) {
+        fprintf(stderr, "error: failed to create agent\n");
+        return 1;
+    }
+
+    wf_agent_server_description desc = {0};
+    wf_status s = wf_agent_describe_server(agent, &desc);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: describeServer failed (status %d)\n", (int)s);
+        wf_agent_server_description_free(&desc);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("did: %s\n", desc.did ? desc.did : "?");
+    printf("inviteCodeRequired: %d\n", desc.invite_code_required);
+    printf("phoneVerificationRequired: %d\n", desc.phone_verification_required);
+    printf("availableUserDomains (%zu):\n", desc.available_user_domain_count);
+    for (size_t i = 0; i < desc.available_user_domain_count; ++i) {
+        printf("  %s\n", desc.available_user_domains[i]
+                             ? desc.available_user_domains[i]
+                             : "?");
+    }
+    printf("privacyPolicy: %s\n",
+           desc.privacy_policy ? desc.privacy_policy : "?");
+    printf("termsOfService: %s\n",
+           desc.terms_of_service ? desc.terms_of_service : "?");
+    printf("contactEmail: %s\n", desc.contact_email ? desc.contact_email : "?");
+    wf_agent_server_description_free(&desc);
+    wf_agent_free(agent);
+    return 0;
+}
+
+/* wolfram delete <service> <handle> <password> <at-uri> */
+static int cmd_delete(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *at_uri = argv[4];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) return 1;
+
+    wf_status s = wf_agent_delete_post(agent, at_uri);
+    if (s != WF_OK) {
+        cli_agent_error("delete", s, agent);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("deleted %s\n", at_uri);
+    wf_agent_free(agent);
+    return 0;
+}
+
 static int cmd_post(int argc, char **argv) {
     if (argc < 5) {
         usage_stream(stderr);
@@ -2609,11 +2697,20 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "login") == 0) {
         return cmd_login(rest, cargv);
     }
+    if (strcmp(cmd, "whoami") == 0) {
+        return cmd_whoami(rest, cargv);
+    }
+    if (strcmp(cmd, "describe-server") == 0) {
+        return cmd_describe_server(rest, cargv);
+    }
     if (strcmp(cmd, "post") == 0) {
         return cmd_post(rest, cargv);
     }
     if (strcmp(cmd, "reply") == 0) {
         return cmd_reply(rest, cargv);
+    }
+    if (strcmp(cmd, "delete") == 0) {
+        return cmd_delete(rest, cargv);
     }
     if (strcmp(cmd, "like") == 0) {
         return cmd_like(rest, cargv);
