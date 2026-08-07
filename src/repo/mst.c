@@ -441,7 +441,8 @@ static size_t mst_find_ge(const wf_mst_node *node, const unsigned char *key,
 
 static wf_status mst_load_node_depth(wf_car *car, const wf_cid *cid,
                                      wf_mst_node *out, size_t depth) {
-    if (depth > car->block_count) return WF_ERR_PARSE;
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     wf_car_block *block = wf_car_find_block(car, cid);
     if (!block) return WF_ERR_PARSE;
     wf_status s = wf_mst_node_parse(block->data, block->data_len, cid, out);
@@ -1507,10 +1508,28 @@ static wf_status mst_leaf_list_push(wf_mst_leaf **list, size_t *count,
  * left, then for each entry: the entry leaf, then its subtree. When
  * `has_from` is set, leaves with key < from_key are skipped (parents are
  * still descended so the tree structure is preserved). */
+/*
+ * `depth` bounds recursion on two fronts. `WF_MST_MAX_DEPTH` is the real
+ * stack-safety bound (see its comment in mst.h): an attacker can shape a
+ * chain of DISTINCT blocks -- each individually valid, linked purely
+ * through `left`, a few dozen bytes each -- that nests as deep as they
+ * like inside a well-formed CAR, and every level must land on a distinct
+ * block, so a cap keyed to car->block_count would never fire on it even
+ * tens of thousands of frames deep. WF_MST_MAX_DEPTH (1024, ~8x the
+ * maximum a legitimate tree can reach) rejects it long before that. The
+ * additional `depth > car->block_count` check is unchanged cycle
+ * detection, matching verify_mst_links (diff.c) and the load helpers.
+ * Every other recursive helper in this file (mst_all_cids_node,
+ * mst_count_in_range, mst_collect_proof, mst_load_node_depth, below) is
+ * guarded the same way; this one is the hot path every public
+ * list/walk/proof entry point in this file goes through.
+ */
 static wf_status mst_walk_node(wf_car *car, const wf_cid *cid,
                                const unsigned char *from_key,
                                size_t from_key_len, int has_from,
-                               wf_mst_walk_cb cb, void *ctx) {
+                               wf_mst_walk_cb cb, void *ctx, size_t depth) {
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     wf_car_block *block = wf_car_find_block(car, cid);
     if (!block) return WF_ERR_PARSE;
     wf_mst_node node;
@@ -1519,7 +1538,7 @@ static wf_status mst_walk_node(wf_car *car, const wf_cid *cid,
 
     if (node.left.len > 0) {
         s = mst_walk_node(car, &node.left, from_key, from_key_len, has_from, cb,
-                          ctx);
+                          ctx, depth + 1);
         if (s != WF_OK) {
             wf_mst_node_free(&node);
             return s;
@@ -1538,7 +1557,7 @@ static wf_status mst_walk_node(wf_car *car, const wf_cid *cid,
         }
         if (node.entries[i].subtree.len > 0) {
             s = mst_walk_node(car, &node.entries[i].subtree, from_key,
-                              from_key_len, has_from, cb, ctx);
+                              from_key_len, has_from, cb, ctx, depth + 1);
             if (s != WF_OK) {
                 wf_mst_node_free(&node);
                 return s;
@@ -1555,7 +1574,7 @@ wf_status wf_mst_walk_from(wf_car *car, const wf_cid *root,
     if (!car || !root || !cb) return WF_ERR_INVALID_ARG;
     if (root->len == 0) return WF_OK;
     return mst_walk_node(car, root, from_key, from_key_len, from_key != NULL,
-                         cb, ctx);
+                         cb, ctx, 0);
 }
 
 typedef struct mst_collect_ctx {
@@ -1585,7 +1604,7 @@ wf_status wf_mst_list(wf_car *car, const wf_cid *root, wf_mst_leaf **out,
     *out_count = 0;
     if (root->len == 0) return WF_OK;
     mst_collect_ctx c = {0};
-    wf_status s = mst_walk_node(car, root, NULL, 0, 0, mst_collect_cb, &c);
+    wf_status s = mst_walk_node(car, root, NULL, 0, 0, mst_collect_cb, &c, 0);
     if (s != WF_OK) {
         wf_mst_leaf_list_free(c.acc, c.acc_count);
         return s;
@@ -1608,7 +1627,7 @@ wf_status wf_mst_paths(wf_car *car, const wf_cid *root,
     c.coll = collection;
     c.coll_len = collection_len;
     c.want_coll = 1;
-    wf_status s = mst_walk_node(car, root, NULL, 0, 0, mst_collect_cb, &c);
+    wf_status s = mst_walk_node(car, root, NULL, 0, 0, mst_collect_cb, &c, 0);
     if (s != WF_OK) {
         wf_mst_leaf_list_free(c.acc, c.acc_count);
         return s;
@@ -1630,8 +1649,14 @@ void wf_mst_cid_list_free(wf_cid *list, size_t count) {
 }
 
 static wf_status mst_all_cids_node(wf_car *car, const wf_cid *cid, wf_cid **out,
-                                   size_t *count, size_t *cap) {
+                                   size_t *count, size_t *cap, size_t depth) {
     if (!cid || cid->len == 0) return WF_OK;
+    /* The containment check below guards against cycles (a CID revisited
+     * through a different path), but not against a long chain of DISTINCT
+     * blocks with no cycle at all -- see mst_walk_node's comment for why
+     * that's exploitable on its own. */
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     if (mst_cid_list_contains(*out, *count, cid)) return WF_OK;
     wf_status s = mst_cid_list_push(out, count, cap, cid);
     if (s != WF_OK) return s;
@@ -1644,12 +1669,12 @@ static wf_status mst_all_cids_node(wf_car *car, const wf_cid *cid, wf_cid **out,
      * Pushing before recursing would make the containment guard below
      * short-circuit and skip descending into shared subtrees. */
     if (node.left.len > 0)
-        s = mst_all_cids_node(car, &node.left, out, count, cap);
+        s = mst_all_cids_node(car, &node.left, out, count, cap, depth + 1);
     for (size_t i = 0; s == WF_OK && i < node.count; i++) {
         s = mst_cid_list_push(out, count, cap, &node.entries[i].value);
         if (s == WF_OK && node.entries[i].subtree.len > 0)
             s = mst_all_cids_node(car, &node.entries[i].subtree, out, count,
-                                  cap);
+                                  cap, depth + 1);
     }
     wf_mst_node_free(&node);
     return s;
@@ -1663,7 +1688,7 @@ wf_status wf_mst_get_all_cids(wf_car *car, const wf_cid *root, wf_cid **out,
     if (root->len == 0) return WF_OK;
     wf_cid *list = NULL;
     size_t count = 0, cap = 0;
-    wf_status s = mst_all_cids_node(car, root, &list, &count, &cap);
+    wf_status s = mst_all_cids_node(car, root, &list, &count, &cap, 0);
     if (s != WF_OK) {
         free(list);
         return s;
@@ -1678,10 +1703,12 @@ static wf_status mst_count_in_range(wf_car *car, const wf_cid *cid,
                                     const unsigned char *from_key,
                                     size_t from_key_len,
                                     const unsigned char *to_key,
-                                    size_t to_key_len, int has_to,
-                                    size_t *out) {
+                                    size_t to_key_len, int has_to, size_t *out,
+                                    size_t depth) {
     *out = 0;
     if (!cid || cid->len == 0) return WF_OK;
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     wf_car_block *block = wf_car_find_block(car, cid);
     if (!block) return WF_ERR_PARSE;
     wf_mst_node node;
@@ -1690,15 +1717,15 @@ static wf_status mst_count_in_range(wf_car *car, const wf_cid *cid,
     if (node.left.len > 0) {
         size_t c;
         s = mst_count_in_range(car, &node.left, from_key, from_key_len, to_key,
-                               to_key_len, has_to, &c);
+                               to_key_len, has_to, &c, depth + 1);
         if (s == WF_OK) *out += c;
     }
     for (size_t i = 0; s == WF_OK && i < node.count; i++) {
         if (node.entries[i].subtree.len > 0) {
             size_t c;
             s = mst_count_in_range(car, &node.entries[i].subtree, from_key,
-                                   from_key_len, to_key, to_key_len, has_to,
-                                   &c);
+                                   from_key_len, to_key, to_key_len, has_to, &c,
+                                   depth + 1);
             if (s == WF_OK) *out += c;
         }
         int ge = wf_mst_key_cmp(node.entries[i].key, node.entries[i].key_len,
@@ -1719,11 +1746,17 @@ static wf_status mst_collect_proof(wf_car *car, const wf_cid *cid,
                                    size_t from_key_len,
                                    const unsigned char *to_key,
                                    size_t to_key_len, int has_to, wf_cid **out,
-                                   size_t *count, size_t *cap) {
+                                   size_t *count, size_t *cap, size_t depth) {
     if (!cid || cid->len == 0) return WF_OK;
+    if (depth > WF_MST_MAX_DEPTH || depth > car->block_count)
+        return WF_ERR_PARSE;
     size_t n;
+    /* A fresh top-down count from `cid`, not a continuation of this
+     * function's own depth -- its own recursion is independently bounded
+     * by WF_MST_MAX_DEPTH regardless of how deep mst_collect_proof itself
+     * has already descended. */
     wf_status s = mst_count_in_range(car, cid, from_key, from_key_len, to_key,
-                                     to_key_len, has_to, &n);
+                                     to_key_len, has_to, &n, 0);
     if (s != WF_OK) return s;
     if (n == 0) return WF_OK;
     s = mst_cid_list_push(out, count, cap, cid);
@@ -1735,13 +1768,13 @@ static wf_status mst_collect_proof(wf_car *car, const wf_cid *cid,
     if (s != WF_OK) return s;
     if (node.left.len > 0) {
         s = mst_collect_proof(car, &node.left, from_key, from_key_len, to_key,
-                              to_key_len, has_to, out, count, cap);
+                              to_key_len, has_to, out, count, cap, depth + 1);
     }
     for (size_t i = 0; s == WF_OK && i < node.count; i++) {
         if (node.entries[i].subtree.len > 0) {
             s = mst_collect_proof(car, &node.entries[i].subtree, from_key,
                                   from_key_len, to_key, to_key_len, has_to, out,
-                                  count, cap);
+                                  count, cap, depth + 1);
         }
     }
     wf_mst_node_free(&node);
@@ -1763,7 +1796,7 @@ wf_status wf_mst_get_covering_proof(wf_car *car, const wf_cid *root,
     wf_cid *list = NULL;
     size_t count = 0, cap = 0;
     wf_status s = mst_collect_proof(car, root, from_key, from_key_len, to_key,
-                                    to_key_len, has_to, &list, &count, &cap);
+                                    to_key_len, has_to, &list, &count, &cap, 0);
     if (s != WF_OK) {
         free(list);
         return s;

@@ -10,6 +10,24 @@
 extern "C" {
 #endif
 
+/**
+ * Maximum MST nesting depth accepted when walking / counting / proving /
+ * loading an MST from untrusted CAR data. Every recursive MST descent in
+ * this SDK checks depth against it.
+ *
+ * A legitimate tree cannot nest anywhere near this deep: atproto stores a
+ * node's height in a single uint8 (max 255), and wolfram's own key-layer
+ * derivation caps at 128 (wf_mst_key_layer counts at most 4 leading-zero
+ * steps per hash byte). A pure-left chain of distinct blocks, on the other
+ * hand, can be arbitrarily deep in a well-formed CAR -- one block per
+ * level, each a few dozen bytes -- so a cap keyed to block count (e.g.
+ * `depth > car->block_count`) is no bound on stack usage at all: it only
+ * fires on cycles. This constant is what actually limits how deep the
+ * recursion can go before rejecting the tree as malformed, independent of
+ * how many tiny blocks an attacker stuffs into the CAR.
+ */
+#define WF_MST_MAX_DEPTH 1024
+
 /** A decompressed entry (leaf) in an MST node. */
 typedef struct wf_mst_entry {
     unsigned char *key;
