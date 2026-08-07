@@ -44,6 +44,7 @@ struct wf_xrpc_client {
     int refreshing;        /* re-entrancy guard while a refresh is in flight */
     wf_tls_rng_fn tls_rng; /* NULL unless the application supplied one */
     void *tls_rng_userdata;
+    char *last_error; /* XRPC error message from the last non-2xx response */
 };
 
 /* ── Application TLS RNG ─────────────────────────────────────────────── */
@@ -214,7 +215,12 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     free(client->base_url);
     free(client->auth_header);
     free(client->ca_bundle);
+    free(client->last_error);
     free(client);
+}
+
+const char *wf_xrpc_last_error(const wf_xrpc_client *client) {
+    return client ? client->last_error : NULL;
 }
 
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
@@ -316,6 +322,30 @@ static void wf_http_headers_free(wf_http_header *arr, size_t count) {
     free(arr);
 }
 
+/* Record the XRPC error envelope of a non-2xx response on the client so the
+ * caller can surface the server's message. Prefers `message`, falls back to
+ * the `error` code, and clears the field when the body has no envelope. */
+static void wf_xrpc_set_last_error(wf_xrpc_client *client,
+                                   const wf_response *out) {
+    if (!client || !out) return;
+    char *err = NULL, *msg = NULL;
+    if (wf_xrpc_error(out, &err, &msg) != WF_OK) {
+        free(client->last_error);
+        client->last_error = NULL;
+        return;
+    }
+    const char *chosen = (msg && *msg) ? msg : err;
+    if (chosen && chosen[0]) {
+        char *copy = strdup(chosen);
+        if (copy) {
+            free(client->last_error);
+            client->last_error = copy;
+        }
+    }
+    free(err);
+    free(msg);
+}
+
 /*
  * Single transport primitive shared by every request path. When a test handler
  * is installed it receives the fully-resolved request; otherwise the request is
@@ -325,6 +355,8 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
                                  const char *url, const char *content_type,
                                  const void *body, size_t body_len,
                                  struct curl_slist *headers, wf_response *out) {
+    free(client->last_error);
+    client->last_error = NULL;
     if (client->handler) {
         wf_http_header *harr = NULL;
         size_t hcount = 0;
@@ -341,6 +373,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
                             (const char *)body, body_len, harr, hcount, out);
         wf_http_headers_free(harr, hcount);
         curl_slist_free_all(headers);
+        if (status == WF_ERR_HTTP) wf_xrpc_set_last_error(client, out);
         return status;
     }
 
@@ -402,6 +435,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
 
         if (http_status < 200 || http_status >= 300) {
             status = WF_ERR_HTTP;
+            wf_xrpc_set_last_error(client, out);
         }
     }
 
