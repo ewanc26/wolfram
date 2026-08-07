@@ -976,12 +976,9 @@ wf_status wf_feedgen_search_posts_v2_typed(wf_agent *agent, const char *query,
     return status;
 }
 
-/* TODO: app.bsky.feed.getPopularFeedGenerators is absent from the generated
- * lex wrappers. The NSID only exists as
- * app.bsky.unspecced.getPopularFeedGenerators
- * (wf_lex_app_bsky_unspecced_get_popular_feed_generators_main_call). Add an
- * unspecced_typed wrapper if a typed popular-feed generator list is required.
- */
+/* app.bsky.unspecced.getPopularFeedGenerators is exposed via
+ * wf_unspecced_get_popular_feed_generators in unspecced_typed.c. No separate
+ * feed_gen_typed wrapper is required. */
 
 wf_status wf_feedgen_send_interactions_typed(
     wf_agent *agent, const char *feed_uri,
