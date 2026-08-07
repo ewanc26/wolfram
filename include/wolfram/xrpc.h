@@ -247,6 +247,15 @@ wf_status wf_xrpc_error(const wf_response *resp, char **out_error,
                         char **out_message);
 
 /**
+ * Returns the XRPC error message from the client's most recent request, or
+ * NULL if that request succeeded or carried no error envelope. The returned
+ * pointer is owned by the client and stays valid until the next request on
+ * the same client or until the client is freed — copy it if you need to keep
+ * it longer.
+ */
+const char *wf_xrpc_last_error(const wf_xrpc_client *client);
+
+/**
  * Perform a generic HTTP GET with extra headers.
  *
  * Uses the client's transport and auth settings. `url` must be a complete
