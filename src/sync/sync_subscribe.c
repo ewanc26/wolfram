@@ -239,14 +239,16 @@ static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
         c->ops_count = cbor_array_size(ops);
         if (c->ops_count > 0) {
             c->ops = calloc(c->ops_count, sizeof(wf_subscribe_repo_op));
-            if (!c->ops) return WF_ERR_ALLOC;
+            if (!c->ops) {
+                event_free(ev);
+                return WF_ERR_ALLOC;
+            }
             cbor_item_t **items = cbor_array_handle(ops);
             for (size_t i = 0; i < c->ops_count; i++) {
                 if (!parse_repo_op(items[i], &c->ops[i])) {
-                    for (size_t j = 0; j < i; j++) free(c->ops[j].path);
-                    free(c->ops);
-                    c->ops = NULL;
-                    c->ops_count = 0;
+                    /* event_free walks every op, so any path a partially
+                     * parsed op already allocated is reclaimed here. */
+                    event_free(ev);
                     return WF_ERR_PARSE;
                 }
             }
@@ -256,7 +258,13 @@ static wf_status parse_commit(cbor_item_t *body, wf_subscribe_event *ev) {
     cbor_item_t *time = map_find(body, "time");
     size_t tlen = 0;
     const char *tstr = time ? item_string(time, &tlen) : NULL;
-    if (!tstr || tlen >= sizeof(c->time)) return WF_ERR_PARSE;
+    if (!tstr || tlen >= sizeof(c->time)) {
+        /* `blocks` (and any ops) were already copied above; the caller only
+         * event_free()s on success, so reclaim them here or every malformed
+         * firehose frame after a valid large `blocks` leaks until OOM. */
+        event_free(ev);
+        return WF_ERR_PARSE;
+    }
     memcpy(c->time, tstr, tlen);
     c->time[tlen] = '\0';
 
@@ -296,14 +304,20 @@ static wf_status parse_sync(cbor_item_t *body, wf_subscribe_event *ev) {
     cbor_item_t *rev = map_find(body, "rev");
     size_t revlen = 0;
     const char *revstr = rev ? item_string(rev, &revlen) : NULL;
-    if (!revstr || revlen >= sizeof(s->rev)) return WF_ERR_PARSE;
+    if (!revstr || revlen >= sizeof(s->rev)) {
+        event_free(ev);
+        return WF_ERR_PARSE;
+    }
     memcpy(s->rev, revstr, revlen);
     s->rev[revlen] = '\0';
 
     cbor_item_t *time = map_find(body, "time");
     size_t tlen = 0;
     const char *tstr = time ? item_string(time, &tlen) : NULL;
-    if (!tstr || tlen >= sizeof(s->time)) return WF_ERR_PARSE;
+    if (!tstr || tlen >= sizeof(s->time)) {
+        event_free(ev);
+        return WF_ERR_PARSE;
+    }
     memcpy(s->time, tstr, tlen);
     s->time[tlen] = '\0';
 
