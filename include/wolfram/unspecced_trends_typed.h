@@ -37,6 +37,7 @@ extern "C" {
 typedef struct wf_unspecced_trend_view {
     char *topic;
     char *display_name;
+    char *description;
     char *link;
     char *started_at;
     int has_post_count;

@@ -34,6 +34,8 @@ static int test_parse_trends(void) {
     cJSON_AddItemToObject(t, "topic", cJSON_CreateString("BreakingNews"));
     cJSON_AddItemToObject(t, "displayName",
                           cJSON_CreateString("Breaking News"));
+    cJSON_AddItemToObject(t, "description",
+                          cJSON_CreateString("Top news stories"));
     cJSON_AddItemToObject(t, "link", cJSON_CreateString("#breakingnews"));
     cJSON_AddItemToObject(t, "startedAt",
                           cJSON_CreateString("2026-01-01T00:00:00Z"));
@@ -65,6 +67,8 @@ static int test_parse_trends(void) {
     CHECK(strcmp(list.trends[0].topic, "BreakingNews") == 0);
     CHECK(list.trends[0].display_name != NULL);
     CHECK(strcmp(list.trends[0].display_name, "Breaking News") == 0);
+    CHECK(list.trends[0].description != NULL);
+    CHECK(strcmp(list.trends[0].description, "Top news stories") == 0);
     CHECK(list.trends[0].link != NULL);
     CHECK(list.trends[0].started_at != NULL);
     CHECK(list.trends[0].has_post_count == 1);
