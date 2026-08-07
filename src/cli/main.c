@@ -416,6 +416,19 @@ static wf_agent *agent_login_or_err(const char *service, const char *handle,
     return agent;
 }
 
+/* Print an agent-level failure to stderr, appending the server's XRPC error
+ * message when one was captured. Returns the failure exit code. */
+static int cli_agent_error(const char *what, wf_status s, wf_agent *agent) {
+    const char *msg = wf_agent_last_error(agent);
+    if (msg && *msg) {
+        fprintf(stderr, "error: %s failed (status %d): %s\n", what, (int)s,
+                msg);
+    } else {
+        fprintf(stderr, "error: %s failed (status %d)\n", what, (int)s);
+    }
+    return 1;
+}
+
 /* Resolve a post at-uri to its CID via app.bsky.feed.getPosts.
  * Caller frees *out_cid. Returns WF_OK or an error status. */
 wf_status resolve_post_cid(wf_agent *agent, const char *at_uri,
@@ -622,7 +635,7 @@ static int cmd_post(int argc, char **argv) {
     s = wf_agent_post(agent, text, &result);
     free(text);
     if (s != WF_OK) {
-        fprintf(stderr, "error: post failed (status %d)\n", (int)s);
+        cli_agent_error("post", s, agent);
         wf_agent_free(agent);
         return 1;
     }
@@ -1648,7 +1661,7 @@ static int cmd_reply(int argc, char **argv) {
     s = wf_agent_create_record(agent, "app.bsky.feed.post", record_json, &out);
     free(record_json);
     if (s != WF_OK) {
-        fprintf(stderr, "error: reply failed (status %d)\n", (int)s);
+        cli_agent_error("reply", s, agent);
         wf_agent_post_result_free(&out);
         wf_agent_free(agent);
         return 1;
