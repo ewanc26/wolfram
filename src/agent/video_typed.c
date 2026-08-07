@@ -149,6 +149,7 @@ static void wf_video_job_status_def_reset(wf_video_job_status_def *d) {
     free(d->did);
     free(d->state);
     free(d->error);
+    free(d->failure_code);
     free(d->message);
     wf_video_blob_reset(&d->blob);
     if (d->extra) {
@@ -169,6 +170,7 @@ static wf_status wf_video_parse_job_status_def(cJSON *obj,
     cJSON *progress = cJSON_GetObjectItemCaseSensitive(obj, "progress");
     cJSON *blob = cJSON_GetObjectItemCaseSensitive(obj, "blob");
     cJSON *error = cJSON_GetObjectItemCaseSensitive(obj, "error");
+    cJSON *failure_code = cJSON_GetObjectItemCaseSensitive(obj, "failureCode");
     cJSON *message = cJSON_GetObjectItemCaseSensitive(obj, "message");
 
     if (!cJSON_IsString(job_id) || !job_id->valuestring) {
@@ -202,6 +204,9 @@ static wf_status wf_video_parse_job_status_def(cJSON *obj,
     if (status == WF_OK && cJSON_IsString(error) && error->valuestring) {
         status = wf_video_set_string(&d->error, error->valuestring);
     }
+    if (status == WF_OK && cJSON_IsString(failure_code) && failure_code->valuestring) {
+        status = wf_video_set_string(&d->failure_code, failure_code->valuestring);
+    }
     if (status == WF_OK && cJSON_IsString(message) && message->valuestring) {
         status = wf_video_set_string(&d->message, message->valuestring);
     }
@@ -213,6 +218,7 @@ static wf_status wf_video_parse_job_status_def(cJSON *obj,
         cJSON_DetachItemFromObject(obj, "progress");
         cJSON_DetachItemFromObject(obj, "blob");
         cJSON_DetachItemFromObject(obj, "error");
+        cJSON_DetachItemFromObject(obj, "failureCode");
         cJSON_DetachItemFromObject(obj, "message");
         d->extra = obj;
     } else {
@@ -321,9 +327,14 @@ wf_status wf_video_job_status_def_build(const wf_video_job_status_def *in,
         !cJSON_AddItemToObject(obj, "error", cJSON_CreateString(in->error))) {
         status = WF_ERR_ALLOC;
     }
+    if (status == WF_OK && in->failure_code &&
+        !cJSON_AddItemToObject(obj, "failureCode",
+                                cJSON_CreateString(in->failure_code))) {
+        status = WF_ERR_ALLOC;
+    }
     if (status == WF_OK && in->message &&
         !cJSON_AddItemToObject(obj, "message",
-                               cJSON_CreateString(in->message))) {
+                                cJSON_CreateString(in->message))) {
         status = WF_ERR_ALLOC;
     }
     if (status == WF_OK && in->extra) {

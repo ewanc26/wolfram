@@ -30,6 +30,18 @@ static const char *kGetJobStatusJson =
     "  }"
     "}";
 
+/* Same envelope with a failed job that carries failureCode. */
+static const char *kGetJobStatusFailedJson =
+    "{"
+    "  \"jobStatus\": {"
+    "    \"jobId\": \"bafytestjob111111111111111111111111111111111\","
+    "    \"did\": \"did:plc:alice0000000000000000000000\","
+    "    \"state\": \"JOB_STATE_FAILED\","
+    "    \"error\": \"transcode failed\","
+    "    \"failureCode\": \"encoding_failure\""
+    "  }"
+    "}";
+
 /* app.bsky.video.getUploadLimits output (with optional fields). */
 static const char *kGetUploadLimitsJson =
     "{"
@@ -73,6 +85,19 @@ static void test_parse_job_status(void) {
     WF_CHECK(s.job_status.blob.has_size && s.job_status.blob.size == 1234567);
     WF_CHECK(s.job_status.message && strcmp(s.job_status.message, "done") == 0);
     wf_video_job_status_free(&s);
+
+    /* Failed job with failureCode. */
+    wf_video_job_status failed = {0};
+    st = wf_video_job_status_parse(kGetJobStatusFailedJson,
+                                   strlen(kGetJobStatusFailedJson), &failed);
+    WF_CHECK(st == WF_OK);
+    WF_CHECK(failed.job_status.state &&
+             strcmp(failed.job_status.state, "JOB_STATE_FAILED") == 0);
+    WF_CHECK(failed.job_status.error &&
+             strcmp(failed.job_status.error, "transcode failed") == 0);
+    WF_CHECK(failed.job_status.failure_code &&
+             strcmp(failed.job_status.failure_code, "encoding_failure") == 0);
+    wf_video_job_status_free(&failed);
 }
 
 static void test_parse_upload_limits(void) {
@@ -146,6 +171,7 @@ static void test_build_job_status_def_roundtrip(void) {
     in.blob.has_size = true;
     in.blob.size = 2048;
     in.message = "ok";
+    in.failure_code = "validation_failure";
 
     char *json = NULL;
     wf_status st = wf_video_job_status_def_build(&in, &json);
@@ -165,6 +191,8 @@ static void test_build_job_status_def_roundtrip(void) {
                  strcmp(out.blob.mime_type, "video/mp4") == 0);
         WF_CHECK(out.blob.has_size && out.blob.size == 2048);
         WF_CHECK(out.message && strcmp(out.message, "ok") == 0);
+        WF_CHECK(out.failure_code &&
+                 strcmp(out.failure_code, "validation_failure") == 0);
         wf_video_job_status_def_free(&out);
         free(json);
     }
