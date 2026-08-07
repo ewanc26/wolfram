@@ -108,6 +108,10 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
 
     /* ── Blocks ── */
 
+    /* Grow the block array geometrically. Reallocating one block at a time
+     * turns parsing an N-block CAR into O(N^2) copying. */
+    size_t block_cap = 0;
+
     while (pos < len) {
         uint64_t section_len = wf_read_varint(data + pos, len - pos, &used);
         if (used == 0) {
@@ -129,15 +133,22 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
             return WF_ERR_INVALID_ARG;
         }
 
-        /* Reallocate block array */
-        size_t new_count = out->block_count + 1;
-        wf_car_block *new_blocks =
-            realloc(out->blocks, new_count * sizeof(wf_car_block));
-        if (!new_blocks) {
-            wf_car_free(out);
-            return WF_ERR_ALLOC;
+        /* Grow the block array geometrically (see declaration above). */
+        while (out->block_count == block_cap) {
+            size_t new_cap = block_cap ? block_cap * 2 : 8;
+            if (new_cap < block_cap) {
+                wf_car_free(out);
+                return WF_ERR_ALLOC;
+            }
+            wf_car_block *new_blocks =
+                realloc(out->blocks, new_cap * sizeof(wf_car_block));
+            if (!new_blocks) {
+                wf_car_free(out);
+                return WF_ERR_ALLOC;
+            }
+            out->blocks = new_blocks;
+            block_cap = new_cap;
         }
-        out->blocks = new_blocks;
 
         wf_car_block *blk = &out->blocks[out->block_count];
         memcpy(blk->cid.bytes, data + pos, 36);
@@ -155,7 +166,7 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
             memcpy(blk->data, data + pos + 36, data_len);
         }
 
-        out->block_count = new_count;
+        out->block_count++;
         pos += (size_t)section_len;
     }
 
