@@ -81,7 +81,8 @@ static wf_status repo_leaf_add(repo_leaf_list *list, const unsigned char *key,
 static wf_status repo_collect_mst(const wf_car *car, const wf_cid *root,
                                   repo_leaf_list *leaves, repo_cid_list *nodes,
                                   size_t depth) {
-    if (!car || !root || root->len != 36 || depth > car->block_count)
+    if (!car || !root || root->len != 36 || depth > WF_MST_MAX_DEPTH ||
+        depth > car->block_count)
         return WF_ERR_PARSE;
     if (repo_cid_list_has(nodes, root)) return WF_ERR_PARSE;
     wf_status status = repo_cid_list_add(nodes, root);
