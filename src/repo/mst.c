@@ -180,7 +180,16 @@ wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
 
     wf_cid current = *root_cid;
 
+    /* Each iteration descends to a distinct block in a legitimate tree, so
+     * a cycle -- two blocks pointing `left`/`subtree` at each other -- would
+     * loop forever without a bound. Same caps as the recursive helpers: the
+     * block_count check catches revisits, WF_MST_MAX_DEPTH bounds the walk
+     * even when the CAR holds a deep chain of distinct blocks. */
+    size_t steps = 0;
     while (1) {
+        if (steps > WF_MST_MAX_DEPTH || steps > car->block_count)
+            return WF_ERR_PARSE;
+        steps++;
         wf_car_block *block = wf_car_find_block(car, &current);
         if (!block) return WF_ERR_PARSE;
 
