@@ -1212,6 +1212,11 @@ if(WOLFRAM_BUILD_TESTS)
     PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   add_test(NAME car_interop COMMAND test_car_interop)
 
+  add_executable(test_car_malformed test/test_car_malformed.c)
+  target_link_libraries(test_car_malformed PRIVATE wolfram)
+  target_include_directories(test_car_malformed PRIVATE test)
+  add_test(NAME car_malformed COMMAND test_car_malformed)
+
   add_executable(test_dagcbor_interop test/test_dagcbor_interop.c)
   target_link_libraries(test_dagcbor_interop PRIVATE wolfram)
   target_include_directories(test_dagcbor_interop PRIVATE test

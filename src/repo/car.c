@@ -35,7 +35,14 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
     uint64_t hdr_len = wf_read_varint(data + pos, len - pos, &used);
     if (used == 0) return WF_ERR_INVALID_ARG;
     pos += used;
-    if (pos + hdr_len > len) return WF_ERR_INVALID_ARG;
+    /* hdr_len is a LEB128 varint: up to 10 bytes of attacker-controlled
+     * input decode to any value up to UINT64_MAX. `pos + hdr_len > len`
+     * looks like the right bounds check but isn't one -- for a large
+     * enough hdr_len the addition itself wraps around (mod 2^64) to a
+     * small value, passing the check with hdr_len still enormous. The
+     * subtraction below can't overflow (pos <= len always holds here) and
+     * correctly rejects any hdr_len that doesn't fit, however large. */
+    if (hdr_len > len - pos) return WF_ERR_INVALID_ARG;
 
     wf_cbor_item *hdr = wf_cbor_parse(data + pos, (size_t)hdr_len);
     if (!hdr) return WF_ERR_INVALID_ARG;
@@ -108,7 +115,11 @@ wf_status wf_car_parse(const unsigned char *data, size_t len, wf_car *out) {
             return WF_ERR_INVALID_ARG;
         }
         pos += used;
-        if (pos + section_len > len) {
+        /* Same overflow hazard as the header-length check above, for the
+         * same reason: section_len is attacker-controlled up to
+         * UINT64_MAX, and `pos + section_len` can wrap around and pass a
+         * `> len` check with section_len still enormous. */
+        if (section_len > len - pos) {
             wf_car_free(out);
             return WF_ERR_INVALID_ARG;
         }
