@@ -27,6 +27,7 @@ struct wf_xrpc_client {
     wf_xrpc_refresh_fn refresh_cb;
     void *refresh_userdata;
     int refreshing;
+    char *last_error; /* XRPC error message from the last non-2xx response */
 };
 
 /* ── Growable byte buffer ───────────────────────────────────────────── */
@@ -331,11 +332,37 @@ static wf_status wf_http_read_response(wii_tls_conn *conn,
 
 /* ── Core request ───────────────────────────────────────────────────── */
 
+/* Record the XRPC error envelope of a non-2xx response on the client so the
+ * caller can surface the server's message. Prefers `message`, falls back to
+ * the `error` code, and clears the field when the body has no envelope. */
+static void wf_xrpc_set_last_error(wf_xrpc_client *client,
+                                   const wf_response *out) {
+    if (!client || !out) return;
+    char *err = NULL, *msg = NULL;
+    if (wf_xrpc_error(out, &err, &msg) != WF_OK) {
+        free(client->last_error);
+        client->last_error = NULL;
+        return;
+    }
+    const char *chosen = (msg && *msg) ? msg : err;
+    if (chosen && chosen[0]) {
+        char *copy = strdup(chosen);
+        if (copy) {
+            free(client->last_error);
+            client->last_error = copy;
+        }
+    }
+    free(err);
+    free(msg);
+}
+
 static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
                                  const char *url, const char *content_type,
                                  const void *body, size_t body_len,
                                  const wf_http_header *extra,
                                  size_t extra_count, wf_response *out) {
+    free(client->last_error);
+    client->last_error = NULL;
     memset(out, 0, sizeof(*out));
 
     /* Test seam: a handler replaces real network I/O. */
@@ -360,6 +387,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
             free((void *)harr[i].value);
         }
         free(harr);
+        if (s == WF_ERR_HTTP) wf_xrpc_set_last_error(client, out);
         return s;
     }
 
@@ -456,7 +484,10 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     out->body_len = resp.len;
     out->dpop_nonce = nonce;
 
-    if (status < 200 || status >= 300) return WF_ERR_HTTP;
+    if (status < 200 || status >= 300) {
+        wf_xrpc_set_last_error(client, out);
+        return WF_ERR_HTTP;
+    }
     return WF_OK;
 }
 
@@ -573,7 +604,12 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     if (!client) return;
     free(client->base_url);
     free(client->auth_header);
+    free(client->last_error);
     free(client);
+}
+
+const char *wf_xrpc_last_error(const wf_xrpc_client *client) {
+    return client ? client->last_error : NULL;
 }
 
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,

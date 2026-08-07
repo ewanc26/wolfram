@@ -19,6 +19,36 @@ static int wf_test_tls_rng(void *userdata, unsigned char *output, size_t len) {
     return 0;
 }
 
+/* Test seam handler: fails every request with the configured HTTP status and
+ * body, so the client's error capture can be exercised without a network. */
+struct wf_test_err_ctx {
+    int status;
+    const char *body;
+};
+
+static wf_status wf_test_error_handler(void *userdata, const char *method,
+                                       const char *url,
+                                       const char *content_type,
+                                       const char *body, size_t body_len,
+                                       const wf_http_header *headers,
+                                       size_t header_count, wf_response *out) {
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+    const struct wf_test_err_ctx *ctx =
+        (const struct wf_test_err_ctx *)userdata;
+    out->status = ctx->status;
+    if (ctx->body) {
+        out->body = strdup(ctx->body);
+        out->body_len = strlen(ctx->body);
+    }
+    return (ctx->status >= 200 && ctx->status < 300) ? WF_OK : WF_ERR_HTTP;
+}
+
 int main(void) {
     /* Rejects empty/NULL base URLs. */
     WF_CHECK(wf_xrpc_client_new(NULL) == NULL);
@@ -85,6 +115,47 @@ int main(void) {
         WF_CHECK(wf_xrpc_error(&r, &err, NULL) == WF_OK);
         WF_CHECK(err && strcmp(err, "InvalidToken") == 0);
         free(err);
+    }
+
+    /* The error envelope of a non-2xx response is recorded on the client and
+     * exposed via wf_xrpc_last_error; a later successful request clears it. */
+    {
+        wf_xrpc_client *c = wf_xrpc_client_new("https://eurosky.social");
+        WF_CHECK(c != NULL);
+        WF_CHECK(wf_xrpc_last_error(c) == NULL);
+
+        struct wf_test_err_ctx ctx = {.status = 400,
+                                      .body =
+                                          "{\"error\":\"InvalidRecord\","
+                                          "\"message\":\"text is too long\"}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &ctx);
+
+        wf_response res = {0};
+        WF_CHECK(wf_xrpc_query(c, "com.atproto.repo.createRecord", NULL,
+                               &res) == WF_ERR_HTTP);
+        wf_response_free(&res);
+        const char *le = wf_xrpc_last_error(c);
+        WF_CHECK(le && strcmp(le, "text is too long") == 0);
+
+        /* A non-envelope failure body yields no message. */
+        struct wf_test_err_ctx plain = {.status = 400,
+                                        .body = "{\"did\":\"x\"}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &plain);
+        WF_CHECK(wf_xrpc_query(c, "com.atproto.repo.describeRepo", NULL,
+                               &res) == WF_ERR_HTTP);
+        wf_response_free(&res);
+        WF_CHECK(wf_xrpc_last_error(c) == NULL);
+
+        /* Success clears the recorded error. */
+        struct wf_test_err_ctx ok = {.status = 200, .body = "{\"ok\":true}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &ok);
+        WF_CHECK(wf_xrpc_query(c, "com.atproto.server.describeServer", NULL,
+                               &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(wf_xrpc_last_error(c) == NULL);
+
+        wf_xrpc_set_handler(c, NULL, NULL);
+        wf_xrpc_client_free(c);
     }
 
     /*
