@@ -1158,6 +1158,13 @@ const char *wf_agent_get_handle(wf_agent *agent) {
     return agent->session->data.handle;
 }
 
+/* Return the XRPC error message from the agent's most recent request, or NULL
+ * if the last request succeeded or carried no error envelope. */
+const char *wf_agent_last_error(const wf_agent *agent) {
+    if (!agent || !agent->client) return NULL;
+    return wf_xrpc_last_error(agent->client);
+}
+
 void wf_agent_post_result_free(wf_agent_post_result *result) {
     wf_agent_post_result_reset(result);
 }

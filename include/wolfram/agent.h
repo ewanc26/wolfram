@@ -71,6 +71,10 @@ wf_status wf_agent_get_session_data(wf_agent *agent, wf_session_data *out);
 void wf_agent_session_data_free(wf_session_data *data);
 const char *wf_agent_get_did(wf_agent *agent);
 const char *wf_agent_get_handle(wf_agent *agent);
+/* XRPC error message from the agent's most recent request, or NULL if it
+ * succeeded or carried no error envelope. The pointer is owned by the agent;
+ * valid until the next request or free. */
+const char *wf_agent_last_error(const wf_agent *agent);
 
 /* Post operations */
 typedef struct wf_agent_post_result {
