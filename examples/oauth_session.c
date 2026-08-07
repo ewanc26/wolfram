@@ -92,6 +92,18 @@ static void parse_callback_url(const char *url,
     }
 }
 
+/* Free the strings parse_callback_url allocated. The struct's fields are
+ * const-qualified as a read-only view for the OAuth API, so free through the
+ * owned void * this example allocated them as. */
+static void callback_params_free(wf_oauth_callback_params *params) {
+    if (!params) return;
+    free((void *)params->state);
+    free((void *)params->code);
+    free((void *)params->issuer);
+    free((void *)params->error);
+    free((void *)params->error_description);
+}
+
 int main(int argc, char **argv) {
     if (argc < 3) {
         fprintf(stderr,
@@ -260,10 +272,7 @@ int main(int argc, char **argv) {
         &complete);
 
     wf_oauth_authorization_begin_result_free(&begin);
-    free(cb_params.state);
-    free(cb_params.code);
-    free(cb_params.issuer);
-    free(cb_params.error);
+    callback_params_free(&cb_params);
 
     if (s != WF_OK) {
         fprintf(stderr, "authorization complete failed: %d\n", s);
