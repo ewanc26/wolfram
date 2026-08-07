@@ -26,6 +26,64 @@ typedef struct repo_cid_list {
     size_t count;
 } repo_cid_list;
 
+/* Open-addressing set of CIDs, used to detect duplicate blocks in a CAR.
+ * Rejecting them by scanning the array for each block is O(N^2); a set makes
+ * validation linear. Capacity is a power of two sized to keep the load factor
+ * at or below 0.5, so a slot is always found within cap probes. An empty slot
+ * is one with len == 0, which no valid CID has. */
+typedef struct repo_cid_set {
+    wf_cid *slots;
+    size_t cap;
+} repo_cid_set;
+
+static wf_status repo_cid_set_init(repo_cid_set *set, size_t count) {
+    set->slots = NULL;
+    set->cap = 0;
+    if (count == 0) return WF_OK;
+    if (count > SIZE_MAX / 2 / sizeof(wf_cid)) return WF_ERR_ALLOC;
+    size_t cap = 8;
+    while (cap < count * 2) {
+        if (cap > SIZE_MAX / 2) return WF_ERR_ALLOC;
+        cap *= 2;
+    }
+    set->slots = calloc(cap, sizeof(wf_cid));
+    if (!set->slots) return WF_ERR_ALLOC;
+    set->cap = cap;
+    return WF_OK;
+}
+
+static size_t repo_cid_hash(const wf_cid *cid) {
+    size_t h = 14695981039346656037ull;
+    for (size_t i = 0; i < cid->len; i++) {
+        h ^= cid->bytes[i];
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
+/* Insert `cid` into the set. On return, `*was_dup` is 1 if the CID was already
+ * present (in which case nothing is inserted). Fails only on allocation. */
+static wf_status repo_cid_set_insert(repo_cid_set *set, const wf_cid *cid,
+                                     int *was_dup) {
+    *was_dup = 0;
+    if (!set || !cid || cid->len == 0 || set->cap == 0)
+        return WF_ERR_INVALID_ARG;
+    size_t mask = set->cap - 1;
+    size_t slot = repo_cid_hash(cid) & mask;
+    for (size_t probes = 0; probes < set->cap; probes++) {
+        if (set->slots[slot].len == 0) {
+            set->slots[slot] = *cid;
+            return WF_OK;
+        }
+        if (cid_equal(&set->slots[slot], cid)) {
+            *was_dup = 1;
+            return WF_OK;
+        }
+        slot = (slot + 1) & mask;
+    }
+    return WF_ERR_ALLOC;
+}
+
 static int repo_key_cmp(const unsigned char *a, size_t a_len,
                         const unsigned char *b, size_t b_len) {
     size_t min = a_len < b_len ? a_len : b_len;
@@ -111,18 +169,28 @@ static wf_status repo_collect_mst(const wf_car *car, const wf_cid *root,
 
 static wf_status repo_car_validate_blocks(const wf_car *car) {
     if (!car) return WF_ERR_INVALID_ARG;
+    repo_cid_set set = {0};
+    wf_status s = repo_cid_set_init(&set, car->block_count);
+    if (s != WF_OK) return s;
     for (size_t i = 0; i < car->block_count; i++) {
         wf_cid computed = {0};
         if (!car->blocks[i].data || car->blocks[i].data_len == 0 ||
             wf_cid_of_block(car->blocks[i].data, car->blocks[i].data_len,
                             &computed) != WF_OK ||
-            !cid_equal(&computed, &car->blocks[i].cid))
-            return WF_ERR_PARSE;
-        for (size_t j = 0; j < i; j++)
-            if (cid_equal(&car->blocks[i].cid, &car->blocks[j].cid))
-                return WF_ERR_PARSE;
+            !cid_equal(&computed, &car->blocks[i].cid)) {
+            s = WF_ERR_PARSE;
+            break;
+        }
+        int dup = 0;
+        s = repo_cid_set_insert(&set, &car->blocks[i].cid, &dup);
+        if (s != WF_OK) break;
+        if (dup) {
+            s = WF_ERR_PARSE;
+            break;
+        }
     }
-    return WF_OK;
+    free(set.slots);
+    return s;
 }
 
 static wf_status repo_car_add_copy(wf_car *car, const wf_car_block *block) {
@@ -403,23 +471,33 @@ wf_status wf_repo_verify(const wf_car *car,
     memset(out_commit, 0, sizeof(*out_commit));
     if (car->root_count != 1 || car->roots[0].len != 36) return WF_ERR_PARSE;
 
+    repo_cid_set set = {0};
+    wf_status status = repo_cid_set_init(&set, car->block_count);
+    if (status != WF_OK) return status;
     for (size_t i = 0; i < car->block_count; i++) {
         wf_cid computed;
         if (!car->blocks[i].data || car->blocks[i].data_len == 0 ||
             wf_cid_of_block(car->blocks[i].data, car->blocks[i].data_len,
                             &computed) != WF_OK ||
-            !cid_equal(&computed, &car->blocks[i].cid))
-            return WF_ERR_PARSE;
-        for (size_t j = 0; j < i; j++) {
-            if (cid_equal(&car->blocks[i].cid, &car->blocks[j].cid))
-                return WF_ERR_PARSE;
+            !cid_equal(&computed, &car->blocks[i].cid)) {
+            status = WF_ERR_PARSE;
+            break;
+        }
+        int dup = 0;
+        status = repo_cid_set_insert(&set, &car->blocks[i].cid, &dup);
+        if (status != WF_OK) break;
+        if (dup) {
+            status = WF_ERR_PARSE;
+            break;
         }
     }
+    free(set.slots);
+    if (status != WF_OK) return status;
 
     wf_car_block *root = wf_car_find_block((wf_car *)car, &car->roots[0]);
     if (!root) return WF_ERR_NOT_FOUND;
     wf_commit commit;
-    wf_status status = wf_commit_parse(root->data, root->data_len, &commit);
+    status = wf_commit_parse(root->data, root->data_len, &commit);
     if (status != WF_OK || commit.version != 3 || commit.sig_len != 64)
         return WF_ERR_PARSE;
     wf_cbor_item *root_object = wf_cbor_parse(root->data, root->data_len);
