@@ -50,6 +50,7 @@ static void wf_ut_trend_view_reset(wf_unspecced_trend_view *t) {
     }
     free(t->topic);
     free(t->display_name);
+    free(t->description);
     free(t->link);
     free(t->started_at);
     free(t->status);
@@ -66,6 +67,7 @@ static wf_status wf_ut_parse_trend_view(cJSON *obj,
     wf_status status = WF_OK;
     cJSON *topic = cJSON_GetObjectItemCaseSensitive(obj, "topic");
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
+    cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
     cJSON *link = cJSON_GetObjectItemCaseSensitive(obj, "link");
     cJSON *started = cJSON_GetObjectItemCaseSensitive(obj, "startedAt");
     cJSON *count = cJSON_GetObjectItemCaseSensitive(obj, "postCount");
@@ -78,6 +80,9 @@ static wf_status wf_ut_parse_trend_view(cJSON *obj,
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
         status = wf_ut_set_string(&t->display_name, name->valuestring);
+    }
+    if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
+        status = wf_ut_set_string(&t->description, desc->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(link) && link->valuestring) {
         status = wf_ut_set_string(&t->link, link->valuestring);
@@ -120,6 +125,7 @@ static wf_status wf_ut_parse_trend_view(cJSON *obj,
     if (status == WF_OK) {
         cJSON_DetachItemFromObject(obj, "topic");
         cJSON_DetachItemFromObject(obj, "displayName");
+        cJSON_DetachItemFromObject(obj, "description");
         cJSON_DetachItemFromObject(obj, "link");
         cJSON_DetachItemFromObject(obj, "startedAt");
         cJSON_DetachItemFromObject(obj, "postCount");
