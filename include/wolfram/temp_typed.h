@@ -200,12 +200,10 @@ wf_status wf_agent_request_phone_verification(wf_agent *agent,
 wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
                                                     const char *phone_number);
 
-/* Issue revokeAccountCredentials. The atproto lexicon requires an `account`
- * (at-identifier) input that this helper's signature does not carry, so this is
- * an honest stub returning WF_ERR_INVALID_ARG with a TODO (AGENTS.md #3). */
-wf_status wf_agent_revoke_account_credentials(wf_agent *agent, const char *code,
-                                              const char *name,
-                                              const char *description);
+/* Issue revokeAccountCredentials (procedure, input: account at-identifier).
+ * Returns wf_status only (the procedure returns no body). */
+wf_status wf_agent_revoke_account_credentials(wf_agent *agent,
+                                              const char *account);
 
 /* Issue revokeAccountCredentials carrying the lexicon-required `account`
  * (at-identifier) input. Returns wf_status only (the procedure returns no

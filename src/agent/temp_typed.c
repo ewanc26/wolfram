@@ -532,21 +532,22 @@ wf_status wf_agent_request_phone_verification_typed(wf_agent *agent,
     return status;
 }
 
-wf_status wf_agent_revoke_account_credentials(wf_agent *agent, const char *code,
-                                              const char *name,
-                                              const char *description) {
-    (void)code;
-    (void)name;
-    (void)description;
-    /* TODO: the atproto lexicon input for
-     * com.atproto.temp.revokeAccountCredentials is `account` (an
-     * at-identifier), which this helper signature does not carry. Implement
-     * once the wrapper accepts the account identifier rather than fabricating
-     * a request. Until then, fail honestly per AGENTS.md principle 3. */
-    if (!agent) {
+wf_status wf_agent_revoke_account_credentials(wf_agent *agent,
+                                              const char *account) {
+    if (!agent || !agent->client || !account || !account[0]) {
         return WF_ERR_INVALID_ARG;
     }
-    return WF_ERR_INVALID_ARG;
+
+    wf_lex_com_atproto_temp_revoke_account_credentials_main_input input = {0};
+    input.account = account;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    wf_status status =
+        wf_lex_com_atproto_temp_revoke_account_credentials_main_call(
+            agent->client, &input, &res);
+    wf_response_free(&res);
+    return status;
 }
 
 wf_status wf_agent_add_reserved_handle(wf_agent *agent, const char *handle) {
