@@ -200,6 +200,16 @@ int main(void) {
                  WF_ERR_INVALID_ARG);
     }
 
+    /* ---- revokeAccountCredentials argument validation ---- */
+    {
+        WF_CHECK(wf_agent_revoke_account_credentials(NULL, "did:plc:a") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_revoke_account_credentials(NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_revoke_account_credentials(NULL, "") ==
+                 WF_ERR_INVALID_ARG);
+    }
+
     /* ---- revokeAccountCredentials (typed) argument validation ---- */
     {
         WF_CHECK(wf_agent_revoke_account_credentials_typed(NULL, "did:plc:a") ==

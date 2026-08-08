@@ -77,6 +77,7 @@
 #include "wolfram/feedgen_typed.h"
 #include "wolfram/notification_typed.h"
 #include "wolfram/moderation_report_typed.h"
+#include "wolfram/temp_typed.h"
 
 /* Global --json flag: when set, list/get commands print the raw JSON body
  * instead of human-readable text. Parsed in main() before dispatch. */
@@ -128,8 +129,10 @@ void usage_stream(FILE *out) {
         "    unmute           <service> <handle> <password> <actor>\n"
         "\n"
         "  Identity & moderation:\n"
-        "    resolve          <service> <handle-or-did>\n"
-        "    labels subscribe <service> [--cursor N] [--seconds N]\n"
+        "    resolve                   <service> <handle-or-did>\n"
+        "    revoke-account-credentials <service> <handle> <password> "
+        "<account>\n"
+        "    labels subscribe          <service> [--cursor N] [--seconds N]\n"
         "    moderation       <service> <actor> [labeler-did]\n"
         "    moderation report <service> <handle> <password> --subject <uri> "
         "--reason <reason> [--reason-type <type>] [--cid <cid>]\n"
@@ -2012,6 +2015,34 @@ static int cmd_mutes(int argc, char **argv) {
     return finish_agent_response(agent, s, &res);
 }
 
+/* wolfram revoke-account-credentials <service> <handle> <password> <account> */
+static int cmd_revoke_account_credentials(int argc, char **argv) {
+    if (argc < 5) {
+        usage_stream(stderr);
+        return 0;
+    }
+    const char *service = argv[1];
+    const char *handle = argv[2];
+    const char *password = argv[3];
+    const char *account = argv[4];
+
+    wf_agent *agent = agent_login_or_err(service, handle, password);
+    if (!agent) {
+        return 1;
+    }
+
+    wf_status s = wf_agent_revoke_account_credentials(agent, account);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: revokeAccountCredentials failed (status %d)\n",
+                (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("revoked credentials for %s\n", account);
+    wf_agent_free(agent);
+    return 0;
+}
+
 /* wolfram list <service> <list-uri> [limit] */
 static int cmd_list(int argc, char **argv) {
     if (argc < 3) {
@@ -2774,6 +2805,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "mutes") == 0) {
         return cmd_mutes(rest, cargv);
+    }
+    if (strcmp(cmd, "revoke-account-credentials") == 0) {
+        return cmd_revoke_account_credentials(rest, cargv);
     }
     if (strcmp(cmd, "mute") == 0) {
         return cmd_mute(rest, cargv);
