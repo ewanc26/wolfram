@@ -649,6 +649,33 @@ wf_status wf_agent_mute_actor(wf_agent *agent, const char *actor) {
     return status;
 }
 
+wf_status wf_agent_mute_actor_scoped(wf_agent *agent, const char *actor,
+                                     bool only_reposts, bool only_quoteposts) {
+    if (!agent || !actor || !actor[0]) return WF_ERR_INVALID_ARG;
+    if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
+    if (!wf_syntax_at_identifier_is_valid(actor)) return WF_ERR_INVALID_ARG;
+
+    wf_lex_app_bsky_graph_mute_actor_main_input in = {
+        .actor = actor,
+        .has_only_reposts = only_reposts,
+        .only_reposts = only_reposts,
+        .has_only_quoteposts = only_quoteposts,
+        .only_quoteposts = only_quoteposts,
+    };
+    char *json = NULL;
+    wf_status status =
+        wf_lex_app_bsky_graph_mute_actor_main_input_encode_json(&in, &json);
+    if (status != WF_OK) return status;
+
+    wf_agent_sync_auth(agent);
+    wf_response res = {0};
+    status = wf_xrpc_procedure(
+        agent->client, WF_LEX_APP_BSKY_GRAPH_MUTE_ACTOR_NSID, json, &res);
+    wf_lex_app_bsky_graph_mute_actor_main_json_free(json);
+    wf_response_free(&res);
+    return status;
+}
+
 wf_status wf_agent_unmute_actor(wf_agent *agent, const char *actor) {
     if (!agent || !actor || !actor[0]) return WF_ERR_INVALID_ARG;
     if (!wf_agent_is_logged_in(agent)) return WF_ERR_INVALID_ARG;
