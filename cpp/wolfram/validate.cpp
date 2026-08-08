@@ -397,33 +397,60 @@ static int wf_cid_varint(const unsigned char *data, size_t len, uint64_t *value,
 
 static uint64_t wf_multihash_digest_len(uint64_t code) {
     switch (code) {
-    case 0x00: return WF_MH_IDENTITY; /* identity: variable length */
-    case 0x11: return 20;             /* sha1 */
-    case 0x12: return 32;             /* sha2-256 */
-    case 0x13: return 64;             /* sha2-512 */
-    case 0x14: return 28;             /* sha3-224 */
-    case 0x15: return 48;             /* sha3-384 */
-    case 0x16: return 32;             /* sha3-256 */
-    case 0x17: return 64;             /* sha3-512 */
-    case 0x18: return 32;             /* shake-128 */
-    case 0x19: return 64;             /* shake-256 */
-    case 0xd4a1: return 8;            /* murmur3-x64-64 */
-    case 0xb201: return 28;           /* keccak-224 */
-    case 0xb202: return 32;           /* keccak-256 */
-    case 0xb203: return 48;           /* keccak-384 */
-    case 0xb204: return 64;           /* keccak-512 */
-    case 0xb220: return 32;           /* blake2b-256 */
-    case 0xb221: return 64;           /* blake2b-512 */
-    case 0xb240: return 20;           /* blake2b-160 */
-    case 0xb241: return 21;           /* blake2b-168 */
-    case 0xb242: return 32;           /* blake2b-256 */
-    case 0xb243: return 48;           /* blake2b-384 */
-    case 0xb244: return 64;           /* blake2b-512 */
-    case 0xb250: return 16;           /* blake2s-128 */
-    case 0xb251: return 20;           /* blake2s-160 */
-    case 0xb252: return 28;           /* blake2s-224 */
-    case 0xb253: return 32;           /* blake2s-256 */
-    default: return 0;                /* unregistered */
+        case 0x00:
+            return WF_MH_IDENTITY; /* identity: variable length */
+        case 0x11:
+            return 20; /* sha1 */
+        case 0x12:
+            return 32; /* sha2-256 */
+        case 0x13:
+            return 64; /* sha2-512 */
+        case 0x14:
+            return 28; /* sha3-224 */
+        case 0x15:
+            return 48; /* sha3-384 */
+        case 0x16:
+            return 32; /* sha3-256 */
+        case 0x17:
+            return 64; /* sha3-512 */
+        case 0x18:
+            return 32; /* shake-128 */
+        case 0x19:
+            return 64; /* shake-256 */
+        case 0xd4a1:
+            return 8; /* murmur3-x64-64 */
+        case 0xb201:
+            return 28; /* keccak-224 */
+        case 0xb202:
+            return 32; /* keccak-256 */
+        case 0xb203:
+            return 48; /* keccak-384 */
+        case 0xb204:
+            return 64; /* keccak-512 */
+        case 0xb220:
+            return 32; /* blake2b-256 */
+        case 0xb221:
+            return 64; /* blake2b-512 */
+        case 0xb240:
+            return 20; /* blake2b-160 */
+        case 0xb241:
+            return 21; /* blake2b-168 */
+        case 0xb242:
+            return 32; /* blake2b-256 */
+        case 0xb243:
+            return 48; /* blake2b-384 */
+        case 0xb244:
+            return 64; /* blake2b-512 */
+        case 0xb250:
+            return 16; /* blake2s-128 */
+        case 0xb251:
+            return 20; /* blake2s-160 */
+        case 0xb252:
+            return 28; /* blake2s-224 */
+        case 0xb253:
+            return 32; /* blake2s-256 */
+        default:
+            return 0; /* unregistered */
     }
 }
 
