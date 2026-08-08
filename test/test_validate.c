@@ -1,8 +1,64 @@
 #include "wolfram/validate.h"
 #include "test.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* RFC 4648 base32 (lowercase, no padding) encoder, mirroring the one in
+ * src/repo/cid.c, so tests can build CID strings of any byte layout. */
+static void b32encode(const unsigned char *in, size_t in_len, char *out) {
+    static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz234567";
+    size_t i = 0, o = 0;
+    while (i < in_len) {
+        uint64_t buf = 0;
+        int bits = 0;
+        for (int n = 0; n < 5 && i < in_len; n++, i++) {
+            buf = (buf << 8) | in[i];
+            bits += 8;
+        }
+        int need = (bits + 4) / 5;
+        for (int c = 0; c < need; c++) {
+            int shift = bits - 5;
+            if (shift >= 0)
+                out[o++] = alphabet[(buf >> shift) & 0x1f];
+            else
+                out[o++] = alphabet[(buf << (-shift)) & 0x1f];
+            bits -= 5;
+        }
+    }
+    out[o] = '\0';
+}
+
+static void varint_encode(uint64_t value, unsigned char *out, size_t *n) {
+    *n = 0;
+    while (value >= 0x80) {
+        out[(*n)++] = (unsigned char)((value & 0x7f) | 0x80);
+        value >>= 7;
+    }
+    out[(*n)++] = (unsigned char)value;
+}
+
+/* Build a CIDv1 base32 string for an arbitrary (codec, hashfn, digest)
+ * layout. `hashfn` and `digest_len` are LEB128-encoded, so codes larger
+ * than 0x7f (e.g. blake2b-256 = 0xb220) exercise the multi-byte path too. */
+static void build_cid_str(char *out, size_t out_sz, uint64_t codec,
+                          uint64_t hashfn, size_t digest_len) {
+    unsigned char bytes[128];
+    size_t n = 0;
+    size_t part = 0;
+    bytes[n++] = 0x01; /* version 1 */
+    varint_encode(codec, bytes + n, &part);
+    n += part;
+    varint_encode(hashfn, bytes + n, &part);
+    n += part;
+    varint_encode((uint64_t)digest_len, bytes + n, &part);
+    n += part;
+    for (size_t i = 0; i < digest_len; i++) bytes[n++] = (unsigned char)0xab;
+    (void)out_sz;
+    out[0] = 'b';
+    b32encode(bytes, n, out + 1);
+}
 
 static const char *LEX_POST =
     "{\"lexicon\":1,\"id\":\"app.bsky.feed.post\",\"defs\":{\"main\":{\"type\":"
@@ -38,7 +94,7 @@ static const char *LEX_STRONG_REF =
     "{\"lexicon\":1,\"id\":\"com.atproto.repo.strongRef\",\"defs\":{\"main\":{"
     "\"type\":\"object\",\"required\":[\"uri\",\"cid\"],\"properties\":{"
     "\"uri\":{\"type\":\"string\",\"format\":\"at-uri\"},\"cid\":{\"type\":"
-    "\"string\"}}}}}";
+    "\"string\",\"format\":\"cid\"}}}}}";
 
 static const char *LEX_GET_RECORD =
     "{\"lexicon\":1,\"id\":\"com.atproto.repo.getRecord\",\"defs\":{\"main\":{"
@@ -129,18 +185,21 @@ static void test_com_atproto_repo_strongRef(void) {
 
     load(r, LEX_STRONG_REF);
 
+    /* A canonical CIDv1 dag-cbor sha2-256 (the blessed atproto form). The
+     * historical fixture "bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsihei"
+     * "tiwtitajypi" is a non-canonical base32 string -- it decodes to a
+     * 37-byte CID whose digest is one byte longer than the declared 0x20 --
+     * and is rightly rejected now that `format: cid` is enforced. */
+#define CID_HELLO "bafyreibm6jg3ux5qumhcn2b3flc3tyu6dmlb4xa7u5bf44yegnrjhc4yeq"
+
     // Valid strongRef
     {
         wf_validate_result res = wf_validate_value(
             r, "com.atproto.repo.strongRef", "main",
             "{\"uri\":\"at://did:plc:test/app.bsky.feed.post/"
-            "3jkl0pp8sic\",\"cid\":"
-            "\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtitajypi\""
-            "}",
+            "3jkl0pp8sic\",\"cid\":\"" CID_HELLO "\"}",
             strlen("{\"uri\":\"at://did:plc:test/app.bsky.feed.post/"
-                   "3jkl0pp8sic\",\"cid\":"
-                   "\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvsiheitiwtita"
-                   "jypi\"}"));
+                   "3jkl0pp8sic\",\"cid\":\"" CID_HELLO "\"}"));
         WF_CHECK(res.success == 1 && res.errors == NULL);
         wf_validate_result_free(&res);
     }
@@ -149,12 +208,8 @@ static void test_com_atproto_repo_strongRef(void) {
     {
         wf_validate_result res =
             wf_validate_value(r, "com.atproto.repo.strongRef", "main",
-                              "{\"cid\":"
-                              "\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343ytbtwdgvs"
-                              "iheitiwtitajypi\"}",
-                              strlen("{\"cid\":"
-                                     "\"bafybeigdyrzt5wfp7udq7hu7v67y2emfw343yt"
-                                     "btwdgvsiheitiwtitajypi\"}"));
+                              "{\"cid\":\"" CID_HELLO "\"}",
+                              strlen("{\"cid\":\"" CID_HELLO "\"}"));
         WF_CHECK(res.success == 0 && res.errors != NULL);
         WF_CHECK(error_path_contains(res.errors, "uri"));
         wf_validate_result_free(&res);
@@ -391,6 +446,58 @@ static void test_blob_accept_wildcard(void) {
     wf_lexicon_registry_free(reg);
 }
 
+/* Regression coverage for CID format validation: a CIDv1 must name a
+ * registered multihash codec with a digest length that matches that codec
+ * (sha2-256 -> 32 bytes, sha2-512 -> 64 bytes, ...). Previously the
+ * validator only checked that the digest-length field matched the number of
+ * remaining bytes, so e.g. "sha2-256" with an 8-byte digest sailed through. */
+static void test_cid_format_validation(void) {
+    wf_lexicon_registry *reg = wf_lexicon_registry_new();
+    WF_CHECK(reg != NULL);
+    if (!reg) return;
+
+    load(reg, LEX_STRONG_REF);
+
+    static const struct {
+        uint64_t hashfn;
+        size_t digest_len;
+        int valid;
+        const char *note;
+    } cases[] = {
+        {0x12, 32, 1, "sha2-256/32: the standard atproto CID"},
+        {0x12, 8, 0, "sha2-256 with a truncated digest"},
+        {0x12, 64, 0, "sha2-256 with an over-long digest"},
+        {0x13, 64, 1, "sha2-512/64: registered, correct length"},
+        {0x13, 8, 0, "sha2-512 with a truncated digest"},
+        {0x00, 8, 1, "identity codec: variable length is allowed"},
+        {0x00, 0, 0, "identity codec with an empty digest"},
+        {0x01, 32, 0, "unregistered multihash codec"},
+        {0xb220, 32, 1, "blake2b-256/32: multi-byte varint codec"},
+        {0xb220, 8, 0, "blake2b-256 with a truncated digest"},
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        char cid[256];
+        build_cid_str(cid, sizeof(cid), 0x71, cases[i].hashfn,
+                      cases[i].digest_len);
+        char rec[512];
+        snprintf(rec, sizeof(rec),
+                 "{\"uri\":\"at://did:plc:test/app.bsky.feed.post/"
+                 "3jkl0pp8sic\",\"cid\":\"%s\"}",
+                 cid);
+        wf_validate_result res =
+            wf_validate_value(reg, "com.atproto.repo.strongRef", "main", rec,
+                              strlen(rec));
+        if (res.success != cases[i].valid)
+            fprintf(stderr, "  cid case %zu (%s): expected %s, got %s\n", i,
+                    cases[i].note, cases[i].valid ? "valid" : "invalid",
+                    res.success ? "valid" : "invalid");
+        WF_CHECK(res.success == cases[i].valid);
+        wf_validate_result_free(&res);
+    }
+
+    wf_lexicon_registry_free(reg);
+}
+
 int main(void) {
     wf_lexicon_registry *r = wf_lexicon_registry_new();
     WF_CHECK(r != NULL);
@@ -542,6 +649,7 @@ int main(void) {
     test_com_atproto_repo_createRecord();
     test_query_validation();
     test_procedure_validation();
+    test_cid_format_validation();
 
     WF_TEST_SUMMARY();
 }
