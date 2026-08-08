@@ -352,7 +352,7 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_APP_BSKY_GRAPH_GET_LISTS_WITH_MEMBERSHIP_NSID "app.bsky.graph.getListsWithMembership"
 #define WF_LEX_APP_BSKY_GRAPH_GET_LISTS_WITH_MEMBERSHIP_KIND "query"
 
-/** Enumerates accounts that the requesting account (actor) currently has muted. Requires auth. */
+/** Enumerates accounts that the requesting account (actor) currently has fully muted. Mutes scoped to specific kinds of content (only reposts, only quote posts) are not included. Responses may contain more items than the requested limit. Requires auth. */
 #define WF_LEX_APP_BSKY_GRAPH_GET_MUTES_NSID "app.bsky.graph.getMutes"
 #define WF_LEX_APP_BSKY_GRAPH_GET_MUTES_KIND "query"
 
@@ -388,7 +388,7 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_APP_BSKY_GRAPH_LISTITEM_NSID "app.bsky.graph.listitem"
 #define WF_LEX_APP_BSKY_GRAPH_LISTITEM_KIND "record"
 
-/** Creates a mute relationship for the specified account. Mutes are private in Bluesky. Requires auth. */
+/** Creates a mute relationship for the specified account. If a mute already exists for the account, it is updated in place: the stored scope is replaced with the scope in this request. Mutes are private in Bluesky. Requires auth. */
 #define WF_LEX_APP_BSKY_GRAPH_MUTE_ACTOR_NSID "app.bsky.graph.muteActor"
 #define WF_LEX_APP_BSKY_GRAPH_MUTE_ACTOR_KIND "procedure"
 
@@ -1367,7 +1367,7 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_TOOLS_OZONE_QUEUE_UNASSIGN_MODERATOR_NSID "tools.ozone.queue.unassignModerator"
 #define WF_LEX_TOOLS_OZONE_QUEUE_UNASSIGN_MODERATOR_KIND "procedure"
 
-/** Update queue properties. Currently only supports updating the name and enabled status to prevent configuration conflicts. */
+/** Update queue properties. */
 #define WF_LEX_TOOLS_OZONE_QUEUE_UPDATE_QUEUE_NSID "tools.ozone.queue.updateQueue"
 #define WF_LEX_TOOLS_OZONE_QUEUE_UPDATE_QUEUE_KIND "procedure"
 
@@ -4046,8 +4046,15 @@ typedef struct wf_lex_app_bsky_actor_defs_profile_associated_activity_subscripti
 
 /** Metadata about the requesting account's relationship with the subject account. Only has meaningful content for authed requests. */
 typedef struct wf_lex_app_bsky_actor_defs_viewer_state {
+    /** Whether the account is fully muted, directly or via a mutelist. False when the mute is scoped to specific kinds; see mutedOnlyReposts and mutedOnlyQuoteposts. */
     bool has_muted;
     bool muted;
+    /** Whether the account's reposts are muted. Scoped mutes are exclusive with muted: this can be true while muted is false. If muted is true, this will be false. */
+    bool has_muted_only_reposts;
+    bool muted_only_reposts;
+    /** Whether the account's quote posts are muted. Scoped mutes are exclusive with muted: this can be true while muted is false. If muted is true, this will be false. */
+    bool has_muted_only_quoteposts;
+    bool muted_only_quoteposts;
     bool has_muted_by_list;
     const wf_lex_app_bsky_graph_defs_list_view_basic * muted_by_list;
     bool has_blocked_by;
@@ -6208,6 +6215,12 @@ typedef struct wf_lex_app_bsky_graph_listitem_main {
 
 typedef struct wf_lex_app_bsky_graph_mute_actor_main_input {
     const char * actor;
+    /** Restrict the mute to the account's reposts. When any 'only' scope is set, just the scoped content is muted; when none are set, the account is fully muted. Repeat calls replace the stored scope rather than adding to it. */
+    bool has_only_reposts;
+    bool only_reposts;
+    /** Restrict the mute to the account's quote posts. See onlyReposts. */
+    bool has_only_quoteposts;
+    bool only_quoteposts;
 } wf_lex_app_bsky_graph_mute_actor_main_input;
 
 typedef struct wf_lex_app_bsky_graph_mute_actor_list_main_input {
@@ -6649,8 +6662,14 @@ typedef struct wf_lex_app_bsky_unspecced_defs_thread_item_post {
     bool more_parents;
     /** This post has more replies that were not present in the response. This is a numeric value, which is best-effort and might not be accurate. */
     int64_t more_replies;
-    /** This post is part of a contiguous thread by the OP from the thread root. Many different OP threads can happen in the same thread. */
+    /** This post is part of a contiguous thread by the OP from the thread root. Sub-threads by OP deeper in the tree are not considered an OP thread. */
     bool op_thread;
+    /** The 1-indexed position of this post within the contiguous OP thread. Only present when this post is part of the OP thread (see `opThread`). */
+    bool has_op_thread_post_index;
+    int64_t op_thread_post_index;
+    /** The total number of posts in the contiguous OP thread that this post belongs to. Only present when this post is part of the OP thread (see `opThread`). */
+    bool has_op_thread_post_count;
+    int64_t op_thread_post_count;
     /** The threadgate created by the author indicates this post as a reply to be hidden for everyone consuming the thread. */
     bool hidden_by_threadgate;
     /** This is by an account muted by the viewer requesting it. */
@@ -8027,6 +8046,7 @@ typedef struct wf_lex_chat_bsky_group_approve_join_request_main_output {
 } wf_lex_chat_bsky_group_approve_join_request_main_output;
 
 typedef struct wf_lex_chat_bsky_group_create_group_main_input {
+    /** The members to add to the group. The owner is automatically added. Implementations may enforce a lower maximum than the 10,000-item schema limit; Bluesky currently supports up to 100 total members. If the owner is included in this list, the list may contain up to the implementation's total member limit. Otherwise, it may contain one fewer. */
     WF_LEX_ARRAY(const char *) members;
     const char * name;
 } wf_lex_chat_bsky_group_create_group_main_input;
@@ -11193,6 +11213,9 @@ typedef struct wf_lex_tools_ozone_queue_create_queue_main_input {
     /** Optional description of the queue */
     bool has_description;
     const char * description;
+    /** Policy keys to recommend when actioning reports in this queue */
+    bool has_recommended_policies;
+    WF_LEX_ARRAY(const char *) recommended_policies;
 } wf_lex_tools_ozone_queue_create_queue_main_input;
 
 typedef struct wf_lex_tools_ozone_queue_create_queue_main_output {
@@ -11216,6 +11239,9 @@ typedef struct wf_lex_tools_ozone_queue_defs_queue_view {
     /** Optional description of the queue */
     bool has_description;
     const char * description;
+    /** Policy keys recommended when actioning reports in this queue */
+    bool has_recommended_policies;
+    WF_LEX_ARRAY(const char *) recommended_policies;
     /** DID of moderator who created this queue */
     const char * created_by;
     const char * created_at;
@@ -11360,6 +11386,9 @@ typedef struct wf_lex_tools_ozone_queue_update_queue_main_input {
     /** Optional description of the queue */
     bool has_description;
     const char * description;
+    /** Policy keys to recommend when actioning reports in this queue */
+    bool has_recommended_policies;
+    WF_LEX_ARRAY(const char *) recommended_policies;
 } wf_lex_tools_ozone_queue_update_queue_main_input;
 
 typedef struct wf_lex_tools_ozone_queue_update_queue_main_output {
