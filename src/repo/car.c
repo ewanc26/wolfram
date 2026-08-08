@@ -8,13 +8,30 @@
 static uint64_t wf_read_varint(const unsigned char *data, size_t len,
                                size_t *used) {
     uint64_t value = 0;
+    unsigned shift = 0;
     size_t i;
     for (i = 0; i < len && i < 10; i++) {
-        value |= ((uint64_t)(data[i] & 0x7f)) << (7 * i);
-        if (!(data[i] & 0x80)) {
+        unsigned char byte = data[i];
+        /* A 10th byte contributes bit 63 at most; any payload above that is
+         * lost by the shift and must be rejected rather than silently
+         * misdecoded (same guard as wf_cbor_varint in cbor.c). */
+        if (shift == 63 && (byte & 0x7eu) != 0) {
+            *used = 0;
+            return 0;
+        }
+        value |= ((uint64_t)(byte & 0x7fu)) << shift;
+        if (!(byte & 0x80u)) {
+            /* Reject non-minimal encodings (a zero terminator byte after a
+             * longer run), matching the canonical DAG-CBOR varints the SDK
+             * writes and the strict reader the network expects. */
+            if (i > 0 && byte == 0) {
+                *used = 0;
+                return 0;
+            }
             *used = i + 1;
             return value;
         }
+        shift += 7;
     }
     *used = 0;
     return 0;

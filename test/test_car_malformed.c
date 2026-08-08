@@ -102,8 +102,43 @@ static void test_section_length_overflow(void) {
     if (status == WF_OK) wf_car_free(&out);
 }
 
+static void test_varint_overflow_rejected(void) {
+    /* A 10-byte varint whose final byte is 0x02 contributes bit 63 and then
+     * a lost bit -- 0x02 is 10 in binary, so decoding without an overflow
+     * guard would silently drop that bit and produce UINT64_MAX with a
+     * "successful" 10-byte read. The reader must reject the byte outright
+     * (as wf_cbor_varint does) rather than misdecode it. */
+    static const unsigned char overflowing[10] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                                  0xFF, 0xFF, 0xFF, 0xFF, 0x02};
+    wf_car out;
+    wf_status status = wf_car_parse(overflowing, sizeof(overflowing), &out);
+    WF_CHECK(status == WF_ERR_INVALID_ARG);
+    if (status == WF_OK) wf_car_free(&out);
+}
+
+static void test_varint_nonminimal_rejected(void) {
+    /* Header length 1 encoded non-minimally (0x80 0x00 = 0x80 | (0 << 7),
+     * which is 1 in LEB128 but with a redundant continuation byte). The
+     * SDK's canonical encoding never produces this; accepting it would let
+     * an attacker smuggle ambiguous length encodings into the parser. */
+    static const unsigned char nonminimal[4] = {0x80, 0x00, 0xa0, 0x00};
+    wf_car out;
+    wf_status status = wf_car_parse(nonminimal, sizeof(nonminimal), &out);
+    WF_CHECK(status == WF_ERR_INVALID_ARG);
+    if (status == WF_OK) wf_car_free(&out);
+
+    /* An unterminated varint (10 continuation bytes) is also malformed. */
+    static const unsigned char unterminated[10] = {
+        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    status = wf_car_parse(unterminated, sizeof(unterminated), &out);
+    WF_CHECK(status == WF_ERR_INVALID_ARG);
+    if (status == WF_OK) wf_car_free(&out);
+}
+
 int main(void) {
     test_header_length_overflow();
     test_section_length_overflow();
+    test_varint_overflow_rejected();
+    test_varint_nonminimal_rejected();
     WF_TEST_SUMMARY();
 }
