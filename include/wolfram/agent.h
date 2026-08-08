@@ -210,6 +210,12 @@ wf_status wf_agent_unmute(wf_agent *agent, const char *actor);
  * produced; the response body is consumed internally. */
 wf_status wf_agent_mute_actor(wf_agent *agent, const char *actor);
 wf_status wf_agent_unmute_actor(wf_agent *agent, const char *actor);
+/* Scoped muteActor: when `only_reposts` or `only_quoteposts` is true the mute
+ * is restricted to that content kind; when neither is set the account is fully
+ * muted (identical to wf_agent_mute_actor). Per the lexicon, repeat calls
+ * replace the stored scope rather than adding to it. */
+wf_status wf_agent_mute_actor_scoped(wf_agent *agent, const char *actor,
+                                     bool only_reposts, bool only_quoteposts);
 wf_status wf_agent_mute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_unmute_thread(wf_agent *agent, const char *root_uri);
 wf_status wf_agent_block(wf_agent *agent, const char *subject_did,

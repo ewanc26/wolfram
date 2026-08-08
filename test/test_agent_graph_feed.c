@@ -43,6 +43,31 @@ int main(void) {
         wf_agent_free(agent);
     }
 
+    /* ── muteActor scoped (onlyReposts / onlyQuoteposts) ───────────── */
+    {
+        WF_CHECK(wf_agent_mute_actor_scoped(NULL, "did:plc:abc", true, false) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mute_actor_scoped(NULL, "did:plc:abc", false, true) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mute_actor_scoped(NULL, "did:plc:abc", false, false) ==
+                 WF_ERR_INVALID_ARG);
+
+        wf_agent *agent = wf_agent_new("https://example.com");
+        WF_CHECK(agent != NULL);
+
+        /* empty / invalid at-identifier */
+        WF_CHECK(wf_agent_mute_actor_scoped(agent, "", true, false) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_mute_actor_scoped(agent, "not a did", false, true) ==
+                 WF_ERR_INVALID_ARG);
+
+        /* not logged in -> rejected before any network I/O */
+        WF_CHECK(wf_agent_mute_actor_scoped(agent, "did:plc:abc", true, true) ==
+                 WF_ERR_INVALID_ARG);
+
+        wf_agent_free(agent);
+    }
+
     /* ── unmuteActorList (muteActorList is in moderation_actions.h) ── */
     {
         WF_CHECK(wf_agent_unmute_actor_list(
