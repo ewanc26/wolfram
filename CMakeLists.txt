@@ -257,9 +257,8 @@ add_library(
   src/agent/ozone_moderation_ops_typed.c
   # High-level BskyAgent convenience wrapper
   src/agent/bsky_agent.c
-  # Rich text / facet detection
-  src/richtext/richtext.c
-  src/richtext/detection.c
+  # Rich text / facet detection (C++ RAII, no allocation-leak paths)
+  cpp/wolfram/richtext.cpp
   # Firehose subscribeRepos subscription
   src/sync/sync_subscribe.c
   # Firehose subscription event frame production (builder)
