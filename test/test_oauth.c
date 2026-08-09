@@ -188,6 +188,60 @@ static void test_metadata(void) {
     wf_oauth_client_metadata_free(&private_client);
 }
 
+static void test_loopback_client(void) {
+    wf_oauth_client_metadata metadata = {0};
+    wf_xrpc_client *transport = NULL;
+
+    transport = wf_xrpc_client_new("https://transport.example");
+    WF_CHECK(transport != NULL);
+
+    WF_CHECK(wf_oauth_client_metadata_get(transport, "http://localhost",
+                                          &metadata) == WF_OK);
+    WF_CHECK(strcmp(metadata.client_id, "http://localhost") == 0);
+    WF_CHECK(strcmp(metadata.scope, "atproto") == 0);
+    WF_CHECK(metadata.redirect_uris.count == 2);
+    WF_CHECK(strcmp(metadata.redirect_uris.items[0], "http://127.0.0.1/") == 0);
+    WF_CHECK(strcmp(metadata.redirect_uris.items[1], "http://[::1]/") == 0);
+    WF_CHECK(strcmp(metadata.token_endpoint_auth_method, "none") == 0);
+    WF_CHECK(strcmp(metadata.application_type, "native") == 0);
+    WF_CHECK(metadata.dpop_bound_access_tokens == 1);
+    WF_CHECK(metadata.response_types.count == 1);
+    WF_CHECK(strcmp(metadata.response_types.items[0], "code") == 0);
+    WF_CHECK(metadata.grant_types.count == 2);
+    WF_CHECK(strcmp(metadata.grant_types.items[0], "authorization_code") == 0);
+    WF_CHECK(strcmp(metadata.grant_types.items[1], "refresh_token") == 0);
+    wf_oauth_client_metadata_free(&metadata);
+    memset(&metadata, 0, sizeof(metadata));
+
+    WF_CHECK(wf_oauth_client_metadata_get(
+                 transport, "http://localhost?scope=atproto transition:generic",
+                 &metadata) == WF_OK);
+    WF_CHECK(strcmp(metadata.scope, "atproto transition:generic") == 0);
+    WF_CHECK(metadata.redirect_uris.count == 2);
+    wf_oauth_client_metadata_free(&metadata);
+    memset(&metadata, 0, sizeof(metadata));
+
+    WF_CHECK(wf_oauth_client_metadata_get(
+                 transport,
+                 "http://localhost?scope=atproto&redirect_uri=http://127.0.0.1/"
+                 "custom",
+                 &metadata) == WF_OK);
+    WF_CHECK(strcmp(metadata.scope, "atproto") == 0);
+    WF_CHECK(metadata.redirect_uris.count == 1);
+    WF_CHECK(strcmp(metadata.redirect_uris.items[0],
+                    "http://127.0.0.1/custom") == 0);
+    wf_oauth_client_metadata_free(&metadata);
+    memset(&metadata, 0, sizeof(metadata));
+
+    WF_CHECK(wf_oauth_client_metadata_get(transport,
+                                          "http://localhost/#fragment",
+                                          &metadata) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_oauth_client_metadata_get(transport, "http://localhost/foo",
+                                          &metadata) == WF_ERR_INVALID_ARG);
+
+    wf_xrpc_client_free(transport);
+}
+
 static void test_endpoint_responses(void) {
     wf_oauth_par_response par = {0};
     wf_oauth_token_response token = {0};
@@ -721,6 +775,7 @@ _Pragma("GCC diagnostic pop")
     int main(void) {
     test_pkce();
     test_metadata();
+    test_loopback_client();
     test_endpoint_responses();
     test_callback();
     test_authorization_url();

@@ -426,6 +426,154 @@ wf_status wf_oauth_server_metadata_get(wf_xrpc_client *transport,
     return status;
 }
 
+static char *wf_oauth_query_value_dup(const char *value, size_t len) {
+    char *with_spaces;
+    char *decoded;
+    char *result;
+    int decoded_len;
+    with_spaces = malloc(len + 1);
+    if (!with_spaces) return NULL;
+    memcpy(with_spaces, value, len);
+    with_spaces[len] = '\0';
+    for (char *p = with_spaces; *p; p++) {
+        if (*p == '+') *p = ' ';
+    }
+    decoded = curl_easy_unescape(NULL, with_spaces, 0, &decoded_len);
+    free(with_spaces);
+    if (!decoded) return NULL;
+    result = wf_oauth_strdup(decoded);
+    curl_free(decoded);
+    return result;
+}
+
+static wf_status
+wf_oauth_loopback_client_metadata_get(const char *client_id,
+                                      wf_oauth_client_metadata *out) {
+    wf_oauth_string_list redirect_uris = {0};
+    wf_oauth_string_list response_types = {0};
+    wf_oauth_string_list grant_types = {0};
+    const char *query_str;
+    wf_status status = WF_OK;
+    memset(out, 0, sizeof(*out));
+    out->client_id = wf_oauth_strdup(client_id);
+    if (!out->client_id) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    out->scope = wf_oauth_strdup("atproto");
+    if (!out->scope) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    out->token_endpoint_auth_method = wf_oauth_strdup("none");
+    if (!out->token_endpoint_auth_method) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    out->application_type = wf_oauth_strdup("native");
+    if (!out->application_type) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    out->dpop_bound_access_tokens = 1;
+    out->dpop_bound_access_tokens_present = 1;
+    response_types.count = 1;
+    response_types.items = calloc(1, sizeof(*response_types.items));
+    if (!response_types.items) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    response_types.items[0] = wf_oauth_strdup("code");
+    if (!response_types.items[0]) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    out->response_types = response_types;
+    response_types.items = NULL;
+    response_types.count = 0;
+    grant_types.count = 2;
+    grant_types.items = calloc(2, sizeof(*grant_types.items));
+    if (!grant_types.items) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    grant_types.items[0] = wf_oauth_strdup("authorization_code");
+    grant_types.items[1] = wf_oauth_strdup("refresh_token");
+    if (!grant_types.items[0] || !grant_types.items[1]) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    out->grant_types = grant_types;
+    grant_types.items = NULL;
+    grant_types.count = 0;
+    query_str = strchr(client_id, '?');
+    if (query_str) {
+        const char *q = query_str + 1;
+        while (*q) {
+            const char *end = strchr(q, '&');
+            size_t len = end ? (size_t)(end - q) : strlen(q);
+            if (len >= 6 && memcmp(q, "scope=", 6) == 0) {
+                char *decoded = wf_oauth_query_value_dup(q + 6, len - 6);
+                if (!decoded) {
+                    status = WF_ERR_ALLOC;
+                    goto done;
+                }
+                free(out->scope);
+                out->scope = decoded;
+            } else if (len > 13 && memcmp(q, "redirect_uri=", 13) == 0) {
+                char *decoded = wf_oauth_query_value_dup(q + 13, len - 13);
+                if (!decoded) {
+                    status = WF_ERR_ALLOC;
+                    goto done;
+                }
+                redirect_uris.count++;
+                redirect_uris.items =
+                    realloc(redirect_uris.items,
+                            redirect_uris.count * sizeof(*redirect_uris.items));
+                if (!redirect_uris.items) {
+                    status = WF_ERR_ALLOC;
+                    curl_free(decoded);
+                    goto done;
+                }
+                redirect_uris.items[redirect_uris.count - 1] =
+                    wf_oauth_strdup(decoded);
+                curl_free(decoded);
+                if (!redirect_uris.items[redirect_uris.count - 1]) {
+                    status = WF_ERR_ALLOC;
+                    goto done;
+                }
+            } else {
+                status = WF_ERR_INVALID_ARG;
+                goto done;
+            }
+            q = end ? end + 1 : q + len;
+        }
+    }
+    if (redirect_uris.count == 0) {
+        redirect_uris.count = 2;
+        redirect_uris.items = calloc(2, sizeof(*redirect_uris.items));
+        if (!redirect_uris.items) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
+        redirect_uris.items[0] = wf_oauth_strdup("http://127.0.0.1/");
+        redirect_uris.items[1] = wf_oauth_strdup("http://[::1]/");
+        if (!redirect_uris.items[0] || !redirect_uris.items[1]) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
+    }
+    out->redirect_uris = redirect_uris;
+    redirect_uris.items = NULL;
+    redirect_uris.count = 0;
+done:
+    wf_oauth_string_list_free(&redirect_uris);
+    wf_oauth_string_list_free(&response_types);
+    wf_oauth_string_list_free(&grant_types);
+    if (status != WF_OK) wf_oauth_client_metadata_free(out);
+    return status;
+}
+
 wf_status wf_oauth_client_metadata_get(wf_xrpc_client *transport,
                                        const char *client_id,
                                        wf_oauth_client_metadata *out) {
@@ -433,6 +581,8 @@ wf_status wf_oauth_client_metadata_get(wf_xrpc_client *transport,
         !wf_oauth_client_id_valid(client_id)) {
         return WF_ERR_INVALID_ARG;
     }
+    if (wf_oauth_client_id_is_loopback(client_id))
+        return wf_oauth_loopback_client_metadata_get(client_id, out);
     return wf_oauth_metadata_get(transport, client_id, client_id,
                                  wf_oauth_parse_client_adapter, out);
 }

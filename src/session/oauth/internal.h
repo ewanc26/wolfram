@@ -31,6 +31,7 @@ int wf_oauth_url_valid(const char *url, int https_only, int origin_only,
                        int reject_port);
 int wf_oauth_ascii_equal_fold(const char *left, const char *right);
 int wf_oauth_url_hosts_equal(const char *left, const char *right);
+int wf_oauth_client_id_is_loopback(const char *client_id);
 int wf_oauth_client_id_valid(const char *client_id);
 int wf_oauth_scope_has(const char *scope, const char *wanted);
 
