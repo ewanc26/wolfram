@@ -25,27 +25,36 @@ typedef struct wf_cbor_pair {
     struct wf_cbor_item *value;
 } wf_cbor_pair;
 
+/* Payload structs for the item union. Declared at file scope (not inside the
+ * union) so the header also compiles under C++, where declaring types within
+ * an anonymous union is invalid; the union member names below (bytes/string/
+ * children/map) are unchanged either way. */
+struct wf_cbor_bytes {
+    unsigned char *data;
+    size_t len;
+};
+struct wf_cbor_string {
+    char *str;
+    size_t len;
+};
+struct wf_cbor_children {
+    struct wf_cbor_item **items;
+    size_t count;
+};
+struct wf_cbor_map {
+    struct wf_cbor_pair *pairs;
+    size_t count;
+};
+
 typedef struct wf_cbor_item {
     wf_cbor_type type;
     union {
         uint64_t uinteger;
         uint64_t neginteger;
-        struct {
-            unsigned char *data;
-            size_t len;
-        } bytes;
-        struct {
-            char *str;
-            size_t len;
-        } string;
-        struct {
-            struct wf_cbor_item **items;
-            size_t count;
-        } children;
-        struct {
-            struct wf_cbor_pair *pairs;
-            size_t count;
-        } map;
+        struct wf_cbor_bytes bytes;
+        struct wf_cbor_string string;
+        struct wf_cbor_children children;
+        struct wf_cbor_map map;
         int simple_value;
     };
 } wf_cbor_item;
