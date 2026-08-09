@@ -141,6 +141,8 @@ static void test_page_until_exhausted(void) {
     assert(st.pages == 2);
     assert(last == NULL); /* exhausted */
     free(last);
+    (void)s;
+    (void)st;
 
     wf_agent_free(agent);
 }
@@ -158,6 +160,8 @@ static void test_page_max_pages(void) {
     assert(st.pages == 1);
     assert(last && strcmp(last, "C1") == 0); /* stopped with pending cursor */
     free(last);
+    (void)s;
+    (void)st;
 
     wf_agent_free(agent);
 }
@@ -175,6 +179,8 @@ static void test_page_callback_abort(void) {
     assert(st.pages == 1);
     assert(st.calls == 1); /* no second fetch after abort */
     free(last);
+    (void)s;
+    (void)st;
 
     wf_agent_free(agent);
 }
@@ -191,6 +197,8 @@ static void test_page_call_error(void) {
     assert(s == WF_ERR_NETWORK);
     assert(st.calls == 1);
     free(last);
+    (void)s;
+    (void)st;
 
     wf_agent_free(agent);
 }
@@ -205,6 +213,7 @@ static void test_page_invalid_args(void) {
            WF_ERR_INVALID_ARG);
     assert(wf_agent_page(agent, fake_call, 10, 0, NULL, &st, NULL) ==
            WF_ERR_INVALID_ARG);
+    (void)st;
     wf_agent_free(agent);
 }
 
@@ -278,6 +287,10 @@ static void test_typed_invalid_args(void) {
     wf_agent_notifications_page_cb notification_cb = notifications_page_cb;
     wf_agent_records_page_cb record_cb = records_page_cb;
     assert(timeline_cb && author_cb && notification_cb && record_cb);
+    (void)timeline_cb;
+    (void)author_cb;
+    (void)notification_cb;
+    (void)record_cb;
     wf_agent_free(agent);
 }
 

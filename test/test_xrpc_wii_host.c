@@ -91,6 +91,7 @@ static void test_authenticated_query(void) {
     wf_response out = {0};
     wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social/");
     assert(client);
+    (void)params;
     wf_xrpc_client_set_auth(client, "token");
     fake_response(response);
 
@@ -148,6 +149,7 @@ static void test_short_content_length_fails(void) {
     wf_response out = {0};
     wf_xrpc_client *client = wf_xrpc_client_new("https://example.test");
     assert(client);
+    (void)out;
     fake_response(response);
     assert(wf_http_get(client, "https://example.test/data", &out) ==
            WF_ERR_NETWORK);
