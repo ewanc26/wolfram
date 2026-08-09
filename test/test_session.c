@@ -29,11 +29,13 @@ static void test_session_free_null(void) {
 static void test_session_new_null_url(void) {
     wf_session *session = wf_session_new(NULL);
     assert(session == NULL);
+    (void)session;
 }
 
 static void test_session_new_empty_url(void) {
     wf_session *session = wf_session_new("");
     assert(session == NULL);
+    (void)session;
 }
 
 static void test_session_login_null_args(void) {
@@ -62,6 +64,7 @@ static void test_session_resume_invalid_data(void) {
     wf_session *session = wf_session_new("https://eurosky.social");
     wf_session_data data = {0};
     assert(session != NULL);
+    (void)data;
 
     assert(wf_session_resume(NULL, &data) == WF_ERR_INVALID_ARG);
     assert(wf_session_resume(session, NULL) == WF_ERR_INVALID_ARG);
