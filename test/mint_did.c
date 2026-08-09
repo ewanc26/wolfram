@@ -29,6 +29,7 @@ static int mint(const char *handle, const char *email, const char *pds_endpoint,
     char *unsigned_json = NULL;
     char *signed_json = NULL;
     char *plc_did = NULL;
+    char *unsigned_with_key = NULL;
     int rc = 1;
 
     memset(&rotation_key, 0, sizeof(rotation_key));
@@ -99,7 +100,7 @@ static int mint(const char *handle, const char *email, const char *pds_endpoint,
         fprintf(stderr, "failed to add atproto verification method\n");
         goto cleanup;
     }
-    char *unsigned_with_key = cJSON_PrintUnformatted(root);
+    unsigned_with_key = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (!unsigned_with_key) {
         fprintf(stderr, "failed to serialize unsigned operation\n");
