@@ -210,11 +210,46 @@ done:
     return equal;
 }
 
+int wf_oauth_client_id_is_loopback(const char *client_id) {
+    const char *p;
+    const char *query_str;
+    if (!client_id) return 0;
+    if (strchr(client_id, '#')) return 0;
+    if (strncmp(client_id, "http://localhost", 16) != 0) return 0;
+    p = client_id + 16;
+    if (*p == '\0') return 1;
+    if (*p == '/') {
+        p++;
+        if (*p == '\0' || *p == '?') {
+        } else {
+            return 0;
+        }
+    } else if (*p != '?') {
+        return 0;
+    }
+    query_str = strchr(client_id, '?');
+    if (query_str) {
+        const char *q = query_str + 1;
+        while (*q) {
+            const char *end = strchr(q, '&');
+            size_t len = end ? (size_t)(end - q) : strlen(q);
+            if (len >= 6 && memcmp(q, "scope=", 6) == 0) {
+            } else if (len > 13 && memcmp(q, "redirect_uri=", 13) == 0) {
+            } else {
+                return 0;
+            }
+            q = end ? end + 1 : q + len;
+        }
+    }
+    return 1;
+}
+
 int wf_oauth_client_id_valid(const char *client_id) {
     CURLU *parsed = NULL;
     char *path = NULL, *host = NULL;
     size_t path_len, i;
     int host_is_ipv4 = 1, valid = 0;
+    if (wf_oauth_client_id_is_loopback(client_id)) return 1;
     if (!wf_oauth_url_valid(client_id, 1, 0, 1)) return 0;
     parsed = curl_url();
     if (!parsed ||
