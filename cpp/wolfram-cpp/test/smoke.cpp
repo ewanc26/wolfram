@@ -18,13 +18,13 @@ namespace {
 
 int g_failures = 0;
 
-#define CHECK(expr)                                                         \
-    do {                                                                    \
-        if (!(expr)) {                                                      \
-            std::cerr << "FAILED: " << #expr << " at smoke.cpp:" << __LINE__ \
-                      << "\n";                                              \
-            ++g_failures;                                                   \
-        }                                                                   \
+#define CHECK(expr)                                                            \
+    do {                                                                       \
+        if (!(expr)) {                                                         \
+            std::cerr << "FAILED: " << #expr << " at smoke.cpp:" << __LINE__   \
+                      << "\n";                                                 \
+            ++g_failures;                                                      \
+        }                                                                      \
     } while (0)
 
 } // namespace
@@ -62,8 +62,8 @@ int main() {
     {
         const char *dj = "{\"id\":\"at://did/app.bsky.draft.getDrafts/abc\"}";
         wf_draft_createDraft_result dr = {};
-        CHECK(wf_draft_createDraft_parse(
-                  dj, std::char_traits<char>::length(dj), &dr) == WF_OK);
+        CHECK(wf_draft_createDraft_parse(dj, std::char_traits<char>::length(dj),
+                                         &dr) == WF_OK);
         CHECK(std::string(dr.id) == "at://did/app.bsky.draft.getDrafts/abc");
         wf_draft_createDraft_result_handle drh(&dr); // takes ownership
         CHECK(drh.get() == &dr);
@@ -164,13 +164,10 @@ int main() {
           WF_ERR_INVALID_ARG);
 
     wf_bookmark_create_result r7 = {};
-    CHECK(wf_agent_bookmark_create_typed(agent, "", &r7) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_bookmark_create_typed(agent, "", &r7) == WF_ERR_INVALID_ARG);
     wf_bookmark_delete_result r8 = {};
-    CHECK(wf_agent_bookmark_delete_typed(agent, "", &r8) ==
-          WF_ERR_INVALID_ARG);
+    CHECK(wf_agent_bookmark_delete_typed(agent, "", &r8) == WF_ERR_INVALID_ARG);
 
-    std::cout << "wolfram-cpp smoke " << (g_failures ? "FAILED" : "OK")
-              << "\n";
+    std::cout << "wolfram-cpp smoke " << (g_failures ? "FAILED" : "OK") << "\n";
     return g_failures ? 1 : 0;
 }
