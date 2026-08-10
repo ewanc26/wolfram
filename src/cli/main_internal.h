@@ -9,6 +9,7 @@
 #include "wolfram/agent.h"
 
 #include <stdio.h>
+#include <stdbool.h>
 
 /* Print the full `wolfram <command> ...` usage summary to `out`. */
 void usage_stream(FILE *out);
@@ -41,5 +42,25 @@ int finish_agent_response(wf_agent *agent, wf_status s, wf_response *res);
 /* Read the entire text file `path` into a heap string (NUL terminated).
  * Returns NULL on failure. Caller frees. */
 char *read_text_file(const char *path);
+
+/* Global --json flag: when set, list/get commands print the raw JSON body
+ * instead of human-readable text. */
+extern bool g_json;
+
+/* Create an agent, login, and return it. Returns NULL on failure (error
+ * already printed to stderr). Caller frees with wf_agent_free. */
+wf_agent *agent_login_or_err(const char *service, const char *handle,
+                             const char *password);
+
+/* Print an agent-level failure to stderr, appending the server's XRPC error
+ * message when one was captured. Returns the failure exit code. */
+int cli_agent_error(const char *what, wf_status s, wf_agent *agent);
+
+/* Format the current UTC time as an RFC 3339 timestamp (e.g. for record
+ * createdAt fields). Writes at most `len` bytes into `buf`. */
+void now_rfc3339(char *buf, size_t len);
+
+/* Join argv[first..argc-1] into a single heap string (caller frees). */
+char *join_args(int argc, char **argv, int first);
 
 #endif /* WOLFRAM_CLI_MAIN_INTERNAL_H */
