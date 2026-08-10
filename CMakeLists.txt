@@ -23,7 +23,7 @@ add_compile_options(
   -Wall
   -Wextra
   -Wpedantic
-  -Wno-gcc-compat
+  $<$<C_COMPILER_ID:Clang>:-Wno-gcc-compat>
   -Wno-unused-function)
 
 # Console/embedded cross-compilation targets. When any is ON, desktop-specific

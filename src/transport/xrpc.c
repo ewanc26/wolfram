@@ -349,7 +349,7 @@ const char *wf_xrpc_last_error(const wf_xrpc_client *client) {
      * that treat the return as borrowed, return the live pointer under lock.
      * Callers that need a stable copy should call this before any other
      * request on the same client. */
-    free(copy);
+    free((void *)copy);
     return err;
 }
 

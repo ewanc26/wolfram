@@ -1004,7 +1004,7 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
     struct MHD_Response *mhd_resp;
     wf_xrpc_response resp = WF_XRPC_RESPONSE_INIT;
     wf_xrpc_request req = {0};
-    wf_route_kind kind;
+    wf_route_kind kind = WF_ROUTE_QUERY;
     wf_route *route = NULL;
     wf_http_route *http_route = NULL;
     char *nsid = NULL;
