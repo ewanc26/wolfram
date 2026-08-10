@@ -777,8 +777,10 @@ wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server, const char *nsid,
     r->handler.ws = handler;
     r->ctx = ctx;
     r->is_ws = true;
+    pthread_mutex_lock(&server->routes_mutex);
     r->next = server->routes;
     server->routes = r;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 

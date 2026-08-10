@@ -82,6 +82,7 @@ struct wf_rate_limiter {
     unsigned int duration_seconds; /* Refill window */
     unsigned int bucket_count;     /* Hash table size */
     wf_rate_bucket **buckets;      /* Hash table array, owned */
+    pthread_mutex_t mutex;         /* guards buckets + their contents */
 };
 
 /** FNV-1a hash for a NUL-terminated string. */
@@ -118,6 +119,11 @@ wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
         free(rl);
         return NULL;
     }
+    if (pthread_mutex_init(&rl->mutex, NULL) != 0) {
+        free(rl->buckets);
+        free(rl);
+        return NULL;
+    }
     return rl;
 }
 
@@ -126,6 +132,7 @@ void wf_rate_limiter_free(wf_rate_limiter *rl) {
     if (!rl) {
         return;
     }
+    pthread_mutex_lock(&rl->mutex);
     for (i = 0; i < rl->bucket_count; i++) {
         wf_rate_bucket *b = rl->buckets[i];
         while (b) {
@@ -136,6 +143,8 @@ void wf_rate_limiter_free(wf_rate_limiter *rl) {
         }
     }
     free(rl->buckets);
+    pthread_mutex_unlock(&rl->mutex);
+    pthread_mutex_destroy(&rl->mutex);
     free(rl);
 }
 
@@ -157,6 +166,7 @@ wf_rate_limiter_consume_core(wf_rate_limiter *rl, const char *key,
         return WF_ERR_INVALID_ARG;
     }
 
+    pthread_mutex_lock(&rl->mutex);
     now = time(NULL);
     refill_rate = (double)rl->points / (double)rl->duration_seconds;
 
@@ -184,11 +194,13 @@ wf_rate_limiter_consume_core(wf_rate_limiter *rl, const char *key,
         /* Create new bucket */
         b = (wf_rate_bucket *)calloc(1, sizeof(*b));
         if (!b) {
+            pthread_mutex_unlock(&rl->mutex);
             return WF_ERR_ALLOC;
         }
         b->key = strdup(key);
         if (!b->key) {
             free(b);
+            pthread_mutex_unlock(&rl->mutex);
             return WF_ERR_ALLOC;
         }
         b->tokens = (double)rl->points;
@@ -214,6 +226,7 @@ wf_rate_limiter_consume_core(wf_rate_limiter *rl, const char *key,
             out_status->remaining = (unsigned int)b->tokens;
             out_status->reset_at = (unsigned int)now + wait_s;
         }
+        pthread_mutex_unlock(&rl->mutex);
         return WF_ERR_RATE_LIMIT;
     }
 
@@ -230,6 +243,7 @@ wf_rate_limiter_consume_core(wf_rate_limiter *rl, const char *key,
                           : (double)rl->duration_seconds;
         out_status->reset_at = (unsigned int)now + (unsigned int)(wait + 0.5);
     }
+    pthread_mutex_unlock(&rl->mutex);
     return WF_OK;
 }
 
@@ -841,8 +855,13 @@ static cJSON *wf_server_get_query_params(struct MHD_Connection *conn) {
 /* ------------------------------------------------------------------ */
 /* Route lookup                                                        */
 /* ------------------------------------------------------------------ */
-static wf_route *wf_server_find_route(const wf_xrpc_server *server,
-                                      const char *nsid, wf_route_kind kind) {
+/* Internal variants: assume routes_mutex is already held by the
+ * caller. Public wrappers (below) lock and delegate. The route
+ * registration functions also lock once and call these directly, so
+ * they do not deadlock on a recursive lookup. */
+static wf_route *wf_server_find_route_locked(const wf_xrpc_server *server,
+                                             const char *nsid,
+                                             wf_route_kind kind) {
     for (wf_route *r = server->routes; r; r = r->next) {
         if (r->kind == kind && strcmp(r->nsid, nsid) == 0) {
             return r;
@@ -852,16 +871,17 @@ static wf_route *wf_server_find_route(const wf_xrpc_server *server,
 }
 
 static wf_static_route *
-wf_server_find_static_route(const wf_xrpc_server *server, const char *path) {
+wf_server_find_static_route_locked(const wf_xrpc_server *server,
+                                   const char *path) {
     for (wf_static_route *route = server->static_routes; route;
          route = route->next)
         if (strcmp(route->path, path) == 0) return route;
     return NULL;
 }
 
-static wf_http_route *wf_server_find_http_route(const wf_xrpc_server *server,
-                                                const char *method,
-                                                const char *path) {
+static wf_http_route *
+wf_server_find_http_route_locked(const wf_xrpc_server *server,
+                                 const char *method, const char *path) {
     wf_http_route *best_prefix = NULL;
     size_t best_len = 0;
     for (wf_http_route *route = server->http_routes; route;
@@ -881,11 +901,49 @@ static wf_http_route *wf_server_find_http_route(const wf_xrpc_server *server,
     return best_prefix;
 }
 
-static bool wf_server_has_http_path(const wf_xrpc_server *server,
-                                    const char *path) {
+static bool wf_server_has_http_path_locked(const wf_xrpc_server *server,
+                                           const char *path) {
     for (wf_http_route *route = server->http_routes; route; route = route->next)
         if (strcmp(route->path, path) == 0) return true;
     return false;
+}
+
+/* Public wrappers: lock routes_mutex around the _locked lookup so
+ * concurrent registration from another thread is safe. */
+static wf_route *wf_server_find_route(wf_xrpc_server *server, const char *nsid,
+                                      wf_route_kind kind) {
+    if (!server || !nsid) return NULL;
+    pthread_mutex_lock(&server->routes_mutex);
+    wf_route *r = wf_server_find_route_locked(server, nsid, kind);
+    pthread_mutex_unlock(&server->routes_mutex);
+    return r;
+}
+
+static wf_static_route *wf_server_find_static_route(wf_xrpc_server *server,
+                                                    const char *path) {
+    if (!server || !path) return NULL;
+    pthread_mutex_lock(&server->routes_mutex);
+    wf_static_route *r = wf_server_find_static_route_locked(server, path);
+    pthread_mutex_unlock(&server->routes_mutex);
+    return r;
+}
+
+static wf_http_route *wf_server_find_http_route(wf_xrpc_server *server,
+                                                const char *method,
+                                                const char *path) {
+    if (!server || !method || !path) return NULL;
+    pthread_mutex_lock(&server->routes_mutex);
+    wf_http_route *r = wf_server_find_http_route_locked(server, method, path);
+    pthread_mutex_unlock(&server->routes_mutex);
+    return r;
+}
+
+static bool wf_server_has_http_path(wf_xrpc_server *server, const char *path) {
+    if (!server || !path) return false;
+    pthread_mutex_lock(&server->routes_mutex);
+    bool found = wf_server_has_http_path_locked(server, path);
+    pthread_mutex_unlock(&server->routes_mutex);
+    return found;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1441,6 +1499,19 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
         free(server);
         return NULL;
     }
+    if (pthread_mutex_init(&server->routes_mutex, NULL) != 0) {
+        pthread_mutex_destroy(&server->sse_mutex);
+        pthread_mutex_destroy(&server->ws_mutex);
+        free(server);
+        return NULL;
+    }
+    if (pthread_mutex_init(&server->rate_limit_mutex, NULL) != 0) {
+        pthread_mutex_destroy(&server->sse_mutex);
+        pthread_mutex_destroy(&server->ws_mutex);
+        pthread_mutex_destroy(&server->routes_mutex);
+        free(server);
+        return NULL;
+    }
 
     if (thread_count == 0) {
         thread_count = 4;
@@ -1453,8 +1524,14 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
         &wf_server_mhd_handler, server, /* Main handler */
         MHD_OPTION_NOTIFY_COMPLETED, NULL, NULL, MHD_OPTION_NOTIFY_CONNECTION,
         &wf_ws_notify_connection, server, MHD_OPTION_EXTERNAL_LOGGER, NULL,
-        NULL, MHD_OPTION_END);
+        NULL,
+        thread_count > 1 ? MHD_OPTION_THREAD_POOL_SIZE : (int)MHD_OPTION_END,
+        thread_count, MHD_OPTION_END);
     if (!server->daemon) {
+        pthread_mutex_destroy(&server->sse_mutex);
+        pthread_mutex_destroy(&server->ws_mutex);
+        pthread_mutex_destroy(&server->routes_mutex);
+        pthread_mutex_destroy(&server->rate_limit_mutex);
         free(server);
         return NULL;
     }
@@ -1583,6 +1660,8 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     }
     pthread_mutex_destroy(&server->sse_mutex);
     pthread_mutex_destroy(&server->ws_mutex);
+    pthread_mutex_destroy(&server->routes_mutex);
+    pthread_mutex_destroy(&server->rate_limit_mutex);
     free(server->cors_origin);
     if (server->rate_limiter_owned) {
         wf_rate_limiter_free(server->rate_limiter_owned);
@@ -1620,8 +1699,10 @@ wf_status wf_xrpc_server_own_ctx(wf_xrpc_server *server, void *ptr,
     if (!node) return WF_ERR_ALLOC;
     node->ptr = ptr;
     node->free_fn = free_fn;
+    pthread_mutex_lock(&server->routes_mutex);
     node->next = server->owned_ctxs;
     server->owned_ctxs = node;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 
@@ -1633,11 +1714,17 @@ wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
     if (!server || !path || path[0] != '/' || !content_type ||
         (!body && body_len > 0))
         return WF_ERR_INVALID_ARG;
-    if (wf_server_find_static_route(server, path) ||
-        wf_server_has_http_path(server, path))
+    pthread_mutex_lock(&server->routes_mutex);
+    if (wf_server_find_static_route_locked(server, path) ||
+        wf_server_has_http_path_locked(server, path)) {
+        pthread_mutex_unlock(&server->routes_mutex);
         return WF_ERR_INVALID_ARG;
+    }
     wf_static_route *route = calloc(1, sizeof(*route));
-    if (!route) return WF_ERR_ALLOC;
+    if (!route) {
+        pthread_mutex_unlock(&server->routes_mutex);
+        return WF_ERR_ALLOC;
+    }
     route->path = strdup(path);
     route->content_type = strdup(content_type);
     route->body = malloc(body_len ? body_len : 1);
@@ -1646,12 +1733,14 @@ wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
         free(route->content_type);
         free(route->body);
         free(route);
+        pthread_mutex_unlock(&server->routes_mutex);
         return WF_ERR_ALLOC;
     }
     if (body_len) memcpy(route->body, body, body_len);
     route->body_len = body_len;
     route->next = server->static_routes;
     server->static_routes = route;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 
@@ -1663,17 +1752,24 @@ static wf_status wf_server_add_http_route(wf_xrpc_server *server,
     if (!server || !method || !path || path[0] != '/' || !handler ||
         (strcmp(method, "GET") != 0 && strcmp(method, "POST") != 0))
         return WF_ERR_INVALID_ARG;
-    if (wf_server_find_static_route(server, path) ||
-        wf_server_find_http_route(server, method, path))
+    pthread_mutex_lock(&server->routes_mutex);
+    if (wf_server_find_static_route_locked(server, path) ||
+        wf_server_find_http_route_locked(server, method, path)) {
+        pthread_mutex_unlock(&server->routes_mutex);
         return WF_ERR_INVALID_ARG;
+    }
     wf_http_route *route = calloc(1, sizeof(*route));
-    if (!route) return WF_ERR_ALLOC;
+    if (!route) {
+        pthread_mutex_unlock(&server->routes_mutex);
+        return WF_ERR_ALLOC;
+    }
     route->method = strdup(method);
     route->path = strdup(path);
     if (!route->method || !route->path) {
         free(route->method);
         free(route->path);
         free(route);
+        pthread_mutex_unlock(&server->routes_mutex);
         return WF_ERR_ALLOC;
     }
     route->prefix = prefix;
@@ -1681,6 +1777,7 @@ static wf_status wf_server_add_http_route(wf_xrpc_server *server,
     route->ctx = ctx;
     route->next = server->http_routes;
     server->http_routes = route;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 
@@ -1725,8 +1822,10 @@ wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
     r->kind = WF_ROUTE_QUERY;
     r->handler.query = handler;
     r->ctx = ctx;
+    pthread_mutex_lock(&server->routes_mutex);
     r->next = server->routes;
     server->routes = r;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 
@@ -1751,8 +1850,10 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
     r->kind = WF_ROUTE_PROCEDURE;
     r->handler.procedure = handler;
     r->ctx = ctx;
+    pthread_mutex_lock(&server->routes_mutex);
     r->next = server->routes;
     server->routes = r;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 
@@ -1779,8 +1880,10 @@ wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server, const char *nsid,
     r->handler.sse = handler;
     r->ctx = ctx;
     r->is_sse = true;
+    pthread_mutex_lock(&server->routes_mutex);
     r->next = server->routes;
     server->routes = r;
+    pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
 
@@ -1789,17 +1892,21 @@ void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
     if (!server) {
         return;
     }
+    pthread_mutex_lock(&server->routes_mutex);
     server->cors_enabled = enabled;
     free(server->cors_origin);
     server->cors_origin = (origin && origin[0]) ? strdup(origin) : NULL;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
 
 void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
                                          wf_xrpc_request_observer cb,
                                          void *ctx) {
     if (!server) return;
+    pthread_mutex_lock(&server->routes_mutex);
     server->observer = cb;
     server->observer_ctx = ctx;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
 
 void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
@@ -1809,6 +1916,7 @@ void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
     }
     /* Installing an external auth callback supersedes any middleware that was
      * previously attached; release its owned context. */
+    pthread_mutex_lock(&server->routes_mutex);
     if (server->auth_mw_ctx && server->auth_mw_free) {
         server->auth_mw_free(server->auth_mw_ctx);
     }
@@ -1816,6 +1924,7 @@ void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
     server->auth_mw_free = NULL;
     server->auth_cb = cb;
     server->auth_ctx = ctx;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
 
 void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
@@ -1823,8 +1932,10 @@ void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
     if (!server) {
         return;
     }
+    pthread_mutex_lock(&server->routes_mutex);
     server->fallback = handler;
     server->fallback_ctx = ctx;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
 
 void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
@@ -1835,6 +1946,7 @@ void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
         return;
     }
     /* Release any previously attached middleware context first. */
+    pthread_mutex_lock(&server->routes_mutex);
     if (server->auth_mw_ctx && server->auth_mw_free) {
         server->auth_mw_free(server->auth_mw_ctx);
     }
@@ -1842,6 +1954,7 @@ void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
     server->auth_ctx = ctx;
     server->auth_mw_ctx = mw_ctx;
     server->auth_mw_free = mw_free;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
 
 static void wf_server_free_rate_limit_entries(wf_rate_limit_entry *head) {
@@ -1862,9 +1975,14 @@ wf_server_find_route_rate_limiter(wf_xrpc_server *server, const char *method,
     char key[512];
     int n = snprintf(key, sizeof(key), "%s:%s", method, url);
     if (n < 0 || (size_t)n >= sizeof(key)) return NULL;
+    pthread_mutex_lock(&server->rate_limit_mutex);
     for (wf_rate_limit_entry *e = server->rate_limit_entries; e; e = e->next) {
-        if (e->route_key && strcmp(e->route_key, key) == 0) return e->rl;
+        if (e->route_key && strcmp(e->route_key, key) == 0) {
+            pthread_mutex_unlock(&server->rate_limit_mutex);
+            return e->rl;
+        }
     }
+    pthread_mutex_unlock(&server->rate_limit_mutex);
     return NULL;
 }
 
@@ -1900,8 +2018,10 @@ wf_status wf_server_set_route_rate_limiter(wf_xrpc_server *server,
         return WF_ERR_ALLOC;
     }
     entry->rl = rl;
+    pthread_mutex_lock(&server->rate_limit_mutex);
     entry->next = server->rate_limit_entries;
     server->rate_limit_entries = entry;
+    pthread_mutex_unlock(&server->rate_limit_mutex);
     return WF_OK;
 }
 
@@ -1922,7 +2042,9 @@ void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
     if (!server) {
         return;
     }
+    pthread_mutex_lock(&server->routes_mutex);
     server->rate_limiter = rl;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
 
 /**
@@ -1935,9 +2057,11 @@ void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
     if (!server || !rl) {
         return;
     }
+    pthread_mutex_lock(&server->routes_mutex);
     if (server->rate_limiter_owned && server->rate_limiter_owned != rl) {
         wf_rate_limiter_free(server->rate_limiter_owned);
     }
     server->rate_limiter_owned = rl;
     server->rate_limiter = rl;
+    pthread_mutex_unlock(&server->routes_mutex);
 }
