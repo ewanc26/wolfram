@@ -1518,8 +1518,7 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
          * scales to the host's capacity without manual tuning. Capped to
          * avoid runaway thread creation on high-core machines. */
         long cpus = sysconf(_SC_NPROCESSORS_ONLN);
-        thread_count = (cpus > 0 && cpus <= 64) ? (unsigned int)(cpus * 2)
-                                                : 8;
+        thread_count = (cpus > 0 && cpus <= 64) ? (unsigned int)(cpus * 2) : 8;
     }
 
     server->daemon = MHD_start_daemon(
