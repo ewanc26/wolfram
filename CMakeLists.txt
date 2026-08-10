@@ -5,7 +5,7 @@ if(POLICY CMP0156)
 endif()
 project(
   wolfram
-  VERSION 0.13.0
+  VERSION 0.13.1
   DESCRIPTION "A C/C++ SDK for the AT Protocol"
   LANGUAGES C CXX)
 
@@ -971,7 +971,7 @@ if(NOT WOLFRAM_BUILD_EMBEDDED)
   target_link_libraries(wolfram_cli PRIVATE wolfram)
   target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR}
                                                  ${cjson_BINARY_DIR})
-  set_target_properties(wolfram_cli PROPERTIES OUTPUT_NAME wolfram)
+  set_target_properties(wolfram_cli PROPERTIES OUTPUT_NAME wolf)
 endif()
 
 if(WOLFRAM_BUILD_EXAMPLES)

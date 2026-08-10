@@ -79,7 +79,7 @@ devlog. Credentials live in `/Volumes/Storage/Server/bear/.env` —
 
 Post an update with this SDK's own CLI from a shell that has sourced that `.env`:
 
-    wolfram post https://bear1.croft.click ewan.bear1.croft.click "$METALBEAR_APP_PASSWORD" <text>
+    wolf post https://bear1.croft.click ewan.bear1.croft.click "$METALBEAR_APP_PASSWORD" <text>
 
 Verify the post with `com.atproto.repo.getRecord` on the published URI. The
 host routes through a Cloudflare tunnel; if it does not resolve from the build

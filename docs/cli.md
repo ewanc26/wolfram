@@ -1,75 +1,75 @@
-# Command-line client (`wolfram`)
+# Command-line client (`wolf`)
 
-The `wolfram` executable (built by default as `build/wolfram`) is a thin
+The `wolf` executable (built by default as `build/wolf`) is a thin
 demonstration over the SDK that exercises the high-level agent API end to end.
 Every subcommand is network-gated: with missing arguments it prints usage and
 exits 0 without performing any network I/O.
 
 ## Getting help
 
-`wolfram help` (or `wolfram --help` / `wolfram -h`) prints the full command
-list. `wolfram help <command>` prints that command's usage line and a short
+`wolf help` (or `wolf --help` / `wolf -h`) prints the full command
+list. `wolf help <command>` prints that command's usage line and a short
 description:
 
 ```sh
-wolfram help
-wolfram help post
-wolfram help labels
+wolf help
+wolf help post
+wolf help labels
 ```
 
 ## Commands
 
 ```sh
-wolfram login          <service> <handle> <password>
-wolfram whoami         <service> <handle> <password>
-wolfram describe-server <service>
+wolf login          <service> <handle> <password>
+wolf whoami         <service> <handle> <password>
+wolf describe-server <service>
 
-wolfram post           <service> <handle> <password> <text...>
-wolfram reply          <service> <handle> <password> <parent-at-uri> <text...>
-wolfram delete         <service> <handle> <password> <at-uri>
-wolfram like           <service> <handle> <password> <at-uri>
-wolfram unlike         <service> <handle> <password> <like-at-uri>
-wolfram repost         <service> <handle> <password> <at-uri>
-wolfram delete-repost  <service> <handle> <password> <repost-at-uri>
-wolfram unrepost       <service> <handle> <password> <repost-at-uri>
+wolf post           <service> <handle> <password> <text...>
+wolf reply          <service> <handle> <password> <parent-at-uri> <text...>
+wolf delete         <service> <handle> <password> <at-uri>
+wolf like           <service> <handle> <password> <at-uri>
+wolf unlike         <service> <handle> <password> <like-at-uri>
+wolf repost         <service> <handle> <password> <at-uri>
+wolf delete-repost  <service> <handle> <password> <repost-at-uri>
+wolf unrepost       <service> <handle> <password> <repost-at-uri>
 
-wolfram timeline       <service> <handle> <password> [pages]
-wolfram get-post       <service> <at-uri>
-wolfram get-record     <service> <handle> <password> <collection> <rkey>
-wolfram repo put-record    <service> <handle> <password> --collection <nsid> --rkey <rkey> --json <record|file>
-wolfram repo delete-record <service> <handle> <password> --collection <nsid> --rkey <rkey>
-wolfram repo list-records  <service> <handle> <password> --collection <nsid> [--limit N] [--cursor C]
-wolfram repo describe      <service> <handle> <password> --repo <did-or-handle>
-wolfram profile        <service> <actor>
-wolfram search         <service> <handle> <password> <query> [limit]
-wolfram thread         <service> <handle> <password> <at-uri> [depth]
-wolfram feed get    <service> <handle> <password> --feed <generator-uri> [--limit N] [--cursor C]
-wolfram feed author <service> <handle> <password> --actor <handle-or-did> [--limit N] [--cursor C]
-wolfram notifications  <service> <handle> <password> [limit]
-wolfram notifications update-seen [--seen-at <iso>] <service> <handle> <password>
+wolf timeline       <service> <handle> <password> [pages]
+wolf get-post       <service> <at-uri>
+wolf get-record     <service> <handle> <password> <collection> <rkey>
+wolf repo put-record    <service> <handle> <password> --collection <nsid> --rkey <rkey> --json <record|file>
+wolf repo delete-record <service> <handle> <password> --collection <nsid> --rkey <rkey>
+wolf repo list-records  <service> <handle> <password> --collection <nsid> [--limit N] [--cursor C]
+wolf repo describe      <service> <handle> <password> --repo <did-or-handle>
+wolf profile        <service> <actor>
+wolf search         <service> <handle> <password> <query> [limit]
+wolf thread         <service> <handle> <password> <at-uri> [depth]
+wolf feed get    <service> <handle> <password> --feed <generator-uri> [--limit N] [--cursor C]
+wolf feed author <service> <handle> <password> --actor <handle-or-did> [--limit N] [--cursor C]
+wolf notifications  <service> <handle> <password> [limit]
+wolf notifications update-seen [--seen-at <iso>] <service> <handle> <password>
 
-wolfram follow         <service> <handle> <password> <actor>
-wolfram unfollow       <service> <handle> <password> <actor>
-wolfram mute           <service> <handle> <password> <actor>
-wolfram unmute         <service> <handle> <password> <actor>
-wolfram block          <service> <handle> <password> <actor>
-wolfram unblock        <service> <handle> <password> <actor>
+wolf follow         <service> <handle> <password> <actor>
+wolf unfollow       <service> <handle> <password> <actor>
+wolf mute           <service> <handle> <password> <actor>
+wolf unmute         <service> <handle> <password> <actor>
+wolf block          <service> <handle> <password> <actor>
+wolf unblock        <service> <handle> <password> <actor>
 
-wolfram follows        <service> <actor> [limit]
-wolfram followers      <service> <actor> [limit]
-wolfram blocks         <service> <handle> <password> [limit]
-wolfram mutes          <service> <handle> <password> [limit]
-wolfram list           <service> <list-uri> [limit]
-wolfram lists          <service> <actor> [limit]
+wolf follows        <service> <actor> [limit]
+wolf followers      <service> <actor> [limit]
+wolf blocks         <service> <handle> <password> [limit]
+wolf mutes          <service> <handle> <password> [limit]
+wolf list           <service> <list-uri> [limit]
+wolf lists          <service> <actor> [limit]
 
-wolfram resolve        <service> <handle-or-did>
-wolfram labels subscribe <service> [--cursor N] [--seconds N]
-wolfram moderation     <service> <actor> [labeler-did]
-wolfram oauth-login    <service> <handle> [client-id] [redirect-uri] [--state-file <path>]
-wolfram oauth-callback <service> --url <redirect> --state <state> [--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] [--session <path>]
+wolf resolve        <service> <handle-or-did>
+wolf labels subscribe <service> [--cursor N] [--seconds N]
+wolf moderation     <service> <actor> [labeler-did]
+wolf oauth-login    <service> <handle> [client-id] [redirect-uri] [--state-file <path>]
+wolf oauth-callback <service> --url <redirect> --state <state> [--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] [--session <path>]
 
-wolfram video upload   <service> <handle> <password> <file.mp4>
-wolfram video status   <service> <handle> <password> <job-id>
+wolf video upload   <service> <handle> <password> <file.mp4>
+wolf video status   <service> <handle> <password> <job-id>
 ```
 
 ## What each command does
@@ -119,13 +119,13 @@ wolfram video status   <service> <handle> <password> <job-id>
   (`wf_agent_moderate_profile` + `wf_mod_decision_ui`).
 - `oauth-login` — drives the OAuth/PAR/DPoP discovery and authorization-begin
   flow, printing the authorization URL and flow state. The pending state is
-  written to `--state-file` (default `~/.wolfram_oauth_state.json`) so it can be
+  written to `--state-file` (default `~/.wolf_oauth_state.json`) so it can be
   completed by `oauth-callback`.
 - `oauth-callback` — completes the OAuth flow. Reads the pending state file,
   re-discovers the authorization server, parses the redirect URL (`--url`,
   carrying `?code=…&state=…`), performs the token exchange via
   `wf_oauth_authorization_complete`, and writes the resulting session to
-  `--session` (default `~/.wolfram_session.json`). Run this after visiting the
+  `--session` (default `~/.wolf_session.json`). Run this after visiting the
   URL printed by `oauth-login`. No local HTTP server is started.
 - `block` / `unblock` — block or unblock an actor (`wf_agent_block` /
   `wf_agent_unblock`); `unblock` resolves the existing block URI and deletes

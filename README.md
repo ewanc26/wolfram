@@ -65,12 +65,12 @@ Topic guides:
 cmake -S . -B build && cmake --build build && ctest --test-dir build
 ```
 
-That builds `./build/wolfram`, the CLI, which is the quickest way to check the
+That builds `./build/wolf`, the CLI, which is the quickest way to check the
 SDK end to end:
 
 ```sh
-./build/wolfram post https://bsky.social you@example.com yourpassword "Hello from wolfram!"
-./build/wolfram help post
+./build/wolf post https://bsky.social you@example.com yourpassword "Hello from wolfram!"
+./build/wolf help post
 ```
 
 See [docs/cli.md](docs/cli.md) for the full command reference. The `examples/`
