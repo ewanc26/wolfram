@@ -785,7 +785,7 @@ if(CARES_FOUND)
   wolfram_absolute_libs(CARES_LINK_LIBS "${CARES_LIBRARIES}"
                         "${CARES_LIBRARY_DIRS}")
   target_include_directories(wolfram PRIVATE ${CARES_INCLUDE_DIRS})
-  target_link_libraries(wolfram PRIVATE ${CARES_LINK_LIBS})
+  target_link_libraries(wolfram PUBLIC ${CARES_LINK_LIBS})
   target_compile_definitions(wolfram PRIVATE HAVE_CARES)
   message(STATUS "c-ares found: ${CARES_VERSION} (${CARES_LINK_LIBS})")
 endif()
