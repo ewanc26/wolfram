@@ -61,14 +61,52 @@
 #include "wolfram/agent.h"
 #include "wolfram/blob.h"
 #include "wolfram/identity.h"
+#include "wolfram/identity_typed.h"
 #include "wolfram/label.h"
 #include "wolfram/oauth.h"
 #include "wolfram/server.h"
+#include "wolfram/server_typed.h"
 #include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/thread_typed.h"
+#include "wolfram/feed_typed.h"
+#include "wolfram/actor_typed.h"
+#include "wolfram/moderation.h"
+#include "wolfram/repo_typed.h"
+#include "wolfram/feedgen_typed.h"
+#include "wolfram/notification_typed.h"
+#include "wolfram/moderation_report_typed.h"
+#include "wolfram/temp_typed.h"
+#include "wolfram/ozone_typed.h"
+#include "wolfram/sync_typed.h"
+#include "wolfram/jetstream.h"
+#include "wolfram/unspecced_typed.h"
+#include "wolfram/sync_subscribe.h"
+#include "wolfram/graph_typed.h"
+#include "wolfram/graph_social_typed.h"
+#include "wolfram/graph_write.h"
+#include "wolfram/chat_typed.h"
+#include "wolfram/actor_prefs_typed.h"
+#include "wolfram/admin_typed.h"
 
 #include "main_internal.h"
 #include "cli_oauth.h"
+#include "cli_auth.h"
+#include "cli_post.h"
+#include "cli_thread.h"
+#include "cli_social.h"
+#include "cli_search.h"
+#include "cli_feed.h"
+#include "cli_graph.h"
+#include "cli_server.h"
+#include "cli_identity.h"
+#include "cli_sync.h"
+#include "cli_prefs.h"
+#include "cli_chat.h"
+#include "cli_stream.h"
+#include "cli_repo.h"
+#include "cli_video.h"
+#include "cli_ozone.h"
 #include "wolfram/thread_typed.h"
 #include "wolfram/feed_typed.h"
 #include "wolfram/actor_typed.h"
@@ -81,7 +119,7 @@
 
 /* Global --json flag: when set, list/get commands print the raw JSON body
  * instead of human-readable text. Parsed in main() before dispatch. */
-static bool g_json = false;
+bool g_json = false;
 
 /* ----------------------------------------------------------------- */
 /* Usage                                                             */
@@ -348,7 +386,7 @@ int usage_exit(void) {
 /* ----------------------------------------------------------------- */
 
 /* Join argv[first..argc-1] into a single heap string (caller frees). */
-static char *join_args(int argc, char **argv, int first) {
+char *join_args(int argc, char **argv, int first) {
     size_t total = 1;
     for (int i = first; i < argc; ++i) {
         size_t part = strlen(argv[i]);
@@ -403,8 +441,8 @@ wf_status resolve_actor_to_did(wf_agent *agent, const char *actor,
 
 /* Create an agent, login, and return it. Returns NULL on failure (error
  * already printed to stderr). Caller frees with wf_agent_free. */
-static wf_agent *agent_login_or_err(const char *service, const char *handle,
-                                    const char *password) {
+wf_agent *agent_login_or_err(const char *service, const char *handle,
+                             const char *password) {
     wf_agent *agent = wf_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
@@ -421,7 +459,7 @@ static wf_agent *agent_login_or_err(const char *service, const char *handle,
 
 /* Print an agent-level failure to stderr, appending the server's XRPC error
  * message when one was captured. Returns the failure exit code. */
-static int cli_agent_error(const char *what, wf_status s, wf_agent *agent) {
+int cli_agent_error(const char *what, wf_status s, wf_agent *agent) {
     const char *msg = wf_agent_last_error(agent);
     if (msg && *msg) {
         fprintf(stderr, "error: %s failed (status %d): %s\n", what, (int)s,
@@ -556,7 +594,7 @@ wf_status resolve_post_for_reply(wf_agent *agent, const char *at_uri,
 
 /* Format the current UTC time as an RFC 3339 timestamp (e.g. for record
  * createdAt fields). Writes at most `len` bytes into `buf`. */
-static void now_rfc3339(char *buf, size_t len) {
+void now_rfc3339(char *buf, size_t len) {
     time_t now = time(NULL);
     struct tm tm_utc;
 #ifdef _WIN32
@@ -567,1325 +605,6 @@ static void now_rfc3339(char *buf, size_t len) {
     if (strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", &tm_utc) == 0) {
         if (len > 0) buf[0] = '\0';
     }
-}
-
-/* ----------------------------------------------------------------- */
-/* Subcommands                                                       */
-/* ----------------------------------------------------------------- */
-
-static int cmd_login(int argc, char **argv) {
-    if (argc < 4) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_session_data sd = {0};
-    wf_agent_get_session_data(agent, &sd);
-    printf("logged in as %s (%s)\n", sd.handle ? sd.handle : "?",
-           sd.did ? sd.did : "?");
-    wf_agent_session_data_free(&sd);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram whoami <service> <handle> <password> */
-static int cmd_whoami(int argc, char **argv) {
-    if (argc < 4) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) return 1;
-
-    wf_session_data sd = {0};
-    wf_agent_get_session_data(agent, &sd);
-    printf("did: %s\n", sd.did ? sd.did : "?");
-    printf("handle: %s\n", sd.handle ? sd.handle : "?");
-    wf_agent_session_data_free(&sd);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram describe-server <service> */
-static int cmd_describe_server(int argc, char **argv) {
-    if (argc < 2) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_agent_server_description desc = {0};
-    wf_status s = wf_agent_describe_server(agent, &desc);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: describeServer failed (status %d)\n", (int)s);
-        wf_agent_server_description_free(&desc);
-        wf_agent_free(agent);
-        return 1;
-    }
-    printf("did: %s\n", desc.did ? desc.did : "?");
-    printf("inviteCodeRequired: %d\n", desc.invite_code_required);
-    printf("phoneVerificationRequired: %d\n", desc.phone_verification_required);
-    printf("availableUserDomains (%zu):\n", desc.available_user_domain_count);
-    for (size_t i = 0; i < desc.available_user_domain_count; ++i) {
-        printf("  %s\n", desc.available_user_domains[i]
-                             ? desc.available_user_domains[i]
-                             : "?");
-    }
-    printf("privacyPolicy: %s\n",
-           desc.privacy_policy ? desc.privacy_policy : "?");
-    printf("termsOfService: %s\n",
-           desc.terms_of_service ? desc.terms_of_service : "?");
-    printf("contactEmail: %s\n", desc.contact_email ? desc.contact_email : "?");
-    wf_agent_server_description_free(&desc);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram delete <service> <handle> <password> <at-uri> */
-static int cmd_delete(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *at_uri = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) return 1;
-
-    wf_status s = wf_agent_delete_post(agent, at_uri);
-    if (s != WF_OK) {
-        cli_agent_error("delete", s, agent);
-        wf_agent_free(agent);
-        return 1;
-    }
-    printf("deleted %s\n", at_uri);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_post(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-
-    char *text = join_args(argc, argv, 4);
-    if (!text) {
-        fprintf(stderr, "error: failed to assemble post text\n");
-        return 1;
-    }
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        free(text);
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        free(text);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_agent_post_result result = {0};
-    s = wf_agent_post(agent, text, &result);
-    free(text);
-    if (s != WF_OK) {
-        cli_agent_error("post", s, agent);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("%s\n", result.uri ? result.uri : "(no uri returned)");
-    wf_agent_post_result_free(&result);
-    wf_agent_free(agent);
-    return 0;
-}
-
-typedef struct {
-    int printed;
-} timeline_ctx;
-
-static wf_status timeline_on_page(wf_agent *agent,
-                                  const wf_agent_feed_list *feed,
-                                  const char *cursor, void *ud) {
-    (void)agent;
-    (void)cursor;
-    timeline_ctx *ctx = (timeline_ctx *)ud;
-
-    for (size_t i = 0; i < feed->item_count; ++i) {
-        const wf_agent_post_view *post = &feed->items[i].post;
-        const char *author = post->author.handle
-                                 ? post->author.handle
-                                 : (post->author.did ? post->author.did : "?");
-        const char *text = "";
-        if (post->record) {
-            cJSON *t = cJSON_GetObjectItemCaseSensitive(post->record, "text");
-            if (cJSON_IsString(t) && t->valuestring) {
-                text = t->valuestring;
-            }
-        }
-        printf("%s: %s\n", author, text);
-        ctx->printed++;
-    }
-    return WF_OK;
-}
-
-static int cmd_timeline(int argc, char **argv) {
-    if (argc < 4) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    int max_pages = (argc >= 5) ? atoi(argv[4]) : 0; /* 0 = until exhausted */
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    if (g_json) {
-        wf_response res = {0};
-        s = wf_agent_get_timeline(agent, 50, NULL, NULL, &res);
-        if (s != WF_OK)
-            fprintf(stderr, "error: request failed (status %d)\n", (int)s);
-        else if (res.body && res.body_len > 0)
-            printf("%s\n", res.body);
-        else
-            printf("(empty response, HTTP %ld)\n", res.status);
-        wf_response_free(&res);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    timeline_ctx ctx = {0};
-    char *last_cursor = NULL;
-    s = wf_agent_get_timeline_paged(agent, 10, max_pages, timeline_on_page,
-                                    &ctx, &last_cursor);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: timeline failed (status %d)\n", (int)s);
-        free(last_cursor);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    if (ctx.printed == 0) {
-        printf("(timeline empty)\n");
-    }
-    free(last_cursor);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_get_post(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *uri = argv[2];
-
-    wf_syntax_aturi parsed = {0};
-    if (!wf_syntax_aturi_parse(uri, &parsed) || !parsed.authority ||
-        !parsed.collection || !parsed.record_key) {
-        fprintf(stderr, "error: invalid at-uri: %s\n", uri);
-        wf_syntax_aturi_free(&parsed);
-        return 1;
-    }
-
-    wf_xrpc_client *client = wf_xrpc_client_new(service);
-    if (!client) {
-        fprintf(stderr, "error: failed to create XRPC client\n");
-        wf_syntax_aturi_free(&parsed);
-        return 1;
-    }
-
-    wf_xrpc_param params[] = {
-        {"repo", parsed.authority},
-        {"collection", parsed.collection},
-        {"rkey", parsed.record_key},
-    };
-
-    wf_response res = {0};
-    wf_status s = wf_xrpc_query_params(client, "com.atproto.repo.getRecord",
-                                       params, 3, &res);
-    wf_syntax_aturi_free(&parsed);
-
-    if (s != WF_OK && s != WF_ERR_HTTP) {
-        fprintf(stderr, "error: getRecord failed (status %d)\n", (int)s);
-        wf_response_free(&res);
-        wf_xrpc_client_free(client);
-        return 1;
-    }
-
-    if (res.body && res.body_len > 0) {
-        printf("%s\n", res.body);
-    } else {
-        printf("(empty response, HTTP %ld)\n", res.status);
-    }
-
-    wf_response_free(&res);
-    wf_xrpc_client_free(client);
-    return 0;
-}
-
-static int cmd_profile(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *actor = argv[2];
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_agent_profile prof = {0};
-    wf_status s = wf_agent_get_profile(agent, actor, &prof);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: getProfile failed (status %d)\n", (int)s);
-        wf_agent_profile_free(&prof);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    if (g_json) {
-        cJSON *j = cJSON_CreateObject();
-        if (j) {
-            if (prof.did) cJSON_AddStringToObject(j, "did", prof.did);
-            if (prof.handle) cJSON_AddStringToObject(j, "handle", prof.handle);
-            if (prof.display_name)
-                cJSON_AddStringToObject(j, "displayName", prof.display_name);
-            if (prof.description)
-                cJSON_AddStringToObject(j, "description", prof.description);
-            if (prof.avatar_cid)
-                cJSON_AddStringToObject(j, "avatar", prof.avatar_cid);
-            cJSON_AddNumberToObject(j, "followersCount", prof.followers_count);
-            cJSON_AddNumberToObject(j, "followsCount", prof.follows_count);
-            cJSON_AddNumberToObject(j, "postsCount", prof.posts_count);
-            char *out = cJSON_PrintUnformatted(j);
-            cJSON_Delete(j);
-            if (out) {
-                printf("%s\n", out);
-                free(out);
-            }
-        }
-        wf_agent_profile_free(&prof);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    printf("%s\n", prof.display_name ? prof.display_name : "(no display name)");
-    if (prof.description) {
-        printf("%s\n", prof.description);
-    }
-    wf_agent_profile_free(&prof);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_follow(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *actor = argv[4];
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    char *subject_did = NULL;
-    s = resolve_actor_to_did(agent, actor, &subject_did);
-    if (s != WF_OK || !subject_did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_agent_post_result result = {0};
-    s = wf_agent_follow(agent, subject_did, &result);
-    free(subject_did);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: follow failed (status %d)\n", (int)s);
-        wf_agent_post_result_free(&result);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("followed: %s\n", result.uri ? result.uri : "(no uri returned)");
-    wf_agent_post_result_free(&result);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_unfollow(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *actor = argv[4];
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    char *subject_did = NULL;
-    s = resolve_actor_to_did(agent, actor, &subject_did);
-    if (s != WF_OK || !subject_did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    /* Look up the existing follow URI via the viewer's relationship state. */
-    wf_session_data sd = {0};
-    wf_agent_get_session_data(agent, &sd);
-    const char *others[1] = {subject_did};
-    wf_response res = {0};
-    s = wf_agent_get_relationships(agent, sd.did, others, 1, &res);
-    wf_agent_session_data_free(&sd);
-    free(subject_did);
-
-    if (s != WF_OK && s != WF_ERR_HTTP) {
-        fprintf(stderr, "error: getRelationships failed (status %d)\n", (int)s);
-        wf_response_free(&res);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    char *follow_uri = NULL;
-    if (res.body) {
-        cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-        if (root) {
-            cJSON *rels =
-                cJSON_GetObjectItemCaseSensitive(root, "relationships");
-            if (cJSON_IsArray(rels) && cJSON_GetArraySize(rels) > 0) {
-                cJSON *rel = cJSON_GetArrayItem(rels, 0);
-                cJSON *following =
-                    cJSON_GetObjectItemCaseSensitive(rel, "following");
-                if (cJSON_IsString(following) && following->valuestring) {
-                    follow_uri = strdup(following->valuestring);
-                }
-            }
-            cJSON_Delete(root);
-        }
-    }
-    wf_response_free(&res);
-
-    if (!follow_uri) {
-        printf("(not currently following %s)\n", actor);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    s = wf_agent_unfollow(agent, follow_uri);
-    free(follow_uri);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: unfollow failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("unfollowed %s\n", actor);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_resolve(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle_or_did = argv[2];
-
-    if (wf_syntax_did_is_valid(handle_or_did)) {
-        printf("%s\n", handle_or_did);
-        return 0;
-    }
-
-    wf_xrpc_client *client = wf_xrpc_client_new(service);
-    if (!client) {
-        fprintf(stderr, "error: failed to create XRPC client\n");
-        return 1;
-    }
-
-    char *did = NULL;
-    wf_status s = wf_handle_resolve(client, handle_or_did, &did);
-    if (s != WF_OK || !did) {
-        fprintf(stderr, "error: could not resolve '%s' (status %d)\n",
-                handle_or_did, (int)s);
-        wf_xrpc_client_free(client);
-        return 1;
-    }
-
-    printf("%s\n", did);
-    free(did);
-    wf_xrpc_client_free(client);
-    return 0;
-}
-
-/* Recursively print a thread node and its replies (indented by depth). */
-static void print_thread_node(const wf_agent_thread_node *node, int depth) {
-    if (!node) {
-        return;
-    }
-    for (int i = 0; i < depth; ++i) {
-        fputc(' ', stdout);
-        fputc(' ', stdout);
-    }
-
-    if (node->kind == WF_AGENT_THREAD_KIND_POST) {
-        const char *handle =
-            node->post.author.handle
-                ? node->post.author.handle
-                : (node->post.author.did ? node->post.author.did : "?");
-        const char *did = node->post.author.did ? node->post.author.did : "?";
-        const char *text = "";
-        if (node->post.record) {
-            cJSON *t =
-                cJSON_GetObjectItemCaseSensitive(node->post.record, "text");
-            if (cJSON_IsString(t) && t->valuestring) {
-                text = t->valuestring;
-            }
-        }
-        printf("[%s] %s: %s\n", did, handle, text);
-    } else {
-        printf("(not found/blocked: %s)\n", node->uri ? node->uri : "?");
-    }
-
-    for (size_t i = 0; i < node->replies_count; ++i) {
-        print_thread_node(&node->replies[i], depth + 1);
-    }
-}
-
-static int cmd_thread(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *at_uri = argv[4];
-    int depth = (argc >= 6) ? atoi(argv[5]) : 6;
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    if (g_json) {
-        wf_response res = {0};
-        s = wf_agent_get_post_thread(agent, at_uri, depth, 0, &res);
-        if (s != WF_OK)
-            fprintf(stderr, "error: request failed (status %d)\n", (int)s);
-        else if (res.body && res.body_len > 0)
-            printf("%s\n", res.body);
-        else
-            printf("(empty response, HTTP %ld)\n", res.status);
-        wf_response_free(&res);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    wf_agent_thread thread = {0};
-    s = wf_agent_get_post_thread_typed(agent, at_uri, depth, &thread);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: getPostThread failed (status %d)\n", (int)s);
-        wf_agent_thread_free(&thread);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    print_thread_node(&thread.root, 0);
-    wf_agent_thread_free(&thread);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_notifications(int argc, char **argv) {
-    if (argc < 2) {
-        usage_stream(stderr);
-        return 0;
-    }
-
-    /* notifications update-seen [--seen-at <iso>] <service> <handle> <password>
-     */
-    if (strcmp(argv[1], "update-seen") == 0) {
-        const char *seen_at = NULL;
-        const char *pos[4];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--seen-at") == 0 && i + 1 < argc) {
-                seen_at = argv[++i];
-            } else if (pi < 4) {
-                pos[pi++] = argv[i];
-            }
-        }
-        if (pi < 3) {
-            fprintf(stderr,
-                    "error: usage: wolfram notifications update-seen "
-                    "[--seen-at <iso>] <service> <handle> <password>\n");
-            return 1;
-        }
-
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-
-        wf_status s = wf_agent_update_seen_typed(agent, seen_at);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: updateSeen failed (status %d)\n", (int)s);
-            wf_agent_free(agent);
-            return 1;
-        }
-        printf("notifications marked seen%s%s\n", seen_at ? " at " : "",
-               seen_at ? seen_at : "");
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    /* notifications <service> <handle> <password> [limit] */
-    if (argc < 4) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    int limit = (argc >= 5) ? atoi(argv[4]) : 50;
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_status s = wf_agent_login(agent, handle, password);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: login failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    if (g_json) {
-        wf_response res = {0};
-        s = wf_agent_list_notifications(agent, limit, NULL, &res);
-        if (s != WF_OK)
-            fprintf(stderr, "error: request failed (status %d)\n", (int)s);
-        else if (res.body && res.body_len > 0)
-            printf("%s\n", res.body);
-        else
-            printf("(empty response, HTTP %ld)\n", res.status);
-        wf_response_free(&res);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    wf_agent_notification_list list = {0};
-    s = wf_agent_list_notifications_typed(agent, limit, NULL, &list);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: listNotifications failed (status %d)\n",
-                (int)s);
-        wf_agent_notification_list_free(&list);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    for (size_t i = 0; i < list.notification_count; ++i) {
-        const wf_agent_notification *n = &list.notifications[i];
-        const char *author = n->author.handle
-                                 ? n->author.handle
-                                 : (n->author.did ? n->author.did : "?");
-        const char *did = n->author.did ? n->author.did : "?";
-        const char *text = "";
-        if (n->record) {
-            cJSON *t = cJSON_GetObjectItemCaseSensitive(n->record, "text");
-            if (cJSON_IsString(t) && t->valuestring) {
-                text = t->valuestring;
-            }
-        }
-        printf("reason=%s author=%s (%s) read=%d\n  %s\n",
-               n->reason ? n->reason : "?", author, did, n->is_read, text);
-    }
-    if (list.notification_count == 0) {
-        printf("(no notifications)\n");
-    }
-
-    wf_agent_notification_list_free(&list);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_moderation(int argc, char **argv) {
-    if (argc < 2) {
-        usage_stream(stderr);
-        return 0;
-    }
-
-    /* moderation report <service> <handle> <password> --subject <uri>
-     *   --reason <reason> [--reason-type <type>] [--cid <cid>] */
-    if (strcmp(argv[1], "report") == 0) {
-        const char *subject = NULL, *reason = NULL, *reason_type = NULL,
-                   *cid = NULL;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--subject") == 0 && i + 1 < argc)
-                subject = argv[++i];
-            else if (strcmp(argv[i], "--reason") == 0 && i + 1 < argc)
-                reason = argv[++i];
-            else if (strcmp(argv[i], "--reason-type") == 0 && i + 1 < argc)
-                reason_type = argv[++i];
-            else if (strcmp(argv[i], "--cid") == 0 && i + 1 < argc)
-                cid = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !subject || !reason) {
-            fprintf(stderr,
-                    "error: usage: wolfram moderation report <service> "
-                    "<handle> <password> --subject <uri> --reason <reason> "
-                    "[--reason-type <type>] [--cid <cid>]\n");
-            return 1;
-        }
-
-        /* The SDK requires a reasonType NSID. If --reason-type is omitted, the
-         * --reason text is used as the type (best effort); when --reason-type
-         * is present, --reason is the optional free-text note. */
-        const char *rt = reason_type ? reason_type : reason;
-        const char *free_reason = reason_type ? reason : NULL;
-
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-
-        const char *subject_did = NULL;
-        const char *subject_uri = NULL;
-        const char *subject_cid = NULL;
-        if (strncmp(subject, "did:", 4) == 0) {
-            subject_did = subject;
-        } else {
-            subject_uri = subject;
-            subject_cid = cid;
-        }
-
-        wf_moderation_report_record out = {0};
-        wf_status s =
-            wf_agent_report_typed(agent, subject_did, subject_uri, subject_cid,
-                                  rt, free_reason, NULL, NULL, &out);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: createReport failed (status %d)\n", (int)s);
-            wf_moderation_report_record_free(&out);
-            wf_agent_free(agent);
-            return 1;
-        }
-        printf("report id=%" PRId64 "\n", out.id);
-        if (out.reason_type) printf("reasonType: %s\n", out.reason_type);
-        if (out.reported_by) printf("reportedBy: %s\n", out.reported_by);
-        wf_moderation_report_record_free(&out);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *actor = argv[2];
-    /* argv[3] (labeler-did) is accepted but not required by the wrapper. */
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    char *did = NULL;
-    wf_status rs = resolve_actor_to_did(agent, actor, &did);
-    if (rs != WF_OK || !did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)rs);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_mod_decision *decision = NULL;
-    wf_status s = wf_agent_moderate_profile(agent, did, &decision);
-    free(did);
-    if (s != WF_OK || !decision) {
-        fprintf(stderr, "error: moderation failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_mod_ui ui = {0};
-    s = wf_mod_decision_ui(decision, WF_MOD_CTX_PROFILE_VIEW, &ui);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: decision UI failed (status %d)\n", (int)s);
-        wf_mod_decision_free(decision);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("moderation for %s: alerts=%zu blurs=%zu informs=%zu\n",
-           decision->did ? decision->did : actor, ui.alert_count, ui.blur_count,
-           ui.inform_count);
-
-    wf_mod_ui_free(&ui);
-    wf_mod_decision_free(decision);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram search <service> <handle> <password> <query> [limit] */
-static int cmd_search(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *query = argv[4];
-    int limit = (argc >= 6) ? atoi(argv[5]) : 25;
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_agent_actor_list list = {0};
-    wf_status s =
-        wf_agent_search_actors_typed(agent, query, limit, NULL, &list);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: search failed (status %d)\n", (int)s);
-        wf_agent_actor_list_free(&list);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    for (size_t i = 0; i < list.actor_count; ++i) {
-        const wf_agent_profile_view *a = &list.actors[i];
-        printf("%s (%s)\n", a->handle ? a->handle : "?", a->did ? a->did : "?");
-        if (a->display_name) {
-            printf("  %s\n", a->display_name);
-        }
-    }
-    if (list.actor_count == 0) {
-        printf("(no results)\n");
-    }
-
-    wf_agent_actor_list_free(&list);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram mute <service> <handle> <password> <actor> */
-static int cmd_mute(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *actor = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    char *did = NULL;
-    wf_status s = resolve_actor_to_did(agent, actor, &did);
-    if (s != WF_OK || !did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    s = wf_agent_mute(agent, did);
-    free(did);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: mute failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("muted %s\n", actor);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram unmute <service> <handle> <password> <actor> */
-static int cmd_unmute(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *actor = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    char *did = NULL;
-    wf_status s = resolve_actor_to_did(agent, actor, &did);
-    if (s != WF_OK || !did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    s = wf_agent_unmute(agent, did);
-    free(did);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: unmute failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("unmuted %s\n", actor);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* ----------------------------------------------------------------- */
-/* New subcommands                                                  */
-/* ----------------------------------------------------------------- */
-
-static int cmd_like(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *at_uri = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    char *cid = NULL;
-    wf_status s = resolve_post_cid(agent, at_uri, &cid);
-    if (s != WF_OK || !cid) {
-        fprintf(stderr, "error: could not resolve CID for %s (status %d)\n",
-                at_uri, (int)s);
-        free(cid);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_agent_post_result out = {0};
-    s = wf_agent_like(agent, at_uri, cid, &out);
-    free(cid);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: like failed (status %d)\n", (int)s);
-        wf_agent_post_result_free(&out);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("%s\n", out.uri ? out.uri : "(no uri returned)");
-    wf_agent_post_result_free(&out);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_unlike(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *like_uri = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_status s = wf_agent_unlike(agent, like_uri);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: unlike failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("unliked %s\n", like_uri);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_repost(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *at_uri = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    char *cid = NULL;
-    wf_status s = resolve_post_cid(agent, at_uri, &cid);
-    if (s != WF_OK || !cid) {
-        fprintf(stderr, "error: could not resolve CID for %s (status %d)\n",
-                at_uri, (int)s);
-        free(cid);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_agent_post_result out = {0};
-    s = wf_agent_repost(agent, at_uri, cid, &out);
-    free(cid);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: repost failed (status %d)\n", (int)s);
-        wf_agent_post_result_free(&out);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("%s\n", out.uri ? out.uri : "(no uri returned)");
-    wf_agent_post_result_free(&out);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_delete_repost(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *repost_uri = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_status s = wf_agent_delete_repost(agent, repost_uri);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: delete-repost failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("deleted repost %s\n", repost_uri);
-    wf_agent_free(agent);
-    return 0;
-}
-
-static int cmd_reply(int argc, char **argv) {
-    if (argc < 6) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *parent_uri = argv[4];
-
-    char *text = join_args(argc, argv, 5);
-    if (!text) {
-        fprintf(stderr, "error: failed to assemble reply text\n");
-        return 1;
-    }
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        free(text);
-        return 1;
-    }
-
-    char *parent_cid = NULL, *root_uri = NULL, *root_cid = NULL;
-    wf_status s = resolve_post_for_reply(agent, parent_uri, &parent_cid,
-                                         &root_uri, &root_cid);
-    if (s != WF_OK || !parent_cid || !root_uri || !root_cid) {
-        fprintf(stderr,
-                "error: could not resolve reply refs for %s (status %d)\n",
-                parent_uri, (int)s);
-        free(parent_cid);
-        free(root_uri);
-        free(root_cid);
-        free(text);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    char created_at[32];
-    now_rfc3339(created_at, sizeof(created_at));
-
-    cJSON *rec = cJSON_CreateObject();
-    cJSON_AddStringToObject(rec, "$type", "app.bsky.feed.post");
-    cJSON_AddStringToObject(rec, "text", text);
-    cJSON_AddStringToObject(rec, "createdAt", created_at);
-
-    cJSON *reply = cJSON_CreateObject();
-    cJSON *root = cJSON_CreateObject();
-    cJSON_AddStringToObject(root, "uri", root_uri);
-    cJSON_AddStringToObject(root, "cid", root_cid);
-    cJSON *parent = cJSON_CreateObject();
-    cJSON_AddStringToObject(parent, "uri", parent_uri);
-    cJSON_AddStringToObject(parent, "cid", parent_cid);
-    cJSON_AddItemToObject(reply, "root", root);
-    cJSON_AddItemToObject(reply, "parent", parent);
-    cJSON_AddItemToObject(rec, "reply", reply);
-
-    char *record_json = cJSON_PrintUnformatted(rec);
-    cJSON_Delete(rec);
-    free(parent_cid);
-    free(root_uri);
-    free(root_cid);
-    free(text);
-    if (!record_json) {
-        fprintf(stderr, "error: failed to serialize reply record\n");
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_agent_post_result out = {0};
-    s = wf_agent_create_record(agent, "app.bsky.feed.post", record_json, &out);
-    free(record_json);
-    if (s != WF_OK) {
-        cli_agent_error("reply", s, agent);
-        wf_agent_post_result_free(&out);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    printf("%s\n", out.uri ? out.uri : "(no uri returned)");
-    wf_agent_post_result_free(&out);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* Labels streaming — subscribe to com.atproto.label.subscribeLabels and
- * print each arriving label. The subscription blocks until interrupted (Ctrl-C
- * / SIGINT), a time bound elapses, or a small event cap is reached; it is
- * stopped cleanly via the handle pointer trick (mirrors
- * examples/subscribe_labels.c). */
-#define CLI_LABEL_MAX_EVENTS 100
-
-static volatile sig_atomic_t g_label_stop = 0;
-static int g_label_count = 0;
-static time_t g_label_start = 0;
-static int g_label_seconds = 30;
-static wf_label_subscribe_handle **g_label_handle_ptr = NULL;
-
-static void label_on_sigint(int sig) {
-    (void)sig;
-    g_label_stop = 1;
-    if (g_label_handle_ptr && *g_label_handle_ptr) {
-        wf_label_subscribe_stop(*g_label_handle_ptr);
-    }
-}
-
-static void label_on_label(const wf_label *label, void *userdata) {
-    (void)userdata;
-    g_label_count++;
-    printf("label: uri=%s cid=%s val=%s src=%s exp=%s neg=%d\n",
-           label->uri ? label->uri : "", label->cid ? label->cid : "",
-           label->val ? label->val : "", label->src ? label->src : "",
-           label->exp ? label->exp : "", label->neg);
-    fflush(stdout);
-    if (g_label_stop ||
-        (g_label_seconds > 0 &&
-         (time(NULL) - g_label_start) >= g_label_seconds) ||
-        (g_label_handle_ptr && *g_label_handle_ptr &&
-         g_label_count >= CLI_LABEL_MAX_EVENTS)) {
-        if (g_label_handle_ptr && *g_label_handle_ptr) {
-            wf_label_subscribe_stop(*g_label_handle_ptr);
-        }
-    }
-}
-
-static void label_on_info(const wf_label_info *info, void *userdata) {
-    (void)userdata;
-    printf("info: name=%s message=%s\n", info->name ? info->name : "",
-           info->message ? info->message : "(none)");
-    fflush(stdout);
-}
-
-static void label_on_error(wf_status status, const char *msg, void *userdata) {
-    (void)userdata;
-    fprintf(stderr, "error: label stream status=%d %s\n", (int)status,
-            msg ? msg : "");
-}
-
-/* wolfram labels subscribe <service> [--cursor N] [--seconds N] */
-static int cmd_labels(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-
-    const char *sub = argv[1];
-    if (strcmp(sub, "subscribe") != 0) {
-        fprintf(stderr,
-                "error: unknown labels subcommand '%s' (try 'subscribe')\n",
-                sub);
-        return 1;
-    }
-
-    const char *service = argv[2];
-
-    int64_t cursor = 0;
-    int has_cursor = 0;
-    for (int i = 3; i < argc; ++i) {
-        if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc) {
-            cursor = (int64_t)strtoll(argv[++i], NULL, 10);
-            has_cursor = 1;
-        } else if (strcmp(argv[i], "--seconds") == 0 && i + 1 < argc) {
-            g_label_seconds = atoi(argv[++i]);
-        } else {
-            fprintf(stderr, "error: unexpected labels argument '%s'\n",
-                    argv[i]);
-            return 1;
-        }
-    }
-
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = label_on_sigint;
-    sigaction(SIGINT, &sa, NULL);
-
-    g_label_stop = 0;
-    g_label_count = 0;
-    g_label_start = time(NULL);
-
-    wf_label_subscribe_options opts;
-    memset(&opts, 0, sizeof(opts));
-    opts.service = service;
-    opts.cursor = cursor;
-    opts.has_cursor = has_cursor;
-    opts.reconnect_delay_ms = 1000;
-    opts.on_label = label_on_label;
-    opts.on_neg = label_on_label;
-    opts.on_info = label_on_info;
-    opts.on_error = label_on_error;
-
-    printf(
-        "subscribing to label stream at %s (cursor=%s, max %d events, %ds)\n",
-        service, has_cursor ? argv[2] : "none", CLI_LABEL_MAX_EVENTS,
-        g_label_seconds);
-
-    wf_label_subscribe_handle *handle = NULL;
-    g_label_handle_ptr = &handle;
-    wf_status s = wf_label_subscribe_start(&opts, &handle);
-    g_label_handle_ptr = NULL;
-
-    if (s != WF_OK) {
-        fprintf(stderr, "error: label subscription ended (status %d)\n",
-                (int)s);
-        return 1;
-    }
-    printf("label subscription ended cleanly (%d labels)\n", g_label_count);
-    return 0;
 }
 
 /* Print a raw JSON agent response, freeing resources, returning 0 on success.
@@ -1931,752 +650,8 @@ char *read_text_file(const char *path) {
     return data;
 }
 
-/* wolfram follows <service> <actor> [limit] */
-static int cmd_follows(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *actor = argv[2];
-    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_follows(agent, actor, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram followers <service> <actor> [limit] */
-static int cmd_followers(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *actor = argv[2];
-    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_followers(agent, actor, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram blocks <service> <handle> <password> [limit] */
-static int cmd_blocks(int argc, char **argv) {
-    if (argc < 4) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    int limit = (argc >= 5) ? atoi(argv[4]) : 50;
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_blocks(agent, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram mutes <service> <handle> <password> [limit] */
-static int cmd_mutes(int argc, char **argv) {
-    if (argc < 4) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    int limit = (argc >= 5) ? atoi(argv[4]) : 50;
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_mutes(agent, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram revoke-account-credentials <service> <handle> <password> <account> */
-static int cmd_revoke_account_credentials(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *account = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_status s = wf_agent_revoke_account_credentials(agent, account);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: revokeAccountCredentials failed (status %d)\n",
-                (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-    printf("revoked credentials for %s\n", account);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram list <service> <list-uri> [limit] */
-static int cmd_list(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *list_uri = argv[2];
-    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_list(agent, list_uri, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram lists <service> <actor> [limit] */
-static int cmd_lists(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *actor = argv[2];
-    int limit = (argc >= 4) ? atoi(argv[3]) : 50;
-
-    wf_agent *agent = wf_agent_new(service);
-    if (!agent) {
-        fprintf(stderr, "error: failed to create agent\n");
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_lists(agent, actor, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram get-record <service> <handle> <password> <collection> <rkey> */
-static int cmd_get_record(int argc, char **argv) {
-    if (argc < 6) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *collection = argv[4];
-    const char *rkey = argv[5];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) {
-        return 1;
-    }
-
-    wf_response res = {0};
-    wf_status s = wf_agent_get_record(agent, collection, rkey, &res);
-    return finish_agent_response(agent, s, &res);
-}
-
-/* wolfram video upload <service> <handle> <password> <file.mp4>
- * wolfram video status <service> <handle> <password> <job-id> */
-static int cmd_video(int argc, char **argv) {
-    if (argc < 3) {
-        usage_stream(stderr);
-        return 0;
-    }
-
-    const char *sub = argv[1];
-    if (strcmp(sub, "upload") == 0) {
-        if (argc < 6) {
-            usage_stream(stderr);
-            return 0;
-        }
-        const char *service = argv[2];
-        const char *handle = argv[3];
-        const char *password = argv[4];
-        const char *path = argv[5];
-
-        FILE *f = fopen(path, "rb");
-        if (!f) {
-            fprintf(stderr, "error: cannot open '%s'\n", path);
-            return 1;
-        }
-        if (fseek(f, 0, SEEK_END) != 0) {
-            fclose(f);
-            fprintf(stderr, "error: cannot seek '%s'\n", path);
-            return 1;
-        }
-        long size = ftell(f);
-        if (size < 0) {
-            fclose(f);
-            fprintf(stderr, "error: cannot stat '%s'\n", path);
-            return 1;
-        }
-        rewind(f);
-        void *buf = malloc((size_t)size > 0 ? (size_t)size : 1);
-        if (!buf) {
-            fclose(f);
-            fprintf(stderr, "error: out of memory\n");
-            return 1;
-        }
-        if (fread(buf, 1, (size_t)size, f) != (size_t)size) {
-            fclose(f);
-            free(buf);
-            fprintf(stderr, "error: failed to read '%s'\n", path);
-            return 1;
-        }
-        fclose(f);
-
-        wf_agent *agent = agent_login_or_err(service, handle, password);
-        if (!agent) {
-            free(buf);
-            return 1;
-        }
-
-        wf_uploaded_blob blob = {0};
-        wf_status s =
-            wf_agent_upload_video(agent, buf, (size_t)size, "video/mp4", &blob);
-        free(buf);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: video upload failed (status %d)\n", (int)s);
-            wf_agent_free(agent);
-            return 1;
-        }
-
-        printf("uploaded: cid=%s mime=%s size=%zu\n", blob.cid ? blob.cid : "?",
-               blob.mime_type ? blob.mime_type : "?", blob.size);
-        wf_uploaded_blob_free(&blob);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    if (strcmp(sub, "status") == 0) {
-        if (argc < 6) {
-            usage_stream(stderr);
-            return 0;
-        }
-        const char *service = argv[2];
-        const char *handle = argv[3];
-        const char *password = argv[4];
-        const char *job_id = argv[5];
-
-        wf_agent *agent = agent_login_or_err(service, handle, password);
-        if (!agent) {
-            return 1;
-        }
-
-        wf_response res = {0};
-        wf_status s = wf_agent_get_video_job_status(agent, job_id, &res);
-        return finish_agent_response(agent, s, &res);
-    }
-
-    fprintf(stderr,
-            "error: unknown video subcommand '%s' (try 'upload' or 'status')\n",
-            sub);
-    return 1;
-}
-
-/* wolfram block <service> <handle> <password> <actor> */
-static int cmd_block(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *actor = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) return 1;
-
-    char *did = NULL;
-    wf_status s = resolve_actor_to_did(agent, actor, &did);
-    if (s != WF_OK || !did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_agent_post_result out = {0};
-    s = wf_agent_block(agent, did, &out);
-    free(did);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: block failed (status %d)\n", (int)s);
-        wf_agent_post_result_free(&out);
-        wf_agent_free(agent);
-        return 1;
-    }
-    printf("%s\n", out.uri ? out.uri : "(no uri returned)");
-    wf_agent_post_result_free(&out);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram unblock <service> <handle> <password> <actor> */
-static int cmd_unblock(int argc, char **argv) {
-    if (argc < 5) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *service = argv[1];
-    const char *handle = argv[2];
-    const char *password = argv[3];
-    const char *actor = argv[4];
-
-    wf_agent *agent = agent_login_or_err(service, handle, password);
-    if (!agent) return 1;
-
-    char *did = NULL;
-    wf_status s = resolve_actor_to_did(agent, actor, &did);
-    if (s != WF_OK || !did) {
-        fprintf(stderr, "error: could not resolve actor '%s' (status %d)\n",
-                actor, (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    wf_response res = {0};
-    s = wf_agent_get_blocks(agent, 100, NULL, &res);
-    if (s != WF_OK && s != WF_ERR_HTTP) {
-        fprintf(stderr, "error: getBlocks failed (status %d)\n", (int)s);
-        wf_response_free(&res);
-        free(did);
-        wf_agent_free(agent);
-        return 1;
-    }
-
-    char *block_uri = NULL;
-    if (res.body) {
-        cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-        if (root) {
-            cJSON *blocks = cJSON_GetObjectItemCaseSensitive(root, "blocks");
-            if (cJSON_IsArray(blocks)) {
-                for (int i = 0; i < cJSON_GetArraySize(blocks); ++i) {
-                    cJSON *b = cJSON_GetArrayItem(blocks, i);
-                    cJSON *subj =
-                        cJSON_GetObjectItemCaseSensitive(b, "subject");
-                    cJSON *sdid =
-                        subj ? cJSON_GetObjectItemCaseSensitive(subj, "did")
-                             : NULL;
-                    cJSON *uri = cJSON_GetObjectItemCaseSensitive(b, "uri");
-                    if (cJSON_IsString(sdid) && cJSON_IsString(uri) &&
-                        strcmp(sdid->valuestring, did) == 0) {
-                        block_uri = strdup(uri->valuestring);
-                        break;
-                    }
-                }
-            }
-            cJSON_Delete(root);
-        }
-    }
-    wf_response_free(&res);
-    free(did);
-
-    if (!block_uri) {
-        printf("(not currently blocking %s)\n", actor);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    s = wf_agent_unblock(agent, block_uri);
-    free(block_uri);
-    if (s != WF_OK) {
-        fprintf(stderr, "error: unblock failed (status %d)\n", (int)s);
-        wf_agent_free(agent);
-        return 1;
-    }
-    printf("unblocked %s\n", actor);
-    wf_agent_free(agent);
-    return 0;
-}
-
-/* wolfram repo <sub> ...  (put-record / delete-record / list-records /
- * describe) */
-static int cmd_repo(int argc, char **argv) {
-    if (argc < 2) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *sub = argv[1];
-
-    /* wolfram repo put-record <service> <handle> <password> --collection <nsid>
-     *   --rkey <rkey> --json <record|file> */
-    if (strcmp(sub, "put-record") == 0) {
-        const char *collection = NULL, *rkey = NULL, *json = NULL;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--collection") == 0 && i + 1 < argc)
-                collection = argv[++i];
-            else if (strcmp(argv[i], "--rkey") == 0 && i + 1 < argc)
-                rkey = argv[++i];
-            else if (strcmp(argv[i], "--json") == 0 && i + 1 < argc)
-                json = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !collection || !rkey || !json) {
-            fprintf(stderr,
-                    "error: usage: wolfram repo put-record <service> "
-                    "<handle> <password> --collection <nsid> --rkey <rkey> "
-                    "--json <record|file>\n");
-            return 1;
-        }
-        const char *record_json = json;
-        char *file_buf = NULL;
-        if (json[0] != '{') {
-            file_buf = read_text_file(json);
-            if (!file_buf) {
-                fprintf(stderr, "error: cannot read record file '%s'\n", json);
-                return 1;
-            }
-            record_json = file_buf;
-        }
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) {
-            free(file_buf);
-            return 1;
-        }
-        wf_session_data sd = {0};
-        wf_agent_get_session_data(agent, &sd);
-        const char *repo = sd.did ? sd.did : pos[1];
-        wf_repo_write_record_result out = {0};
-        wf_status s = wf_agent_put_record_typed(
-            agent, repo, collection, rkey, -1, record_json, NULL, NULL, &out);
-        free(file_buf);
-        wf_agent_session_data_free(&sd);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: putRecord failed (status %d)\n", (int)s);
-            wf_repo_write_record_result_free(&out);
-            wf_agent_free(agent);
-            return 1;
-        }
-        printf("%s\n", out.uri ? out.uri : "(no uri returned)");
-        wf_repo_write_record_result_free(&out);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    /* wolfram repo delete-record <service> <handle> <password> --collection
-     * <nsid>
-     *   --rkey <rkey> */
-    if (strcmp(sub, "delete-record") == 0) {
-        const char *collection = NULL, *rkey = NULL;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--collection") == 0 && i + 1 < argc)
-                collection = argv[++i];
-            else if (strcmp(argv[i], "--rkey") == 0 && i + 1 < argc)
-                rkey = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !collection || !rkey) {
-            fprintf(stderr,
-                    "error: usage: wolfram repo delete-record <service> "
-                    "<handle> <password> --collection <nsid> --rkey <rkey>\n");
-            return 1;
-        }
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-        wf_session_data sd = {0};
-        wf_agent_get_session_data(agent, &sd);
-        const char *repo = sd.did ? sd.did : pos[1];
-        wf_status s = wf_agent_delete_record_typed(agent, repo, collection,
-                                                   rkey, NULL, NULL);
-        wf_agent_session_data_free(&sd);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: deleteRecord failed (status %d)\n", (int)s);
-            wf_agent_free(agent);
-            return 1;
-        }
-        printf("deleted %s/%s/%s\n", repo, collection, rkey);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    /* wolfram repo list-records <service> <handle> <password> --collection
-     * <nsid>
-     *   [--limit N] [--cursor C] */
-    if (strcmp(sub, "list-records") == 0) {
-        const char *collection = NULL, *cursor = NULL;
-        int limit = 50;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--collection") == 0 && i + 1 < argc)
-                collection = argv[++i];
-            else if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc)
-                limit = atoi(argv[++i]);
-            else if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc)
-                cursor = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !collection) {
-            fprintf(stderr,
-                    "error: usage: wolfram repo list-records <service> "
-                    "<handle> <password> --collection <nsid> [--limit N] "
-                    "[--cursor C]\n");
-            return 1;
-        }
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-        wf_session_data sd = {0};
-        wf_agent_get_session_data(agent, &sd);
-        const char *repo = sd.did ? sd.did : pos[1];
-        if (g_json) {
-            wf_response res = {0};
-            wf_status s =
-                wf_agent_list_records(agent, collection, limit, cursor, &res);
-            wf_agent_session_data_free(&sd);
-            return finish_agent_response(agent, s, &res);
-        }
-        wf_repo_record_list list = {0};
-        wf_status s = wf_agent_list_records_typed(agent, repo, collection,
-                                                  limit, cursor, 0, &list);
-        wf_agent_session_data_free(&sd);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: listRecords failed (status %d)\n", (int)s);
-            wf_repo_record_list_free(&list);
-            wf_agent_free(agent);
-            return 1;
-        }
-        for (size_t i = 0; i < list.count; ++i) {
-            const wf_repo_record *r = &list.items[i];
-            printf("%s (cid=%s)\n", r->uri ? r->uri : "?",
-                   r->has_cid && r->cid ? r->cid : "?");
-        }
-        if (list.cursor) printf("cursor: %s\n", list.cursor);
-        if (list.count == 0) printf("(no records)\n");
-        wf_repo_record_list_free(&list);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    /* wolfram repo describe <service> <handle> <password> --repo
-     * <did-or-handle> */
-    if (strcmp(sub, "describe") == 0) {
-        const char *repo = NULL;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--repo") == 0 && i + 1 < argc)
-                repo = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !repo) {
-            fprintf(stderr, "error: usage: wolfram repo describe <service> "
-                            "<handle> <password> --repo <did-or-handle>\n");
-            return 1;
-        }
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-        if (g_json) {
-            wf_response res = {0};
-            wf_status s = wf_agent_describe_repo(agent, repo, &res);
-            return finish_agent_response(agent, s, &res);
-        }
-        wf_repo_description desc = {0};
-        wf_status s = wf_agent_describe_repo_typed(agent, repo, &desc);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: describeRepo failed (status %d)\n", (int)s);
-            wf_repo_description_free(&desc);
-            wf_agent_free(agent);
-            return 1;
-        }
-        printf("handle: %s\n", desc.handle ? desc.handle : "?");
-        printf("did: %s\n", desc.did ? desc.did : "?");
-        printf("handleIsCorrect: %d\n", desc.handle_is_correct);
-        printf("collections (%zu):\n", desc.collection_count);
-        for (size_t i = 0; i < desc.collection_count; ++i) {
-            printf("  %s\n", desc.collections[i] ? desc.collections[i] : "?");
-        }
-        wf_repo_description_free(&desc);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    fprintf(stderr,
-            "error: unknown repo subcommand '%s' "
-            "(try put-record/delete-record/list-records/describe)\n",
-            sub);
-    return 1;
-}
-
-/* wolfram feed <sub> ...  (get / author) */
-static int cmd_feed(int argc, char **argv) {
-    if (argc < 2) {
-        usage_stream(stderr);
-        return 0;
-    }
-    const char *sub = argv[1];
-
-    /* wolfram feed get <service> <handle> <password> --feed <generator-uri>
-     *   [--limit N] [--cursor C] */
-    if (strcmp(sub, "get") == 0) {
-        const char *feed = NULL, *cursor = NULL;
-        int limit = 50;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--feed") == 0 && i + 1 < argc)
-                feed = argv[++i];
-            else if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc)
-                limit = atoi(argv[++i]);
-            else if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc)
-                cursor = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !feed) {
-            fprintf(
-                stderr,
-                "error: usage: wolfram feed get <service> <handle> "
-                "<password> --feed <generator-uri> [--limit N] [--cursor C]\n");
-            return 1;
-        }
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-        if (g_json) {
-            wf_response res = {0};
-            wf_status s = wf_agent_get_feed(agent, feed, limit, cursor, &res);
-            return finish_agent_response(agent, s, &res);
-        }
-        wf_agent_feed_view_list list = {0};
-        wf_status s =
-            wf_agent_get_feed_typed(agent, feed, limit, cursor, &list);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: getFeed failed (status %d)\n", (int)s);
-            wf_agent_feed_view_list_free(&list);
-            wf_agent_free(agent);
-            return 1;
-        }
-        for (size_t i = 0; i < list.item_count; ++i) {
-            const wf_agent_post_view *post = &list.items[i].post;
-            const char *author =
-                post->author.handle
-                    ? post->author.handle
-                    : (post->author.did ? post->author.did : "?");
-            const char *text = "";
-            if (post->record) {
-                cJSON *t =
-                    cJSON_GetObjectItemCaseSensitive(post->record, "text");
-                if (cJSON_IsString(t) && t->valuestring) text = t->valuestring;
-            }
-            printf("%s: %s\n", author, text);
-        }
-        if (list.cursor) printf("cursor: %s\n", list.cursor);
-        if (list.item_count == 0) printf("(empty feed)\n");
-        wf_agent_feed_view_list_free(&list);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    /* wolfram feed author <service> <handle> <password> --actor <handle-or-did>
-     *   [--limit N] [--cursor C] */
-    if (strcmp(sub, "author") == 0) {
-        const char *actor = NULL, *cursor = NULL;
-        int limit = 50;
-        const char *pos[3];
-        int pi = 0;
-        for (int i = 2; i < argc; ++i) {
-            if (strcmp(argv[i], "--actor") == 0 && i + 1 < argc)
-                actor = argv[++i];
-            else if (strcmp(argv[i], "--limit") == 0 && i + 1 < argc)
-                limit = atoi(argv[++i]);
-            else if (strcmp(argv[i], "--cursor") == 0 && i + 1 < argc)
-                cursor = argv[++i];
-            else if (pi < 3)
-                pos[pi++] = argv[i];
-        }
-        if (pi < 3 || !actor) {
-            fprintf(stderr,
-                    "error: usage: wolfram feed author <service> <handle> "
-                    "<password> --actor <handle-or-did> [--limit N] [--cursor "
-                    "C]\n");
-            return 1;
-        }
-        wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
-        if (!agent) return 1;
-        if (g_json) {
-            wf_response res = {0};
-            wf_status s = wf_agent_get_author_feed(agent, actor, limit, cursor,
-                                                   NULL, false, &res);
-            return finish_agent_response(agent, s, &res);
-        }
-        wf_agent_feed_list list = {0};
-        wf_status s = wf_agent_get_author_feed_typed(agent, actor, limit,
-                                                     cursor, NULL, &list);
-        if (s != WF_OK) {
-            fprintf(stderr, "error: getAuthorFeed failed (status %d)\n",
-                    (int)s);
-            wf_agent_feed_list_free(&list);
-            wf_agent_free(agent);
-            return 1;
-        }
-        for (size_t i = 0; i < list.item_count; ++i) {
-            const wf_agent_post_view *post = &list.items[i].post;
-            const char *author =
-                post->author.handle
-                    ? post->author.handle
-                    : (post->author.did ? post->author.did : "?");
-            const char *text = "";
-            if (post->record) {
-                cJSON *t =
-                    cJSON_GetObjectItemCaseSensitive(post->record, "text");
-                if (cJSON_IsString(t) && t->valuestring) text = t->valuestring;
-            }
-            printf("%s: %s\n", author, text);
-        }
-        if (list.cursor) printf("cursor: %s\n", list.cursor);
-        if (list.item_count == 0) printf("(empty feed)\n");
-        wf_agent_feed_list_free(&list);
-        wf_agent_free(agent);
-        return 0;
-    }
-
-    fprintf(stderr, "error: unknown feed subcommand '%s' (try get/author)\n",
-            sub);
-    return 1;
-}
-
 /* ----------------------------------------------------------------- */
-/* Dispatch                                                          */
+/* Subcommands                                                       */
 /* ----------------------------------------------------------------- */
 
 int main(int argc, char **argv) {
@@ -2794,6 +769,9 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "moderation") == 0) {
         return cmd_moderation(rest, cargv);
     }
+    if (strcmp(cmd, "ozone") == 0) {
+        return cmd_ozone(rest, cargv);
+    }
     if (strcmp(cmd, "follows") == 0) {
         return cmd_follows(rest, cargv);
     }
@@ -2838,6 +816,211 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "feed") == 0) {
         return cmd_feed(rest, cargv);
+    }
+
+    /* --- Feed & discovery --- */
+    if (strcmp(cmd, "get-likes") == 0) {
+        return cmd_get_likes(rest, cargv);
+    }
+    if (strcmp(cmd, "get-reposted-by") == 0) {
+        return cmd_get_reposted_by(rest, cargv);
+    }
+    if (strcmp(cmd, "get-quotes") == 0) {
+        return cmd_get_quotes(rest, cargv);
+    }
+    if (strcmp(cmd, "get-actor-likes") == 0) {
+        return cmd_get_actor_likes(rest, cargv);
+    }
+    if (strcmp(cmd, "get-actor-feeds") == 0) {
+        return cmd_get_actor_feeds(rest, cargv);
+    }
+    if (strcmp(cmd, "describe-feed") == 0) {
+        return cmd_describe_feed(rest, cargv);
+    }
+    if (strcmp(cmd, "get-suggested-feeds") == 0) {
+        return cmd_get_suggested_feeds(rest, cargv);
+    }
+    if (strcmp(cmd, "get-suggestions") == 0) {
+        return cmd_get_suggestions(rest, cargv);
+    }
+    if (strcmp(cmd, "known-followers") == 0) {
+        return cmd_known_followers(rest, cargv);
+    }
+    if (strcmp(cmd, "relationships") == 0) {
+        return cmd_relationships(rest, cargv);
+    }
+    if (strcmp(cmd, "get-profiles") == 0) {
+        return cmd_get_profiles(rest, cargv);
+    }
+    if (strcmp(cmd, "unread-count") == 0) {
+        return cmd_unread_count(rest, cargv);
+    }
+
+    /* --- Graph & list operations --- */
+    if (strcmp(cmd, "mute-list") == 0) {
+        return cmd_mute_list(rest, cargv);
+    }
+    if (strcmp(cmd, "unmute-list") == 0) {
+        return cmd_unmute_list(rest, cargv);
+    }
+    if (strcmp(cmd, "block-list") == 0) {
+        return cmd_block_list(rest, cargv);
+    }
+    if (strcmp(cmd, "unblock-list") == 0) {
+        return cmd_unblock_list(rest, cargv);
+    }
+    if (strcmp(cmd, "mute-thread") == 0) {
+        return cmd_mute_thread(rest, cargv);
+    }
+    if (strcmp(cmd, "unmute-thread") == 0) {
+        return cmd_unmute_thread(rest, cargv);
+    }
+    if (strcmp(cmd, "get-list-blocks") == 0) {
+        return cmd_get_list_blocks(rest, cargv);
+    }
+    if (strcmp(cmd, "get-list-mutes") == 0) {
+        return cmd_get_list_mutes(rest, cargv);
+    }
+    if (strcmp(cmd, "get-suggested-follows") == 0) {
+        return cmd_get_suggested_follows(rest, cargv);
+    }
+    if (strcmp(cmd, "starter-pack") == 0) {
+        return cmd_starter_pack(rest, cargv);
+    }
+
+    /* --- Server & account --- */
+    if (strcmp(cmd, "create-account") == 0) {
+        return cmd_create_account(rest, cargv);
+    }
+    if (strcmp(cmd, "app-password") == 0) {
+        return cmd_app_password(rest, cargv);
+    }
+    if (strcmp(cmd, "invite-codes") == 0) {
+        return cmd_invite_codes(rest, cargv);
+    }
+    if (strcmp(cmd, "activate") == 0) {
+        return cmd_activate(rest, cargv);
+    }
+    if (strcmp(cmd, "deactivate") == 0) {
+        return cmd_deactivate(rest, cargv);
+    }
+    if (strcmp(cmd, "check-status") == 0) {
+        return cmd_check_status(rest, cargv);
+    }
+    if (strcmp(cmd, "email") == 0) {
+        return cmd_email(rest, cargv);
+    }
+    if (strcmp(cmd, "password-reset") == 0) {
+        return cmd_password_reset(rest, cargv);
+    }
+    if (strcmp(cmd, "reserve-signing-key") == 0) {
+        return cmd_reserve_signing_key(rest, cargv);
+    }
+    if (strcmp(cmd, "get-service-auth") == 0) {
+        return cmd_get_service_auth(rest, cargv);
+    }
+    if (strcmp(cmd, "request-account-delete") == 0) {
+        return cmd_request_account_delete(rest, cargv);
+    }
+    if (strcmp(cmd, "request-email-update") == 0) {
+        return cmd_request_email_update(rest, cargv);
+    }
+    if (strcmp(cmd, "request-email-confirmation") == 0) {
+        return cmd_request_email_confirmation(rest, cargv);
+    }
+
+    /* --- Identity --- */
+    if (strcmp(cmd, "resolve-did") == 0) {
+        return cmd_resolve_did(rest, cargv);
+    }
+    if (strcmp(cmd, "check-handle") == 0) {
+        return cmd_check_handle(rest, cargv);
+    }
+    if (strcmp(cmd, "get-recommended-did-credentials") == 0) {
+        return cmd_get_recommended_did_credentials(rest, cargv);
+    }
+    if (strcmp(cmd, "rotate-handle") == 0) {
+        return cmd_rotate_handle(rest, cargv);
+    }
+    if (strcmp(cmd, "plc") == 0) {
+        return cmd_plc(rest, cargv);
+    }
+
+    /* --- Sync & blob --- */
+    if (strcmp(cmd, "sync") == 0) {
+        if (rest >= 2) {
+            const char *sub = cargv[1];
+            if (strcmp(sub, "get-blob") == 0)
+                return cmd_sync_get_blob(rest - 1, cargv + 1);
+            if (strcmp(sub, "get-blocks") == 0)
+                return cmd_sync_get_blocks(rest - 1, cargv + 1);
+            if (strcmp(sub, "get-record") == 0)
+                return cmd_sync_get_record(rest - 1, cargv + 1);
+            if (strcmp(sub, "list-blobs") == 0)
+                return cmd_sync_list_blobs(rest - 1, cargv + 1);
+            if (strcmp(sub, "subscribe") == 0)
+                return cmd_sync_subscribe(rest - 1, cargv + 1);
+        }
+        fprintf(stderr, "error: unknown sync subcommand\n");
+        usage_stream(stderr);
+        return 0;
+    }
+    if (strcmp(cmd, "import-repo") == 0) {
+        return cmd_import_repo(rest, cargv);
+    }
+    if (strcmp(cmd, "list-missing-blobs") == 0) {
+        return cmd_list_missing_blobs(rest, cargv);
+    }
+
+    /* --- Preferences & push --- */
+    if (strcmp(cmd, "preferences") == 0) {
+        return cmd_preferences(rest, cargv);
+    }
+    if (strcmp(cmd, "register-push") == 0) {
+        return cmd_register_push(rest, cargv);
+    }
+    if (strcmp(cmd, "unregister-push") == 0) {
+        return cmd_unregister_push(rest, cargv);
+    }
+    if (strcmp(cmd, "update-profile") == 0) {
+        return cmd_update_profile(rest, cargv);
+    }
+    if (strcmp(cmd, "put-actor-status") == 0) {
+        return cmd_put_actor_status(rest, cargv);
+    }
+    if (strcmp(cmd, "upload-blob") == 0) {
+        return cmd_upload_blob(rest, cargv);
+    }
+    if (strcmp(cmd, "apply-writes") == 0) {
+        return cmd_apply_writes(rest, cargv);
+    }
+    if (strcmp(cmd, "send-interactions") == 0) {
+        return cmd_send_interactions(rest, cargv);
+    }
+
+    /* --- Chat --- */
+    if (strcmp(cmd, "convos") == 0) {
+        return cmd_convos(rest, cargv);
+    }
+    if (strcmp(cmd, "messages") == 0) {
+        return cmd_messages(rest, cargv);
+    }
+    if (strcmp(cmd, "chat") == 0) {
+        return cmd_chat(rest, cargv);
+    }
+    if (strcmp(cmd, "groups") == 0) {
+        return cmd_groups(rest, cargv);
+    }
+    if (strcmp(cmd, "reactions") == 0) {
+        return cmd_reactions(rest, cargv);
+    }
+
+    /* --- Sync/Jetstream/Firehose --- */
+    if (strcmp(cmd, "jetstream") == 0) {
+        return cmd_jetstream(rest, cargv);
+    }
+    if (strcmp(cmd, "firehose") == 0) {
+        return cmd_firehose(rest, cargv);
     }
 
     fprintf(stderr, "error: unknown command '%s'\n\n", cmd);
