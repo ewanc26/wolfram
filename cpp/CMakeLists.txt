@@ -33,12 +33,20 @@ file(
 # Create directory for generated file if needed
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfram-cpp/wolfram)
 
+find_program(CLANG_FORMAT_PROGRAM NAMES clang-format clang-format-18)
+
+if(CLANG_FORMAT_PROGRAM)
+  set(GEN_OWNERS_FORMAT_COMMAND
+      COMMAND ${CLANG_FORMAT_PROGRAM} -i -style=file ${GEN_OWNERS_OUTPUT})
+endif()
+
 add_custom_command(
   OUTPUT ${GEN_OWNERS_OUTPUT}
   COMMAND gen_owners_tool ${CMAKE_SOURCE_DIR}/include/wolfram
           ${GEN_OWNERS_OUTPUT}
+  ${GEN_OWNERS_FORMAT_COMMAND}
   DEPENDS ${WOLFRAM_PUBLIC_HEADERS} gen_owners_tool
-  COMMENT "Regenerating wolfram-cpp owned handles from C headers"
+  COMMENT "Regenerating and formatting wolfram-cpp owned handles"
   VERBATIM)
 
 add_custom_target(wolfram_gen_owners ALL DEPENDS ${GEN_OWNERS_OUTPUT})
