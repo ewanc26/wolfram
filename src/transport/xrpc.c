@@ -1034,7 +1034,18 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
             return WF_ERR_ALLOC;
         }
     }
-    if (cfg->auth_header) {
+    /* If the caller supplied an Authorization header explicitly (e.g. admin
+     * Basic auth overriding a cached Bearer token), skip the client's own
+     * auth_header to avoid sending two Authorization headers, which would
+     * cause the server to use whichever MHD returns first. */
+    bool has_explicit_auth = false;
+    for (i = 0; i < extra_count; i++) {
+        if (extra[i].name && strcmp(extra[i].name, "Authorization") == 0) {
+            has_explicit_auth = true;
+            break;
+        }
+    }
+    if (cfg->auth_header && !has_explicit_auth) {
         headers = curl_slist_append(headers, cfg->auth_header);
         if (!headers) {
             curl_slist_free_all(headers);
