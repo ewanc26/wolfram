@@ -326,6 +326,58 @@ typedef wf_status (*wf_xrpc_handler_fn)(void *userdata, const char *method,
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
                          void *userdata);
 
+/**
+ * An in-flight asynchronous XRPC request. Created by wf_xrpc_query_async or
+ * wf_xrpc_procedure_async; the caller owns the handle and must release it with
+ * wf_xrpc_pending_free. The underlying request runs on a worker thread.
+ */
+typedef struct wf_xrpc_pending wf_xrpc_pending;
+
+/**
+ * Issue an XRPC query asynchronously. Returns WF_OK and sets `*out` to a
+ * pending handle on success. The handle is owned by the caller; free with
+ * wf_xrpc_pending_free. Safe to call from any thread; the client takes a
+ * config snapshot so concurrent setter calls do not affect an in-flight
+ * request.
+ */
+wf_status wf_xrpc_query_async(wf_xrpc_client *client, const char *nsid,
+                              const char *query_string, wf_xrpc_pending **out);
+
+/**
+ * Issue an XRPC procedure asynchronously. `json_body` is sent verbatim as
+ * the request body with Content-Type `application/json`. See
+ * wf_xrpc_query_async for ownership and threading semantics.
+ */
+wf_status wf_xrpc_procedure_async(wf_xrpc_client *client, const char *nsid,
+                                  const char *json_body, wf_xrpc_pending **out);
+
+/**
+ * Block until the pending request completes (or is cancelled). Returns the
+ * request's final wf_status. Safe to call from any thread.
+ */
+wf_status wf_xrpc_pending_wait(wf_xrpc_pending *p);
+
+/**
+ * Retrieve the completed response from a pending handle. Moves ownership of
+ * `out` to the caller (must be freed with wf_response_free). Returns
+ * WF_ERR_WOULD_BLOCK if the request has not completed yet.
+ */
+wf_status wf_xrpc_pending_result(wf_xrpc_pending *p, wf_response *out);
+
+/**
+ * Request cancellation of a pending handle. The worker checks the flag
+ * before performing network I/O; if it has not started yet the handle is
+ * marked done immediately. Safe to call from any thread.
+ */
+void wf_xrpc_pending_cancel(wf_xrpc_pending *p);
+
+/**
+ * Free a pending handle. If the worker is still running, blocks until it
+ * finishes. Unlinks the handle from the client's pending list. Safe to call
+ * with NULL.
+ */
+void wf_xrpc_pending_free(wf_xrpc_pending *p);
+
 #ifdef __cplusplus
 }
 #endif

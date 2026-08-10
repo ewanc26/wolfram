@@ -11,12 +11,17 @@
 #include <cJSON.h>
 #include <curl/curl.h>
 #include <ctype.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "wolfram/log.h"
+
+#if !defined(WOLFRAM_CURL_MBEDTLS) && defined(WOLFRAM_WIIU)
+#define WOLFRAM_CURL_MBEDTLS 1
+#endif
 
 /*
  * The application TLS RNG hook (wf_xrpc_client_set_tls_rng) reaches into
@@ -45,6 +50,96 @@ struct wf_xrpc_client {
     wf_tls_rng_fn tls_rng; /* NULL unless the application supplied one */
     void *tls_rng_userdata;
     char *last_error; /* XRPC error message from the last non-2xx response */
+    pthread_mutex_t mutex;           /* guards all mutable fields above */
+    struct wf_xrpc_pending *pending; /* linked list of in-flight async ops */
+};
+
+/* A point-in-time snapshot of the client's transport config. Workers
+ * operate on a snapshot so that wf_xrpc_client_set_auth (or other setters)
+ * called from another thread cannot tear down strings mid-request. The
+ * snapshot strings are heap-owned copies; free with wf_config_free. */
+struct wf_client_config {
+    char *base_url;
+    char *auth_header;
+    char *ca_bundle;
+    wf_xrpc_handler_fn handler;
+    void *handler_userdata;
+    wf_tls_rng_fn tls_rng;
+    void *tls_rng_userdata;
+};
+
+static void wf_config_free(struct wf_client_config *cfg);
+static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client);
+
+/* ── One-time libcurl initialization ────────────────────────────────── */
+
+static pthread_once_t curl_once = PTHREAD_ONCE_INIT;
+
+static void wf_curl_global_init(void) {
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+}
+
+static void wf_curl_ensure_init(void) {
+    pthread_once(&curl_once, wf_curl_global_init);
+}
+
+/* ── Config snapshot ────────────────────────────────────────────────── */
+
+static void wf_config_free(struct wf_client_config *cfg) {
+    if (!cfg) return;
+    free(cfg->base_url);
+    free(cfg->auth_header);
+    free(cfg->ca_bundle);
+    free(cfg);
+}
+
+/* Take a point-in-time snapshot of the client's transport config. The
+ * caller owns the result and must free it with wf_config_free. Returns NULL
+ * on allocation failure. Safe to call from any thread. */
+static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
+    if (!client) return NULL;
+    struct wf_client_config *cfg =
+        (struct wf_client_config *)calloc(1, sizeof(*cfg));
+    if (!cfg) return NULL;
+    pthread_mutex_lock(&client->mutex);
+    cfg->base_url = client->base_url ? strdup(client->base_url) : NULL;
+    cfg->auth_header = client->auth_header ? strdup(client->auth_header) : NULL;
+    cfg->ca_bundle = client->ca_bundle ? strdup(client->ca_bundle) : NULL;
+    cfg->handler = client->handler;
+    cfg->handler_userdata = client->handler_userdata;
+    cfg->tls_rng = client->tls_rng;
+    cfg->tls_rng_userdata = client->tls_rng_userdata;
+    pthread_mutex_unlock(&client->mutex);
+    if ((!cfg->base_url && client->base_url) ||
+        (!cfg->auth_header && client->auth_header) ||
+        (!cfg->ca_bundle && client->ca_bundle)) {
+        wf_config_free(cfg);
+        return NULL;
+    }
+    return cfg;
+}
+
+/* ── Async pending handle ───────────────────────────────────────────── */
+
+struct wf_xrpc_pending {
+    wf_xrpc_client *client; /* borrowed for unlink on free; NULL if gone */
+    struct wf_client_config *config; /* snapshot, owned */
+    char *nsid;                      /* strdup'd, owned */
+    char *query_string;              /* strdup'd for query, owned */
+    char *body;                      /* malloc'd copy for procedure, owned */
+    size_t body_len;
+    char *content_type; /* strdup'd, owned */
+    int is_post;
+    wf_response result; /* response (valid after completion) */
+    char *error_msg;    /* reserved */
+    wf_status status;   /* final status */
+    pthread_t thread;   /* worker thread (if started) */
+    bool started;
+    bool done;
+    bool cancelled;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    struct wf_xrpc_pending *next; /* owned by client->pending list */
 };
 
 /* ── Application TLS RNG ─────────────────────────────────────────────── */
@@ -65,14 +160,14 @@ int wf_xrpc_tls_rng_supported(void) {
  * mbedtls_ssl_conf_rng() call and before mbedtls_ssl_setup(), so installing
  * ours here replaces curl's DRBG for the whole handshake.
  */
-static CURLcode wf_tls_ctx_cb(CURL *curl, void *ssl_ctx, void *userdata) {
-    wf_xrpc_client *client = (wf_xrpc_client *)userdata;
+static CURLcode wf_tls_ctx_cb_cfg(CURL *curl, void *ssl_ctx, void *userdata) {
+    struct wf_client_config *cfg = (struct wf_client_config *)userdata;
     (void)curl;
 
-    if (!client || !client->tls_rng || !ssl_ctx) return CURLE_OK;
+    if (!cfg || !cfg->tls_rng || !ssl_ctx) return CURLE_OK;
 
-    mbedtls_ssl_conf_rng((mbedtls_ssl_config *)ssl_ctx, client->tls_rng,
-                         client->tls_rng_userdata);
+    mbedtls_ssl_conf_rng((mbedtls_ssl_config *)ssl_ctx, cfg->tls_rng,
+                         cfg->tls_rng_userdata);
     return CURLE_OK;
 }
 #endif
@@ -81,15 +176,18 @@ wf_status wf_xrpc_client_set_tls_rng(wf_xrpc_client *client, wf_tls_rng_fn fn,
                                      void *userdata) {
     if (!client) return WF_ERR_INVALID_ARG;
 
+    pthread_mutex_lock(&client->mutex);
     /* Clearing is always allowed: it restores libcurl's own RNG, which every
      * build can do. */
     if (!fn) {
         client->tls_rng = NULL;
         client->tls_rng_userdata = NULL;
+        pthread_mutex_unlock(&client->mutex);
         return WF_OK;
     }
 
     if (!wf_xrpc_tls_rng_supported()) {
+        pthread_mutex_unlock(&client->mutex);
         WF_LOG_WARN("xrpc", "application TLS RNG requested but unsupported in "
                             "this build; leaving libcurl's own RNG in place");
         return WF_ERR_UNSUPPORTED;
@@ -97,6 +195,7 @@ wf_status wf_xrpc_client_set_tls_rng(wf_xrpc_client *client, wf_tls_rng_fn fn,
 
     client->tls_rng = fn;
     client->tls_rng_userdata = userdata;
+    pthread_mutex_unlock(&client->mutex);
     return WF_OK;
 }
 
@@ -207,11 +306,29 @@ wf_xrpc_client *wf_xrpc_client_new(const char *service_base_url) {
     }
 
     client->auth_header = NULL;
+    if (pthread_mutex_init(&client->mutex, NULL) != 0) {
+        free(client->base_url);
+        free(client);
+        return NULL;
+    }
+    client->pending = NULL;
+    wf_curl_ensure_init();
     return client;
 }
 
 void wf_xrpc_client_free(wf_xrpc_client *client) {
     if (!client) return;
+    /* Detach all outstanding pending handles so their free() won't dereference
+     * a freed client when unlinking from the list. The worker threads use only
+     * their config snapshot and never touch the client, so they keep running
+     * safely; the caller still must call wf_xrpc_pending_free on each handle.
+     */
+    pthread_mutex_lock(&client->mutex);
+    for (struct wf_xrpc_pending *p = client->pending; p; p = p->next) {
+        p->client = NULL;
+    }
+    pthread_mutex_unlock(&client->mutex);
+    pthread_mutex_destroy(&client->mutex);
     free(client->base_url);
     free(client->auth_header);
     free(client->ca_bundle);
@@ -220,23 +337,41 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
 }
 
 const char *wf_xrpc_last_error(const wf_xrpc_client *client) {
-    return client ? client->last_error : NULL;
+    if (!client) return NULL;
+    pthread_mutex_lock(&((wf_xrpc_client *)client)->mutex);
+    const char *err = client->last_error;
+    const char *copy = err ? strdup(err) : NULL;
+    pthread_mutex_unlock(&((wf_xrpc_client *)client)->mutex);
+    /* Return a transient copy: the caller may not hold a client lock, and
+     * last_error can be overwritten by the next request. The caller must
+     * free the returned string — but to stay compatible with existing callers
+     * that treat the return as borrowed, return the live pointer under lock.
+     * Callers that need a stable copy should call this before any other
+     * request on the same client. */
+    free(copy);
+    return err;
 }
 
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
                          void *userdata) {
     if (!client) return;
+    pthread_mutex_lock(&client->mutex);
     client->handler = fn;
     client->handler_userdata = userdata;
+    pthread_mutex_unlock(&client->mutex);
 }
 
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     if (!client) return;
 
+    pthread_mutex_lock(&client->mutex);
     free(client->auth_header);
     client->auth_header = NULL;
 
-    if (!access_jwt) return;
+    if (!access_jwt) {
+        pthread_mutex_unlock(&client->mutex);
+        return;
+    }
 
     size_t needed = strlen("Authorization: Bearer ") + strlen(access_jwt) + 1;
     client->auth_header = malloc(needed);
@@ -244,17 +379,23 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
         snprintf(client->auth_header, needed, "Authorization: Bearer %s",
                  access_jwt);
     }
+    pthread_mutex_unlock(&client->mutex);
 }
 
 void wf_xrpc_client_set_ca_bundle(wf_xrpc_client *client, const char *path) {
     if (!client) return;
 
+    pthread_mutex_lock(&client->mutex);
     free(client->ca_bundle);
     client->ca_bundle = NULL;
 
-    if (!path) return;
+    if (!path) {
+        pthread_mutex_unlock(&client->mutex);
+        return;
+    }
 
     client->ca_bundle = strdup(path);
+    pthread_mutex_unlock(&client->mutex);
 }
 
 wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
@@ -266,16 +407,20 @@ wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
     char *normalised = wf_normalise_base(service_base_url);
     if (!normalised) return WF_ERR_ALLOC;
 
+    pthread_mutex_lock(&client->mutex);
     free(client->base_url);
     client->base_url = normalised;
+    pthread_mutex_unlock(&client->mutex);
     return WF_OK;
 }
 
 void wf_xrpc_client_set_refresh_handler(wf_xrpc_client *client,
                                         wf_xrpc_refresh_fn fn, void *userdata) {
     if (!client) return;
+    pthread_mutex_lock(&client->mutex);
     client->refresh_cb = fn;
     client->refresh_userdata = userdata;
+    pthread_mutex_unlock(&client->mutex);
 }
 
 /* Convert a curl header list into an array of wf_http_header (owned copies). */
@@ -322,24 +467,23 @@ static void wf_http_headers_free(wf_http_header *arr, size_t count) {
     free(arr);
 }
 
-/* Record the XRPC error envelope of a non-2xx response on the client so the
- * caller can surface the server's message. Prefers `message`, falls back to
- * the `error` code, and clears the field when the body has no envelope. */
-static void wf_xrpc_set_last_error(wf_xrpc_client *client,
-                                   const wf_response *out) {
-    if (!client || !out) return;
+/* Record the XRPC error envelope of a non-2xx response into `*slot`,
+ * replacing whatever was there. Prefers `message`, falls back to the `error`
+ * code, and clears the slot when the body has no envelope. */
+static void wf_xrpc_set_error_str(char **slot, const wf_response *out) {
+    if (!slot || !out) return;
     char *err = NULL, *msg = NULL;
     if (wf_xrpc_error(out, &err, &msg) != WF_OK) {
-        free(client->last_error);
-        client->last_error = NULL;
+        free(*slot);
+        *slot = NULL;
         return;
     }
     const char *chosen = (msg && *msg) ? msg : err;
     if (chosen && chosen[0]) {
         char *copy = strdup(chosen);
         if (copy) {
-            free(client->last_error);
-            client->last_error = copy;
+            free(*slot);
+            *slot = copy;
         }
     }
     free(err);
@@ -347,17 +491,18 @@ static void wf_xrpc_set_last_error(wf_xrpc_client *client,
 }
 
 /*
- * Single transport primitive shared by every request path. When a test handler
- * is installed it receives the fully-resolved request; otherwise the request is
- * issued over libcurl. Network I/O therefore remains isolated to this module.
+ * Single transport primitive shared by every request path. Takes a config
+ * snapshot so it can run without holding the client's mutex — the snapshot is
+ * valid for the lifetime of the call. Does not touch client state; callers
+ * are responsible for updating `last_error` under the client mutex if needed.
  */
-static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
-                                 const char *url, const char *content_type,
-                                 const void *body, size_t body_len,
-                                 struct curl_slist *headers, wf_response *out) {
-    free(client->last_error);
-    client->last_error = NULL;
-    if (client->handler) {
+static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
+                                     const char *method, const char *url,
+                                     const char *content_type, const void *body,
+                                     size_t body_len,
+                                     struct curl_slist *headers,
+                                     wf_response *out) {
+    if (cfg->handler) {
         wf_http_header *harr = NULL;
         size_t hcount = 0;
         if (headers) {
@@ -369,11 +514,10 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
         }
         memset(out, 0, sizeof(*out));
         wf_status status =
-            client->handler(client->handler_userdata, method, url, content_type,
-                            (const char *)body, body_len, harr, hcount, out);
+            cfg->handler(cfg->handler_userdata, method, url, content_type,
+                         (const char *)body, body_len, harr, hcount, out);
         wf_http_headers_free(harr, hcount);
         curl_slist_free_all(headers);
-        if (status == WF_ERR_HTTP) wf_xrpc_set_last_error(client, out);
         return status;
     }
 
@@ -392,13 +536,13 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
     curl_easy_setopt(curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
-    if (client->ca_bundle) {
-        curl_easy_setopt(curl, CURLOPT_CAINFO, client->ca_bundle);
+    if (cfg->ca_bundle) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, cfg->ca_bundle);
     }
 #if defined(WOLFRAM_CURL_MBEDTLS)
-    if (client->tls_rng) {
-        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, wf_tls_ctx_cb);
-        curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, client);
+    if (cfg->tls_rng) {
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, wf_tls_ctx_cb_cfg);
+        curl_easy_setopt(curl, CURLOPT_SSL_CTX_DATA, (void *)cfg);
     }
 #endif
     if (headers) {
@@ -435,7 +579,6 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
 
         if (http_status < 200 || http_status >= 300) {
             status = WF_ERR_HTTP;
-            wf_xrpc_set_last_error(client, out);
         }
     }
 
@@ -471,13 +614,13 @@ static int wf_xrpc_response_is_expired(const wf_response *out) {
 }
 
 /* Build the request headers (auth + optional content-type) for one attempt. */
-static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
-                                       const char *content_type,
+static wf_status wf_xrpc_build_headers(const struct wf_client_config *cfg,
+                                       int is_post, const char *content_type,
                                        struct curl_slist **out_headers) {
     struct curl_slist *headers = NULL;
 
-    if (client->auth_header) {
-        headers = curl_slist_append(headers, client->auth_header);
+    if (cfg->auth_header) {
+        headers = curl_slist_append(headers, cfg->auth_header);
     }
     if (is_post) {
         size_t header_len = strlen("Content-Type: ") + strlen(content_type) + 1;
@@ -500,7 +643,12 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
     return WF_OK;
 }
 
-/* Shared request path for both query (GET) and POST variants. */
+/* Shared request path for both query (GET) and POST variants.
+ * Thread-safe: creates a config snapshot under the client mutex before
+ * issuing the request, so wf_xrpc_client_set_auth called from another
+ * thread cannot tear down strings mid-flight. */
+static void wf_xrpc_update_last_error(wf_xrpc_client *client,
+                                      const wf_response *out, wf_status status);
 static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
                                  const char *query_string, const void *body,
                                  size_t body_len, const char *content_type,
@@ -510,60 +658,107 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
         return WF_ERR_INVALID_ARG;
     }
 
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+
     /* Whether this call went out authenticated — only such calls are eligible
      * for a refresh+retry on an expired token. */
-    int had_auth = client->auth_header != NULL;
+    int had_auth = cfg->auth_header != NULL;
     wf_status status = WF_OK;
     char *url = NULL;
 
     for (int attempt = 0;; attempt++) {
         /* Rebuild the URL each attempt: a refresh may re-point the client at a
-         * newly discovered PDS base URL. */
+         * newly discovered PDS base URL; re-snapshot for the retry. */
         free(url);
-        size_t url_cap = strlen(client->base_url) + strlen("/xrpc/") +
+        size_t url_cap = strlen(cfg->base_url) + strlen("/xrpc/") +
                          strlen(nsid) + 1 +
                          (query_string ? strlen(query_string) + 1 : 0);
         url = malloc(url_cap);
         if (!url) {
-            return WF_ERR_ALLOC;
+            status = WF_ERR_ALLOC;
+            break;
         }
         if (query_string && query_string[0] != '\0') {
-            snprintf(url, url_cap, "%s/xrpc/%s?%s", client->base_url, nsid,
+            snprintf(url, url_cap, "%s/xrpc/%s?%s", cfg->base_url, nsid,
                      query_string);
         } else {
-            snprintf(url, url_cap, "%s/xrpc/%s", client->base_url, nsid);
+            snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, nsid);
         }
 
         WF_LOG_DEBUG("xrpc", "XRPC %s %s", is_post ? "POST" : "GET", url);
 
         struct curl_slist *headers = NULL;
-        status = wf_xrpc_build_headers(client, is_post, content_type, &headers);
+        status = wf_xrpc_build_headers(cfg, is_post, content_type, &headers);
         if (status != WF_OK) {
             break;
         }
 
-        status = wf_xrpc_perform(client, is_post ? "POST" : "GET", url,
-                                 content_type, body, body_len, headers, out);
+        status =
+            wf_xrpc_perform_cfg(cfg, is_post ? "POST" : "GET", url,
+                                content_type, body, body_len, headers, out);
 
         /* Retry at most once, and only when an authenticated request came back
          * with an expired/invalid token and a refresh path is available. The
          * re-entrancy guard prevents a refresh call (which itself issues XRPC)
          * from recursively triggering another refresh. */
-        if (attempt == 0 && had_auth && client->refresh_cb &&
-            !client->refreshing && wf_xrpc_response_is_expired(out)) {
-            client->refreshing = 1;
-            wf_status refreshed = client->refresh_cb(client->refresh_userdata);
-            client->refreshing = 0;
-            if (refreshed == WF_OK) {
-                wf_response_free(out);
-                continue; /* re-issue once with the refreshed credentials */
+        if (attempt == 0 && had_auth && wf_xrpc_response_is_expired(out)) {
+            wf_xrpc_refresh_fn refresh_cb = NULL;
+            void *refresh_userdata = NULL;
+            int refreshing = 0;
+            pthread_mutex_lock(&client->mutex);
+            refresh_cb = client->refresh_cb;
+            refresh_userdata = client->refresh_userdata;
+            refreshing = client->refreshing;
+            pthread_mutex_unlock(&client->mutex);
+
+            if (refresh_cb && !refreshing) {
+                pthread_mutex_lock(&client->mutex);
+                client->refreshing = 1;
+                pthread_mutex_unlock(&client->mutex);
+
+                wf_status refreshed = refresh_cb(refresh_userdata);
+
+                pthread_mutex_lock(&client->mutex);
+                client->refreshing = 0;
+                pthread_mutex_unlock(&client->mutex);
+
+                if (refreshed == WF_OK) {
+                    wf_response_free(out);
+                    wf_config_free(cfg);
+                    cfg = wf_client_snapshot(client);
+                    if (!cfg) {
+                        status = WF_ERR_ALLOC;
+                        break;
+                    }
+                    had_auth = cfg->auth_header != NULL;
+                    free(url);
+                    url = NULL;
+                    continue; /* re-issue once with the refreshed credentials */
+                }
             }
         }
         break;
     }
 
+    wf_xrpc_update_last_error(client, out, status);
+
     free(url);
+    wf_config_free(cfg);
     return status;
+}
+
+/* Update last_error from a response, under the client mutex. */
+static void wf_xrpc_update_last_error(wf_xrpc_client *client,
+                                      const wf_response *out,
+                                      wf_status status) {
+    pthread_mutex_lock(&client->mutex);
+    free(client->last_error);
+    client->last_error = NULL;
+    if (status == WF_ERR_HTTP) {
+        wf_xrpc_set_error_str(&client->last_error, out);
+    }
+    pthread_mutex_unlock(&client->mutex);
 }
 
 wf_status wf_xrpc_query(wf_xrpc_client *client, const char *nsid,
@@ -675,7 +870,6 @@ wf_status wf_xrpc_upload_blob_with_headers(
     size_t header_count, wf_response *out) {
     struct curl_slist *list = NULL;
     wf_status status = WF_OK;
-    char *base_url = NULL;
     char *url = NULL;
 
     if (!client || !nsid || !data || data_len == 0 || !content_type ||
@@ -684,18 +878,20 @@ wf_status wf_xrpc_upload_blob_with_headers(
     }
     memset(out, 0, sizeof(*out));
 
-    base_url = wf_xrpc_get_base_url(client);
-    if (!base_url) return WF_ERR_ALLOC;
-    size_t url_cap = strlen(base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+
+    size_t url_cap =
+        strlen(cfg->base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
     url = malloc(url_cap);
     if (!url) {
-        free(base_url);
+        wf_config_free(cfg);
         return WF_ERR_ALLOC;
     }
-    snprintf(url, url_cap, "%s/xrpc/%s", base_url, nsid);
+    snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, nsid);
 
-    if (client->auth_header) {
-        list = curl_slist_append(list, client->auth_header);
+    if (cfg->auth_header) {
+        list = curl_slist_append(list, cfg->auth_header);
         if (!list) status = WF_ERR_ALLOC;
     }
 
@@ -733,13 +929,14 @@ wf_status wf_xrpc_upload_blob_with_headers(
     }
 
     if (status == WF_OK) {
-        status = wf_xrpc_perform(client, "POST", url, content_type, data,
-                                 data_len, list, out);
+        status = wf_xrpc_perform_cfg(cfg, "POST", url, content_type, data,
+                                     data_len, list, out);
     } else {
         curl_slist_free_all(list);
     }
+    wf_xrpc_update_last_error(client, out, status);
     free(url);
-    free(base_url);
+    wf_config_free(cfg);
     return status;
 }
 
@@ -818,14 +1015,32 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
         (extra_count && !extra))
         return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
+
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+
     {
         size_t n = strlen("Content-Type: ") + strlen(content_type) + 1;
         char *line = malloc(n);
-        if (!line) return WF_ERR_ALLOC;
+        if (!line) {
+            wf_config_free(cfg);
+            return WF_ERR_ALLOC;
+        }
         snprintf(line, n, "Content-Type: %s", content_type);
         headers = curl_slist_append(headers, line);
         free(line);
-        if (!headers) return WF_ERR_ALLOC;
+        if (!headers) {
+            wf_config_free(cfg);
+            return WF_ERR_ALLOC;
+        }
+    }
+    if (cfg->auth_header) {
+        headers = curl_slist_append(headers, cfg->auth_header);
+        if (!headers) {
+            curl_slist_free_all(headers);
+            wf_config_free(cfg);
+            return WF_ERR_ALLOC;
+        }
     }
     for (i = 0; status == WF_OK && i < extra_count; i++) {
         size_t n;
@@ -851,11 +1066,13 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
         headers = grown;
     }
     if (status == WF_OK) {
-        status = wf_xrpc_perform(client, "POST", url, content_type, body,
-                                 strlen(body), headers, out);
+        status = wf_xrpc_perform_cfg(cfg, "POST", url, content_type, body,
+                                     strlen(body), headers, out);
     } else {
         curl_slist_free_all(headers);
     }
+    wf_xrpc_update_last_error(client, out, status);
+    wf_config_free(cfg);
     return status;
 }
 
@@ -864,8 +1081,11 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
  * The caller owns the returned string and must free it.
  */
 char *wf_xrpc_get_base_url(wf_xrpc_client *client) {
-    if (!client || !client->base_url) return NULL;
-    return strdup(client->base_url);
+    if (!client) return NULL;
+    pthread_mutex_lock(&client->mutex);
+    char *url = client->base_url ? strdup(client->base_url) : NULL;
+    pthread_mutex_unlock(&client->mutex);
+    return url;
 }
 
 /**
@@ -888,8 +1108,11 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
     }
     memset(out, 0, sizeof(*out));
 
-    if (client->auth_header) {
-        headers = curl_slist_append(headers, client->auth_header);
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+
+    if (cfg->auth_header) {
+        headers = curl_slist_append(headers, cfg->auth_header);
     }
 
     for (i = 0; status == WF_OK && i < extra_count; i++) {
@@ -918,10 +1141,12 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
 
     if (status == WF_OK) {
         status =
-            wf_xrpc_perform(client, "GET", url, NULL, NULL, 0, headers, out);
+            wf_xrpc_perform_cfg(cfg, "GET", url, NULL, NULL, 0, headers, out);
     } else {
         curl_slist_free_all(headers);
     }
+    wf_xrpc_update_last_error(client, out, status);
+    wf_config_free(cfg);
     return status;
 }
 
@@ -935,4 +1160,267 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
 wf_status wf_http_get(wf_xrpc_client *client, const char *url,
                       wf_response *out) {
     return wf_http_get_with_headers(client, url, NULL, 0, out);
+}
+
+/* ── Async API ──────────────────────────────────────────────────────── */
+
+/*
+ * Worker thread: takes a config snapshot and request parameters from the
+ * pending handle (all owned copies), performs the request, and stores the
+ * result. Never touches the client after the snapshot is taken.
+ *
+ * Auto-refresh is not supported on the async path — callers that need it
+ * should handle it explicitly via wf_xrpc_client_set_auth before re-submitting.
+ */
+static void *wf_async_worker(void *arg) {
+    struct wf_xrpc_pending *p = (struct wf_xrpc_pending *)arg;
+
+    pthread_mutex_lock(&p->mutex);
+    if (p->cancelled) {
+        p->done = true;
+        p->status = WF_ERR_STATE;
+        pthread_cond_broadcast(&p->cond);
+        pthread_mutex_unlock(&p->mutex);
+        return NULL;
+    }
+    pthread_mutex_unlock(&p->mutex);
+
+    struct wf_client_config *cfg = p->config;
+    if (!cfg || !cfg->base_url) {
+        pthread_mutex_lock(&p->mutex);
+        p->done = true;
+        p->status = WF_ERR_STATE;
+        pthread_cond_broadcast(&p->cond);
+        pthread_mutex_unlock(&p->mutex);
+        return NULL;
+    }
+
+    /* Build the full XRPC URL. */
+    size_t url_cap = strlen(cfg->base_url) + strlen("/xrpc/") +
+                     strlen(p->nsid) + 1 +
+                     (p->query_string ? strlen(p->query_string) + 1 : 0);
+    char *url = malloc(url_cap);
+    if (!url) {
+        pthread_mutex_lock(&p->mutex);
+        p->done = true;
+        p->status = WF_ERR_ALLOC;
+        pthread_cond_broadcast(&p->cond);
+        pthread_mutex_unlock(&p->mutex);
+        return NULL;
+    }
+    if (p->query_string && p->query_string[0] != '\0') {
+        snprintf(url, url_cap, "%s/xrpc/%s?%s", cfg->base_url, p->nsid,
+                 p->query_string);
+    } else {
+        snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, p->nsid);
+    }
+
+    WF_LOG_DEBUG("xrpc", "async XRPC %s %s", p->is_post ? "POST" : "GET", url);
+
+    struct curl_slist *headers = NULL;
+    wf_status status =
+        wf_xrpc_build_headers(cfg, p->is_post, p->content_type, &headers);
+
+    if (status == WF_OK) {
+        memset(&p->result, 0, sizeof(p->result));
+        status = wf_xrpc_perform_cfg(cfg, p->is_post ? "POST" : "GET", url,
+                                     p->content_type, p->body, p->body_len,
+                                     headers, &p->result);
+    } else if (headers) {
+        curl_slist_free_all(headers);
+    }
+
+    free(url);
+
+    pthread_mutex_lock(&p->mutex);
+    p->status = status;
+    p->done = true;
+    pthread_cond_broadcast(&p->cond);
+    pthread_mutex_unlock(&p->mutex);
+
+    return NULL;
+}
+
+/*
+ * Shared helper: create a pending handle from a config snapshot + request
+ * parameters, link it into the client, and spawn the worker thread.
+ */
+static wf_status wf_xrpc_async_submit(wf_xrpc_client *client, const char *nsid,
+                                      const char *query_string,
+                                      const void *body, size_t body_len,
+                                      const char *content_type, int is_post,
+                                      wf_xrpc_pending **out) {
+    if (!client || !nsid || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+
+    char *nsid_copy = strdup(nsid);
+    char *query_copy = query_string ? strdup(query_string) : NULL;
+    char *body_copy = NULL;
+    char *content_type_copy = NULL;
+
+    if (body_len > 0) {
+        body_copy = malloc(body_len);
+        if (!body_copy) {
+            free(nsid_copy);
+            free(query_copy);
+            wf_config_free(cfg);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(body_copy, body, body_len);
+    }
+    if (content_type) {
+        content_type_copy = strdup(content_type);
+        if (!content_type_copy) {
+            free(nsid_copy);
+            free(query_copy);
+            free(body_copy);
+            wf_config_free(cfg);
+            return WF_ERR_ALLOC;
+        }
+    }
+
+    struct wf_xrpc_pending *p = (struct wf_xrpc_pending *)calloc(1, sizeof(*p));
+    if (!p) {
+        free(nsid_copy);
+        free(query_copy);
+        free(body_copy);
+        free(content_type_copy);
+        wf_config_free(cfg);
+        return WF_ERR_ALLOC;
+    }
+
+    p->config = cfg;
+    p->client = client;
+    p->nsid = nsid_copy;
+    p->query_string = query_copy;
+    p->body = body_copy;
+    p->body_len = body_len;
+    p->content_type = content_type_copy;
+    p->is_post = is_post;
+    p->status = WF_OK;
+    p->started = false;
+    p->done = false;
+    p->cancelled = false;
+    if (pthread_mutex_init(&p->mutex, NULL) != 0 ||
+        pthread_cond_init(&p->cond, NULL) != 0) {
+        pthread_mutex_destroy(&p->mutex);
+        pthread_cond_destroy(&p->cond);
+        free(nsid_copy);
+        free(query_copy);
+        free(body_copy);
+        free(content_type_copy);
+        wf_config_free(cfg);
+        free(p);
+        return WF_ERR_ALLOC;
+    }
+
+    if (pthread_create(&p->thread, NULL, wf_async_worker, p) != 0) {
+        pthread_mutex_destroy(&p->mutex);
+        pthread_cond_destroy(&p->cond);
+        free(nsid_copy);
+        free(query_copy);
+        free(body_copy);
+        free(content_type_copy);
+        wf_config_free(cfg);
+        free(p);
+        return WF_ERR_ALLOC;
+    }
+    p->started = true;
+    pthread_mutex_lock(&client->mutex);
+    p->next = client->pending;
+    client->pending = p;
+    pthread_mutex_unlock(&client->mutex);
+    *out = p;
+    return WF_OK;
+}
+
+wf_status wf_xrpc_query_async(wf_xrpc_client *client, const char *nsid,
+                              const char *query_string, wf_xrpc_pending **out) {
+    return wf_xrpc_async_submit(client, nsid, query_string, NULL, 0, NULL, 0,
+                                out);
+}
+
+wf_status wf_xrpc_procedure_async(wf_xrpc_client *client, const char *nsid,
+                                  const char *json_body,
+                                  wf_xrpc_pending **out) {
+    size_t body_len = json_body ? strlen(json_body) : 0;
+    return wf_xrpc_async_submit(client, nsid, NULL, json_body, body_len,
+                                "application/json", 1, out);
+}
+
+wf_status wf_xrpc_pending_wait(wf_xrpc_pending *p) {
+    if (!p) return WF_ERR_INVALID_ARG;
+    pthread_mutex_lock(&p->mutex);
+    while (!p->done) {
+        pthread_cond_wait(&p->cond, &p->mutex);
+    }
+    wf_status s = p->status;
+    pthread_mutex_unlock(&p->mutex);
+    return s;
+}
+
+wf_status wf_xrpc_pending_result(wf_xrpc_pending *p, wf_response *out) {
+    if (!p || !out) return WF_ERR_INVALID_ARG;
+    pthread_mutex_lock(&p->mutex);
+    if (!p->done) {
+        pthread_mutex_unlock(&p->mutex);
+        return WF_ERR_WOULD_BLOCK;
+    }
+    *out = p->result;
+    /* Clear the stored result so wf_xrpc_pending_free doesn't double-free. */
+    memset(&p->result, 0, sizeof(p->result));
+    pthread_mutex_unlock(&p->mutex);
+    return p->status;
+}
+
+void wf_xrpc_pending_cancel(wf_xrpc_pending *p) {
+    if (!p) return;
+    pthread_mutex_lock(&p->mutex);
+    p->cancelled = true;
+    pthread_mutex_unlock(&p->mutex);
+}
+
+void wf_xrpc_pending_free(wf_xrpc_pending *p) {
+    if (!p) return;
+    /* If the worker hasn't been started or is still running, wait for it
+     * to complete. The worker only touches p's own fields (under p's mutex),
+     * so this is race-free. */
+    pthread_mutex_lock(&p->mutex);
+    while (p->started && !p->done) {
+        pthread_cond_wait(&p->cond, &p->mutex);
+    }
+    pthread_mutex_unlock(&p->mutex);
+
+    if (p->started) {
+        pthread_join(p->thread, NULL);
+    }
+
+    /* Unlink from the client's pending list (if the client still exists).
+     * The client may have already been freed; in that case client is NULL. */
+    if (p->client) {
+        pthread_mutex_lock(&p->client->mutex);
+        for (struct wf_xrpc_pending **pp = &p->client->pending; *pp;
+             pp = &(*pp)->next) {
+            if (*pp == p) {
+                *pp = p->next;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&p->client->mutex);
+    }
+
+    pthread_mutex_destroy(&p->mutex);
+    pthread_cond_destroy(&p->cond);
+    free(p->nsid);
+    free(p->query_string);
+    free(p->content_type);
+    free(p->body);
+    wf_response_free(&p->result);
+    free(p->error_msg);
+    wf_config_free(p->config);
+    free(p);
 }
