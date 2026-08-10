@@ -852,27 +852,45 @@ struct MHD_Daemon *MHD_start_daemon(unsigned int flags, uint16_t port,
     pthread_mutex_init(&d->lock, NULL);
 
     /* The option list mirrors MHD's varargs form: each option is followed by
-     * the arguments that option takes. Only the three xrpc_server.c passes are
-     * recognised; the rest are consumed as two pointers, which is their shape
-     * in every case it uses. */
+     * the arguments that option takes. The shapes differ — some take two
+     * void* (callbacks + cls), THREAD_POOL_SIZE takes a single unsigned int,
+     * and EXTERNAL_LOGGER takes a callback + cls but is ignored here — so each
+     * option is consumed according to its own arity rather than assuming a
+     * fixed two-pointer width, which would misalign the va_list. */
     va_list ap;
     va_start(ap, dh_cls);
     for (;;) {
         int opt = va_arg(ap, int);
         if (opt == MHD_OPTION_END) break;
-        void *a = va_arg(ap, void *);
-        void *b = va_arg(ap, void *);
         switch (opt) {
-            case MHD_OPTION_NOTIFY_COMPLETED:
+            case MHD_OPTION_NOTIFY_COMPLETED: {
+                void *a = va_arg(ap, void *);
+                void *b = va_arg(ap, void *);
                 d->notify_completed = (MHD_RequestCompletedCallback)a;
                 d->notify_completed_cls = b;
                 break;
-            case MHD_OPTION_NOTIFY_CONNECTION:
+            }
+            case MHD_OPTION_NOTIFY_CONNECTION: {
+                void *a = va_arg(ap, void *);
+                void *b = va_arg(ap, void *);
                 d->notify_connection = (MHD_NotifyConnectionCallback)a;
                 d->notify_connection_cls = b;
                 break;
+            }
+            case MHD_OPTION_EXTERNAL_LOGGER:
+                /* (MHD_LogCallback, void *cls) — ignored by this shim. */
+                (void)va_arg(ap, void *);
+                (void)va_arg(ap, void *);
+                break;
+            case MHD_OPTION_THREAD_POOL_SIZE:
+                /* unsigned int — ignored by this shim's thread-per-connection
+                 * model. Must still be consumed to keep the va_list aligned. */
+                (void)va_arg(ap, unsigned int);
+                break;
             default:
-                break; /* EXTERNAL_LOGGER and friends */
+                /* Unknown option: do not consume args. The only caller
+                 * (xrpc_server.c) passes options we recognise above. */
+                break;
         }
     }
     va_end(ap);
