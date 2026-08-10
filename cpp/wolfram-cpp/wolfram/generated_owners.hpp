@@ -570,6 +570,7 @@ using wf_video_upload_limits_handle = unique_handle<wf_video_upload_limits, wf_v
 using wf_websocket_handle = unique_handle<wf_websocket, wf_websocket_free>;
 using wf_websocket_message_handle = unique_handle<wf_websocket_message, wf_websocket_message_free>;
 using wf_xrpc_client_handle = unique_handle<wf_xrpc_client, wf_xrpc_client_free>;
+using wf_xrpc_pending_handle = unique_handle<wf_xrpc_pending, wf_xrpc_pending_free>;
 using wf_xrpc_server_handle = unique_handle<wf_xrpc_server, wf_xrpc_server_free>;
 using wf_xrpc_server_auth_config_handle = unique_handle<wf_xrpc_server_auth_config, wf_xrpc_server_auth_config_free>;
 using wf_xrpc_server_config_handle = unique_handle<wf_xrpc_server_config, wf_xrpc_server_config_free>;
