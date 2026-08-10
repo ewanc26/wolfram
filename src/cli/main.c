@@ -127,155 +127,156 @@ bool g_json = false;
 
 void usage_stream(FILE *out) {
     fprintf(
-         out,
-         "wolf %s — a command-line client for the AT Protocol (via wolfram "
-         "SDK)\n\n"
-         "usage: wolf <command> [args...]\n"
-         "       wolf help <command>   — per-command help\n"
-         "       wolf --version        — print version and exit\n\n"
-         "commands:\n"
-         "\n"
-         "  Session & account:\n"
-         "    login            <service> <handle> <password>\n"
-         "    whoami           <service> <handle> <password>\n"
-         "    describe-server  <service>\n"
-         "\n"
-         "  Posting & interaction:\n"
-         "    post             <service> <handle> <password> <text...>\n"
-         "    reply            <service> <handle> <password> <parent-at-uri> "
-         "<text...>\n"
-         "    delete           <service> <handle> <password> <at-uri>\n"
-         "    like             <service> <handle> <password> <at-uri>\n"
-         "    unlike           <service> <handle> <password> <like-at-uri>\n"
-         "    repost           <service> <handle> <password> <at-uri>\n"
-         "    delete-repost    <service> <handle> <password> <repost-at-uri>\n"
-         "\n"
-         "  Feed & discovery:\n"
-         "    timeline         <service> <handle> <password> [pages]\n"
-         "    get-post         <service> <at-uri>\n"
-         "    profile          <service> <actor>\n"
-         "    get-profiles     <service> <actor>...\n"
-         "    search           <service> <handle> <password> <query> [limit]\n"
-         "    search-actors    <service> <handle> <password> <query> [limit]\n"
-         "    search-typeahead <service> <handle> <password> <query> [limit]\n"
-         "    search-starter-packs <service> <handle> <password> <query> [limit]\n"
-         "    thread           <service> <handle> <password> <at-uri> [depth]\n"
-         "    notifications    <service> <handle> <password> [limit]\n"
-         "    unread-count     <service> <handle> <password>\n"
-         "\n"
-         "  Social graph:\n"
-         "    follow           <service> <handle> <password> <actor>\n"
-         "    unfollow         <service> <handle> <password> <actor>\n"
-         "    block            <service> <handle> <password> <actor>\n"
-         "    unblock          <service> <handle> <password> <actor>\n"
-         "    mute             <service> <handle> <password> <actor>\n"
-         "    unmute           <service> <handle> <password> <actor>\n"
-         "\n"
-         "  Identity & moderation:\n"
-         "    resolve                   <service> <handle-or-did>\n"
-         "    revoke-account-credentials <service> <handle> <password> "
-         "<account>\n"
-         "    labels subscribe          <service> [--cursor N] [--seconds N]\n"
-         "    moderation       <service> <actor> [labeler-did]\n"
-         "    moderation report <service> <handle> <password> --subject <uri> "
-         "--reason <reason> [--reason-type <type>] [--cid <cid>]\n"
-         "    oauth-login      <service> <handle> [client-id] [redirect-uri] "
-         "[--state-file <path>]\n"
-         "    oauth-callback   <service> --url <redirect> --state <state> "
-         "[--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] "
-         "[--session <path>]\n"
-         "\n"
-         "  Graph & lists:\n"
-         "    follows          <service> <actor> [limit]\n"
-         "    followers        <service> <actor> [limit]\n"
-         "    blocks           <service> <handle> <password> [limit]\n"
-         "    mutes            <service> <handle> <password> [limit]\n"
-         "    list             <service> <list-uri> [limit]\n"
-         "    lists            <service> <actor> [limit]\n"
-         "\n"
-         "  Records & media:\n"
-         "    get-record       <service> <handle> <password> <collection> "
-         "<rkey>\n"
-         "    repo put-record  <service> <handle> <password> --collection "
-         "<nsid> --rkey <rkey> --json <record|file>\n"
-         "    repo delete-record <service> <handle> <password> --collection "
-         "<nsid> --rkey <rkey>\n"
-         "    repo list-records <service> <handle> <password> --collection "
-         "<nsid> [--limit N] [--cursor C]\n"
-         "    repo describe     <service> <handle> <password> --repo "
-         "<did-or-handle>\n"
-         "    video upload     <service> <handle> <password> <file.mp4>\n"
-         "    video status     <service> <handle> <password> <job-id>\n"
-         "\n"
-         "  Feed & discovery:\n"
-         "    feed get         <service> <handle> <password> --feed "
-         "<generator-uri> [--limit N] [--cursor C]\n"
-         "    feed author      <service> <handle> <password> --actor "
-         "<handle-or-did> [--limit N] [--cursor C]\n"
-         "    get-actor-feeds  <service> <handle> <password> --actor "
-         "<handle-or-did> [--limit N] [--cursor C]\n"
-         "    get-actor-likes  <service> <handle> <password> --actor "
-         "<handle-or-did> [--limit N] [--cursor C]\n"
-         "    get-likes        <service> <handle> <password> <at-uri> "
-         "[--limit N] [--cursor C]\n"
-         "    get-reposted-by  <service> <handle> <password> <at-uri> "
-         "[--limit N] [--cursor C]\n"
-         "    get-quotes       <service> <handle> <password> <at-uri> "
-         "[--limit N] [--cursor C]\n"
-         "    describe-feed    <service> <handle> <password> --feed "
-         "<generator-uri>\n"
-         "    get-suggested-feeds <service> <handle> <password>\n"
-         "    get-suggestions  <service> <handle> <password> [limit]\n"
-         "    known-followers  <service> <handle> <password> <actor>\n"
-         "    relationships    <service> <handle> <password> <actor> "
-         "<other>...\n"
-         "    get-actor-status <service> <actor>\n"
-         "    get-feed-generators <service> <feed-uri>...\n"
-         "    get-suggested-follows-by-actor <service> <actor>\n"
-         "    age-assurance    <service> <handle> <password> "
-         "<begin|get-config|get-state>\n"
-         "\n"
-         "  Ozone moderation:\n"
-         "    ozone moderation query-statuses <service> <handle> <password> "
-         "[--limit N] [--cursor C]\n"
-         "    ozone moderation get-suggestions <service> <handle> <password> "
-         "[--ignore-subjects uri]... [--limit N]\n"
-         "    ozone moderation get-label-definitions <service> <handle> "
-         "<password> [--uri uri]...\n"
-         "    ozone team list-members <service> <handle> <password> "
-         "[--limit N] [--cursor C]\n"
-         "    ozone server get-config <service> <handle> <password>\n"
-         "    ozone communication list-templates <service> <handle> "
-         "<password>\n"
-         "    ozone setting list-options <service> <handle> <password> "
-         "[--key key] [--scope scope] [--limit N]\n"
-         "    ozone signature search-accounts <service> <handle> <password> "
-         "<did> [--limit N]\n"
-         "    ozone report query-reports <service> <handle> <password> "
-         "[--limit N] [--cursor C]\n"
-         "    ozone queue list-queues <service> <handle> <password> "
-         "[--limit N] [--cursor C]\n"
-         "\n"
-         "  Admin:\n"
-         "    admin search-accounts <service> <handle> <password> [email] "
-         "[--limit N]\n"
-         "    admin get-account-info <service> <handle> <password> <did>\n"
-         "    admin get-subject-status <service> <handle> <password> <did>\n"
-         "    admin get-invite-codes <service> <handle> <password> "
-         "[--create N] [--use-count N] [--cursor C]\n"
-         "    admin delete-account <service> <handle> <password> <did>\n"
-         "    admin disable-account-invites <service> <handle> <password>\n"
-         "    admin enable-account-invites <service> <handle> <password>\n"
-         "    admin send-email <service> <handle> <password> <recipient-did> "
-         "<subject> <body>\n"
-         "\n"
-         "  Global options:\n"
-         "    --json           print raw JSON for list/get commands\n"
-         "\n"
-         "  <at-uri> is an at:// URI (e.g. "
-         "at://did:plc:xxx/app.bsky.feed.post/rkey)\n"
-         "  <actor> is a handle or DID\n",
-         WOLFRAM_VERSION_STRING);
+        out,
+        "wolf %s — a command-line client for the AT Protocol (via wolfram "
+        "SDK)\n\n"
+        "usage: wolf <command> [args...]\n"
+        "       wolf help <command>   — per-command help\n"
+        "       wolf --version        — print version and exit\n\n"
+        "commands:\n"
+        "\n"
+        "  Session & account:\n"
+        "    login            <service> <handle> <password>\n"
+        "    whoami           <service> <handle> <password>\n"
+        "    describe-server  <service>\n"
+        "\n"
+        "  Posting & interaction:\n"
+        "    post             <service> <handle> <password> <text...>\n"
+        "    reply            <service> <handle> <password> <parent-at-uri> "
+        "<text...>\n"
+        "    delete           <service> <handle> <password> <at-uri>\n"
+        "    like             <service> <handle> <password> <at-uri>\n"
+        "    unlike           <service> <handle> <password> <like-at-uri>\n"
+        "    repost           <service> <handle> <password> <at-uri>\n"
+        "    delete-repost    <service> <handle> <password> <repost-at-uri>\n"
+        "\n"
+        "  Feed & discovery:\n"
+        "    timeline         <service> <handle> <password> [pages]\n"
+        "    get-post         <service> <at-uri>\n"
+        "    profile          <service> <actor>\n"
+        "    get-profiles     <service> <actor>...\n"
+        "    search           <service> <handle> <password> <query> [limit]\n"
+        "    search-actors    <service> <handle> <password> <query> [limit]\n"
+        "    search-typeahead <service> <handle> <password> <query> [limit]\n"
+        "    search-starter-packs <service> <handle> <password> <query> "
+        "[limit]\n"
+        "    thread           <service> <handle> <password> <at-uri> [depth]\n"
+        "    notifications    <service> <handle> <password> [limit]\n"
+        "    unread-count     <service> <handle> <password>\n"
+        "\n"
+        "  Social graph:\n"
+        "    follow           <service> <handle> <password> <actor>\n"
+        "    unfollow         <service> <handle> <password> <actor>\n"
+        "    block            <service> <handle> <password> <actor>\n"
+        "    unblock          <service> <handle> <password> <actor>\n"
+        "    mute             <service> <handle> <password> <actor>\n"
+        "    unmute           <service> <handle> <password> <actor>\n"
+        "\n"
+        "  Identity & moderation:\n"
+        "    resolve                   <service> <handle-or-did>\n"
+        "    revoke-account-credentials <service> <handle> <password> "
+        "<account>\n"
+        "    labels subscribe          <service> [--cursor N] [--seconds N]\n"
+        "    moderation       <service> <actor> [labeler-did]\n"
+        "    moderation report <service> <handle> <password> --subject <uri> "
+        "--reason <reason> [--reason-type <type>] [--cid <cid>]\n"
+        "    oauth-login      <service> <handle> [client-id] [redirect-uri] "
+        "[--state-file <path>]\n"
+        "    oauth-callback   <service> --url <redirect> --state <state> "
+        "[--state-file <path>] [--client-id <id>] [--redirect-uri <uri>] "
+        "[--session <path>]\n"
+        "\n"
+        "  Graph & lists:\n"
+        "    follows          <service> <actor> [limit]\n"
+        "    followers        <service> <actor> [limit]\n"
+        "    blocks           <service> <handle> <password> [limit]\n"
+        "    mutes            <service> <handle> <password> [limit]\n"
+        "    list             <service> <list-uri> [limit]\n"
+        "    lists            <service> <actor> [limit]\n"
+        "\n"
+        "  Records & media:\n"
+        "    get-record       <service> <handle> <password> <collection> "
+        "<rkey>\n"
+        "    repo put-record  <service> <handle> <password> --collection "
+        "<nsid> --rkey <rkey> --json <record|file>\n"
+        "    repo delete-record <service> <handle> <password> --collection "
+        "<nsid> --rkey <rkey>\n"
+        "    repo list-records <service> <handle> <password> --collection "
+        "<nsid> [--limit N] [--cursor C]\n"
+        "    repo describe     <service> <handle> <password> --repo "
+        "<did-or-handle>\n"
+        "    video upload     <service> <handle> <password> <file.mp4>\n"
+        "    video status     <service> <handle> <password> <job-id>\n"
+        "\n"
+        "  Feed & discovery:\n"
+        "    feed get         <service> <handle> <password> --feed "
+        "<generator-uri> [--limit N] [--cursor C]\n"
+        "    feed author      <service> <handle> <password> --actor "
+        "<handle-or-did> [--limit N] [--cursor C]\n"
+        "    get-actor-feeds  <service> <handle> <password> --actor "
+        "<handle-or-did> [--limit N] [--cursor C]\n"
+        "    get-actor-likes  <service> <handle> <password> --actor "
+        "<handle-or-did> [--limit N] [--cursor C]\n"
+        "    get-likes        <service> <handle> <password> <at-uri> "
+        "[--limit N] [--cursor C]\n"
+        "    get-reposted-by  <service> <handle> <password> <at-uri> "
+        "[--limit N] [--cursor C]\n"
+        "    get-quotes       <service> <handle> <password> <at-uri> "
+        "[--limit N] [--cursor C]\n"
+        "    describe-feed    <service> <handle> <password> --feed "
+        "<generator-uri>\n"
+        "    get-suggested-feeds <service> <handle> <password>\n"
+        "    get-suggestions  <service> <handle> <password> [limit]\n"
+        "    known-followers  <service> <handle> <password> <actor>\n"
+        "    relationships    <service> <handle> <password> <actor> "
+        "<other>...\n"
+        "    get-actor-status <service> <actor>\n"
+        "    get-feed-generators <service> <feed-uri>...\n"
+        "    get-suggested-follows-by-actor <service> <actor>\n"
+        "    age-assurance    <service> <handle> <password> "
+        "<begin|get-config|get-state>\n"
+        "\n"
+        "  Ozone moderation:\n"
+        "    ozone moderation query-statuses <service> <handle> <password> "
+        "[--limit N] [--cursor C]\n"
+        "    ozone moderation get-suggestions <service> <handle> <password> "
+        "[--ignore-subjects uri]... [--limit N]\n"
+        "    ozone moderation get-label-definitions <service> <handle> "
+        "<password> [--uri uri]...\n"
+        "    ozone team list-members <service> <handle> <password> "
+        "[--limit N] [--cursor C]\n"
+        "    ozone server get-config <service> <handle> <password>\n"
+        "    ozone communication list-templates <service> <handle> "
+        "<password>\n"
+        "    ozone setting list-options <service> <handle> <password> "
+        "[--key key] [--scope scope] [--limit N]\n"
+        "    ozone signature search-accounts <service> <handle> <password> "
+        "<did> [--limit N]\n"
+        "    ozone report query-reports <service> <handle> <password> "
+        "[--limit N] [--cursor C]\n"
+        "    ozone queue list-queues <service> <handle> <password> "
+        "[--limit N] [--cursor C]\n"
+        "\n"
+        "  Admin:\n"
+        "    admin search-accounts <service> <handle> <password> [email] "
+        "[--limit N]\n"
+        "    admin get-account-info <service> <handle> <password> <did>\n"
+        "    admin get-subject-status <service> <handle> <password> <did>\n"
+        "    admin get-invite-codes <service> <handle> <password> "
+        "[--create N] [--use-count N] [--cursor C]\n"
+        "    admin delete-account <service> <handle> <password> <did>\n"
+        "    admin disable-account-invites <service> <handle> <password>\n"
+        "    admin enable-account-invites <service> <handle> <password>\n"
+        "    admin send-email <service> <handle> <password> <recipient-did> "
+        "<subject> <body>\n"
+        "\n"
+        "  Global options:\n"
+        "    --json           print raw JSON for list/get commands\n"
+        "\n"
+        "  <at-uri> is an at:// URI (e.g. "
+        "at://did:plc:xxx/app.bsky.feed.post/rkey)\n"
+        "  <actor> is a handle or DID\n",
+        WOLFRAM_VERSION_STRING);
 }
 
 /* Per-command help text. */
@@ -424,7 +425,8 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
          "Submit a moderation report via wf_agent_report_typed."},
         {"search-actors",
          "search-actors <service> <handle> <password> <query> [limit]",
-         "Search actors via app.bsky.actor.searchActors. limit defaults to 25."},
+         "Search actors via app.bsky.actor.searchActors. limit defaults to "
+         "25."},
         {"search-typeahead",
          "search-typeahead <service> <handle> <password> <query> [limit]",
          "Actor search typeahead via app.bsky.actor.searchActorsTypeahead. "
@@ -465,16 +467,15 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
          "Fetch suggested follows via app.bsky.actor.getSuggestions."},
         {"known-followers",
          "known-followers <service> <handle> <password> <actor>",
-         "Fetch known followers of an actor via app.bsky.graph.getKnownFollowers."},
+         "Fetch known followers of an actor via "
+         "app.bsky.graph.getKnownFollowers."},
         {"relationships",
          "relationships <service> <handle> <password> <actor> <other>...",
          "Fetch relationships between an actor and others via "
          "wf_agent_get_relationships."},
-        {"get-actor-status",
-         "get-actor-status <service> <actor>",
+        {"get-actor-status", "get-actor-status <service> <actor>",
          "Fetch an actor's live status via wf_agent_get_actor_status."},
-        {"get-feed-generators",
-         "get-feed-generators <service> <feed-uri>...",
+        {"get-feed-generators", "get-feed-generators <service> <feed-uri>...",
          "Fetch feed generator metadata for URIs via "
          "wf_agent_get_feed_generators (no auth)."},
         {"get-suggested-follows-by-actor",
@@ -501,8 +502,7 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
          "ozone team list-members <service> <handle> <password> "
          "[--limit N] [--cursor C]",
          "List Ozone team members via tools.ozone.team.listMembers."},
-        {"ozone",
-         "ozone server get-config <service> <handle> <password>",
+        {"ozone", "ozone server get-config <service> <handle> <password>",
          "Fetch Ozone server config via tools.ozone.server.getConfig."},
         {"ozone",
          "ozone communication list-templates <service> <handle> <password>",
@@ -527,24 +527,21 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
          "admin search-accounts <service> <handle> <password> [email] "
          "[--limit N]",
          "Search accounts as admin via com.atproto.admin.searchAccounts."},
-        {"admin",
-         "admin get-account-info <service> <handle> <password> <did>",
+        {"admin", "admin get-account-info <service> <handle> <password> <did>",
          "Fetch account info as admin via com.atproto.admin.getAccountInfo."},
         {"admin",
          "admin get-subject-status <service> <handle> <password> <did>",
-         "Fetch subject status as admin via com.atproto.admin.getSubjectStatus."},
+         "Fetch subject status as admin via "
+         "com.atproto.admin.getSubjectStatus."},
         {"admin",
          "admin get-invite-codes <service> <handle> <password> "
          "[--create N] [--use-count N] [--cursor C]",
          "Fetch invite codes as admin via com.atproto.admin.getInviteCodes."},
-        {"admin",
-         "admin delete-account <service> <handle> <password> <did>",
+        {"admin", "admin delete-account <service> <handle> <password> <did>",
          "Delete an account as admin via com.atproto.admin.deleteAccount."},
-        {"admin",
-         "admin disable-account-invites <service> <handle> <password>",
+        {"admin", "admin disable-account-invites <service> <handle> <password>",
          "Disable account invites as admin."},
-        {"admin",
-         "admin enable-account-invites <service> <handle> <password>",
+        {"admin", "admin enable-account-invites <service> <handle> <password>",
          "Enable account invites as admin."},
         {"admin",
          "admin send-email <service> <handle> <password> <recipient-did> "
