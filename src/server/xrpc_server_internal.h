@@ -62,6 +62,8 @@ struct wf_xrpc_server {
     wf_static_route *static_routes;
     wf_http_route *http_routes;
     struct wf_owned_ctx *owned_ctxs; /* heap allocations freed on server free */
+    pthread_mutex_t
+        routes_mutex; /* guards routes, http_routes, static_routes */
     wf_xrpc_auth_cb auth_cb;
     void *auth_ctx;
     /* Optional handler for NSIDs with no registered route (see
@@ -78,6 +80,7 @@ struct wf_xrpc_server {
     wf_rate_limiter *rate_limiter;           /* global IP-based limiter */
     wf_rate_limiter *rate_limiter_owned;     /* non-NULL => server frees it */
     wf_rate_limit_entry *rate_limit_entries; /* per-route list */
+    pthread_mutex_t rate_limit_mutex;        /* guards rate_limit_entries */
     wf_xrpc_sse_stream *sse_streams;         /* open SSE connections */
     pthread_mutex_t sse_mutex;               /* guards sse_streams */
     wf_xrpc_ws_stream *ws_streams;           /* open WebSocket connections */

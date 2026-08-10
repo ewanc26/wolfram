@@ -576,6 +576,13 @@ if(WOLFRAM_BUILD_SERVER)
                                    ${MICROHTTPD_INCLUDE_DIR})
     add_test(NAME xrpc_server_sse COMMAND test_xrpc_server_sse)
 
+    add_executable(test_xrpc_server_parallel test/test_xrpc_server_parallel.c)
+    target_link_libraries(test_xrpc_server_parallel PRIVATE wolfram Threads::Threads)
+    target_include_directories(
+      test_xrpc_server_parallel PRIVATE test ${cjson_SOURCE_DIR}
+                                       ${MICROHTTPD_INCLUDE_DIR})
+    add_test(NAME xrpc_server_parallel COMMAND test_xrpc_server_parallel)
+
     add_executable(test_xrpc_server_ws test/test_xrpc_server_ws.c)
     target_link_libraries(test_xrpc_server_ws PRIVATE wolfram Threads::Threads)
     target_include_directories(
