@@ -537,6 +537,15 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
     curl_easy_setopt(curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
+    /* Bound the connection handshake and abort a genuinely stalled transfer
+     * (a peer that accepts the connection but never sends a response) --
+     * previously every request made through this function could hang
+     * indefinitely. A low-speed abort rather than a blanket total timeout so
+     * legitimately slow-but-progressing large transfers (e.g. blob uploads)
+     * are not cut off. */
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 10000L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 30L);
     if (cfg->ca_bundle) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, cfg->ca_bundle);
     }
