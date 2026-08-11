@@ -56,8 +56,8 @@ static int wf_mst_key_is_valid(const unsigned char *key, size_t key_len) {
         if (i == slash) continue;
         unsigned char c = key[i];
         int ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                 (c >= '0' && c <= '9') || c == '_' || c == '~' ||
-                 c == '-' || c == ':' || c == '.';
+                 (c >= '0' && c <= '9') || c == '_' || c == '~' || c == '-' ||
+                 c == ':' || c == '.';
         if (!ok) return 0;
     }
     return 1;
