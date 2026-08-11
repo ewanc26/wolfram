@@ -261,6 +261,43 @@ wf_status wf_repo_get_record(wf_car *car, const wf_cid *commit_cid,
     return WF_OK;
 }
 
+wf_status wf_repo_get_record_proof(wf_car *car, const wf_cid *commit_cid,
+                                   const char *collection, const char *rkey,
+                                   wf_cid **out_proof_cids,
+                                   size_t *out_proof_count,
+                                   wf_cid *out_record_cid) {
+    if (!car || !commit_cid || !collection || !rkey || !out_proof_cids ||
+        !out_proof_count || !out_record_cid) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    *out_proof_cids = NULL;
+    *out_proof_count = 0;
+    memset(out_record_cid, 0, sizeof(*out_record_cid));
+
+    wf_car_block *block = wf_car_find_block(car, commit_cid);
+    if (!block) return WF_ERR_PARSE;
+
+    wf_commit commit;
+    memset(&commit, 0, sizeof(commit));
+    wf_status s = wf_commit_parse(block->data, block->data_len, &commit);
+    if (s != WF_OK) return s;
+
+    size_t col_len = strlen(collection);
+    size_t rkey_len = strlen(rkey);
+    size_t key_len = col_len + 1 + rkey_len;
+    unsigned char *mst_key = malloc(key_len);
+    if (!mst_key) return WF_ERR_ALLOC;
+    memcpy(mst_key, collection, col_len);
+    mst_key[col_len] = '/';
+    memcpy(mst_key + col_len + 1, rkey, rkey_len);
+
+    s = wf_mst_cids_for_path(car, &commit.data, mst_key, key_len,
+                             out_proof_cids, out_proof_count, out_record_cid);
+    free(mst_key);
+    return s;
+}
+
 wf_status wf_repo_update_record(wf_car *car, const wf_cid *prev_commit,
                                 const char *did, const char *collection,
                                 const char *rkey,
