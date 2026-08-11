@@ -20,6 +20,13 @@
 
 /* DID document served by the offline test handler below. */
 static const char *g_did_doc = NULL;
+/* Incremented on every request the handler actually serves -- lets the
+ * cache tests below tell a cache hit (no request reaches the handler) from
+ * a miss (it does) without needing to inspect the cache's internals. */
+static int g_did_doc_requests = 0;
+/* When non-zero, the handler fails the request instead of serving
+ * g_did_doc, for testing the stale-cache fallback on a fetch error. */
+static int g_did_doc_fail = 0;
 
 /* Test seam handler (see wf_xrpc_set_handler): returns the canned DID
  * document for any GET, so wf_did_resolve / wf_did_resolve_service can be
@@ -37,6 +44,12 @@ static wf_status did_doc_handler(void *userdata, const char *method,
     (void)body_len;
     (void)headers;
     (void)header_count;
+
+    g_did_doc_requests++;
+    if (g_did_doc_fail) {
+        out->status = 500;
+        return WF_ERR_HTTP;
+    }
 
     size_t len = strlen(g_did_doc);
     out->body = malloc(len + 1);
@@ -162,6 +175,14 @@ static wf_status well_known_handler(void *userdata, const char *method,
 }
 
 int main(void) {
+    /* This file resolves the same DID strings (e.g. "did:plc:chatdid")
+     * repeatedly against many different hand-crafted documents via the
+     * mock handler below -- it is testing resolution/parsing behavior,
+     * not caching, so the DID document cache must be disabled or every
+     * resolution past the first of a given DID would serve stale content
+     * from an earlier sub-test instead of reaching the mock. */
+    wf_did_cache_configure(0, 0);
+
     /* --- DID method sniffing --- */
     WF_CHECK(wf_did_method_of("did:plc:ofrbh253gwicbkc5nktqepol") ==
              WF_DID_METHOD_PLC);
@@ -687,6 +708,80 @@ int main(void) {
         WF_CHECK(hk_did != NULL && strcmp(hk_did, "did:plc:abc") == 0);
         free(hk_did);
 
+        wf_xrpc_set_handler(client, NULL, NULL);
+    }
+
+    /* --- DID document cache: stale-while-revalidate --- */
+    {
+        static const char *doc_json =
+            "{\"id\":\"did:plc:cachetest\",\"service\":["
+            "{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\","
+            "\"serviceEndpoint\":\"https://pds.example.com\"}]}";
+        g_did_doc = doc_json;
+        g_did_doc_requests = 0;
+        g_did_doc_fail = 0;
+        wf_xrpc_set_handler(client, did_doc_handler, NULL);
+
+        /* Fresh entry, well within stale_ttl: the second resolve must be
+         * served from cache, not reach the handler again. */
+        wf_did_cache_clear();
+        wf_did_cache_configure(3600, 86400);
+        wf_did_document cache_doc = {0};
+        WF_CHECK(wf_did_resolve(client, "did:plc:cachetest", &cache_doc) ==
+                 WF_OK);
+        WF_CHECK(g_did_doc_requests == 1);
+        wf_did_document_free(&cache_doc);
+
+        memset(&cache_doc, 0, sizeof(cache_doc));
+        WF_CHECK(wf_did_resolve(client, "did:plc:cachetest", &cache_doc) ==
+                 WF_OK);
+        WF_CHECK(g_did_doc_requests == 1); /* still 1: served from cache */
+        WF_CHECK(cache_doc.pds_endpoint &&
+                 strcmp(cache_doc.pds_endpoint, "https://pds.example.com") ==
+                     0);
+        wf_did_document_free(&cache_doc);
+
+        /* Force "stale" (stale_ttl=0: every call attempts a refresh) while
+         * keeping the entry inside max_ttl. The handler now fails, so the
+         * refresh attempt fails too -- the stale cached copy must still be
+         * served rather than the request failing outright, matching the
+         * reference's resilience intent: a transient outage does not have
+         * to fail every dependent request. */
+        wf_did_cache_configure(0, 86400);
+        g_did_doc_fail = 1;
+        memset(&cache_doc, 0, sizeof(cache_doc));
+        WF_CHECK(wf_did_resolve(client, "did:plc:cachetest", &cache_doc) ==
+                 WF_OK);
+        WF_CHECK(g_did_doc_requests == 2); /* a refresh was attempted */
+        WF_CHECK(cache_doc.pds_endpoint &&
+                 strcmp(cache_doc.pds_endpoint, "https://pds.example.com") ==
+                     0);
+        wf_did_document_free(&cache_doc);
+
+        /* No cache entry at all and the handler fails: nothing to fall
+         * back to, so the fetch error must propagate. */
+        wf_did_cache_clear();
+        memset(&cache_doc, 0, sizeof(cache_doc));
+        WF_CHECK(wf_did_resolve(client, "did:plc:cachetest", &cache_doc) !=
+                 WF_OK);
+        g_did_doc_fail = 0;
+
+        /* max_ttl <= 0 disables caching entirely: every resolve reaches
+         * the handler. */
+        wf_did_cache_clear();
+        wf_did_cache_configure(0, 0);
+        g_did_doc_requests = 0;
+        memset(&cache_doc, 0, sizeof(cache_doc));
+        WF_CHECK(wf_did_resolve(client, "did:plc:cachetest", &cache_doc) ==
+                 WF_OK);
+        wf_did_document_free(&cache_doc);
+        memset(&cache_doc, 0, sizeof(cache_doc));
+        WF_CHECK(wf_did_resolve(client, "did:plc:cachetest", &cache_doc) ==
+                 WF_OK);
+        WF_CHECK(g_did_doc_requests == 2); /* both reached the handler */
+        wf_did_document_free(&cache_doc);
+
+        wf_did_cache_clear();
         wf_xrpc_set_handler(client, NULL, NULL);
     }
 
