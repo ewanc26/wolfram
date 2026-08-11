@@ -3,7 +3,10 @@
     {
       "did": "did:plc:mutescarol",
       "handle": "carol.bsky.social",
-      "displayName": "Carol"
+      "displayName": "Carol",
+      "viewer": {
+        "muted": true
+      }
     },
     {
       "did": "did:plc:mutesdave",

@@ -44,6 +44,7 @@ static void wf_actor_profile_view_reset(wf_agent_profile_view *p) {
     free(p->handle);
     free(p->display_name);
     free(p->avatar);
+    free(p->blocking);
     memset(p, 0, sizeof(*p));
 }
 
@@ -61,7 +62,9 @@ static void wf_actor_profile_view_basic_reset(wf_agent_profile_view_basic *p) {
     memset(p, 0, sizeof(*p));
 }
 
-/* Parse the four core profileView fields (did/handle/displayName/avatar). */
+/* Parse the four core profileView fields (did/handle/displayName/avatar),
+ * plus viewer.blocking/viewer.muted when the source endpoint's view carries
+ * a viewer subtree — see the field comments on wf_agent_profile_view. */
 static wf_status wf_actor_parse_profile_view(wf_agent_profile_view *p,
                                              cJSON *obj) {
     wf_status status = WF_OK;
@@ -80,6 +83,18 @@ static wf_status wf_actor_parse_profile_view(wf_agent_profile_view *p,
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
         status = wf_actor_set_string(&p->avatar, avatar->valuestring);
+    }
+
+    cJSON *viewer = cJSON_GetObjectItemCaseSensitive(obj, "viewer");
+    if (status == WF_OK && cJSON_IsObject(viewer)) {
+        cJSON *blocking = cJSON_GetObjectItemCaseSensitive(viewer, "blocking");
+        if (cJSON_IsString(blocking) && blocking->valuestring) {
+            status = wf_actor_set_string(&p->blocking, blocking->valuestring);
+        }
+        cJSON *muted = cJSON_GetObjectItemCaseSensitive(viewer, "muted");
+        if (cJSON_IsBool(muted)) {
+            p->muted = cJSON_IsTrue(muted);
+        }
     }
     return status;
 }
