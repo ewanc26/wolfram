@@ -992,7 +992,9 @@ static wf_status wf_handle_resolve_cares(const char *qname, char **out_did) {
         ares_destroy(channel);
         return WF_ERR_NETWORK;
     }
-    status = ares_queue_wait_empty(channel, -1);
+    /* Bounded wait: a DNS server that accepts the query but never replies
+     * must not hang handle resolution forever. */
+    status = ares_queue_wait_empty(channel, 5000);
     ares_destroy(channel);
     if (status != ARES_SUCCESS) {
         free(result.did);
