@@ -256,7 +256,18 @@ The SDK is broad and multi-layered, with extensive offline coverage. “Implemen
 - Exercise the gated live example test (`test_examples_live`) in CI with real credentials.
 - Continue evaluating upstream C libraries for server-side infrastructure (event loop, config parsing).
 - Broaden generated typed-wrapper coverage for any remaining lexicon endpoints not yet wrapped at the agent level.
-- Optionally add a server-side end-to-end test that emits a built `sync_publish` frame over a `subscribeRepos`-style WebSocket route and decodes it back with the `sync_subscribe` client, and extend `sync_publish` to the `subscribeLabels` `#labels` event.
+
+Done: the server-side `sync_publish` → `subscribeRepos` WebSocket end-to-end
+test (`test_sync_publish_e2e`, plus the `sync_subscribe`-client-driven
+`test_sync_publish_server`) and `sync_publish` support for the
+`subscribeLabels` `#labels` event (`WF_SUBSCRIBE_EVENT_LABELS` /
+`build_labels_body`) both landed. These only build/register under
+`-DWOLFRAM_BUILD_SERVER=ON` — a CMake ordering bug meant that flag alone
+silently skipped every WOLFRAM_BUILD_SERVER-gated test executable unless
+`-DWOLFRAM_BUILD_TESTS=ON` was also passed explicitly (`option(WOLFRAM_BUILD_TESTS
+...)` ran ~300 lines after the `if(WOLFRAM_BUILD_TESTS)` guard that needed
+it), which is why this was easy to miss with a green `ctest` run; fixed by
+moving the option() declaration earlier.
 
 ## Platform support
 
