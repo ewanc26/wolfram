@@ -125,6 +125,24 @@ wf_status wf_mst_get_covering_proof(wf_car *car, const wf_cid *root,
                                     size_t to_key_len, wf_cid **out,
                                     size_t *out_count);
 
+/**
+ * The MST node path from `root` down to where `key` lives, present or not --
+ * an inclusion or non-inclusion proof for a single key, matching the
+ * reference's MST.cidsForPath (mst/mst.ts, used by com.atproto.sync.getRecord
+ * via repo/sync/provider.ts's getRecords). Every node visited is included in
+ * *out_node_cids, unlike wf_mst_get_covering_proof's range pruning: an empty
+ * subtree pointer just ends the walk without omitting the node it ended at.
+ *
+ * *out_leaf_cid is zeroed (len == 0) when `key` is absent; otherwise it names
+ * the leaf's value CID, which the caller must also include in the proof
+ * alongside *out_node_cids.
+ * Ownership: *out_node_cids is caller-owned; free it with wf_mst_cid_list_free.
+ */
+wf_status wf_mst_cids_for_path(wf_car *car, const wf_cid *root_cid,
+                               const unsigned char *key, size_t key_len,
+                               wf_cid **out_node_cids, size_t *out_node_count,
+                               wf_cid *out_leaf_cid);
+
 #ifdef __cplusplus
 }
 #endif

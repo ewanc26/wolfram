@@ -1796,6 +1796,102 @@ static wf_status mst_count_in_range(wf_car *car, const wf_cid *cid,
     return s;
 }
 
+/*
+ * The node path from `root_cid` down to where `key` lives (present or not),
+ * mirroring the reference's MST.cidsForPath (mst/mst.ts): every node visited
+ * is included regardless of whether it turns out to hold the key, which is
+ * what makes the result a valid non-inclusion proof and not just a shortest
+ * path to a hit. If the key is present, its leaf value CID is returned
+ * separately via `out_leaf_cid`; if absent, the walk stops at the node that
+ * would have held it (no subtree left to descend into) and `out_leaf_cid` is
+ * left zeroed.
+ *
+ * Unlike wf_mst_get_covering_proof (built for a range and pruned to
+ * subtrees containing at least one match), this never prunes: an empty
+ * subtree pointer just ends the walk, it never skips a node that was
+ * visited.
+ */
+wf_status wf_mst_cids_for_path(wf_car *car, const wf_cid *root_cid,
+                               const unsigned char *key, size_t key_len,
+                               wf_cid **out_node_cids, size_t *out_node_count,
+                               wf_cid *out_leaf_cid) {
+    if (!car || !root_cid || !key || key_len == 0 || !out_node_cids ||
+        !out_node_count || !out_leaf_cid)
+        return WF_ERR_INVALID_ARG;
+    *out_node_cids = NULL;
+    *out_node_count = 0;
+    memset(out_leaf_cid, 0, sizeof(*out_leaf_cid));
+    if (root_cid->len == 0) return WF_OK;
+
+    wf_cid *list = NULL;
+    size_t count = 0, cap = 0;
+    wf_cid current = *root_cid;
+    size_t steps = 0;
+
+    while (1) {
+        if (steps > WF_MST_MAX_DEPTH || steps > car->block_count) {
+            free(list);
+            return WF_ERR_PARSE;
+        }
+        steps++;
+
+        wf_status s = mst_cid_list_push(&list, &count, &cap, &current);
+        if (s != WF_OK) {
+            free(list);
+            return s;
+        }
+
+        wf_car_block *block = wf_car_find_block(car, &current);
+        if (!block) {
+            free(list);
+            return WF_ERR_PARSE;
+        }
+        wf_mst_node node;
+        s = wf_mst_node_parse(block->data, block->data_len, &current, &node);
+        if (s != WF_OK) {
+            free(list);
+            return s;
+        }
+
+        size_t idx = 0;
+        for (; idx < node.count; idx++) {
+            int cmp = wf_mst_key_cmp(key, key_len, node.entries[idx].key,
+                                     node.entries[idx].key_len);
+            if (cmp == 0) {
+                *out_leaf_cid = node.entries[idx].value;
+                wf_mst_node_free(&node);
+                *out_node_cids = list;
+                *out_node_count = count;
+                return WF_OK;
+            }
+            if (cmp < 0) break;
+        }
+
+        wf_cid *subtree = NULL;
+        if (idx == 0) {
+            if (node.left.len > 0) subtree = &node.left;
+        } else {
+            if (node.entries[idx - 1].subtree.len > 0)
+                subtree = &node.entries[idx - 1].subtree;
+        }
+        if (!subtree && idx >= node.count && node.count > 0) {
+            if (node.entries[node.count - 1].subtree.len > 0)
+                subtree = &node.entries[node.count - 1].subtree;
+        }
+
+        if (subtree && subtree->len > 0) {
+            current = *subtree;
+            wf_mst_node_free(&node);
+            continue;
+        }
+
+        wf_mst_node_free(&node);
+        *out_node_cids = list;
+        *out_node_count = count;
+        return WF_OK; /* not found -- the collected path is the proof */
+    }
+}
+
 /* Collect every node CID whose subtree contains at least one in-range leaf. */
 static wf_status mst_collect_proof(wf_car *car, const wf_cid *cid,
                                    const unsigned char *from_key,

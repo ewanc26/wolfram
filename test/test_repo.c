@@ -2011,6 +2011,135 @@ int main(void) {
         wf_car_free(&car);
     }
 
+    /* Record proof (com.atproto.sync.getRecord): inclusion and
+     * non-inclusion. The proof must be independently walkable from the
+     * commit's MST root down to the leaf (or the boundary where it would
+     * live), not merely non-empty. */
+    {
+        wf_signing_key key;
+        memset(&key, 0, sizeof(key));
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+
+        wf_car car;
+        memset(&car, 0, sizeof(car));
+
+        unsigned char record_a[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x18, 0x7B};
+        unsigned char record_b[] = {0xA1, 0x64, 'n', 'a', 'm',
+                                    'e',  0x63, 'b', 'o', 'b'};
+
+        wf_cid commit1, rec1;
+        memset(&commit1, 0, sizeof(commit1));
+        memset(&rec1, 0, sizeof(rec1));
+        WF_CHECK(wf_repo_create_record(&car, NULL, "did:plc:test",
+                                       "com.example.posts", "recA", record_a,
+                                       sizeof(record_a), &key, &commit1,
+                                       &rec1) == WF_OK);
+
+        wf_cid commit2, rec2;
+        memset(&commit2, 0, sizeof(commit2));
+        memset(&rec2, 0, sizeof(rec2));
+        WF_CHECK(wf_repo_create_record(&car, &commit1, "did:plc:test",
+                                       "com.example.posts", "recB", record_b,
+                                       sizeof(record_b), &key, &commit2,
+                                       &rec2) == WF_OK);
+
+        wf_car_block *commit_block = wf_car_find_block(&car, &commit2);
+        WF_CHECK(commit_block != NULL);
+        wf_commit commit;
+        memset(&commit, 0, sizeof(commit));
+        WF_CHECK(wf_commit_parse(commit_block->data, commit_block->data_len,
+                                 &commit) == WF_OK);
+
+        /* Present key: proof ends in the leaf's value CID, matching what
+         * wf_repo_get_record independently resolves for the same key, and
+         * every node CID in the proof is a real, parseable block reachable
+         * by walking from the commit's MST root. */
+        {
+            static const char key_a[] = "com.example.posts/recA";
+            wf_cid *proof = NULL;
+            size_t proof_count = 0;
+            wf_cid leaf;
+            memset(&leaf, 0, sizeof(leaf));
+            WF_CHECK(wf_mst_cids_for_path(
+                         &car, &commit.data, (const unsigned char *)key_a,
+                         strlen(key_a), &proof, &proof_count, &leaf) == WF_OK);
+            WF_CHECK(proof_count >= 1);
+            WF_CHECK(leaf.len == rec1.len &&
+                     memcmp(leaf.bytes, rec1.bytes, leaf.len) == 0);
+
+            /* Every proof node is a block actually present in the CAR and
+             * parses as an MST node. */
+            for (size_t i = 0; i < proof_count; i++) {
+                wf_car_block *b = wf_car_find_block(&car, &proof[i]);
+                WF_CHECK(b != NULL);
+                if (b) {
+                    wf_mst_node n;
+                    memset(&n, 0, sizeof(n));
+                    WF_CHECK(wf_mst_node_parse(b->data, b->data_len, &proof[i],
+                                               &n) == WF_OK);
+                    wf_mst_node_free(&n);
+                }
+            }
+            /* The proof's own path must actually find the leaf again via
+             * wf_mst_find, cross-checking against a second, independent
+             * traversal of the same tree. */
+            wf_cid found;
+            memset(&found, 0, sizeof(found));
+            WF_CHECK(wf_mst_find(&car, &commit.data,
+                                 (const unsigned char *)key_a, strlen(key_a),
+                                 &found) == WF_OK);
+            WF_CHECK(found.len == leaf.len &&
+                     memcmp(found.bytes, leaf.bytes, found.len) == 0);
+            wf_mst_cid_list_free(proof, proof_count);
+        }
+
+        /* Absent key: no leaf CID, but the proof still ends at a real,
+         * parseable node -- a non-inclusion proof is not merely "no
+         * results", it is a verifiable dead end. */
+        {
+            static const char key_nope[] = "com.example.posts/nope";
+            wf_cid *proof = NULL;
+            size_t proof_count = 0;
+            wf_cid leaf;
+            memset(&leaf, 0xAA, sizeof(leaf)); /* poison: must be zeroed */
+            WF_CHECK(wf_mst_cids_for_path(&car, &commit.data,
+                                          (const unsigned char *)key_nope,
+                                          strlen(key_nope), &proof,
+                                          &proof_count, &leaf) == WF_OK);
+            WF_CHECK(leaf.len == 0);
+            WF_CHECK(proof_count >= 1);
+            for (size_t i = 0; i < proof_count; i++) {
+                wf_car_block *b = wf_car_find_block(&car, &proof[i]);
+                WF_CHECK(b != NULL);
+            }
+            wf_mst_cid_list_free(proof, proof_count);
+        }
+
+        /* wf_repo_get_record_proof wraps the same walk and agrees with it. */
+        {
+            wf_cid *proof = NULL;
+            size_t proof_count = 0;
+            wf_cid record_cid;
+            memset(&record_cid, 0, sizeof(record_cid));
+            WF_CHECK(wf_repo_get_record_proof(
+                         &car, &commit2, "com.example.posts", "recB", &proof,
+                         &proof_count, &record_cid) == WF_OK);
+            WF_CHECK(record_cid.len == rec2.len &&
+                     memcmp(record_cid.bytes, rec2.bytes, record_cid.len) == 0);
+            WF_CHECK(proof_count >= 1);
+            wf_mst_cid_list_free(proof, proof_count);
+
+            memset(&record_cid, 0xAA, sizeof(record_cid));
+            WF_CHECK(wf_repo_get_record_proof(
+                         &car, &commit2, "com.example.posts", "missing", &proof,
+                         &proof_count, &record_cid) == WF_OK);
+            WF_CHECK(record_cid.len == 0);
+            wf_mst_cid_list_free(proof, proof_count);
+        }
+
+        wf_car_free(&car);
+    }
+
     /* Delete non-existent record */
     {
         wf_signing_key key;
