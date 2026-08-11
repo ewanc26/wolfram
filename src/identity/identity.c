@@ -1489,10 +1489,12 @@ wf_status wf_identity_verify_handle(wf_xrpc_client *client, const char *handle,
 
     status = did_fetch_document(client, did, &root);
     if (status == WF_OK && root) {
-        int match = 1;
+        /* No match by default: a DID document that lacks (or malforms)
+         * alsoKnownAs makes no claim back to this handle, so verification
+         * must fail rather than pass. */
+        int match = 0;
         cJSON *aka = cJSON_GetObjectItemCaseSensitive(root, "alsoKnownAs");
         if (aka && cJSON_IsArray(aka)) {
-            match = 0;
             cJSON *item = NULL;
             const char *prefix = "at://";
             size_t prefix_len = strlen(prefix);
