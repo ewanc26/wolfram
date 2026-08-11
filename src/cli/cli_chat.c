@@ -27,9 +27,24 @@ int cmd_convos(int argc, char **argv) {
     wf_agent *agent = agent_login_or_err(argv[1], argv[2], argv[3]);
     if (!agent) return 1;
 
-    wf_response res = {0};
-    wf_status s = wf_agent_chat_list_convos(agent, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
+    wf_chat_convo_list list = {0};
+    wf_status s = wf_agent_chat_list_convos(agent, limit, NULL, &list);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: listConvos failed (status %d)\n", (int)s);
+        wf_chat_convo_list_free(&list);
+        wf_agent_free(agent);
+        return 1;
+    }
+    for (size_t i = 0; i < list.convo_count; ++i) {
+        printf("%s\tunread=%d\t%s\n", list.convos[i].id,
+               list.convos[i].unread_count,
+               list.convos[i].last_message_text
+                   ? list.convos[i].last_message_text
+                   : "(no last message)");
+    }
+    wf_chat_convo_list_free(&list);
+    wf_agent_free(agent);
+    return 0;
 }
 
 /* wolfram messages <service> <handle> <password> --convo <convo-id> [limit] */
@@ -53,10 +68,22 @@ int cmd_messages(int argc, char **argv) {
     wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
     if (!agent) return 1;
 
-    wf_response res = {0};
+    wf_chat_message_list list = {0};
     wf_status s =
-        wf_agent_chat_get_messages(agent, convo_id, limit, NULL, &res);
-    return finish_agent_response(agent, s, &res);
+        wf_agent_chat_get_messages(agent, convo_id, limit, NULL, &list);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: getMessages failed (status %d)\n", (int)s);
+        wf_chat_message_list_free(&list);
+        wf_agent_free(agent);
+        return 1;
+    }
+    for (size_t i = 0; i < list.message_count; ++i) {
+        printf("[%s] %s: %s\n", list.messages[i].sent_at,
+               list.messages[i].sender, list.messages[i].text);
+    }
+    wf_chat_message_list_free(&list);
+    wf_agent_free(agent);
+    return 0;
 }
 
 /* wolfram chat send <service> <handle> <password> --convo <convo-id>
@@ -90,10 +117,20 @@ int cmd_chat(int argc, char **argv) {
         wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
         if (!agent) return 1;
 
-        wf_response res = {0};
+        wf_chat_message msg = {0};
         wf_status s =
-            wf_agent_chat_send_message(agent, convo_id, text, NULL, &res);
-        return finish_agent_response(agent, s, &res);
+            wf_agent_chat_send_message(agent, convo_id, text, NULL, &msg);
+        if (s != WF_OK) {
+            fprintf(stderr, "error: sendMessage failed (status %d)\n", (int)s);
+            wf_chat_message_reset(&msg);
+            wf_agent_free(agent);
+            return 1;
+        }
+        printf("sent: id=%s text=%s\n", msg.id ? msg.id : "?",
+               msg.text ? msg.text : "?");
+        wf_chat_message_reset(&msg);
+        wf_agent_free(agent);
+        return 0;
     }
 
     fprintf(stderr, "error: unknown chat subcommand '%s' (try send)\n", sub);
@@ -106,7 +143,8 @@ int cmd_chat(int argc, char **argv) {
  *   --name <name>
  * wolfram groups add-members <service> <handle> <password> --convo <convo-id>
  *   --members <did>...
- * wolfram groups remove-members <service> <handle> <password> --convo <convo-id>
+ * wolfram groups remove-members <service> <handle> <password> --convo
+ * <convo-id>
  *   --members <did>... */
 int cmd_groups(int argc, char **argv) {
     if (argc < 2) {
@@ -125,8 +163,7 @@ int cmd_groups(int argc, char **argv) {
             if (strcmp(argv[i], "--name") == 0 && i + 1 < argc)
                 name = argv[++i];
             else if (strcmp(argv[i], "--members") == 0) {
-                while (i + 1 < argc && argv[i + 1][0] != '-' &&
-                       n_members < 16)
+                while (i + 1 < argc && argv[i + 1][0] != '-' && n_members < 16)
                     members[n_members++] = argv[++i];
             } else if (pi < 3)
                 pos[pi++] = argv[i];
@@ -142,8 +179,8 @@ int cmd_groups(int argc, char **argv) {
         if (!agent) return 1;
 
         wf_response res = {0};
-        wf_status s = wf_agent_chat_create_group(agent, members, n_members,
-                                                  name, &res);
+        wf_status s =
+            wf_agent_chat_create_group(agent, members, n_members, name, &res);
         return finish_agent_response(agent, s, &res);
     }
 
@@ -192,16 +229,16 @@ int cmd_groups(int argc, char **argv) {
             if (strcmp(argv[i], "--convo") == 0 && i + 1 < argc)
                 convo_id = argv[++i];
             else if (strcmp(argv[i], "--members") == 0) {
-                while (i + 1 < argc && argv[i + 1][0] != '-' &&
-                       n_members < 16)
+                while (i + 1 < argc && argv[i + 1][0] != '-' && n_members < 16)
                     members[n_members++] = argv[++i];
             } else if (pi < 3)
                 pos[pi++] = argv[i];
         }
         if (pi < 3 || !convo_id || n_members == 0) {
-            fprintf(stderr, "error: usage: wolfram groups %s <service> "
-                            "<handle> <password> --convo <convo-id> --members "
-                            "<did>...\n",
+            fprintf(stderr,
+                    "error: usage: wolfram groups %s <service> "
+                    "<handle> <password> --convo <convo-id> --members "
+                    "<did>...\n",
                     sub);
             return 1;
         }
@@ -212,8 +249,8 @@ int cmd_groups(int argc, char **argv) {
         wf_response res = {0};
         wf_status s;
         if (strcmp(sub, "add-members") == 0)
-            s = wf_agent_chat_add_members(agent, convo_id, members,
-                                          n_members, &res);
+            s = wf_agent_chat_add_members(agent, convo_id, members, n_members,
+                                          &res);
         else
             s = wf_agent_chat_remove_members(agent, convo_id, members,
                                              n_members, &res);
@@ -221,21 +258,21 @@ int cmd_groups(int argc, char **argv) {
         if (s != WF_OK) {
             fprintf(stderr, "error: %s failed (status %d)\n",
                     strcmp(sub, "add-members") == 0 ? "addMembers"
-                                                     : "removeMembers",
+                                                    : "removeMembers",
                     (int)s);
             wf_agent_free(agent);
             return 1;
         }
         printf("%s %d members %s convo %s\n",
-               strcmp(sub, "add-members") == 0 ? "added" : "removed",
-               n_members,
+               strcmp(sub, "add-members") == 0 ? "added" : "removed", n_members,
                strcmp(sub, "add-members") == 0 ? "to" : "from", convo_id);
         wf_agent_free(agent);
         return 0;
     }
 
-    fprintf(stderr, "error: unknown groups subcommand '%s' (try create/edit/"
-                    "add-members/remove-members)\n",
+    fprintf(stderr,
+            "error: unknown groups subcommand '%s' (try create/edit/"
+            "add-members/remove-members)\n",
             sub);
     return 1;
 }
@@ -243,8 +280,7 @@ int cmd_groups(int argc, char **argv) {
 /* wolfram reactions <service> <handle> <password> <add|remove>
  *   --convo <convo-id> --message <msg-id> --value <emoji> */
 int cmd_reactions(int argc, char **argv) {
-    const char *action = NULL, *convo_id = NULL, *msg_id = NULL,
-               *value = NULL;
+    const char *action = NULL, *convo_id = NULL, *msg_id = NULL, *value = NULL;
     const char *pos[3];
     int pi = 0;
     for (int i = 1; i < argc; ++i) {
@@ -275,8 +311,9 @@ int cmd_reactions(int argc, char **argv) {
     else if (strcmp(action, "remove") == 0)
         s = wf_agent_chat_remove_reaction(agent, convo_id, msg_id, value);
     else {
-        fprintf(stderr, "error: unknown reactions action '%s' (try "
-                        "add/remove)\n",
+        fprintf(stderr,
+                "error: unknown reactions action '%s' (try "
+                "add/remove)\n",
                 action);
         wf_agent_free(agent);
         return 1;
