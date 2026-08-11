@@ -50,9 +50,18 @@ int cmd_check_handle(int argc, char **argv) {
         return 1;
     }
 
-    wf_response res = {0};
-    wf_status s = wf_agent_check_handle(agent, handle, &res);
-    return finish_agent_response(agent, s, &res);
+    wf_identity_check_handle_input input = {.handle = handle};
+    wf_identity_check_handle_result result = {0};
+    wf_status s = wf_agent_check_handle(agent, &input, &result);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: checkHandle failed (status %d)\n", (int)s);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("handle %s: %s\n", handle,
+           result.valid == 1 ? "valid" : "not available");
+    wf_agent_free(agent);
+    return 0;
 }
 
 int cmd_get_recommended_did_credentials(int argc, char **argv) {
@@ -92,7 +101,8 @@ int cmd_rotate_handle(int argc, char **argv) {
 
     wf_status s;
     if (token) {
-        s = wf_agent_request_plc_operation_signature_typed(agent, wf_agent_get_did(agent));
+        s = wf_agent_request_plc_operation_signature_typed(
+            agent, wf_agent_get_did(agent));
         if (s == WF_OK) {
             s = wf_agent_update_handle_typed(agent, new_handle);
         }
@@ -145,9 +155,10 @@ int cmd_plc(int argc, char **argv) {
 
     if (strcmp(sub, "sign") == 0) {
         if (argc < 4) {
-            fprintf(stderr, "error: usage: wolfram plc sign <service> "
-                            "<token> [--rotation-key <key>]... [--also-known-as "
-                            "<handle>]...\n");
+            fprintf(stderr,
+                    "error: usage: wolfram plc sign <service> "
+                    "<token> [--rotation-key <key>]... [--also-known-as "
+                    "<handle>]...\n");
             return 1;
         }
         const char *service = argv[2];
@@ -174,8 +185,7 @@ int cmd_plc(int argc, char **argv) {
 
         wf_identity_signed_operation out = {0};
         wf_status s = wf_agent_sign_plc_operation_typed(
-            agent, token, rotation_keys, n_rot, aka, n_aka, NULL, NULL,
-            &out);
+            agent, token, rotation_keys, n_rot, aka, n_aka, NULL, NULL, &out);
         wf_agent_free(agent);
         if (s != WF_OK) {
             fprintf(stderr, "error: signPlcOperation failed (status %d)\n",
@@ -204,8 +214,7 @@ int cmd_plc(int argc, char **argv) {
             return 1;
         }
 
-        wf_status s =
-            wf_agent_submit_plc_operation_typed(agent, op_json);
+        wf_status s = wf_agent_submit_plc_operation_typed(agent, op_json);
         wf_agent_free(agent);
         if (s != WF_OK) {
             fprintf(stderr, "error: submitPlcOperation failed (status %d)\n",
@@ -216,8 +225,9 @@ int cmd_plc(int argc, char **argv) {
         return 0;
     }
 
-    fprintf(stderr, "error: unknown plc subcommand '%s' (try "
-                    "request-signature/sign/submit)\n",
+    fprintf(stderr,
+            "error: unknown plc subcommand '%s' (try "
+            "request-signature/sign/submit)\n",
             sub);
     return 1;
 }

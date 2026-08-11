@@ -56,8 +56,7 @@ int cmd_create_account(int argc, char **argv) {
         wf_agent_free(agent);
         return 1;
     }
-    printf("account created: %s (%s)\n", handle,
-           result.did ? result.did : "?");
+    printf("account created: %s (%s)\n", handle, result.did ? result.did : "?");
     wf_server_create_account_result_free(&result);
     wf_agent_free(agent);
     return 0;
@@ -109,9 +108,8 @@ int cmd_app_password(int argc, char **argv) {
         for (size_t i = 0; i < list.password_count; ++i) {
             printf("name=%s created=%s\n",
                    list.passwords[i].name ? list.passwords[i].name : "?",
-                   list.passwords[i].created_at
-                       ? list.passwords[i].created_at
-                       : "?");
+                   list.passwords[i].created_at ? list.passwords[i].created_at
+                                                : "?");
         }
         if (list.password_count == 0) printf("(no app passwords)\n");
         wf_server_app_password_list_free(&list);
@@ -131,8 +129,9 @@ int cmd_app_password(int argc, char **argv) {
         }
         printf("revoked app password '%s'\n", argv[5]);
     } else {
-        fprintf(stderr, "error: unknown app-password subcommand '%s' (try "
-                        "create/list/revoke)\n",
+        fprintf(stderr,
+                "error: unknown app-password subcommand '%s' (try "
+                "create/list/revoke)\n",
                 sub);
         wf_agent_free(agent);
         return 1;
@@ -285,8 +284,9 @@ int cmd_email(int argc, char **argv) {
         }
         printf("email update requested\n");
     } else {
-        fprintf(stderr, "error: unknown email subcommand '%s' (try "
-                        "confirm/update)\n",
+        fprintf(stderr,
+                "error: unknown email subcommand '%s' (try "
+                "confirm/update)\n",
                 sub);
         wf_agent_free(agent);
         return 1;
@@ -330,9 +330,19 @@ int cmd_reserve_signing_key(int argc, char **argv) {
     if (!agent) return 1;
 
     const char *did = (argc >= 5) ? argv[4] : NULL;
-    wf_response res = {0};
-    wf_status s = wf_agent_reserve_signing_key_typed(agent, did, &res);
-    return finish_agent_response(agent, s, &res);
+    wf_server_auth_token tok = {0};
+    wf_status s = wf_agent_reserve_signing_key_typed(agent, did, &tok);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: reserveSigningKey failed (status %d)\n",
+                (int)s);
+        wf_server_auth_token_free(&tok);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("signing key reserved: %s\n", tok.token ? tok.token : "?");
+    wf_server_auth_token_free(&tok);
+    wf_agent_free(agent);
+    return 0;
 }
 
 int cmd_get_service_auth(int argc, char **argv) {
@@ -360,10 +370,18 @@ int cmd_get_service_auth(int argc, char **argv) {
     wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
     if (!agent) return 1;
 
-    wf_response res = {0};
-    wf_status s =
-        wf_agent_get_service_auth_typed(agent, aud, exp, lxm, &res);
-    return finish_agent_response(agent, s, &res);
+    wf_server_auth_token tok = {0};
+    wf_status s = wf_agent_get_service_auth_typed(agent, aud, exp, lxm, &tok);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: getServiceAuth failed (status %d)\n", (int)s);
+        wf_server_auth_token_free(&tok);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("service auth token: %s\n", tok.token ? tok.token : "?");
+    wf_server_auth_token_free(&tok);
+    wf_agent_free(agent);
+    return 0;
 }
 
 int cmd_request_account_delete(int argc, char **argv) {
@@ -394,9 +412,20 @@ int cmd_request_email_update(int argc, char **argv) {
     wf_agent *agent = agent_login_or_err(argv[1], argv[2], argv[3]);
     if (!agent) return 1;
 
-    wf_response res = {0};
-    wf_status s = wf_agent_request_email_update_typed(agent, &res);
-    return finish_agent_response(agent, s, &res);
+    wf_server_email_update_request req = {0};
+    wf_status s = wf_agent_request_email_update_typed(agent, &req);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: requestEmailUpdate failed (status %d)\n",
+                (int)s);
+        wf_server_email_update_request_free(&req);
+        wf_agent_free(agent);
+        return 1;
+    }
+    printf("email update request: tokenRequired=%s\n",
+           req.token_required ? "true" : "false");
+    wf_server_email_update_request_free(&req);
+    wf_agent_free(agent);
+    return 0;
 }
 
 int cmd_request_email_confirmation(int argc, char **argv) {
