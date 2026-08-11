@@ -8,7 +8,6 @@
 
 #include "wolfram/agent.h"
 #include "wolfram/video_typed.h"
-#include "wolfram/blob.h"
 
 #include <cJSON.h>
 #include <stdbool.h>
@@ -70,9 +69,9 @@ int cmd_video(int argc, char **argv) {
             return 1;
         }
 
-        wf_uploaded_blob blob = {0};
+        wf_video_job_status job = {0};
         wf_status s =
-            wf_agent_upload_video(agent, buf, (size_t)size, "video/mp4", &blob);
+            wf_agent_video_upload(agent, buf, (size_t)size, "video/mp4", &job);
         free(buf);
         if (s != WF_OK) {
             fprintf(stderr, "error: video upload failed (status %d)\n", (int)s);
@@ -80,9 +79,26 @@ int cmd_video(int argc, char **argv) {
             return 1;
         }
 
-        printf("uploaded: cid=%s mime=%s size=%zu\n", blob.cid ? blob.cid : "?",
-               blob.mime_type ? blob.mime_type : "?", blob.size);
-        wf_uploaded_blob_free(&blob);
+        printf("uploaded: jobId=%s did=%s state=%s progress=%d\n",
+               job.job_status.job_id ? job.job_status.job_id : "?",
+               job.job_status.did ? job.job_status.did : "?",
+               job.job_status.state ? job.job_status.state : "?",
+               job.job_status.has_progress ? job.job_status.progress : -1);
+        if (job.job_status.has_blob) {
+            printf("blob: cid=%s mime=%s size=%lld\n",
+                   job.job_status.blob.cid ? job.job_status.blob.cid : "?",
+                   job.job_status.blob.mime_type ? job.job_status.blob.mime_type
+                                                 : "?",
+                   (long long)job.job_status.blob.size);
+        }
+        if (job.job_status.error)
+            printf("error: %s\n", job.job_status.error);
+        if (job.job_status.failure_code)
+            printf("failureCode: %s\n", job.job_status.failure_code);
+        if (job.job_status.message)
+            printf("message: %s\n", job.job_status.message);
+
+        wf_video_job_status_free(&job);
         wf_agent_free(agent);
         return 0;
     }
