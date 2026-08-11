@@ -208,7 +208,10 @@ int cmd_groups(int argc, char **argv) {
 
         wf_response res = {0};
         wf_status s = wf_agent_chat_edit_group(agent, convo_id, name, &res);
-        return finish_agent_response(agent, s, &res);
+        if (g_json) {
+            return finish_agent_response(agent, s, &res);
+        }
+        wf_response_free(&res);
         if (s != WF_OK) {
             fprintf(stderr, "error: editGroup failed (status %d)\n", (int)s);
             wf_agent_free(agent);
@@ -254,7 +257,10 @@ int cmd_groups(int argc, char **argv) {
         else
             s = wf_agent_chat_remove_members(agent, convo_id, members,
                                              n_members, &res);
-        return finish_agent_response(agent, s, &res);
+        if (g_json) {
+            return finish_agent_response(agent, s, &res);
+        }
+        wf_response_free(&res);
         if (s != WF_OK) {
             fprintf(stderr, "error: %s failed (status %d)\n",
                     strcmp(sub, "add-members") == 0 ? "addMembers"

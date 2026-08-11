@@ -111,9 +111,8 @@ wf_status wf_agent_create_record(wf_agent *agent, const char *collection,
     }
     wf_status status =
         wf_agent_create_record_internal(agent, collection, record, out);
-    if (status != WF_OK) {
-        cJSON_Delete(record);
-    }
+    /* Internal always takes ownership of `record` (it adopts it into the
+     * request root or frees it on every exit path), so never free it here. */
     return status;
 }
 

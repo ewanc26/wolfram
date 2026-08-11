@@ -5,6 +5,7 @@
 #include "wolfram/graph_typed.h"
 #include "wolfram/graph_social_typed.h"
 #include "wolfram/graph_write.h"
+#include "wolfram/repo_typed.h"
 #include "wolfram/unspecced_typed.h"
 
 #include <cJSON.h>
@@ -114,6 +115,28 @@ int cmd_mutes(int argc, char **argv) {
 }
 
 int cmd_list(int argc, char **argv) {
+    if (argc < 2) {
+        usage_stream(stderr);
+        return 0;
+    }
+
+    const char *sub = argv[1];
+    if (strcmp(sub, "create") == 0) {
+        return cmd_list_create(argc - 1, argv + 1);
+    }
+    if (strcmp(sub, "update") == 0) {
+        return cmd_list_update(argc - 1, argv + 1);
+    }
+    if (strcmp(sub, "delete") == 0) {
+        return cmd_list_delete(argc - 1, argv + 1);
+    }
+    if (strcmp(sub, "add-item") == 0) {
+        return cmd_list_add_item(argc - 1, argv + 1);
+    }
+    if (strcmp(sub, "remove-item") == 0) {
+        return cmd_list_remove_item(argc - 1, argv + 1);
+    }
+
     if (argc < 3) {
         usage_stream(stderr);
         return 0;
@@ -168,11 +191,18 @@ int cmd_list_create(int argc, char **argv) {
     wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
     if (!agent) return 1;
 
-    const char *purpose_str = purpose ? purpose : "app.bsky.graph.defs#curatelist";
+    const char *purpose_str =
+        purpose ? purpose : "app.bsky.graph.defs#curatelist";
+    if (purpose && strcmp(purpose, "modlist") == 0)
+        purpose_str = "app.bsky.graph.defs#modlist";
+    else if (purpose && strcmp(purpose, "curatelist") == 0)
+        purpose_str = "app.bsky.graph.defs#curatelist";
+    else if (purpose && strcmp(purpose, "referencelist") == 0)
+        purpose_str = "app.bsky.graph.defs#referencelist";
 
     wf_agent_post_result out = {0};
-    wf_status s = wf_agent_graph_create_list(agent, purpose_str, name,
-                                              description, &out);
+    wf_status s =
+        wf_agent_graph_create_list(agent, purpose_str, name, description, &out);
     if (s != WF_OK) {
         fprintf(stderr, "error: createList failed (status %d)\n", (int)s);
         wf_agent_post_result_free(&out);
@@ -218,27 +248,76 @@ int cmd_list_update(int argc, char **argv) {
     }
     rkey++;
 
-    char *record_json = NULL;
-    cJSON *rec = cJSON_CreateObject();
-    if (name)
-        cJSON_AddStringToObject(rec, "name", name);
-    if (description)
-        cJSON_AddStringToObject(rec, "description", description);
-    record_json = cJSON_PrintUnformatted(rec);
-    cJSON_Delete(rec);
+    wf_session_data sd = {0};
+    wf_agent_get_session_data(agent, &sd);
+    const char *repo = sd.did ? sd.did : pos[1];
 
-    wf_agent_post_result out = {0};
-    wf_status s = wf_agent_graph_update_list(agent, rkey, record_json,
-                                             &out);
+    /* putRecord replaces the whole record, so fetch it first and merge the
+     * requested fields into the existing value ($type/createdAt/purpose
+     * must be preserved). */
+    wf_repo_record rec = {0};
+    wf_status s = wf_agent_get_record_typed(agent, repo, "app.bsky.graph.list",
+                                            rkey, NULL, &rec);
+    if (s != WF_OK) {
+        fprintf(stderr, "error: getRecord failed (status %d)\n", (int)s);
+        wf_agent_session_data_free(&sd);
+        wf_agent_free(agent);
+        return 1;
+    }
+    if (!rec.value) {
+        fprintf(stderr, "error: record has no value\n");
+        wf_repo_record_free(&rec);
+        wf_agent_session_data_free(&sd);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    if (name) {
+        cJSON_DeleteItemFromObject(rec.value, "name");
+        if (!cJSON_AddStringToObject(rec.value, "name", name)) {
+            fprintf(stderr, "error: allocation failure\n");
+            wf_repo_record_free(&rec);
+            wf_agent_session_data_free(&sd);
+            wf_agent_free(agent);
+            return 1;
+        }
+    }
+    if (description) {
+        cJSON_DeleteItemFromObject(rec.value, "description");
+        if (!cJSON_AddStringToObject(rec.value, "description", description)) {
+            fprintf(stderr, "error: allocation failure\n");
+            wf_repo_record_free(&rec);
+            wf_agent_session_data_free(&sd);
+            wf_agent_free(agent);
+            return 1;
+        }
+    }
+
+    char *record_json = cJSON_PrintUnformatted(rec.value);
+    if (!record_json) {
+        fprintf(stderr, "error: allocation failure\n");
+        wf_repo_record_free(&rec);
+        wf_agent_session_data_free(&sd);
+        wf_agent_free(agent);
+        return 1;
+    }
+
+    wf_repo_write_record_result out = {0};
+    s = wf_agent_put_record_typed(agent, repo, "app.bsky.graph.list", rkey, -1,
+                                  record_json, NULL, NULL, &out);
     free(record_json);
     if (s != WF_OK) {
         fprintf(stderr, "error: updateList failed (status %d)\n", (int)s);
-        wf_agent_post_result_free(&out);
+        wf_repo_write_record_result_free(&out);
+        wf_repo_record_free(&rec);
+        wf_agent_session_data_free(&sd);
         wf_agent_free(agent);
         return 1;
     }
     printf("updated list %s\n", list_uri);
-    wf_agent_post_result_free(&out);
+    wf_repo_write_record_result_free(&out);
+    wf_repo_record_free(&rec);
+    wf_agent_session_data_free(&sd);
     wf_agent_free(agent);
     return 0;
 }
@@ -602,10 +681,9 @@ int cmd_starter_pack(int argc, char **argv) {
             return 1;
         }
 
-         wf_response res = {0};
-        wf_status s = wf_agent_get_starter_packs_with_membership(agent, actor,
-                                                                 limit, NULL,
-                                                                 &res);
+        wf_response res = {0};
+        wf_status s = wf_agent_get_starter_packs_with_membership(
+            agent, actor, limit, NULL, &res);
         return finish_agent_response(agent, s, &res);
     }
 
