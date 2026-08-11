@@ -79,11 +79,12 @@ int cmd_video(int argc, char **argv) {
             return 1;
         }
 
-        printf("uploaded: jobId=%s did=%s state=%s progress=%d\n",
+        printf("uploaded: jobId=%s did=%s state=%s progress=%lld\n",
                job.job_status.job_id ? job.job_status.job_id : "?",
                job.job_status.did ? job.job_status.did : "?",
                job.job_status.state ? job.job_status.state : "?",
-               job.job_status.has_progress ? job.job_status.progress : -1);
+               job.job_status.has_progress ? (long long)job.job_status.progress
+                                           : -1LL);
         if (job.job_status.has_blob) {
             printf("blob: cid=%s mime=%s size=%lld\n",
                    job.job_status.blob.cid ? job.job_status.blob.cid : "?",
