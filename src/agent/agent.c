@@ -115,6 +115,7 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     free(profile->description);
     free(profile->avatar_cid);
     free(profile->following);
+    free(profile->blocking);
     memset(profile, 0, sizeof(*profile));
 }
 
@@ -679,6 +680,17 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
         if (cJSON_IsString(following) && following->valuestring) {
             status =
                 wf_agent_set_string(&out->following, following->valuestring);
+        }
+
+        cJSON *blocking = cJSON_GetObjectItemCaseSensitive(viewer, "blocking");
+        if (status == WF_OK && cJSON_IsString(blocking) &&
+            blocking->valuestring) {
+            status = wf_agent_set_string(&out->blocking, blocking->valuestring);
+        }
+
+        cJSON *muted = cJSON_GetObjectItemCaseSensitive(viewer, "muted");
+        if (cJSON_IsBool(muted)) {
+            out->muted = cJSON_IsTrue(muted);
         }
     }
 
