@@ -12,6 +12,7 @@
 #include "wolfram/xrpc.h"
 
 #include <stddef.h>
+#include <time.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,30 @@ typedef struct wf_dns_txt_chunk {
 
 /** Identify which DID method a DID string uses, without resolving it. */
 wf_did_method wf_did_method_of(const char *did);
+
+/**
+ * Configure the process-wide DID document cache that wf_did_resolve (and
+ * every function built on it) consults, matching the reference's
+ * stale-while-revalidate behaviour (packages/identity/src/did/memory-cache.ts,
+ * base-resolver.ts): a document younger than `stale_ttl_seconds` is served
+ * straight from cache with no network call; between `stale_ttl_seconds` and
+ * `max_ttl_seconds` a refresh is attempted, but the stale copy is still
+ * served if that refresh fails (a transient PLC-directory or did:web outage
+ * does not have to fail every dependent request); past `max_ttl_seconds` a
+ * fetch failure is propagated as a genuine error.
+ *
+ * Optional: unconfigured, the defaults match the reference (1h / 1d). Pass
+ * 0 for either bound to disable that tier (0 stale_ttl_seconds always
+ * attempts a refresh; 0 max_ttl_seconds disables caching entirely). Safe to
+ * call at any time, including concurrently with resolution in progress.
+ */
+void wf_did_cache_configure(time_t stale_ttl_seconds, time_t max_ttl_seconds);
+
+/**
+ * Drop every entry from the DID document cache. Mainly for tests that need
+ * a clean slate between runs sharing the same process.
+ */
+void wf_did_cache_clear(void);
 
 /**
  * Resolve a DID (did:plc or did:web) to its document.
