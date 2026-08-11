@@ -845,15 +845,19 @@ int main(int argc, char **argv) {
         return usage_exit();
     }
 
-    /* Strip a leading global --json flag (and any others) so the command and
-     * its positional arguments remain contiguous at argv[1..]. */
+    /* Strip a leading global --json flag (and any others before the command
+     * word) so the command and its positional arguments remain contiguous at
+     * argv[1..]. A --json after the command belongs to that subcommand (e.g.
+     * `repo put-record --json <record>`), not to this global. */
     {
         int out = 1;
+        bool command_seen = false;
         for (int i = 1; i < argc; ++i) {
-            if (strcmp(argv[i], "--json") == 0) {
+            if (!command_seen && strcmp(argv[i], "--json") == 0) {
                 g_json = true;
                 continue;
             }
+            command_seen = true;
             argv[out++] = argv[i];
         }
         argc = out;
