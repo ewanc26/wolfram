@@ -133,6 +133,13 @@ int main(void) {
                          "Alice");
             assert_actor(&list, 1, "did:plc:blocksbob", "bob.bsky.social",
                          "Bob");
+            /* Alice's viewer.blocking round-trips; Bob has no viewer subtree
+             * at all, and that must not be fabricated as a block URI. */
+            WF_CHECK(
+                list.actors[0].blocking &&
+                strcmp(list.actors[0].blocking,
+                       "at://did:plc:me/app.bsky.graph.block/blockalice") == 0);
+            WF_CHECK(list.actors[1].blocking == NULL);
             wf_agent_actor_list_free(&list);
             free(json);
         }
@@ -154,6 +161,8 @@ int main(void) {
                          "Carol");
             assert_actor(&list, 1, "did:plc:mutesdave", "dave.bsky.social",
                          "Dave");
+            WF_CHECK(list.actors[0].muted == true);
+            WF_CHECK(list.actors[1].muted == false);
             wf_agent_actor_list_free(&list);
             free(json);
         }

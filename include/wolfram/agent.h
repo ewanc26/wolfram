@@ -431,6 +431,12 @@ typedef struct wf_agent_profile_view {
     char *handle;
     char *display_name;
     char *avatar;
+    /* Same viewer.blocking/viewer.muted shape as wf_agent_profile, when the
+     * source endpoint's profileView carries a viewer subtree (getBlocks,
+     * getMutes, getFollowers, getFollows, ...) — NULL/false when it doesn't,
+     * same as an absent viewer. */
+    char *blocking;
+    bool muted;
 } wf_agent_profile_view;
 
 typedef struct wf_agent_label {

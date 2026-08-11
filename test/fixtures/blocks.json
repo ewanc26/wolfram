@@ -3,7 +3,10 @@
     {
       "did": "did:plc:blocksalice",
       "handle": "alice.bsky.social",
-      "displayName": "Alice"
+      "displayName": "Alice",
+      "viewer": {
+        "blocking": "at://did:plc:me/app.bsky.graph.block/blockalice"
+      }
     },
     {
       "did": "did:plc:blocksbob",
