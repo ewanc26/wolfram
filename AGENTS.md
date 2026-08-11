@@ -112,6 +112,14 @@ assuming the host is down.
   not just an overall pass) before committing, and again after
   `clang-format` reformats the touched files.
 
+  Modular structure is mandatory. `src/agent/agent.c` and
+  `src/agent/chat_typed.c` are the largest hand-written files (~3900 lines
+  each) and must not grow; a change that pushes any hand-written file past
+  ~3000 lines must split it in the same change, along its real concern (an
+  agent wrapper cluster, a typed-parser cluster, a subscription loop) rather
+  than by line count. `atproto_lex.{c,h}` are generated and exempt from
+  every size rule.
+
 The bundled lexicon filenames currently match the local upstream checkout, but file parity is not semantic proof. For every protocol change, inspect the relevant lexicon and TypeScript implementation/tests under `/Volumes/Storage/Developer/Local/atproto`; check canonical encoding, validation order, limits, error semantics, pagination, union tags, and ownership rather than comparing endpoint names alone.
 
 ## Validation matrix
