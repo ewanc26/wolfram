@@ -61,13 +61,13 @@ int cmd_preferences(int argc, char **argv) {
         if (!agent) return 1;
 
         wf_response res = {0};
-        wf_status s =
-            wf_agent_put_preferences(agent, prefs_json_str, &res);
+        wf_status s = wf_agent_put_preferences(agent, prefs_json_str, &res);
         return finish_agent_response(agent, s, &res);
     }
 
-    fprintf(stderr, "error: unknown preferences subcommand '%s' (try "
-                    "get/put)\n",
+    fprintf(stderr,
+            "error: unknown preferences subcommand '%s' (try "
+            "get/put)\n",
             sub);
     return 1;
 }
@@ -198,8 +198,8 @@ int cmd_put_actor_status(int argc, char **argv) {
     if (!agent) return 1;
 
     wf_agent_post_result out = {0};
-    wf_status s = wf_agent_put_actor_status(agent, status, duration,
-                                             embed_json, &out);
+    wf_status s =
+        wf_agent_put_actor_status(agent, status, duration, embed_json, &out);
     if (s != WF_OK) {
         fprintf(stderr, "error: putActorStatus failed (status %d)\n", (int)s);
         wf_agent_post_result_free(&out);
@@ -231,9 +231,7 @@ int cmd_upload_blob(int argc, char **argv) {
         return 1;
     }
 
-    char *data = read_text_file(pos[2] ? pos[2] : file_path);
-    /* Re-read the actual file, not the password */
-    data = read_text_file(file_path);
+    char *data = read_text_file(file_path);
     if (!data) {
         fprintf(stderr, "error: could not read file '%s'\n", file_path);
         return 1;
@@ -257,8 +255,8 @@ int cmd_upload_blob(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    wf_status s = wf_agent_upload_blob(agent, data, (size_t)file_len,
-                                       content_type, &res);
+    wf_status s =
+        wf_agent_upload_blob(agent, data, (size_t)file_len, content_type, &res);
     free(data);
     return finish_agent_response(agent, s, &res);
 }
@@ -360,7 +358,7 @@ int cmd_send_interactions(int argc, char **argv) {
     if (!agent) return 1;
 
     wf_response res = {0};
-    wf_status s = wf_agent_send_interactions(agent, feed_uri,
-                                              interactions_json, &res);
+    wf_status s =
+        wf_agent_send_interactions(agent, feed_uri, interactions_json, &res);
     return finish_agent_response(agent, s, &res);
 }
