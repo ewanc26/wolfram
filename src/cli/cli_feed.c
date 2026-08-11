@@ -262,7 +262,8 @@ int cmd_get_actor_feeds(int argc, char **argv) {
     return finish_agent_response(agent, s, &res);
 }
 
-/* wolfram describe-feed <service> <handle> <password> [--feed <generator-uri>] */
+/* wolfram describe-feed <service> <handle> <password> [--feed <generator-uri>]
+ */
 int cmd_describe_feed(int argc, char **argv) {
     const char *feed = NULL;
     const char *pos[3];
@@ -436,7 +437,7 @@ int cmd_get_actor_status(int argc, char **argv) {
     printf("status: %s\n", status.status ? status.status : "(none)");
     printf("createdAt: %s\n", status.created_at ? status.created_at : "(none)");
     if (status.has_duration_minutes)
-        printf("durationMinutes: %d\n", status.duration_minutes);
+        printf("durationMinutes: %lld\n", (long long)status.duration_minutes);
     printf("isActive: %d\n", status.has_is_active ? status.is_active : 0);
     printf("isDisabled: %d\n", status.has_is_disabled ? status.is_disabled : 0);
     printf("expiresAt: %s\n", status.expires_at ? status.expires_at : "(none)");
@@ -465,8 +466,7 @@ int cmd_get_feed_generators(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    wf_status s =
-        wf_agent_get_feed_generators(agent, feeds, n_feeds, &res);
+    wf_status s = wf_agent_get_feed_generators(agent, feeds, n_feeds, &res);
     return finish_agent_response(agent, s, &res);
 }
 
@@ -486,12 +486,12 @@ int cmd_get_suggested_follows_by_actor(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    wf_status s =
-        wf_agent_get_suggested_follows_by_actor(agent, actor, &res);
+    wf_status s = wf_agent_get_suggested_follows_by_actor(agent, actor, &res);
     return finish_agent_response(agent, s, &res);
 }
 
-/* wolfram age-assurance <service> <handle> <password> <begin|get-config|get-state> */
+/* wolfram age-assurance <service> <handle> <password>
+ * <begin|get-config|get-state> */
 int cmd_age_assurance(int argc, char **argv) {
     if (argc < 5) {
         usage_stream(stderr);
@@ -546,20 +546,19 @@ int cmd_age_assurance(int argc, char **argv) {
         wf_ageassurance_state out = {0};
         wf_status s = wf_agent_get_ageassurance_state(agent, &out);
         if (s != WF_OK) {
-            fprintf(stderr,
-                    "error: ageAssurance.getState failed (status %d)\n",
+            fprintf(stderr, "error: ageAssurance.getState failed (status %d)\n",
                     (int)s);
             wf_agent_free(agent);
             return 1;
         }
         printf("status: %s\n", out.state.status ? out.state.status : "(none)");
         printf("access: %s\n", out.state.access ? out.state.access : "(none)");
-        printf("lastInitiatedAt: %s\n",
-               out.state.last_initiated_at ? out.state.last_initiated_at
-                                           : "(none)");
-        printf("accountCreatedAt: %s\n",
-               out.metadata.account_created_at ? out.metadata.account_created_at
-                                               : "(none)");
+        printf("lastInitiatedAt: %s\n", out.state.last_initiated_at
+                                            ? out.state.last_initiated_at
+                                            : "(none)");
+        printf("accountCreatedAt: %s\n", out.metadata.account_created_at
+                                             ? out.metadata.account_created_at
+                                             : "(none)");
         wf_ageassurance_state_free(&out);
     } else {
         fprintf(stderr,

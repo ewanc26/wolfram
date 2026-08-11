@@ -110,7 +110,7 @@ size_t wf_richtext_segment_count(const wf_richtext *rt) {
 
 wf_richtext_segment wf_richtext_get_segment(const wf_richtext *rt,
                                             size_t index) {
-    wf_richtext_segment seg = {0};
+    wf_richtext_segment seg = {};
     if (!rt) return seg;
 
     if (rt->facet_count == 0) {

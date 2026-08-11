@@ -1528,7 +1528,7 @@ wf_validate_with_def(const wf_lexicon_registry *registry,
                      const char *lexicon_id, const cJSON *def,
                      const char *expected_token_value, const char *root_path,
                      const char *json, size_t json_len) {
-    wf_validation_ctx ctx = {0};
+    wf_validation_ctx ctx = {};
     cJSON *value;
     const cJSON *schema;
 
@@ -1536,7 +1536,7 @@ wf_validate_with_def(const wf_lexicon_registry *registry,
     value = cJSON_ParseWithLength(json, json_len);
     if (!value) {
         wf_ctx_simple(&ctx, root_path, "invalid JSON");
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     schema = wf_def_body_for_validation(def);
@@ -1544,7 +1544,7 @@ wf_validate_with_def(const wf_lexicon_registry *registry,
         wf_ctx_simple(&ctx, root_path,
                       "invalid or unsupported lexicon definition");
         cJSON_Delete(value);
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     {
@@ -1559,7 +1559,7 @@ wf_validate_with_def(const wf_lexicon_registry *registry,
     }
 
     cJSON_Delete(value);
-    return (wf_validate_result){ctx.valid && ctx.head == NULL, ctx.head};
+    return wf_validate_result{ctx.valid && ctx.head == NULL, ctx.head};
 }
 
 void wf_validate_result_free(wf_validate_result *result) {
@@ -1670,23 +1670,23 @@ wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,
     char *expected_owned = NULL;
 
     if (!registry || !lexicon_id || !record_json || json_len == 0) {
-        wf_validation_ctx ctx = {0};
+        wf_validation_ctx ctx = {};
         wf_ctx_simple(&ctx, "record", "invalid arguments");
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     doc = wf_registry_find_doc(registry, lexicon_id);
     if (!doc) {
-        wf_validation_ctx ctx = {0};
+        wf_validation_ctx ctx = {};
         wf_ctx_error(&ctx, "record", "unknown lexicon: %s", lexicon_id);
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     def = wf_doc_find_def(doc, "main");
     if (!def) {
-        wf_validation_ctx ctx = {0};
+        wf_validation_ctx ctx = {};
         wf_ctx_simple(&ctx, "record", "missing main definition");
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     {
@@ -1718,9 +1718,9 @@ wf_validate_result wf_validate_value(const wf_lexicon_registry *registry,
     wf_validate_result result;
 
     if (!registry || !lexicon_id || !def_id || !json || json_len == 0) {
-        wf_validation_ctx ctx = {0};
+        wf_validation_ctx ctx = {};
         wf_ctx_simple(&ctx, "value", "invalid arguments");
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     target_lexicon_id = lexicon_id;
@@ -1739,18 +1739,18 @@ wf_validate_result wf_validate_value(const wf_lexicon_registry *registry,
 
     doc = wf_registry_find_doc(registry, target_lexicon_id);
     if (!doc) {
-        wf_validation_ctx ctx = {0};
+        wf_validation_ctx ctx = {};
         wf_ctx_error(&ctx, "value", "unknown lexicon: %s", target_lexicon_id);
         std::free(lookup_lexicon_id);
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     def = wf_doc_find_def(doc, target_def_id);
     if (!def) {
-        wf_validation_ctx ctx = {0};
+        wf_validation_ctx ctx = {};
         wf_ctx_error(&ctx, "value", "unknown definition: %s", def_id);
         std::free(lookup_lexicon_id);
-        return (wf_validate_result){0, ctx.head};
+        return wf_validate_result{0, ctx.head};
     }
 
     {
