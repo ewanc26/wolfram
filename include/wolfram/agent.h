@@ -181,6 +181,13 @@ typedef struct wf_agent_profile {
     char *description;
     char *avatar_cid;
     char *following; /* viewer.following record URI, or NULL */
+    /* viewer.blocking record URI, or NULL. Unlike `muted` below, blocking is
+     * a repo record (app.bsky.graph.block) an unblock deletes by URI, the
+     * same shape as `following`. */
+    char *blocking;
+    /* viewer.muted. A plain account-level flag, not a record: muteActor/
+     * unmuteActor flip it directly with no URI to hand back. */
+    bool muted;
     int followers_count;
     int follows_count;
     int posts_count;
