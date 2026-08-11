@@ -36,6 +36,33 @@ static int wf_mst_key_cmp(const unsigned char *a, size_t a_len,
     return (int)(a_len - b_len);
 }
 
+/* Mirrors the reference's isValidMstKey/validCharsRegex (mst/util.ts): at
+ * most 1024 bytes, exactly one '/' splitting two non-empty segments, each
+ * restricted to [a-zA-Z0-9_~:.-]. Applied both to caller-supplied keys and
+ * to keys parsed from untrusted CAR/sync data, matching the reference
+ * calling ensureValidMstKey from both add()/update() and
+ * deserializeNodeData(). */
+static int wf_mst_key_is_valid(const unsigned char *key, size_t key_len) {
+    if (key_len == 0 || key_len > 1024) return 0;
+    size_t slash = (size_t)-1;
+    for (size_t i = 0; i < key_len; i++) {
+        if (key[i] == '/') {
+            if (slash != (size_t)-1) return 0; /* more than one '/' */
+            slash = i;
+        }
+    }
+    if (slash == (size_t)-1 || slash == 0 || slash == key_len - 1) return 0;
+    for (size_t i = 0; i < key_len; i++) {
+        if (i == slash) continue;
+        unsigned char c = key[i];
+        int ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                 (c >= '0' && c <= '9') || c == '_' || c == '~' ||
+                 c == '-' || c == ':' || c == '.';
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
 wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
                             const wf_cid *cid, wf_mst_node *out) {
     if (!cbor || len == 0 || !out) return WF_ERR_INVALID_ARG;
@@ -119,6 +146,12 @@ wf_status wf_mst_node_parse(const unsigned char *cbor, size_t len,
             memcpy(ent->key + prefix_len, k_item->bytes.data,
                    k_item->bytes.len);
         ent->key_len = full_len;
+
+        if (!wf_mst_key_is_valid(ent->key, ent->key_len)) {
+            wf_mst_node_free(out);
+            wf_cbor_free(obj);
+            return WF_ERR_PARSE;
+        }
 
         wf_cbor_item *v_item = wf_cbor_map_find(entry, "v", 1);
         if (!v_item || v_item->type != WF_CBOR_LINK ||
@@ -1016,6 +1049,7 @@ wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
                      const wf_cid *value, wf_cid *new_root) {
     if (!car || !root_cid || !key || key_len == 0 || !value || !new_root)
         return WF_ERR_INVALID_ARG;
+    if (!wf_mst_key_is_valid(key, key_len)) return WF_ERR_INVALID_ARG;
 
     unsigned key_layer = wf_mst_key_layer(key, key_len);
 
@@ -1441,6 +1475,8 @@ static wf_status mst_delete_recursive(wf_car *car, const wf_mst_node *node,
 wf_status wf_mst_delete(wf_car *car, const wf_cid *root_cid,
                         const unsigned char *key, size_t key_len,
                         wf_cid *new_root) {
+    /* Unlike add()/update(), the reference's delete() (mst.ts:329) does not
+     * call ensureValidMstKey — an invalid key here simply won't be found. */
     if (!car || !root_cid || !key || key_len == 0 || !new_root)
         return WF_ERR_INVALID_ARG;
 
