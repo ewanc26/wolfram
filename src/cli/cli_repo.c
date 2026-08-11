@@ -105,13 +105,14 @@ int cmd_repo(int argc, char **argv) {
         const char *repo = sd.did ? sd.did : pos[1];
         wf_status s = wf_agent_delete_record_typed(agent, repo, collection,
                                                    rkey, NULL, NULL);
-        wf_agent_session_data_free(&sd);
         if (s != WF_OK) {
             fprintf(stderr, "error: deleteRecord failed (status %d)\n", (int)s);
+            wf_agent_session_data_free(&sd);
             wf_agent_free(agent);
             return 1;
         }
         printf("deleted %s/%s/%s\n", repo, collection, rkey);
+        wf_agent_session_data_free(&sd);
         wf_agent_free(agent);
         return 0;
     }
@@ -249,9 +250,8 @@ int cmd_get_record(int argc, char **argv) {
     };
 
     wf_response res = {0};
-    wf_status s =
-        wf_xrpc_query_params(client, "com.atproto.repo.getRecord", params, 3,
-                             &res);
+    wf_status s = wf_xrpc_query_params(client, "com.atproto.repo.getRecord",
+                                       params, 3, &res);
     wf_xrpc_client_free(client);
 
     if (s != WF_OK && s != WF_ERR_HTTP) {
