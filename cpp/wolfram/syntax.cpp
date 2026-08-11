@@ -308,7 +308,7 @@ int wf_syntax_aturi_parse(const char *aturi, wf_syntax_aturi *parsed) {
             !wf_syntax_valid_chars(start,
                                    "abcdefghijklmnopqrstuvwxyz"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                   "0123456789._~:@!$&')(*+,;=%[\\]/]")) {
+                                   "0123456789._~:@!$&')(*+,;=%[]/-")) {
             std::free(copy);
             return 0;
         }
@@ -339,7 +339,7 @@ int wf_syntax_aturi_parse(const char *aturi, wf_syntax_aturi *parsed) {
             !wf_syntax_valid_chars(start,
                                    "abcdefghijklmnopqrstuvwxyz"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                   "0123456789._~:@!$&')(*+,;=%[\\]/]")) {
+                                   "0123456789._~:@!$&')(*+,;=%[]/-")) {
             std::free(copy);
             return 0;
         }
@@ -370,7 +370,7 @@ int wf_syntax_aturi_parse(const char *aturi, wf_syntax_aturi *parsed) {
             !wf_syntax_valid_chars(start,
                                    "abcdefghijklmnopqrstuvwxyz"
                                    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                   "0123456789._~:@!$&')(*+,;=%[\\]/]")) {
+                                   "0123456789._~:@!$&')(*+,;=%[]/-")) {
             std::free(copy);
             return 0;
         }
