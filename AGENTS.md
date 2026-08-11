@@ -253,21 +253,29 @@ The SDK is broad and multi-layered, with extensive offline coverage. “Implemen
 
 ## Next planned work
 
-- Exercise the gated live example test (`test_examples_live`) in CI with real credentials.
-- Continue evaluating upstream C libraries for server-side infrastructure (event loop, config parsing).
-- Broaden generated typed-wrapper coverage for any remaining lexicon endpoints not yet wrapped at the agent level.
+`docs/roadmap.md`'s own "Next planned work" section is the maintained,
+detailed list — this file duplicated a stale subset of it, which is how the
+sync_publish/subscribeLabels and typed-wrapper-coverage items below sat here
+marked outstanding for a while after `docs/roadmap.md` had already recorded
+them done. Check there first rather than here.
 
-Done: the server-side `sync_publish` → `subscribeRepos` WebSocket end-to-end
-test (`test_sync_publish_e2e`, plus the `sync_subscribe`-client-driven
+Two items from the old list here, for the record: the server-side
+`sync_publish` → `subscribeRepos` WebSocket end-to-end test
+(`test_sync_publish_e2e`, plus the `sync_subscribe`-client-driven
 `test_sync_publish_server`) and `sync_publish` support for the
 `subscribeLabels` `#labels` event (`WF_SUBSCRIBE_EVENT_LABELS` /
-`build_labels_body`) both landed. These only build/register under
+`build_labels_body`) were already landed. Both only build/register under
 `-DWOLFRAM_BUILD_SERVER=ON` — a CMake ordering bug meant that flag alone
 silently skipped every WOLFRAM_BUILD_SERVER-gated test executable unless
 `-DWOLFRAM_BUILD_TESTS=ON` was also passed explicitly (`option(WOLFRAM_BUILD_TESTS
 ...)` ran ~300 lines after the `if(WOLFRAM_BUILD_TESTS)` guard that needed
 it), which is why this was easy to miss with a green `ctest` run; fixed by
-moving the option() declaration earlier.
+moving the option() declaration earlier. Generated typed-wrapper coverage was
+also already complete — verified independently by deriving every NSID's
+expected `wf_lex_..._main_call`/`WF_LEX_..._NSID` symbol from the full 314-endpoint
+lexicon corpus and confirming each is referenced outside the codegen file;
+the one unwrapped endpoint (`internal.bsky.actor.getProfiles`) is an
+internal-namespace exclusion by design, matching `docs/roadmap.md`.
 
 ## Platform support
 
