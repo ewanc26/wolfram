@@ -529,10 +529,8 @@ wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream, const char *event,
     size_t frame_cap = 0, frame_len = 0;
     wf_status rc = WF_OK;
 
-    if (!s || s->closed) {
-        /* TODO: stream is closed or invalid; cannot send. */
-        return WF_ERR_INVALID_ARG;
-    }
+    /* A closed or invalid stream cannot send. */
+    if (!s || s->closed) return WF_ERR_INVALID_ARG;
     if (!data) {
         data = "";
     }
@@ -617,10 +615,8 @@ wf_status wf_xrpc_server_sse_send_raw(wf_xrpc_sse_stream *stream,
                                       const char *frame, size_t len) {
     wf_xrpc_sse_stream *s = stream;
     wf_status rc;
-    if (!s || s->closed || !frame) {
-        /* TODO: stream is closed/invalid or frame is NULL. */
-        return WF_ERR_INVALID_ARG;
-    }
+    /* A closed/invalid stream or a NULL frame cannot send. */
+    if (!s || s->closed || !frame) return WF_ERR_INVALID_ARG;
     pthread_mutex_lock(&s->mutex);
     rc = wf_sse_append_locked(s, frame, len);
     if (rc == WF_OK) {
@@ -635,10 +631,8 @@ wf_status wf_xrpc_server_sse_send_raw(wf_xrpc_sse_stream *stream,
 
 wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream) {
     wf_xrpc_sse_stream *s = stream;
-    if (!s || s->closed) {
-        /* TODO: stream already closed or invalid. */
-        return WF_ERR_INVALID_ARG;
-    }
+    /* Already closed or invalid. */
+    if (!s || s->closed) return WF_ERR_INVALID_ARG;
     pthread_mutex_lock(&s->mutex);
     s->closed = true;
     pthread_mutex_unlock(&s->mutex);
