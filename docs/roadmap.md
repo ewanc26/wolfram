@@ -581,6 +581,45 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   (mbedtls-based P-256 and secp256k1) need cross-build verification since
   devkitARM is not available in this environment. See the `TODO` markers in
   `src/platform/3ds_platform.c` and `src/crypto/crypto_3ds.c`.
+- WebAuthn/passkey login support (surveyed on request — no atproto PDS
+  implementation has shipped this yet, reference included: cloning the
+  reference's `packages/oauth/oauth-provider-ui` and grepping its ~120
+  account-management components for "webauthn"/"passkey" turns up nothing,
+  and Bluesky's own account-management announcement still lists passkeys
+  under "planned", not shipped). This SDK already has most of the hard
+  primitive: `wf_crypto_p256_verify` (`include/wolfram/crypto.h`) verifies a
+  raw ES256 signature over (x, y) affine coordinates — exactly what a
+  WebAuthn assertion needs (ES256 over `authenticatorData ||
+  SHA256(clientDataJSON)`), and it does not care how the coordinates were
+  encoded, only that it gets 32+32 raw bytes; `wf_crypto_p256_jwk_coords`
+  is the existing example of an encoding-specific adapter feeding that same
+  verifier. The concrete gap is a COSE_Key decoder: a WebAuthn attestation
+  object's `credentialPublicKey` is COSE-CBOR (RFC 9053 §7.1), not JWK — for
+  the EC2/P-256 case that's a 4-entry CBOR map (label 1 `kty`=2 for EC2,
+  label -1 `crv`=1 for P-256, label -2 `x`, label -3 `y`, both 32-byte
+  strings) libcbor (already a dependency, already used throughout
+  `src/repo` for MST/CAR work) parses directly — no new C library needed.
+  Layering above that decoder: challenge generation/storage with expiry
+  (the email-token pattern `metalbear_account_create_email_token` already
+  uses in MetalBear is the template — same TTL-and-single-use shape, new
+  purpose), `clientDataJSON` validation (type/origin/challenge-echo check,
+  plain JSON parsing), `authenticatorData` parsing (fixed-layout binary:
+  32-byte RP ID hash, 1-byte flags, 4-byte counter, then optional
+  attested-credential-data/extensions), and per-account credential storage
+  (credential ID, the decoded (x, y), and a monotonic counter for clone
+  detection). None of that belongs in this SDK's core signing/verification
+  layer, which is protocol-agnostic by design — it belongs as a new
+  `wf_webauthn` module alongside `oauth/verify.h`'s existing
+  resource-server-side verification helpers, with the ceremony endpoints
+  themselves (`com.metalbear.webauthn.*`, matching the existing
+  `com.metalbear.oauth.*` MetalBear-extension pattern — WebAuthn has no
+  standard atproto lexicon) and the credential/account wiring living in
+  MetalBear, the same split `oauth/verify.h` (SDK) vs. MetalBear's session
+  layer already uses for OAuth. Not started — this is a scoping note from
+  research, not a partial implementation; the ceremony endpoints are
+  security-critical (forging an assertion or skipping the RP ID/origin
+  check is an account takeover) and deserve dedicated implementation and
+  review, not a rushed first cut.
 
 ## Dependencies
 
