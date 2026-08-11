@@ -118,17 +118,34 @@ static int test_parse_profile_viewer(void) {
     const char *json = "{\"did\":\"did:plc:alice\",\"handle\":\"alice.test\","
                        "\"avatar\":\"https://cdn.example/alice.png\","
                        "\"viewer\":{\"following\":"
-                       "\"at://did:plc:me/app.bsky.graph.follow/one\"}}";
+                       "\"at://did:plc:me/app.bsky.graph.follow/one\","
+                       "\"blocking\":"
+                       "\"at://did:plc:me/app.bsky.graph.block/two\","
+                       "\"muted\":true}}";
     wf_agent_profile profile = {0};
     if (wf_agent_parse_profile(json, strlen(json), &profile) != WF_OK ||
-        !profile.avatar_cid || !profile.following ||
+        !profile.avatar_cid || !profile.following || !profile.blocking ||
+        !profile.muted ||
         strcmp(profile.avatar_cid, "https://cdn.example/alice.png") != 0 ||
         strcmp(profile.following,
-               "at://did:plc:me/app.bsky.graph.follow/one") != 0) {
+               "at://did:plc:me/app.bsky.graph.follow/one") != 0 ||
+        strcmp(profile.blocking, "at://did:plc:me/app.bsky.graph.block/two") !=
+            0) {
         wf_agent_profile_free(&profile);
         return 0;
     }
     wf_agent_profile_free(&profile);
+
+    /* Absent viewer.blocking/muted must not be fabricated as present. */
+    const char *json2 = "{\"did\":\"did:plc:bob\",\"handle\":\"bob.test\","
+                        "\"viewer\":{}}";
+    wf_agent_profile profile2 = {0};
+    if (wf_agent_parse_profile(json2, strlen(json2), &profile2) != WF_OK ||
+        profile2.blocking != NULL || profile2.muted != false) {
+        wf_agent_profile_free(&profile2);
+        return 0;
+    }
+    wf_agent_profile_free(&profile2);
     return 1;
 }
 
