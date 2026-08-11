@@ -20,11 +20,13 @@
 
 #include <cJSON.h>
 #include <ctype.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #ifdef HAVE_CARES
 #include <ares.h>
@@ -601,8 +603,9 @@ static wf_status did_web_build_url(const char *did, char **out_url) {
     return WF_OK;
 }
 
-static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
-                                    cJSON **out_root) {
+static wf_status did_fetch_document_uncached(wf_xrpc_client *client,
+                                             const char *did,
+                                             cJSON **out_root) {
     wf_did_method method = wf_did_method_of(did);
     char *url = NULL;
     if (method == WF_DID_METHOD_PLC) {
@@ -638,6 +641,147 @@ static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
 
     *out_root = root;
     return WF_OK;
+}
+
+/*
+ * Process-wide DID document cache: stale-while-revalidate, mirroring the
+ * reference's memory-cache.ts + base-resolver.ts. A fixed-size table rather
+ * than an unbounded map -- this is a cache, and a miss just means a normal
+ * fetch, the same as if caching didn't exist.
+ *
+ * Documents are stored as serialized JSON text rather than a live cJSON
+ * tree: every reader needs its own independently-owned, independently-freed
+ * copy (the existing did_fetch_document contract callers already rely on),
+ * and re-parsing a cached string is simpler and no less correct than
+ * cloning a tree.
+ */
+#define WF_DID_CACHE_SLOTS 256
+
+typedef struct {
+    char did[256];
+    char *json; /* owned; NULL means this slot is empty */
+    time_t fetched_at;
+} wf_did_cache_entry;
+
+static wf_did_cache_entry wf_did_cache[WF_DID_CACHE_SLOTS];
+static pthread_mutex_t wf_did_cache_lock = PTHREAD_MUTEX_INITIALIZER;
+static _Atomic time_t wf_did_cache_stale_ttl = 3600; /* 1h, matches ref */
+static _Atomic time_t wf_did_cache_max_ttl = 86400;  /* 1d, matches ref */
+
+void wf_did_cache_configure(time_t stale_ttl_seconds, time_t max_ttl_seconds) {
+    atomic_store_explicit(&wf_did_cache_stale_ttl, stale_ttl_seconds,
+                          memory_order_relaxed);
+    atomic_store_explicit(&wf_did_cache_max_ttl, max_ttl_seconds,
+                          memory_order_relaxed);
+}
+
+void wf_did_cache_clear(void) {
+    pthread_mutex_lock(&wf_did_cache_lock);
+    for (size_t i = 0; i < WF_DID_CACHE_SLOTS; i++) {
+        free(wf_did_cache[i].json);
+        wf_did_cache[i].json = NULL;
+    }
+    pthread_mutex_unlock(&wf_did_cache_lock);
+}
+
+/* Returns an owned copy of the cached document's JSON text (parse it
+ * yourself), or NULL on a miss. *out_age_seconds is set on a hit. */
+static char *wf_did_cache_get(const char *did, time_t *out_age_seconds) {
+    char *copy = NULL;
+    time_t now = time(NULL);
+    pthread_mutex_lock(&wf_did_cache_lock);
+    for (size_t i = 0; i < WF_DID_CACHE_SLOTS; i++) {
+        wf_did_cache_entry *e = &wf_did_cache[i];
+        if (!e->json || strcmp(e->did, did) != 0) continue;
+        copy = strdup(e->json);
+        if (copy) *out_age_seconds = now - e->fetched_at;
+        break;
+    }
+    pthread_mutex_unlock(&wf_did_cache_lock);
+    return copy;
+}
+
+static void wf_did_cache_put(const char *did, const char *json) {
+    if (!did || !json || strlen(did) >= sizeof(wf_did_cache[0].did)) return;
+    time_t now = time(NULL);
+    pthread_mutex_lock(&wf_did_cache_lock);
+    /* Reuse this DID's slot, else an empty one, else the oldest -- same
+     * eviction policy as MetalBear's application-level did-doc cache. */
+    size_t victim = 0;
+    time_t oldest = now + 1;
+    for (size_t i = 0; i < WF_DID_CACHE_SLOTS; i++) {
+        wf_did_cache_entry *e = &wf_did_cache[i];
+        if (e->json && strcmp(e->did, did) == 0) {
+            victim = i;
+            goto store;
+        }
+        if (!e->json) {
+            victim = i;
+            goto store;
+        }
+        if (e->fetched_at < oldest) {
+            oldest = e->fetched_at;
+            victim = i;
+        }
+    }
+store:
+    free(wf_did_cache[victim].json);
+    wf_did_cache[victim].json = strdup(json);
+    if (wf_did_cache[victim].json) {
+        snprintf(wf_did_cache[victim].did, sizeof(wf_did_cache[victim].did),
+                 "%s", did);
+        wf_did_cache[victim].fetched_at = now;
+    }
+    pthread_mutex_unlock(&wf_did_cache_lock);
+}
+
+static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
+                                    cJSON **out_root) {
+    time_t stale_ttl =
+        atomic_load_explicit(&wf_did_cache_stale_ttl, memory_order_relaxed);
+    time_t max_ttl =
+        atomic_load_explicit(&wf_did_cache_max_ttl, memory_order_relaxed);
+
+    if (max_ttl <= 0) return did_fetch_document_uncached(client, did, out_root);
+
+    time_t age = 0;
+    char *cached_json = wf_did_cache_get(did, &age);
+
+    if (cached_json && age < stale_ttl) {
+        cJSON *root = cJSON_Parse(cached_json);
+        free(cached_json);
+        if (!root) return WF_ERR_PARSE;
+        *out_root = root;
+        return WF_OK;
+    }
+
+    /* Stale-but-under-max-ttl (or no cache entry at all): attempt a fresh
+     * fetch. A cache hit that is merely stale still has a fallback if the
+     * fetch fails; past max_ttl -- or with nothing cached at all -- the
+     * fetch's own error is the honest answer. */
+    cJSON *fresh = NULL;
+    wf_status status = did_fetch_document_uncached(client, did, &fresh);
+    if (status == WF_OK) {
+        char *serialized = cJSON_PrintUnformatted(fresh);
+        if (serialized) {
+            wf_did_cache_put(did, serialized);
+            free(serialized);
+        }
+        free(cached_json);
+        *out_root = fresh;
+        return WF_OK;
+    }
+
+    if (cached_json && age < max_ttl) {
+        cJSON *root = cJSON_Parse(cached_json);
+        free(cached_json);
+        if (!root) return WF_ERR_PARSE;
+        *out_root = root;
+        return WF_OK;
+    }
+
+    free(cached_json);
+    return status;
 }
 
 wf_did_method wf_did_method_of(const char *did) {
