@@ -38,6 +38,17 @@ option(WOLFRAM_BUILD_3DS "Build for Nintendo 3DS (devkitARM/libctru)" OFF)
 option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)"
        OFF)
 
+# Declared here (far above the rest of the WOLFRAM_BUILD_* option cluster
+# below) because the WOLFRAM_BUILD_SERVER block reads it around line 564,
+# long before its own option() would otherwise run. option() only supplies a
+# default when the variable is not yet defined, and cmake's if() treats a
+# variable no option() has touched yet as unset/false regardless of the
+# documented default — so a `cmake -DWOLFRAM_BUILD_SERVER=ON` configure with
+# no explicit -DWOLFRAM_BUILD_TESTS silently built zero of the server test
+# executables (test_xrpc_server*, test_sync_publish_e2e/_server, test_pds_repo)
+# while `ctest` still reported 100% passed, because it never saw them.
+option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
+
 # Derived: true for any embedded/console target
 if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_WIIU OR WOLFRAM_BUILD_3DS)
   set(WOLFRAM_BUILD_EMBEDDED ON)
@@ -857,7 +868,6 @@ else()
 endif()
 
 option(WOLFRAM_BUILD_EXAMPLES "Build example programs" ON)
-option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
 
 # Optional SQLite3-backed persistence module (wf_store). OFF by default so the
 # default build keeps its small dependency set. When ON, the system SQLite3
