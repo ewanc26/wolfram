@@ -1292,6 +1292,140 @@ static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client,
     return WF_OK;
 }
 
+/*
+ * Handle resolution race: DNS TXT and HTTPS well-known are independent ways
+ * to learn the same answer, and the reference fires both concurrently,
+ * taking whichever settles first (packages/identity/src/handle/index.ts).
+ * Running them one after another (as this file did before) always pays
+ * both round trips' worst-case latency when the first attempted method
+ * fails, and even on success pays a full round trip that racing could have
+ * overlapped with the other.
+ *
+ * True cancellation of an in-flight DNS query or HTTP request is not a safe
+ * thing to do with pthread_cancel here (both wf_handle_resolve_cares and
+ * the libcurl path underneath wf_handle_resolve_well_known hold state a
+ * cancelled thread could leave in an inconsistent state) -- so instead of
+ * cancelling the loser, this launches both as detached threads sharing a
+ * refcounted result struct, returns as soon as either succeeds, and lets
+ * the loser finish in the background and clean up its own share of the
+ * struct when it does. Neither wf_handle_resolve_dns_txt (a fresh
+ * ares_channel_t per call) nor wf_handle_resolve_well_known (client
+ * requests are already safe for concurrent use -- see wf_client_snapshot
+ * in xrpc.c) has any state that two concurrent calls would contend over.
+ */
+typedef struct {
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    atomic_int refcount;
+    int dns_done;
+    wf_status dns_status;
+    char *dns_did;
+    int wk_done;
+    wf_status wk_status;
+    char *wk_did;
+} handle_race_state;
+
+static void handle_race_state_release(handle_race_state *st) {
+    if (atomic_fetch_sub_explicit(&st->refcount, 1, memory_order_acq_rel) ==
+        1) {
+        free(st->dns_did);
+        free(st->wk_did);
+        pthread_mutex_destroy(&st->lock);
+        pthread_cond_destroy(&st->cond);
+        free(st);
+    }
+}
+
+typedef struct {
+    handle_race_state *state;
+    wf_xrpc_client *client;
+    char *handle; /* owned copy, safe for this thread to read independently */
+} handle_race_task;
+
+static void handle_race_task_free(handle_race_task *t) {
+    if (!t) return;
+    free(t->handle);
+    free(t);
+}
+
+static void *handle_race_dns_thread(void *arg) {
+    handle_race_task *t = arg;
+    char *did = NULL;
+    wf_status status = wf_handle_resolve_dns_txt(t->client, t->handle, &did);
+    pthread_mutex_lock(&t->state->lock);
+    t->state->dns_status = status;
+    t->state->dns_did = did;
+    t->state->dns_done = 1;
+    pthread_cond_broadcast(&t->state->cond);
+    pthread_mutex_unlock(&t->state->lock);
+    handle_race_state_release(t->state);
+    handle_race_task_free(t);
+    return NULL;
+}
+
+static void *handle_race_wk_thread(void *arg) {
+    handle_race_task *t = arg;
+    char *did = NULL;
+    wf_status status = wf_handle_resolve_well_known(t->client, t->handle, &did);
+    pthread_mutex_lock(&t->state->lock);
+    t->state->wk_status = status;
+    t->state->wk_did = did;
+    t->state->wk_done = 1;
+    pthread_cond_broadcast(&t->state->cond);
+    pthread_mutex_unlock(&t->state->lock);
+    handle_race_state_release(t->state);
+    handle_race_task_free(t);
+    return NULL;
+}
+
+/* Launches `fn` as a detached thread holding one reference to `state`. On
+ * failure to even start the thread, marks that side of the race as done
+ * with WF_ERR_INTERNAL instead -- the wait loop below treats a launch
+ * failure exactly like a fast, failed resolution attempt on that side. */
+static void handle_race_launch(handle_race_state *state, wf_xrpc_client *client,
+                               const char *lookup_handle, void *(*fn)(void *),
+                               int is_dns) {
+    handle_race_task *task = malloc(sizeof(*task));
+    char *handle_copy = task ? wf_strdup(lookup_handle) : NULL;
+    if (!task || !handle_copy) {
+        free(task);
+        free(handle_copy);
+        pthread_mutex_lock(&state->lock);
+        if (is_dns) {
+            state->dns_done = 1;
+            state->dns_status = WF_ERR_ALLOC;
+        } else {
+            state->wk_done = 1;
+            state->wk_status = WF_ERR_ALLOC;
+        }
+        pthread_cond_broadcast(&state->cond);
+        pthread_mutex_unlock(&state->lock);
+        return;
+    }
+    task->state = state;
+    task->client = client;
+    task->handle = handle_copy;
+
+    atomic_fetch_add_explicit(&state->refcount, 1, memory_order_relaxed);
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, fn, task) != 0) {
+        atomic_fetch_sub_explicit(&state->refcount, 1, memory_order_relaxed);
+        handle_race_task_free(task);
+        pthread_mutex_lock(&state->lock);
+        if (is_dns) {
+            state->dns_done = 1;
+            state->dns_status = WF_ERR_INTERNAL;
+        } else {
+            state->wk_done = 1;
+            state->wk_status = WF_ERR_INTERNAL;
+        }
+        pthread_cond_broadcast(&state->cond);
+        pthread_mutex_unlock(&state->lock);
+        return;
+    }
+    pthread_detach(thread);
+}
+
 wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle,
                             char **out_did) {
     if (!client || !handle || !out_did || handle[0] == '\0') {
@@ -1330,23 +1464,66 @@ wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle,
      * unchanged handle so behavior matches the non-IDN build. */
 #endif
 
-    wf_status status =
-        wf_handle_resolve_dns_txt(client, lookup_handle, out_did);
+    handle_race_state *state = calloc(1, sizeof(*state));
+    wf_status result_status;
+    char *result_did = NULL;
 
-    if (status == WF_OK) {
-#ifdef WOLFRAM_BUILD_IDN
-        if (ascii_handle) idn2_free(ascii_handle);
-#endif
-        return WF_OK;
+    if (!state) {
+        /* Allocation failure: fall back to the old sequential behavior
+         * rather than failing outright over a small struct. */
+        result_status =
+            wf_handle_resolve_dns_txt(client, lookup_handle, &result_did);
+        if (result_status != WF_OK) {
+            result_status = wf_handle_resolve_well_known(client, lookup_handle,
+                                                         &result_did);
+        }
+    } else {
+        pthread_mutex_init(&state->lock, NULL);
+        pthread_cond_init(&state->cond, NULL);
+        atomic_init(&state->refcount, 1); /* this function's own reference */
+
+        handle_race_launch(state, client, lookup_handle, handle_race_dns_thread,
+                           1);
+        handle_race_launch(state, client, lookup_handle, handle_race_wk_thread,
+                           0);
+
+        pthread_mutex_lock(&state->lock);
+        for (;;) {
+            if (state->dns_done && state->dns_status == WF_OK) {
+                result_status = WF_OK;
+                result_did = wf_strdup(state->dns_did);
+                break;
+            }
+            if (state->wk_done && state->wk_status == WF_OK) {
+                result_status = WF_OK;
+                result_did = wf_strdup(state->wk_did);
+                break;
+            }
+            if (state->dns_done && state->wk_done) {
+                /* Both finished and neither succeeded: report whichever
+                 * failure is more specific than "not found", preferring
+                 * DNS's, matching the reference's fallback order. */
+                result_status = state->dns_status != WF_ERR_NOT_FOUND
+                                    ? state->dns_status
+                                    : state->wk_status;
+                break;
+            }
+            pthread_cond_wait(&state->cond, &state->lock);
+        }
+        pthread_mutex_unlock(&state->lock);
+        handle_race_state_release(state);
     }
-
-    status = wf_handle_resolve_well_known(client, lookup_handle, out_did);
 
 #ifdef WOLFRAM_BUILD_IDN
     if (ascii_handle) idn2_free(ascii_handle);
 #endif
 
-    return status;
+    if (result_status == WF_OK) {
+        *out_did = result_did;
+        return WF_OK;
+    }
+    free(result_did);
+    return result_status;
 }
 
 /* ------------------------------------------------------------------ */
