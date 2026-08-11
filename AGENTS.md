@@ -86,6 +86,17 @@ host routes through a Cloudflare tunnel; if it does not resolve from the build
 host, curl `https://bear1.croft.click/xrpc/_health` after DNS recovers before
 assuming the host is down.
 
+**Never hand-craft record keys.** Every record write for testing or the
+devlog (`post`, `repo put-record --rkey`, `applyWrites`) must use a real,
+freshly generated TID rkey (`wf_tid_now` — the `post` command's auto-rkey
+path) — never a hand-made string such as `3l7v6qvideo`. A non-TID rkey is
+stored fine by the PDS (`getRecord` succeeds) but is silently never ingested
+by the public AppView the feed is proxied to, so the record is invisible on
+the network while the local write reports success — a hand-made rkey post
+sat missing from the feed for exactly this reason. Verify network visibility
+through the AppView (`app.bsky.feed.getAuthorFeed` / `getPostThread`, which
+require a session token), never `com.atproto.repo.getRecord` alone.
+
 ## Repository map and generated-code contract
 
 - `include/wolfram/` is the installed C API. Public structs must document ownership, optional fields, lifetime, and the matching free routine; preserve C++ guards and avoid leaking private dependency types unnecessarily.
