@@ -623,6 +623,10 @@ static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
     wf_status status = wf_http_get(client, url, &res);
     free(url);
     if (status != WF_OK) {
+        /* WF_ERR_HTTP still transfers the body into `res` per wf_http_get's
+         * contract (xrpc.c), so it must be freed on every non-WF_OK status
+         * too, not just the happy path. */
+        wf_response_free(&res);
         return status;
     }
 
@@ -1089,6 +1093,10 @@ static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client,
     free(url);
 
     if (status != WF_OK) {
+        /* WF_ERR_HTTP still transfers the body into `res` per wf_http_get's
+         * contract (xrpc.c), so it must be freed on every non-WF_OK status
+         * too, not just the happy path. */
+        wf_response_free(&res);
         return status;
     }
 
