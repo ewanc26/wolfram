@@ -168,6 +168,50 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
                                       const char *did,
                                       const char *signed_op_json);
 
+/**
+ * Fetch the account's currently published PLC operation from the directory
+ * (GET {plc_directory_url}/{did}/log/last) and compute its CID -- the value
+ * a caller must set as `prev` when building the account's next operation.
+ * Every PLC operation is a full snapshot, not a diff, so *out_op_json is
+ * also returned: a caller building an update must copy forward whichever of
+ * rotationKeys/verificationMethods/services/alsoKnownAs it does not intend
+ * to change.
+ *
+ * `client` is caller-owned (not freed here) so a test can supply one with
+ * wf_xrpc_set_handler installed, and so a real caller can reuse a client
+ * with whatever TLS/proxy config it already has rather than getting a
+ * bare default one under the hood.
+ *
+ * On WF_OK, *out_cid and *out_op_json are heap-allocated and owned by the
+ * caller; free both with plain free().
+ */
+wf_status wf_plc_get_last_op(wf_xrpc_client *client,
+                             const char *plc_directory_url, const char *did,
+                             char **out_cid, char **out_op_json);
+
+/**
+ * Build, sign, and return a PLC operation that changes only `alsoKnownAs` to
+ * ["at://" + new_handle], preserving every other field (rotationKeys,
+ * verificationMethods, services) from the account's currently published
+ * operation. Internally calls wf_plc_get_last_op to fetch that operation and
+ * its CID (used as `prev`), so the caller does not need to track either.
+ *
+ * The submitted result is NOT verified against the caller-supplied
+ * `rotation_key` before signing; the caller is responsible for using the
+ * account's actual current PLC rotation key, since publishing a genesis-vs-
+ * update mismatch or a stale `prev` will be rejected by the directory, not
+ * caught here.
+ *
+ * `client` is caller-owned; see wf_plc_get_last_op.
+ *
+ * On WF_OK, *out_signed_json is caller-owned; free with wf_plc_operation_free.
+ */
+wf_status wf_plc_build_handle_update(wf_xrpc_client *client,
+                                     const char *plc_directory_url,
+                                     const char *did, const char *new_handle,
+                                     const wf_signing_key *rotation_key,
+                                     char **out_signed_json);
+
 #ifdef __cplusplus
 }
 #endif

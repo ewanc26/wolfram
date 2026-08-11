@@ -16,6 +16,7 @@
 #include "wolfram/identity.h"
 #include "wolfram/log.h"
 #include "wolfram/repo/cbor.h"
+#include "wolfram/repo/cid.h"
 #include "librb64u.h"
 
 /* ── small utilities ────────────────────────────────────────── */
@@ -893,5 +894,204 @@ wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
     } else {
         WF_LOG_DEBUG("plc", "wf_plc_submit_operation_raw: success");
     }
+    return status;
+}
+
+wf_status wf_plc_get_last_op(wf_xrpc_client *client,
+                             const char *plc_directory_url, const char *did,
+                             char **out_cid, char **out_op_json) {
+    wf_response response = {0};
+    char url[1024];
+    wf_status status;
+    cJSON *root = NULL;
+    unsigned char *cbor = NULL;
+    size_t cbor_len = 0;
+    wf_cid cid;
+    char *cid_str = NULL;
+
+    if (!client || !plc_directory_url || !did || !out_cid || !out_op_json)
+        return WF_ERR_INVALID_ARG;
+    *out_cid = NULL;
+    *out_op_json = NULL;
+
+    size_t base_len = strlen(plc_directory_url);
+    size_t did_len = strlen(did);
+    static const char suffix[] = "/log/last";
+    if (base_len + 1 + did_len + sizeof(suffix) >= sizeof(url))
+        return WF_ERR_INVALID_ARG;
+    memcpy(url, plc_directory_url, base_len);
+    url[base_len] = '/';
+    memcpy(url + base_len + 1, did, did_len);
+    memcpy(url + base_len + 1 + did_len, suffix, sizeof(suffix));
+
+    status = wf_http_get(client, url, &response);
+    if (status != WF_OK) {
+        /* WF_ERR_HTTP still transfers the body into `response` (see
+         * xrpc.c's transfer contract), so free it on every non-WF_OK
+         * status, not just the happy path. */
+        free(response.body);
+        return status;
+    }
+
+    root = cJSON_ParseWithLength(response.body, response.body_len);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        free(response.body);
+        return WF_ERR_PARSE;
+    }
+
+    if (wf_plc_canonical_cbor(root, NULL, &cbor, &cbor_len) != WF_OK) {
+        cJSON_Delete(root);
+        free(response.body);
+        return WF_ERR_INTERNAL;
+    }
+    cJSON_Delete(root);
+
+    memset(&cid, 0, sizeof(cid));
+    status = wf_cid_of_block(cbor, cbor_len, &cid);
+    free(cbor);
+    if (status != WF_OK) {
+        free(response.body);
+        return status;
+    }
+
+    cid_str = wf_cid_to_string(&cid);
+    if (!cid_str) {
+        free(response.body);
+        return WF_ERR_ALLOC;
+    }
+
+    /* Own the operation JSON as a NUL-terminated string separate from
+     * `response`, whose body is not guaranteed to be NUL-terminated. */
+    char *op_json = malloc(response.body_len + 1);
+    if (!op_json) {
+        free(cid_str);
+        free(response.body);
+        return WF_ERR_ALLOC;
+    }
+    memcpy(op_json, response.body, response.body_len);
+    op_json[response.body_len] = '\0';
+    free(response.body);
+
+    *out_cid = cid_str;
+    *out_op_json = op_json;
+    return WF_OK;
+}
+
+/* Copy every string in a cJSON array of strings into a freshly allocated
+ * const char** (each entry heap-owned), for handing to
+ * wf_plc_operation_update's array-of-C-string fields. Non-string entries
+ * are skipped. `*out_count` reflects however many were actually copied. */
+static wf_status plc_string_array_from_json(const cJSON *arr, char ***out_strs,
+                                            size_t *out_count) {
+    *out_strs = NULL;
+    *out_count = 0;
+    if (!arr || !cJSON_IsArray(arr)) return WF_OK;
+
+    size_t cap = (size_t)cJSON_GetArraySize(arr);
+    if (cap == 0) return WF_OK;
+    char **strs = calloc(cap, sizeof(*strs));
+    if (!strs) return WF_ERR_ALLOC;
+
+    size_t count = 0;
+    const cJSON *item = NULL;
+    cJSON_ArrayForEach(item, arr) {
+        if (!cJSON_IsString(item)) continue;
+        strs[count] = strdup(item->valuestring);
+        if (!strs[count]) {
+            for (size_t i = 0; i < count; i++) free(strs[i]);
+            free(strs);
+            return WF_ERR_ALLOC;
+        }
+        count++;
+    }
+    *out_strs = strs;
+    *out_count = count;
+    return WF_OK;
+}
+
+static void plc_string_array_free(char **strs, size_t count) {
+    for (size_t i = 0; i < count; i++) free(strs[i]);
+    free(strs);
+}
+
+wf_status wf_plc_build_handle_update(wf_xrpc_client *client,
+                                     const char *plc_directory_url,
+                                     const char *did, const char *new_handle,
+                                     const wf_signing_key *rotation_key,
+                                     char **out_signed_json) {
+    if (!client || !plc_directory_url || !did || !new_handle || !rotation_key ||
+        !out_signed_json)
+        return WF_ERR_INVALID_ARG;
+    *out_signed_json = NULL;
+
+    char *prev_cid = NULL;
+    char *last_op_json = NULL;
+    wf_status status = wf_plc_get_last_op(client, plc_directory_url, did,
+                                          &prev_cid, &last_op_json);
+    if (status != WF_OK) return status;
+
+    cJSON *last_op = cJSON_Parse(last_op_json);
+    free(last_op_json);
+    if (!last_op || !cJSON_IsObject(last_op)) {
+        cJSON_Delete(last_op);
+        free(prev_cid);
+        return WF_ERR_PARSE;
+    }
+
+    char **rotation_keys = NULL;
+    size_t rotation_keys_count = 0;
+    status = plc_string_array_from_json(
+        cJSON_GetObjectItemCaseSensitive(last_op, "rotationKeys"),
+        &rotation_keys, &rotation_keys_count);
+    if (status != WF_OK) {
+        cJSON_Delete(last_op);
+        free(prev_cid);
+        return status;
+    }
+
+    cJSON *verification_methods =
+        cJSON_GetObjectItemCaseSensitive(last_op, "verificationMethods");
+    char *verification_methods_json =
+        verification_methods ? cJSON_PrintUnformatted(verification_methods)
+                             : NULL;
+    cJSON *services = cJSON_GetObjectItemCaseSensitive(last_op, "services");
+    char *services_json = services ? cJSON_PrintUnformatted(services) : NULL;
+    cJSON_Delete(last_op);
+
+    size_t handle_len = strlen(new_handle);
+    char *aka = malloc(strlen("at://") + handle_len + 1);
+    if (!aka) {
+        plc_string_array_free(rotation_keys, rotation_keys_count);
+        free(verification_methods_json);
+        free(services_json);
+        free(prev_cid);
+        return WF_ERR_ALLOC;
+    }
+    snprintf(aka, strlen("at://") + handle_len + 1, "at://%s", new_handle);
+
+    const char *aka_arr[1] = {aka};
+    wf_plc_operation_update update = {
+        .rotation_keys = (const char *const *)rotation_keys,
+        .rotation_keys_count = rotation_keys_count,
+        .verification_methods_json = verification_methods_json,
+        .services_json = services_json,
+        .also_known_as = aka_arr,
+        .also_known_as_count = 1,
+        .prev = prev_cid,
+    };
+
+    char *unsigned_json = NULL;
+    status = wf_plc_operation_build(&update, &unsigned_json);
+    free(aka);
+    plc_string_array_free(rotation_keys, rotation_keys_count);
+    free(verification_methods_json);
+    free(services_json);
+    free(prev_cid);
+    if (status != WF_OK) return status;
+
+    status =
+        wf_plc_operation_sign(unsigned_json, rotation_key, out_signed_json);
+    wf_plc_operation_free(unsigned_json);
     return status;
 }
