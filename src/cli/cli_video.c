@@ -91,8 +91,7 @@ int cmd_video(int argc, char **argv) {
                                                  : "?",
                    (long long)job.job_status.blob.size);
         }
-        if (job.job_status.error)
-            printf("error: %s\n", job.job_status.error);
+        if (job.job_status.error) printf("error: %s\n", job.job_status.error);
         if (job.job_status.failure_code)
             printf("failureCode: %s\n", job.job_status.failure_code);
         if (job.job_status.message)
