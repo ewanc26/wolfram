@@ -20,7 +20,26 @@
  * WF_OK. This test only passes once that happens within the write timeout
  * and the returned status is WF_ERR_TIMEOUT — WF_ERR_NETWORK or any other
  * status is exactly the bug this exists to catch.
- */
+ *
+ * wf_xrpc_server_stop() (called by wf_xrpc_server_free() below) marks every
+ * still-open ws_stream `closed` and shutdown()s its socket *before* joining
+ * the handler thread — by design, so a slow consumer can never hang server
+ * shutdown for the full write timeout. wf_xrpc_server_ws_send() checks that
+ * flag under the same mutex the handler's send loop uses and returns
+ * WF_ERR_INVALID_ARG immediately once it is set, without attempting a write
+ * at all. That races the handler thread's very first send: on a machine
+ * where the newly spawned handler thread is slow to get scheduled, main can
+ * reach wf_xrpc_server_free() and mark the stream closed before the handler
+ * has sent anything, so its first (and only) attempt sees `closed` and
+ * returns WF_ERR_INVALID_ARG after 1 attempt instead of ~16 real sends and a
+ * genuine WF_ERR_TIMEOUT. This does not reproduce reliably on a lightly
+ * loaded machine, where the handler thread routinely wins that race, but
+ * does on a more contended one (this is exactly what surfaced it in CI).
+ * The fix belongs in the test, not in wf_xrpc_server_stop()'s shutdown
+ * ordering: wait for the handler to reach its own conclusion — real write
+ * timeout or MAX_ATTEMPTS exhausted — before ever calling
+ * wf_xrpc_server_free(), so the proactive-close sweep has nothing left to
+ * race against. */
 
 #include "wolfram/xrpc.h"
 #include "wolfram/xrpc_server.h"
@@ -30,10 +49,13 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <pthread.h>
+#include <sched.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <time.h>
 #include <unistd.h>
 
 #define NSID "io.example.never.drains"
@@ -112,8 +134,9 @@ static int test_handshake(int fd, uint16_t port) {
 /* ------------------------------------------------------------------ */
 
 typedef struct {
-    wf_status observed;
-    int attempts;
+    _Atomic wf_status observed;
+    atomic_int attempts;
+    atomic_int done; /* set once the loop below has reached a conclusion */
 } handler_result;
 
 static handler_result g_result;
@@ -124,16 +147,17 @@ static wf_status never_drains_handler(void *ctx, const wf_xrpc_request *req,
     (void)ctx;
     (void)req;
     memset(chunk, 'x', sizeof(chunk));
-    g_result.observed = WF_OK;
-    g_result.attempts = 0;
+    atomic_store(&g_result.observed, WF_OK);
+    atomic_store(&g_result.attempts, 0);
     for (int i = 0; i < MAX_ATTEMPTS; i++) {
-        g_result.attempts++;
         wf_status rc = wf_xrpc_server_ws_send(stream, chunk, sizeof(chunk));
+        atomic_fetch_add(&g_result.attempts, 1);
         if (rc != WF_OK) {
-            g_result.observed = rc;
+            atomic_store(&g_result.observed, rc);
             break;
         }
     }
+    atomic_store(&g_result.done, 1);
     return WF_OK;
 }
 
@@ -175,30 +199,58 @@ static int run_test(void) {
         return 1;
     }
 
-    /* Never read again. wf_xrpc_server_free waits for the handler (and so
-     * the send loop inside it) to finish before returning. */
+    /* Never read again. Wait for the handler's send loop to reach its own
+     * conclusion (real write timeout, or attempts exhausted) BEFORE calling
+     * wf_xrpc_server_free() — see the top-of-file comment. Calling it
+     * immediately races wf_xrpc_server_stop()'s proactive close-and-shutdown
+     * sweep against the handler thread even starting its first send. Bounded
+     * at 10s (the real per-attempt write timeout is ~2s) so a genuine
+     * regression still fails loudly instead of hanging the suite. */
+    {
+        struct timespec start, now;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        while (!atomic_load(&g_result.done)) {
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            double elapsed = (double)(now.tv_sec - start.tv_sec) +
+                             (double)(now.tv_nsec - start.tv_nsec) / 1e9;
+            if (elapsed > 10.0) {
+                fprintf(stderr,
+                        "FAIL: handler send loop did not conclude within 10s "
+                        "(%d attempts so far)\n",
+                        atomic_load(&g_result.attempts));
+                close(fd);
+                wf_xrpc_server_free(server);
+                return 1;
+            }
+            sched_yield();
+        }
+    }
+
     wf_xrpc_server_free(server);
     close(fd);
 
-    if (g_result.observed == WF_OK) {
+    wf_status observed = atomic_load(&g_result.observed);
+    int attempts = atomic_load(&g_result.attempts);
+
+    if (observed == WF_OK) {
         fprintf(stderr,
                 "FAIL: send loop never blocked after %d attempts (%d bytes) — "
                 "this platform's socket buffers are larger than this test "
                 "assumed\n",
-                g_result.attempts, g_result.attempts * CHUNK_LEN);
+                attempts, attempts * CHUNK_LEN);
         return 1;
     }
-    if (g_result.observed != WF_ERR_TIMEOUT) {
+    if (observed != WF_ERR_TIMEOUT) {
         fprintf(stderr,
                 "FAIL: expected WF_ERR_TIMEOUT once the peer never drains, "
                 "got status %d after %d attempts\n",
-                (int)g_result.observed, g_result.attempts);
+                (int)observed, attempts);
         return 1;
     }
 
     printf("PASS: send to a peer that never reads returned WF_ERR_TIMEOUT "
            "after %d attempts (%d bytes)\n",
-           g_result.attempts, g_result.attempts * CHUNK_LEN);
+           attempts, attempts * CHUNK_LEN);
     return 0;
 }
 
