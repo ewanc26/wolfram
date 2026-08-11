@@ -97,8 +97,10 @@ int cmd_moderation(int argc, char **argv) {
             return 1;
         }
 
-        const char *rt = reason_type ? reason_type : reason;
-        const char *free_reason = reason_type ? reason : NULL;
+        const char *rt = reason_type
+                             ? reason_type
+                             : "com.atproto.moderation.defs#reasonOther";
+        const char *free_reason = reason;
 
         wf_agent *agent = agent_login_or_err(pos[0], pos[1], pos[2]);
         if (!agent) return 1;
@@ -198,9 +200,8 @@ int cmd_search(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    wf_status s =
-        wf_agent_search_posts(agent, query, limit, NULL, NULL, NULL, NULL, NULL,
-                              &res);
+    wf_status s = wf_agent_search_posts(agent, query, limit, NULL, NULL, NULL,
+                                        NULL, NULL, &res);
     return finish_agent_response(agent, s, &res);
 }
 
@@ -221,8 +222,7 @@ int cmd_search_actors(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    wf_status s =
-        wf_agent_search_actors(agent, query, limit, NULL, &res);
+    wf_status s = wf_agent_search_actors(agent, query, limit, NULL, &res);
     return finish_agent_response(agent, s, &res);
 }
 
@@ -243,8 +243,7 @@ int cmd_search_typeahead(int argc, char **argv) {
     }
 
     wf_response res = {0};
-    wf_status s =
-        wf_agent_search_actors_typeahead(agent, query, limit, &res);
+    wf_status s = wf_agent_search_actors_typeahead(agent, query, limit, &res);
     return finish_agent_response(agent, s, &res);
 }
 
@@ -321,10 +320,14 @@ int cmd_labels(int argc, char **argv) {
     opts.on_info = label_on_info;
     opts.on_error = label_on_error;
 
-    printf(
-        "subscribing to label stream at %s (cursor=%s, max %d events, %ds)\n",
-        service, has_cursor ? argv[2] : "none", CLI_LABEL_MAX_EVENTS,
-        g_label_seconds);
+    if (has_cursor)
+        printf("subscribing to label stream at %s (cursor=%" PRId64
+               ", max %d events, %ds)\n",
+               service, cursor, CLI_LABEL_MAX_EVENTS, g_label_seconds);
+    else
+        printf("subscribing to label stream at %s (cursor=none, max %d "
+               "events, %ds)\n",
+               service, CLI_LABEL_MAX_EVENTS, g_label_seconds);
 
     wf_label_subscribe_handle *handle = NULL;
     g_label_handle_ptr = &handle;

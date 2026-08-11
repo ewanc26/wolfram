@@ -107,6 +107,7 @@
 #include "cli_repo.h"
 #include "cli_video.h"
 #include "cli_ozone.h"
+#include "cli_admin.h"
 #include "wolfram/thread_typed.h"
 #include "wolfram/feed_typed.h"
 #include "wolfram/actor_typed.h"
@@ -956,6 +957,15 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "search") == 0) {
         return cmd_search(rest, cargv);
     }
+    if (strcmp(cmd, "search-actors") == 0) {
+        return cmd_search_actors(rest, cargv);
+    }
+    if (strcmp(cmd, "search-typeahead") == 0) {
+        return cmd_search_typeahead(rest, cargv);
+    }
+    if (strcmp(cmd, "search-starter-packs") == 0) {
+        return cmd_search_starter_packs(rest, cargv);
+    }
     if (strcmp(cmd, "moderation") == 0) {
         return cmd_moderation(rest, cargv);
     }
@@ -1045,6 +1055,18 @@ int main(int argc, char **argv) {
     if (strcmp(cmd, "unread-count") == 0) {
         return cmd_unread_count(rest, cargv);
     }
+    if (strcmp(cmd, "get-actor-status") == 0) {
+        return cmd_get_actor_status(rest, cargv);
+    }
+    if (strcmp(cmd, "get-feed-generators") == 0) {
+        return cmd_get_feed_generators(rest, cargv);
+    }
+    if (strcmp(cmd, "get-suggested-follows-by-actor") == 0) {
+        return cmd_get_suggested_follows_by_actor(rest, cargv);
+    }
+    if (strcmp(cmd, "age-assurance") == 0) {
+        return cmd_age_assurance(rest, cargv);
+    }
 
     /* --- Graph & list operations --- */
     if (strcmp(cmd, "mute-list") == 0) {
@@ -1117,6 +1139,9 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "request-email-confirmation") == 0) {
         return cmd_request_email_confirmation(rest, cargv);
+    }
+    if (strcmp(cmd, "admin") == 0) {
+        return cmd_admin(rest, cargv);
     }
 
     /* --- Identity --- */
