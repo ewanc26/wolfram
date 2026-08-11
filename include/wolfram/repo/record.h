@@ -20,6 +20,25 @@ wf_status wf_repo_get_record(wf_car *car, const wf_cid *commit_cid,
                              unsigned char **out_data, size_t *out_len,
                              wf_cid *out_record_cid);
 
+/**
+ * Compute the MST inclusion/non-inclusion proof for a single record key: the
+ * minimal set of MST node CIDs on the path from the commit's MST root to
+ * where `collection`/`rkey` would live, whether or not a record is actually
+ * present there. Matches the reference's repo.getRecords, which walks
+ * mst.cidsForPath so a caller can prove existence *or* non-existence
+ * (packages/repo/src/sync/provider.ts, packages/repo/src/mst/mst.ts).
+ *
+ * On WF_OK, *out_proof_cids is caller-owned (free with wf_mst_cid_list_free).
+ * *out_record_cid is zeroed (len == 0) when no record exists at that key;
+ * otherwise it names the record leaf's CID, which the caller must also
+ * include in the proof CAR alongside the commit and the returned node CIDs.
+ */
+wf_status wf_repo_get_record_proof(wf_car *car, const wf_cid *commit_cid,
+                                   const char *collection, const char *rkey,
+                                   wf_cid **out_proof_cids,
+                                   size_t *out_proof_count,
+                                   wf_cid *out_record_cid);
+
 wf_status wf_repo_update_record(wf_car *car, const wf_cid *prev_commit,
                                 const char *did, const char *collection,
                                 const char *rkey,
