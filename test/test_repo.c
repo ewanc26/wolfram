@@ -57,6 +57,27 @@ static int check_cid(const wf_cid *left, const wf_cid *right) {
            memcmp(left->bytes, right->bytes, left->len) == 0;
 }
 
+/* Deterministically encode `salt` as an 8-byte key that satisfies the
+ * reference's isValidMstKey (mst/util.ts): "k/" followed by 6 base-36
+ * digits. Used to search for keys landing at a given MST layer without
+ * producing raw bytes that wf_mst_add/wf_mst_node_parse now reject.
+ * `salt` is run through the same LCG used elsewhere in this file first so
+ * consecutive salts land at scattered byte values (as the raw-integer keys
+ * this replaced did) rather than a monotonically increasing sequence —
+ * callers that scan salt upward need generated keys spread across the key
+ * space, not clustered at its low end. */
+static void salt_to_valid_key8(unsigned long long salt, unsigned char k[8]) {
+    static const char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    unsigned long long mixed =
+        salt * 6364136223846793005ULL + 1442695040888963407ULL;
+    k[0] = 'k';
+    k[1] = '/';
+    for (int i = 7; i >= 2; i--) {
+        k[i] = (unsigned char)alphabet[mixed % 36];
+        mixed /= 36;
+    }
+}
+
 /* Generate an 8-byte key whose MST layer equals `layer` (test helper). */
 static int find_key_with_layer(unsigned layer, unsigned long long salt,
                                unsigned char *out) {
@@ -597,9 +618,9 @@ int main(void) {
     /* ── MST key layer ── */
 
     /* Known test vectors from atproto repo/mst */
-    WF_CHECK(wf_mst_key_layer((unsigned char *)"2653ae71", 8) == 0);
-    WF_CHECK(wf_mst_key_layer((unsigned char *)"asdf", 4) == 0);
-    WF_CHECK(wf_mst_key_layer((unsigned char *)"blue", 4) == 1);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"a/aaaaaa", 8) == 0);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"a/aa", 4) == 0);
+    WF_CHECK(wf_mst_key_layer((unsigned char *)"aa/b", 4) == 1);
     WF_CHECK(wf_mst_key_layer((unsigned char *)"88bfafc7", 8) == 2);
     WF_CHECK(wf_mst_key_layer((unsigned char *)"2a92d355", 8) == 4);
     WF_CHECK(wf_mst_key_layer((unsigned char *)"884976f5", 8) == 6);
@@ -636,8 +657,8 @@ int main(void) {
         entry[ep++] = 0xA4; /* map(4) */
         entry[ep++] = 0x61;
         entry[ep++] = 0x6B; /* text(1) "k" */
-        entry[ep++] = 0x44; /* bytes(4) "test" */
-        memcpy(entry + ep, "test", 4);
+        entry[ep++] = 0x44; /* bytes(4) "t/st" */
+        memcpy(entry + ep, "t/st", 4);
         ep += 4;
         entry[ep++] = 0x61;
         entry[ep++] = 0x70; /* text(1) "p" */
@@ -672,7 +693,7 @@ int main(void) {
         WF_CHECK(node.count == 1);
         WF_CHECK(node.left.len == 0);
         WF_CHECK(node.entries[0].key_len == 4);
-        WF_CHECK(memcmp(node.entries[0].key, "test", 4) == 0);
+        WF_CHECK(memcmp(node.entries[0].key, "t/st", 4) == 0);
         WF_CHECK(node.entries[0].value.len == 36);
         WF_CHECK(memcmp(node.entries[0].value.bytes, cid_bytes, 36) == 0);
         WF_CHECK(node.entries[0].subtree.len == 0);
@@ -806,7 +827,7 @@ int main(void) {
         entry[ep++] = 0x61;
         entry[ep++] = 0x6B;
         entry[ep++] = 0x44;
-        memcpy(entry + ep, "test", 4);
+        memcpy(entry + ep, "t/st", 4);
         ep += 4;
         entry[ep++] = 0x61;
         entry[ep++] = 0x70;
@@ -946,7 +967,7 @@ int main(void) {
         /* Find "test" in MST */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char *)"test", 4,
+        WF_CHECK(wf_mst_find(&parsed, &commit.data, (unsigned char *)"t/st", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &record_cid, sizeof(wf_cid)) == 0);
 
@@ -1000,7 +1021,7 @@ int main(void) {
         wf_mst_entry entry;
         memset(&entry, 0, sizeof(entry));
         unsigned char *k = malloc(4);
-        memcpy(k, "test", 4);
+        memcpy(k, "t/st", 4);
         entry.key = k;
         entry.key_len = 4;
         entry.value = value_cid;
@@ -1023,7 +1044,7 @@ int main(void) {
                                    &parsed) == WF_OK);
         WF_CHECK(parsed.count == 1);
         WF_CHECK(parsed.entries[0].key_len == 4);
-        WF_CHECK(memcmp(parsed.entries[0].key, "test", 4) == 0);
+        WF_CHECK(memcmp(parsed.entries[0].key, "t/st", 4) == 0);
         WF_CHECK(memcmp(&parsed.entries[0].value, &value_cid, sizeof(wf_cid)) ==
                  0);
         wf_mst_node_free(&parsed);
@@ -1047,14 +1068,14 @@ int main(void) {
         wf_cid new_root;
         memset(&new_root, 0, sizeof(new_root));
 
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &value_cid,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"a/aa", 4, &value_cid,
                             &new_root) == WF_OK);
         WF_CHECK(new_root.len == 36);
 
         /* Find it back */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &new_root, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_find(&car, &new_root, (unsigned char *)"a/aa", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &value_cid, sizeof(wf_cid)) == 0);
 
@@ -1086,35 +1107,35 @@ int main(void) {
         val_b.bytes[4] = 0xBB;
         val_b.len = 36;
 
-        /* Known layer-0 keys from test vectors: "2653ae71" and "asdf" */
+        /* Two distinct layer-0 keys (chosen to hash to layer 0). */
         wf_cid root = {{0}, 0};
         wf_cid root_a;
         memset(&root_a, 0, sizeof(root_a));
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val_a,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"a/aa", 4, &val_a,
                             &root_a) == WF_OK);
 
         wf_cid root_b;
         memset(&root_b, 0, sizeof(root_b));
-        WF_CHECK(wf_mst_add(&car, &root_a, (unsigned char *)"2653ae71", 8,
+        WF_CHECK(wf_mst_add(&car, &root_a, (unsigned char *)"a/aaaaaa", 8,
                             &val_b, &root_b) == WF_OK);
 
         /* Both keys should be findable */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &root_b, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_find(&car, &root_b, (unsigned char *)"a/aa", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_a, sizeof(wf_cid)) == 0);
 
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &root_b, (unsigned char *)"2653ae71", 8,
+        WF_CHECK(wf_mst_find(&car, &root_b, (unsigned char *)"a/aaaaaa", 8,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_b, sizeof(wf_cid)) == 0);
 
         wf_car_free(&car);
     }
 
-    /* Add key at higher layer (key_layer > node.layer): "blue" (layer 1) to
-     * "asdf" (layer 0) */
+    /* Add key at higher layer (key_layer > node.layer): "aa/b" (layer 1) to
+     * "a/aa" (layer 0) */
     {
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -1135,38 +1156,38 @@ int main(void) {
         val_blue.bytes[4] = 0xBB;
         val_blue.len = 36;
 
-        WF_CHECK(wf_mst_key_layer((unsigned char *)"asdf", 4) == 0);
-        WF_CHECK(wf_mst_key_layer((unsigned char *)"blue", 4) == 1);
+        WF_CHECK(wf_mst_key_layer((unsigned char *)"a/aa", 4) == 0);
+        WF_CHECK(wf_mst_key_layer((unsigned char *)"aa/b", 4) == 1);
 
         wf_cid root = {{0}, 0};
         wf_cid after_asdf;
         memset(&after_asdf, 0, sizeof(after_asdf));
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val_asdf,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"a/aa", 4, &val_asdf,
                             &after_asdf) == WF_OK);
 
-        /* Now add "blue" (layer 1) — triggers add_at_higher_layer */
+        /* Now add "aa/b" (layer 1) — triggers add_at_higher_layer */
         wf_cid after_blue;
         memset(&after_blue, 0, sizeof(after_blue));
-        WF_CHECK(wf_mst_add(&car, &after_asdf, (unsigned char *)"blue", 4,
+        WF_CHECK(wf_mst_add(&car, &after_asdf, (unsigned char *)"aa/b", 4,
                             &val_blue, &after_blue) == WF_OK);
 
         /* Both keys findable */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_blue, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_find(&car, &after_blue, (unsigned char *)"a/aa", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_asdf, sizeof(wf_cid)) == 0);
 
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_blue, (unsigned char *)"blue", 4,
+        WF_CHECK(wf_mst_find(&car, &after_blue, (unsigned char *)"aa/b", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_blue, sizeof(wf_cid)) == 0);
 
         wf_car_free(&car);
     }
 
-    /* Add key at lower layer (key_layer < node.layer): "asdf" (layer 0) to
-     * "blue" (layer 1) root */
+    /* Add key at lower layer (key_layer < node.layer): "a/aa" (layer 0) to
+     * "aa/b" (layer 1) root */
     {
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -1190,24 +1211,24 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid after_blue;
         memset(&after_blue, 0, sizeof(after_blue));
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"blue", 4, &val_blue,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"aa/b", 4, &val_blue,
                             &after_blue) == WF_OK);
 
-        /* Now add "asdf" (layer 0) — triggers add_at_lower_layer */
+        /* Now add "a/aa" (layer 0) — triggers add_at_lower_layer */
         wf_cid after_asdf;
         memset(&after_asdf, 0, sizeof(after_asdf));
-        WF_CHECK(wf_mst_add(&car, &after_blue, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_add(&car, &after_blue, (unsigned char *)"a/aa", 4,
                             &val_asdf, &after_asdf) == WF_OK);
 
         /* Both keys findable */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_asdf, (unsigned char *)"blue", 4,
+        WF_CHECK(wf_mst_find(&car, &after_asdf, (unsigned char *)"aa/b", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_blue, sizeof(wf_cid)) == 0);
 
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_asdf, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_find(&car, &after_asdf, (unsigned char *)"a/aa", 4,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_asdf, sizeof(wf_cid)) == 0);
 
@@ -1232,12 +1253,12 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid after_add;
         memset(&after_add, 0, sizeof(after_add));
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"a/aa", 4, &val,
                             &after_add) == WF_OK);
 
         wf_cid after_del;
         memset(&after_del, 0, sizeof(after_del));
-        WF_CHECK(wf_mst_delete(&car, &after_add, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_delete(&car, &after_add, (unsigned char *)"a/aa", 4,
                                &after_del) == WF_OK);
         WF_CHECK(after_del.len == 0); /* tree is empty */
 
@@ -1268,30 +1289,30 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid after_a;
         memset(&after_a, 0, sizeof(after_a));
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val_a,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"a/aa", 4, &val_a,
                             &after_a) == WF_OK);
 
         wf_cid after_both;
         memset(&after_both, 0, sizeof(after_both));
-        WF_CHECK(wf_mst_add(&car, &after_a, (unsigned char *)"2653ae71", 8,
+        WF_CHECK(wf_mst_add(&car, &after_a, (unsigned char *)"a/aaaaaa", 8,
                             &val_b, &after_both) == WF_OK);
 
-        /* Delete "asdf" */
+        /* Delete "a/aa" */
         wf_cid after_del;
         memset(&after_del, 0, sizeof(after_del));
-        WF_CHECK(wf_mst_delete(&car, &after_both, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_delete(&car, &after_both, (unsigned char *)"a/aa", 4,
                                &after_del) == WF_OK);
         WF_CHECK(after_del.len > 0); /* tree not empty */
 
-        /* "asdf" should be gone */
+        /* "a/aa" should be gone */
         wf_cid found;
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_del, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_find(&car, &after_del, (unsigned char *)"a/aa", 4,
                              &found) == WF_ERR_NOT_FOUND);
 
-        /* "2653ae71" should remain */
+        /* "a/aaaaaa" should remain */
         memset(&found, 0, sizeof(found));
-        WF_CHECK(wf_mst_find(&car, &after_del, (unsigned char *)"2653ae71", 8,
+        WF_CHECK(wf_mst_find(&car, &after_del, (unsigned char *)"a/aaaaaa", 8,
                              &found) == WF_OK);
         WF_CHECK(memcmp(&found, &val_b, sizeof(wf_cid)) == 0);
 
@@ -1307,7 +1328,7 @@ int main(void) {
         size_t matched = 0;
         for (unsigned i = 0; i < 1000000 && matched < 7; i++) {
             char candidate[32];
-            int n = snprintf(candidate, sizeof(candidate), "merge-%06u", i);
+            int n = snprintf(candidate, sizeof(candidate), "merge/%06u", i);
             unsigned layer =
                 wf_mst_key_layer((unsigned char *)candidate, (size_t)n);
             if (layer == wanted_layers[matched]) {
@@ -1387,7 +1408,7 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid after_add;
         memset(&after_add, 0, sizeof(after_add));
-        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"asdf", 4, &val,
+        WF_CHECK(wf_mst_add(&car, &root, (unsigned char *)"a/aa", 4, &val,
                             &after_add) == WF_OK);
 
         wf_cid after_del;
@@ -1405,7 +1426,7 @@ int main(void) {
         wf_cid root = {{0}, 0};
         wf_cid result;
         memset(&result, 0, sizeof(result));
-        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"a/aa", 4,
                                &result) == WF_ERR_NOT_FOUND);
         wf_car_free(&car);
     }
@@ -1416,15 +1437,15 @@ int main(void) {
         memset(&car, 0, sizeof(car));
         wf_cid root = {{0}, 0};
         wf_cid result;
-        WF_CHECK(wf_mst_delete(NULL, &root, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_delete(NULL, &root, (unsigned char *)"a/aa", 4,
                                &result) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, NULL, (unsigned char *)"asdf", 4,
+        WF_CHECK(wf_mst_delete(&car, NULL, (unsigned char *)"a/aa", 4,
                                &result) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_mst_delete(&car, &root, NULL, 4, &result) ==
                  WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"asdf", 0,
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"a/aa", 0,
                                &result) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"asdf", 4, NULL) ==
+        WF_CHECK(wf_mst_delete(&car, &root, (unsigned char *)"a/aa", 4, NULL) ==
                  WF_ERR_INVALID_ARG);
         wf_car_free(&car);
     }
@@ -2282,7 +2303,7 @@ int main(void) {
         unsigned long long salt = 1;
         while ((n1 < 80 || n2 < 80) && salt < 400000) {
             unsigned char k[8];
-            memcpy(k, &salt, 8);
+            salt_to_valid_key8(salt, k);
             unsigned L = wf_mst_key_layer(k, 8);
             if (L == 1 && n1 < 80)
                 memcpy(pool1[n1++], k, 8);
@@ -2367,7 +2388,7 @@ int main(void) {
         unsigned long long salt = 1;
         while ((n1 < 200 || n2 < 200) && salt < 800000) {
             unsigned char k[8];
-            memcpy(k, &salt, 8);
+            salt_to_valid_key8(salt, k);
             unsigned L = wf_mst_key_layer(k, 8);
             if (L == 1 && n1 < 200)
                 memcpy(p1[n1++], k, 8);
