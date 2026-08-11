@@ -621,6 +621,42 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   check is an account takeover) and deserve dedicated implementation and
   review, not a rushed first cut.
 
+  Update: found and cloned a PDS that *has* shipped this —
+  [Tranquil PDS](https://tangled.org/tranquil.farm/tranquil-pds) (Rust),
+  which advertises "a superset of the reference PDS" including WebAuthn/FIDO2
+  passkeys, TOTP, backup codes, and a built-in admin/account web UI. Its
+  `crates/tranquil-pds/src/auth/webauthn.rs` confirms the ceremony shape
+  above (`start_registration`/`finish_registration`,
+  `start_authentication`/`finish_authentication`, plus a "discoverable
+  authentication" usernameless-login variant) using the `webauthn-rs` crate
+  — Rust has a mature off-the-shelf RP library; C does not, so hand-rolling
+  is genuinely the only path here, not a shortcut being missed. Two corrections
+  from reading real code instead of the spec alone: the per-attempt server
+  state to persist between start/finish isn't a bare token but the ceremony's
+  own opaque state object (`SecurityKeyRegistration`/`SecurityKeyAuthentication`
+  in their case) — for a hand-rolled version that's concretely the challenge
+  bytes plus which credential IDs were offered, not just a random string like
+  the email-token pattern uses; and their `StoredPasskey` row is richer than
+  the credential-id/x/y/counter I'd assumed — `aaguid` (authenticator model,
+  for a UI to show "Touch ID" vs "YubiKey") and `transports` (usb/nfc/ble/
+  internal hints) round out what a real passkey-management list page needs
+  to be usable, alongside `friendly_name` and `last_used`. Their browser-side
+  glue (`frontend/src/lib/webauthn.ts`, plain TypeScript, no framework
+  dependency) is a clean, directly adaptable reference for the
+  `PublicKeyCredentialCreationOptions`/`RequestOptions` base64url
+  encode/decode boundary MetalBear's own frontend would need identically.
+
+  Also relevant to the admin-UI half of this research pass: the standard
+  `com.atproto.admin.*` lexicon has no "list/search all accounts" endpoint
+  (`getAccountInfos` requires already knowing the DIDs) — true of the
+  reference PDS too, not a MetalBear gap. Tranquil solves it with a custom,
+  non-lexicon `admin/account/search` endpoint (`{email?, handle?, cursor?,
+  limit}` → paginated account views, gated by a session-based `Auth<Admin>`
+  extractor rather than HTTP Basic). A `com.metalbear.admin.searchAccounts`
+  along the same lines would be a natural, small enhancement once an admin
+  dashboard exists, matching the `com.metalbear.oauth.*`/`com.metalbear.webauthn.*`
+  extension-namespace convention already established.
+
 ## Dependencies
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
