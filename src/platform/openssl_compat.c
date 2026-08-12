@@ -189,14 +189,26 @@ int EVP_DecodeBlock(unsigned char *out, const unsigned char *in, int len) {
     return j - pad;
 }
 
-/* ── Random bytes (stub) ────────────────────────────────────────────── */
+/* ── Random bytes ──────────────────────────────────────────────────── */
 
-/*
- * TODO: Implement via mbedTLS mbedtls_ctr_drbg_random() seeded from
- * a hardware RNG or a seed stored on SD card.
- */
+#if defined(WOLFRAM_WII) || defined(WOLFRAM_WIIU)
+/* wii_tls.c (Wii) / wiiu_random.c (Wii U) already seed an
+ * mbedtls_ctr_drbg_context from real hardware entropy for TLS and P-256
+ * signing (see wii_tls_init / wiiu_random_init) -- reuse that DRBG instead
+ * of maintaining a second one here. */
+extern int wii_tls_random(void *p, unsigned char *out, size_t len);
+
+int RAND_bytes(unsigned char *buf, int len) {
+    if (!buf || len < 0) return 0;
+    return wii_tls_random(NULL, buf, (size_t)len) == 0 ? 1 : 0;
+}
+#else
+/* 3DS has no seeded DRBG wired up yet (crypto_3ds.c is itself an
+ * unverified gap -- devkitARM is not available to cross-build/test it, see
+ * docs/roadmap.md item 60). Fail loudly rather than return zero bytes. */
 int RAND_bytes(unsigned char *buf, int len) {
     (void)buf;
     (void)len;
     return 0; /* failure */
 }
+#endif
