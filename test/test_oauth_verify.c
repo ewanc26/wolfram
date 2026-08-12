@@ -407,6 +407,42 @@ int main(void) {
         tok = NULL;
     }
 
+    /* --- Negative: unbound access token (no cnf.jkt) + a DPoP proof must
+     * not silently bind on first use --------------------------------- */
+    {
+        /* Minted with cnf_jkt = NULL: nothing was ever bound to this token
+         * at issuance. A caller presenting it alongside ANY freshly-minted
+         * DPoP proof must be rejected outright, never treated as "bind it
+         * to whatever key this proof happens to carry" -- that would let
+         * anyone who obtains an unbound token, however it leaked, claim
+         * DPoP binding to a key of their own choosing and use it exactly
+         * like a stolen plain bearer token, defeating DPoP's entire
+         * purpose. */
+        char *unbound_token = make_access_token(
+            at_ec, did, "https://op.example.com", "https://api.example.com",
+            "atproto repo", NULL, now, now + 3600);
+        char *unbound_auth = malloc(strlen(unbound_token) + 8);
+        sprintf(unbound_auth, "DPoP %s", unbound_token);
+        unsigned char digest3[32];
+        char *ath3;
+        SHA256((const unsigned char *)unbound_token, strlen(unbound_token),
+               digest3);
+        ath3 = b64url(digest3, 32);
+        cJSON *jwk3 = cJSON_Parse(dp_jwk);
+        char *dpop_proof3 = make_dpop_proof(dp_ec, jwk3, "POST", uri, ath3,
+                                            "jti-unbound-1", now);
+        free(ath3);
+        wf_status st = wf_oauth_verify_request(unbound_auth, dpop_proof3,
+                                               "POST", uri, keys, replay, &tok);
+        WF_CHECK(st != WF_OK);
+        WF_CHECK(tok == NULL);
+        free(unbound_token);
+        free(unbound_auth);
+        free(dpop_proof3);
+        wf_oauth_verified_token_free(tok);
+        tok = NULL;
+    }
+
     /* --- Negative: tampered DPoP proof signature --- */
     {
         char *bad = str_dup(dpop_proof);
