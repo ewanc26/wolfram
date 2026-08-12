@@ -108,6 +108,7 @@
 #include "cli_video.h"
 #include "cli_ozone.h"
 #include "cli_admin.h"
+#include "cli_explore.h"
 #include "wolfram/thread_typed.h"
 #include "wolfram/feed_typed.h"
 #include "wolfram/actor_typed.h"
@@ -338,6 +339,17 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
         {"resolve", "resolve <service> <handle-or-did>",
          "Resolve a handle to a DID via wf_handle_resolve. A DID is echoed "
          "back unchanged."},
+        {"browse",
+         "browse <service> <handle-or-did> [collection] [rkey] "
+         "[--limit N] [--cursor C] [--json]",
+         "Anonymous at:// repo explorer, the CLI equivalent of PDSls: no "
+         "args past the actor lists collections, a collection lists its "
+         "records, collection+rkey shows the full record."},
+        {"identity",
+         "identity <service> <handle-or-did> [--plc-directory URL] [--json]",
+         "Show a DID's handles (with live bidirectional verification), "
+         "verification methods, service endpoints, and (for did:plc) "
+         "current PLC rotation keys."},
         {"labels", "labels subscribe <service> [--cursor N] [--seconds N]",
          "Subscribe to com.atproto.label.subscribeLabels via the label.h "
          "streaming API and print each arriving label. Bounded by --seconds "
@@ -935,6 +947,12 @@ int main(int argc, char **argv) {
     }
     if (strcmp(cmd, "resolve") == 0) {
         return cmd_resolve(rest, cargv);
+    }
+    if (strcmp(cmd, "browse") == 0) {
+        return cmd_browse(rest, cargv);
+    }
+    if (strcmp(cmd, "identity") == 0) {
+        return cmd_identity(rest, cargv);
     }
     if (strcmp(cmd, "thread") == 0) {
         return cmd_thread(rest, cargv);
