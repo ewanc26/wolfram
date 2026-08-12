@@ -152,11 +152,40 @@ wf_status wf_crypto_p256_verify(const unsigned char x[32],
                                 const unsigned char *sig, size_t sig_len);
 
 /**
+ * Same as wf_crypto_p256_verify, but accepts either low-S or high-S
+ * signature form.
+ *
+ * This exists for verifying signatures from parties this SDK does not
+ * control the signing implementation of -- e.g. WebAuthn/FIDO2
+ * authenticators, whose assertion signatures are not guaranteed to be low-S
+ * normalized the way this SDK's own DPoP/service-JWT signing is. Prefer
+ * wf_crypto_p256_verify when verifying a signature produced by this SDK's
+ * own P-256 signing (wf_p256_sign_hash), where low-S is a real invariant
+ * worth enforcing.
+ */
+wf_status wf_crypto_p256_verify_allow_malleable(const unsigned char x[32],
+                                                const unsigned char y[32],
+                                                const unsigned char *msg,
+                                                size_t msg_len,
+                                                const unsigned char *sig,
+                                                size_t sig_len);
+
+/**
  * Parse a public JWK ({"kty":"EC","crv":"P-256","x":"...","y":"..."}) and write
  * its P-256 affine coordinates (32 bytes each) into `x` and `y`.
  */
 wf_status wf_crypto_p256_jwk_coords(const char *jwk_json, unsigned char x[32],
                                     unsigned char y[32]);
+
+/**
+ * Convert a DER-encoded ECDSA-Sig-Value (RFC 3279 §2.2.3) -- the form a
+ * browser's WebAuthn implementation or any other third-party ECDSA signer
+ * typically produces -- into the raw 64-byte (r || s) form
+ * wf_crypto_p256_verify/wf_crypto_p256_verify_allow_malleable expect.
+ * WF_ERR_PARSE on malformed DER or an r/s that does not fit in 32 bytes.
+ */
+wf_status wf_crypto_ecdsa_der_to_raw(const unsigned char *der, size_t der_len,
+                                     unsigned char raw_out[64]);
 
 #ifdef __cplusplus
 }
