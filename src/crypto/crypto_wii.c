@@ -185,30 +185,8 @@ static wf_status wf_b58_decode(const char *str, size_t len, unsigned char **out,
         const char *p = strchr(wf_b58_alphabet, str[i]);
         if (!p) {
             free(buf);
-    if (key->type == WF_KEY_TYPE_SECP256K1) {
-        mbedtls_ecp_group grp;
-        mbedtls_mpi d, r, s;
-        mbedtls_ecp_group_init(&grp);
-        mbedtls_mpi_init(&d);
-        mbedtls_mpi_init(&r);
-        mbedtls_mpi_init(&s);
-        mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_SECP256K1);
-        mbedtls_mpi_read_binary(&d, key->bytes, 32);
-        SHA256(msg, msg_len, hash);
-        int rc = mbedtls_ecdsa_sign(&grp, &r, &s, &d, hash, 32,
-                                        wii_tls_random, NULL);
-        if (rc == 0) {
-            mbedtls_mpi_write_binary(&r, sig_out, 32);
-            mbedtls_mpi_write_binary(&s, sig_out + 32, 32);
+            return WF_ERR_INVALID_ARG;
         }
-        mbedtls_ecp_group_free(&grp);
-        mbedtls_mpi_free(&d);
-        mbedtls_mpi_free(&r);
-        mbedtls_mpi_free(&s);
-        return rc == 0 ? WF_OK : WF_ERR_CRYPTO;
-    }
-    return WF_ERR_INVALID_ARG;
-}
         unsigned carry = (unsigned)(p - wf_b58_alphabet);
         for (size_t j = buf_size; j-- > 0;) {
             carry += (unsigned)buf[j] * 58u;
@@ -307,10 +285,8 @@ static wf_status wii_p256_decompress(const unsigned char comp[33],
 /* secp256k1 domain parameters (Koblitz curve). */
 #define WII_K256_P                                                             \
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F"
-#define WII_K256_A                                                             \
-    "0000000000000000000000000000000000000000000000000000000000"
-#define WII_K256_B                                                             \
-    "0000000000000000000000000000000000000000000000000000000007"
+#define WII_K256_A "0000000000000000000000000000000000000000000000000000000000"
+#define WII_K256_B "0000000000000000000000000000000000000000000000000000000007"
 #define WII_K256_N                                                             \
     "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"
 
@@ -719,8 +695,7 @@ static wf_status wii_verify_didkey(const char *public_key_multibase,
 
         unsigned char hash[32];
         SHA256(msg, msg_len, hash);
-        return wii_k256_verify_raw(x, y, hash, sig, sig_len,
-                                       allow_malleable);
+        return wii_k256_verify_raw(x, y, hash, sig, sig_len, allow_malleable);
     }
 
     unsigned char x[32], y[32];
@@ -870,6 +845,8 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     }
     return WF_ERR_INVALID_ARG;
 }
+
+wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
                   size_t msg_len, unsigned char *sig_out, size_t sig_out_cap) {
     unsigned char hash[32];
     if (!key || !msg || msg_len == 0 || !sig_out || sig_out_cap < 64)
@@ -882,6 +859,28 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
         mbedtls_mpi_init(&r);
         mbedtls_mpi_init(&s);
         mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_SECP256R1);
+        mbedtls_mpi_read_binary(&d, key->bytes, 32);
+        SHA256(msg, msg_len, hash);
+        int rc = mbedtls_ecdsa_sign(&grp, &r, &s, &d, hash, 32, wii_tls_random,
+                                    NULL);
+        if (rc == 0) {
+            mbedtls_mpi_write_binary(&r, sig_out, 32);
+            mbedtls_mpi_write_binary(&s, sig_out + 32, 32);
+        }
+        mbedtls_ecp_group_free(&grp);
+        mbedtls_mpi_free(&d);
+        mbedtls_mpi_free(&r);
+        mbedtls_mpi_free(&s);
+        return rc == 0 ? WF_OK : WF_ERR_CRYPTO;
+    }
+    if (key->type == WF_KEY_TYPE_SECP256K1) {
+        mbedtls_ecp_group grp;
+        mbedtls_mpi d, r, s;
+        mbedtls_ecp_group_init(&grp);
+        mbedtls_mpi_init(&d);
+        mbedtls_mpi_init(&r);
+        mbedtls_mpi_init(&s);
+        mbedtls_ecp_group_load(&grp, MBEDTLS_ECP_DP_SECP256K1);
         mbedtls_mpi_read_binary(&d, key->bytes, 32);
         SHA256(msg, msg_len, hash);
         int rc = mbedtls_ecdsa_sign(&grp, &r, &s, &d, hash, 32, wii_tls_random,
