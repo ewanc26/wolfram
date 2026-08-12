@@ -2405,6 +2405,68 @@ int main(void) {
         wf_car_free(&working);
     }
 
+    /*
+     * wf_repo_diff_verify must reject a validly-signed but older commit
+     * presented as an "update" onto a newer one -- a replay/rollback CAR
+     * an attacker without the signing key can't forge fresh, but can still
+     * resubmit (e.g. via com.atproto.repo.importRepo) to silently roll a
+     * repo's visible state backward. wf_tid_now's monotonic clock (tid.c)
+     * guarantees the second create below gets a strictly later rev.
+     */
+    {
+        wf_signing_key key = {0};
+        key.type = WF_KEY_TYPE_P256;
+        key.bytes[31] = 1;
+        const char *did = "did:plc:repostaletest";
+        const char *did_key =
+            "did:key:zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
+        unsigned char record_a[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x0A};
+        unsigned char record_b[] = {0xA1, 0x64, 't', 'e', 's', 't', 0x0B};
+        wf_car full = {0};
+        wf_cid commit_a = {0}, commit_b = {0}, rec_a = {0}, rec_b = {0};
+        WF_CHECK(wf_repo_create_record(&full, NULL, did, "com.example.posts",
+                                       "a", record_a, sizeof(record_a), &key,
+                                       &commit_a, &rec_a) == WF_OK);
+        WF_CHECK(wf_repo_create_record(
+                     &full, &commit_a, did, "com.example.posts", "b", record_b,
+                     sizeof(record_b), &key, &commit_b, &rec_b) == WF_OK);
+        WF_CHECK(!check_cid(&commit_a,
+                            &commit_b)); /* sanity: distinct commits below */
+
+        wf_car head = full; /* shallow copy: shares the block array */
+        head.roots = &commit_b;
+        head.root_count = 1;
+
+        wf_car stale_update = {0};
+        stale_update.roots = &commit_a;
+        stale_update.root_count = 1; /* no new blocks: commit_a's are already
+                                      * present via `head`'s block set */
+
+        wf_repo_verify_options options = {did, did_key, NULL};
+        wf_repo_diff rejected = {0};
+        WF_CHECK(wf_repo_diff_verify(&head, &commit_b, &stale_update, &options,
+                                     &rejected) == WF_ERR_PARSE);
+        WF_CHECK(rejected.operations == NULL);
+
+        /* The forward direction (older base, newer update) must still work
+         * -- this isn't a blanket rejection of the pair. `fresh_update` is
+         * a full snapshot at commit_b (not just its root), since new/changed
+         * leaf blocks must be present in `update` itself, not merely
+         * reachable via `base` -- see the "missing_leaf" case above. */
+        wf_repo_diff forward = {0};
+        wf_car fresh_update = full;
+        fresh_update.roots = &commit_b;
+        fresh_update.root_count = 1;
+        wf_car base_at_a = full;
+        base_at_a.roots = &commit_a;
+        base_at_a.root_count = 1;
+        WF_CHECK(wf_repo_diff_verify(&base_at_a, &commit_a, &fresh_update,
+                                     &options, &forward) == WF_OK);
+        wf_repo_diff_free(&forward);
+
+        wf_car_free(&full);
+    }
+
     /* Operation inversion validates ownership-bearing input. */
     {
         wf_repo_operation *output = (wf_repo_operation *)1;
