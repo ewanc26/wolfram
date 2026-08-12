@@ -597,6 +597,20 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   (mbedtls-based P-256 and secp256k1) need cross-build verification since
   devkitARM is not available in this environment. See the `TODO` markers in
   `src/platform/3ds_platform.c` and `src/crypto/crypto_3ds.c`.
+- Sync v1.1 (ordered `com.atproto.sync.getRepo` CAR block ordering, and
+  partial repo export by collection) surveyed on request and deliberately
+  not started: neither has a stable upstream target yet. The reference
+  PDS's own ordered-CAR-export work exists but "is not performant enough to
+  merge" per the [relay-updates blog
+  post](https://atproto.com/blog/relay-updates-sync-v1-1), and that same
+  post says the exact ordering "needs to be described more formally to
+  ensure interoperation" — there is no wire format to cross-reference yet,
+  which point 5 of this file's Technical philosophy requires. Partial
+  sync-by-collection is listed in the [sync
+  spec](https://atproto.com/specs/sync) as a "likely" future direction,
+  with implementation "not yet started" upstream. Revisit once
+  bluesky-social/pds actually merges ordered export and the spec text
+  stabilizes, rather than building against a moving target now.
 
 ## Dependencies
 
