@@ -582,22 +582,6 @@ wf_status wf_repo_diff_verify(const wf_car *base, const wf_cid *base_commit,
         free(composite.blocks);
         return status;
     }
-    /*
-     * `rev` is an atproto TID: a base32 encoding (see tid.c's WF_TID_S32
-     * alphabet, which is ASCII-monotonic by construction) of a monotonic
-     * microsecond clock, so plain strcmp on two same-length TIDs is exactly
-     * chronological order. A validly-signed `update` whose rev sorts before
-     * `base`'s is a replay of a real, older commit -- not a forgery (an
-     * attacker without the signing key cannot mint a fresher rev over old
-     * content), but accepting it would let anyone who can reach this
-     * function's callers (importRepo, sync/mirror catch-up) silently roll
-     * a repo back to a stale snapshot. Equal is allowed: re-submitting the
-     * repo's own current head is a legitimate no-op some callers rely on.
-     */
-    if (strcmp(current_commit.rev, previous_commit.rev) < 0) {
-        free(composite.blocks);
-        return WF_ERR_PARSE;
-    }
 
     repo_leaf_list previous_leaves = {0}, current_leaves = {0};
     repo_cid_list previous_nodes = {0}, current_nodes = {0};
