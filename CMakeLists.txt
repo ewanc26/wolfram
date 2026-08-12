@@ -5,7 +5,7 @@ if(POLICY CMP0156)
 endif()
 project(
   wolfram
-  VERSION 0.21.0
+  VERSION 0.21.1
   DESCRIPTION "A C/C++ SDK for the AT Protocol"
   LANGUAGES C CXX)
 
