@@ -22,7 +22,10 @@ int cmd_rotate_handle(int argc, char **argv);
 /* wolfram plc request-signature <service> <did>
  * wolfram plc sign <service> <token> [--rotation-key <key>]...
  *   [--also-known-as <handle>]...
- * wolfram plc submit <service> <operation-json> */
+ * wolfram plc submit <service> <operation-json>
+ * wolfram plc log <did> [--plc-directory URL] [--json] -- full operation
+ *   history, oldest first, with a diff of handles/rotation keys/PDS/signing
+ *   key against the previous entry */
 int cmd_plc(int argc, char **argv);
 
 #endif /* WOLFRAM_CLI_IDENTITY_H */

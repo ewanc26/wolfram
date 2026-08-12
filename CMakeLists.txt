@@ -977,7 +977,7 @@ endif()
 # already owns the `wolfram` target name; OUTPUT_NAME keeps the binary
 # `wolfram`.
 if(NOT WOLFRAM_BUILD_EMBEDDED)
-  add_executable(wolfram_cli src/cli/main.c src/cli/cli_oauth.c src/cli/cli_auth.c src/cli/cli_post.c src/cli/cli_thread.c src/cli/cli_social.c src/cli/cli_search.c src/cli/cli_feed.c src/cli/cli_graph.c src/cli/cli_server.c src/cli/cli_identity.c src/cli/cli_sync.c src/cli/cli_prefs.c src/cli/cli_chat.c src/cli/cli_stream.c src/cli/cli_repo.c src/cli/cli_video.c src/cli/cli_admin.c src/cli/cli_ozone.c)
+  add_executable(wolfram_cli src/cli/main.c src/cli/cli_oauth.c src/cli/cli_auth.c src/cli/cli_post.c src/cli/cli_thread.c src/cli/cli_social.c src/cli/cli_search.c src/cli/cli_feed.c src/cli/cli_graph.c src/cli/cli_server.c src/cli/cli_identity.c src/cli/cli_sync.c src/cli/cli_prefs.c src/cli/cli_chat.c src/cli/cli_stream.c src/cli/cli_repo.c src/cli/cli_video.c src/cli/cli_admin.c src/cli/cli_ozone.c src/cli/cli_explore.c)
   target_link_libraries(wolfram_cli PRIVATE wolfram)
   target_include_directories(wolfram_cli PRIVATE ${cjson_SOURCE_DIR}
                                                  ${cjson_BINARY_DIR})
