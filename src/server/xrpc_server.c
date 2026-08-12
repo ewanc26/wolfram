@@ -964,9 +964,40 @@ static void wf_server_observe(wf_xrpc_server *server, const char *nsid,
 
 /* Extract the client's address into `out` ("unknown" if it cannot be
  * determined). Shared by the built-in rate limiter and wf_xrpc_request's
- * client_ip, which previously duplicated this dance independently. */
-static void wf_server_client_ip(struct MHD_Connection *conn, char *out,
+ * client_ip, which previously duplicated this dance independently.
+ *
+ * When `server->trusted_client_ip_header` is set, that header's value is
+ * used in preference to the raw socket peer -- see
+ * wf_xrpc_server_set_trusted_client_ip_header for the safety requirement
+ * this depends on. Only the text up to the first comma is used (some
+ * proxies reuse comma-separated-list headers even for single-hop values),
+ * trimmed of surrounding whitespace. Falls back to the socket peer if the
+ * header is absent, empty, or blank. */
+static void wf_server_client_ip(wf_xrpc_server *server,
+                                struct MHD_Connection *conn, char *out,
                                 size_t out_len) {
+    if (server && server->trusted_client_ip_header) {
+        const char *hv = MHD_lookup_connection_value(
+            conn, MHD_HEADER_KIND, server->trusted_client_ip_header);
+        if (hv && hv[0]) {
+            const char *end = strchr(hv, ',');
+            size_t len = end ? (size_t)(end - hv) : strlen(hv);
+            while (len > 0 && (hv[0] == ' ' || hv[0] == '\t')) {
+                hv++;
+                len--;
+            }
+            while (len > 0 && (hv[len - 1] == ' ' || hv[len - 1] == '\t')) {
+                len--;
+            }
+            if (len > 0) {
+                size_t n = len < out_len - 1 ? len : out_len - 1;
+                memcpy(out, hv, n);
+                out[n] = '\0';
+                return;
+            }
+        }
+    }
+
     const union MHD_ConnectionInfo *ci =
         MHD_get_connection_info(conn, MHD_CONNECTION_INFO_CLIENT_ADDRESS);
     if (ci && ci->client_addr) {
@@ -1118,7 +1149,7 @@ process:
 #else
     char client_ip_str[INET6_ADDRSTRLEN];
 #endif
-    wf_server_client_ip(conn, client_ip_str, sizeof(client_ip_str));
+    wf_server_client_ip(server, conn, client_ip_str, sizeof(client_ip_str));
 
     /* Look up route. Distinguish a wrong HTTP method (the NSID is registered
      * but for the opposite kind) from an entirely unregistered NSID, so we emit
@@ -1661,6 +1692,7 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     pthread_mutex_destroy(&server->routes_mutex);
     pthread_mutex_destroy(&server->rate_limit_mutex);
     free(server->cors_origin);
+    free(server->trusted_client_ip_header);
     if (server->rate_limiter_owned) {
         wf_rate_limiter_free(server->rate_limiter_owned);
     }
@@ -1934,6 +1966,21 @@ void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
     server->fallback = handler;
     server->fallback_ctx = ctx;
     pthread_mutex_unlock(&server->routes_mutex);
+}
+
+wf_status wf_xrpc_server_set_trusted_client_ip_header(wf_xrpc_server *server,
+                                                      const char *header_name) {
+    if (!server) return WF_ERR_INVALID_ARG;
+    char *dup = NULL;
+    if (header_name && header_name[0]) {
+        dup = strdup(header_name);
+        if (!dup) return WF_ERR_ALLOC;
+    }
+    pthread_mutex_lock(&server->routes_mutex);
+    free(server->trusted_client_ip_header);
+    server->trusted_client_ip_header = dup;
+    pthread_mutex_unlock(&server->routes_mutex);
+    return WF_OK;
 }
 
 void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
