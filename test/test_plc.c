@@ -290,6 +290,85 @@ static void test_get_last_op_and_build_handle_update(void) {
     g_canned_last_op = NULL; /* was pointing at this function's stack buffer */
 }
 
+/* Canned "audit log" array served by audit_log_handler below. */
+static const char *g_canned_audit_log = NULL;
+
+static wf_status audit_log_handler(void *userdata, const char *method,
+                                   const char *url, const char *content_type,
+                                   const char *body, size_t body_len,
+                                   const wf_http_header *headers,
+                                   size_t header_count, wf_response *out) {
+    (void)userdata;
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+
+    size_t len = strlen(g_canned_audit_log);
+    out->body = malloc(len + 1);
+    if (!out->body) return WF_ERR_ALLOC;
+    memcpy(out->body, g_canned_audit_log, len + 1);
+    out->body_len = len;
+    out->status = 200;
+    return WF_OK;
+}
+
+static void test_get_audit_log(void) {
+    wf_xrpc_client *client = wf_xrpc_client_new("https://plc.example.invalid");
+    CHECK(client != NULL, "wf_xrpc_client_new (audit log)");
+    if (!client) return;
+
+    static const char canned[] =
+        "[{\"did\":\"did:plc:testaccount123456789\",\"operation\":{"
+        "\"type\":\"plc_operation\",\"rotationKeys\":[\"did:key:zQ3sh1\"],"
+        "\"alsoKnownAs\":[\"at://old.example\"],\"services\":{"
+        "\"atproto_pds\":{\"type\":\"AtprotoPersonalDataServer\","
+        "\"endpoint\":\"https://old.example.com\"}},"
+        "\"verificationMethods\":{\"atproto\":\"did:key:zQ3shAtproto\"},"
+        "\"prev\":null},\"cid\":\"bafyreigenesis\",\"nullified\":false,"
+        "\"createdAt\":\"2023-01-01T00:00:00.000Z\"},"
+        "{\"did\":\"did:plc:testaccount123456789\",\"operation\":{"
+        "\"type\":\"plc_operation\",\"rotationKeys\":[\"did:key:zQ3sh1\"],"
+        "\"alsoKnownAs\":[\"at://new.example\"],\"services\":{"
+        "\"atproto_pds\":{\"type\":\"AtprotoPersonalDataServer\","
+        "\"endpoint\":\"https://old.example.com\"}},"
+        "\"verificationMethods\":{\"atproto\":\"did:key:zQ3shAtproto\"},"
+        "\"prev\":\"bafyreigenesis\"},\"cid\":\"bafyreisecond\","
+        "\"nullified\":false,\"createdAt\":\"2023-02-01T00:00:00.000Z\"}]";
+    g_canned_audit_log = canned;
+    wf_xrpc_set_handler(client, audit_log_handler, NULL);
+
+    char *json = NULL;
+    wf_status status =
+        wf_plc_get_audit_log(client, "https://plc.example.invalid",
+                             "did:plc:testaccount123456789", &json);
+    CHECK(status == WF_OK, "wf_plc_get_audit_log");
+    CHECK(json != NULL && strcmp(json, canned) == 0,
+          "wf_plc_get_audit_log returns the served array verbatim");
+
+    if (json) {
+        cJSON *arr = cJSON_Parse(json);
+        CHECK(cJSON_IsArray(arr) && cJSON_GetArraySize(arr) == 2,
+              "audit log parses as a 2-entry array");
+        cJSON_Delete(arr);
+    }
+    free(json);
+
+    /* NULL/invalid args fail closed rather than crashing. */
+    CHECK(wf_plc_get_audit_log(NULL, "https://plc.example.invalid", "did:plc:x",
+                               &json) == WF_ERR_INVALID_ARG,
+          "wf_plc_get_audit_log rejects NULL client");
+    CHECK(wf_plc_get_audit_log(client, "https://plc.example.invalid", NULL,
+                               &json) == WF_ERR_INVALID_ARG,
+          "wf_plc_get_audit_log rejects NULL did");
+
+    wf_xrpc_client_free(client);
+    g_canned_audit_log = NULL;
+}
+
 int main(void) {
     /* P-256 is always available (OpenSSL). */
     build_and_sign_roundtrip(WF_KEY_TYPE_P256);
@@ -297,6 +376,7 @@ int main(void) {
     build_and_sign_roundtrip(WF_KEY_TYPE_SECP256K1);
 #endif
     test_get_last_op_and_build_handle_update();
+    test_get_audit_log();
     if (failures == 0) {
         printf("plc: all tests passed\n");
         return 0;
