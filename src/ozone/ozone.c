@@ -184,37 +184,6 @@ wf_status wf_ozone_query_statuses(wf_xrpc_client *client, const char **subjects,
     return status;
 }
 
-wf_status wf_ozone_get_label_defs(wf_xrpc_client *client, const char **uris,
-                                  size_t n, wf_response *out) {
-    if (!client || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-
-    wf_xrpc_param *params = NULL;
-    if (uris && n > 0) {
-        params = (wf_xrpc_param *)calloc(n, sizeof(wf_xrpc_param));
-        if (!params) {
-            return WF_ERR_ALLOC;
-        }
-        for (size_t i = 0; i < n; ++i) {
-            params[i].name = "uris";
-            params[i].value = uris[i];
-        }
-    }
-
-    /* Prefer getLabelDefinitions; fall back to getSuggestions when it is not
-     * served by the instance (transport-level failure only — an HTTP error
-     * from getLabelDefinitions is propagated as-is). */
-    wf_status status = wf_xrpc_query_params(
-        client, WF_OZONE_GET_LABEL_DEFS_NSID, params, n, out);
-    if (status != WF_OK && status != WF_ERR_HTTP) {
-        status = wf_xrpc_query_params(client, WF_OZONE_GET_SUGGESTIONS_NSID,
-                                      params, n, out);
-    }
-    free(params);
-    return status;
-}
-
 /* --- Emit / query moderation events ------------------------------- */
 
 char *wf_ozone_emit_event_input_serialize(
@@ -328,91 +297,7 @@ wf_status wf_ozone_get_reporter_stats_parse(
         resp->body, resp->body_len, out);
 }
 
-/* --- Ambiguous / not-in-local-snapshot endpoints ------------------ */
-
-/* Duplicate a response body into an owned NUL-terminated string so the
- * caller can free it with free() independently of the wf_response. */
-static char *ozone_dup_body(const wf_response *resp) {
-    if (!resp->body) {
-        return NULL;
-    }
-    size_t len = resp->body_len ? resp->body_len : strlen(resp->body);
-    char *copy = (char *)malloc(len + 1);
-    if (!copy) {
-        return NULL;
-    }
-    memcpy(copy, resp->body, len);
-    copy[len] = '\0';
-    return copy;
-}
-
-wf_status wf_ozone_scan_verdicts(wf_xrpc_client *client, const char *body_json,
-                                 char **out_json) {
-    if (!client || !body_json || !out_json) {
-        return WF_ERR_INVALID_ARG;
-    }
-    wf_response resp;
-    wf_status status = wf_xrpc_procedure(client, WF_OZONE_SCAN_VERDICTS_NSID,
-                                         body_json, &resp);
-    if (status != WF_OK) {
-        return status;
-    }
-    *out_json = ozone_dup_body(&resp);
-    status = *out_json ? WF_OK : WF_ERR_ALLOC;
-    wf_response_free(&resp);
-    return status;
-}
-
-wf_status wf_ozone_get_tag(wf_xrpc_client *client, const char *tag,
-                           char **out_json) {
-    if (!client || !tag || !out_json) {
-        return WF_ERR_INVALID_ARG;
-    }
-    wf_xrpc_param param = {"tag", tag};
-    wf_response resp;
-    wf_status status =
-        wf_xrpc_query_params(client, WF_OZONE_GET_TAG_NSID, &param, 1, &resp);
-    if (status != WF_OK) {
-        return status;
-    }
-    *out_json = ozone_dup_body(&resp);
-    status = *out_json ? WF_OK : WF_ERR_ALLOC;
-    wf_response_free(&resp);
-    return status;
-}
-
-wf_status wf_ozone_query_tags(wf_xrpc_client *client, int64_t limit,
-                              const char *cursor, char **out_json) {
-    if (!client || !out_json) {
-        return WF_ERR_INVALID_ARG;
-    }
-    wf_xrpc_param params[2];
-    size_t n = 0;
-    char limit_buf[32];
-    if (limit > 0) {
-        snprintf(limit_buf, sizeof(limit_buf), "%lld", (long long)limit);
-        params[n].name = "limit";
-        params[n].value = limit_buf;
-        ++n;
-    }
-    if (cursor && cursor[0]) {
-        params[n].name = "cursor";
-        params[n].value = cursor;
-        ++n;
-    }
-    wf_response resp;
-    wf_status status = wf_xrpc_query_params(client, WF_OZONE_QUERY_TAGS_NSID,
-                                            params, n, &resp);
-    if (status != WF_OK) {
-        return status;
-    }
-    *out_json = ozone_dup_body(&resp);
-    status = *out_json ? WF_OK : WF_ERR_ALLOC;
-    wf_response_free(&resp);
-    return status;
-}
-
-/* --- Subjects / suggestions --------------------------------------- */
+/* --- Subjects --------------------------------------------------- */
 
 wf_status wf_ozone_get_subjects(wf_xrpc_client *client, const char **subjects,
                                 size_t n, wf_response *out) {
@@ -439,47 +324,6 @@ wf_status wf_ozone_get_subjects_parse(
     }
     return wf_lex_tools_ozone_moderation_get_subjects_main_output_decode_json(
         resp->body, resp->body_len, out);
-}
-
-wf_status wf_ozone_get_suggestions(wf_xrpc_client *client,
-                                   const char **ignore_subjects, size_t n,
-                                   int64_t limit, const char *cursor,
-                                   wf_response *out) {
-    if (!client || !out) {
-        return WF_ERR_INVALID_ARG;
-    }
-    /* UNCONFIRMED: exhaustive searches of bluesky-social/atproto (every file
-     * under lexicons/tools/ozone/moderation, the ozone and bsky package
-     * sources, and a GitHub code search for "getSuggestions" across the
-     * whole repo) turn up no lexicon file, server route, or test for
-     * tools.ozone.moderation.getSuggestions -- only the unrelated
-     * app.bsky.actor.getSuggestions.
-     * This wrapper's parameter names are therefore a guess, not a match
-     * against a confirmed reference; the endpoint may be private-only Ozone
-     * surface never published as a lexicon, or may not exist at all. Treat
-     * calls through this wrapper as unverified until a real Ozone deployment
-     * confirms the shape, and do not add more callers depending on it. */
-    wf_xrpc_param params[2 + n];
-    size_t p = 0;
-    char limit_buf[32];
-    if (limit > 0) {
-        snprintf(limit_buf, sizeof(limit_buf), "%lld", (long long)limit);
-        params[p].name = "limit";
-        params[p].value = limit_buf;
-        ++p;
-    }
-    if (cursor && cursor[0]) {
-        params[p].name = "cursor";
-        params[p].value = cursor;
-        ++p;
-    }
-    for (size_t i = 0; i < n; ++i) {
-        params[p].name = "ignoreSubjects";
-        params[p].value = ignore_subjects[i];
-        ++p;
-    }
-    return wf_xrpc_query_params(client, WF_OZONE_GET_SUGGESTIONS_NSID, params,
-                                p, out);
 }
 
 /* --- Communication templates -------------------------------------- */
