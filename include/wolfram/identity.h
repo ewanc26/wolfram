@@ -82,6 +82,21 @@ wf_status wf_did_resolve(wf_xrpc_client *client, const char *did,
                          wf_did_document *out);
 
 /**
+ * Resolve a DID the same way as wf_did_resolve (same cache, same did:plc /
+ * did:web dispatch), but return the full, untrimmed DID document as raw
+ * JSON instead of the fields wf_did_document keeps. Use this when a caller
+ * needs alsoKnownAs, the full verificationMethod/service arrays, or any
+ * other field wf_did_document does not carry.
+ *
+ * `client` is used purely as an HTTP transport; see wf_did_resolve.
+ *
+ * On WF_OK, *out_json is heap-allocated and owned by the caller; free with
+ * plain free().
+ */
+wf_status wf_did_resolve_raw(wf_xrpc_client *client, const char *did,
+                             char **out_json);
+
+/**
  * Resolve a known atproto service by its canonical ID and expected type.
  * Unknown service types return WF_ERR_NOT_FOUND; use the by-ID API below for
  * extensions.
