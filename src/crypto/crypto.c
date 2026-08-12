@@ -13,6 +13,7 @@
 #include <openssl/bn.h>
 #include <openssl/core_names.h>
 #include <openssl/ec.h>
+#include <openssl/ecdsa.h>
 #include <openssl/evp.h>
 #include <openssl/obj_mac.h>
 #include <openssl/param_build.h>
@@ -1076,7 +1077,8 @@ wf_status wf_crypto_base64url_encode(const unsigned char *in, size_t len,
 static wf_status wf_p256_verify_hash(const unsigned char x[32],
                                      const unsigned char y[32],
                                      const unsigned char hash[32],
-                                     const unsigned char *sig, size_t sig_len) {
+                                     const unsigned char *sig, size_t sig_len,
+                                     int allow_malleable) {
     unsigned char point_oct[65];
     EVP_PKEY *pkey = NULL;
     wf_status status;
@@ -1090,7 +1092,7 @@ static wf_status wf_p256_verify_hash(const unsigned char x[32],
         wf_p256_pkey_from_public_point(point_oct, sizeof(point_oct), &pkey);
     if (status != WF_OK) return WF_ERR_PARSE;
 
-    status = wf_p256_verify_hash_pkey(pkey, hash, sig, /*allow_malleable=*/0);
+    status = wf_p256_verify_hash_pkey(pkey, hash, sig, allow_malleable);
     EVP_PKEY_free(pkey);
     return status;
 }
@@ -1102,7 +1104,44 @@ wf_status wf_crypto_p256_verify(const unsigned char x[32],
     unsigned char hash[32];
     if (!msg || msg_len == 0) return WF_ERR_INVALID_ARG;
     SHA256(msg, msg_len, hash);
-    return wf_p256_verify_hash(x, y, hash, sig, sig_len);
+    return wf_p256_verify_hash(x, y, hash, sig, sig_len, /*allow_malleable=*/0);
+}
+
+wf_status wf_crypto_p256_verify_allow_malleable(const unsigned char x[32],
+                                                const unsigned char y[32],
+                                                const unsigned char *msg,
+                                                size_t msg_len,
+                                                const unsigned char *sig,
+                                                size_t sig_len) {
+    unsigned char hash[32];
+    if (!msg || msg_len == 0) return WF_ERR_INVALID_ARG;
+    SHA256(msg, msg_len, hash);
+    return wf_p256_verify_hash(x, y, hash, sig, sig_len, /*allow_malleable=*/1);
+}
+
+wf_status wf_crypto_ecdsa_der_to_raw(const unsigned char *der, size_t der_len,
+                                     unsigned char raw_out[64]) {
+    const unsigned char *p = der;
+    ECDSA_SIG *sig = NULL;
+    const BIGNUM *r = NULL, *s = NULL;
+    wf_status status = WF_ERR_PARSE;
+    if (!der || der_len == 0 || !raw_out) return WF_ERR_INVALID_ARG;
+    /* d2i_ECDSA_SIG (not deprecated -- it decodes the signature *value*,
+     * unlike the EC_KEY-taking ECDSA_do_sign/verify) parses the standard
+     * ECDSA-Sig-Value DER encoding third-party signers (browsers,
+     * WebAuthn authenticators) produce, which this SDK's own P-256 signing
+     * does not use directly -- see wf_p256_sign_hash for the mirror image
+     * of this conversion. */
+    sig = d2i_ECDSA_SIG(NULL, &p, (long)der_len);
+    if (!sig) return WF_ERR_PARSE;
+    ECDSA_SIG_get0(sig, &r, &s);
+    if (!r || !s || BN_bn2binpad(r, raw_out, 32) != 32 ||
+        BN_bn2binpad(s, raw_out + 32, 32) != 32)
+        goto done;
+    status = WF_OK;
+done:
+    ECDSA_SIG_free(sig);
+    return status;
 }
 
 wf_status wf_crypto_p256_jwk_coords(const char *jwk_json, unsigned char x[32],
