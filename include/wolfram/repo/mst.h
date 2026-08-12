@@ -53,6 +53,18 @@ wf_status wf_mst_node_build(unsigned layer, const wf_cid *left,
                             wf_mst_node *out);
 wf_status wf_mst_node_finalize(wf_mst_node *node, wf_car *car);
 void wf_mst_node_free(wf_mst_node *node);
+/**
+ * Look up `key` in the MST rooted at `root_cid`, walking blocks in `car`.
+ *
+ * This does not recompute block hashes -- it trusts that each block's
+ * declared CID in `car` actually matches its bytes. Only call this on a
+ * `car` that has already passed integrity verification (wf_repo_verify /
+ * wf_repo_diff_verify), or on a server's own locally-authored CAR. A `car`
+ * populated straight from a remote fetch (e.g. wf_sync_get_record /
+ * wf_sync_get_blocks) without that check first could have a block whose
+ * bytes were substituted under the same declared CID, and this function
+ * would silently return the substituted value.
+ */
 wf_status wf_mst_find(wf_car *car, const wf_cid *root_cid,
                       const unsigned char *key, size_t key_len, wf_cid *out);
 wf_status wf_mst_add(wf_car *car, const wf_cid *root_cid,
