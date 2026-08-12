@@ -568,6 +568,41 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       stale TODO comments (`actor_status_typed.h`, `temp_typed.h`/`.c`,
       `plc.c`) that described states already resolved or that were never
       actually gaps.
+  67. `wolf browse` / `wolf identity` / `wolf plc log` -- the CLI equivalent
+      of what a tool like PDSls (pdsls.dev) gives you in a browser, added on
+      request. All three are anonymous/read-only, matching the underlying
+      XRPC endpoints (describeRepo/listRecords/getRecord/resolveDid are
+      public). `browse <service> <handle-or-did> [collection] [rkey]`
+      composes existing describeRepo/listRecords/getRecord typed wrappers
+      into one drill-down flow instead of requiring three separate raw
+      commands, with full `--json` output at every level. `identity`
+      resolves a DID document and prints every alsoKnownAs handle with a
+      live bidirectional verification check
+      (`wf_identity_verify_handle`/`wf_agent_verify_handle`, which already
+      existed), plus verification methods, service endpoints, and (for
+      did:plc) current PLC rotation keys. Building `identity` surfaced a
+      real bug in the naive first version: resolving a DID via
+      `wf_agent_resolve_did` sends `com.atproto.identity.resolveDid`
+      through whichever PDS `service` was given, and at least one major
+      production PDS (bsky.social) gates that behind auth -- wrong for a
+      general "resolve any DID" tool, since resolution should not depend on
+      being able to log into the repo's own host. Fixed by adding
+      `wf_did_resolve_raw` (`identity.h`/`.c`): same cache and did:plc/
+      did:web dispatch as `wf_did_resolve`, but returns the full untrimmed
+      document as raw JSON instead of the fields `wf_did_document` keeps,
+      and resolves directly against the DID's own authority (PLC directory
+      / did:web well-known) regardless of `service`. `plc log <did>` is new
+      SDK surface too (`wf_plc_get_audit_log`, GET
+      `{plc_directory}/{did}/log/audit`) plus a CLI diff of
+      handles/rotation keys/PDS endpoint/signing key between consecutive
+      operations -- normalizes the pre-2022 legacy genesis format
+      (`type: "create"`, singular `handle`/`service`/`signingKey`/
+      `recoveryKey` fields instead of the modern array/nested shape) so
+      real accounts whose audit log starts with a legacy op still diff
+      correctly instead of showing spurious "(none) -> X" on the first
+      real operation. Verified end to end against live production data
+      (jay.bsky.team's actual repo, identity, and 4-operation PLC history,
+      including its own legacy-format genesis op).
 
 ## Next planned work
 
