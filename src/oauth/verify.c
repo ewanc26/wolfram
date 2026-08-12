@@ -778,16 +778,19 @@ wf_status wf_oauth_verify_request(const char *authorization,
             wf_oauth_verified_token_free(bearer);
             return status;
         }
-        /* Confirmation: if the access token carried a cnf.jkt, it must match
-         * the DPoP proof key thumbprint. */
-        if (bearer->dpop_jkt && strcmp(bearer->dpop_jkt, dpop->dpop_jkt) != 0) {
+        /* Confirmation: the access token's cnf.jkt must match the DPoP
+         * proof key thumbprint. A token with no cnf.jkt at all was never
+         * bound to any key at issuance, so it is rejected here rather than
+         * silently bound to whatever key this proof happens to carry --
+         * accepting that would let anyone who obtains an unbound token
+         * (however it leaked) "claim" DPoP binding to a key of their own
+         * choosing, defeating the entire point of sender-constraining it. */
+        if (!bearer->dpop_jkt ||
+            strcmp(bearer->dpop_jkt, dpop->dpop_jkt) != 0) {
             wf_oauth_verified_token_free(bearer);
             wf_oauth_verified_token_free(dpop);
             return WF_ERR_INVALID_ARG;
         }
-        free(bearer->dpop_jkt);
-        bearer->dpop_jkt = dpop->dpop_jkt;
-        dpop->dpop_jkt = NULL;
         bearer->dpop_bound = 1;
         wf_oauth_verified_token_free(dpop);
         *out = bearer;
