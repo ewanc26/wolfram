@@ -547,6 +547,27 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       wolfram's own users into writing code against something that will
       404/MethodNotImplemented on every real server. `wf_ozone_get_subjects`
       (`tools.ozone.moderation.getSubjects`, a real lexicon) is unaffected.
+  66. Found and fixed a real Wii/Wii U build break while cross-compiling to
+      verify item 65 didn't disturb anything nearby: `wf_sign`'s signature
+      line and part of `wf_b58_decode`'s for-loop body in `crypto_wii.c` had
+      been spliced together since dcc913a (the commit that added secp256k1
+      support), leaving `wf_b58_decode`'s error branch replaced by an
+      orphaned copy of `wf_sign`'s SECP256K1 block, and `wf_sign` itself
+      missing its return type/name and SECP256K1 branch entirely. This
+      never surfaced in CI's usual desktop build (crypto_wii.c isn't
+      compiled there), and nothing had cross-built Wii U since that commit
+      -- confirmed by cross-compiling with devkitPPC, which failed without
+      the fix and links clean with it. Also implemented `RAND_bytes`
+      (`openssl_compat.c`) for real via the same seeded mbedTLS DRBG
+      `wii_tls_random` already uses for TLS/P-256 signing, rather than
+      leaving it permanently failing; nothing currently calls it (every
+      caller in the tree is excluded from embedded builds), but the next
+      thing that starts routing through `openssl/rand.h` on Wii/Wii U
+      shouldn't hit a dead end. 3DS keeps failing honestly (no seeded DRBG
+      wired up yet; separate, already-tracked gap). Also cleaned up three
+      stale TODO comments (`actor_status_typed.h`, `temp_typed.h`/`.c`,
+      `plc.c`) that described states already resolved or that were never
+      actually gaps.
 
 ## Next planned work
 
