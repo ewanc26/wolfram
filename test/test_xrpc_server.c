@@ -984,6 +984,127 @@ static int test_request_client_ip(void) {
     return 1;
 }
 
+/* Raw GET so a caller-supplied header (e.g. a spoofed/trusted client-IP
+ * header) can be attached — wf_xrpc_client has no way to set arbitrary
+ * request headers. */
+static int raw_get_with_header(uint16_t port, const char *nsid,
+                               const char *header_line) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    struct sockaddr_in addr = {0};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (connect(fd, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        close(fd);
+        return -1;
+    }
+    char req[256];
+    int n = snprintf(req, sizeof(req),
+                     "GET /xrpc/%s HTTP/1.1\r\n"
+                     "Host: 127.0.0.1:%u\r\n"
+                     "%s"
+                     "Connection: close\r\n"
+                     "\r\n",
+                     nsid, (unsigned)port, header_line ? header_line : "");
+    if (write(fd, req, (size_t)n) != n) {
+        close(fd);
+        return -1;
+    }
+    char buf[512];
+    size_t used = 0;
+    for (;;) {
+        struct pollfd pfd = {fd, POLLIN, 0};
+        if (poll(&pfd, 1, 3000) <= 0) break;
+        if (used + 1 >= sizeof(buf)) break;
+        ssize_t r = read(fd, buf + used, sizeof(buf) - 1 - used);
+        if (r <= 0) break;
+        used += (size_t)r;
+    }
+    close(fd);
+    return 0;
+}
+
+/*
+ * wf_xrpc_server_set_trusted_client_ip_header: when unset (the default),
+ * an attacker-supplied "CF-Connecting-IP" header must be ignored and the
+ * real socket peer used. Once a deployment opts in, that header must be
+ * trusted instead — this is only safe behind a proxy topology that
+ * guarantees the header can't be forged end-to-end, which is a deployment
+ * property this test can't verify; it only checks the mechanism.
+ */
+static int test_trusted_client_ip_header(void) {
+    wf_xrpc_server *server;
+    int failures = 0;
+
+    g_seen_client_ip = NULL;
+    server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    if (!server) {
+        fprintf(stderr, "FAIL: trusted ip header start\n");
+        return 1;
+    }
+    if (wf_xrpc_server_register_query(server, "io.example.whoami",
+                                      test_client_ip_handler, NULL) != WF_OK) {
+        fprintf(stderr, "FAIL: trusted ip header register\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+    uint16_t port = wf_xrpc_server_port(server);
+
+    /* Disabled by default: a spoofed header must not override the peer. */
+    raw_get_with_header(port, "io.example.whoami",
+                        "CF-Connecting-IP: 6.6.6.6\r\n");
+    if (!g_seen_client_ip || strcmp(g_seen_client_ip, "127.0.0.1") != 0) {
+        fprintf(stderr, "FAIL: untrusted header overrode peer, got %s\n",
+                g_seen_client_ip ? g_seen_client_ip : "(null)");
+        failures++;
+    }
+
+    /* Enabled: the header value must now be used. */
+    if (wf_xrpc_server_set_trusted_client_ip_header(
+            server, "CF-Connecting-IP") != WF_OK) {
+        fprintf(stderr, "FAIL: set_trusted_client_ip_header\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+    g_seen_client_ip = NULL;
+    raw_get_with_header(port, "io.example.whoami",
+                        "CF-Connecting-IP: 203.0.113.7\r\n");
+    if (!g_seen_client_ip || strcmp(g_seen_client_ip, "203.0.113.7") != 0) {
+        fprintf(stderr, "FAIL: expected trusted header ip, got %s\n",
+                g_seen_client_ip ? g_seen_client_ip : "(null)");
+        failures++;
+    }
+
+    /* Enabled but absent from this request: falls back to the peer. */
+    g_seen_client_ip = NULL;
+    raw_get_with_header(port, "io.example.whoami", NULL);
+    if (!g_seen_client_ip || strcmp(g_seen_client_ip, "127.0.0.1") != 0) {
+        fprintf(stderr, "FAIL: expected peer fallback, got %s\n",
+                g_seen_client_ip ? g_seen_client_ip : "(null)");
+        failures++;
+    }
+
+    /* Disabling again (NULL) restores the peer even with the header present. */
+    wf_xrpc_server_set_trusted_client_ip_header(server, NULL);
+    g_seen_client_ip = NULL;
+    raw_get_with_header(port, "io.example.whoami",
+                        "CF-Connecting-IP: 6.6.6.6\r\n");
+    if (!g_seen_client_ip || strcmp(g_seen_client_ip, "127.0.0.1") != 0) {
+        fprintf(stderr, "FAIL: expected peer after disable, got %s\n",
+                g_seen_client_ip ? g_seen_client_ip : "(null)");
+        failures++;
+    }
+
+    wf_xrpc_server_free(server);
+
+    if (failures == 0) {
+        printf("PASS: trusted client ip header\n");
+        return 0;
+    }
+    return 1;
+}
+
 /* wf_xrpc_client's wf_response only surfaces a few named headers
  * (dpop_nonce, set_cookie, location) — none of the ones under test here —
  * so this drives a raw socket instead of the client library. */
@@ -1145,6 +1266,7 @@ int main(void) {
     failures += test_server_rate_limit();
     failures += test_server_route_rate_limit();
     failures += test_request_client_ip();
+    failures += test_trusted_client_ip_header();
     failures += test_rate_limit_headers();
 
     return failures;

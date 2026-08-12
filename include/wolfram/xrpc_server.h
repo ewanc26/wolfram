@@ -472,6 +472,25 @@ void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
                                  wf_xrpc_fallback_handler handler, void *ctx);
 
 /**
+ * Trust `header_name` (e.g. "CF-Connecting-IP") for the client IP used in
+ * rate limiting and request logging, instead of the raw TCP peer address.
+ *
+ * Only enable this when the deployment topology guarantees the header
+ * cannot be forged by the client -- i.e. every request reaching this
+ * process has already passed through a proxy that overwrites or strips any
+ * client-supplied copy of the header and sets it itself (a Cloudflare
+ * Tunnel with no direct public port exposure is one such topology; a
+ * plain reverse proxy that blindly forwards an inbound header is NOT).
+ * Passing NULL (the default) disables this and always uses the socket
+ * peer address.
+ *
+ * Returns WF_ERR_ALLOC on allocation failure, WF_ERR_INVALID_ARG if
+ * `server` is NULL, WF_OK otherwise.
+ */
+wf_status wf_xrpc_server_set_trusted_client_ip_header(wf_xrpc_server *server,
+                                                      const char *header_name);
+
+/**
  * Like wf_xrpc_server_set_auth_callback, but also records an owned middleware
  * context (`mw_ctx`) that the server frees via `mw_free` in
  * wf_xrpc_server_free. Installing a different auth callback (via
