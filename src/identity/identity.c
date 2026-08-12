@@ -820,6 +820,23 @@ wf_status wf_did_resolve(wf_xrpc_client *client, const char *did,
     return status;
 }
 
+wf_status wf_did_resolve_raw(wf_xrpc_client *client, const char *did,
+                             char **out_json) {
+    if (!client || !did || !out_json) return WF_ERR_INVALID_ARG;
+    *out_json = NULL;
+
+    cJSON *root = NULL;
+    wf_status status = did_fetch_document(client, did, &root);
+    if (status != WF_OK) return status;
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+
+    *out_json = json;
+    return WF_OK;
+}
+
 wf_status wf_did_document_parse(const char *json, size_t json_len,
                                 wf_did_document *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
