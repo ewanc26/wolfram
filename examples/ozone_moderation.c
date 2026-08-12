@@ -112,19 +112,6 @@ int main(int argc, char **argv) {
     }
     wf_response_free(&statuses);
 
-    /* Fetch label value definitions for the labeler's service record. */
-    wf_response defs = {0};
-    const char *def_uris[1];
-    def_uris[0] = "at://did:plc:examplelabelerexampleexample1234/"
-                  "app.bsky.labeler.service/self";
-    status = wf_ozone_get_label_defs(client, def_uris, 1, &defs);
-    if (status == WF_OK) {
-        print_json("getLabelDefs", &defs);
-    } else {
-        printf("getLabelDefs skipped/failed: %d\n", (int)status);
-    }
-    wf_response_free(&defs);
-
     wf_session_free(session);
     return 0;
 }

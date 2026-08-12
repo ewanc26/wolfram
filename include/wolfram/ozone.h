@@ -12,21 +12,13 @@
  *   - wf_ozone_report_subject         : file a moderation report
  *     (com.atproto.moderation.createReport).
  *   - wf_ozone_query_statuses         : tools.ozone.moderation.queryStatuses.
- *   - wf_ozone_get_label_defs         :
- * tools.ozone.moderation.getLabelDefinitions.
  *   - wf_ozone_emit_event             : tools.ozone.moderation.emitEvent.
  *   - wf_ozone_query_events /
  *     wf_ozone_list_events            : tools.ozone.moderation.queryEvents.
  *   - wf_ozone_get_event              : tools.ozone.moderation.getEvent.
  *   - wf_ozone_get_reporter_stats     :
  * tools.ozone.moderation.getReporterStats.
- *   - wf_ozone_scan_verdicts          : tools.ozone.moderation.scanVerdicts
- *     (JSON-in/JSON-out; lexicon not in the local snapshot — see TODO).
  *   - wf_ozone_get_subjects           : tools.ozone.moderation.getSubjects.
- *   - wf_ozone_get_suggestions        : tools.ozone.moderation.getSuggestions.
- *   - wf_ozone_get_tag /
- *     wf_ozone_query_tags             : tag lookup (JSON-out; lexicon not in
- *     the local snapshot — see TODO).
  *   - Communication templates         : tools.ozone.communication.*.
  *   - Set values                      : tools.ozone.set.*.
  *
@@ -62,9 +54,6 @@ extern "C" {
 
 /* NSIDs used by this module. */
 #define WF_OZONE_QUERY_STATUSES_NSID "tools.ozone.moderation.queryStatuses"
-#define WF_OZONE_GET_LABEL_DEFS_NSID                                           \
-    "tools.ozone.moderation.getLabelDefinitions"
-#define WF_OZONE_GET_SUGGESTIONS_NSID "tools.ozone.moderation.getSuggestions"
 #define WF_ATPROTO_CREATE_REPORT_NSID "com.atproto.moderation.createReport"
 
 #define WF_OZONE_EMIT_EVENT_NSID "tools.ozone.moderation.emitEvent"
@@ -72,10 +61,7 @@ extern "C" {
 #define WF_OZONE_GET_EVENT_NSID "tools.ozone.moderation.getEvent"
 #define WF_OZONE_GET_REPORTER_STATS_NSID                                       \
     "tools.ozone.moderation.getReporterStats"
-#define WF_OZONE_SCAN_VERDICTS_NSID "tools.ozone.moderation.scanVerdicts"
 #define WF_OZONE_GET_SUBJECTS_NSID "tools.ozone.moderation.getSubjects"
-#define WF_OZONE_GET_TAG_NSID "tools.ozone.moderation.getTag"
-#define WF_OZONE_QUERY_TAGS_NSID "tools.ozone.moderation.queryTags"
 
 #define WF_OZONE_COMM_LIST_TEMPLATES_NSID                                      \
     "tools.ozone.communication.listTemplates"
@@ -231,18 +217,6 @@ wf_status wf_ozone_report_subject(wf_xrpc_client *client, const char *repo_did,
 wf_status wf_ozone_query_statuses(wf_xrpc_client *client, const char **subjects,
                                   size_t n, wf_response *out);
 
-/*
- * Fetch label value definitions via tools.ozone.moderation.getLabelDefinitions
- * (falling back to getSuggestions when definitions are unavailable). `uris` is
- * an array of `n` labeler service record URIs; each is sent as a repeated
- * `uris` query parameter.
- *
- * On WF_OK, *out is populated and must be released with wf_response_free.
- * Returns WF_ERR_INVALID_ARG for NULL client/out, or a transport error.
- */
-wf_status wf_ozone_get_label_defs(wf_xrpc_client *client, const char **uris,
-                                  size_t n, wf_response *out);
-
 /* ------------------------------------------------------------------ */
 /* Emit / query moderation events                                     */
 /* ------------------------------------------------------------------ */
@@ -344,22 +318,8 @@ wf_status wf_ozone_get_reporter_stats_parse(
     const wf_response *resp,
     wf_lex_tools_ozone_moderation_get_reporter_stats_main_output **out);
 
-/*
- * Scan account verdicts via tools.ozone.moderation.scanVerdicts.
- *
- * TODO: scanVerdicts is NOT present in the local atproto lexicon snapshot
- * (/Volumes/Storage/Developer/Local/atproto/lexicons). The NSID is taken from
- * the current upstream lexicon; confirm it against the deployment before
- * relying on it. The request/response shape is therefore accepted and
- * returned as raw JSON: `body_json` is borrowed; on WF_OK *out_json is an
- * owned NUL-terminated JSON string freed with free(). Returns
- * WF_ERR_INVALID_ARG for NULL client/body_json/out_json, or a transport error.
- */
-wf_status wf_ozone_scan_verdicts(wf_xrpc_client *client, const char *body_json,
-                                 char **out_json);
-
 /* ------------------------------------------------------------------ */
-/* Subjects / suggestions                                             */
+/* Subjects                                                            */
 /* ------------------------------------------------------------------ */
 
 /*
@@ -381,43 +341,6 @@ wf_status wf_ozone_get_subjects(wf_xrpc_client *client, const char **subjects,
 wf_status wf_ozone_get_subjects_parse(
     const wf_response *resp,
     wf_lex_tools_ozone_moderation_get_subjects_main_output **out);
-
-/*
- * Fetch moderation suggestions via tools.ozone.moderation.getSuggestions.
- *
- * TODO: getSuggestions is NOT present in the local atproto lexicon snapshot,
- * so no generated params struct exists. This wrapper builds the best-effort
- * query parameters (`limit`, `cursor`, repeated `ignoreSubjects`) and returns
- * the raw response. Confirm the exact parameter names against the deployment.
- * On WF_OK, *out is populated with the raw response freed with
- * wf_response_free.
- */
-wf_status wf_ozone_get_suggestions(wf_xrpc_client *client,
-                                   const char **ignore_subjects, size_t n,
-                                   int64_t limit, const char *cursor,
-                                   wf_response *out);
-
-/*
- * Look up a single tag via tools.ozone.moderation.getTag.
- *
- * TODO: getTag is NOT present in the local atproto lexicon snapshot; the NSID
- * is taken from the current upstream lexicon and should be confirmed. Returns
- * the raw response body. On WF_OK *out_json is an owned NUL-terminated JSON
- * string freed with free(). Returns WF_ERR_INVALID_ARG for NULL client/tag/
- * out_json, or a transport error.
- */
-wf_status wf_ozone_get_tag(wf_xrpc_client *client, const char *tag,
-                           char **out_json);
-
-/*
- * Query tags via tools.ozone.moderation.queryTags.
- *
- * TODO: queryTags is NOT present in the local atproto lexicon snapshot; the
- * NSID is taken from the current upstream lexicon and should be confirmed.
- * On WF_OK *out_json is an owned NUL-terminated JSON string freed with free().
- */
-wf_status wf_ozone_query_tags(wf_xrpc_client *client, int64_t limit,
-                              const char *cursor, char **out_json);
 
 /* ------------------------------------------------------------------ */
 /* Communication templates (tools.ozone.communication.*)             */

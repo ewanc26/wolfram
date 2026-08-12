@@ -240,10 +240,6 @@ void usage_stream(FILE *out) {
         "  Ozone moderation:\n"
         "    ozone moderation query-statuses <service> <handle> <password> "
         "[--limit N] [--cursor C]\n"
-        "    ozone moderation get-suggestions <service> <handle> <password> "
-        "[--ignore-subjects uri]... [--limit N]\n"
-        "    ozone moderation get-label-definitions <service> <handle> "
-        "<password> [--uri uri]...\n"
         "    ozone team list-members <service> <handle> <password> "
         "[--limit N] [--cursor C]\n"
         "    ozone server get-config <service> <handle> <password>\n"
@@ -491,14 +487,6 @@ static void cmd_help_stream(FILE *out, const char *cmd) {
          "ozone moderation query-statuses <service> <handle> <password> "
          "[--limit N] [--cursor C]",
          "Query moderation subject statuses via tools.ozone.moderation."},
-        {"ozone",
-         "ozone moderation get-suggestions <service> <handle> <password> "
-         "[--ignore-subjects uri]... [--limit N]",
-         "Fetch moderation suggestions via tools.ozone.moderation."},
-        {"ozone",
-         "ozone moderation get-label-definitions <service> <handle> "
-         "<password> [--uri uri]...",
-         "Fetch moderation label definitions via tools.ozone.moderation."},
         {"ozone",
          "ozone team list-members <service> <handle> <password> "
          "[--limit N] [--cursor C]",
