@@ -19,12 +19,9 @@
  * The raw generated lex wrappers (wf_lex_com_atproto_temp_*) live in
  * atproto_lex.h and are NOT edited here.
  *
- * NOTE on the agent wrappers: the lexicon input for revokeAccountCredentials is
- * `account` (an at-identifier), which the helper signature below does not
- * carry; that wrapper therefore returns WF_ERR_INVALID_ARG with a TODO rather
- * than a fabricated success (see AGENTS.md principle 3). checkSignupQueue's
- * `closed` out-param and fetchLabels' `did_pointers` are not part of the
- * current lexicon and are documented at their call sites.
+ * NOTE on the agent wrappers: checkSignupQueue's `closed` out-param and
+ * fetchLabels' `did_pointers` are not part of the current lexicon and are
+ * documented at their call sites.
  */
 
 #ifndef WOLFRAM_TEMP_TYPED_H

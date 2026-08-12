@@ -617,8 +617,11 @@ wf_status wf_plc_sign_operation(wf_xrpc_client *client, const char *did,
     if (status != WF_OK) return status;
 
     if (doc.method != WF_DID_METHOD_PLC) {
+        /* did:web identities are managed by editing did.json directly, not
+         * by a signed PLC operation -- there is nothing to build here for a
+         * non-did:plc subject, now or ever. */
         wf_did_document_free(&doc);
-        return WF_ERR_INVALID_ARG; /* TODO: did:web has no PLC operation */
+        return WF_ERR_INVALID_ARG;
     }
     wf_did_document_free(&doc);
 
