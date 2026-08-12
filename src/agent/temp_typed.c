@@ -595,9 +595,9 @@ wf_status wf_agent_dereference_scope(wf_agent *agent, const char *scope,
     return status;
 }
 
-/* revokeAccountCredentials (procedure, input: account). Carries the required
- * `account` (at-identifier) input, unlike the legacy honest-stub
- * wf_agent_revoke_account_credentials. */
+/* revokeAccountCredentials (procedure, input: account). Same call as
+ * wf_agent_revoke_account_credentials; this variant exists for naming
+ * symmetry with the other _typed wrappers in this file. */
 wf_status wf_agent_revoke_account_credentials_typed(wf_agent *agent,
                                                     const char *account) {
     if (!agent || !agent->client || !account || !account[0]) {
