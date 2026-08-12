@@ -529,6 +529,24 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       DAG-CBOR's canonical-ordering enforcement is the wrong fit for a
       browser-produced `attestationObject`), not this SDK; these two
       primitives were the actual SDK-level gap.
+  65. Removed five speculative `tools.ozone.moderation.*` wrappers
+      (`getLabelDefinitions`/`wf_ozone_get_label_defs`,
+      `getSuggestions`/`wf_ozone_get_suggestions` and its typed wrapper
+      `wf_ozone_moderation_get_suggestions`,
+      `getLabelDefinitions`'s typed wrapper
+      `wf_ozone_moderation_get_label_definitions`, `getTag`/`wf_ozone_get_tag`,
+      `queryTags`/`wf_ozone_query_tags`, and `scanVerdicts`/
+      `wf_ozone_scan_verdicts`), plus their CLI subcommands
+      (`ozone moderation get-suggestions`/`get-label-definitions`) and tests.
+      Item 40 flagged `getSuggestions` as unconfirmed against the reference;
+      revisiting turned up that none of these five NSIDs exist anywhere in
+      bluesky-social/atproto's lexicons, the bluesky-social/ozone frontend,
+      or a GitHub code search of either — not just missing from the local
+      snapshot, but not real, published, or served by any known deployment.
+      Shipping API surface for endpoints that don't exist just misleads
+      wolfram's own users into writing code against something that will
+      404/MethodNotImplemented on every real server. `wf_ozone_get_subjects`
+      (`tools.ozone.moderation.getSubjects`, a real lexicon) is unaffected.
 
 ## Next planned work
 

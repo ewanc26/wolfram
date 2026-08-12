@@ -195,12 +195,6 @@ int main(void) {
         WF_CHECK(wf_ozone_moderation_emitEvent(agent, NULL, &r) ==
                  WF_ERR_INVALID_ARG);
 
-        char *js = NULL;
-        WF_CHECK(wf_ozone_moderation_get_suggestions(
-                     NULL, NULL, 0, 0, NULL, &js) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ozone_moderation_get_label_definitions(
-                     NULL, NULL, 0, &js) == WF_ERR_INVALID_ARG);
-
         wf_agent_free(agent);
     }
 

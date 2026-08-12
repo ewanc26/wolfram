@@ -16,10 +16,7 @@
  *
  * Procedures (and a few queries) whose lexicon defines no owning output
  * decoder return the raw wf_response, freed by the caller with
- * wf_response_free. Endpoints whose lexicon is genuinely missing from the
- * local snapshot (tools.ozone.moderation.getSuggestions and
- * .getLabelDefinitions) are exposed as JSON-in/JSON-out wrappers returning an
- * owned char* body freed with free() (see the TODO on each).
+ * wf_response_free.
  *
  * In addition, two hand-written ergonomic structs mirror the most-used list
  * responses following the labeler_typed ownership model (static
@@ -234,23 +231,6 @@ void wf_ozone_team_member_list_free(wf_ozone_team_member_list *l);
 #define X(ns, op, genop, kind) WF_OZONE_DECL_##kind(ns, op, genop)
 WF_OZONE_ENDPOINTS
 #undef X
-
-/* JSON-in/JSON-out wrappers for endpoints whose lexicon is missing from the
- * local snapshot. `out_json` is an owned NUL-terminated string freed with
- * free(); on error it is left NULL. */
-/* TODO: tools.ozone.moderation.getSuggestions is NOT in the local atproto
- * lexicon snapshot, so no generated params/decoder exist. This wrapper reuses
- * the existing ozone.c transport helper and returns the raw response body. */
-wf_status wf_ozone_moderation_get_suggestions(
-    wf_agent *agent, const char *const *ignore_subjects, size_t n,
-    int64_t limit, const char *cursor, char **out_json);
-
-/* TODO: tools.ozone.moderation.getLabelDefinitions is NOT in the local atproto
- * lexicon snapshot, so no generated params/decoder exist. This wrapper reuses
- * the existing ozone.c transport helper and returns the raw response body. */
-wf_status wf_ozone_moderation_get_label_definitions(wf_agent *agent,
-                                                    const char *const *uris,
-                                                    size_t n, char **out_json);
 
 #ifdef __cplusplus
 }
