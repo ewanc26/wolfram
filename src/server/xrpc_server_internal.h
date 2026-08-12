@@ -96,6 +96,10 @@ struct wf_xrpc_server {
     struct wf_ws_pending *ws_pending;
     bool cors_enabled; /* emit CORS headers when true */
     char *cors_origin; /* owned Allow-Origin value */
+    /* Header to trust for the real client IP instead of the immediate TCP
+     * peer (see wf_xrpc_server_set_trusted_client_ip_header); NULL (the
+     * default) always uses the raw socket peer address. */
+    char *trusted_client_ip_header;
 };
 
 /** A live WebSocket connection, created after a successful upgrade. */
