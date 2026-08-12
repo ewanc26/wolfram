@@ -63,7 +63,7 @@ Agentic principles and technical context for the `wolfram` repository.
 - **Tests**: `ctest --test-dir build`
 - **Lexicon generation**: `cmake --build build --target wf_lexgen_tool && ./build/wf_lexgen_tool $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h` (the tool is C++ — `tools/wf_lexgen.cpp`, replacing the removed `tools/wf_lexgen.py`)
 - **Optional modules**: gated by CMake options — `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption), `WOLFRAM_BUILD_TEST_HTTPD` (libmicrohttpd mock PDS for offline HTTP integration tests), `WOLFRAM_BUILD_IDN` (libidn2 internationalised-handle resolution), `WOLFRAM_BUILD_CPP` (C++ RAII wrapper `wolfram-cpp`). Platform/example/test flags: `WOLFRAM_BUILD_WII` / `_WIIU` / `_3DS` / `_WINDOWS`, `WOLFRAM_BUILD_EXAMPLES`, `WOLFRAM_BUILD_TESTS`.
-- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64) are supported via `.devdeps/*.cmake` toolchain files. Wii and Wii U use real platform primitives (libogc and wut respectively); 3DS retains a stub platform implementation. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads.
+- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64, rpi1) are supported via `.devdeps/*.cmake` toolchain files. Wii and Wii U use real platform primitives (libogc and wut respectively); 3DS retains a stub platform implementation. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads. rpi1 (Raspberry Pi 1/Zero, ARMv6) is a plain Linux server target, not a console client build — see "Platform support" below.
 - **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
 - **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
@@ -290,6 +290,8 @@ Cross-compilation targets for Nintendo consoles and Windows:
 **Windows**: `.devdeps/windows.cmake`; MinGW-w64 cross-compilation.
 
 **Linux ARM64**: `.devdeps/linux-aarch64.cmake`; AArch64 cross-compilation.
+
+**Raspberry Pi 1 / Zero**: `.devdeps/rpi1.cmake`; ARMv6 (ARM1176JZF-S) cross-compilation. Unlike the console targets above, this is a full server build (`WOLFRAM_BUILD_SERVER=ON` works normally) — it's a target for running MetalBear, not a client-only build. Needs a Pi 1B/Zero-specific armv6zk/vfp/hard-float toolchain and rootfs (`RPI1_ROOTFS`); a generic Debian/Ubuntu "armhf" cross toolchain targets ARMv7 and will produce a binary that SIGILLs on real Pi 1B/Zero hardware. See the comment header in `rpi1.cmake` for details.
 
 Wii uses libogc for network initialisation, LWP mutexes, and monotonic timing,
 plus mbedTLS for verified HTTPS, a real RFC 6455 WebSocket client, and
