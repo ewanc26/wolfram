@@ -190,6 +190,25 @@ wf_status wf_plc_get_last_op(wf_xrpc_client *client,
                              char **out_cid, char **out_op_json);
 
 /**
+ * Fetch an account's full PLC operation history from the directory
+ * (GET {plc_directory_url}/{did}/log/audit): every operation ever published
+ * for the DID, oldest first, each entry already carrying its own `cid`,
+ * `nullified` flag, and `createdAt` alongside the operation body -- unlike
+ * wf_plc_get_last_op, no CID needs to be derived here. Returned as the raw
+ * JSON array; there is no generated lexicon type for this directory-only
+ * endpoint (it is not an XRPC/lexicon method, just the PLC directory's own
+ * HTTP API), so callers that want structure parse the array themselves.
+ *
+ * `client` is caller-owned; see wf_plc_get_last_op.
+ *
+ * On WF_OK, *out_json is heap-allocated and owned by the caller; free with
+ * plain free().
+ */
+wf_status wf_plc_get_audit_log(wf_xrpc_client *client,
+                               const char *plc_directory_url, const char *did,
+                               char **out_json);
+
+/**
  * Build, sign, and return a PLC operation that changes only `alsoKnownAs` to
  * ["at://" + new_handle], preserving every other field (rotationKeys,
  * verificationMethods, services) from the account's currently published
