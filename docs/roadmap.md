@@ -514,6 +514,22 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
       cross-build of both the Wii and Wii U targets (`powerpc-eabi-nm` shows
       `wf_websocket_connect_with_headers` defined in both archives).
 
+  64. Two P-256 crypto primitives (`crypto.h`/`.c`) added for MetalBear's
+      WebAuthn/passkey login support: `wf_crypto_p256_verify_allow_malleable`
+      (same as `wf_crypto_p256_verify` but accepts either low-S or high-S
+      signature form — needed because a WebAuthn authenticator's assertion
+      signature, unlike this SDK's own DPoP/service-JWT signing, is not
+      guaranteed low-S normalized) and `wf_crypto_ecdsa_der_to_raw` (converts
+      a DER-encoded ECDSA-Sig-Value, the form a browser's WebAuthn
+      implementation produces, into the raw 64-byte r||s form the verify
+      functions expect). The COSE_Key decoder and ceremony/ credential
+      storage the prior scoping note below called out as net-new both landed
+      in MetalBear (`src/oauth/webauthn.c`, a purpose-built CBOR reader
+      rather than `wf_cbor_parse` — see that file's header comment for why
+      DAG-CBOR's canonical-ordering enforcement is the wrong fit for a
+      browser-produced `attestationObject`), not this SDK; these two
+      primitives were the actual SDK-level gap.
+
 ## Next planned work
 
 - The "full" CI job now passes `BSKY_HANDLE`/`BSKY_PASSWORD`/`BSKY_SERVICE`
@@ -581,81 +597,6 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   (mbedtls-based P-256 and secp256k1) need cross-build verification since
   devkitARM is not available in this environment. See the `TODO` markers in
   `src/platform/3ds_platform.c` and `src/crypto/crypto_3ds.c`.
-- WebAuthn/passkey login support (surveyed on request — no atproto PDS
-  implementation has shipped this yet, reference included: cloning the
-  reference's `packages/oauth/oauth-provider-ui` and grepping its ~120
-  account-management components for "webauthn"/"passkey" turns up nothing,
-  and Bluesky's own account-management announcement still lists passkeys
-  under "planned", not shipped). This SDK already has most of the hard
-  primitive: `wf_crypto_p256_verify` (`include/wolfram/crypto.h`) verifies a
-  raw ES256 signature over (x, y) affine coordinates — exactly what a
-  WebAuthn assertion needs (ES256 over `authenticatorData ||
-  SHA256(clientDataJSON)`), and it does not care how the coordinates were
-  encoded, only that it gets 32+32 raw bytes; `wf_crypto_p256_jwk_coords`
-  is the existing example of an encoding-specific adapter feeding that same
-  verifier. The concrete gap is a COSE_Key decoder: a WebAuthn attestation
-  object's `credentialPublicKey` is COSE-CBOR (RFC 9053 §7.1), not JWK — for
-  the EC2/P-256 case that's a 4-entry CBOR map (label 1 `kty`=2 for EC2,
-  label -1 `crv`=1 for P-256, label -2 `x`, label -3 `y`, both 32-byte
-  strings) libcbor (already a dependency, already used throughout
-  `src/repo` for MST/CAR work) parses directly — no new C library needed.
-  Layering above that decoder: challenge generation/storage with expiry
-  (the email-token pattern `metalbear_account_create_email_token` already
-  uses in MetalBear is the template — same TTL-and-single-use shape, new
-  purpose), `clientDataJSON` validation (type/origin/challenge-echo check,
-  plain JSON parsing), `authenticatorData` parsing (fixed-layout binary:
-  32-byte RP ID hash, 1-byte flags, 4-byte counter, then optional
-  attested-credential-data/extensions), and per-account credential storage
-  (credential ID, the decoded (x, y), and a monotonic counter for clone
-  detection). None of that belongs in this SDK's core signing/verification
-  layer, which is protocol-agnostic by design — it belongs as a new
-  `wf_webauthn` module alongside `oauth/verify.h`'s existing
-  resource-server-side verification helpers, with the ceremony endpoints
-  themselves (`com.metalbear.webauthn.*`, matching the existing
-  `com.metalbear.oauth.*` MetalBear-extension pattern — WebAuthn has no
-  standard atproto lexicon) and the credential/account wiring living in
-  MetalBear, the same split `oauth/verify.h` (SDK) vs. MetalBear's session
-  layer already uses for OAuth. Not started — this is a scoping note from
-  research, not a partial implementation; the ceremony endpoints are
-  security-critical (forging an assertion or skipping the RP ID/origin
-  check is an account takeover) and deserve dedicated implementation and
-  review, not a rushed first cut.
-
-  Update: found and cloned a PDS that *has* shipped this —
-  [Tranquil PDS](https://tangled.org/tranquil.farm/tranquil-pds) (Rust),
-  which advertises "a superset of the reference PDS" including WebAuthn/FIDO2
-  passkeys, TOTP, backup codes, and a built-in admin/account web UI. Its
-  `crates/tranquil-pds/src/auth/webauthn.rs` confirms the ceremony shape
-  above (`start_registration`/`finish_registration`,
-  `start_authentication`/`finish_authentication`, plus a "discoverable
-  authentication" usernameless-login variant) using the `webauthn-rs` crate
-  — Rust has a mature off-the-shelf RP library; C does not, so hand-rolling
-  is genuinely the only path here, not a shortcut being missed. Two corrections
-  from reading real code instead of the spec alone: the per-attempt server
-  state to persist between start/finish isn't a bare token but the ceremony's
-  own opaque state object (`SecurityKeyRegistration`/`SecurityKeyAuthentication`
-  in their case) — for a hand-rolled version that's concretely the challenge
-  bytes plus which credential IDs were offered, not just a random string like
-  the email-token pattern uses; and their `StoredPasskey` row is richer than
-  the credential-id/x/y/counter I'd assumed — `aaguid` (authenticator model,
-  for a UI to show "Touch ID" vs "YubiKey") and `transports` (usb/nfc/ble/
-  internal hints) round out what a real passkey-management list page needs
-  to be usable, alongside `friendly_name` and `last_used`. Their browser-side
-  glue (`frontend/src/lib/webauthn.ts`, plain TypeScript, no framework
-  dependency) is a clean, directly adaptable reference for the
-  `PublicKeyCredentialCreationOptions`/`RequestOptions` base64url
-  encode/decode boundary MetalBear's own frontend would need identically.
-
-  Also relevant to the admin-UI half of this research pass: the standard
-  `com.atproto.admin.*` lexicon has no "list/search all accounts" endpoint
-  (`getAccountInfos` requires already knowing the DIDs) — true of the
-  reference PDS too, not a MetalBear gap. Tranquil solves it with a custom,
-  non-lexicon `admin/account/search` endpoint (`{email?, handle?, cursor?,
-  limit}` → paginated account views, gated by a session-based `Auth<Admin>`
-  extractor rather than HTTP Basic). A `com.metalbear.admin.searchAccounts`
-  along the same lines would be a natural, small enhancement once an admin
-  dashboard exists, matching the `com.metalbear.oauth.*`/`com.metalbear.webauthn.*`
-  extension-namespace convention already established.
 
 ## Dependencies
 
