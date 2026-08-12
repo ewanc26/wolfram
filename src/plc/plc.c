@@ -981,6 +981,58 @@ wf_status wf_plc_get_last_op(wf_xrpc_client *client,
     return WF_OK;
 }
 
+wf_status wf_plc_get_audit_log(wf_xrpc_client *client,
+                               const char *plc_directory_url, const char *did,
+                               char **out_json) {
+    wf_response response = {0};
+    char url[1024];
+    wf_status status;
+    cJSON *root = NULL;
+
+    if (!client || !plc_directory_url || !did || !out_json)
+        return WF_ERR_INVALID_ARG;
+    *out_json = NULL;
+
+    size_t base_len = strlen(plc_directory_url);
+    size_t did_len = strlen(did);
+    static const char suffix[] = "/log/audit";
+    if (base_len + 1 + did_len + sizeof(suffix) >= sizeof(url))
+        return WF_ERR_INVALID_ARG;
+    memcpy(url, plc_directory_url, base_len);
+    url[base_len] = '/';
+    memcpy(url + base_len + 1, did, did_len);
+    memcpy(url + base_len + 1 + did_len, suffix, sizeof(suffix));
+
+    status = wf_http_get(client, url, &response);
+    if (status != WF_OK) {
+        free(response.body);
+        return status;
+    }
+
+    /* Unlike /log/last, every entry here already carries its own `cid` from
+     * the directory -- nothing to derive, just validate the shape before
+     * handing the raw array back. */
+    root = cJSON_ParseWithLength(response.body, response.body_len);
+    if (!root || !cJSON_IsArray(root)) {
+        cJSON_Delete(root);
+        free(response.body);
+        return WF_ERR_PARSE;
+    }
+    cJSON_Delete(root);
+
+    char *json = malloc(response.body_len + 1);
+    if (!json) {
+        free(response.body);
+        return WF_ERR_ALLOC;
+    }
+    memcpy(json, response.body, response.body_len);
+    json[response.body_len] = '\0';
+    free(response.body);
+
+    *out_json = json;
+    return WF_OK;
+}
+
 /* Copy every string in a cJSON array of strings into a freshly allocated
  * const char** (each entry heap-owned), for handing to
  * wf_plc_operation_update's array-of-C-string fields. Non-string entries
