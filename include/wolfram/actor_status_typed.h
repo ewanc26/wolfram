@@ -25,13 +25,14 @@
  * Builder (wf_actor_status_build_record): owned struct/inputs -> owned JSON
  * string (caller frees with free()).
  *
- * Agent wrappers (wf_agent_*): convenience calls layered on the generated lex
- * wrappers after syncing auth onto the agent's primary XRPC client. NOTE: the
- * atproto lexicon corpus currently ships only the record type for
- * app.bsky.actor.status and does NOT generate `getActorStatus`/`getStatus`/
- * `putStatus` call helpers; the three wrappers below are therefore honest
- * stubs returning WF_ERR_INVALID_ARG with a TODO (see
- * src/actor_status_typed.c).
+ * Agent wrappers (wf_agent_*): the atproto lexicon corpus ships only the
+ * record type for app.bsky.actor.status -- there is no dedicated
+ * `getActorStatus`/`getStatus`/`putStatus` RPC, matching how the reference
+ * app (bluesky-social/social-app's liveNow feature) does it. The three
+ * wrappers below read the status embedded in a getProfile(s) response and
+ * write it via a plain com.atproto.repo.putRecord, going through the
+ * existing wf_agent_get_profile_raw / wf_agent_put_record primitives rather
+ * than a nonexistent dedicated call (see src/actor_status_typed.c).
  */
 
 #ifndef WOLFRAM_ACTOR_STATUS_TYPED_H
