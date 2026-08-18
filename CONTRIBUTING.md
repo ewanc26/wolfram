@@ -15,7 +15,7 @@ Thanks for your interest. This is a mature AT Protocol SDK with extensive covera
 2. Build with CMake (see README) and confirm `ctest` passes before you start.
 3. Keep PRs scoped to one module or concern.
 4. Commit style: `type(scope): description` — e.g. `feat(repo): decode DAG-CBOR maps`.
-   Human co-authors are welcome via the standard `Co-authored-by:` trailer. This only asks that *automated/assistant* commits not add spurious co-author or `Generated with …` trailers.
+   Human and AI co-authors are both welcome via the standard `Co-authored-by:` trailer. This only asks that the trailer be honest — credit who/what actually contributed, and don't add spurious ones.
 
 ## References
 
