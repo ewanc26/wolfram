@@ -116,7 +116,8 @@ typedef struct wf_xrpc_response {
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT {200, NULL, 0, NULL, NULL}
+#define WF_XRPC_RESPONSE_INIT                                                  \
+    { 200, NULL, 0, NULL, NULL }
 
 /** Set the response body (copies the string). */
 void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
