@@ -153,6 +153,9 @@ typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
                                                const wf_xrpc_request *req,
                                                wf_xrpc_response *resp);
 
+/** Public capability marker for consumers supporting both server API levels. */
+#define WF_XRPC_SERVER_HAS_STREAMING_PROCEDURES 1
+
 /**
  * Lifecycle for a bounded-memory streaming procedure.
  *
