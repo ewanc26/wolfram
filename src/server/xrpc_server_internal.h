@@ -43,11 +43,13 @@ typedef enum {
 typedef struct wf_route {
     char *nsid;
     wf_route_kind kind;
-    bool is_sse; /* true if this route uses Server-Sent Events */
-    bool is_ws;  /* true if this route is a WebSocket subscription */
+    bool is_sse;       /* true if this route uses Server-Sent Events */
+    bool is_ws;        /* true if this route is a WebSocket subscription */
+    bool is_streaming; /* true for bounded-memory POST body delivery */
     union {
         wf_xrpc_query_handler query;
         wf_xrpc_procedure_handler procedure;
+        wf_xrpc_streaming_procedure_handler streaming;
         wf_xrpc_sse_handler sse;
         wf_xrpc_ws_handler ws;
     } handler;

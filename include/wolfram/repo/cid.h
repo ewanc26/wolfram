@@ -14,6 +14,9 @@ typedef struct wf_cid {
     size_t len;
 } wf_cid;
 
+/** Opaque incremental SHA-256 state for bounded-memory CID computation. */
+typedef struct wf_cid_hasher wf_cid_hasher;
+
 /** Render a CID as its base32 (CIDv1) string form. Caller frees. */
 char *wf_cid_to_string(const wf_cid *cid);
 
@@ -32,6 +35,17 @@ wf_status wf_cid_of_block(const unsigned char *cbor, size_t cbor_len,
  *  dag-cbor CID produced by wf_cid_of_block. */
 wf_status wf_cid_of_bytes(const unsigned char *data, size_t data_len,
                           wf_cid *out);
+
+/**
+ * Create an incremental CID hasher. Feed bytes with wf_cid_hasher_update,
+ * then call wf_cid_hasher_finish_raw for the raw-multicodec CID used by AT
+ * Protocol blobs. The hasher is single-use after a successful finish.
+ */
+wf_cid_hasher *wf_cid_hasher_new(void);
+wf_status wf_cid_hasher_update(wf_cid_hasher *hasher, const unsigned char *data,
+                               size_t data_len);
+wf_status wf_cid_hasher_finish_raw(wf_cid_hasher *hasher, wf_cid *out);
+void wf_cid_hasher_free(wf_cid_hasher *hasher);
 
 /** Check if two CIDs are equal. */
 int cid_equal(const wf_cid *a, const wf_cid *b);

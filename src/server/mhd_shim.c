@@ -639,10 +639,11 @@ static void *connection_main(void *arg) {
     struct MHD_Connection *conn = (struct MHD_Connection *)arg;
     struct MHD_Daemon *d = conn->daemon;
     char *buf = (char *)malloc(SHIM_HEADER_MAX);
+    char *body_buf = (char *)malloc(SHIM_BODY_CHUNK);
     void *con_cls = NULL;
     bool upgraded = false;
 
-    if (!buf) goto done;
+    if (!buf || !body_buf) goto done;
 
     size_t header_len = 0;
     ssize_t total = read_headers(conn->fd, buf, SHIM_HEADER_MAX, &header_len);
@@ -680,13 +681,16 @@ static void *connection_main(void *arg) {
 
     while (remaining > 0) {
         if (body_have == 0) {
-            ssize_t n = recv(conn->fd, buf, SHIM_HEADER_MAX, 0);
+            /* `method`, `url`, and `version` point into the header buffer.
+             * Reusing that same allocation for later body chunks corrupts
+             * them once a request exceeds the bytes read with its headers. */
+            ssize_t n = recv(conn->fd, body_buf, SHIM_BODY_CHUNK, 0);
             if (n <= 0) {
                 if (n < 0 && errno == EINTR) continue;
                 goto done;
             }
             body_have = (size_t)n;
-            body_start = buf;
+            body_start = body_buf;
         }
         size_t take = body_have;
         if ((long long)take > remaining) take = (size_t)remaining;
@@ -754,6 +758,7 @@ static void *connection_main(void *arg) {
     }
 
 done:
+    free(body_buf);
     free(buf);
     /*
      * An upgraded connection is not ours to release: its handler holds
@@ -934,6 +939,7 @@ void MHD_stop_daemon(struct MHD_Daemon *daemon) {
 
     /* Closing the listener breaks the acceptor out of accept(). */
     if (daemon->listen_fd >= 0) {
+        shutdown(daemon->listen_fd, SHUT_RDWR);
         close(daemon->listen_fd);
         daemon->listen_fd = -1;
     }
@@ -944,6 +950,9 @@ void MHD_stop_daemon(struct MHD_Daemon *daemon) {
      * never coming. */
     pthread_mutex_lock(&daemon->lock);
     for (struct MHD_Connection *c = daemon->connections; c; c = c->next) {
+        /* Wake request bodies blocked in recv(), not only suspended response
+         * readers. Closing the listener does nothing to accepted sockets. */
+        shutdown(c->fd, SHUT_RDWR);
         pthread_mutex_lock(&c->lock);
         c->suspended = false;
         pthread_cond_signal(&c->resume_cv);

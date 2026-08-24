@@ -468,6 +468,27 @@ int main(void) {
         free(dc_str);
     }
 
+    /* Incremental raw hashing matches the one-shot blob CID and is single-use.
+     * Uploaders use this path to hash large files without buffering them. */
+    {
+        static const unsigned char data[] = "one stream, several chunks";
+        wf_cid expected = {{0}, 0};
+        wf_cid streamed = {{0}, 0};
+        WF_CHECK(wf_cid_of_bytes(data, sizeof(data) - 1, &expected) == WF_OK);
+        wf_cid_hasher *hasher = wf_cid_hasher_new();
+        WF_CHECK(hasher != NULL);
+        WF_CHECK(wf_cid_hasher_update(hasher, data, 4) == WF_OK);
+        WF_CHECK(wf_cid_hasher_update(hasher, NULL, 0) == WF_OK);
+        WF_CHECK(wf_cid_hasher_update(hasher, data + 4, sizeof(data) - 1 - 4) ==
+                 WF_OK);
+        WF_CHECK(wf_cid_hasher_finish_raw(hasher, &streamed) == WF_OK);
+        WF_CHECK(check_cid(&expected, &streamed));
+        WF_CHECK(wf_cid_hasher_update(hasher, data, 1) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_cid_hasher_finish_raw(hasher, &streamed) ==
+                 WF_ERR_INVALID_ARG);
+        wf_cid_hasher_free(hasher);
+    }
+
     /* ── CAR parse ── */
 
     /* Build a CAR for {"test": "root"} and verify round-trip */
