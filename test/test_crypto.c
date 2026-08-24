@@ -125,7 +125,12 @@ int main(void) {
         unsigned char msg[] = "didkey roundtrip";
         unsigned char sig[64];
 
-        for (int t = 0; t < 2; t++) {
+        int key_type_count = 1;
+#ifdef HAVE_LIBSECP256K1
+        key_type_count = 2;
+#endif
+
+        for (int t = 0; t < key_type_count; t++) {
             key.type = t == 0 ? WF_KEY_TYPE_P256 : WF_KEY_TYPE_SECP256K1;
             if (t == 0) {
                 key.bytes[31] = 1;

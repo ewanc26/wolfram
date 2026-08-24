@@ -21,7 +21,7 @@
 static unsigned char *build_fixture_car(size_t *out_len) {
     wf_signing_key key;
     memset(&key, 0, sizeof(key));
-    if (wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) != WF_OK) {
+    if (wf_signing_key_generate(WF_KEY_TYPE_P256, &key) != WF_OK) {
         return NULL;
     }
 
