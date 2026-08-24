@@ -32,6 +32,7 @@ int main(void) {
             "&cursor=1725519626134432&maxMessageSizeBytes=1000000"
             "&requireHello=true") == 0);
     free(url);
+    url = NULL;
 
     static const unsigned char dictionary[] =
         "wolfram Jetstream test dictionary: did time_us kind commit record";

@@ -1776,7 +1776,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        wf_status ks = wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key);
+        wf_status ks = wf_signing_key_generate(WF_KEY_TYPE_P256, &key);
         WF_CHECK(ks == WF_OK);
 
         wf_car car;
@@ -1816,7 +1816,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -1879,7 +1879,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
         wf_car car;
         memset(&car, 0, sizeof(car));
         unsigned char original[] = {0xA1, 0x61, 'v', 0x01};
@@ -1922,7 +1922,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -1958,7 +1958,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -2018,7 +2018,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -2144,7 +2144,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -2649,7 +2649,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
@@ -2750,7 +2750,7 @@ int main(void) {
     {
         wf_signing_key key;
         memset(&key, 0, sizeof(key));
-        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_SECP256K1, &key) == WF_OK);
+        WF_CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &key) == WF_OK);
 
         wf_car car;
         memset(&car, 0, sizeof(car));
