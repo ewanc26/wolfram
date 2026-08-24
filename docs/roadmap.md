@@ -615,16 +615,17 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   still passes) on a fork or before the secrets are set.
 - Continue evaluating upstream C libraries for server-side infrastructure
   (event loop, config parsing).
-- Generated typed-wrapper coverage is complete: every query/procedure NSID in
-  the full lexicon corpus (314 endpoints across `com.atproto`, `app.bsky`,
+- Generated typed-wrapper coverage tracks every query/procedure NSID in
+  the full lexicon corpus (319 definitions across `com.atproto`, `app.bsky`,
   `chat.bsky`, `tools.ozone`, `internal.bsky`) has codegen in
-  `atproto_lex.h`/`atproto_lex.c`, and the generated `wf_lex_..._main_call`
-  symbol or `WF_LEX_..._NSID` constant for every one of them is referenced by
+  `atproto_lex.h`/`atproto_lex.c`. JSON endpoints have generated
+  `wf_lex_..._main_call` wrappers; binary-body procedures intentionally expose
+  their NSID constants and use the dedicated upload/import APIs so codegen
+  never emits a body-less call that violates the wire schema. Symbols are referenced by
   application code somewhere outside that codegen file itself — verified by
   deriving each endpoint's expected symbol name from its NSID and grepping
-  the whole tree, not by sampling. This is raw-call coverage (every endpoint
-  is reachable); typed *output-decoder* coverage is the separate, narrower
-  concern tracked by item 61 above (260/314 — the rest have no JSON body to
+  the whole tree, not by sampling. Typed *output-decoder* coverage is the
+  separate, narrower concern tracked by item 61 above (265/319 — the rest have no JSON body to
   decode).
 - Service-auth *verification* middleware for the XRPC server is landed
   (`wf_xrpc_server_set_auth_middleware`, `xrpc_server_auth.h`): it resolves the
