@@ -1,7 +1,8 @@
 # Video upload (`blob.h`, `agent.h`, `embed_typed.h`)
 
-wolfram uploads video with a dedicated endpoint (`app.bsky.video.uploadVideo`)
-and exposes a polling model for the server-side transcoding job. The flow is:
+wolfram supports the legacy single-request endpoint
+(`app.bsky.video.uploadVideo`) and the current multipart upload lexicons. The
+legacy flow is:
 
 1. **Upload** the raw video bytes via `wf_agent_upload_video` (returns a
    `wf_uploaded_blob` with a CID).
@@ -12,6 +13,35 @@ and exposes a polling model for the server-side transcoding job. The flow is:
 These complement the generic blob upload in `agent.h`
 (`wf_agent_upload_blob` / `wf_agent_upload_blob_ex`) and the typed embed helpers
 in `embed_typed.h`.
+
+## Multipart upload
+
+The generated lexicon API provides typed JSON calls and output decoders for
+`startUpload`, `finishUpload`, `abortUpload`, and `getUploadStatus`. Upload each
+part with the binary transport API; it percent-encodes the required query
+parameters and keeps the body as opaque bytes:
+
+```c
+#include "wolfram/atproto_lex.h"
+#include "wolfram/xrpc.h"
+
+char part_number[32];
+snprintf(part_number, sizeof(part_number), "%lld", (long long)part_no);
+const wf_xrpc_param params[] = {
+    {"jobId", job_id},
+    {"partNumber", part_number},
+};
+wf_response response = {0};
+wf_status s = wf_xrpc_upload_blob_params(
+    client, WF_LEX_APP_BSKY_VIDEO_UPLOAD_PART_NSID, params, 2,
+    part_bytes, part_length, "application/octet-stream", &response);
+/* Decode response.body with the generated uploadPart output decoder. */
+wf_response_free(&response);
+```
+
+Binary-input procedures deliberately do not get a generated body-less `_call`
+wrapper. Use this API for `uploadPart`, and the existing dedicated helpers for
+`uploadVideo`, `uploadBlob`, and CAR imports.
 
 ## Upload
 
@@ -98,9 +128,8 @@ wf_uploaded_blob_free(&blob);  /* free the upload result */
 - The job-status and upload-limits calls return raw JSON in a `wf_response`; free
   them with `wf_response_free`. Parse the `blob` reference out of the job-status
   body to obtain the final CID for embedding.
-- There is no typed job-status struct; the embed step only needs the final
-  `wf_uploaded_blob` (CID + MIME type + size), which `wf_agent_upload_video`
-  already provides.
+- `wolfram/video_typed.h` provides owning job-status and upload-limit structs
+  when raw JSON is not desirable.
 
 See [agent.md](agent.md) for `wf_agent_post` / `wf_agent_post_with_embed`. The
 remaining embed helpers (images, record, external) are declared in

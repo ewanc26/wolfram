@@ -225,6 +225,18 @@ wf_status wf_xrpc_upload_blob(wf_xrpc_client *client, const char *nsid,
                               const void *data, size_t data_len,
                               const char *content_type, wf_response *out);
 
+/**
+ * Issue an `xrpc/{nsid}` POST with a binary body and encoded query parameters.
+ *
+ * Parameter names and values are percent-encoded exactly as for
+ * `wf_xrpc_query_params`. Repeated names are preserved in input order.
+ */
+wf_status wf_xrpc_upload_blob_params(wf_xrpc_client *client, const char *nsid,
+                                     const wf_xrpc_param *params,
+                                     size_t param_count, const void *data,
+                                     size_t data_len, const char *content_type,
+                                     wf_response *out);
+
 /** Release a response's owned buffer. Safe to call on a zeroed struct. */
 void wf_response_free(wf_response *res);
 

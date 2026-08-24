@@ -30,7 +30,7 @@ C is the default language; C++ is used for complex or sensitive components where
 ## Core Features
 
 - XRPC client with bearer authentication, DPoP-bound OAuth, and binary blob upload
-- Full AT Protocol lexicon coverage: 314 query/procedure endpoints across all namespaces
+- Current AT Protocol lexicon snapshot: 402 documents and 319 query/procedure definitions; JSON calls are generated and binary procedures use the dedicated upload/import APIs
 - Streaming subscriptions: `subscribeRepos` (firehose), `subscribeLabels`, and `subscribeRepos` with cursor reconnect/backoff
 - Identity: DID resolution (`did:plc`, `did:web`), handle DNS TXT resolution, PLC operations
 - Repo: DAG-CBOR encoding/decoding, CAR import/export, MST, signed v3 commits, record CRUD, diff verify/apply
