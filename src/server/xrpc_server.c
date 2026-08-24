@@ -790,9 +790,10 @@ static void wf_stream_request_free(wf_stream_request_ctx *stream) {
     free(stream);
 }
 
-static void wf_server_mhd_completed(
-    void *cls, struct MHD_Connection *connection, void **con_cls,
-    enum MHD_RequestTerminationCode termination_code) {
+static void
+wf_server_mhd_completed(void *cls, struct MHD_Connection *connection,
+                        void **con_cls,
+                        enum MHD_RequestTerminationCode termination_code) {
     (void)cls;
     (void)connection;
     (void)termination_code;
@@ -1119,8 +1120,7 @@ static bool wf_server_rate_limit_request(wf_xrpc_server *server,
     if (!limiter) return true;
 
     wf_rate_limit_status status = {0};
-    if (wf_rate_limiter_consume_status(limiter, client_ip, 1, &status) ==
-        WF_OK)
+    if (wf_rate_limiter_consume_status(limiter, client_ip, 1, &status) == WF_OK)
         return true;
 
     time_t now = time(NULL);
@@ -1147,9 +1147,10 @@ static bool wf_server_rate_limit_request(wf_xrpc_server *server,
     return false;
 }
 
-static wf_stream_request_ctx *wf_stream_request_begin(
-    wf_xrpc_server *server, wf_route *route, struct MHD_Connection *conn,
-    const char *url, const char *nsid) {
+static wf_stream_request_ctx *
+wf_stream_request_begin(wf_xrpc_server *server, wf_route *route,
+                        struct MHD_Connection *conn, const char *url,
+                        const char *nsid) {
     wf_stream_request_ctx *stream = calloc(1, sizeof(*stream));
     if (!stream) return NULL;
     stream->magic = WF_STREAM_CTX_MAGIC;
@@ -1179,20 +1180,20 @@ static wf_stream_request_ctx *wf_stream_request_begin(
     request.nsid = stream->nsid;
     request.path = stream->path;
     request.method = "POST";
-    request.auth_header = MHD_lookup_connection_value(
-        conn, MHD_HEADER_KIND, "Authorization");
+    request.auth_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Authorization");
     request.dpop_header =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
     request.cookie_header =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
     request.params = stream->params;
-    request.content_type = MHD_lookup_connection_value(
-        conn, MHD_HEADER_KIND, "Content-Type");
+    request.content_type =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
     request.host_header =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
     request.raw_query = stream->raw_query;
-    request.atproto_proxy = MHD_lookup_connection_value(
-        conn, MHD_HEADER_KIND, "atproto-proxy");
+    request.atproto_proxy =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "atproto-proxy");
     request.client_ip = client_ip;
     request.handler_ctx = route->ctx;
     wf_server_content_length(conn, &request);
@@ -1232,8 +1233,8 @@ static wf_stream_request_ctx *wf_stream_request_begin(
     return stream;
 }
 
-static enum MHD_Result wf_stream_request_respond(
-    wf_stream_request_ctx *stream, struct MHD_Connection *conn) {
+static enum MHD_Result wf_stream_request_respond(wf_stream_request_ctx *stream,
+                                                 struct MHD_Connection *conn) {
     wf_xrpc_response *response = &stream->response;
     if (!response->body) {
         response->body = strdup("");
@@ -1244,9 +1245,9 @@ static enum MHD_Result wf_stream_request_respond(
     response->body = NULL;
     if (!mhd_response) return MHD_NO;
 
-    MHD_add_response_header(
-        mhd_response, "Content-Type",
-        response->content_type ? response->content_type : "application/json");
+    MHD_add_response_header(mhd_response, "Content-Type",
+                            response->content_type ? response->content_type
+                                                   : "application/json");
     for (wf_xrpc_response_header *header = response->headers; header;
          header = header->next)
         MHD_add_response_header(mhd_response, header->name, header->value);
@@ -1293,8 +1294,8 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
         if (strcmp(method, "POST") == 0) {
             char *initial_nsid = wf_server_extract_nsid(url);
             wf_route *initial_route =
-                initial_nsid ? wf_server_find_route(
-                                   server, initial_nsid, WF_ROUTE_PROCEDURE)
+                initial_nsid ? wf_server_find_route(server, initial_nsid,
+                                                    WF_ROUTE_PROCEDURE)
                              : NULL;
             if (initial_route && initial_route->is_streaming) {
                 wf_stream_request_ctx *stream = wf_stream_request_begin(
@@ -1341,8 +1342,7 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
 
             if (!stream->response.body && stream->stream_ctx) {
                 wf_status status = stream->route->handler.streaming.finish(
-                    stream->route->ctx, stream->stream_ctx,
-                    &stream->response);
+                    stream->route->ctx, stream->stream_ctx, &stream->response);
                 stream->finished = true;
                 if (status != WF_OK && !stream->response.body) {
                     wf_xrpc_response_set_error(

@@ -113,15 +113,13 @@ wf_cid_hasher *wf_cid_hasher_new(void) {
     return hasher;
 }
 
-wf_status wf_cid_hasher_update(wf_cid_hasher *hasher,
-                               const unsigned char *data, size_t data_len) {
-    if (!hasher || !hasher->ctx || hasher->finished ||
-        (!data && data_len != 0))
+wf_status wf_cid_hasher_update(wf_cid_hasher *hasher, const unsigned char *data,
+                               size_t data_len) {
+    if (!hasher || !hasher->ctx || hasher->finished || (!data && data_len != 0))
         return WF_ERR_INVALID_ARG;
     if (data_len == 0) return WF_OK;
-    return EVP_DigestUpdate(hasher->ctx, data, data_len) == 1
-               ? WF_OK
-               : WF_ERR_CRYPTO;
+    return EVP_DigestUpdate(hasher->ctx, data, data_len) == 1 ? WF_OK
+                                                              : WF_ERR_CRYPTO;
 }
 
 wf_status wf_cid_hasher_finish_raw(wf_cid_hasher *hasher, wf_cid *out) {
@@ -129,8 +127,7 @@ wf_status wf_cid_hasher_finish_raw(wf_cid_hasher *hasher, wf_cid *out) {
         return WF_ERR_INVALID_ARG;
     unsigned char hash[EVP_MAX_MD_SIZE];
     unsigned int hash_len = 0;
-    if (EVP_DigestFinal_ex(hasher->ctx, hash, &hash_len) != 1 ||
-        hash_len != 32)
+    if (EVP_DigestFinal_ex(hasher->ctx, hash, &hash_len) != 1 || hash_len != 32)
         return WF_ERR_CRYPTO;
     out->len = wf_cid_from_hash_codec(hash, 0x55, out->bytes);
     hasher->finished = true;

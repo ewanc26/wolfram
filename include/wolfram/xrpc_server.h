@@ -169,11 +169,9 @@ typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
 typedef struct wf_xrpc_streaming_procedure_handler {
     wf_status (*begin)(void *ctx, const wf_xrpc_request *req,
                        void **out_stream_ctx, wf_xrpc_response *resp);
-    wf_status (*write)(void *ctx, void *stream_ctx,
-                       const unsigned char *data, size_t data_len,
-                       wf_xrpc_response *resp);
-    wf_status (*finish)(void *ctx, void *stream_ctx,
-                        wf_xrpc_response *resp);
+    wf_status (*write)(void *ctx, void *stream_ctx, const unsigned char *data,
+                       size_t data_len, wf_xrpc_response *resp);
+    wf_status (*finish)(void *ctx, void *stream_ctx, wf_xrpc_response *resp);
     void (*cleanup)(void *ctx, void *stream_ctx, bool completed);
 } wf_xrpc_streaming_procedure_handler;
 

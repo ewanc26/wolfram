@@ -40,10 +40,10 @@ static wf_status stream_begin(void *ctx, const wf_xrpc_request *request,
                                    "streaming request exposed a body buffer");
         return WF_OK;
     }
-    cJSON *part = request->params
-                      ? cJSON_GetObjectItemCaseSensitive(request->params,
-                                                         "partNumber")
-                      : NULL;
+    cJSON *part =
+        request->params
+            ? cJSON_GetObjectItemCaseSensitive(request->params, "partNumber")
+            : NULL;
     if (!cJSON_IsString(part) || strcmp(part->valuestring, "1") != 0) {
         wf_xrpc_response_set_error(response, 400, "InvalidPartNumber",
                                    "partNumber must be 1");
@@ -79,8 +79,7 @@ static wf_status stream_write(void *ctx, void *stream_ctx,
     }
     state->received += data_len;
     pthread_mutex_lock(&state->test->mutex);
-    if (data_len > state->test->max_chunk)
-        state->test->max_chunk = data_len;
+    if (data_len > state->test->max_chunk) state->test->max_chunk = data_len;
     pthread_mutex_unlock(&state->test->mutex);
     return WF_OK;
 }
@@ -95,9 +94,9 @@ static wf_status stream_finish(void *ctx, void *stream_ctx,
         return WF_OK;
     }
     char body[96];
-    int length = snprintf(body, sizeof(body),
-                          "{\"sizeBytes\":%zu,\"streamed\":true}",
-                          state->received);
+    int length =
+        snprintf(body, sizeof(body), "{\"sizeBytes\":%zu,\"streamed\":true}",
+                 state->received);
     wf_xrpc_response_set_body(response, body, (size_t)length);
     return WF_OK;
 }
@@ -129,12 +128,12 @@ static int send_interrupted_request(uint16_t port, size_t declared_size) {
         return 0;
     }
     char headers[512];
-    int length = snprintf(
-        headers, sizeof(headers),
-        "POST /xrpc/io.example.stream?partNumber=1 HTTP/1.1\r\n"
-        "Host: 127.0.0.1\r\nContent-Type: application/octet-stream\r\n"
-        "Content-Length: %zu\r\nConnection: close\r\n\r\nabc",
-        declared_size);
+    int length =
+        snprintf(headers, sizeof(headers),
+                 "POST /xrpc/io.example.stream?partNumber=1 HTTP/1.1\r\n"
+                 "Host: 127.0.0.1\r\nContent-Type: application/octet-stream\r\n"
+                 "Content-Length: %zu\r\nConnection: close\r\n\r\nabc",
+                 declared_size);
     ssize_t sent = send(fd, headers, (size_t)length, 0);
     shutdown(fd, SHUT_RDWR);
     close(fd);
@@ -154,8 +153,8 @@ int main(void) {
         .finish = stream_finish,
         .cleanup = stream_cleanup,
     };
-    if (wf_xrpc_server_register_streaming_procedure(
-            server, "io.example.stream", &handler, &test) != WF_OK)
+    if (wf_xrpc_server_register_streaming_procedure(server, "io.example.stream",
+                                                    &handler, &test) != WF_OK)
         return 1;
 
     char base[96];
@@ -174,8 +173,7 @@ int main(void) {
     int failed = 0;
     if (status != WF_OK || response.status != 200 || !response.body ||
         !strstr(response.body, "\"streamed\":true")) {
-        fprintf(stderr,
-                "stream request failed: status=%d http=%ld body=%s\n",
+        fprintf(stderr, "stream request failed: status=%d http=%ld body=%s\n",
                 (int)status, response.status,
                 response.body ? response.body : "(null)");
         failed = 1;
@@ -193,9 +191,9 @@ int main(void) {
     pthread_mutex_unlock(&test.mutex);
 
     test.expected_size++;
-    status = wf_xrpc_upload_blob_params(
-        client, "io.example.stream", params, 1, body, test.expected_size - 1,
-        "application/octet-stream", &response);
+    status = wf_xrpc_upload_blob_params(client, "io.example.stream", params, 1,
+                                        body, test.expected_size - 1,
+                                        "application/octet-stream", &response);
     if (status != WF_ERR_HTTP || response.status != 400 || !response.body ||
         !strstr(response.body, "PartSizeMismatch")) {
         fprintf(stderr, "length mismatch was accepted: %d/%ld %s\n",

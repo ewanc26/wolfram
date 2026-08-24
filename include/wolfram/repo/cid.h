@@ -42,8 +42,8 @@ wf_status wf_cid_of_bytes(const unsigned char *data, size_t data_len,
  * Protocol blobs. The hasher is single-use after a successful finish.
  */
 wf_cid_hasher *wf_cid_hasher_new(void);
-wf_status wf_cid_hasher_update(wf_cid_hasher *hasher,
-                               const unsigned char *data, size_t data_len);
+wf_status wf_cid_hasher_update(wf_cid_hasher *hasher, const unsigned char *data,
+                               size_t data_len);
 wf_status wf_cid_hasher_finish_raw(wf_cid_hasher *hasher, wf_cid *out);
 void wf_cid_hasher_free(wf_cid_hasher *hasher);
 

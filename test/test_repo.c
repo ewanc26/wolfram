@@ -479,12 +479,11 @@ int main(void) {
         WF_CHECK(hasher != NULL);
         WF_CHECK(wf_cid_hasher_update(hasher, data, 4) == WF_OK);
         WF_CHECK(wf_cid_hasher_update(hasher, NULL, 0) == WF_OK);
-        WF_CHECK(wf_cid_hasher_update(hasher, data + 4,
-                                      sizeof(data) - 1 - 4) == WF_OK);
+        WF_CHECK(wf_cid_hasher_update(hasher, data + 4, sizeof(data) - 1 - 4) ==
+                 WF_OK);
         WF_CHECK(wf_cid_hasher_finish_raw(hasher, &streamed) == WF_OK);
         WF_CHECK(check_cid(&expected, &streamed));
-        WF_CHECK(wf_cid_hasher_update(hasher, data, 1) ==
-                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_cid_hasher_update(hasher, data, 1) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_cid_hasher_finish_raw(hasher, &streamed) ==
                  WF_ERR_INVALID_ARG);
         wf_cid_hasher_free(hasher);
