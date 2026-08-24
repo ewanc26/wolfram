@@ -1434,6 +1434,7 @@ class Generator {
                 cJSON *input_schema =
                     input ? cJSON_GetObjectItemCaseSensitive(input, "schema")
                           : nullptr;
+                const bool has_binary_input = input && !input_schema;
                 auto input_type =
                     input_schema ? json_input_type(nsid, base, input_schema)
                                  : std::optional<std::string>();
@@ -1468,7 +1469,7 @@ class Generator {
                                       "_call_auth(wf_auth_client *client,");
                         out.push_back("    const " + *input_type +
                                       " *input, wf_response *out);");
-                    } else {
+                    } else if (!has_binary_input) {
                         out.push_back(
                             "wf_status " + base +
                             "_call(wf_xrpc_client *client, wf_response *out);");
@@ -1842,7 +1843,8 @@ class Generator {
                         "_json_free(char *json) { cJSON_free(json); }");
                     out.push_back("");
                 }
-                if (kind == "procedure" && !def_has_params(def)) {
+                if (kind == "procedure" && !def_has_params(def) &&
+                    (!input || schema)) {
                     if (input_type) {
                         out.push_back("wf_status " + base +
                                       "_call(wf_xrpc_client *client,");
