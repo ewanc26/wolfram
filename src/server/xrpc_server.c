@@ -15,6 +15,7 @@
 #include <microhttpd.h>
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -28,10 +29,34 @@
 
 /* Simple growable buffer used to accumulate POST request bodies. */
 typedef struct post_buf {
+    uint32_t magic;
     char *data;
     size_t len;
     size_t cap;
 } post_buf;
+
+#define WF_POST_BUF_MAGIC UINT32_C(0x57465042)
+#define WF_STREAM_CTX_MAGIC UINT32_C(0x57465343)
+
+/* Per-connection state for a streaming procedure. The route owns the callback
+ * table; this object owns only request-lifetime state and the response being
+ * assembled. It is also recognisable by the MHD completion callback so an
+ * interrupted upload can release its temporary file. */
+typedef struct wf_stream_request_ctx {
+    uint32_t magic;
+    wf_xrpc_server *server;
+    wf_route *route;
+    char *nsid;
+    char *path;
+    cJSON *params;
+    char *raw_query;
+    char *authed_subject;
+    void *stream_ctx;
+    wf_xrpc_response response;
+    bool began;
+    bool finished;
+    bool callback_failed;
+} wf_stream_request_ctx;
 
 static int post_buf_append(post_buf *b, const char *data, size_t len) {
     if (!b || (!data && len > 0)) return 0;
@@ -734,6 +759,56 @@ wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
     return WF_OK;
 }
 
+static void wf_xrpc_response_clear(wf_xrpc_response *response) {
+    if (!response) return;
+    free(response->body);
+    free(response->content_type);
+    while (response->headers) {
+        wf_xrpc_response_header *next = response->headers->next;
+        free(response->headers->name);
+        free(response->headers->value);
+        free(response->headers);
+        response->headers = next;
+    }
+    *response = (wf_xrpc_response)WF_XRPC_RESPONSE_INIT;
+}
+
+static void wf_stream_request_free(wf_stream_request_ctx *stream) {
+    if (!stream) return;
+    if (stream->stream_ctx && stream->route &&
+        stream->route->handler.streaming.cleanup) {
+        stream->route->handler.streaming.cleanup(
+            stream->route->ctx, stream->stream_ctx, stream->finished);
+    }
+    wf_xrpc_response_clear(&stream->response);
+    cJSON_Delete(stream->params);
+    free(stream->raw_query);
+    free(stream->authed_subject);
+    free(stream->nsid);
+    free(stream->path);
+    stream->magic = 0;
+    free(stream);
+}
+
+static void wf_server_mhd_completed(
+    void *cls, struct MHD_Connection *connection, void **con_cls,
+    enum MHD_RequestTerminationCode termination_code) {
+    (void)cls;
+    (void)connection;
+    (void)termination_code;
+    if (!con_cls || !*con_cls || *con_cls == (void *)1) return;
+
+    uint32_t magic = *(const uint32_t *)*con_cls;
+    if (magic == WF_POST_BUF_MAGIC) {
+        post_buf *buffer = *con_cls;
+        free(buffer->data);
+        free(buffer);
+    } else if (magic == WF_STREAM_CTX_MAGIC) {
+        wf_stream_request_free(*con_cls);
+    }
+    *con_cls = NULL;
+}
+
 /* ------------------------------------------------------------------ */
 /* URL parsing — extract NSID from /xrpc/<nsid>                       */
 /* ------------------------------------------------------------------ */
@@ -1018,6 +1093,172 @@ static void wf_server_client_ip(wf_xrpc_server *server,
     (void)snprintf(out, out_len, "unknown");
 }
 
+static void wf_server_content_length(struct MHD_Connection *conn,
+                                     wf_xrpc_request *request) {
+    const char *value =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Length");
+    if (!value || !value[0]) return;
+    char *end = NULL;
+    errno = 0;
+    unsigned long long parsed = strtoull(value, &end, 10);
+    if (errno != 0 || !end || *end != '\0') return;
+    request->has_content_length = true;
+    request->content_length = (uint64_t)parsed;
+}
+
+/* Apply the route/global token bucket to one request. A rejection is expressed
+ * through the normal response object so streaming and buffered requests emit
+ * exactly the same XRPC body and RateLimit headers. */
+static bool wf_server_rate_limit_request(wf_xrpc_server *server,
+                                         const char *method, const char *url,
+                                         const char *client_ip,
+                                         wf_xrpc_response *response) {
+    wf_rate_limiter *limiter =
+        wf_server_find_route_rate_limiter(server, method, url);
+    if (!limiter) limiter = server->rate_limiter;
+    if (!limiter) return true;
+
+    wf_rate_limit_status status = {0};
+    if (wf_rate_limiter_consume_status(limiter, client_ip, 1, &status) ==
+        WF_OK)
+        return true;
+
+    time_t now = time(NULL);
+    unsigned int retry_after = status.reset_at > (unsigned int)now
+                                   ? status.reset_at - (unsigned int)now
+                                   : 1;
+    char message[128];
+    snprintf(message, sizeof(message),
+             "Rate limit exceeded. Retry after %u seconds.", retry_after);
+    wf_xrpc_response_set_error(response, 429, "RateLimitExceeded", message);
+
+    char value[32];
+    snprintf(value, sizeof(value), "%u", retry_after);
+    (void)wf_xrpc_response_add_header(response, "Retry-After", value);
+    snprintf(value, sizeof(value), "%u", status.limit);
+    (void)wf_xrpc_response_add_header(response, "RateLimit-Limit", value);
+    snprintf(value, sizeof(value), "%u", status.reset_at);
+    (void)wf_xrpc_response_add_header(response, "RateLimit-Reset", value);
+    snprintf(value, sizeof(value), "%u", status.remaining);
+    (void)wf_xrpc_response_add_header(response, "RateLimit-Remaining", value);
+    snprintf(value, sizeof(value), "%u;w=%u", status.limit,
+             status.duration_seconds);
+    (void)wf_xrpc_response_add_header(response, "RateLimit-Policy", value);
+    return false;
+}
+
+static wf_stream_request_ctx *wf_stream_request_begin(
+    wf_xrpc_server *server, wf_route *route, struct MHD_Connection *conn,
+    const char *url, const char *nsid) {
+    wf_stream_request_ctx *stream = calloc(1, sizeof(*stream));
+    if (!stream) return NULL;
+    stream->magic = WF_STREAM_CTX_MAGIC;
+    stream->server = server;
+    stream->route = route;
+    stream->response = (wf_xrpc_response)WF_XRPC_RESPONSE_INIT;
+    stream->nsid = strdup(nsid);
+    stream->path = strdup(url);
+    stream->params = wf_server_get_query_params(conn);
+    stream->raw_query = wf_server_build_raw_query(conn);
+    if (!stream->nsid || !stream->path) {
+        wf_stream_request_free(stream);
+        return NULL;
+    }
+
+#if defined(WOLFRAM_WIIU)
+    char client_ip[INET_ADDRSTRLEN];
+#else
+    char client_ip[INET6_ADDRSTRLEN];
+#endif
+    wf_server_client_ip(server, conn, client_ip, sizeof(client_ip));
+    if (!wf_server_rate_limit_request(server, "POST", url, client_ip,
+                                      &stream->response))
+        return stream;
+
+    wf_xrpc_request request = {0};
+    request.nsid = stream->nsid;
+    request.path = stream->path;
+    request.method = "POST";
+    request.auth_header = MHD_lookup_connection_value(
+        conn, MHD_HEADER_KIND, "Authorization");
+    request.dpop_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
+    request.cookie_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
+    request.params = stream->params;
+    request.content_type = MHD_lookup_connection_value(
+        conn, MHD_HEADER_KIND, "Content-Type");
+    request.host_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+    request.raw_query = stream->raw_query;
+    request.atproto_proxy = MHD_lookup_connection_value(
+        conn, MHD_HEADER_KIND, "atproto-proxy");
+    request.client_ip = client_ip;
+    request.handler_ctx = route->ctx;
+    wf_server_content_length(conn, &request);
+
+    if (server->auth_cb) {
+        wf_status auth_status = server->auth_cb(&request, server->auth_ctx);
+        if (auth_status != WF_OK) {
+            free(request.authed_subject);
+            if (auth_status == WF_ERR_CONFLICT)
+                wf_xrpc_response_set_error(&stream->response, 400,
+                                           "RepoDeactivated",
+                                           "Repository is deactivated");
+            else
+                wf_xrpc_response_set_error(&stream->response, 401,
+                                           "AuthenticationRequired",
+                                           "Authentication required");
+            return stream;
+        }
+        stream->authed_subject = request.authed_subject;
+        request.authed_subject = stream->authed_subject;
+    }
+
+    wf_status status = route->handler.streaming.begin(
+        route->ctx, &request, &stream->stream_ctx, &stream->response);
+    stream->began = true;
+    if (status != WF_OK && !stream->response.body) {
+        wf_xrpc_response_set_error(&stream->response, 500,
+                                   "InternalServerError",
+                                   "Streaming handler failed to initialise");
+        stream->callback_failed = true;
+    } else if (!stream->stream_ctx && !stream->response.body) {
+        wf_xrpc_response_set_error(&stream->response, 500,
+                                   "InternalServerError",
+                                   "Streaming handler returned no state");
+        stream->callback_failed = true;
+    }
+    return stream;
+}
+
+static enum MHD_Result wf_stream_request_respond(
+    wf_stream_request_ctx *stream, struct MHD_Connection *conn) {
+    wf_xrpc_response *response = &stream->response;
+    if (!response->body) {
+        response->body = strdup("");
+        response->body_len = 0;
+    }
+    struct MHD_Response *mhd_response = MHD_create_response_from_buffer(
+        response->body_len, response->body, MHD_RESPMEM_MUST_FREE);
+    response->body = NULL;
+    if (!mhd_response) return MHD_NO;
+
+    MHD_add_response_header(
+        mhd_response, "Content-Type",
+        response->content_type ? response->content_type : "application/json");
+    for (wf_xrpc_response_header *header = response->headers; header;
+         header = header->next)
+        MHD_add_response_header(mhd_response, header->name, header->value);
+    wf_server_apply_cors(stream->server, conn, mhd_response);
+    wf_server_observe(stream->server, stream->nsid, stream->path, "POST",
+                      (unsigned int)response->http_status);
+    enum MHD_Result result =
+        MHD_queue_response(conn, response->http_status, mhd_response);
+    MHD_destroy_response(mhd_response);
+    return result;
+}
+
 static enum MHD_Result
 wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
                       const char *method, const char *version,
@@ -1050,10 +1291,25 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
     if (*con_cls == NULL) {
         /* For POST requests, allocate a buffer to accumulate body data */
         if (strcmp(method, "POST") == 0) {
+            char *initial_nsid = wf_server_extract_nsid(url);
+            wf_route *initial_route =
+                initial_nsid ? wf_server_find_route(
+                                   server, initial_nsid, WF_ROUTE_PROCEDURE)
+                             : NULL;
+            if (initial_route && initial_route->is_streaming) {
+                wf_stream_request_ctx *stream = wf_stream_request_begin(
+                    server, initial_route, conn, url, initial_nsid);
+                free(initial_nsid);
+                if (!stream) return MHD_NO;
+                *con_cls = stream;
+                return MHD_YES;
+            }
+            free(initial_nsid);
             post_buf *pb = (post_buf *)calloc(1, sizeof(post_buf));
             if (!pb) {
                 return MHD_NO;
             }
+            pb->magic = WF_POST_BUF_MAGIC;
             *con_cls = (void *)pb;
         } else {
             *con_cls = (void *)1;
@@ -1063,6 +1319,43 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
 
     /* For POST requests, accumulate body data and delay processing */
     if (strcmp(method, "POST") == 0) {
+        uint32_t connection_magic = *(const uint32_t *)*con_cls;
+        if (connection_magic == WF_STREAM_CTX_MAGIC) {
+            wf_stream_request_ctx *stream = *con_cls;
+            if (*upload_data_size > 0) {
+                if (!stream->response.body && stream->stream_ctx) {
+                    wf_status status = stream->route->handler.streaming.write(
+                        stream->route->ctx, stream->stream_ctx,
+                        (const unsigned char *)upload_data, *upload_data_size,
+                        &stream->response);
+                    if (status != WF_OK && !stream->response.body) {
+                        wf_xrpc_response_set_error(
+                            &stream->response, 500, "InternalServerError",
+                            "Streaming handler failed while writing");
+                        stream->callback_failed = true;
+                    }
+                }
+                *upload_data_size = 0;
+                return MHD_YES;
+            }
+
+            if (!stream->response.body && stream->stream_ctx) {
+                wf_status status = stream->route->handler.streaming.finish(
+                    stream->route->ctx, stream->stream_ctx,
+                    &stream->response);
+                stream->finished = true;
+                if (status != WF_OK && !stream->response.body) {
+                    wf_xrpc_response_set_error(
+                        &stream->response, 500, "InternalServerError",
+                        "Streaming handler failed while finishing");
+                    stream->callback_failed = true;
+                }
+            }
+            ret = wf_stream_request_respond(stream, conn);
+            *con_cls = NULL;
+            wf_stream_request_free(stream);
+            return ret;
+        }
         post_buf *pb = (post_buf *)*con_cls;
         if (*upload_data_size > 0) {
             if (!post_buf_append(pb, upload_data, *upload_data_size)) {
@@ -1190,6 +1483,7 @@ process:
                 freq.body = (const unsigned char *)raw_pb->data;
                 freq.body_len = raw_pb->len;
             }
+            wf_server_content_length(conn, &freq);
             server->fallback(server->fallback_ctx, &freq, &resp);
         } else {
             wf_xrpc_response_set_error(&resp, 501, "MethodNotImplemented",
@@ -1198,66 +1492,10 @@ process:
         goto send;
     }
 
-    /* Rate limiter — charge 1 token against client IP. A route-specific
-     * limiter set via wf_xrpc_server_set_route_rate_limiter replaces the
-     * global one for that exact method+url, matching its documented
-     * contract ("defaults to IP-based limiter if none set"); otherwise the
-     * server-wide limiter applies as before. */
-    wf_rate_limiter *active_rate_limiter =
-        wf_server_find_route_rate_limiter(server, method, url);
-    if (!active_rate_limiter) active_rate_limiter = server->rate_limiter;
-    if (active_rate_limiter) {
-        wf_rate_limit_status rl_status = {0};
-
-        if (wf_rate_limiter_consume_status(active_rate_limiter, client_ip_str,
-                                           1, &rl_status) != WF_OK) {
-            struct MHD_Response *mhd_rl;
-            char body[192];
-            char num[16];
-            int n;
-            /* seconds-until-available, for Retry-After: derived from
-             * reset_at rather than recomputed, so this always agrees with
-             * what the RateLimit-Reset header below claims. */
-            time_t now = time(NULL);
-            unsigned int retry_after =
-                rl_status.reset_at > (unsigned int)now
-                    ? rl_status.reset_at - (unsigned int)now
-                    : 1;
-
-            n = snprintf(body, sizeof(body),
-                         "{\"error\":\"RateLimitExceeded\","
-                         "\"message\":\"Rate limit exceeded. "
-                         "Retry after %u seconds.\"}",
-                         retry_after);
-            if (n < 0 || (size_t)n >= sizeof(body)) n = (int)sizeof(body) - 1;
-
-            mhd_rl = MHD_create_response_from_buffer((size_t)n, body,
-                                                     MHD_RESPMEM_MUST_COPY);
-            if (mhd_rl) {
-                MHD_add_response_header(mhd_rl, "Content-Type",
-                                        "application/json");
-                snprintf(num, sizeof(num), "%u", retry_after);
-                MHD_add_response_header(mhd_rl, "Retry-After", num);
-                /* RateLimit-*, matching the reference PDS's
-                 * rate-limiter-http.ts setStatusHeaders exactly. */
-                snprintf(num, sizeof(num), "%u", rl_status.limit);
-                MHD_add_response_header(mhd_rl, "RateLimit-Limit", num);
-                snprintf(num, sizeof(num), "%u", rl_status.reset_at);
-                MHD_add_response_header(mhd_rl, "RateLimit-Reset", num);
-                snprintf(num, sizeof(num), "%u", rl_status.remaining);
-                MHD_add_response_header(mhd_rl, "RateLimit-Remaining", num);
-                snprintf(num, sizeof(num), "%u;w=%u", rl_status.limit,
-                         rl_status.duration_seconds);
-                MHD_add_response_header(mhd_rl, "RateLimit-Policy", num);
-                wf_server_apply_cors(server, conn, mhd_rl);
-                MHD_queue_response(conn, 429, mhd_rl);
-                MHD_destroy_response(mhd_rl);
-            }
-            wf_server_observe(server, nsid, url, method, 429);
-            ret = MHD_YES;
-            goto cleanup;
-        }
-    }
+    /* Charge the same route/global bucket used by streaming procedures. */
+    if (!wf_server_rate_limit_request(server, method, url, client_ip_str,
+                                      &resp))
+        goto send;
 
     /* Auth callback */
     auth_header =
@@ -1281,6 +1519,7 @@ process:
         auth_req.host_header =
             MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
         auth_req.client_ip = client_ip_str;
+        wf_server_content_length(conn, &auth_req);
         wf_status auth_status = server->auth_cb(&auth_req, server->auth_ctx);
         if (auth_status != WF_OK) {
             if (auth_status == WF_ERR_CONFLICT)
@@ -1314,6 +1553,7 @@ process:
         req.body = (const unsigned char *)raw_pb->data;
         req.body_len = raw_pb->len;
     }
+    wf_server_content_length(conn, &req);
     req.content_type =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
     req.host_header =
@@ -1551,9 +1791,9 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
             MHD_ALLOW_UPGRADE,
         port, NULL, NULL,               /* Accept policy */
         &wf_server_mhd_handler, server, /* Main handler */
-        MHD_OPTION_NOTIFY_COMPLETED, NULL, NULL, MHD_OPTION_NOTIFY_CONNECTION,
-        &wf_ws_notify_connection, server, MHD_OPTION_EXTERNAL_LOGGER, NULL,
-        NULL,
+        MHD_OPTION_NOTIFY_COMPLETED, &wf_server_mhd_completed, server,
+        MHD_OPTION_NOTIFY_CONNECTION, &wf_ws_notify_connection, server,
+        MHD_OPTION_EXTERNAL_LOGGER, NULL, NULL,
         thread_count > 1 ? MHD_OPTION_THREAD_POOL_SIZE : (int)MHD_OPTION_END,
         thread_count, MHD_OPTION_END);
     if (!server->daemon) {
@@ -1883,6 +2123,31 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
     pthread_mutex_lock(&server->routes_mutex);
     r->next = server->routes;
     server->routes = r;
+    pthread_mutex_unlock(&server->routes_mutex);
+    return WF_OK;
+}
+
+wf_status wf_xrpc_server_register_streaming_procedure(
+    wf_xrpc_server *server, const char *nsid,
+    const wf_xrpc_streaming_procedure_handler *handler, void *ctx) {
+    if (!server || !nsid || !handler || !handler->begin || !handler->write ||
+        !handler->finish || !handler->cleanup)
+        return WF_ERR_INVALID_ARG;
+
+    wf_route *route = calloc(1, sizeof(*route));
+    if (!route) return WF_ERR_ALLOC;
+    route->nsid = strdup(nsid);
+    if (!route->nsid) {
+        free(route);
+        return WF_ERR_ALLOC;
+    }
+    route->kind = WF_ROUTE_PROCEDURE;
+    route->is_streaming = true;
+    route->handler.streaming = *handler;
+    route->ctx = ctx;
+    pthread_mutex_lock(&server->routes_mutex);
+    route->next = server->routes;
+    server->routes = route;
     pthread_mutex_unlock(&server->routes_mutex);
     return WF_OK;
 }
