@@ -22,6 +22,10 @@ typedef struct wf_lex_cid_link { const char *cid; } wf_lex_cid_link;
 typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t size; } wf_lex_blob;
 #define WF_LEX_ARRAY(type_) struct { type_ const *items; size_t count; }
 
+/** A declaration of an account's preferences for appearing in content discovery surfaces. */
+#define WF_LEX_APP_BSKY_ACTOR_CONTENT_VISIBILITY_DECLARATION_NSID "app.bsky.actor.contentVisibilityDeclaration"
+#define WF_LEX_APP_BSKY_ACTOR_CONTENT_VISIBILITY_DECLARATION_KIND "record"
+
 #define WF_LEX_APP_BSKY_ACTOR_DEFS_NSID "app.bsky.actor.defs"
 #define WF_LEX_APP_BSKY_ACTOR_DEFS_KIND "definition"
 
@@ -613,8 +617,16 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_APP_BSKY_UNSPECCED_SEARCH_STARTER_PACKS_SKELETON_NSID "app.bsky.unspecced.searchStarterPacksSkeleton"
 #define WF_LEX_APP_BSKY_UNSPECCED_SEARCH_STARTER_PACKS_SKELETON_KIND "query"
 
+/** Abort an upload only while it is created, releasing its quota reservation immediately. Terminal sessions are unchanged and return their terminal outcome. A finishing session returns UploadNotReady. */
+#define WF_LEX_APP_BSKY_VIDEO_ABORT_UPLOAD_NSID "app.bsky.video.abortUpload"
+#define WF_LEX_APP_BSKY_VIDEO_ABORT_UPLOAD_KIND "procedure"
+
 #define WF_LEX_APP_BSKY_VIDEO_DEFS_NSID "app.bsky.video.defs"
 #define WF_LEX_APP_BSKY_VIDEO_DEFS_KIND "definition"
+
+/** Finish an upload. This call is idempotent and safe to retry. On deduplication completedJobId may differ from the input jobId; poll getJobStatus with completedJobId. Probe-based validation failures surface later as JOB_STATE_FAILED from getJobStatus, not as errors from this call. */
+#define WF_LEX_APP_BSKY_VIDEO_FINISH_UPLOAD_NSID "app.bsky.video.finishUpload"
+#define WF_LEX_APP_BSKY_VIDEO_FINISH_UPLOAD_KIND "procedure"
 
 /** Get status details for a video processing job. */
 #define WF_LEX_APP_BSKY_VIDEO_GET_JOB_STATUS_NSID "app.bsky.video.getJobStatus"
@@ -623,6 +635,18 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 /** Get video upload limits for the authenticated user. */
 #define WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_LIMITS_NSID "app.bsky.video.getUploadLimits"
 #define WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_LIMITS_KIND "query"
+
+/** Get the authoritative status of the upload phase. Terminal states remain readable. completedJobId and jobStatus are present only for completed sessions; failureReason is present only for failed sessions. */
+#define WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_STATUS_NSID "app.bsky.video.getUploadStatus"
+#define WF_LEX_APP_BSKY_VIDEO_GET_UPLOAD_STATUS_KIND "query"
+
+/** Start a multipart video upload. The declared size is exact, while optional media properties are advisory and used only for early failure; the authoritative probe runs asynchronously after upload. */
+#define WF_LEX_APP_BSKY_VIDEO_START_UPLOAD_NSID "app.bsky.video.startUpload"
+#define WF_LEX_APP_BSKY_VIDEO_START_UPLOAD_KIND "procedure"
+
+/** Upload one part. Parts are idempotent and may be retried or re-sent while the session is created. Each expected length is derived from the upload size and part size, and Content-Length must match exactly. ETags are never exposed to clients. */
+#define WF_LEX_APP_BSKY_VIDEO_UPLOAD_PART_NSID "app.bsky.video.uploadPart"
+#define WF_LEX_APP_BSKY_VIDEO_UPLOAD_PART_KIND "procedure"
 
 /** Upload a video to be processed then stored on the PDS. */
 #define WF_LEX_APP_BSKY_VIDEO_UPLOAD_VIDEO_NSID "app.bsky.video.uploadVideo"
@@ -1548,6 +1572,7 @@ typedef struct wf_lex_blob { const char *cid; const char *mime_type; int64_t siz
 #define WF_LEX_TOOLS_OZONE_VERIFICATION_REVOKE_VERIFICATIONS_NSID "tools.ozone.verification.revokeVerifications"
 #define WF_LEX_TOOLS_OZONE_VERIFICATION_REVOKE_VERIFICATIONS_KIND "procedure"
 
+typedef struct wf_lex_app_bsky_actor_content_visibility_declaration_main wf_lex_app_bsky_actor_content_visibility_declaration_main;
 typedef struct wf_lex_app_bsky_actor_defs_adult_content_pref wf_lex_app_bsky_actor_defs_adult_content_pref;
 typedef struct wf_lex_app_bsky_actor_defs_bsky_app_progress_guide wf_lex_app_bsky_actor_defs_bsky_app_progress_guide;
 typedef struct wf_lex_app_bsky_actor_defs_bsky_app_state_pref wf_lex_app_bsky_actor_defs_bsky_app_state_pref;
@@ -1707,6 +1732,7 @@ typedef struct wf_lex_app_bsky_feed_defs_feed_view_post_reason_union wf_lex_app_
 typedef struct wf_lex_app_bsky_feed_defs_generator_view wf_lex_app_bsky_feed_defs_generator_view;
 typedef struct wf_lex_app_bsky_feed_defs_generator_viewer_state wf_lex_app_bsky_feed_defs_generator_viewer_state;
 typedef struct wf_lex_app_bsky_feed_defs_interaction wf_lex_app_bsky_feed_defs_interaction;
+typedef struct wf_lex_app_bsky_feed_defs_known_likers wf_lex_app_bsky_feed_defs_known_likers;
 typedef struct wf_lex_app_bsky_feed_defs_not_found_post wf_lex_app_bsky_feed_defs_not_found_post;
 typedef struct wf_lex_app_bsky_feed_defs_post_view wf_lex_app_bsky_feed_defs_post_view;
 typedef struct wf_lex_app_bsky_feed_defs_post_view_embed_union wf_lex_app_bsky_feed_defs_post_view_embed_union;
@@ -1961,10 +1987,20 @@ typedef struct wf_lex_app_bsky_unspecced_search_posts_skeleton_main_output wf_le
 typedef struct wf_lex_app_bsky_unspecced_search_posts_skeleton_main_params wf_lex_app_bsky_unspecced_search_posts_skeleton_main_params;
 typedef struct wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output;
 typedef struct wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params;
+typedef struct wf_lex_app_bsky_video_abort_upload_main_input wf_lex_app_bsky_video_abort_upload_main_input;
+typedef struct wf_lex_app_bsky_video_abort_upload_main_output wf_lex_app_bsky_video_abort_upload_main_output;
 typedef struct wf_lex_app_bsky_video_defs_job_status wf_lex_app_bsky_video_defs_job_status;
+typedef struct wf_lex_app_bsky_video_finish_upload_main_input wf_lex_app_bsky_video_finish_upload_main_input;
+typedef struct wf_lex_app_bsky_video_finish_upload_main_output wf_lex_app_bsky_video_finish_upload_main_output;
 typedef struct wf_lex_app_bsky_video_get_job_status_main_output wf_lex_app_bsky_video_get_job_status_main_output;
 typedef struct wf_lex_app_bsky_video_get_job_status_main_params wf_lex_app_bsky_video_get_job_status_main_params;
 typedef struct wf_lex_app_bsky_video_get_upload_limits_main_output wf_lex_app_bsky_video_get_upload_limits_main_output;
+typedef struct wf_lex_app_bsky_video_get_upload_status_main_output wf_lex_app_bsky_video_get_upload_status_main_output;
+typedef struct wf_lex_app_bsky_video_get_upload_status_main_params wf_lex_app_bsky_video_get_upload_status_main_params;
+typedef struct wf_lex_app_bsky_video_start_upload_main_input wf_lex_app_bsky_video_start_upload_main_input;
+typedef struct wf_lex_app_bsky_video_start_upload_main_output wf_lex_app_bsky_video_start_upload_main_output;
+typedef struct wf_lex_app_bsky_video_upload_part_main_output wf_lex_app_bsky_video_upload_part_main_output;
+typedef struct wf_lex_app_bsky_video_upload_part_main_params wf_lex_app_bsky_video_upload_part_main_params;
 typedef struct wf_lex_app_bsky_video_upload_video_main_output wf_lex_app_bsky_video_upload_video_main_output;
 typedef struct wf_lex_chat_bsky_actor_declaration_main wf_lex_chat_bsky_actor_declaration_main;
 typedef struct wf_lex_chat_bsky_actor_defs_direct_convo_member wf_lex_chat_bsky_actor_defs_direct_convo_member;
@@ -3912,6 +3948,11 @@ typedef struct wf_lex_tools_ozone_verification_defs_verification_view_subject_re
     } value;
 } wf_lex_tools_ozone_verification_defs_verification_view_subject_repo_union;
 
+typedef struct wf_lex_app_bsky_actor_content_visibility_declaration_main {
+    /** Whether the account requests that its posts be hidden from algorithmic recommendations. Consumers must treat a missing record as false. */
+    bool hide_from_algorithmic_recommendations;
+} wf_lex_app_bsky_actor_content_visibility_declaration_main;
+
 typedef struct wf_lex_app_bsky_actor_defs_profile_view_basic {
     const char * did;
     const char * handle;
@@ -5047,7 +5088,7 @@ typedef struct wf_lex_app_bsky_embed_record_with_media_view {
 } wf_lex_app_bsky_embed_record_with_media_view;
 
 typedef struct wf_lex_app_bsky_embed_video_main {
-    /** The mp4 video file. May be up to 100mb, formerly limited to 50mb. */
+    /** The mp4 video file. May be up to 300mb, formerly limited to 100mb. */
     wf_lex_blob video;
     bool has_captions;
     WF_LEX_ARRAY(const wf_lex_app_bsky_embed_video_caption *) captions;
@@ -5125,7 +5166,16 @@ typedef struct wf_lex_app_bsky_feed_defs_viewer_state {
     bool embedding_disabled;
     bool has_pinned;
     bool pinned;
+    /** This property is present only in selected cases, as an optimization. */
+    bool has_known_likers;
+    const wf_lex_app_bsky_feed_defs_known_likers * known_likers;
 } wf_lex_app_bsky_feed_defs_viewer_state;
+
+/** The post's likers whom you also follow */
+typedef struct wf_lex_app_bsky_feed_defs_known_likers {
+    int64_t count;
+    WF_LEX_ARRAY(const wf_lex_app_bsky_actor_defs_profile_view_basic *) actors;
+} wf_lex_app_bsky_feed_defs_known_likers;
 
 /** Metadata about this post within the context of the thread it is in. */
 typedef struct wf_lex_app_bsky_feed_defs_thread_context {
@@ -7220,6 +7270,20 @@ typedef struct wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_outp
     WF_LEX_ARRAY(const wf_lex_app_bsky_unspecced_defs_skeleton_search_starter_pack *) starter_packs;
 } wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output;
 
+typedef struct wf_lex_app_bsky_video_abort_upload_main_input {
+    const char * job_id;
+} wf_lex_app_bsky_video_abort_upload_main_input;
+
+typedef struct wf_lex_app_bsky_video_abort_upload_main_output {
+    const char * state;
+    /** Present only when state is completed. */
+    bool has_completed_job_id;
+    const char * completed_job_id;
+    /** Present only when state is failed. */
+    bool has_failure_reason;
+    const char * failure_reason;
+} wf_lex_app_bsky_video_abort_upload_main_output;
+
 typedef struct wf_lex_app_bsky_video_defs_job_status {
     const char * job_id;
     const char * did;
@@ -7238,6 +7302,16 @@ typedef struct wf_lex_app_bsky_video_defs_job_status {
     bool has_message;
     const char * message;
 } wf_lex_app_bsky_video_defs_job_status;
+
+typedef struct wf_lex_app_bsky_video_finish_upload_main_input {
+    const char * job_id;
+} wf_lex_app_bsky_video_finish_upload_main_input;
+
+typedef struct wf_lex_app_bsky_video_finish_upload_main_output {
+    /** The processing job to poll with getJobStatus; on deduplication this may differ from the input jobId. */
+    const char * completed_job_id;
+    const wf_lex_app_bsky_video_defs_job_status * job_status;
+} wf_lex_app_bsky_video_finish_upload_main_output;
 
 typedef struct wf_lex_app_bsky_video_get_job_status_main_params {
     const char * job_id;
@@ -7258,6 +7332,64 @@ typedef struct wf_lex_app_bsky_video_get_upload_limits_main_output {
     bool has_error;
     const char * error;
 } wf_lex_app_bsky_video_get_upload_limits_main_output;
+
+typedef struct wf_lex_app_bsky_video_get_upload_status_main_params {
+    const char * job_id;
+} wf_lex_app_bsky_video_get_upload_status_main_params;
+
+typedef struct wf_lex_app_bsky_video_get_upload_status_main_output {
+    const char * job_id;
+    int64_t part_size_bytes;
+    int64_t part_count;
+    WF_LEX_ARRAY(int64_t) received_parts;
+    const char * expires_at;
+    const char * state;
+    /** Present only when state is completed; may differ from jobId on deduplication. */
+    bool has_completed_job_id;
+    const char * completed_job_id;
+    /** Present only when state is completed. */
+    bool has_job_status;
+    const wf_lex_app_bsky_video_defs_job_status * job_status;
+    /** Present only when state is failed. */
+    bool has_failure_reason;
+    const char * failure_reason;
+} wf_lex_app_bsky_video_get_upload_status_main_output;
+
+typedef struct wf_lex_app_bsky_video_start_upload_main_input {
+    /** Exact byte size of the complete upload-ready video file before it is split into parts. */
+    int64_t size_bytes;
+    /** Declared MIME type of the video. */
+    const char * mime_type;
+    /** Optional client-provided file name. */
+    bool has_name;
+    const char * name;
+    /** Advisory, non-authoritative duration used only for early failure; the authoritative probe runs asynchronously after upload. */
+    bool has_duration_ms;
+    int64_t duration_ms;
+    /** Advisory, non-authoritative width used only for early failure; the authoritative probe runs asynchronously after upload. */
+    bool has_width;
+    int64_t width;
+    /** Advisory, non-authoritative height used only for early failure; the authoritative probe runs asynchronously after upload. */
+    bool has_height;
+    int64_t height;
+} wf_lex_app_bsky_video_start_upload_main_input;
+
+typedef struct wf_lex_app_bsky_video_start_upload_main_output {
+    const char * job_id;
+    int64_t part_size_bytes;
+    int64_t part_count;
+    const char * expires_at;
+} wf_lex_app_bsky_video_start_upload_main_output;
+
+typedef struct wf_lex_app_bsky_video_upload_part_main_params {
+    const char * job_id;
+    int64_t part_number;
+} wf_lex_app_bsky_video_upload_part_main_params;
+
+typedef struct wf_lex_app_bsky_video_upload_part_main_output {
+    int64_t part_number;
+    int64_t size_bytes;
+} wf_lex_app_bsky_video_upload_part_main_output;
 
 typedef struct wf_lex_app_bsky_video_upload_video_main_output {
     const wf_lex_app_bsky_video_defs_job_status * job_status;
@@ -13471,6 +13603,32 @@ wf_status wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_call(wf_x
 wf_status wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_call_auth(wf_auth_client *client,
     const wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params *params, wf_response *out);
 
+wf_status wf_lex_app_bsky_video_abort_upload_main_input_encode_json(
+    const wf_lex_app_bsky_video_abort_upload_main_input *value, char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_app_bsky_video_abort_upload_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_video_abort_upload_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_abort_upload_main_output **out_value);
+void wf_lex_app_bsky_video_abort_upload_main_output_free(wf_lex_app_bsky_video_abort_upload_main_output *value);
+wf_status wf_lex_app_bsky_video_abort_upload_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_abort_upload_main_input *input, wf_response *out);
+wf_status wf_lex_app_bsky_video_abort_upload_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_abort_upload_main_input *input, wf_response *out);
+
+wf_status wf_lex_app_bsky_video_finish_upload_main_input_encode_json(
+    const wf_lex_app_bsky_video_finish_upload_main_input *value, char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_app_bsky_video_finish_upload_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_video_finish_upload_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_finish_upload_main_output **out_value);
+void wf_lex_app_bsky_video_finish_upload_main_output_free(wf_lex_app_bsky_video_finish_upload_main_output *value);
+wf_status wf_lex_app_bsky_video_finish_upload_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_finish_upload_main_input *input, wf_response *out);
+wf_status wf_lex_app_bsky_video_finish_upload_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_finish_upload_main_input *input, wf_response *out);
+
 /** Decode an owning output value; free it with the matching function. */
 wf_status wf_lex_app_bsky_video_get_job_status_main_output_decode_json(
     const char *json, size_t length, wf_lex_app_bsky_video_get_job_status_main_output **out_value);
@@ -13490,11 +13648,36 @@ wf_status wf_lex_app_bsky_video_get_upload_limits_main_call_auth(wf_auth_client 
     wf_response *out);
 
 /** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_video_get_upload_status_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_get_upload_status_main_output **out_value);
+void wf_lex_app_bsky_video_get_upload_status_main_output_free(wf_lex_app_bsky_video_get_upload_status_main_output *value);
+wf_status wf_lex_app_bsky_video_get_upload_status_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_get_upload_status_main_params *params, wf_response *out);
+wf_status wf_lex_app_bsky_video_get_upload_status_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_get_upload_status_main_params *params, wf_response *out);
+
+wf_status wf_lex_app_bsky_video_start_upload_main_input_encode_json(
+    const wf_lex_app_bsky_video_start_upload_main_input *value, char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_app_bsky_video_start_upload_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_video_start_upload_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_start_upload_main_output **out_value);
+void wf_lex_app_bsky_video_start_upload_main_output_free(wf_lex_app_bsky_video_start_upload_main_output *value);
+wf_status wf_lex_app_bsky_video_start_upload_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_start_upload_main_input *input, wf_response *out);
+wf_status wf_lex_app_bsky_video_start_upload_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_start_upload_main_input *input, wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_app_bsky_video_upload_part_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_upload_part_main_output **out_value);
+void wf_lex_app_bsky_video_upload_part_main_output_free(wf_lex_app_bsky_video_upload_part_main_output *value);
+
+/** Decode an owning output value; free it with the matching function. */
 wf_status wf_lex_app_bsky_video_upload_video_main_output_decode_json(
     const char *json, size_t length, wf_lex_app_bsky_video_upload_video_main_output **out_value);
 void wf_lex_app_bsky_video_upload_video_main_output_free(wf_lex_app_bsky_video_upload_video_main_output *value);
-wf_status wf_lex_app_bsky_video_upload_video_main_call(wf_xrpc_client *client, wf_response *out);
-wf_status wf_lex_app_bsky_video_upload_video_main_call_auth(wf_auth_client *client, wf_response *out);
 
 /** Decode an owning output value; free it with the matching function. */
 wf_status wf_lex_chat_bsky_actor_delete_account_main_output_decode_json(
@@ -14353,8 +14536,6 @@ wf_status wf_lex_com_atproto_repo_get_record_main_call(wf_xrpc_client *client,
 wf_status wf_lex_com_atproto_repo_get_record_main_call_auth(wf_auth_client *client,
     const wf_lex_com_atproto_repo_get_record_main_params *params, wf_response *out);
 
-wf_status wf_lex_com_atproto_repo_import_repo_main_call(wf_xrpc_client *client, wf_response *out);
-wf_status wf_lex_com_atproto_repo_import_repo_main_call_auth(wf_auth_client *client, wf_response *out);
 
 /** Decode an owning output value; free it with the matching function. */
 wf_status wf_lex_com_atproto_repo_list_missing_blobs_main_output_decode_json(
@@ -14391,8 +14572,6 @@ wf_status wf_lex_com_atproto_repo_put_record_main_call_auth(wf_auth_client *clie
 wf_status wf_lex_com_atproto_repo_upload_blob_main_output_decode_json(
     const char *json, size_t length, wf_lex_com_atproto_repo_upload_blob_main_output **out_value);
 void wf_lex_com_atproto_repo_upload_blob_main_output_free(wf_lex_com_atproto_repo_upload_blob_main_output *value);
-wf_status wf_lex_com_atproto_repo_upload_blob_main_call(wf_xrpc_client *client, wf_response *out);
-wf_status wf_lex_com_atproto_repo_upload_blob_main_call_auth(wf_auth_client *client, wf_response *out);
 
 wf_status wf_lex_com_atproto_server_activate_account_main_call(wf_xrpc_client *client, wf_response *out);
 wf_status wf_lex_com_atproto_server_activate_account_main_call_auth(wf_auth_client *client, wf_response *out);

@@ -169,6 +169,9 @@ static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_notification_update
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_richtext_facet_main(const wf_lex_app_bsky_richtext_facet_main *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_richtext_facet_byte_slice(const wf_lex_app_bsky_richtext_facet_byte_slice *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_unspecced_init_age_assurance_main_input(const wf_lex_app_bsky_unspecced_init_age_assurance_main_input *value, cJSON **out);
+static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_video_abort_upload_main_input(const wf_lex_app_bsky_video_abort_upload_main_input *value, cJSON **out);
+static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_video_finish_upload_main_input(const wf_lex_app_bsky_video_finish_upload_main_input *value, cJSON **out);
+static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_app_bsky_video_start_upload_main_input(const wf_lex_app_bsky_video_start_upload_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_chat_bsky_convo_accept_convo_main_input(const wf_lex_chat_bsky_convo_accept_convo_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_chat_bsky_convo_add_reaction_main_input(const wf_lex_chat_bsky_convo_add_reaction_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_chat_bsky_convo_defs_message_input(const wf_lex_chat_bsky_convo_defs_message_input *value, cJSON **out);
@@ -280,6 +283,8 @@ static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_team_update_memb
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_verification_grant_verifications_main_input(const wf_lex_tools_ozone_verification_grant_verifications_main_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_verification_grant_verifications_verification_input(const wf_lex_tools_ozone_verification_grant_verifications_verification_input *value, cJSON **out);
 static WF_LEX_UNUSED wf_status wf_lex_encode_wf_lex_tools_ozone_verification_revoke_verifications_main_input(const wf_lex_tools_ozone_verification_revoke_verifications_main_input *value, cJSON **out);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_actor_content_visibility_declaration_main(wf_lex_app_bsky_actor_content_visibility_declaration_main *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_actor_content_visibility_declaration_main(cJSON *node, wf_lex_app_bsky_actor_content_visibility_declaration_main *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_actor_defs_adult_content_pref(wf_lex_app_bsky_actor_defs_adult_content_pref *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_actor_defs_adult_content_pref(cJSON *node, wf_lex_app_bsky_actor_defs_adult_content_pref *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_actor_defs_bsky_app_progress_guide(wf_lex_app_bsky_actor_defs_bsky_app_progress_guide *value);
@@ -558,6 +563,8 @@ static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_feed_defs_generator_viewe
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_feed_defs_generator_viewer_state(cJSON *node, wf_lex_app_bsky_feed_defs_generator_viewer_state *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_feed_defs_interaction(wf_lex_app_bsky_feed_defs_interaction *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_feed_defs_interaction(cJSON *node, wf_lex_app_bsky_feed_defs_interaction *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_feed_defs_known_likers(wf_lex_app_bsky_feed_defs_known_likers *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_feed_defs_known_likers(cJSON *node, wf_lex_app_bsky_feed_defs_known_likers *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_feed_defs_not_found_post(wf_lex_app_bsky_feed_defs_not_found_post *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_feed_defs_not_found_post(cJSON *node, wf_lex_app_bsky_feed_defs_not_found_post *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_feed_defs_post_view(wf_lex_app_bsky_feed_defs_post_view *value);
@@ -1028,14 +1035,34 @@ static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_unspecced_search_starter_
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output(cJSON *node, wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params(wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params(cJSON *node, wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_params *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_input(wf_lex_app_bsky_video_abort_upload_main_input *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_abort_upload_main_input(cJSON *node, wf_lex_app_bsky_video_abort_upload_main_input *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_output(wf_lex_app_bsky_video_abort_upload_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_abort_upload_main_output(cJSON *node, wf_lex_app_bsky_video_abort_upload_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_defs_job_status(wf_lex_app_bsky_video_defs_job_status *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_defs_job_status(cJSON *node, wf_lex_app_bsky_video_defs_job_status *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_input(wf_lex_app_bsky_video_finish_upload_main_input *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_finish_upload_main_input(cJSON *node, wf_lex_app_bsky_video_finish_upload_main_input *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_output(wf_lex_app_bsky_video_finish_upload_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_finish_upload_main_output(cJSON *node, wf_lex_app_bsky_video_finish_upload_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_get_job_status_main_output(wf_lex_app_bsky_video_get_job_status_main_output *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_get_job_status_main_output(cJSON *node, wf_lex_app_bsky_video_get_job_status_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_get_job_status_main_params(wf_lex_app_bsky_video_get_job_status_main_params *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_get_job_status_main_params(cJSON *node, wf_lex_app_bsky_video_get_job_status_main_params *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_get_upload_limits_main_output(wf_lex_app_bsky_video_get_upload_limits_main_output *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_get_upload_limits_main_output(cJSON *node, wf_lex_app_bsky_video_get_upload_limits_main_output *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_output(wf_lex_app_bsky_video_get_upload_status_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_get_upload_status_main_output(cJSON *node, wf_lex_app_bsky_video_get_upload_status_main_output *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_params(wf_lex_app_bsky_video_get_upload_status_main_params *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_get_upload_status_main_params(cJSON *node, wf_lex_app_bsky_video_get_upload_status_main_params *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_input(wf_lex_app_bsky_video_start_upload_main_input *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_start_upload_main_input(cJSON *node, wf_lex_app_bsky_video_start_upload_main_input *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_output(wf_lex_app_bsky_video_start_upload_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_start_upload_main_output(cJSON *node, wf_lex_app_bsky_video_start_upload_main_output *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_output(wf_lex_app_bsky_video_upload_part_main_output *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_upload_part_main_output(cJSON *node, wf_lex_app_bsky_video_upload_part_main_output *value);
+static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_params(wf_lex_app_bsky_video_upload_part_main_params *value);
+static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_upload_part_main_params(cJSON *node, wf_lex_app_bsky_video_upload_part_main_params *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_app_bsky_video_upload_video_main_output(wf_lex_app_bsky_video_upload_video_main_output *value);
 static WF_LEX_UNUSED wf_status wf_lex_decode_wf_lex_app_bsky_video_upload_video_main_output(cJSON *node, wf_lex_app_bsky_video_upload_video_main_output *value);
 static WF_LEX_UNUSED void wf_lex_clear_wf_lex_chat_bsky_actor_declaration_main(wf_lex_chat_bsky_actor_declaration_main *value);
@@ -3843,6 +3870,106 @@ static wf_status wf_lex_encode_wf_lex_app_bsky_unspecced_init_age_assurance_main
     if (!item) goto fail;
     if (!item || !cJSON_AddItemToObject(root, "countryCode", item)) { cJSON_Delete(item); item = NULL; goto fail; }
     item = NULL;
+    *out = root; return WF_OK;
+invalid:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;
+fail:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;
+}
+
+static wf_status wf_lex_encode_wf_lex_app_bsky_video_abort_upload_main_input(const wf_lex_app_bsky_video_abort_upload_main_input *value, cJSON **out) {
+    if (!value || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    cJSON *root = cJSON_CreateObject();
+    cJSON *item = NULL;
+    (void)item;
+    if (!root) return WF_ERR_ALLOC;
+    item = NULL;
+    if (!value->job_id) goto invalid;
+    item = cJSON_CreateString(value->job_id);
+    if (!item) goto fail;
+    if (!item || !cJSON_AddItemToObject(root, "jobId", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+    item = NULL;
+    *out = root; return WF_OK;
+invalid:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;
+fail:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;
+}
+
+static wf_status wf_lex_encode_wf_lex_app_bsky_video_finish_upload_main_input(const wf_lex_app_bsky_video_finish_upload_main_input *value, cJSON **out) {
+    if (!value || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    cJSON *root = cJSON_CreateObject();
+    cJSON *item = NULL;
+    (void)item;
+    if (!root) return WF_ERR_ALLOC;
+    item = NULL;
+    if (!value->job_id) goto invalid;
+    item = cJSON_CreateString(value->job_id);
+    if (!item) goto fail;
+    if (!item || !cJSON_AddItemToObject(root, "jobId", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+    item = NULL;
+    *out = root; return WF_OK;
+invalid:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;
+fail:
+    cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;
+}
+
+static wf_status wf_lex_encode_wf_lex_app_bsky_video_start_upload_main_input(const wf_lex_app_bsky_video_start_upload_main_input *value, cJSON **out) {
+    if (!value || !out) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    cJSON *root = cJSON_CreateObject();
+    cJSON *item = NULL;
+    (void)item;
+    if (!root) return WF_ERR_ALLOC;
+    item = NULL;
+    item = cJSON_CreateNumber((double)value->size_bytes);
+    if (!item) goto fail;
+    if (!item || !cJSON_AddItemToObject(root, "sizeBytes", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+    item = NULL;
+    item = NULL;
+    if (!value->mime_type) goto invalid;
+    item = cJSON_CreateString(value->mime_type);
+    if (!item) goto fail;
+    if (!item || !cJSON_AddItemToObject(root, "mimeType", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+    item = NULL;
+    if (value->has_name) {
+        item = NULL;
+        if (!value->name) goto invalid;
+        item = cJSON_CreateString(value->name);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "name", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    if (value->has_duration_ms) {
+        item = NULL;
+        item = cJSON_CreateNumber((double)value->duration_ms);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "durationMs", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    if (value->has_width) {
+        item = NULL;
+        item = cJSON_CreateNumber((double)value->width);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "width", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
+    if (value->has_height) {
+        item = NULL;
+        item = cJSON_CreateNumber((double)value->height);
+        if (!item) goto fail;
+        if (!item || !cJSON_AddItemToObject(root, "height", item)) { cJSON_Delete(item); item = NULL; goto fail; }
+        item = NULL;
+    }
     *out = root; return WF_OK;
 invalid:
     cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;
@@ -7930,6 +8057,27 @@ invalid:
     cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_INVALID_ARG;
 fail:
     cJSON_Delete(item); cJSON_Delete(root); return WF_ERR_ALLOC;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_actor_content_visibility_declaration_main(wf_lex_app_bsky_actor_content_visibility_declaration_main *value) {
+    if (!value) return;
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_actor_content_visibility_declaration_main(cJSON *node, wf_lex_app_bsky_actor_content_visibility_declaration_main *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "hideFromAlgorithmicRecommendations");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->hide_from_algorithmic_recommendations = cJSON_IsTrue(member);
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_actor_content_visibility_declaration_main(value);
+    return status;
 }
 
 static void wf_lex_clear_wf_lex_app_bsky_actor_defs_adult_content_pref(wf_lex_app_bsky_actor_defs_adult_content_pref *value) {
@@ -14378,6 +14526,48 @@ cleanup:
     return status;
 }
 
+static void wf_lex_clear_wf_lex_app_bsky_feed_defs_known_likers(wf_lex_app_bsky_feed_defs_known_likers *value) {
+    if (!value) return;
+    for (size_t i = 0; i < value->actors.count; ++i) {
+        if (value->actors.items[i]) { wf_lex_clear_wf_lex_app_bsky_actor_defs_profile_view_basic((wf_lex_app_bsky_actor_defs_profile_view_basic *)value->actors.items[i]); free((void *)value->actors.items[i]); }
+    }
+    free((void *)value->actors.items);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_feed_defs_known_likers(cJSON *node, wf_lex_app_bsky_feed_defs_known_likers *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "count");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->count)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "actors");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->actors.count = (size_t)cJSON_GetArraySize(member);
+        if (value->actors.count) {
+            const wf_lex_app_bsky_actor_defs_profile_view_basic * *items = calloc(value->actors.count, sizeof(*items));
+            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+            value->actors.items = items;
+            for (size_t i = 0; i < value->actors.count; ++i) {
+                cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                items[i] = calloc(1, sizeof(*items[i]));
+                if (!items[i]) { status = WF_ERR_ALLOC; goto cleanup; }
+                status = wf_lex_decode_wf_lex_app_bsky_actor_defs_profile_view_basic(element, (wf_lex_app_bsky_actor_defs_profile_view_basic *)items[i]);
+                if (status != WF_OK) goto cleanup;
+            }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_feed_defs_known_likers(value);
+    return status;
+}
+
 static void wf_lex_clear_wf_lex_app_bsky_feed_defs_not_found_post(wf_lex_app_bsky_feed_defs_not_found_post *value) {
     if (!value) return;
     free((void *)value->uri);
@@ -14905,6 +15095,7 @@ static void wf_lex_clear_wf_lex_app_bsky_feed_defs_viewer_state(wf_lex_app_bsky_
     if (!value) return;
     free((void *)value->repost);
     free((void *)value->like);
+    if (value->known_likers) { wf_lex_clear_wf_lex_app_bsky_feed_defs_known_likers((wf_lex_app_bsky_feed_defs_known_likers *)value->known_likers); free((void *)value->known_likers); }
     memset(value, 0, sizeof(*value));
 }
 
@@ -14968,6 +15159,16 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_feed_defs_viewer_state(cJSON *nod
             value->has_pinned = true;
             if (!cJSON_IsBool(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
             value->pinned = cJSON_IsTrue(member);
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "knownLikers");
+        if (member) {
+            value->has_known_likers = true;
+            value->known_likers = calloc(1, sizeof(*value->known_likers));
+            if (!value->known_likers) { status = WF_ERR_ALLOC; goto cleanup; }
+            status = wf_lex_decode_wf_lex_app_bsky_feed_defs_known_likers(member, (wf_lex_app_bsky_feed_defs_known_likers *)value->known_likers);
+            if (status != WF_OK) goto cleanup;
         }
     }
     return WF_OK;
@@ -25784,6 +25985,72 @@ cleanup:
     return status;
 }
 
+static void wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_input(wf_lex_app_bsky_video_abort_upload_main_input *value) {
+    if (!value) return;
+    free((void *)value->job_id);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_abort_upload_main_input(cJSON *node, wf_lex_app_bsky_video_abort_upload_main_input *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_id = wf_lex_strdup(member->valuestring);
+        if (!value->job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_input(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_output(wf_lex_app_bsky_video_abort_upload_main_output *value) {
+    if (!value) return;
+    free((void *)value->state);
+    free((void *)value->completed_job_id);
+    free((void *)value->failure_reason);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_abort_upload_main_output(cJSON *node, wf_lex_app_bsky_video_abort_upload_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "state");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->state = wf_lex_strdup(member->valuestring);
+        if (!value->state) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "completedJobId");
+        if (member) {
+            value->has_completed_job_id = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->completed_job_id = wf_lex_strdup(member->valuestring);
+            if (!value->completed_job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "failureReason");
+        if (member) {
+            value->has_failure_reason = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->failure_reason = wf_lex_strdup(member->valuestring);
+            if (!value->failure_reason) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_output(value);
+    return status;
+}
+
 static void wf_lex_clear_wf_lex_app_bsky_video_defs_job_status(wf_lex_app_bsky_video_defs_job_status *value) {
     if (!value) return;
     free((void *)value->job_id);
@@ -25867,6 +26134,61 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_video_defs_job_status(cJSON *node
     return WF_OK;
 cleanup:
     wf_lex_clear_wf_lex_app_bsky_video_defs_job_status(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_input(wf_lex_app_bsky_video_finish_upload_main_input *value) {
+    if (!value) return;
+    free((void *)value->job_id);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_finish_upload_main_input(cJSON *node, wf_lex_app_bsky_video_finish_upload_main_input *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_id = wf_lex_strdup(member->valuestring);
+        if (!value->job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_input(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_output(wf_lex_app_bsky_video_finish_upload_main_output *value) {
+    if (!value) return;
+    free((void *)value->completed_job_id);
+    if (value->job_status) { wf_lex_clear_wf_lex_app_bsky_video_defs_job_status((wf_lex_app_bsky_video_defs_job_status *)value->job_status); free((void *)value->job_status); }
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_finish_upload_main_output(cJSON *node, wf_lex_app_bsky_video_finish_upload_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "completedJobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->completed_job_id = wf_lex_strdup(member->valuestring);
+        if (!value->completed_job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobStatus");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_status = calloc(1, sizeof(*value->job_status));
+        if (!value->job_status) { status = WF_ERR_ALLOC; goto cleanup; }
+        status = wf_lex_decode_wf_lex_app_bsky_video_defs_job_status(member, (wf_lex_app_bsky_video_defs_job_status *)value->job_status);
+        if (status != WF_OK) goto cleanup;
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_output(value);
     return status;
 }
 
@@ -25969,6 +26291,280 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_video_get_upload_limits_main_outp
     return WF_OK;
 cleanup:
     wf_lex_clear_wf_lex_app_bsky_video_get_upload_limits_main_output(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_output(wf_lex_app_bsky_video_get_upload_status_main_output *value) {
+    if (!value) return;
+    free((void *)value->job_id);
+    for (size_t i = 0; i < value->received_parts.count; ++i) {
+    }
+    free((void *)value->received_parts.items);
+    free((void *)value->expires_at);
+    free((void *)value->state);
+    free((void *)value->completed_job_id);
+    if (value->job_status) { wf_lex_clear_wf_lex_app_bsky_video_defs_job_status((wf_lex_app_bsky_video_defs_job_status *)value->job_status); free((void *)value->job_status); }
+    free((void *)value->failure_reason);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_get_upload_status_main_output(cJSON *node, wf_lex_app_bsky_video_get_upload_status_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_id = wf_lex_strdup(member->valuestring);
+        if (!value->job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "partSizeBytes");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->part_size_bytes)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "partCount");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->part_count)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "receivedParts");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsArray(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->received_parts.count = (size_t)cJSON_GetArraySize(member);
+        if (value->received_parts.count) {
+            int64_t *items = calloc(value->received_parts.count, sizeof(*items));
+            if (!items) { status = WF_ERR_ALLOC; goto cleanup; }
+            value->received_parts.items = items;
+            for (size_t i = 0; i < value->received_parts.count; ++i) {
+                cJSON *element = cJSON_GetArrayItem(member, (int)i);
+                if (!wf_lex_json_integer(element, &items[i])) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "expiresAt");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->expires_at = wf_lex_strdup(member->valuestring);
+        if (!value->expires_at) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "state");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->state = wf_lex_strdup(member->valuestring);
+        if (!value->state) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "completedJobId");
+        if (member) {
+            value->has_completed_job_id = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->completed_job_id = wf_lex_strdup(member->valuestring);
+            if (!value->completed_job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobStatus");
+        if (member) {
+            value->has_job_status = true;
+            value->job_status = calloc(1, sizeof(*value->job_status));
+            if (!value->job_status) { status = WF_ERR_ALLOC; goto cleanup; }
+            status = wf_lex_decode_wf_lex_app_bsky_video_defs_job_status(member, (wf_lex_app_bsky_video_defs_job_status *)value->job_status);
+            if (status != WF_OK) goto cleanup;
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "failureReason");
+        if (member) {
+            value->has_failure_reason = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->failure_reason = wf_lex_strdup(member->valuestring);
+            if (!value->failure_reason) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_output(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_params(wf_lex_app_bsky_video_get_upload_status_main_params *value) {
+    if (!value) return;
+    free((void *)value->job_id);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_get_upload_status_main_params(cJSON *node, wf_lex_app_bsky_video_get_upload_status_main_params *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_id = wf_lex_strdup(member->valuestring);
+        if (!value->job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_params(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_input(wf_lex_app_bsky_video_start_upload_main_input *value) {
+    if (!value) return;
+    free((void *)value->mime_type);
+    free((void *)value->name);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_start_upload_main_input(cJSON *node, wf_lex_app_bsky_video_start_upload_main_input *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "sizeBytes");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->size_bytes)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "mimeType");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->mime_type = wf_lex_strdup(member->valuestring);
+        if (!value->mime_type) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "name");
+        if (member) {
+            value->has_name = true;
+            if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+            value->name = wf_lex_strdup(member->valuestring);
+            if (!value->name) { status = WF_ERR_ALLOC; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "durationMs");
+        if (member) {
+            value->has_duration_ms = true;
+            if (!wf_lex_json_integer(member, &value->duration_ms)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "width");
+        if (member) {
+            value->has_width = true;
+            if (!wf_lex_json_integer(member, &value->width)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "height");
+        if (member) {
+            value->has_height = true;
+            if (!wf_lex_json_integer(member, &value->height)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_input(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_output(wf_lex_app_bsky_video_start_upload_main_output *value) {
+    if (!value) return;
+    free((void *)value->job_id);
+    free((void *)value->expires_at);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_start_upload_main_output(cJSON *node, wf_lex_app_bsky_video_start_upload_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_id = wf_lex_strdup(member->valuestring);
+        if (!value->job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "partSizeBytes");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->part_size_bytes)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "partCount");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->part_count)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "expiresAt");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->expires_at = wf_lex_strdup(member->valuestring);
+        if (!value->expires_at) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_output(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_output(wf_lex_app_bsky_video_upload_part_main_output *value) {
+    if (!value) return;
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_upload_part_main_output(cJSON *node, wf_lex_app_bsky_video_upload_part_main_output *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "partNumber");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->part_number)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "sizeBytes");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->size_bytes)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_output(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_params(wf_lex_app_bsky_video_upload_part_main_params *value) {
+    if (!value) return;
+    free((void *)value->job_id);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_video_upload_part_main_params(cJSON *node, wf_lex_app_bsky_video_upload_part_main_params *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "jobId");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!cJSON_IsString(member)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        value->job_id = wf_lex_strdup(member->valuestring);
+        if (!value->job_id) { status = WF_ERR_ALLOC; goto cleanup; }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "partNumber");
+        if (!member) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+        if (!wf_lex_json_integer(member, &value->part_number)) { status = WF_ERR_INVALID_ARG; goto cleanup; }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_params(value);
     return status;
 }
 
@@ -69658,6 +70254,114 @@ wf_status wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_call_auth
     free(encoded); free(number_values); return status;
 }
 
+wf_status wf_lex_app_bsky_video_abort_upload_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_abort_upload_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_video_abort_upload_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_app_bsky_video_abort_upload_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_app_bsky_video_abort_upload_main_output_free(wf_lex_app_bsky_video_abort_upload_main_output *value) {
+    wf_lex_clear_wf_lex_app_bsky_video_abort_upload_main_output(value); free(value);
+}
+
+wf_status wf_lex_app_bsky_video_abort_upload_main_input_encode_json(
+    const wf_lex_app_bsky_video_abort_upload_main_input *value, char **out_json) {
+    if (!value || !out_json) return WF_ERR_INVALID_ARG;
+    *out_json = NULL; cJSON *root = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    status = wf_lex_encode_wf_lex_app_bsky_video_abort_upload_main_input(value, &root);
+    if (status != WF_OK) return status;
+    *out_json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return *out_json ? WF_OK : WF_ERR_ALLOC;
+}
+
+void wf_lex_app_bsky_video_abort_upload_main_json_free(char *json) { cJSON_free(json); }
+
+wf_status wf_lex_app_bsky_video_abort_upload_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_abort_upload_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_video_abort_upload_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_xrpc_procedure(client, "app.bsky.video.abortUpload", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_app_bsky_video_abort_upload_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_abort_upload_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_video_abort_upload_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_auth_client_procedure(client, "app.bsky.video.abortUpload", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_app_bsky_video_finish_upload_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_finish_upload_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_video_finish_upload_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_app_bsky_video_finish_upload_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_app_bsky_video_finish_upload_main_output_free(wf_lex_app_bsky_video_finish_upload_main_output *value) {
+    wf_lex_clear_wf_lex_app_bsky_video_finish_upload_main_output(value); free(value);
+}
+
+wf_status wf_lex_app_bsky_video_finish_upload_main_input_encode_json(
+    const wf_lex_app_bsky_video_finish_upload_main_input *value, char **out_json) {
+    if (!value || !out_json) return WF_ERR_INVALID_ARG;
+    *out_json = NULL; cJSON *root = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    status = wf_lex_encode_wf_lex_app_bsky_video_finish_upload_main_input(value, &root);
+    if (status != WF_OK) return status;
+    *out_json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return *out_json ? WF_OK : WF_ERR_ALLOC;
+}
+
+void wf_lex_app_bsky_video_finish_upload_main_json_free(char *json) { cJSON_free(json); }
+
+wf_status wf_lex_app_bsky_video_finish_upload_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_finish_upload_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_video_finish_upload_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_xrpc_procedure(client, "app.bsky.video.finishUpload", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_app_bsky_video_finish_upload_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_finish_upload_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_video_finish_upload_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_auth_client_procedure(client, "app.bsky.video.finishUpload", json, response);
+    cJSON_free(json);
+    return status;
+}
+
 wf_status wf_lex_app_bsky_video_get_job_status_main_output_decode_json(
     const char *json, size_t length, wf_lex_app_bsky_video_get_job_status_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -69746,6 +70450,138 @@ wf_status wf_lex_app_bsky_video_get_upload_limits_main_call_auth(wf_auth_client 
     return wf_auth_client_query(client, "app.bsky.video.getUploadLimits", NULL, response);
 }
 
+wf_status wf_lex_app_bsky_video_get_upload_status_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_get_upload_status_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_video_get_upload_status_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_app_bsky_video_get_upload_status_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_app_bsky_video_get_upload_status_main_output_free(wf_lex_app_bsky_video_get_upload_status_main_output *value) {
+    wf_lex_clear_wf_lex_app_bsky_video_get_upload_status_main_output(value); free(value);
+}
+
+wf_status wf_lex_app_bsky_video_get_upload_status_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_get_upload_status_main_params *params, wf_response *response) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    if (!params || !response) return WF_ERR_INVALID_ARG;
+    size_t encoded_capacity = 0, number_capacity = 0;
+    if (!params->job_id) return WF_ERR_INVALID_ARG;
+    if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+    ++encoded_capacity;
+    if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
+        number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
+    char (*number_values)[32] = number_capacity ? malloc(number_capacity * sizeof(*number_values)) : NULL;
+    if ((encoded_capacity && !encoded) || (number_capacity && !number_values)) {
+        free(encoded); free(number_values); return WF_ERR_ALLOC;
+    }
+    size_t count = 0, number_count = 0;
+    (void)number_count;
+    encoded[count++] = (wf_xrpc_param){"jobId", params->job_id};
+    wf_status status = wf_xrpc_query_params(client, "app.bsky.video.getUploadStatus", encoded, count, response);
+    free(encoded); free(number_values); return status;
+}
+
+wf_status wf_lex_app_bsky_video_get_upload_status_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_get_upload_status_main_params *params, wf_response *response) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    if (!params || !response) return WF_ERR_INVALID_ARG;
+    size_t encoded_capacity = 0, number_capacity = 0;
+    if (!params->job_id) return WF_ERR_INVALID_ARG;
+    if (encoded_capacity == SIZE_MAX) return WF_ERR_INVALID_ARG;
+    ++encoded_capacity;
+    if (encoded_capacity > SIZE_MAX / sizeof(wf_xrpc_param) ||
+        number_capacity > SIZE_MAX / sizeof(char[32])) return WF_ERR_INVALID_ARG;
+    wf_xrpc_param *encoded = encoded_capacity ? calloc(encoded_capacity, sizeof(*encoded)) : NULL;
+    char (*number_values)[32] = number_capacity ? malloc(number_capacity * sizeof(*number_values)) : NULL;
+    if ((encoded_capacity && !encoded) || (number_capacity && !number_values)) {
+        free(encoded); free(number_values); return WF_ERR_ALLOC;
+    }
+    size_t count = 0, number_count = 0;
+    (void)number_count;
+    encoded[count++] = (wf_xrpc_param){"jobId", params->job_id};
+    wf_status status = wf_auth_client_query_params(client, "app.bsky.video.getUploadStatus", encoded, count, response);
+    free(encoded); free(number_values); return status;
+}
+
+wf_status wf_lex_app_bsky_video_start_upload_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_start_upload_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_video_start_upload_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_app_bsky_video_start_upload_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_app_bsky_video_start_upload_main_output_free(wf_lex_app_bsky_video_start_upload_main_output *value) {
+    wf_lex_clear_wf_lex_app_bsky_video_start_upload_main_output(value); free(value);
+}
+
+wf_status wf_lex_app_bsky_video_start_upload_main_input_encode_json(
+    const wf_lex_app_bsky_video_start_upload_main_input *value, char **out_json) {
+    if (!value || !out_json) return WF_ERR_INVALID_ARG;
+    *out_json = NULL; cJSON *root = NULL;
+    wf_status status = WF_OK;
+    (void)status;
+    status = wf_lex_encode_wf_lex_app_bsky_video_start_upload_main_input(value, &root);
+    if (status != WF_OK) return status;
+    *out_json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    return *out_json ? WF_OK : WF_ERR_ALLOC;
+}
+
+void wf_lex_app_bsky_video_start_upload_main_json_free(char *json) { cJSON_free(json); }
+
+wf_status wf_lex_app_bsky_video_start_upload_main_call(wf_xrpc_client *client,
+    const wf_lex_app_bsky_video_start_upload_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_video_start_upload_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_xrpc_procedure(client, "app.bsky.video.startUpload", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_app_bsky_video_start_upload_main_call_auth(wf_auth_client *client,
+    const wf_lex_app_bsky_video_start_upload_main_input *input, wf_response *response) {
+    if (!client || !input || !response) return WF_ERR_INVALID_ARG;
+    char *json = NULL;
+    wf_status status = wf_lex_app_bsky_video_start_upload_main_input_encode_json(input, &json);
+    if (status != WF_OK) return status;
+    status = wf_auth_client_procedure(client, "app.bsky.video.startUpload", json, response);
+    cJSON_free(json);
+    return status;
+}
+
+wf_status wf_lex_app_bsky_video_upload_part_main_output_decode_json(
+    const char *json, size_t length, wf_lex_app_bsky_video_upload_part_main_output **out_value) {
+    if (!json || !out_value) return WF_ERR_INVALID_ARG;
+    *out_value = NULL; cJSON *root = cJSON_ParseWithLength(json, length);
+    if (!root) return WF_ERR_INVALID_ARG;
+    wf_lex_app_bsky_video_upload_part_main_output *value = calloc(1, sizeof(*value));
+    if (!value) { cJSON_Delete(root); return WF_ERR_ALLOC; }
+    wf_status status = wf_lex_decode_wf_lex_app_bsky_video_upload_part_main_output(root, value);
+    cJSON_Delete(root);
+    if (status != WF_OK) { free(value); return status; }
+    *out_value = value; return WF_OK;
+}
+
+void wf_lex_app_bsky_video_upload_part_main_output_free(wf_lex_app_bsky_video_upload_part_main_output *value) {
+    wf_lex_clear_wf_lex_app_bsky_video_upload_part_main_output(value); free(value);
+}
+
 wf_status wf_lex_app_bsky_video_upload_video_main_output_decode_json(
     const char *json, size_t length, wf_lex_app_bsky_video_upload_video_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -69761,16 +70597,6 @@ wf_status wf_lex_app_bsky_video_upload_video_main_output_decode_json(
 
 void wf_lex_app_bsky_video_upload_video_main_output_free(wf_lex_app_bsky_video_upload_video_main_output *value) {
     wf_lex_clear_wf_lex_app_bsky_video_upload_video_main_output(value); free(value);
-}
-
-wf_status wf_lex_app_bsky_video_upload_video_main_call(wf_xrpc_client *client, wf_response *response) {
-    if (!client || !response) return WF_ERR_INVALID_ARG;
-    return wf_xrpc_procedure(client, "app.bsky.video.uploadVideo", NULL, response);
-}
-
-wf_status wf_lex_app_bsky_video_upload_video_main_call_auth(wf_auth_client *client, wf_response *response) {
-    if (!client || !response) return WF_ERR_INVALID_ARG;
-    return wf_auth_client_procedure(client, "app.bsky.video.uploadVideo", NULL, response);
 }
 
 wf_status wf_lex_chat_bsky_actor_delete_account_main_output_decode_json(
@@ -74625,16 +75451,6 @@ wf_status wf_lex_com_atproto_repo_get_record_main_call_auth(wf_auth_client *clie
     free(encoded); free(number_values); return status;
 }
 
-wf_status wf_lex_com_atproto_repo_import_repo_main_call(wf_xrpc_client *client, wf_response *response) {
-    if (!client || !response) return WF_ERR_INVALID_ARG;
-    return wf_xrpc_procedure(client, "com.atproto.repo.importRepo", NULL, response);
-}
-
-wf_status wf_lex_com_atproto_repo_import_repo_main_call_auth(wf_auth_client *client, wf_response *response) {
-    if (!client || !response) return WF_ERR_INVALID_ARG;
-    return wf_auth_client_procedure(client, "com.atproto.repo.importRepo", NULL, response);
-}
-
 wf_status wf_lex_com_atproto_repo_list_missing_blobs_main_output_decode_json(
     const char *json, size_t length, wf_lex_com_atproto_repo_list_missing_blobs_main_output **out_value) {
     if (!json || !out_value) return WF_ERR_INVALID_ARG;
@@ -74912,16 +75728,6 @@ wf_status wf_lex_com_atproto_repo_upload_blob_main_output_decode_json(
 
 void wf_lex_com_atproto_repo_upload_blob_main_output_free(wf_lex_com_atproto_repo_upload_blob_main_output *value) {
     wf_lex_clear_wf_lex_com_atproto_repo_upload_blob_main_output(value); free(value);
-}
-
-wf_status wf_lex_com_atproto_repo_upload_blob_main_call(wf_xrpc_client *client, wf_response *response) {
-    if (!client || !response) return WF_ERR_INVALID_ARG;
-    return wf_xrpc_procedure(client, "com.atproto.repo.uploadBlob", NULL, response);
-}
-
-wf_status wf_lex_com_atproto_repo_upload_blob_main_call_auth(wf_auth_client *client, wf_response *response) {
-    if (!client || !response) return WF_ERR_INVALID_ARG;
-    return wf_auth_client_procedure(client, "com.atproto.repo.uploadBlob", NULL, response);
 }
 
 wf_status wf_lex_com_atproto_server_activate_account_main_call(wf_xrpc_client *client, wf_response *response) {

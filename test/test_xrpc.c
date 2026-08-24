@@ -26,6 +26,31 @@ struct wf_test_err_ctx {
     const char *body;
 };
 
+struct wf_test_request_ctx {
+    const char *expected_url;
+    const unsigned char *expected_body;
+    size_t expected_body_len;
+    int called;
+};
+
+static wf_status
+wf_test_request_handler(void *userdata, const char *method, const char *url,
+                        const char *content_type, const char *body,
+                        size_t body_len, const wf_http_header *headers,
+                        size_t header_count, wf_response *out) {
+    (void)headers;
+    (void)header_count;
+    struct wf_test_request_ctx *ctx = userdata;
+    WF_CHECK(strcmp(method, "POST") == 0);
+    WF_CHECK(strcmp(url, ctx->expected_url) == 0);
+    WF_CHECK(strcmp(content_type, "application/octet-stream") == 0);
+    WF_CHECK(body_len == ctx->expected_body_len);
+    WF_CHECK(memcmp(body, ctx->expected_body, body_len) == 0);
+    ctx->called++;
+    out->status = 200;
+    return WF_OK;
+}
+
 static wf_status wf_test_error_handler(void *userdata, const char *method,
                                        const char *url,
                                        const char *content_type,
@@ -80,6 +105,29 @@ int main(void) {
     WF_CHECK(wf_xrpc_query_params(trailing, "com.atproto.sync.getRepo", NULL, 1,
                                   &res) == WF_ERR_INVALID_ARG);
     wf_xrpc_client_free(trailing);
+
+    /* Binary procedures retain and percent-encode their query parameters. */
+    {
+        wf_xrpc_client *c = wf_xrpc_client_new("https://video.example");
+        const unsigned char body[] = {0x00, 0x7f, 0xff};
+        struct wf_test_request_ctx ctx = {
+            .expected_url = "https://video.example/xrpc/app.bsky.video."
+                            "uploadPart?jobId=job%2Fone&partNumber=2",
+            .expected_body = body,
+            .expected_body_len = sizeof(body),
+        };
+        wf_xrpc_set_handler(c, wf_test_request_handler, &ctx);
+        const wf_xrpc_param params[] = {
+            {"jobId", "job/one"},
+            {"partNumber", "2"},
+        };
+        WF_CHECK(wf_xrpc_upload_blob_params(
+                     c, "app.bsky.video.uploadPart", params, 2, body,
+                     sizeof(body), "application/octet-stream", &res) == WF_OK);
+        WF_CHECK(ctx.called == 1);
+        wf_response_free(&res);
+        wf_xrpc_client_free(c);
+    }
 
     /* XRPC error-envelope decoding from a non-OK response body. */
     {

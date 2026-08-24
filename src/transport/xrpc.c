@@ -776,15 +776,11 @@ wf_status wf_xrpc_query(wf_xrpc_client *client, const char *nsid,
     return wf_xrpc_request(client, nsid, query_string, NULL, 0, NULL, 0, out);
 }
 
-wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
-                               const wf_xrpc_param *params, size_t param_count,
-                               wf_response *out) {
-    if (!client || !nsid || !out || (param_count > 0 && !params)) {
-        return WF_ERR_INVALID_ARG;
-    }
-    if (param_count == 0) {
-        return wf_xrpc_query(client, nsid, NULL, out);
-    }
+static wf_status wf_xrpc_encode_params(const wf_xrpc_param *params,
+                                       size_t param_count, char **out_query) {
+    if (!out_query || (param_count > 0 && !params)) return WF_ERR_INVALID_ARG;
+    *out_query = NULL;
+    if (param_count == 0) return WF_OK;
 
     CURL *curl = curl_easy_init();
     if (!curl) return WF_ERR_ALLOC;
@@ -815,13 +811,8 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
         if (i > 0) query_len++;
     }
 
-    char *query = NULL;
-    if (status == WF_OK) {
-        query = malloc(query_len);
-        if (!query) {
-            status = WF_ERR_ALLOC;
-        }
-    }
+    char *query = status == WF_OK ? malloc(query_len) : NULL;
+    if (status == WF_OK && !query) status = WF_ERR_ALLOC;
     if (status == WF_OK) {
         size_t offset = 0;
         for (size_t i = 0; i < param_count; i++) {
@@ -843,7 +834,25 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
     free(names);
     free(values);
     curl_easy_cleanup(curl);
+    if (status == WF_OK)
+        *out_query = query;
+    else
+        free(query);
+    return status;
+}
 
+wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
+                               const wf_xrpc_param *params, size_t param_count,
+                               wf_response *out) {
+    if (!client || !nsid || !out || (param_count > 0 && !params)) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (param_count == 0) {
+        return wf_xrpc_query(client, nsid, NULL, out);
+    }
+
+    char *query = NULL;
+    wf_status status = wf_xrpc_encode_params(params, param_count, &query);
     if (status == WF_OK) {
         status = wf_xrpc_query(client, nsid, query, out);
     }
@@ -874,10 +883,41 @@ wf_status wf_xrpc_upload_blob(wf_xrpc_client *client, const char *nsid,
                                             content_type, NULL, 0, out);
 }
 
+static wf_status wf_xrpc_upload_blob_query_with_headers(
+    wf_xrpc_client *client, const char *nsid, const char *query_string,
+    const void *data, size_t data_len, const char *content_type,
+    const wf_http_header *headers, size_t header_count, wf_response *out);
+
+wf_status wf_xrpc_upload_blob_params(wf_xrpc_client *client, const char *nsid,
+                                     const wf_xrpc_param *params,
+                                     size_t param_count, const void *data,
+                                     size_t data_len, const char *content_type,
+                                     wf_response *out) {
+    if (!client || !nsid || !out || (param_count > 0 && !params))
+        return WF_ERR_INVALID_ARG;
+    char *query = NULL;
+    wf_status status = wf_xrpc_encode_params(params, param_count, &query);
+    if (status == WF_OK) {
+        status = wf_xrpc_upload_blob_query_with_headers(
+            client, nsid, query, data, data_len, content_type, NULL, 0, out);
+    }
+    free(query);
+    return status;
+}
+
 wf_status wf_xrpc_upload_blob_with_headers(
     wf_xrpc_client *client, const char *nsid, const void *data, size_t data_len,
     const char *content_type, const wf_http_header *headers,
     size_t header_count, wf_response *out) {
+    return wf_xrpc_upload_blob_query_with_headers(client, nsid, NULL, data,
+                                                  data_len, content_type,
+                                                  headers, header_count, out);
+}
+
+static wf_status wf_xrpc_upload_blob_query_with_headers(
+    wf_xrpc_client *client, const char *nsid, const char *query_string,
+    const void *data, size_t data_len, const char *content_type,
+    const wf_http_header *headers, size_t header_count, wf_response *out) {
     struct curl_slist *list = NULL;
     wf_status status = WF_OK;
     char *url = NULL;
@@ -892,13 +932,18 @@ wf_status wf_xrpc_upload_blob_with_headers(
     if (!cfg) return WF_ERR_ALLOC;
 
     size_t url_cap =
-        strlen(cfg->base_url) + strlen("/xrpc/") + strlen(nsid) + 1;
+        strlen(cfg->base_url) + strlen("/xrpc/") + strlen(nsid) + 1 +
+        (query_string && query_string[0] ? strlen(query_string) + 1 : 0);
     url = malloc(url_cap);
     if (!url) {
         wf_config_free(cfg);
         return WF_ERR_ALLOC;
     }
-    snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, nsid);
+    if (query_string && query_string[0])
+        snprintf(url, url_cap, "%s/xrpc/%s?%s", cfg->base_url, nsid,
+                 query_string);
+    else
+        snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, nsid);
 
     if (cfg->auth_header) {
         list = curl_slist_append(list, cfg->auth_header);

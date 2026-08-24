@@ -300,6 +300,14 @@ static void assert_contains(const std::string &haystack,
                                  needle);
 }
 
+static void assert_not_contains(const std::string &haystack,
+                                const std::string &needle,
+                                const std::string &what) {
+    if (haystack.find(needle) != std::string::npos)
+        throw std::runtime_error(
+            what + ": generated output unexpectedly contains:\n" + needle);
+}
+
 // ---------------------------------------------------------------------------
 // Naming helpers mirroring the Python generator (needed to compute the
 // endpoint symbols asserted against include/wolfram/atproto_lex.h).
@@ -403,6 +411,7 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
     std::string header = read_file(ROOT + "/include/wolfram/atproto_lex.h");
     std::set<std::string> subscriptions;
     int endpoint_count = 0;
+    int binary_procedure_count = 0;
     int file_count = 0;
     for (const fs::directory_entry &entry :
          fs::recursive_directory_iterator(ROOT + "/lexicons")) {
@@ -436,6 +445,20 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
                 if (kind != "query" && kind != "procedure") continue;
                 ++endpoint_count;
                 std::string symbol = type_name(nsid, def->string);
+                cJSON *input = cJSON_GetObjectItemCaseSensitive(def, "input");
+                cJSON *input_schema =
+                    input ? cJSON_GetObjectItemCaseSensitive(input, "schema")
+                          : nullptr;
+                if (kind == "procedure" && input && !input_schema) {
+                    ++binary_procedure_count;
+                    assert_not_contains(header,
+                                        "wf_status " + symbol + "_call(",
+                                        "binary endpoint call " + symbol);
+                    assert_not_contains(header,
+                                        "wf_status " + symbol + "_call_auth(",
+                                        "binary endpoint auth call " + symbol);
+                    continue;
+                }
                 assert_contains(header, "wf_status " + symbol + "_call(",
                                 "endpoint call " + symbol);
                 assert_contains(header, "wf_status " + symbol + "_call_auth(",
@@ -444,9 +467,12 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
         }
         cJSON_Delete(document);
     }
-    assert_true(endpoint_count == 314, "endpoint count is " +
+    assert_true(endpoint_count == 319, "endpoint count is " +
                                            std::to_string(endpoint_count) +
-                                           ", expected 314");
+                                           ", expected 319");
+    assert_true(binary_procedure_count == 4,
+                "binary procedure count is " +
+                    std::to_string(binary_procedure_count) + ", expected 4");
     std::set<std::string> expected = {
         "chat.bsky.moderation.subscribeModEvents",
         "com.atproto.label.subscribeLabels",
@@ -589,7 +615,7 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
                                 "output free " + symbol);
             }
         }
-        assert_true(expected_decoders == 260,
+        assert_true(expected_decoders == 265,
                     "object-shaped output count is " +
                         std::to_string(expected_decoders) +
                         ", expected 260 (231 inline-object + 29 ref-to-object "
