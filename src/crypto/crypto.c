@@ -429,7 +429,6 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
 #else
         WF_LOG_ERROR("crypto",
                      "wf_signing_key_public_didkey: secp256k1 not available");
-        (void)multicodec;
         (void)raw;
         return WF_ERR_INVALID_ARG;
 #endif

@@ -42,6 +42,34 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
+  # libsecp256k1 is optional: the P-256 path stays available while k256 APIs
+  # fail honestly at runtime. Keep that documented dependency boundary
+  # buildable instead of exercising only hosts that installed every option.
+  no-secp256k1:
+    name: build without optional libsecp256k1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libssl-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+
   # Full-features build: server + store + store-crypto + C++ wrapper.
   # Also exercises the C++ lexicon generator test suite (CTest lexgen).
   full:
