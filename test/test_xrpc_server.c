@@ -434,6 +434,31 @@ static int run_test(void) {
         wf_response_free(&res);
     }
 
+    /* The native MHD shim must keep method/URL metadata separate from the
+     * receive buffer once a POST spans more than its first socket read. */
+    {
+        const size_t payload_len = 64 * 1024;
+        char *json = malloc(payload_len + 32);
+        if (!json) {
+            failures++;
+        } else {
+            memcpy(json, "{\"payload\":\"", 12);
+            memset(json + 12, 'a', payload_len);
+            memcpy(json + 12 + payload_len, "\"}", 3);
+            wf_status s =
+                wf_xrpc_procedure(client, "io.example.echo", json, &res);
+            if (s != WF_OK || res.status != 200 || !res.body ||
+                res.body_len < payload_len) {
+                fprintf(stderr,
+                        "FAIL: multi-chunk procedure status=%d http=%ld\n",
+                        (int)s, res.status);
+                failures++;
+            }
+            wf_response_free(&res);
+            free(json);
+        }
+    }
+
     /* Test 4: Unregistered NSID returns 501 MethodNotImplemented (atproto spec)
      */
     {

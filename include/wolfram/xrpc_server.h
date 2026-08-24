@@ -67,6 +67,11 @@ typedef struct wf_xrpc_request {
      * body_len directly. Valid only during the handler callback. */
     const unsigned char *body;
     size_t body_len;
+    /* Parsed Content-Length for a POST body. `has_content_length` is false
+     * for chunked requests or when the header was absent. Streaming handlers
+     * use this to reject a part before creating any backing file. */
+    bool has_content_length;
+    uint64_t content_length;
     /* Request Content-Type header (may be NULL). Valid only during the handler.
      */
     const char *content_type;
@@ -111,7 +116,8 @@ typedef struct wf_xrpc_response {
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT {200, NULL, 0, NULL, NULL}
+#define WF_XRPC_RESPONSE_INIT                                                  \
+    { 200, NULL, 0, NULL, NULL }
 
 /** Set the response body (copies the string). */
 void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
@@ -146,6 +152,32 @@ typedef wf_status (*wf_xrpc_query_handler)(void *ctx,
 typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
                                                const wf_xrpc_request *req,
                                                wf_xrpc_response *resp);
+
+/** Public capability marker for consumers supporting both server API levels. */
+#define WF_XRPC_SERVER_HAS_STREAMING_PROCEDURES 1
+
+/**
+ * Lifecycle for a bounded-memory streaming procedure.
+ *
+ * `begin` runs after authentication and before any request-body bytes are
+ * delivered. It may allocate a per-request state through `out_stream_ctx`.
+ * `write` is then called for each body chunk, followed by `finish` exactly
+ * once when the request completes. `cleanup` is always called once for a
+ * non-NULL stream context, including when the peer disconnects early; its
+ * `completed` argument is true only after `finish` returned.
+ *
+ * A callback may set an XRPC error response and return WF_OK. Once a response
+ * body has been set, later chunks are drained without invoking `write`, and
+ * `finish` is skipped. Callbacks must not retain pointers from `req`.
+ */
+typedef struct wf_xrpc_streaming_procedure_handler {
+    wf_status (*begin)(void *ctx, const wf_xrpc_request *req,
+                       void **out_stream_ctx, wf_xrpc_response *resp);
+    wf_status (*write)(void *ctx, void *stream_ctx, const unsigned char *data,
+                       size_t data_len, wf_xrpc_response *resp);
+    wf_status (*finish)(void *ctx, void *stream_ctx, wf_xrpc_response *resp);
+    void (*cleanup)(void *ctx, void *stream_ctx, bool completed);
+} wf_xrpc_streaming_procedure_handler;
 
 /** Handler for an exact-path GET or POST route outside /xrpc. */
 typedef wf_status (*wf_http_route_handler)(void *ctx,
@@ -349,6 +381,18 @@ wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
                                             const char *nsid,
                                             wf_xrpc_procedure_handler handler,
                                             void *ctx);
+
+/**
+ * Register a POST procedure whose request body is delivered incrementally.
+ *
+ * Unlike `wf_xrpc_server_register_procedure`, the body is never accumulated
+ * in memory and `req->body` is always NULL. Query-string parameters remain
+ * available through `req->params`, which is required by binary procedures
+ * such as `app.bsky.video.uploadPart`.
+ */
+wf_status wf_xrpc_server_register_streaming_procedure(
+    wf_xrpc_server *server, const char *nsid,
+    const wf_xrpc_streaming_procedure_handler *handler, void *ctx);
 
 /* Register an SSE (Server-Sent Events) endpoint (GET). The connection is kept
  * open and frames are pushed with wf_xrpc_server_sse_send until closed with

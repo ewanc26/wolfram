@@ -5,7 +5,7 @@
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload |
 | `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
-| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, CID, CAR, MST, commit, diff verify/apply, operation inversion |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, one-shot and incremental CID hashing, CAR, MST, commit, diff verify/apply, operation inversion |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 | `wolfram/oauth.h`         | Implemented | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
@@ -20,7 +20,7 @@
 | `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper — verify and emit labels, build service auth headers. Full typed wrapper coverage across all tools.ozone.* namespaces: moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, and set value wrappers |
 | `wolfram/auth_client.h`  | Implemented | Authenticated XRPC client — DPoP-binding OAuth-authenticated query/procedure/blob-upload (`wf_auth_client_*`) with session refresh and DPoP nonce retry |
 | `wolfram/plc.h`          | Implemented | DID PLC operation build/sign/submit helpers (`wf_plc_*`): create/rotate/tombstone, signing-key and handle operations with ES256 signature + verification |
-| `wolfram/xrpc_server.h`  | Implemented | Optional XRPC server (libmicrohttpd) — route registration, auth middleware, CORS, POST body accumulation, GET query-param parsing, token-bucket rate limiter (`wf_rate_limiter`) |
+| `wolfram/xrpc_server.h`  | Implemented | Optional XRPC server (libmicrohttpd) — route registration, auth middleware, CORS, buffered JSON POSTs, bounded-memory streaming procedures with interruption cleanup, GET query-param parsing, token-bucket rate limiter (`wf_rate_limiter`) |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
 | `wolfram/atproto_lex.h`   | Implemented | Generated C types/codecs for 402 lexicons and JSON wrappers for the corpus's 319 query/procedure definitions; binary procedures use the dedicated upload/import APIs |
@@ -38,7 +38,7 @@
 | `wolfram/identity_typed.h` | Implemented | Owned typed parsers + agent wrappers for `com.atproto.identity` (resolveHandle, resolveDid, updateHandle, getRecommendedDidCredentials, signPlcOperation, submitPlcOperation, resolveIdentity, refreshIdentity) plus a PLC handle-rotation convenience (`wf_agent_identity_rotate_handle`) |
 | `wolfram/notification_v2_typed.h` | Implemented | Owned typed parsers + agent wrappers for `app.bsky.notification` v2 preferences + activity subscriptions (`putPreferencesV2`, `listActivitySubscriptions`, `putActivitySubscription`) |
 | `wolfram/actor_status_typed.h` | Implemented | Owned typed wrappers for `app.bsky.actor.status` (stored record + `#statusView`; query/procedure ops are honest stubs — the lexicon defines only a `record`) |
-| `wolfram/video_typed.h`   | Implemented | Owned typed parsers + builders + agent wrappers for `app.bsky.video` (getJobStatus, getUploadLimits, uploadVideo) |
+| `wolfram/video_typed.h`   | Implemented | Owned typed parsers + builders + agent wrappers for `app.bsky.video`, including the current multipart start/finish/abort/status definitions; binary `uploadPart` uses `wf_xrpc_upload_blob_params` |
 | `wolfram/unspecced_typed.h` | Implemented | Owned typed parsers for `app.bsky.unspecced` query endpoints (trends, suggested users, thread v2, etc.) |
 | `wolfram/temp_typed.h`    | Implemented | Owned typed parsers + agent wrappers for `com.atproto.temp` account/signup helper flows |
 | `wolfram/admin_typed.h`   | Implemented | Owned typed parsers + agent wrappers for `com.atproto.admin` PDS/service administration |

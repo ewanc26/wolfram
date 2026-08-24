@@ -61,7 +61,10 @@ enum MHD_OPTION {
     MHD_OPTION_END = 0,
     MHD_OPTION_NOTIFY_COMPLETED = 4,
     MHD_OPTION_EXTERNAL_LOGGER = 6,
-    MHD_OPTION_NOTIFY_CONNECTION = 27
+    MHD_OPTION_NOTIFY_CONNECTION = 27,
+    /* Shim-private numeric value; only the declaration/varargs parser need
+     * agree. Native libmicrohttpd builds use the system header's value. */
+    MHD_OPTION_THREAD_POOL_SIZE = 28
 };
 
 enum MHD_ConnectionInfoType { MHD_CONNECTION_INFO_CLIENT_ADDRESS = 4 };

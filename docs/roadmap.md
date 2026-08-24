@@ -188,11 +188,12 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 
 47. XRPC server module (`xrpc_server.h`) — optional `libmicrohttpd`-backed
     server with route registration (query/procedure), auth middleware, query
-    parameter parsing, POST body accumulation, CORS headers, integrated
+    parameter parsing, buffered JSON POSTs, bounded-memory streaming procedures
+    with early auth and interruption cleanup, CORS headers, integrated
     token-bucket rate limiter (`wf_rate_limiter`), and readback of the bound
-    port. Built when `WOLFRAM_BUILD_SERVER=ON`. Tested with an offline
-    round-trip test against `wf_xrpc_client`, rate limiter unit tests, and
-     a server rate-limit integration test.
+    port. Built when `WOLFRAM_BUILD_SERVER=ON`. Tested with offline round trips
+    against `wf_xrpc_client`, multi-chunk and interrupted streaming requests,
+    rate limiter unit tests, and a server rate-limit integration test.
 
  48. Feed-generator skeleton server helper (`feedgen_server.h`) — high-level
      helper built on the XRPC server that serves `app.bsky.feed.getFeedSkeleton`
