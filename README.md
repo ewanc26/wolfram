@@ -39,7 +39,9 @@ C is the default language; C++ is used for complex or sensitive components where
 - Moderation: offline decision engine (blur/alert/inform/filter) from labels, blocks, mutes, muted words, hidden posts
 - Validation: runtime lexicon validation, JSON canonicalize/validate, rich-text facets
 - Optional SQLite persistence (`WOLFRAM_BUILD_STORE`) with at-rest encryption via libsodium (`WOLFRAM_BUILD_STORE_CRYPTO`)
-- Optional libmicrohttpd-backed XRPC server (`WOLFRAM_BUILD_SERVER`) with SSE streaming, WebSocket subscriptions, and relay forwarding
+- Optional libmicrohttpd-backed XRPC server (`WOLFRAM_BUILD_SERVER`) with
+  buffered JSON procedures, bounded-memory binary procedures, SSE streaming,
+  WebSocket subscriptions, and relay forwarding
 
 ## Documentation
 
