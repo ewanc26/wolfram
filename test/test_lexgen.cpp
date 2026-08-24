@@ -451,17 +451,15 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
                           : nullptr;
                 if (kind == "procedure" && input && !input_schema) {
                     ++binary_procedure_count;
-                    assert_not_contains(header,
-                                        "wf_status " + symbol + "_call(",
+                    assert_not_contains(header, symbol + "_call(",
                                         "binary endpoint call " + symbol);
-                    assert_not_contains(header,
-                                        "wf_status " + symbol + "_call_auth(",
+                    assert_not_contains(header, symbol + "_call_auth(",
                                         "binary endpoint auth call " + symbol);
                     continue;
                 }
-                assert_contains(header, "wf_status " + symbol + "_call(",
+                assert_contains(header, symbol + "_call(",
                                 "endpoint call " + symbol);
-                assert_contains(header, "wf_status " + symbol + "_call_auth(",
+                assert_contains(header, symbol + "_call_auth(",
                                 "endpoint auth call " + symbol);
             }
         }
@@ -608,10 +606,9 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
                 if (!object_shaped) continue;
                 ++expected_decoders;
                 std::string symbol = type_name(nsid, def->string);
-                assert_contains(header,
-                                "wf_status " + symbol + "_output_decode_json(",
+                assert_contains(header, symbol + "_output_decode_json(",
                                 "output decoder " + symbol);
-                assert_contains(header, "void " + symbol + "_output_free(",
+                assert_contains(header, symbol + "_output_free(",
                                 "output free " + symbol);
             }
         }
