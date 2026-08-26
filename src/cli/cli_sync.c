@@ -20,7 +20,7 @@ int cmd_sync_get_blob(int argc, char **argv) {
     const char *did = argv[2];
     const char *cid = argv[3];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -41,7 +41,7 @@ int cmd_sync_get_blocks(int argc, char **argv) {
     const char *const *cids = (const char *const *)(argv + 3);
     int n_cids = argc - 3;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -62,15 +62,14 @@ int cmd_sync_get_record(int argc, char **argv) {
     const char *collection = argv[3];
     const char *rkey = argv[4];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
     }
 
     wf_response res = {0};
-    wf_status s =
-        wf_agent_sync_get_record(agent, did, collection, rkey, &res);
+    wf_status s = wf_agent_sync_get_record(agent, did, collection, rkey, &res);
     return finish_agent_response(agent, s, &res);
 }
 
@@ -90,7 +89,7 @@ int cmd_sync_list_blobs(int argc, char **argv) {
     }
     int limit = (pi >= 3) ? atoi(pos[2]) : 500;
 
-    wf_agent *agent = wf_agent_new(pos[0]);
+    wf_agent *agent = cli_agent_new(pos[0]);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -159,20 +158,17 @@ int cmd_list_missing_blobs(int argc, char **argv) {
     wf_repo_missing_blob_list out = {0};
     wf_status s = wf_agent_list_missing_blobs_typed(agent, limit, cursor, &out);
     if (s != WF_OK) {
-        fprintf(stderr, "error: listMissingBlobs failed (status %d)\n",
-                (int)s);
+        fprintf(stderr, "error: listMissingBlobs failed (status %d)\n", (int)s);
         wf_repo_missing_blob_list_free(&out);
         wf_agent_free(agent);
         return 1;
     }
     printf("missing blobs:\n");
     for (size_t i = 0; i < out.count; ++i) {
-        printf("  cid=%s uri=%s\n",
-               out.items[i].cid ? out.items[i].cid : "?",
+        printf("  cid=%s uri=%s\n", out.items[i].cid ? out.items[i].cid : "?",
                out.items[i].record_uri ? out.items[i].record_uri : "?");
     }
-    if (out.cursor)
-        printf("cursor: %s\n", out.cursor);
+    if (out.cursor) printf("cursor: %s\n", out.cursor);
     wf_repo_missing_blob_list_free(&out);
     wf_agent_free(agent);
     return 0;

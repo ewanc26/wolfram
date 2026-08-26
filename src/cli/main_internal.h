@@ -47,6 +47,10 @@ char *read_text_file(const char *path);
  * instead of human-readable text. */
 extern bool g_json;
 
+/* Create an agent, wiring the Wii U DRBG into curl TLS when built for
+ * Wii U. Thin wrapper around wf_agent_new. Caller frees with wf_agent_free. */
+wf_agent *cli_agent_new(const char *service);
+
 /* Create an agent, login, and return it. Returns NULL on failure (error
  * already printed to stderr). Caller frees with wf_agent_free. */
 wf_agent *agent_login_or_err(const char *service, const char *handle,

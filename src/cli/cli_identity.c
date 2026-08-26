@@ -25,7 +25,7 @@ int cmd_resolve_did(int argc, char **argv) {
     const char *service = argv[1];
     const char *did = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -44,7 +44,7 @@ int cmd_check_handle(int argc, char **argv) {
     const char *service = argv[1];
     const char *handle = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -249,7 +249,7 @@ int cmd_plc(int argc, char **argv) {
         const char *service = argv[2];
         const char *did = argv[3];
 
-        wf_agent *agent = wf_agent_new(service);
+        wf_agent *agent = cli_agent_new(service);
         if (!agent) {
             fprintf(stderr, "error: failed to create agent\n");
             return 1;
@@ -290,7 +290,7 @@ int cmd_plc(int argc, char **argv) {
                 aka[n_aka++] = argv[++i];
         }
 
-        wf_agent *agent = wf_agent_new(service);
+        wf_agent *agent = cli_agent_new(service);
         if (!agent) {
             fprintf(stderr, "error: failed to create agent\n");
             return 1;
@@ -321,7 +321,7 @@ int cmd_plc(int argc, char **argv) {
         const char *service = argv[2];
         const char *op_json = argv[3];
 
-        wf_agent *agent = wf_agent_new(service);
+        wf_agent *agent = cli_agent_new(service);
         if (!agent) {
             fprintf(stderr, "error: failed to create agent\n");
             return 1;
