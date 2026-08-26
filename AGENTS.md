@@ -23,6 +23,18 @@ Agentic principles and technical context for the `wolfram` repository.
 - **No commented-out code** left in place; delete dead code or move it to a test.
 - Follow the surrounding file's indentation and brace style.
 
+## Roadmap
+
+Public kanban board: https://github.com/users/ewanc26/projects/2
+
+Use the kanban board to track work across columns: **Backlog** → **Todo** →
+**In Progress** → **Done**. When picking up a task, move it to **In
+Progress**; when finished and released, move it to **Done**. Add new items
+for upcoming work with `gh project item-create 2 --owner ewanc26 --title
+"..." --body "..."`. Link related PRs or issues with `gh project item-add 2
+--owner ewanc26 --url <url>`. View in browser with `gh project view 2
+--owner ewanc26 --web`.
+
 ## Versioning
 
 - **Tag every version bump**: a commit that changes `VERSION` in
