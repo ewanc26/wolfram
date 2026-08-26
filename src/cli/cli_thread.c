@@ -57,7 +57,7 @@ int cmd_thread(int argc, char **argv) {
     const char *at_uri = argv[4];
     int depth = (argc >= 6) ? atoi(argv[5]) : 6;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -150,7 +150,7 @@ int cmd_notifications(int argc, char **argv) {
     const char *password = argv[3];
     int limit = (argc >= 5) ? atoi(argv[4]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;

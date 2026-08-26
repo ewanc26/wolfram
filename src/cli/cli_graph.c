@@ -43,7 +43,7 @@ int cmd_follows(int argc, char **argv) {
     const char *actor = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -63,7 +63,7 @@ int cmd_followers(int argc, char **argv) {
     const char *actor = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -145,7 +145,7 @@ int cmd_list(int argc, char **argv) {
     const char *list_uri = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -165,7 +165,7 @@ int cmd_lists(int argc, char **argv) {
     const char *actor = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -628,7 +628,7 @@ int cmd_get_suggested_follows(int argc, char **argv) {
     const char *service = argv[1];
     const char *actor = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -654,7 +654,7 @@ int cmd_starter_pack(int argc, char **argv) {
         const char *service = argv[2];
         const char *uri = argv[3];
 
-        wf_agent *agent = wf_agent_new(service);
+        wf_agent *agent = cli_agent_new(service);
         if (!agent) {
             fprintf(stderr, "error: failed to create agent\n");
             return 1;
@@ -675,7 +675,7 @@ int cmd_starter_pack(int argc, char **argv) {
         const char *actor = argv[3];
         int limit = (argc >= 5) ? atoi(argv[4]) : 50;
 
-        wf_agent *agent = wf_agent_new(service);
+        wf_agent *agent = cli_agent_new(service);
         if (!agent) {
             fprintf(stderr, "error: failed to create agent\n");
             return 1;

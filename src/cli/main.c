@@ -68,6 +68,7 @@
 #include "wolfram/server_typed.h"
 #include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
+#include "wolfram/wiiu.h"
 #include "wolfram/thread_typed.h"
 #include "wolfram/feed_typed.h"
 #include "wolfram/actor_typed.h"
@@ -626,11 +627,21 @@ wf_status resolve_actor_to_did(wf_agent *agent, const char *actor,
     return wf_agent_resolve_handle(agent, actor, out_did);
 }
 
+/* Create an agent, wiring the Wii U DRBG into curl TLS when built for
+ * Wii U. Thin wrapper around wf_agent_new. Caller frees with wf_agent_free. */
+wf_agent *cli_agent_new(const char *service) {
+    wf_agent *agent = wf_agent_new(service);
+#if defined(WOLFRAM_WIIU)
+    if (agent) (void)wf_wiiu_apply_tls_rng(agent);
+#endif
+    return agent;
+}
+
 /* Create an agent, login, and return it. Returns NULL on failure (error
  * already printed to stderr). Caller frees with wf_agent_free. */
 wf_agent *agent_login_or_err(const char *service, const char *handle,
                              const char *password) {
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return NULL;

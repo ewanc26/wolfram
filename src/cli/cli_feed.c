@@ -230,7 +230,7 @@ int cmd_get_actor_likes(int argc, char **argv) {
     const char *actor = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -251,7 +251,7 @@ int cmd_get_actor_feeds(int argc, char **argv) {
     const char *actor = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -333,7 +333,7 @@ int cmd_known_followers(int argc, char **argv) {
     const char *actor = argv[2];
     int limit = (argc >= 4) ? atoi(argv[3]) : 50;
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -356,7 +356,7 @@ int cmd_relationships(int argc, char **argv) {
     int n_others = argc - 3;
     const char **others = (const char **)(argv + 3);
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -378,7 +378,7 @@ int cmd_get_profiles(int argc, char **argv) {
     int n_actors = argc - 2;
     const char **actors = (const char **)(argv + 2);
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -419,7 +419,7 @@ int cmd_get_actor_status(int argc, char **argv) {
     const char *service = argv[1];
     const char *actor = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -459,7 +459,7 @@ int cmd_get_feed_generators(int argc, char **argv) {
     int n_feeds = argc - 2;
     const char **feeds = (const char **)(argv + 2);
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -479,7 +479,7 @@ int cmd_get_suggested_follows_by_actor(int argc, char **argv) {
     const char *service = argv[1];
     const char *actor = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;

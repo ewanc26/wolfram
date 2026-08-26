@@ -24,7 +24,7 @@ int cmd_login(int argc, char **argv) {
     const char *handle = argv[2];
     const char *password = argv[3];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -74,7 +74,7 @@ int cmd_describe_server(int argc, char **argv) {
     }
     const char *service = argv[1];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -101,8 +101,7 @@ int cmd_describe_server(int argc, char **argv) {
            desc.privacy_policy ? desc.privacy_policy : "?");
     printf("termsOfService: %s\n",
            desc.terms_of_service ? desc.terms_of_service : "?");
-    printf("contactEmail: %s\n",
-           desc.contact_email ? desc.contact_email : "?");
+    printf("contactEmail: %s\n", desc.contact_email ? desc.contact_email : "?");
     wf_agent_server_description_free(&desc);
     wf_agent_free(agent);
     return 0;
