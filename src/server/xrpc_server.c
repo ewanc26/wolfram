@@ -350,12 +350,26 @@ struct wf_owned_ctx {
 static void wf_server_apply_cors(wf_xrpc_server *server,
                                  struct MHD_Connection *conn,
                                  struct MHD_Response *resp) {
-    const char *origin;
     const char *req_headers;
-    if (!server || !server->cors_enabled) {
+    if (!server) {
         return;
     }
-    origin = server->cors_origin ? server->cors_origin : "*";
+    /* cors_enabled/cors_origin are written under routes_mutex by
+     * wf_xrpc_server_set_cors, including a free() of the old cors_origin on
+     * every call -- reading them here without the same lock let a request
+     * thread mid-MHD_add_response_header (still holding the raw pointer)
+     * race a concurrent set_cors call that had already freed it. Snapshot
+     * under the lock and use the local copy instead. */
+    pthread_mutex_lock(&server->routes_mutex);
+    bool enabled = server->cors_enabled;
+    char *origin_copy =
+        server->cors_origin ? strdup(server->cors_origin) : NULL;
+    pthread_mutex_unlock(&server->routes_mutex);
+    if (!enabled) {
+        free(origin_copy);
+        return;
+    }
+    const char *origin = origin_copy ? origin_copy : "*";
     MHD_add_response_header(resp, "Access-Control-Allow-Origin", origin);
     req_headers = MHD_lookup_connection_value(conn, MHD_HEADER_KIND,
                                               "Access-Control-Request-Headers");
@@ -372,6 +386,7 @@ static void wf_server_apply_cors(wf_xrpc_server *server,
                             "Content-Type, Retry-After, RateLimit-Limit, "
                             "RateLimit-Reset, RateLimit-Remaining, "
                             "RateLimit-Policy");
+    free(origin_copy);
 }
 
 /* ------------------------------------------------------------------ */
