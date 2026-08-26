@@ -36,7 +36,7 @@ int cmd_create_account(int argc, char **argv) {
         return 1;
     }
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -303,7 +303,7 @@ int cmd_password_reset(int argc, char **argv) {
     const char *service = argv[1];
     const char *email = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;

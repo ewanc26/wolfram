@@ -30,7 +30,7 @@ int cmd_profile(int argc, char **argv) {
     const char *service = argv[1];
     const char *actor = argv[2];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -90,7 +90,7 @@ int cmd_follow(int argc, char **argv) {
     const char *password = argv[3];
     const char *actor = argv[4];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -138,7 +138,7 @@ int cmd_unfollow(int argc, char **argv) {
     const char *password = argv[3];
     const char *actor = argv[4];
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;

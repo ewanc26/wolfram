@@ -43,7 +43,7 @@ int cmd_browse(int argc, char **argv) {
             g_json = true;
     }
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;
@@ -291,7 +291,7 @@ int cmd_identity(int argc, char **argv) {
             g_json = true;
     }
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;

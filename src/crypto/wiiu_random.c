@@ -135,6 +135,14 @@ int wf_wiiu_entropy_ready(void) {
     return !g_rotation_pending && (g_init || g_seed_ready);
 }
 
+#include "wolfram/agent.h"
+
+wf_status wf_wiiu_apply_tls_rng(wf_agent *agent) {
+    if (!agent) return WF_ERR_INVALID_ARG;
+    if (!wf_wiiu_entropy_ready()) return WF_ERR_CRYPTO;
+    return wf_agent_set_tls_rng(agent, wii_tls_random, NULL);
+}
+
 /*
  * mbedTLS f_rng callback. Signature and semantics match wii_tls_random() in
  * src/transport/wii_tls.h so crypto_wii.c links unchanged against either.

@@ -33,7 +33,7 @@ int cmd_post(int argc, char **argv) {
         return 1;
     }
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         free(text);
@@ -210,7 +210,7 @@ int cmd_timeline(int argc, char **argv) {
     const char *password = argv[3];
     int max_pages = (argc >= 5) ? atoi(argv[4]) : 0; /* 0 = until exhausted */
 
-    wf_agent *agent = wf_agent_new(service);
+    wf_agent *agent = cli_agent_new(service);
     if (!agent) {
         fprintf(stderr, "error: failed to create agent\n");
         return 1;

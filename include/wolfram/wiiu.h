@@ -53,6 +53,15 @@ wf_status wf_wiiu_commit_entropy_rotation(void);
  *  rotation, i.e. signing and key generation will succeed. */
 int wf_wiiu_entropy_ready(void);
 
+struct wf_agent; /* forward decl — avoid pulling in agent.h for all consumers */
+
+/**
+ * Wire the application-seeded DRBG into an agent's curl TLS transport.
+ * Must be called after wf_wiiu_set_entropy_seed() and before any network I/O.
+ * Returns WF_ERR_CRYPTO if the DRBG is not yet seeded.
+ */
+wf_status wf_wiiu_apply_tls_rng(struct wf_agent *agent);
+
 #ifdef __cplusplus
 }
 #endif
