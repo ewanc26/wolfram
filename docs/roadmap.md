@@ -657,9 +657,14 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   had SDK-level tests (`test_validate.c`) but no end-to-end proof that
   MetalBear's write handlers actually reject an out-of-bounds blob against
   the real `app.bsky.embed.images` lexicon — `test_repo_store.c`'s
-  `run_blob_constraint_validation` now covers that. Remaining follow-up:
-  optional at-rest encryption of stored bytes (analogous to
-  `WOLFRAM_BUILD_STORE_CRYPTO`).
+   `run_blob_constraint_validation` now covers that. Optional at-rest
+   encryption of the stored blob payload bytes (analogous to
+   `WOLFRAM_BUILD_STORE_CRYPTO`) is now implemented in MetalBear behind the
+   `METALBEAR_BUILD_BLOB_CRYPTO` option — file-backed payloads are sealed with
+   libsodium `crypto_secretbox_easy` (XSalsa20-Poly1305) under a
+   `crypto_pwhash` (Argon2id) key derived from
+   `metalbear_blob_store_set_crypto_passphrase`, with a per-store salt in
+   `<dir>/.blobstore.salt`; see the MetalBear `blob_store.h`. Off by default.
 - `app.bsky.notification.putPreferencesV2` and `getPreferences` share the
   fully typed 13-slot `defs#preferences` representation. The legacy v1
   `putPreferences` endpoint carries only its required `priority` boolean;
