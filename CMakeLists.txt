@@ -137,11 +137,14 @@ FetchContent_MakeAvailable(libcbor)
 set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 FetchContent_Declare(
-  base64url GIT_REPOSITORY https://github.com/jons/base64url.git GIT_TAG master)
-FetchContent_GetProperties(base64url)
-if(NOT base64url_POPULATED)
-  FetchContent_Populate(base64url)
-endif()
+  base64url
+  GIT_REPOSITORY https://github.com/jons/base64url.git
+  GIT_TAG master
+  # The upstream project is Autotools-only. Point MakeAvailable at an absent
+  # subdirectory so it populates the sources without trying to add a CMake
+  # subproject; wolfram compiles librb64u.c directly below.
+  SOURCE_SUBDIR cmake-not-used)
+FetchContent_MakeAvailable(base64url)
 
 # Lexicon generator tool — C++ replacement for the removed tools/wf_lexgen.py. A
 # development-time codegen tool, so it is always built (not gated on
