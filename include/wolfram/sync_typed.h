@@ -13,7 +13,7 @@
  * CBOR with wf_repo_get_record (reusing the MST traversal already in repo).
  *
  * Wire shapes follow the AUTHORITATIVE lexicons under
- * /Volumes/Storage/Developer/Local/atproto/lexicons/com/atproto/sync/:
+ * /Volumes/Storage/Developer/Git/atproto/lexicons/com/atproto/sync/:
  *   getRepoStatus  -> { did, active, status?, rev? }   (active is boolean)
  *   getLatestCommit-> { cid, rev }
  * (Note: these differ from the older prose shapes that mentioned head /

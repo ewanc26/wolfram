@@ -21,7 +21,7 @@ Thanks for your interest. This is a mature AT Protocol SDK with extensive covera
 
 When implementing protocol-level behaviour, cross-reference these before guessing at wire formats:
 
-- [bluesky-social/atproto](https://github.com/bluesky-social/atproto) — the canonical lexicons live under `lexicons/` (a local checkout is usually at `/Volumes/Storage/Developer/Local/atproto`). The full corpus (394 lexicons across `app.bsky`, `chat.bsky`, `com.atproto`, `tools.ozone`, `site.standard`, …) is exercised by `test_validate_corpus` via `wf_lexicon_registry_load_dir`.
+- [bluesky-social/atproto](https://github.com/bluesky-social/atproto) — the canonical lexicons live under `lexicons/` (the local checkout is at `/Volumes/Storage/Developer/Git/atproto`). The full corpus (394 lexicons across `app.bsky`, `chat.bsky`, `com.atproto`, `tools.ozone`, `site.standard`, …) is exercised by `test_validate_corpus` via `wf_lexicon_registry_load_dir`.
 - [rsky](https://github.com/blacksky-algorithms/rsky) (Rust) — used for behavioural parity on identity, lexicon, repo, moderation, and OAuth flows. wolfram's C API is authoritative, but rsky is a useful cross-check.
 - Existing libs to lean on: cJSON (JSON), libcbor (CBOR), OpenSSL (SHA-256 / P-256), libsecp256k1 (secp256k1), c-ares (DNS), libzstd (Jetstream), libcurl (transport), SQLite3 + libsodium (optional store). Prefer integrating a maintained library over hand-rolling.
 
