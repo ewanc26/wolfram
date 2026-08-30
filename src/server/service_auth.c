@@ -10,7 +10,7 @@
  * inter-service auth to labeler / ozone / feedgen backends.
  *
  * The wire format matches @atproto/xrpc-server `createServiceJwt`
- * (/Volumes/Storage/Developer/Local/atproto/packages/xrpc-server/src/auth.ts):
+ * (/Volumes/Storage/Developer/Git/atproto/packages/xrpc-server/src/auth.ts):
  *
  *   header  = { "typ": "JWT", "alg": <keypair.jwtAlg> }
  *   payload = noUndefinedVals({ iat, iss, aud, exp, lxm, jti })
