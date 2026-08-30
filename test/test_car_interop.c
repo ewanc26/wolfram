@@ -2,7 +2,7 @@
  * test_car_interop.c — validates wolfram's CAR codec and CID handling
  * against the official atproto reference vectors
  * (packages/repo/tests/car-file-fixtures.json, copied verbatim from
- * /Volumes/Storage/Developer/Local/atproto).
+ * /Volumes/Storage/Developer/Git/atproto).
  *
  * Each fixture carries a full CAR (`car`, base64url), a root CID, and the
  * list of blocks ({cid, bytes}) where `bytes` is the raw DAG-CBOR content

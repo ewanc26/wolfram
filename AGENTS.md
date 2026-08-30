@@ -77,7 +77,7 @@ for upcoming work with `gh project item-create 2 --owner ewanc26 --title
 - **Optional modules**: gated by CMake options — `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption), `WOLFRAM_BUILD_TEST_HTTPD` (libmicrohttpd mock PDS for offline HTTP integration tests), `WOLFRAM_BUILD_IDN` (libidn2 internationalised-handle resolution), `WOLFRAM_BUILD_CPP` (C++ RAII wrapper `wolfram-cpp`). Platform/example/test flags: `WOLFRAM_BUILD_WII` / `_WIIU` / `_3DS` / `_WINDOWS`, `WOLFRAM_BUILD_EXAMPLES`, `WOLFRAM_BUILD_TESTS`.
 - **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64, rpi1) are supported via `.devdeps/*.cmake` toolchain files. Wii and Wii U use real platform primitives (libogc and wut respectively); 3DS retains a stub platform implementation. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads. rpi1 (Raspberry Pi 1/Zero, ARMv6) is a plain Linux server target, not a console client build — see "Platform support" below.
 - **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
-- **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Local/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
+- **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Git/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
 
 ## Public updates on ewan.bear1.croft.click
 
@@ -143,7 +143,7 @@ require a session token), never `com.atproto.repo.getRecord` alone.
   than by line count. `atproto_lex.{c,h}` are generated and exempt from
   every size rule.
 
-The bundled lexicon filenames currently match the local upstream checkout, but file parity is not semantic proof. For every protocol change, inspect the relevant lexicon and TypeScript implementation/tests under `/Volumes/Storage/Developer/Local/atproto`; check canonical encoding, validation order, limits, error semantics, pagination, union tags, and ownership rather than comparing endpoint names alone.
+The bundled lexicon filenames currently match the local upstream checkout, but file parity is not semantic proof. For every protocol change, inspect the relevant lexicon and TypeScript implementation/tests under `/Volumes/Storage/Developer/Git/atproto`; check canonical encoding, validation order, limits, error semantics, pagination, union tags, and ownership rather than comparing endpoint names alone.
 
 ## Validation matrix
 
