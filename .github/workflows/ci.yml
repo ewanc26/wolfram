@@ -119,9 +119,9 @@ jobs:
       # smoke test of that deployment on every push to main.
       - name: Test (ctest)
         env:
-          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
-          BSKY_PASSWORD: ${{ secrets.BSKY_PASSWORD }}
-          BSKY_SERVICE: ${{ secrets.BSKY_SERVICE }}
+          BSKY_HANDLE: ${{ github.ref == 'refs/heads/main' && secrets.BSKY_HANDLE || '' }}
+          BSKY_PASSWORD: ${{ github.ref == 'refs/heads/main' && secrets.BSKY_PASSWORD || '' }}
+          BSKY_SERVICE: ${{ github.ref == 'refs/heads/main' && secrets.BSKY_SERVICE || '' }}
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
   # C# interop wrapper. Requires the .NET SDK; gated so the overall CI does
