@@ -1,9 +1,10 @@
 /**
  * identity.h — DID and handle resolution.
  *
- * Scaffolding for did:plc and did:web resolution, plus handle → DID
+ * Support for did:plc and did:web resolution, plus handle → DID
  * resolution via DNS TXT (_atproto.*) and the well-known HTTP fallback.
- * Bodies are stubbed pending implementation — see src/identity.c.
+ * The implementation also provides DID-document caching, validation, and
+ * identity-management XRPC helpers; see src/identity.c.
  */
 
 #ifndef WOLFRAM_IDENTITY_H
