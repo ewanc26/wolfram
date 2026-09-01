@@ -1,7 +1,6 @@
 /*
  * server_typed.h — owned typed parsers + agent convenience wrappers for the
- * com.atproto.server session/account endpoints not yet exposed in a typed,
- * owned form.
+ * com.atproto.server session/account endpoints.
  *
  * Conventions mirror labeler_typed.h / ozone_typed.h: wf_status error codes,
  * static strdup/set_string/reset helpers, ownership via cJSON_DetachItem*, an
