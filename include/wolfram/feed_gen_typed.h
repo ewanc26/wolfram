@@ -36,8 +36,8 @@
  *
  * app.bsky.feed.getPopularFeedGenerators is NOT covered: there is no
  * app.bsky.feed.getPopularFeedGenerators generated lex wrapper (the NSID exists
- * only as app.bsky.unspecced.getPopularFeedGenerators). See the TODO in the
- * source for the optional unspecced variant.
+ * only as app.bsky.unspecced.getPopularFeedGenerators); that variant is
+ * exposed by unspecced_typed.h instead.
  */
 
 #ifndef WOLFRAM_FEED_GEN_TYPED_H
