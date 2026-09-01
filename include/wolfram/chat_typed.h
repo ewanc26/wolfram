@@ -822,7 +822,7 @@ wf_status wf_agent_chat_get_status_typed(wf_agent *agent,
 
 /* ════════════════════════════════════════════════════════════════════════
  * Extended typed wrappers for the remaining chat.bsky.group / moderation /
- * actor endpoints that were not yet wrapped.
+ * actor endpoints.
  *
  * Several of these procedures return an EMPTY `{}` body on success
  * (rejectJoinRequest, updateJoinRequestsRead, withdrawJoinRequest,
