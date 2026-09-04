@@ -127,6 +127,7 @@ int main(void) {
         p.interests.tag_count = 2;
         p.interests.tags[0] = mkstr("art");
         p.interests.tags[1] = mkstr("music");
+        p.interests.updated_at = mkstr("2024-06-01T00:00:00Z");
 
         p.labelers.labelers = (char **)calloc(1, sizeof(char *));
         p.labelers.labeler_count = 1;
@@ -145,6 +146,9 @@ int main(void) {
             WF_CHECK(rt.content_labels &&
                      strcmp(rt.content_labels[0].label, "gore") == 0);
             WF_CHECK(rt.interests.tag_count == 2);
+            WF_CHECK(rt.interests.updated_at &&
+                     strcmp(rt.interests.updated_at, "2024-06-01T00:00:00Z") ==
+                         0);
             WF_CHECK(rt.labelers.labeler_count == 1);
             wf_actor_preferences_free(&rt);
             free(json);
