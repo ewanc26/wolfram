@@ -2259,6 +2259,12 @@ static WF_LEX_UNUSED wf_status
 wf_lex_decode_wf_lex_app_bsky_graph_mute_thread_main_input(
     cJSON *node, wf_lex_app_bsky_graph_mute_thread_main_input *value);
 static WF_LEX_UNUSED void
+wf_lex_clear_wf_lex_app_bsky_graph_referencelistoptout_main(
+    wf_lex_app_bsky_graph_referencelistoptout_main *value);
+static WF_LEX_UNUSED wf_status
+wf_lex_decode_wf_lex_app_bsky_graph_referencelistoptout_main(
+    cJSON *node, wf_lex_app_bsky_graph_referencelistoptout_main *value);
+static WF_LEX_UNUSED void
 wf_lex_clear_wf_lex_app_bsky_graph_search_starter_packs_main_output(
     wf_lex_app_bsky_graph_search_starter_packs_main_output *value);
 static WF_LEX_UNUSED wf_status
@@ -16577,6 +16583,7 @@ cleanup:
 static void wf_lex_clear_wf_lex_app_bsky_actor_defs_interests_pref(
     wf_lex_app_bsky_actor_defs_interests_pref *value) {
     if (!value) return;
+    free((void *)value->updated_at);
     for (size_t i = 0; i < value->tags.count; ++i) {
         free((void *)value->tags.items[i]);
     }
@@ -16589,6 +16596,21 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_actor_defs_interests_pref(
     wf_status status = WF_OK;
     (void)status;
     if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "updatedAt");
+        if (member) {
+            value->has_updated_at = true;
+            if (!cJSON_IsString(member)) {
+                status = WF_ERR_INVALID_ARG;
+                goto cleanup;
+            }
+            value->updated_at = wf_lex_strdup(member->valuestring);
+            if (!value->updated_at) {
+                status = WF_ERR_ALLOC;
+                goto cleanup;
+            }
+        }
+    }
     {
         cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "tags");
         if (!member) {
@@ -32266,6 +32288,18 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_graph_defs_list_item_view(
             member, (wf_lex_app_bsky_actor_defs_profile_view *)value->subject);
         if (status != WF_OK) goto cleanup;
     }
+    {
+        cJSON *member =
+            cJSON_GetObjectItemCaseSensitive(node, "subjectOptedOut");
+        if (member) {
+            value->has_subject_opted_out = true;
+            if (!cJSON_IsBool(member)) {
+                status = WF_ERR_INVALID_ARG;
+                goto cleanup;
+            }
+            value->subject_opted_out = cJSON_IsTrue(member);
+        }
+    }
     return WF_OK;
 cleanup:
     wf_lex_clear_wf_lex_app_bsky_graph_defs_list_item_view(value);
@@ -32730,6 +32764,7 @@ static void wf_lex_clear_wf_lex_app_bsky_graph_defs_list_viewer_state(
     wf_lex_app_bsky_graph_defs_list_viewer_state *value) {
     if (!value) return;
     free((void *)value->blocked);
+    free((void *)value->reference_list_opt_out);
     memset(value, 0, sizeof(*value));
 }
 
@@ -32759,6 +32794,22 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_graph_defs_list_viewer_state(
             }
             value->blocked = wf_lex_strdup(member->valuestring);
             if (!value->blocked) {
+                status = WF_ERR_ALLOC;
+                goto cleanup;
+            }
+        }
+    }
+    {
+        cJSON *member =
+            cJSON_GetObjectItemCaseSensitive(node, "referenceListOptOut");
+        if (member) {
+            value->has_reference_list_opt_out = true;
+            if (!cJSON_IsString(member)) {
+                status = WF_ERR_INVALID_ARG;
+                goto cleanup;
+            }
+            value->reference_list_opt_out = wf_lex_strdup(member->valuestring);
+            if (!value->reference_list_opt_out) {
                 status = WF_ERR_ALLOC;
                 goto cleanup;
             }
@@ -36216,6 +36267,57 @@ static wf_status wf_lex_decode_wf_lex_app_bsky_graph_mute_thread_main_input(
     return WF_OK;
 cleanup:
     wf_lex_clear_wf_lex_app_bsky_graph_mute_thread_main_input(value);
+    return status;
+}
+
+static void wf_lex_clear_wf_lex_app_bsky_graph_referencelistoptout_main(
+    wf_lex_app_bsky_graph_referencelistoptout_main *value) {
+    if (!value) return;
+    free((void *)value->subject);
+    free((void *)value->created_at);
+    memset(value, 0, sizeof(*value));
+}
+
+static wf_status wf_lex_decode_wf_lex_app_bsky_graph_referencelistoptout_main(
+    cJSON *node, wf_lex_app_bsky_graph_referencelistoptout_main *value) {
+    wf_status status = WF_OK;
+    (void)status;
+    if (!cJSON_IsObject(node) || !value) return WF_ERR_INVALID_ARG;
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "subject");
+        if (!member) {
+            status = WF_ERR_INVALID_ARG;
+            goto cleanup;
+        }
+        if (!cJSON_IsString(member)) {
+            status = WF_ERR_INVALID_ARG;
+            goto cleanup;
+        }
+        value->subject = wf_lex_strdup(member->valuestring);
+        if (!value->subject) {
+            status = WF_ERR_ALLOC;
+            goto cleanup;
+        }
+    }
+    {
+        cJSON *member = cJSON_GetObjectItemCaseSensitive(node, "createdAt");
+        if (!member) {
+            status = WF_ERR_INVALID_ARG;
+            goto cleanup;
+        }
+        if (!cJSON_IsString(member)) {
+            status = WF_ERR_INVALID_ARG;
+            goto cleanup;
+        }
+        value->created_at = wf_lex_strdup(member->valuestring);
+        if (!value->created_at) {
+            status = WF_ERR_ALLOC;
+            goto cleanup;
+        }
+    }
+    return WF_OK;
+cleanup:
+    wf_lex_clear_wf_lex_app_bsky_graph_referencelistoptout_main(value);
     return status;
 }
 

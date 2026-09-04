@@ -169,6 +169,7 @@ static void wf_actor_pref_interests_reset(wf_actor_pref_interests *p) {
         return;
     }
     wf_actor_prefs_free_string_array(p->tags, p->tag_count);
+    free(p->updated_at);
     memset(p, 0, sizeof(*p));
 }
 
@@ -449,7 +450,15 @@ static wf_status wf_actor_pref_parse_interests(cJSON *obj,
     if (!cJSON_IsArray(tags)) {
         return WF_ERR_PARSE;
     }
-    return wf_actor_prefs_parse_string_array(tags, &p->tags, &p->tag_count);
+    wf_status s =
+        wf_actor_prefs_parse_string_array(tags, &p->tags, &p->tag_count);
+    if (s != WF_OK) return s;
+    cJSON *updated_at = cJSON_GetObjectItemCaseSensitive(obj, "updatedAt");
+    if (cJSON_IsString(updated_at) && updated_at->valuestring) {
+        return wf_actor_prefs_set_string(&p->updated_at,
+                                         updated_at->valuestring);
+    }
+    return WF_OK;
 }
 
 static wf_status wf_actor_pref_parse_muted_word(cJSON *obj,
@@ -978,14 +987,20 @@ wf_status wf_actor_build_preferences(const wf_actor_preferences *prefs,
         cJSON_AddItemToArray(arr, o);
     }
     /* interestsPref */
-    if (prefs->interests.tag_count > 0) {
+    if (prefs->interests.tag_count > 0 || prefs->interests.updated_at) {
         cJSON *o = cJSON_CreateObject();
         cJSON_AddStringToObject(o, "$type",
                                 "app.bsky.actor.defs#interestsPref");
-        cJSON *tags = cJSON_CreateArray();
-        wf_actor_prefs_add_string_array(tags, prefs->interests.tags,
-                                        prefs->interests.tag_count);
-        cJSON_AddItemToObject(o, "tags", tags);
+        if (prefs->interests.tag_count > 0) {
+            cJSON *tags = cJSON_CreateArray();
+            wf_actor_prefs_add_string_array(tags, prefs->interests.tags,
+                                            prefs->interests.tag_count);
+            cJSON_AddItemToObject(o, "tags", tags);
+        }
+        if (prefs->interests.updated_at) {
+            cJSON_AddStringToObject(o, "updatedAt",
+                                    prefs->interests.updated_at);
+        }
         cJSON_AddItemToArray(arr, o);
     }
     /* mutedWordsPref */
