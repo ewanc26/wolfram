@@ -118,10 +118,12 @@ typedef struct wf_actor_pref_thread_view {
     char *sort;
 } wf_actor_pref_thread_view;
 
-/* interestsPref: { tags[] } */
+/* interestsPref: { tags[], updatedAt? } */
 typedef struct wf_actor_pref_interests {
     char **tags;
     size_t tag_count;
+    char
+        *updated_at; /* timestamp when the owner last updated their interests */
 } wf_actor_pref_interests;
 
 /* mutedWord (item of mutedWordsPref#items). */

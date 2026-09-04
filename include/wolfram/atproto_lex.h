@@ -533,6 +533,12 @@ typedef struct wf_lex_blob {
 #define WF_LEX_APP_BSKY_GRAPH_MUTE_THREAD_NSID "app.bsky.graph.muteThread"
 #define WF_LEX_APP_BSKY_GRAPH_MUTE_THREAD_KIND "procedure"
 
+/** Record requesting that its author be omitted from the public presentation of
+ * a reference list. */
+#define WF_LEX_APP_BSKY_GRAPH_REFERENCELISTOPTOUT_NSID                         \
+    "app.bsky.graph.referencelistoptout"
+#define WF_LEX_APP_BSKY_GRAPH_REFERENCELISTOPTOUT_KIND "record"
+
 /** Find starter packs matching search criteria. Does not require auth. */
 #define WF_LEX_APP_BSKY_GRAPH_SEARCH_STARTER_PACKS_NSID                        \
     "app.bsky.graph.searchStarterPacks"
@@ -2709,6 +2715,8 @@ typedef struct wf_lex_app_bsky_graph_mute_actor_main_input
     wf_lex_app_bsky_graph_mute_actor_main_input;
 typedef struct wf_lex_app_bsky_graph_mute_thread_main_input
     wf_lex_app_bsky_graph_mute_thread_main_input;
+typedef struct wf_lex_app_bsky_graph_referencelistoptout_main
+    wf_lex_app_bsky_graph_referencelistoptout_main;
 typedef struct wf_lex_app_bsky_graph_search_starter_packs_main_output
     wf_lex_app_bsky_graph_search_starter_packs_main_output;
 typedef struct wf_lex_app_bsky_graph_search_starter_packs_main_params
@@ -6122,6 +6130,9 @@ typedef struct wf_lex_app_bsky_actor_defs_thread_view_pref {
 } wf_lex_app_bsky_actor_defs_thread_view_pref;
 
 typedef struct wf_lex_app_bsky_actor_defs_interests_pref {
+    /** The timestamp when the account owner last updated their interests. */
+    bool has_updated_at;
+    const char *updated_at;
     /** A list of tags which describe the account owner's interests gathered
      * during onboarding. */
     WF_LEX_ARRAY(const char *) tags;
@@ -7980,6 +7991,10 @@ typedef struct wf_lex_app_bsky_graph_defs_list_view {
 typedef struct wf_lex_app_bsky_graph_defs_list_item_view {
     const char *uri;
     const wf_lex_app_bsky_actor_defs_profile_view *subject;
+    /** Set to true when the subject has opted out of appearing in the reference
+     * list. Only set when the viewer owns the list. */
+    bool has_subject_opted_out;
+    bool subject_opted_out;
 } wf_lex_app_bsky_graph_defs_list_item_view;
 
 typedef struct wf_lex_app_bsky_graph_defs_starter_pack_view {
@@ -8024,6 +8039,11 @@ typedef struct wf_lex_app_bsky_graph_defs_list_viewer_state {
     bool muted;
     bool has_blocked;
     const char *blocked;
+    /** The authenticated viewer's app.bsky.graph.referencelistoptout record URI
+     * for this reference list. Only set for reference lists. A client can
+     * delete this record to undo the opt-out. */
+    bool has_reference_list_opt_out;
+    const char *reference_list_opt_out;
 } wf_lex_app_bsky_graph_defs_list_viewer_state;
 
 /** indicates that a handle or DID could not be resolved */
@@ -8387,6 +8407,11 @@ typedef struct wf_lex_app_bsky_graph_mute_actor_list_main_input {
 typedef struct wf_lex_app_bsky_graph_mute_thread_main_input {
     const char *root;
 } wf_lex_app_bsky_graph_mute_thread_main_input;
+
+typedef struct wf_lex_app_bsky_graph_referencelistoptout_main {
+    const char *subject;
+    const char *created_at;
+} wf_lex_app_bsky_graph_referencelistoptout_main;
 
 typedef struct wf_lex_app_bsky_graph_search_starter_packs_main_params {
     /** Search query string. Syntax, phrase, boolean, and faceting is
