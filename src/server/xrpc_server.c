@@ -51,6 +51,8 @@ typedef struct wf_stream_request_ctx {
     cJSON *params;
     char *raw_query;
     char *authed_subject;
+    wf_xrpc_request_header *atproto_headers;
+    size_t atproto_headers_count;
     void *stream_ctx;
     wf_xrpc_response response;
     bool began;
@@ -799,6 +801,13 @@ static void wf_stream_request_free(wf_stream_request_ctx *stream) {
     cJSON_Delete(stream->params);
     free(stream->raw_query);
     free(stream->authed_subject);
+    if (stream->atproto_headers) {
+        for (size_t i = 0; i < stream->atproto_headers_count; i++) {
+            free(stream->atproto_headers[i].name);
+            free(stream->atproto_headers[i].value);
+        }
+        free(stream->atproto_headers);
+    }
     free(stream->nsid);
     free(stream->path);
     stream->magic = 0;
@@ -935,6 +944,92 @@ static cJSON *wf_server_get_query_params(struct MHD_Connection *conn) {
         return NULL;
     }
     return ctx.obj;
+}
+
+/* ------------------------------------------------------------------ */
+/* x-atproto-* request headers (AppView proxy forwarding)              */
+/* ------------------------------------------------------------------ */
+/* MHD iterator: append every header whose name begins (case-insensitively)
+ * with "x-atproto-" to a growable array of wf_xrpc_request_header pairs. The
+ * reference PDS's pipethrough forwards these verbatim to the upstream
+ * (getAtprotoPassthroughHeaders), so the proxy needs them on the request. */
+static enum MHD_Result wf_server_atproto_hdr_iter(void *cls,
+                                                  enum MHD_ValueKind kind,
+                                                  const char *key,
+                                                  const char *value) {
+    struct {
+        wf_xrpc_request_header *arr;
+        size_t count;
+        size_t cap;
+        int failed;
+    } *ctx = cls;
+    (void)kind;
+    if (!key || !value) return MHD_YES;
+    static const char prefix[] = "x-atproto-";
+    if (strncasecmp(key, prefix, sizeof(prefix) - 1) != 0) return MHD_YES;
+    if (ctx->count == ctx->cap) {
+        size_t newcap = ctx->cap ? ctx->cap * 2 : 4;
+        wf_xrpc_request_header *grown =
+            realloc(ctx->arr, newcap * sizeof(*ctx->arr));
+        if (!grown) {
+            ctx->failed = 1;
+            return MHD_NO;
+        }
+        ctx->arr = grown;
+        ctx->cap = newcap;
+    }
+    wf_xrpc_request_header *h = &ctx->arr[ctx->count];
+    h->name = strdup(key);
+    h->value = strdup(value);
+    if (!h->name || !h->value) {
+        free(h->name);
+        free(h->value);
+        ctx->failed = 1;
+        return MHD_NO;
+    }
+    ctx->count++;
+    return MHD_YES;
+}
+
+static void wf_server_request_headers_free(wf_xrpc_request *req) {
+    if (!req || !req->atproto_headers) return;
+    for (size_t i = 0; i < req->atproto_headers_count; i++) {
+        free(req->atproto_headers[i].name);
+        free(req->atproto_headers[i].value);
+    }
+    free(req->atproto_headers);
+    req->atproto_headers = NULL;
+    req->atproto_headers_count = 0;
+}
+
+/* Populate the proxy-forwarding request-header fields (the common ones plus
+ * the x-atproto-* snapshot) from the MHD connection. All values are owned by
+ * the request (either MHD-lifetime borrowed pointers for the named fields, or
+ * the caller-owned atproto_headers array) and are valid only during the
+ * handler; the array is freed in request cleanup. */
+static void wf_server_populate_request_headers(wf_xrpc_request *req,
+                                               struct MHD_Connection *conn) {
+    if (!req || !conn) return;
+    req->accept_language =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Accept-Language");
+    req->accept_encoding =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Accept-Encoding");
+    req->atproto_accept_labelers = MHD_lookup_connection_value(
+        conn, MHD_HEADER_KIND, "atproto-accept-labelers");
+    req->x_bsky_topics =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "X-Bsky-Topics");
+    struct {
+        wf_xrpc_request_header *arr;
+        size_t count;
+        size_t cap;
+        int failed;
+    } hdr_ctx = {0};
+    MHD_get_connection_values(conn, MHD_HEADER_KIND,
+                              &wf_server_atproto_hdr_iter, &hdr_ctx);
+    if (!hdr_ctx.failed) {
+        req->atproto_headers = hdr_ctx.arr;
+        req->atproto_headers_count = hdr_ctx.count;
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1209,6 +1304,7 @@ wf_stream_request_begin(wf_xrpc_server *server, wf_route *route,
     request.raw_query = stream->raw_query;
     request.atproto_proxy =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "atproto-proxy");
+    wf_server_populate_request_headers(&request, conn);
     request.client_ip = client_ip;
     request.handler_ctx = route->ctx;
     wf_server_content_length(conn, &request);
@@ -1494,6 +1590,7 @@ process:
                 conn, MHD_HEADER_KIND, "Content-Type");
             freq.host_header =
                 MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+            wf_server_populate_request_headers(&freq, conn);
             if (raw_pb) {
                 freq.body = (const unsigned char *)raw_pb->data;
                 freq.body_len = raw_pb->len;
@@ -1535,6 +1632,7 @@ process:
             MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
         auth_req.client_ip = client_ip_str;
         wf_server_content_length(conn, &auth_req);
+        wf_server_populate_request_headers(&auth_req, conn);
         wf_status auth_status = server->auth_cb(&auth_req, server->auth_ctx);
         if (auth_status != WF_OK) {
             if (auth_status == WF_ERR_CONFLICT)
@@ -1550,6 +1648,7 @@ process:
         authed_subject = auth_req.authed_subject;
         auth_req.authed_subject = NULL;
         authed_kind = auth_req.authed_principal_kind;
+        wf_server_request_headers_free(&auth_req);
     }
 
     /* Build request and call handler */
@@ -1576,6 +1675,7 @@ process:
     req.raw_query = wf_server_build_raw_query(conn);
     req.atproto_proxy =
         MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "atproto-proxy");
+    wf_server_populate_request_headers(&req, conn);
     /* Carry the authenticated principal (if any) established above.
      * `authed_subject` is server-owned and freed in cleanup. */
     req.authed_subject = authed_subject;
@@ -1717,6 +1817,7 @@ cleanup:
         free(raw_pb->data);
         free(raw_pb);
     }
+    wf_server_request_headers_free(&req);
     free(req.authed_subject); /* server-owned; NULL when no principal */
     return ret;
 }
