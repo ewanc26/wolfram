@@ -163,8 +163,9 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
 }
 
 /* Fallback handler: echoes the fields an AppView-style proxy needs
- * (nsid, method, raw query, atproto-proxy header, body) so the test can
- * assert they arrive intact for unregistered NSIDs. */
+ * (nsid, method, raw query, atproto-proxy header, content-negotiation
+ * headers, x-atproto-* passthrough headers, body) so the test can assert
+ * they arrive intact for unregistered NSIDs. */
 static wf_status test_fallback_handler(void *ctx, const wf_xrpc_request *req,
                                        wf_xrpc_response *resp) {
     (void)ctx;
@@ -177,6 +178,30 @@ static wf_status test_fallback_handler(void *ctx, const wf_xrpc_request *req,
         cJSON_AddStringToObject(obj, "raw_query", req->raw_query);
     if (req->atproto_proxy)
         cJSON_AddStringToObject(obj, "atproto_proxy", req->atproto_proxy);
+    if (req->accept_language)
+        cJSON_AddStringToObject(obj, "accept_language", req->accept_language);
+    if (req->accept_encoding)
+        cJSON_AddStringToObject(obj, "accept_encoding", req->accept_encoding);
+    if (req->atproto_accept_labelers)
+        cJSON_AddStringToObject(obj, "atproto_accept_labelers",
+                                req->atproto_accept_labelers);
+    if (req->x_bsky_topics)
+        cJSON_AddStringToObject(obj, "x_bsky_topics", req->x_bsky_topics);
+    if (req->atproto_headers && req->atproto_headers_count > 0) {
+        cJSON *arr = cJSON_CreateArray();
+        if (arr) {
+            for (size_t i = 0; i < req->atproto_headers_count; i++) {
+                cJSON *pair = cJSON_CreateObject();
+                if (!pair) continue;
+                cJSON_AddStringToObject(pair, "name",
+                                        req->atproto_headers[i].name);
+                cJSON_AddStringToObject(pair, "value",
+                                        req->atproto_headers[i].value);
+                cJSON_AddItemToArray(arr, pair);
+            }
+            cJSON_AddItemToObject(obj, "atproto_headers", arr);
+        }
+    }
     if (req->body && req->body_len)
         cJSON_AddStringToObject(obj, "body_len", "set");
     char *json = cJSON_PrintUnformatted(obj);
@@ -512,6 +537,89 @@ static int run_test(void) {
                     0) {
                 fprintf(stderr, "FAIL: fallback atproto_proxy mismatch\n");
                 failures++;
+            }
+            {
+                wf_http_header fwd_hdrs[] = {
+                    {"Accept-Language", "en-US"},
+                    {"Accept-Encoding", "gzip"},
+                    {"atproto-accept-labelers", "did:plc:lab1,did:plc:lab2"},
+                    {"X-Bsky-Topics", "topic-a,topic-b"},
+                    {"x-atproto-session-id", "abc123"},
+                    {"x-atproto-bsky-topics", "topic-c"},
+                };
+                wf_status fs =
+                    wf_http_get_with_headers(client, url, fwd_hdrs, 6, &res);
+                cJSON *froot =
+                    (fs == WF_OK && res.body)
+                        ? cJSON_ParseWithLength(res.body, res.body_len)
+                        : NULL;
+                if (!froot) {
+                    fprintf(
+                        stderr,
+                        "FAIL: fallback header-forward status=%d http=%ld\n",
+                        (int)fs, res.status);
+                    failures++;
+                } else {
+                    cJSON *al = cJSON_GetObjectItemCaseSensitive(
+                        froot, "accept_language");
+                    cJSON *ae = cJSON_GetObjectItemCaseSensitive(
+                        froot, "accept_encoding");
+                    cJSON *aal = cJSON_GetObjectItemCaseSensitive(
+                        froot, "atproto_accept_labelers");
+                    cJSON *t = cJSON_GetObjectItemCaseSensitive(
+                        froot, "x_bsky_topics");
+                    cJSON *ah = cJSON_GetObjectItemCaseSensitive(
+                        froot, "atproto_headers");
+                    if (!cJSON_IsString(al) ||
+                        strcmp(al->valuestring, "en-US") != 0) {
+                        fprintf(stderr,
+                                "FAIL: fallback accept_language mismatch\n");
+                        failures++;
+                    }
+                    if (!cJSON_IsString(ae) ||
+                        strcmp(ae->valuestring, "gzip") != 0) {
+                        fprintf(stderr,
+                                "FAIL: fallback accept_encoding mismatch\n");
+                        failures++;
+                    }
+                    if (!cJSON_IsString(aal) ||
+                        strcmp(aal->valuestring, "did:plc:lab1,did:plc:lab2") !=
+                            0) {
+                        fprintf(stderr,
+                                "FAIL: fallback atproto_accept_labelers "
+                                "mismatch\n");
+                        failures++;
+                    }
+                    if (!cJSON_IsString(t) ||
+                        strcmp(t->valuestring, "topic-a,topic-b") != 0) {
+                        fprintf(stderr,
+                                "FAIL: fallback x_bsky_topics mismatch\n");
+                        failures++;
+                    }
+                    if (!cJSON_IsArray(ah) || cJSON_GetArraySize(ah) != 2) {
+                        fprintf(stderr,
+                                "FAIL: fallback atproto_headers count=%d\n",
+                                (int)cJSON_GetArraySize(ah));
+                        failures++;
+                    } else {
+                        cJSON *first = cJSON_GetArrayItem(ah, 0);
+                        cJSON *name =
+                            cJSON_GetObjectItemCaseSensitive(first, "name");
+                        cJSON *value =
+                            cJSON_GetObjectItemCaseSensitive(first, "value");
+                        if (!cJSON_IsString(name) ||
+                            strcmp(name->valuestring, "x-atproto-session-id") !=
+                                0 ||
+                            !cJSON_IsString(value) ||
+                            strcmp(value->valuestring, "abc123") != 0) {
+                            fprintf(stderr, "FAIL: fallback atproto header[0] "
+                                            "mismatch\n");
+                            failures++;
+                        }
+                    }
+                    cJSON_Delete(froot);
+                }
+                wf_response_free(&res);
             }
             cJSON_Delete(root);
         }
