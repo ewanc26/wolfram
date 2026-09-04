@@ -47,6 +47,13 @@ typedef enum {
                                   policies to express "no restriction" */
 } wf_xrpc_principal_kind;
 
+/** One forwarded request header pair (name begins with "x-atproto-"). Both
+ *  strings are owned by the request and valid only during the handler. */
+typedef struct wf_xrpc_request_header {
+    char *name;
+    char *value;
+} wf_xrpc_request_header;
+
 typedef struct wf_xrpc_request {
     const char *nsid;        /* Parsed XRPC NSID from URL path */
     const char *path;        /* Exact request path (for non-XRPC routes). */
@@ -84,6 +91,25 @@ typedef struct wf_xrpc_request {
     /* Request `atproto-proxy` header value ("<did>#<service_id>"), or NULL.
      * Valid only during the handler. */
     const char *atproto_proxy;
+    /* Content-negotiation / AppView-forwarding request headers, exactly as
+     * sent (may each be NULL). Handlers reverse-proxying to an AppView or
+     * other upstream forward these to preserve the client's preferences and
+     * requested labelers, matching the reference PDS's pipethrough. Valid
+     * only during the handler. */
+    const char *accept_language;         /* Accept-Language */
+    const char *accept_encoding;         /* Accept-Encoding */
+    const char *atproto_accept_labelers; /* atproto-accept-labelers */
+    const char *x_bsky_topics;           /* X-Bsky-Topics */
+    /* Case-insensitive snapshot of every request header whose name begins
+     * with "x-atproto-" (e.g. x-atproto-session-id, x-atproto-bsky-topics),
+     * in arrival order. The reference PDS forwards all such headers verbatim
+     * its pipethrough (getAtprotoPassthroughHeaders), so an AppView proxy
+     * forwards the same set. `atproto_headers` is NULL when none were sent
+     * (and `atproto_headers_count` is 0); otherwise it is an array of
+     * `atproto_headers_count` pairs. Values are owned by the request and
+     * valid only during the handler. */
+    wf_xrpc_request_header *atproto_headers;
+    size_t atproto_headers_count;
     /* Client address (numeric IPv4/IPv6, no port), or "unknown" if it could
      * not be determined. Valid only during the handler. NULL for requests
      * built outside the HTTP dispatch path (e.g. some internal/test call
@@ -116,8 +142,7 @@ typedef struct wf_xrpc_response {
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT                                                  \
-    { 200, NULL, 0, NULL, NULL }
+#define WF_XRPC_RESPONSE_INIT {200, NULL, 0, NULL, NULL}
 
 /** Set the response body (copies the string). */
 void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
