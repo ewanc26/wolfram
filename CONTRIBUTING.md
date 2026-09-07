@@ -1,53 +1,87 @@
-# Contributing to wolfram
+# Contributing to Zincfox
 
-Thanks for your interest. This is a mature AT Protocol SDK with extensive coverage — a few ground rules still apply. C is the default language for all new code; C++ is permitted for complex or sensitive components where C proves insufficient — RAII-based resource management, performance-critical code, and third-party library integrations with no C equivalent. All C++ must expose a C ABI via `extern "C"` and never leak C++ types across the boundary. See [AGENTS.md](AGENTS.md) for the full language policy.
+Zincfox is an experimental clean-room C/C++23 Minecraft: Java Edition server.
+The current implementation has an experimental protocol-767 login,
+configuration, and Play-spawn path validated with the MCP client, but no
+general real-client, version, or gameplay compatibility claim.
 
-## Core philosophy
+## Before submitting changes
 
-1. **Protocol parity**: cross-reference [bluesky-social/atproto](https://github.com/bluesky-social/atproto) when implementing anything protocol-level, rather than guessing at wire formats.
-2. **No hand-rolled crypto**: signing/verification wraps an established library (`libsecp256k1`, OpenSSL/LibreSSL). This is non-negotiable.
-3. **Modular decoupling**: `xrpc` knows nothing about lexicons; `identity`, `crypto`, and `repo` stay independent of each other except where the protocol genuinely requires it.
-4. **Test what's implemented**: stubs don't need tests. Anything with a real body does, at minimum via `test/`.
+Build and test with the repository's strict warnings enabled:
 
-## How to contribute
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug \
+  -DZINCFOX_ENABLE_SANITIZERS=ON
+cmake --build build-san -j
+ctest --test-dir build-san --output-on-failure
+```
 
-1. Fork and clone.
-2. Build with CMake (see README) and confirm `ctest` passes before you start.
-3. Keep PRs scoped to one module or concern.
-4. Commit style: `type(scope): description` — e.g. `feat(repo): decode DAG-CBOR maps`.
-   Human and AI co-authors are both welcome via the standard `Co-authored-by:` trailer. This only asks that the trailer be honest — credit who/what actually contributed, and don't add spurious ones.
+Run `clang-format` on changed C/C++ files. New protocol behavior needs positive,
+malformed-input, fragmentation, and boundary coverage. Network behavior must
+remain non-blocking and bounded; prefer fixed-capacity storage, reusable
+buffers, borrowed `std::span` inputs, and explicit ownership.
 
-## References
+For the real-client regression path, set `ZINCFOX_MCP_ROOT` to the local
+`mcp-minecraft` checkout and run the server on `127.0.0.1:25565`:
 
-When implementing protocol-level behaviour, cross-reference these before guessing at wire formats:
+```sh
+ZINCFOX_MCP_ROOT=/path/to/mcp-minecraft node test/client_regression.mjs
+```
 
-- [bluesky-social/atproto](https://github.com/bluesky-social/atproto) — the canonical lexicons live under `lexicons/` (the local checkout is at `/Volumes/Storage/Developer/Git/atproto`). The full corpus (394 lexicons across `app.bsky`, `chat.bsky`, `com.atproto`, `tools.ozone`, `site.standard`, …) is exercised by `test_validate_corpus` via `wf_lexicon_registry_load_dir`.
-- [rsky](https://github.com/blacksky-algorithms/rsky) (Rust) — used for behavioural parity on identity, lexicon, repo, moderation, and OAuth flows. wolfram's C API is authoritative, but rsky is a useful cross-check.
-- Existing libs to lean on: cJSON (JSON), libcbor (CBOR), OpenSSL (SHA-256 / P-256), libsecp256k1 (secp256k1), c-ares (DNS), libzstd (Jetstream), libcurl (transport), SQLite3 + libsodium (optional store). Prefer integrating a maintained library over hand-rolling.
+The harness uses two 1.21.1 clients, verifies both reach Play spawn, checks
+unsigned system-chat delivery, and exercises movement, terrain dig/place, and
+disconnect broadcasts. It uses unique bounded usernames and derives interaction
+coordinates from the generated surface so persisted player state cannot make a
+run accidentally pass or fail. It is a local development check because the MCP
+dependency is intentionally not vendored.
 
-## Branch & PR hygiene
+## Protocol and compatibility
 
-- Keep each change scoped to one module or concern, ideally on its own feature branch (e.g. `feat/agent-pagination`, `fix(sync): …`).
-- Work can be developed in parallel on separate branches/worktrees and merged via `--no-ff` merge commits.
-- Stubs must be honest: return `WF_ERR_INVALID_ARG` with a `TODO` explaining what's missing — never a silent no-op.
-- Every heap-allocated output has a matching `_free`; document ownership next to the function.
+Protocol definitions belong in `src/protocol/` and version-specific behavior
+must remain isolated from transport and game state. Public references used for
+wire formats must be recorded in the change or its documentation. Do not copy
+Mojang code or claim a Minecraft version until a real client path and automated
+regression coverage exist.
 
-## Testing
+Every new long-lived allocation or queue must document its owner, normal size,
+maximum size, and growth/backpressure rule. The initial networking budget is
+32 connection slots with fixed 8 KiB receive and 128 KiB transmit buffers per slot.
+User-visible errors and connection drops must use a unique hexadecimal code;
+see `docs/error-codes.md`.
 
-Tests are **offline-first** — `ctest --test-dir build` must pass with no network.
+All configurable server behavior belongs in the global `zincfox.conf` file.
+New settings need a validated finite range, a documented default, load/save
+tests, and memory/resource documentation where applicable. Dynamic settings
+must resolve to documented finite limits when host information is unavailable.
 
-- Unit tests for implemented modules live in `test/` and run by default.
-- `WOLFRAM_BUILD_TEST_HTTPD=ON` builds an optional **libmicrohttpd** mock PDS (`test/mock_pds.c`) so end-to-end XRPC flows can be exercised fully offline (`test_mock_pds`).
-- `WOLFRAM_BUILD_STORE=ON` enables the optional SQLite persistence layer and its tests (`store`, `mirror_persist`, `store_crypto`); `WOLFRAM_BUILD_STORE_CRYPTO=ON` adds libsodium session encryption.
-- Lexicon clients are generated by `tools/wf_lexgen.cpp` (built as the `wf_lexgen_tool` CMake target); after changing it, regenerate and re-run the `lexgen` CTest (`ctest -R lexgen`).
+## Commits and pull requests
 
-## Adding dependencies
+Use a dedicated `feat/<area>` or `fix/<area>` branch; never push feature work
+directly to `main`. Make atomic conventional commits such as
+`feat(protocol): ...`, `fix(net): ...`, or `test(protocol): ...`. Pull
+requests should explain compatibility claims, memory bounds, test commands,
+portability, and any borrowed design or reference material.
 
-- New dependencies are **optional** and **CMake-gated** (default OFF) unless they are already core (cURL, cJSON, libcbor, OpenSSL, libsecp256k1).
-- Prefer **system** libraries (`find_package` / `find_library`) over network `FetchContent` so builds work offline.
-- **No hand-rolled crypto or hashing** — wrap an established library. This is non-negotiable.
+## Releases
 
-## Development environment
+Zincfox uses strict semantic versions and cuts the next sequential release when
+a substantial tranche is ready. Substantial means a user-visible protocol or
+gameplay change, persistence/world-format change, compatibility claim, public
+interface change, or material resource-budget change; documentation-only,
+test-only, formatting, and internal refactoring changes do not require a
+release unless they alter the published contract.
 
-- CMake + a C23 compiler, or `nix develop` for a ready-made shell.
-- `cmake --build build && ctest --test-dir build` before opening a PR.
+Before cutting a release, audit the commits since the latest tag. Update only
+the `VERSION` line in `CMakeLists.txt`, commit that bump with the finished
+tranche, create a signed annotated `v<major>.<minor>.<patch>` tag on the same
+commit (or an annotated tag if signing is unavailable), push both, and create a
+GitHub release with generated notes. Releases before `v1.0.0` are source-only;
+release artifacts begin with `v1.0.0`. Never skip a version or create a tag or
+release without its matching version commit.
+
+Zincfox is licensed under the GNU Affero General Public License v3.0. Keep
+license notices and attribution intact when using external references or
+borrowed designs.
