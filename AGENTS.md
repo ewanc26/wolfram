@@ -1,377 +1,196 @@
-# AGENTS.md
+#AGENTS.md
 
-Agentic principles and technical context for the `wolfram` repository.
+Guidance for AI coding agents working in this repository. Human contributors
+may find it useful too, but the audience is agents.
 
-## Technical philosophy
+## Project overview
 
-1. **Transport first**: client protocol modules route HTTP/XRPC and subscription traffic through the XRPC/WebSocket APIs. Keep raw client I/O in `src/transport/`; DNS resolution, optional server listeners, and platform initialization are separate explicit boundaries.
-2. **Libraries first, hand-rolling last**: prefer an established, maintained library before considering writing anything from scratch — wrap `libsecp256k1` and an established SHA-256 implementation rather than writing field arithmetic or digest logic, cJSON for JSON, and the platform's TLS stack rather than implementing transport security. This is a strict policy: hand-rolled code is the last resort, used only when no suitable library exists for the target platform, and then isolated behind a single wrapper with a comment recording what was considered and why. Never hand-roll cryptography, hashing, base64url, canonical DAG-CBOR, JWT, or TLS. Verify a candidate library actually exists and links on the target (pkg-config, CMake `find_package`) before designing around it; never assume a library is available.
-3. **Stubs are honest**: unimplemented functions return an error and carry a `TODO` explaining what's missing and why — never a silent no-op or a fabricated success. Unimplemented backends/transports (e.g. Wii U/3DS platform stubs) return `WF_ERR_NOT_IMPLEMENTED`; unimplemented protocol functions with missing inputs return `WF_ERR_INVALID_ARG`. When the missing piece becomes available (e.g. a generated lex transport call), replace the stub with a real implementation rather than leaving it.
-4. **Ownership is explicit**: every heap-allocated output has a matching `_free` function documented next to it. No hidden allocations, no implicit ownership transfer.
-5. **Protocol parity**: cross-reference `bluesky-social/atproto` for wire formats (XRPC envelopes, DID documents, DAG-CBOR, MST) rather than inferring them. Also read the normative specification at <https://atproto.com> — <https://atproto.com/specs/sync> for the firehose, <https://atproto.com/specs/repository> and `data-model` for encoding. It states requirements the reference source does not spell out (deterministic CBOR ordering, `rev` ordering and clock-drift rejection, `prevData` chain verification, what a consuming relay may reject), and those are what other implementations were written against.
-6. **C-first, C++ where beneficial**: the SDK and generated clients are C23 at runtime. Development-time code generation and tests use C++ programs (`tools/*.cpp`, built as CMake targets); they must never become a runtime dependency. Prefer C++ where it is beneficial — RAII-based resource management (e.g. cJSON), performance-critical code, and third-party library integrations with no C equivalent — and use it rather than writing error-prone manual-cleanup C. All C++ code must be wrapped with `extern "C"` to maintain C23 compatibility. Always use `extern "C"` for any wrapper so the rest of the SDK can consume it without C++ headers or types. Where a C library equivalent exists, prefer the C one. Default to C for new code; introduce C++ where the complexity, resource management, or performance requirements justify it.
-7. **Console/multi-platform support**: support for embedded and cross-compiled targets (Nintendo Wii, Wii U, 3DS, Windows, Linux/AArch64, etc.) is parity across platforms — platform-specific APIs are isolated in `src/platform/`. The Windows target is fully implemented against the Win32 API. Wii has real libogc primitives, mbedTLS HTTPS and WebSocket (RFC 6455 client), and P-256/did:key crypto; secp256k1 is also implemented via mbedTLS. Wii U has real wut primitives and uses the curl transport (see "Platform support"). 3DS has real libctru primitives (LightLock mutex, osGetTime clock, httpc transport) and mbedtls-based P-256/did:key crypto.
-8. **No duplication**: if a piece of logic already exists elsewhere in this codebase, call into it rather than reimplementing it a second time — this applies within the SDK itself, not just against external libraries (see point 2). Two independent implementations of the same rule can silently drift apart, and only one of them getting fixed is worse than either alone. This matters most for security-sensitive logic (signature/nonce normalization, replay handling, constant-time comparisons), but applies generally: before writing a new helper, check whether an equivalent already exists nearby and extract/reuse it instead of copying it.
-9. **Multithreaded by default**: the optional XRPC server (`WOLFRAM_BUILD_SERVER`) uses a libmicrohttpd thread pool whose size is controlled by `thread_count` (auto-sized to CPU count × 2 when 0, default 8 on high-core hosts). All shared server state — the route table, rate-limit buckets, SSE subscriber lists, and WebSocket stream registry — is guarded by a mutex. The client transport is also thread-safe: `wf_xrpc_client` holds a mutex around its mutable fields, and `wf_xrpc_query_async`/`wf_xrpc_procedure_async` issue requests on a worker thread using a config snapshot. New server-side code must document its locking discipline, use the `_locked` variant pattern (public wrapper locks, internal unlocked variant) to avoid recursive-lock deadlocks, and never assume single-threaded access even in single-threaded test configs.
+A native C/C++23 Minecraft: Java Edition server focused on predictable, low RAM
+usage. Zincfox is an experimental clean-room server implementation: the goal is
+not to clone the vanilla server architecture in C++, but to build the protocol,
+simulation, world and persistence layers around explicit ownership, bounded
+queues and measurable memory budgets from the start.
 
-## Code style
+- **Language:** C17 is available for small leaf components where it reduces
+  runtime/dependency surface; C++23 is the default for protocol, server,
+  storage, and world state. `snake_case` for functions and variables,
+  `PascalCase` for types.
+- **Build:** CMake, C17/C++23 strict by target, `-Wall -Wextra -Wpedantic
+  -Wconversion -Wsign-conversion`. Tests are per-file executables run through `ctest`,
+  following the account's other native repos (`clay/`, `wolfram/`, `keepsake/`).
+- **Target:** macOS and Linux desktop. Windows is untested (as elsewhere in this
+  account).
 
-- **Comments are allowed and encouraged** where they aid understanding — especially next to public API declarations (ownership rules, lifetime, thread-safety), non-obvious transport/protocol details, and the `honest stub`/`TODO` notes described in the philosophy. The existing codebase uses comments pervasively; match that. Do not add noise comments that merely restate the code.
-- **Atomic conventional commits**: every commit must contain exactly one logical change. Scope by module — `feat(xrpc)`, `feat(repo)`, `fix(identity)`, `fix(lexgen)`, `docs(roadmap)`, etc. Never mix unrelated changes in a single commit (e.g. do not combine a code change with a docs update). Feature work lands on a dedicated `feat/<area>` branch and is merged to `main` with `--no-ff` so the branch history is preserved. If a commit touches multiple concerns, split it into multiple sequential commits.
-- **Honest attribution**: add a `Co-authored-by:` trailer crediting an AI agent when it materially contributed (e.g. `Co-authored-by: Claude ...` or `Co-authored-by: Kilo ...`). AI assistance is welcome and should be credited accurately, alongside any human co-authors.
-- **Module layering**: transport → identity → repo → agent. New protocol surface follows the existing pattern: generated lex wrappers (`atproto_lex.{c,h}`) for the wire calls, then `*_typed.{c,h}` owning parsers/builders, then `wf_agent_*` convenience wrappers that sync auth and delegate to the generated call.
-- **No commented-out code** left in place; delete dead code or move it to a test.
-- Follow the surrounding file's indentation and brace style.
+## Repository layout
 
-## Roadmap
+```
+include/zincfox/       public/internal C/C++ interfaces
+src/protocol/          VarInt, framing, packet/state codecs
+src/server/            connection lifecycle and dispatch
+src/world/             world/chunk state (future)
+src/entity/            entity/player storage (future)
+src/storage/           region/persistence backends (future)
+test/                  unit and protocol regression tests
+docs/                  design notes and compatibility records
+```
 
-Public kanban board: https://github.com/users/ewanc26/projects/2
+Dependency direction is inward from higher-level game/server code to small
+protocol/net abstractions. Do not let world/entity code call raw socket APIs.
 
-Use the kanban board to track work across columns: **Backlog** → **Todo** →
-**In Progress** → **Done**. When picking up a task, move it to **In
-Progress**; when finished and released, move it to **Done**. Add new items
-for upcoming work with `gh project item-create 2 --owner ewanc26 --title
-"..." --body "..."`. Link related PRs or issues with `gh project item-add 2
---owner ewanc26 --url <url>`. View in browser with `gh project view 2
---owner ewanc26 --web`.
+## Module boundaries — read before editing
+
+- **Protocol code owns all wire-format parsing.** `src/protocol/` must stay
+  free of server lifecycle concerns;
+`src / server /` must stay free of game -
+        state concerns
+            .The boundary is the `protocol::handle_packet` dispatch interface.-
+        **Version -
+        specific packet definitions stay in `src /
+            protocol /`.**Transport and game systems must not accumulate packet
+                              IDs or
+    version checks.Put version tables /
+            codecs behind the protocol layer so supporting another Minecraft
+                release does not fork the whole server.-
+        **Connection state is owned by `src /
+            server /`.**The protocol layer sees only
+                            borrowed `std::span` payloads; it must not retain decoded packet objects
+  after dispatch.
+- **No global mutable server state.** A subsystem that owns a thread must
+  expose shutdown/join semantics and memory/queue bounds.
+
+## Build and run
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+./build/zincfox [--port 1-65535]
+```
+
+"Verified" means: clean build (zero warnings under the strict flags), `ctest`
+green, and — for anything touching the network path — a real client connection
+path for the claimed states with automated regression fixtures retained where
+licensing permits.
+
+## Configuration
+
+- **All configurable behavior belongs in the global `zincfox.conf` file.** Do
+  not add hidden environment flags, command-only switches, or per-module
+  configuration files for server behavior. A new setting must have a bounded
+  type/range, a documented default, load/save coverage, and an explanation of
+  its retained-memory or resource effect when relevant.
+- Configuration must never make an unbounded queue, cache, world, or player
+  store possible. Dynamic choices must resolve to one of documented finite
+  limits and select the safe lower limit when host information is unavailable.
 
 ## Versioning
 
-- **Tag every version bump**: a commit that changes `VERSION` in
-  `CMakeLists.txt` must also create a signed annotated git tag on that commit:
-  `git tag -s v<major>.<minor>.<patch> -m "v<major>.<minor>.<patch>"` (use `-s`
-  when a signing key is available, otherwise `-a`). Push tags with
-  `git push --tags`.
-- **Bump in the same commit**: the version change and the tag must refer to the
-  same commit — no separate bump commit without a tag.
-- **Create a GitHub release for every version bump**: after tagging, create a
-  release via `gh release create v<major>.<minor>.<patch> --title "v<major>.<minor>.<patch>" --generate-notes` (the tag is named by that single positional; a second positional would be treated as an upload file). The release must be created in the same commit as the tag — no separate release without a tag.
-- **One version definition**: the version lives only in the `VERSION` line of
-  `CMakeLists.txt`. The `WOLFRAM_VERSION_STRING` and
-  `WOLFRAM_VERSION_{MAJOR,MINOR,PATCH}` macros are derived from
-  `PROJECT_VERSION` as PUBLIC compile definitions — there is no `version.h` to
-  keep in sync.
-- **The version macros are a consumer interface**: MetalBear reads
-  `WOLFRAM_VERSION_STRING` at build time and renders it on its landing page
-  and in `/operator.json` (`software.wolframVersion`), so the definitions must
-  stay PUBLIC and keep their current names — a consumer would not notice a
-  private or renamed macro until the version on the page goes stale.
-- **Version independently**: Wolfram and MetalBear are sibling projects, not a
-  single release unit. Each repo versions itself on its own history; do not
-  sync the version string to the sibling's.
+- Releases use strict semantic versioning `v<major>.<minor>.<patch>`.
+- The version lives only in the `VERSION` line of `CMakeLists.txt`; derive any
+  runtime version string from that single source of truth, not a separate file.
 - **No version jumps**: bump from the immediately previous released version.
-  Never skip a patch, minor, or major number; do not backfill gaps with
-  phantom tags or releases.
-- **Attach binaries starting at 1.0.0**: releases before 1.0.0 are source-only
-  (`gh release create` with no upload). From the 1.0.0 release onward, every
-  release must also attach built artifacts as release assets (e.g. `gh
-  release upload v<major>.<minor>.<patch> <path>...`) — built via the same
-  flow as local verification (`cmake --build build`), for each platform the
-  project ships prebuilt artifacts for.
+  Never skip a patch, minor, or major number; do not backfill gaps with phantom
+  tags or releases.
+- **Substantial changes require a release cut**: a user-visible protocol or
+  gameplay behavior, persistence/world-format change, compatibility claim,
+  public interface change, or material resource-budget change must not be
+  allowed to accumulate indefinitely after a release. Before merging the next
+  substantial tranche, audit the commits since the latest tag and cut the next
+  sequential version when the tranche is ready. Documentation-only, test-only,
+  formatting, and internal refactors do not require a version cut unless they
+  change the published contract.
+- **Release procedure follows Wolfram**: change the single `VERSION` line,
+  create a signed annotated `v<major>.<minor>.<patch>` tag on that same commit
+  (falling back to an annotated tag only when signing is unavailable), push the
+  commit and tag, and create the matching GitHub release with generated notes.
+  For pre-1.0 releases, publish source only; attach built artifacts starting at
+  `v1.0.0`.
 
-## Development workflow
+## Code style
 
-- **Desktop builds**: `cmake -S . -B build && cmake --build build`
-- **Tests**: `ctest --test-dir build`
-- **Lexicon generation**: `cmake --build build --target wf_lexgen_tool && ./build/wf_lexgen_tool $(find lexicons -name "*.json") -o include/wolfram/atproto_lex.h --source-output src/atproto_lex.c --header-rel wolfram/atproto_lex.h` (the tool is C++ — `tools/wf_lexgen.cpp`, replacing the removed `tools/wf_lexgen.py`)
-- **Optional modules**: gated by CMake options — `WOLFRAM_BUILD_SERVER` (libmicrohttpd XRPC server), `WOLFRAM_BUILD_STORE` (SQLite persistence), `WOLFRAM_BUILD_STORE_CRYPTO` (libsodium at-rest encryption), `WOLFRAM_BUILD_TEST_HTTPD` (libmicrohttpd mock PDS for offline HTTP integration tests), `WOLFRAM_BUILD_IDN` (libidn2 internationalised-handle resolution), `WOLFRAM_BUILD_CPP` (C++ RAII wrapper `wolfram-cpp`). Platform/example/test flags: `WOLFRAM_BUILD_WII` / `_WIIU` / `_3DS` / `_WINDOWS`, `WOLFRAM_BUILD_EXAMPLES`, `WOLFRAM_BUILD_TESTS`.
-- **Platform support for multi-target builds**: cross-compilation targets (Wii, Wii U, 3DS, Windows, linux-aarch64, rpi1) are supported via `.devdeps/*.cmake` toolchain files. Wii and Wii U use real platform primitives (libogc and wut respectively); 3DS retains a stub platform implementation. Use `-DWOLFRAM_BUILD_*` accordingly. Desktop (x86_64) still uses libcurl, OpenSSL, and pthreads. rpi1 (Raspberry Pi 1/Zero, ARMv6) is a plain Linux server target, not a console client build — see "Platform support" below.
-- **When picking this back up cold**: read the `## Roadmap` section of `README.md` and `docs/roadmap.md` first — they are kept current and order the remaining work by dependency.
-- **Before changing protocol behavior**: inspect `/Volumes/Storage/Developer/Git/atproto` and verify maintained upstream libraries/specifications where integration is preferable to custom code. The `rsky` Rust reference at `/Volumes/Storage/Developer/Git/rsky`, when present, is a useful cross-check but is not required.
+- Header guards (`ZINCFOX_PROTOCOL_<FILE>_HPP`), not `#pragma once` — matches
+  the convention in `wolfram/include/wolfram/` and `clay/include/clay/`.
+- `.clang-format` in this repo (LLVM base, 4-space indent, 80 columns,
+  attached braces) — run `clang-format -i` on changed files.
+- Comments explain *why*, sparingly; never narrate obvious code.
+- No C++ exceptions for expected protocol/server states. Use explicit
+  result/error types. Reserve exceptions/aborts for genuine programmer errors.
+- Avoid RTTI-heavy or virtual object hierarchies for packets/entities when
+  tagged values or tables are simpler.
 
-## Public updates on ewan.bear1.croft.click
+## Memory invariants
 
-The account `ewan.bear1.croft.click` (DID `did:plc:74wjsq6fb6xx62lauj3fma2w`)
-on the bear1 dev PDS is the project's public test, documentation, and update
-channel. Test content, federation checks, and release/development updates are
-published from it so they are visible to the network and serve as the public
-devlog. Credentials live in `/Volumes/Storage/Server/bear/.env` —
-`METALBEAR_PASSWORD` is the account password, `METALBEAR_APP_PASSWORD` is the
-`dev-tooling` app password the tooling uses. Never commit them.
+The initial scaffold deliberately chooses simple fixed bounds:
 
-Post an update with this SDK's own CLI from a shell that has sourced that `.env`:
+- 32 connection slots;
+- one 8 KiB receive buffer per slot;
+- one 128 KiB transmit buffer per slot (sized for one columnar 24-section
+  chunk frame with full sky light);
+- one small protocol / session record per slot;
+- one `pollfd` table for the listener plus those slots.
 
-    wolf post https://bear1.croft.click ewan.bear1.croft.click "$METALBEAR_APP_PASSWORD" <text>
+The fixed socket-buffer payload is therefore **4.25 MiB** at maximum connection
+capacity (32 slots x 136 KiB), plus small connection/poller metadata and
+operating-system socket buffers. This is not a promise that the process RSS is
+4.25 MiB, but it is the first explicit retained-memory budget owned by Zincfox
+itself.
 
-Verify the post with `com.atproto.repo.getRecord` on the published URI. The
-host routes through a Cloudflare tunnel; if it does not resolve from the build
-host, curl `https://bear1.croft.click/xrpc/_health` after DNS recovers before
-assuming the host is down.
+When adding a subsystem, document its steady-state and worst-case retained
+memory in the PR when practical.
 
-**Never hand-craft record keys.** Every record write for testing or the
-devlog (`post`, `repo put-record --rkey`, `applyWrites`) must use a real,
-freshly generated TID rkey (`wf_tid_now` — the `post` command's auto-rkey
-path) — never a hand-made string such as `3l7v6qvideo`. A non-TID rkey is
-stored fine by the PDS (`getRecord` succeeds) but is silently never ingested
-by the public AppView the feed is proxied to, so the record is invisible on
-the network while the local write reports success — a hand-made rkey post
-sat missing from the feed for exactly this reason. Verify network visibility
-through the AppView (`app.bsky.feed.getAuthorFeed` / `getPostThread`, which
-require a session token), never `com.atproto.repo.getRecord` alone.
+Every long-lived subsystem should answer four questions:
 
-## Repository map and generated-code contract
+1. What owns this memory?
+2. What is the normal retained size?
+3. What is the maximum retained size or eviction/backpressure rule?
+4. What input can cause the subsystem to grow?
 
-- `include/wolfram/` is the installed C API. Public structs must document ownership, optional fields, lifetime, and the matching free routine; preserve C++ guards and avoid leaking private dependency types unnecessarily.
-- `src/transport`, `src/session`, `src/identity`, `src/repo`, `src/crypto`, `src/sync`, and `src/agent` contain the principal client layers. `src/agent/*_typed.c` add owned parsers/builders and agent conveniences around generated calls, regardless of which lexicon namespace (com.atproto/app.bsky/chat.bsky/tools.ozone) they wrap. Within that, a subsystem that uses a genuinely different transport mechanism from the rest of the file (a WebSocket subscription loop next to HTTP request/response wrappers, e.g. `chat.bsky.moderation.subscribeModEvents` living in `src/agent/chat_mod_events.c` rather than `chat_typed.c`) gets its own file even when it shares the same lexicon namespace as its neighbors — the split follows what a function actually does, not just which `.json` it's declared in.
-- `src/server` and `src/blob` are optional service-building infrastructure, not ports of the upstream PDS/AppView/Ozone backends. `src/store` and the server repo store have separate CMake gates and storage/security assumptions.
-- `lexicons/` is a checked-in snapshot of the upstream lexicon tree. `tools/wf_lexgen.cpp` (built as the `wf_lexgen_tool` CMake target) generates `include/wolfram/atproto_lex.h` and `src/atproto_lex.c`; both generated files are checked in. Never hand-edit either generated file. Update the source lexicons, regenerate both outputs, run the C++ `test_lexgen` CTest, and review the generated diff together.
-- `test/fixtures/` includes copied upstream interoperability vectors and API-shaped JSON. Keep fixture provenance and byte-level data intact; update a fixture only when the authoritative upstream format or the behavior under test changes.
-- `cpp/` and `dotnet/` are bindings with their own generated ownership/interop layers. A C ABI or ownership change is incomplete until affected bindings and smoke tests are rebuilt.
-- **Splitting an oversized file**: when a hand-written file (never a
-  generated one — `atproto_lex.c` is off-limits regardless of size) grows
-  large enough to bundle more than one real concern, split along that
-  concern, not an arbitrary line count. Each module keeps a private
-  `_internal.h` (e.g. `src/agent/_internal.h` for the real, non-opaque
-  `struct wf_agent`) that every file in the module may include for the
-  fields/helpers genuinely shared across files in that module — never add
-  such a helper to the public `include/wolfram/*.h` surface just to reach it
-  from a second `.c` file. Small generic helpers (a local `strdup`/`set_string`
-  pair) are deliberately *not* centralized: every `*_typed.c` keeps its own
-  copy, marked static, per the "Local copies of the small string/reset
-  helpers (kept static per TU)" comment already at the top of each one — a
-  new split file follows that same convention rather than introducing a
-  shared header for something that trivial. Verify each split with a full
-  rebuild and `ctest` run (check for the specific test covering what moved,
-  not just an overall pass) before committing, and again after
-  `clang-format` reformats the touched files.
+## Commits and pull requests
 
-  Modular structure is mandatory. `src/agent/agent.c` and
-  `src/agent/chat_typed.c` are the largest hand-written files (~3900 lines
-  each) and must not grow; a change that pushes any hand-written file past
-  ~3000 lines must split it in the same change, along its real concern (an
-  agent wrapper cluster, a typed-parser cluster, a subscription loop) rather
-  than by line count. `atproto_lex.{c,h}` are generated and exempt from
-  every size rule.
+Matches the convention in `wolfram/AGENTS.md` / `keepsake/AGENTS.md`.
 
-The bundled lexicon filenames currently match the local upstream checkout, but file parity is not semantic proof. For every protocol change, inspect the relevant lexicon and TypeScript implementation/tests under `/Volumes/Storage/Developer/Git/atproto`; check canonical encoding, validation order, limits, error semantics, pagination, union tags, and ownership rather than comparing endpoint names alone.
+- **Atomic conventional commits**: every commit is exactly one logical change.
+  Scope by module — `feat(protocol)`, `feat(server)`, `fix(net)`,
+  `test(protocol)`, etc. Never combine a code change with a docs update, or
+  changes to two unrelated modules, in one commit. Write the message to explain
+  the reasoning, not just restate the file list. Split multi-concern work into
+  sequential commits instead.
+- **Metadata files may be updated directly on `main`.** This covers project-level
+  metadata and documentation such as `AGENTS.md`, `README.md`, `docs/**`, and
+  similar non-code files that guide how the repository is maintained.
+- **All other work lands via feature branches and pull requests.** Code,
+  tests, build scripts, and any behavioral change must be developed on a
+  dedicated `feat/<area>` or `fix/<area>` branch and merged through a PR so
+  review and CI run before it reaches `main`.
+- **Honest attribution**: commits may carry a `Co-authored-by:` trailer crediting
+  an AI agent, and may reference the specific model used, in the commit message,
+  a PR, or code comments — attribution should reflect who/what actually did the
+  work.
+- **No commented-out code** left in place; delete dead code or move it to a
+  test.
 
-## Validation matrix
+## Issue tracking
 
-- The default desktop configure requires libcurl and OpenSSL, fetches pinned cJSON/libcbor sources, and builds examples and tests. A clean configure therefore may require network access even when tests themselves are offline.
-- `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` is the baseline desktop check. Use a fresh build directory after changing options, public layouts, generated code, or platform selection.
-- CTest includes the C++ `test_lexgen` test (a port of the removed `test_lexgen.py`, covering the generated codecs, wrappers, and bundled-endpoint coverage); a C++ compiler and the cJSON/OpenSSL dev libraries are therefore development/test requirements even though they are not runtime dependencies. `validate_corpus` can pass by printing `SKIP` unless `WF_ATPROTO_LEXICONS` points at an upstream corpus, and `examples_live` passes with a `SKIP` unless live credentials are supplied. Do not report those surfaces as exercised from a green default CTest run alone.
-- Exercise optional modules explicitly: `WOLFRAM_BUILD_SERVER` also requires libmicrohttpd and SQLite; `WOLFRAM_BUILD_STORE` requires SQLite; store encryption additionally requires libsodium; `WOLFRAM_BUILD_TEST_HTTPD`, `WOLFRAM_BUILD_IDN`, and `WOLFRAM_BUILD_CPP` each add distinct coverage. Build only the matrix relevant to the change, but state what remained disabled or skipped.
-- Embedded configurations force tests, examples, OAuth, and server modules off. A console cross-build proves compile/link compatibility, not HTTP/TLS correctness on hardware. Wii **and Wii U** P-256 work requires an installation-unique 64-byte seed supplied before use and a rotate/persist/commit cycle; never add a shared fallback seed. Wii secp256k1 and 3DS P-256 are implemented via mbedTLS. 3DS platform/transport are implemented via libctru.
-- Cross-builds hide link errors: an undefined symbol in a static archive only fails when something links it. After changing platform source selection, check the archive (`powerpc-eabi-nm build-wiiu/libwolfram.a | grep ' U '`) rather than trusting a successful `libwolfram.a`. Routing the Wii U through the socket transport built cleanly for months while leaving five undefined `wii_tls_*` symbols in the archive.
-- Run focused executables or `ctest -R <name>` while iterating. For ABI changes, rebuild all consumers rather than trusting an incremental relink. For parser/encoder work, add malformed, limit, allocation/cleanup, and round-trip cases as appropriate.
-- **CI formatting**: the `clang-format (changed lines)` check only inspects lines touched by the PR. After editing `src/cli/main.c` (or any file with long string literals), run `clang-format -i <file>` and commit the formatted result — do not hand-format or leave alignment-based spacing in multi-line string literals.
-- **WebSocket const-correctness**: `curl_ws_recv`'s fifth parameter is `const struct curl_ws_frame **` on Alpine/libcurl 8.x. Declare the local `meta` pointer as `const struct curl_ws_frame *meta = NULL;` in `src/transport/websocket.c` to avoid `-Wincompatible-pointer-types` build failures on stricter toolchains.
+- **Track every discovered issue**: a bug, protocol mismatch, portability
+  defect, missing test, documentation inconsistency, or deferred compatibility
+  problem found during development or review must have a GitHub issue unless it
+  is fixed in the same atomic change and leaves no follow-up work.
+- Create issues with the repository templates under
+  `.github/ISSUE_TEMPLATE/` (`bug_report.yml` for defects and
+  `feature_request.yml` for requested behavior). Include the exact version or
+  commit, reproduction or evidence, affected protocol state, and relevant
+  test/CI output. Do not substitute private notes or an untracked TODO for a
+  reportable issue.
+- Link the issue from the implementing pull request and close it only when the
+  fix or explicitly scoped follow-up has been verified. Release audits must
+  review open issues before declaring a tranche complete.
 
-## Security and correctness boundaries
+## Do not do these without explicit human sign-off
 
-- Treat service URLs, DIDs, handles, NSIDs, AT URIs, record keys, cursors, JSON/CBOR/CAR, HTTP headers, redirects, and server request bodies as untrusted. Preserve size/recursion limits, exact audience/issuer/subject checks, algorithm restrictions, low-S signing rules where required, replay/nonce handling, and refresh retry bounds.
-- Never log or commit access/refresh tokens, app passwords, OAuth state/verifiers, DPoP or signing private keys, store encryption keys, live response bodies, or Wii entropy. Tests should mint ephemeral keys and use fixtures or the in-process mock server.
-- `WF_OK` means the promised output is initialized and owned as documented. On failure, leave outputs safely freeable and release every partial allocation. Do not collapse protocol-specific failures into success or infer missing union members.
-- The presence of a wrapper does not establish complete behavior. Several typed conveniences are intentionally honest stubs because no matching lexicon endpoint exists, and some repository-store paths still map protocol-specific errors to broad status codes. Search the implementation and tests before claiming coverage.
-- Platform implementations are not interchangeable: desktop crypto/HTTP uses OpenSSL/libcurl and optional secp256k1, while Wii uses mbedTLS plus compatibility code and excludes substantial desktop surface. Test the backend whose behavior changed.
-- All server-side shared state must be thread-safe. The XRPC server runs on a libmicrohttpd thread pool (auto-sized to CPU × 2 when `thread_count` is 0); route table mutations, rate-limit bucket access, SSE subscriber lists, and WebSocket stream registration must each be guarded by a mutex. Document the locking discipline at each entry point and use the `_locked` internal-variant pattern (caller holds lock) + public wrapper (locks) to avoid recursive-lock deadlocks with registration paths.
-
-## Current state
-
-The SDK is broad and multi-layered, with extensive offline coverage. “Implemented” below means a concrete code path exists; it does not imply every optional build, live service, or console backend ran in the current validation. Known honest stubs and partial modules remain and must stay visible. Highlights:
-
-- `xrpc`: libcurl query/procedure calls, encoded scalar/repeated parameters, generic HTTP GET, bearer authentication, binary blob upload (incl. video), DPoP-bound OAuth client (`auth_client`), **thread-safe transport with async client SDK** (`wf_xrpc_query_async`/`wf_xrpc_procedure_async` via `wf_xrpc_pending`). Tested.
-- `xrpc_server`: optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER`) with **thread-pool support** (`thread_count`, auto-sized to CPU count × 2 when 0), SSE streaming, WebSocket subscription endpoints, per-route token-bucket rate limiting. Route table and rate-limit entries are guarded by mutexes; route lookups use `_locked` + public-wrapper pattern. Tested offline, including `test_xrpc_server_parallel` for concurrent-request integrity.
-- `session` / `server`: PDS login, resume, refresh, logout, and full `com.atproto.server` account lifecycle (createAccount, app passwords, deactivate, email/account-delete requests, session refresh). The `server_typed` agent wrappers implement the parameterless `com.atproto.server` procedures (`requestAccountDelete`, `requestEmailUpdate`, `requestEmailConfirmation`, `refreshSession`). Tested.
-- `identity` / `identity_typed` / `plc`: did:plc, did:web, handle DNS TXT (c-ares/POSIX `libresolv`/well-known fallback), `com.atproto.identity` wrappers, and DID PLC operation build/sign/submit helpers. `wf_agent_identity_rotate_handle` now wires the full handle-rotation flow: it builds the rotation operation locally (validation gate) and, given the out-of-band `requestPlcOperationSignature` token, signs it server-side via `signPlcOperation` and submits it via `submitPlcOperation`. Tested.
-- `crypto`: secp256k1 (libsecp256k1) + P-256 (OpenSSL), `did:key`/multikey verification. Tested.
-- `repo` / `record`: DAG-CBOR, CIDs, CAR, MST, signed v3 commits, record CRUD, diff verify/apply, operation inversion, schema-driven record encoding. Tested.
-- `sync` / `sync_typed` / `sync_subscribe` / `sync_verify`: CAR download, `com.atproto.sync.*` typed wrappers, firehose `subscribeRepos` WebSocket subscription with commit verification. Tested.
-- `sync_publish`: firehose event production. Frames must be **canonical
-  DAG-CBOR**, and three separate defects of that kind each made the PDS
-  unfederatable while every local test passed:
-
-  | defect | our decoder | a strict decoder |
-  |---|---|---|
-  | CID link missing the `0x00` multibase prefix | skips leading zeros | rejects |
-  | map keys not in canonical order | order-independent | rejects |
-  | integer encoded wider than necessary | accepts any width | rejects |
-
-  The last one was the worst: every integer was built at 64-bit width, so the
-  frame header's `op: 1` took eight bytes where one is canonical. A consumer
-  failed on the *header* and dropped the connection before reading anything,
-  which looks from the outside exactly like a relay that will not talk to you.
-  Integers go through `int_item`, which picks the narrowest form; map keys are
-  sorted centrally in `serialize_two` (RFC 8949 §4.2.1: shorter keys first,
-  then bytewise) so builders stay free to add fields in whatever order reads
-  best.
-
-  **Assert on encoded bytes, never on a round-trip** — our own decoder is
-  tolerant of precisely what the encoder gets wrong. When something will not
-  federate, capture a live frame from `bsky.network` and compare it field by
-  field and byte by byte; that is what found all three. This cannot be caught by a round-trip — our
-  decoder accepts any order, so insertion-ordered frames decode perfectly and
-  are rejected by a strict reader. Assert on encoded bytes, and when in doubt
-  compare against a live `#commit` from `bsky.network`. Firehose event production — builds the framed `{header}{body}` CBOR messages a relay/PDS streams over WebSocket (`wf_sync_publish_event` / `wf_sync_publish_error`), the exact inverse of the `sync_subscribe` decoder, covering `commit`/`sync`/`identity`/`account`/`info` and `op:-1` error frames. Round-trip tested by `test_sync_publish`. Tested.
-- `agent` / `bsky_agent`: high-level BskyAgent bundling session + xrpc + identity + agent; posts, profile, social graph, feeds, preferences, push registration, notifications, blobs, video upload, and `app.bsky.graph` write wrappers (`graph_write.{c,h}`: mute/unmute thread + actor-list, block/list/listitem/starterpack/listblock create/update/delete) tested against an offline mock PDS. Tested.
-- `chat` / `chat_typed`: `chat.bsky.*` DM/group/actor/moderation write+query wrappers with chat-service endpoint resolution. Tested.
-- `ozone` / `ozone_typed`: full `tools.ozone.*` typed coverage (moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, set value). Tested.
-- `moderation`: offline decision engine (blur/alert/inform/filter) from labels, blocks, mutes, muted words, hidden posts. Tested.
-- `label` / `labeler_typed` / `label_subscribe_typed` / `unspecced` / `unspecced_typed`: label subscription (low-level `wf_label_subscribe_start` over `com.atproto.label.subscribeLabels`, plus `wf_label_typed` owning parsers and the agent-level `wf_agent_subscribe_labels_typed` consumption wrapper that resolves the labeler service, syncs auth, and dispatches each decoded `#labels` event as an owned `wf_mod_label`), labeler service coverage, and full `app.bsky.unspecced` (trends, suggested users, thread v2, etc.). Tested.
-- `oauth`: discovery, PKCE S256, ES256 DPoP, PAR, callback validation, `private_key_jwt`, serializable sessions, `wf_auth_client` with DPoP nonce retry, **and OAuth resource-server token verification** (`oauth/verify.h`: `wf_oauth_verify_bearer` / `wf_oauth_verify_dpop` / `wf_oauth_verify_request` over the `wf_crypto_*` P-256/JWK/SHA-256/base64url primitives, with a `wf_oauth_dpop_replay_cache` and `wf_oauth_trusted_keys`). Tested.
-- `jetstream`: filtered Jetstream WebSocket subscription with cursor reconnect/backoff and optional zstd. Tested.
-- `validate` / `json` / `syntax` / `richtext`: runtime lexicon validation, generic JSON canonicalize/validate, syntax validators, rich-text facets. `syntax` and `json` are C++ (migrated from C) with RAII for cJSON objects; the public C ABI is preserved via `extern "C"`.
-- `store`: optional SQLite session + repo-mirror + persisted-label storage (`WOLFRAM_BUILD_STORE`; `WOLFRAM_BUILD_STORE_CRYPTO` adds libsodium at-rest encryption).
-- `xrpc_server`: optional `libmicrohttpd`-backed XRPC server (`WOLFRAM_BUILD_SERVER`). Route registration, **Server-Sent Events (SSE) streaming** for subscription-style endpoints, and **WebSocket (RFC 6455) subscription endpoints** with per-route token-bucket rate limiting, auth middleware, CORS. Tested offline.
-  Closing a WS stream half-closes and drains the socket before handing it back
-  to libmicrohttpd. This is not politeness: `close()` on a socket with unread
-  inbound data makes the kernel send RST, and a received RST discards the
-  peer's receive buffer — destroying frames that were delivered correctly but
-  not yet read. A subscriber that is merely slow (a loaded machine is enough)
-  loses the tail of the stream, which for a firehose is exactly the events a
-  consumer needs in order to resume from the right cursor. Covered by
-  `test_xrpc_server_ws_slow_client`, which fails deterministically without it.
-  Raw-socket test clients must also replay whatever the handshake read past
-  `\r\n\r\n`: one `read()` can return the 101 response and the first frames
-  together, and discarding the remainder makes a test wait for bytes it is
-  already holding.
-
-  **Membership of `server->ws_streams` means "a joinable worker exists for
-  this stream."** Every WebSocket lifetime bug found here came from that
-  invariant not holding, and each was fatal rather than cosmetic:
-
-  - The worker frees its upgrade context as its first act and can run to
-    completion in microseconds, so nothing may dereference that context after
-    `pthread_create` succeeds. The worker parks on `thread_ready` until the
-    spawning thread has stored its id, which is also why the id and the list
-    insertion happen under the same lock — `wf_xrpc_server_stop` reads that
-    field under `ws_mutex` and would otherwise join a zero id.
-  - Teardown drains the list one entry at a time. A bounded snapshot that
-    still cleared the whole list left every worker past the limit unlinked and
-    unjoined, running on into a freed server; 65 firehose subscribers is an
-    ordinary load, not an exotic one.
-  - `ws_stopping` latches under `ws_mutex` so no upgrade can join the list
-    behind the drain loop.
-  - A worker that finishes on its own detaches itself, decided under
-    `ws_mutex` in the same critical section as the unlink (`reaped`). Without
-    it every completed connection leaked a thread descriptor and its stack for
-    the life of the process — unbounded on a host with churning subscribers.
-  - Unlink before closing the socket. The kernel reuses the fd immediately, so
-    a still-listed stream let `stop()` `shutdown()` an unrelated live
-    connection.
-
-  `test_xrpc_server_ws_many` covers the teardown path with 96 concurrent
-  subscribers. It only detects the use-after-free under a sanitizer — a plain
-  build can exit 0 while corrupting memory — so it sets `abort_on_error`, and
-  a handler that merely returns is not enough to expose it: the workers must
-  still be running when the server is freed.
-- `feedgen_server`: optional `libmicrohttpd`-backed feed-generator skeleton server helper (`WOLFRAM_BUILD_SERVER`) serving `app.bsky.feed.getFeedSkeleton` and `getFeedGenerator`. Tested.
-- `relay_server`: optional `libmicrohttpd`-backed generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`), built on the server's WS endpoints and the libcurl WebSocket client transport. `wf_xrpc_server_register_relay` registers a WS route (e.g. `com.atproto.sync.subscribeRepos`) that, on a downstream connect, opens an upstream `ws(s)://` connection and forwards each received message byte-for-byte until either side closes, then closes downstream. Protocol-agnostic (raw frames, no parsing) so it serves `subscribeRepos`, `subscribeLabels`, or any binary subscription. Config deep-copied and freed by `wf_relay_config_free`; the `wf_relay_server` handle owns the copy and is freed by `wf_relay_server_free` after `wf_xrpc_server_free`. Tested offline (`test_relay_server`).
-- `blob_store`: **Migrated to MetalBear.** The PDS blob persistence/serving code (`wf_blob_store*`) has been moved to the MetalBear repository as `metalbear_blob_store*` (header `metalbear_blob_store.h`, core store `metalbear_blob_store.c`, XRPC route handlers `metalbear_blob_store_server.c`). The original Wolfram source files remain for historical reference but are no longer compiled or part of the SDK.
-- `video_typed`: owning parsers + agent wrappers for `app.bsky.video` (job status, upload limits, upload). Tested.
-- `actor_prefs_typed` / `actor_status_typed` / `notification_typed` / `notification_v2_typed` / `labeler_typed` / `embed_typed` / `feed_typed` / `feedgen_typed` / `graph_typed` / `list_typed` / `thread_typed` / `bookmark_typed` / `contact_typed` / `draft_typed` / `ageassurance_typed` / `temp_typed` / `admin_typed`: owned typed parsers/builders and agent wrappers across the remaining lexicon namespaces. `actor_status_typed` keeps honest stubs for `getActorStatus`/`getStatus`/`putStatus` because the `app.bsky.actor.status` lexicon defines `main` as a `record` (no query/procedure defs). Tested.
-- `lexicon` (`tools/wf_lexgen.cpp`, built as the `wf_lexgen_tool` CMake target): generates C declarations, recursive input encoders, endpoint wrappers, and owning output decoders. The generator always emits the definition for query/procedure endpoints that have neither an `input` schema nor `parameters`. Tested.
-- `cli`: `wolf` command-line client (login/post/get/threads/notifications/labels/moderation/profile/timeline/follow/like/repost/search/mute/thread, plus `oauth-login`/`oauth-callback`, `block`/`unblock`, `notifications update-seen`, `repo put-record`/`delete-record`/`list-records`/`describe`, `feed get`/`author`, `moderation report`, `ozone` moderation, `admin` operations; global `--json` flag for raw JSON output). Built by default.
-
-## Next planned work
-
-`docs/roadmap.md`'s own "Next planned work" section is the maintained,
-detailed list — this file duplicated a stale subset of it, which is how the
-sync_publish/subscribeLabels and typed-wrapper-coverage items below sat here
-marked outstanding for a while after `docs/roadmap.md` had already recorded
-them done. Check there first rather than here.
-
-Two items from the old list here, for the record: the server-side
-`sync_publish` → `subscribeRepos` WebSocket end-to-end test
-(`test_sync_publish_e2e`, plus the `sync_subscribe`-client-driven
-`test_sync_publish_server`) and `sync_publish` support for the
-`subscribeLabels` `#labels` event (`WF_SUBSCRIBE_EVENT_LABELS` /
-`build_labels_body`) were already landed. Both only build/register under
-`-DWOLFRAM_BUILD_SERVER=ON` — a CMake ordering bug meant that flag alone
-silently skipped every WOLFRAM_BUILD_SERVER-gated test executable unless
-`-DWOLFRAM_BUILD_TESTS=ON` was also passed explicitly (`option(WOLFRAM_BUILD_TESTS
-...)` ran ~300 lines after the `if(WOLFRAM_BUILD_TESTS)` guard that needed
-it), which is why this was easy to miss with a green `ctest` run; fixed by
-moving the option() declaration earlier. Generated typed-wrapper coverage was
-also already complete — verified independently by deriving every NSID's
-expected `wf_lex_..._main_call`/`WF_LEX_..._NSID` symbol from the full 314-endpoint
-lexicon corpus and confirming each is referenced outside the codegen file;
-the one unwrapped endpoint (`internal.bsky.actor.getProfiles`) is an
-internal-namespace exclusion by design, matching `docs/roadmap.md`.
-
-## Platform support
-
-Cross-compilation targets for Nintendo consoles and Windows:
-
-**Wii**: `.devdeps/wii.cmake`; client-only build, excludes OAuth, server modules, and desktop dependencies.
-
-**Wii U**: `.devdeps/wiiu.cmake`; client-only build. Requires `dkp-pacman -S wiiu-dev wiiu-pkg-config wiiu-curl wiiu-mbedtls`. The toolchain file delegates to devkitPro's own `WiiU.cmake`.
-
-**3DS**: `.devdeps/3ds.cmake`; client-only build.
-
-**Windows**: `.devdeps/windows.cmake`; MinGW-w64 cross-compilation.
-
-**Linux ARM64**: `.devdeps/linux-aarch64.cmake`; AArch64 cross-compilation.
-
-**Raspberry Pi 1 / Zero**: `.devdeps/rpi1.cmake`; ARMv6 (ARM1176JZF-S) cross-compilation. Unlike the console targets above, this is a full server build (`WOLFRAM_BUILD_SERVER=ON` works normally) — it's a target for running MetalBear, not a client-only build. Needs a Pi 1B/Zero-specific armv6zk/vfp/hard-float toolchain and rootfs (`RPI1_ROOTFS`); a generic Debian/Ubuntu "armhf" cross toolchain targets ARMv7 and will produce a binary that SIGILLs on real Pi 1B/Zero hardware. See the comment header in `rpi1.cmake` for details.
-
-Wii uses libogc for network initialisation, LWP mutexes, and monotonic timing,
-plus mbedTLS for verified HTTPS, a real RFC 6455 WebSocket client, and
-P-256/did:key crypto. secp256k1 is also implemented via mbedTLS.
-3DS uses libctru for platform primitives (LightLock mutex, osGetTime clock,
-httpc transport) and mbedtls for P-256/did:key crypto. The Windows target is
-fully implemented against the Win32 API (`windows_platform.c`).
-
-**Wii U is no longer a stub target.** `wiiu_platform.c` is implemented against
-wut: `socket_lib_init()` for the socket library, `OSMutex` for locking, and
-`OSGetTime` for the clock. Note the clock conversion is done divide-first —
-wut's `OSTicksToMicroseconds()` multiplies by 1000000 before dividing, which
-overflows uint64 for ticks-since-2000 values and would return a wrapped,
-non-monotonic result.
-
-Two things differ from the Wii and are easy to get wrong:
-
-- **Transport is curl, not the socket stack.** "Embedded" is not one thing.
-  `xrpc_wii.c`/`websocket_wii.c` depend on `wii_tls.c`, which is written
-  against libogc's `net_*` API and only builds for the Wii. The Wii U has a
-  real libcurl portlib, so it uses the same curl transport as desktop. This is
-  the `WOLFRAM_USE_SOCKET_TRANSPORT` axis in CMakeLists.txt, deliberately
-  separate from `WOLFRAM_BUILD_EMBEDDED`. Crypto stays on the embedded axis —
-  no console has OpenSSL, so all of them use the mbedTLS-backed `crypto_wii.c`.
-- **wut owns nn::ac.** `__init_wut_socket` already calls `ACInitialize()` and
-  `ACConnectAsync()`, and `__fini_wut_socket` calls `ACClose()`/`ACFinalize()`.
-  `wf_platform_init()` therefore touches only the socket library; deciding
-  whether the link is up stays with the application.
-
-**Wii U entropy fails closed, for the same reason the Wii's does.** devkitPro's
-Wii U mbedTLS defines `mbedtls_hardware_poll`, so seeding a DRBG from it
-compiles and runs — but it is `srand(OSGetSystemTick()); rand()`, a
-timer-seeded libc PRNG. Since `wii_tls_random()` feeds P-256 key generation and
-ECDSA signing, accepting it would make private keys recoverable by search.
-`src/crypto/wiiu_random.c` supplies that symbol (the Wii gets it from
-`wii_tls.c`, which the Wii U does not build) and refuses to produce output
-until the application provisions 64 real bytes via `wf_wiiu_set_entropy_seed()`
-— see `include/wolfram/wiiu.h`, which mirrors the Wii API including the
-rotate/persist/commit cycle. Never add a shared fallback seed.
-
-**That same weak poll also seeds libcurl's TLS on Wii U, and closing it needs
-the application's help.** `wf_wiiu_set_entropy_seed()` fixes Wolfram's own
-P-256 work, but libcurl holds a *separate* mbedTLS entropy context for the
-transport — so client randoms and ephemeral ECDHE keys were still being drawn
-from `srand(OSGetSystemTick())` on every request. Three details make that
-unfixable from inside Wolfram alone:
-
-- devkitPro's patch puts `mbedtls_hardware_poll` in `library/entropy.c`, the
-  same translation unit that registers it. A competing definition collides, and
-  `ld --wrap` does not redirect an intra-unit reference, so it cannot be
-  overridden at link time.
-- The portlib is built with `MBEDTLS_NO_PLATFORM_ENTROPY`, so that poll is the
-  only source in the pool. Nothing sits behind it.
-- No PowerPC-reachable hardware RNG is documented for this console; IOSU
-  gatekeeps the crypto hardware.
-
-`wf_xrpc_client_set_tls_rng()` is the way in. It installs
-`CURLOPT_SSL_CTX_FUNCTION`, and the callback calls `mbedtls_ssl_conf_rng()` on
-the `mbedtls_ssl_config *` curl hands over. curl invokes that callback *after*
-its own `mbedtls_ssl_conf_rng()` and before `mbedtls_ssl_setup()`, so ours wins
-for the whole handshake — verified against curl 8.7.1, which is what
-`wiiu-curl` ships.
-
-The hook compiles only where libcurl is genuinely mbedTLS-backed
-(`WOLFRAM_CURL_MBEDTLS`, implied by `WOLFRAM_WIIU`) *and* re-checks
-`curl_version_info()` at runtime, because handing the callback's `void *` to a
-different backend's context type would be straight type confusion. Everywhere
-else the setter returns `WF_ERR_UNSUPPORTED` rather than accepting an RNG it
-will never call.
-
-The desktop (x86_64) build includes the full suite of dependencies: libcurl, OpenSSL, pthreads, libmicrohttpd (if `WOLFRAM_BUILD_SERVER`), SQLite (if `WOLFRAM_BUILD_STORE`), libsodium (if `WOLFRAM_BUILD_STORE_CRYPTO`).
+- Add a JVM/Paper/Spigot server as the actual backend.
+- Copy Mojang proprietary server source or decompiled implementation code.
+- Add an unbounded network/task/chunk queue.
+- Replace protocol validation with permissive "best effort" parsing.
+- Introduce a dependency-heavy game/server framework.
+- Claim vanilla compatibility for a release without client/protocol tests.
+- Weaken warnings, sanitizers or tests merely to get CI green.
