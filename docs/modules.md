@@ -51,6 +51,6 @@
 | `wolfram/feedgen_server.h` | Optional | libmicrohttpd feed-generator skeleton server serving `getFeedSkeleton`/`getFeedGenerator` (`WOLFRAM_BUILD_SERVER`) |
 | `wolfram/relay_server.h`  | Optional | libmicrohttpd generic upstream→downstream WebSocket subscription relay (`WOLFRAM_BUILD_SERVER`) |
 | `wolfram/blob_store.h`    | Optional | Self-contained blob persistence + serving (in-memory or file-backed); XRPC integration registers `uploadBlob`/`getBlob` (`WOLFRAM_BUILD_SERVER`; core store always built) |
-| `wolfram/platform.h`      | Implemented | Platform abstraction (init/shutdown, mutex, monotonic time). POSIX + Win32 implemented; Wii/Wii U/3DS ship honest `WF_ERR_NOT_IMPLEMENTED` stubs |
+| `wolfram/platform.h`      | Implemented | Platform abstraction (init/shutdown, mutex, monotonic time). POSIX + Win32, Wii/libogc, Wii U/wut, and 3DS/libctru implementations are present; target-specific unsupported surfaces remain honest errors |
 | `examples/` | Implemented | Higher-level endpoint examples using generated clients (label query, PLC handle rotation, notification v2, admin search) |
 | `tools/wf_lexgen.cpp`     | Implemented | Lexicon JSON → typed C declarations, recursive input encoders, endpoint wrappers, and owning output decoders (development-time only; generated output is checked in) |
