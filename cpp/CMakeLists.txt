@@ -11,7 +11,8 @@ target_link_libraries(wolfram-cpp INTERFACE wolfram)
 # --- Build the gen_owners tool (C++ replacement for Python script)
 # ---------------
 add_executable(gen_owners_tool wolfram-cpp/tools/gen_owners.cpp)
-target_include_directories(gen_owners_tool PRIVATE ${CMAKE_SOURCE_DIR}/include)
+set(WOLFRAM_CPP_ROOT ${CMAKE_CURRENT_LIST_DIR}/..)
+target_include_directories(gen_owners_tool PRIVATE ${WOLFRAM_CPP_ROOT}/include)
 set_target_properties(gen_owners_tool PROPERTIES CXX_STANDARD 23)
 
 # --- Auto-generate RAII handle typedefs from C headers
@@ -27,8 +28,8 @@ file(
   GLOB
   WOLFRAM_PUBLIC_HEADERS
   CONFIGURE_DEPENDS
-  "${CMAKE_SOURCE_DIR}/include/wolfram/*.h"
-  "${CMAKE_SOURCE_DIR}/include/wolfram/**/*.h")
+  "${WOLFRAM_CPP_ROOT}/include/wolfram/*.h"
+  "${WOLFRAM_CPP_ROOT}/include/wolfram/**/*.h")
 
 # Create directory for generated file if needed
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wolfram-cpp/wolfram)
@@ -42,7 +43,7 @@ endif()
 
 add_custom_command(
   OUTPUT ${GEN_OWNERS_OUTPUT}
-  COMMAND gen_owners_tool ${CMAKE_SOURCE_DIR}/include/wolfram
+  COMMAND gen_owners_tool ${WOLFRAM_CPP_ROOT}/include/wolfram
           ${GEN_OWNERS_OUTPUT}
   ${GEN_OWNERS_FORMAT_COMMAND}
   DEPENDS ${WOLFRAM_PUBLIC_HEADERS} gen_owners_tool
