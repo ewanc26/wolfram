@@ -369,6 +369,29 @@ static void test_get_audit_log(void) {
     g_canned_audit_log = NULL;
 }
 
+static void test_attestation_payload(void) {
+    wf_attestation_payload a = {0}, b = {0};
+    const char *record = "{\"$type\":\"app.bsky.feed.post\",\"text\":\"hello\","
+                         "\"signatures\":[1]}";
+    const char *metadata = "{\"$type\":\"badge.sig\",\"cid\":\"old\","
+                           "\"signature\":\"old\",\"purpose\":\"post\"}";
+    CHECK(wf_attestation_payload_build(record, metadata, "did:plc:one", &a) ==
+              WF_OK,
+          "attestation payload builds");
+    CHECK(a.cbor != NULL && a.cbor_len > 0 && a.cid.len == 36,
+          "attestation payload has canonical bytes and cid");
+    CHECK(wf_attestation_payload_build(record, metadata, "did:plc:two", &b) ==
+              WF_OK,
+          "repository binding builds");
+    CHECK(!cid_equal(&a.cid, &b.cid), "repository DID changes attestation CID");
+    CHECK(wf_attestation_payload_build("{\"$type\":\"x\",\"$sig\":{}}",
+                                       metadata, "did:plc:one",
+                                       &b) == WF_ERR_INVALID_ARG,
+          "caller supplied sig is rejected");
+    wf_attestation_payload_free(&a);
+    wf_attestation_payload_free(&b);
+}
+
 int main(void) {
     /* P-256 is always available (OpenSSL). */
     build_and_sign_roundtrip(WF_KEY_TYPE_P256);
@@ -377,6 +400,7 @@ int main(void) {
 #endif
     test_get_last_op_and_build_handle_update();
     test_get_audit_log();
+    test_attestation_payload();
     if (failures == 0) {
         printf("plc: all tests passed\n");
         return 0;

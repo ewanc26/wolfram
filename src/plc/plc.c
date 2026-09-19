@@ -280,6 +280,58 @@ static wf_status wf_plc_canonical_cbor(const cJSON *root, const char *skip,
     return WF_OK;
 }
 
+wf_status wf_attestation_payload_build(const char *record_json,
+                                       const char *metadata_json,
+                                       const char *repository_did,
+                                       wf_attestation_payload *out) {
+    cJSON *record = NULL, *metadata = NULL;
+    unsigned char *cbor = NULL;
+    size_t cbor_len = 0;
+    wf_status status;
+    if (!out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    if (!record_json || !metadata_json || !repository_did || !*repository_did ||
+        strlen(record_json) > 1024 * 1024 || strlen(metadata_json) > 256 * 1024)
+        return WF_ERR_INVALID_ARG;
+    record = cJSON_Parse(record_json);
+    metadata = cJSON_Parse(metadata_json);
+    if (!record || !metadata || !cJSON_IsObject(record) ||
+        !cJSON_IsObject(metadata) ||
+        !cJSON_IsString(cJSON_GetObjectItemCaseSensitive(record, "$type")) ||
+        !cJSON_IsString(cJSON_GetObjectItemCaseSensitive(metadata, "$type")) ||
+        cJSON_GetObjectItemCaseSensitive(record, "$sig")) {
+        status = WF_ERR_INVALID_ARG;
+        goto done;
+    }
+    cJSON_DeleteItemFromObjectCaseSensitive(record, "signatures");
+    cJSON_DeleteItemFromObjectCaseSensitive(metadata, "cid");
+    cJSON_DeleteItemFromObjectCaseSensitive(metadata, "signature");
+    if (!cJSON_AddStringToObject(metadata, "repository", repository_did) ||
+        !cJSON_AddItemToObject(record, "$sig", metadata)) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
+    metadata = NULL;
+    status = wf_plc_canonical_cbor(record, NULL, &cbor, &cbor_len);
+    if (status != WF_OK) goto done;
+    status = wf_cid_of_block(cbor, cbor_len, &out->cid);
+    if (status != WF_OK) goto done;
+    out->cbor = cbor;
+    out->cbor_len = cbor_len;
+    cbor = NULL;
+done:
+    free(cbor);
+    cJSON_Delete(record);
+    cJSON_Delete(metadata);
+    return status;
+}
+
+void wf_attestation_payload_free(wf_attestation_payload *payload) {
+    if (!payload) return;
+    free(payload->cbor);
+    memset(payload, 0, sizeof(*payload));
+}
+
 /* ── public API ─────────────────────────────────────────────── */
 
 void wf_plc_operation_free(char *json) {

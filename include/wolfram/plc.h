@@ -32,6 +32,7 @@
 #define WOLFRAM_PLC_H
 
 #include "wolfram/crypto.h"
+#include "wolfram/repo/cid.h"
 #include "wolfram/xrpc.h"
 
 #ifdef __cplusplus
@@ -63,6 +64,20 @@ typedef struct wf_plc_operation_update {
      */
     const char *prev;
 } wf_plc_operation_update;
+
+/* Canonical CID-first attestation payload.  The payload is the exact
+ * DAG-CBOR block hashed into cid; callers own it after WF_OK. */
+typedef struct wf_attestation_payload {
+    unsigned char *cbor;
+    size_t cbor_len;
+    wf_cid cid;
+} wf_attestation_payload;
+
+wf_status wf_attestation_payload_build(const char *record_json,
+                                       const char *metadata_json,
+                                       const char *repository_did,
+                                       wf_attestation_payload *out);
+void wf_attestation_payload_free(wf_attestation_payload *payload);
 
 /**
  * Assemble an unsigned `plc_operation` JSON from the given update.
