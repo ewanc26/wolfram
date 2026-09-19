@@ -348,11 +348,41 @@ static void test_decode_columnar_block(void) {
     free(block);
 }
 
+static void test_parse_segment_header(void) {
+    unsigned char header[256] = {0};
+    memcpy(header, "jss0", 4u);
+    size_t at = 4u;
+    put_u64(header, &at, 99u); /* checksum */
+    header[at++] = 1u;
+    header[at++] = 0u;        /* version */
+    put_u32(header, &at, 2u); /* blocks */
+    put_u32(header, &at, 4u); /* events */
+    put_u32(header, &at, 1u); /* unique DIDs */
+    put_u64(header, &at, 10u);
+    put_u64(header, &at, 20u);
+    put_u64(header, &at, 100u);
+    put_u64(header, &at, 200u);
+    put_u64(header, &at, 256u);
+    put_u64(header, &at, 300u);
+    put_u64(header, &at, 340u);
+    put_u64(header, &at, 380u);
+    wf_jetstream_replay_segment_header parsed = {0};
+    WF_CHECK(wf_jetstream_replay_segment_header_parse(header, sizeof(header),
+                                                      &parsed) == WF_OK);
+    WF_CHECK(parsed.version == 1u && parsed.block_count == 2u &&
+             parsed.min_seq == 10u && parsed.max_seq == 20u &&
+             parsed.block_index_offset == 380u);
+    header[0] = 'x';
+    WF_CHECK(wf_jetstream_replay_segment_header_parse(header, sizeof(header),
+                                                      &parsed) == WF_ERR_PARSE);
+}
+
 int main(void) {
     test_request_json();
     test_parse_plan();
     test_parse_manifest();
     test_offline_xrpc();
     test_decode_columnar_block();
+    test_parse_segment_header();
     WF_TEST_SUMMARY();
 }

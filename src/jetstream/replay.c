@@ -14,6 +14,7 @@
 #define WF_JSON_MAX_EXACT_U64 UINT64_C(9007199254740991)
 #define WF_REPLAY_MAX_NAME_BYTES 256u
 #define WF_REPLAY_MAX_BLOCK_EVENTS (1u << 18)
+#define WF_REPLAY_SEGMENT_HEADER_BYTES 256u
 
 static char *wf_replay_strdup(const char *text) {
     if (!text) return NULL;
@@ -36,6 +37,43 @@ static uint64_t wf_replay_u64(const unsigned char *p) {
     uint64_t value = 0u;
     for (unsigned int i = 0u; i < 8u; ++i) value |= (uint64_t)p[i] << (i * 8u);
     return value;
+}
+
+wf_status wf_jetstream_replay_segment_header_parse(
+    const void *bytes, size_t bytes_len,
+    wf_jetstream_replay_segment_header *out) {
+    if (!bytes || !out || bytes_len < WF_REPLAY_SEGMENT_HEADER_BYTES) {
+        return WF_ERR_INVALID_ARG;
+    }
+    const unsigned char *data = bytes;
+    if (memcmp(data, "jss0", 4u) != 0) return WF_ERR_PARSE;
+    memset(out, 0, sizeof(*out));
+    out->checksum = wf_replay_u64(data + 4u);
+    out->version = wf_replay_u16(data + 12u);
+    out->block_count = wf_replay_u32(data + 14u);
+    out->event_count = wf_replay_u32(data + 18u);
+    out->unique_did_count = wf_replay_u32(data + 22u);
+    out->min_seq = wf_replay_u64(data + 26u);
+    out->max_seq = wf_replay_u64(data + 34u);
+    out->min_witnessed_at = (int64_t)wf_replay_u64(data + 42u);
+    out->max_witnessed_at = (int64_t)wf_replay_u64(data + 50u);
+    out->footer_offset = wf_replay_u64(data + 58u);
+    out->did_bloom_offset = wf_replay_u64(data + 66u);
+    out->block_did_bloom_offset = wf_replay_u64(data + 74u);
+    out->collection_index_offset = wf_replay_u64(data + 82u);
+    out->block_index_offset = wf_replay_u64(data + 90u);
+    if (out->version == 0u ||
+        out->block_count > WF_JETSTREAM_REPLAY_MAX_SEGMENTS ||
+        out->min_seq > out->max_seq ||
+        out->min_witnessed_at > out->max_witnessed_at ||
+        out->footer_offset < WF_REPLAY_SEGMENT_HEADER_BYTES ||
+        out->did_bloom_offset < out->footer_offset ||
+        out->block_did_bloom_offset < out->did_bloom_offset ||
+        out->collection_index_offset < out->block_did_bloom_offset ||
+        out->block_index_offset < out->collection_index_offset) {
+        return WF_ERR_PARSE;
+    }
+    return WF_OK;
 }
 
 void wf_jetstream_replay_events_free(wf_jetstream_replay_event *events,

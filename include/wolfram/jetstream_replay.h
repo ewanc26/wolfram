@@ -80,6 +80,30 @@ typedef struct wf_jetstream_replay_manifest {
     size_t segments_count;
 } wf_jetstream_replay_manifest;
 
+/* The fixed 256-byte sealed-segment header. Offsets are little-endian and
+ * reserved bytes are not interpreted. */
+typedef struct wf_jetstream_replay_segment_header {
+    uint16_t version;
+    uint32_t block_count;
+    uint32_t event_count;
+    uint32_t unique_did_count;
+    uint64_t checksum;
+    uint64_t min_seq;
+    uint64_t max_seq;
+    int64_t min_witnessed_at;
+    int64_t max_witnessed_at;
+    uint64_t footer_offset;
+    uint64_t did_bloom_offset;
+    uint64_t block_did_bloom_offset;
+    uint64_t collection_index_offset;
+    uint64_t block_index_offset;
+} wf_jetstream_replay_segment_header;
+
+/* Parse the fixed header at the start of a sealed .jss segment. */
+wf_status wf_jetstream_replay_segment_header_parse(
+    const void *bytes, size_t bytes_len,
+    wf_jetstream_replay_segment_header *out);
+
 /* One decoded row from a sealed-segment block. All strings and payload bytes
  * are owned by the event and released with wf_jetstream_replay_events_free. */
 typedef struct wf_jetstream_replay_event {
