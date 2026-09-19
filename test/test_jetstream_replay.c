@@ -12,6 +12,7 @@ typedef struct replay_handler_state {
     int saw_json;
     int saw_segment;
     int saw_block;
+    int saw_list;
 } replay_handler_state;
 
 static char *dup_text(const char *text) {
@@ -35,6 +36,8 @@ static wf_status replay_handler(void *userdata, const char *method,
         url && strstr(url, "/xrpc/network.bsky.jetstream.getSegment") != NULL;
     state->saw_block =
         url && strstr(url, "/xrpc/network.bsky.jetstream.getBlock") != NULL;
+    state->saw_list =
+        url && strstr(url, "/xrpc/network.bsky.jetstream.listSegments") != NULL;
     const int content_type_ok =
         content_type && strcmp(content_type, "application/json") == 0;
     const int body_ok = body && body_len == strlen(body) &&
@@ -243,6 +246,9 @@ static void test_offline_xrpc(void) {
     wf_response_free(&response);
     WF_CHECK(wf_jetstream_replay_get_segment(client, "", &response) ==
              WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_jetstream_replay_list_segments(client, &response) == WF_OK);
+    WF_CHECK(state.saw_list);
+    wf_response_free(&response);
     wf_xrpc_client_free(client);
 }
 

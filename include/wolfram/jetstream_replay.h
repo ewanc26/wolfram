@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 #define WF_JETSTREAM_PLAN_SNAPSHOT_NSID "network.bsky.jetstream.planSnapshot"
+#define WF_JETSTREAM_LIST_SEGMENTS_NSID "network.bsky.jetstream.listSegments"
 #define WF_JETSTREAM_GET_SEGMENT_NSID "network.bsky.jetstream.getSegment"
 #define WF_JETSTREAM_GET_BLOCK_NSID "network.bsky.jetstream.getBlock"
 #define WF_JETSTREAM_REPLAY_MAX_KINDS 4u
@@ -112,6 +113,10 @@ wf_status wf_jetstream_replay_plan(wf_xrpc_client *client,
 /** Download one immutable sealed segment as raw response bytes. */
 wf_status wf_jetstream_replay_get_segment(wf_xrpc_client *client,
                                           const char *name, wf_response *out);
+
+/** List the current sealed archive manifest as a raw JSON response. */
+wf_status wf_jetstream_replay_list_segments(wf_xrpc_client *client,
+                                            wf_response *out);
 
 /** Download one immutable compressed block as raw response bytes. */
 wf_status wf_jetstream_replay_get_block(wf_xrpc_client *client,

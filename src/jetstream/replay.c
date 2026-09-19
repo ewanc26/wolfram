@@ -326,6 +326,12 @@ wf_status wf_jetstream_replay_get_segment(wf_xrpc_client *client,
                                 1u, out);
 }
 
+wf_status wf_jetstream_replay_list_segments(wf_xrpc_client *client,
+                                            wf_response *out) {
+    return wf_replay_get_binary(client, WF_JETSTREAM_LIST_SEGMENTS_NSID, NULL,
+                                0u, out);
+}
+
 wf_status wf_jetstream_replay_get_block(wf_xrpc_client *client,
                                         const char *segment,
                                         uint64_t block_index,
