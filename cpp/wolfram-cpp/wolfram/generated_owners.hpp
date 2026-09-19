@@ -49,6 +49,7 @@
 #include <wolfram/platform.h>
 #include <wolfram/relay_server.h>
 #include <wolfram/repo/car.h>
+#include <wolfram/repo/cid.h>
 #include <wolfram/repo/diff.h>
 #include <wolfram/repo/mst.h>
 #include <wolfram/repo_typed.h>
@@ -225,6 +226,7 @@ using wf_chat_unread_counts_handle =
     unique_handle<wf_chat_unread_counts, wf_chat_unread_counts_free>;
 using wf_chat_updated_count_handle =
     unique_handle<wf_chat_updated_count, wf_chat_updated_count_free>;
+using wf_cid_hasher_handle = unique_handle<wf_cid_hasher, wf_cid_hasher_free>;
 using wf_contact_import_result_handle =
     unique_handle<wf_contact_import_result, wf_contact_import_result_free>;
 using wf_contact_match_list_handle =
@@ -666,12 +668,27 @@ using wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output_handle
     unique_handle<
         wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output,
         wf_lex_app_bsky_unspecced_search_starter_packs_skeleton_main_output_free>;
+using wf_lex_app_bsky_video_abort_upload_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_abort_upload_main_output,
+                  wf_lex_app_bsky_video_abort_upload_main_output_free>;
+using wf_lex_app_bsky_video_finish_upload_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_finish_upload_main_output,
+                  wf_lex_app_bsky_video_finish_upload_main_output_free>;
 using wf_lex_app_bsky_video_get_job_status_main_output_handle =
     unique_handle<wf_lex_app_bsky_video_get_job_status_main_output,
                   wf_lex_app_bsky_video_get_job_status_main_output_free>;
 using wf_lex_app_bsky_video_get_upload_limits_main_output_handle =
     unique_handle<wf_lex_app_bsky_video_get_upload_limits_main_output,
                   wf_lex_app_bsky_video_get_upload_limits_main_output_free>;
+using wf_lex_app_bsky_video_get_upload_status_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_get_upload_status_main_output,
+                  wf_lex_app_bsky_video_get_upload_status_main_output_free>;
+using wf_lex_app_bsky_video_start_upload_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_start_upload_main_output,
+                  wf_lex_app_bsky_video_start_upload_main_output_free>;
+using wf_lex_app_bsky_video_upload_part_main_output_handle =
+    unique_handle<wf_lex_app_bsky_video_upload_part_main_output,
+                  wf_lex_app_bsky_video_upload_part_main_output_free>;
 using wf_lex_app_bsky_video_upload_video_main_output_handle =
     unique_handle<wf_lex_app_bsky_video_upload_video_main_output,
                   wf_lex_app_bsky_video_upload_video_main_output_free>;
