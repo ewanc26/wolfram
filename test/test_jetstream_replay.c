@@ -30,8 +30,9 @@ static wf_status replay_handler(void *userdata, const char *method,
     state->saw_nsid =
         url && strstr(url, "/xrpc/network.bsky.jetstream.planSnapshot") != NULL;
     state->saw_json =
-        content_type && strcmp(content_type, "application/json") == 0 &&
-        body && body_len == strlen(body) && strstr(body, "\"afterSeq\":7") != NULL;
+        content_type && strcmp(content_type, "application/json") == 0 && body &&
+        body_len == strlen(body) &&
+        strstr(body, "\"afterSeq\":7") != NULL;
     for (size_t i = 0u; i < header_count; ++i) {
         if (headers[i].name && headers[i].value &&
             strcmp(headers[i].name, "Authorization") == 0 &&
@@ -73,12 +74,12 @@ static void test_request_json(void) {
     size_t len = 0u;
     WF_CHECK(wf_jetstream_replay_plan_json(&filter, &json, &len) == WF_OK);
     WF_CHECK(json != NULL);
-    WF_CHECK(strcmp(json,
-                    "{\"kinds\":[\"commit\",\"sync\"],"
-                    "\"dids\":[\"did:plc:alice\"],"
-                    "\"collections\":[\"app.bsky.feed.post\","
-                    "\"app.bsky.graph.*\"],\"afterSeq\":40,"
-                    "\"beforeSeq\":100}") == 0);
+    const char expected[] =
+        "{\"kinds\":[\"commit\",\"sync\"],"
+        "\"dids\":[\"did:plc:alice\"],"
+        "\"collections\":[\"app.bsky.feed.post\","
+        "\"app.bsky.graph.*\"],\"afterSeq\":40,\"beforeSeq\":100}";
+    WF_CHECK(strcmp(json, expected) == 0);
     WF_CHECK(len == strlen(json));
     free(json);
 
@@ -150,15 +151,15 @@ static void test_parse_plan(void) {
         "{\"plannedThroughSeq\":101,\"sealedTipSeq\":100,\"segments\":[],"
         "\"stats\":{\"segmentsExamined\":0,\"segmentsMatched\":0,"
         "\"blocksMatched\":0,\"entries\":0}}";
-    WF_CHECK(wf_jetstream_replay_plan_parse(bad_order,
-                                             sizeof(bad_order) - 1u,
-                                             &page) == WF_ERR_PARSE);
+    wf_status status =
+        wf_jetstream_replay_plan_parse(bad_order, sizeof(bad_order) - 1u, &page);
+    WF_CHECK(status == WF_ERR_PARSE);
 
     const char missing_stats[] =
         "{\"plannedThroughSeq\":100,\"sealedTipSeq\":100,\"segments\":[]}";
-    WF_CHECK(wf_jetstream_replay_plan_parse(missing_stats,
-                                             sizeof(missing_stats) - 1u,
-                                             &page) == WF_ERR_PARSE);
+    wf_status status =
+        wf_jetstream_replay_plan_parse(missing_stats, sizeof(missing_stats) - 1u, &page);
+    WF_CHECK(status == WF_ERR_PARSE);
 
     const char bad_checksum[] =
         "{\"plannedThroughSeq\":1,\"sealedTipSeq\":1,\"segments\":["
@@ -166,9 +167,9 @@ static void test_parse_plan(void) {
         "\"minSeq\":1,\"maxSeq\":1,\"mode\":\"segment\"}],"
         "\"stats\":{\"segmentsExamined\":1,\"segmentsMatched\":1,"
         "\"blocksMatched\":0,\"entries\":1}}";
-    WF_CHECK(wf_jetstream_replay_plan_parse(bad_checksum,
-                                             sizeof(bad_checksum) - 1u,
-                                             &page) == WF_ERR_PARSE);
+    wf_status status =
+        wf_jetstream_replay_plan_parse(bad_checksum, sizeof(bad_checksum) - 1u, &page);
+    WF_CHECK(status == WF_ERR_PARSE);
 
     const char bad_blocks[] =
         "{\"plannedThroughSeq\":1,\"sealedTipSeq\":1,\"segments\":["
@@ -177,9 +178,9 @@ static void test_parse_plan(void) {
         "\"blocks\":[{\"first\":2,\"last\":1}]}],"
         "\"stats\":{\"segmentsExamined\":1,\"segmentsMatched\":1,"
         "\"blocksMatched\":1,\"entries\":1}}";
-    WF_CHECK(wf_jetstream_replay_plan_parse(bad_blocks,
-                                             sizeof(bad_blocks) - 1u,
-                                             &page) == WF_ERR_PARSE);
+    wf_status status =
+        wf_jetstream_replay_plan_parse(bad_blocks, sizeof(bad_blocks) - 1u, &page);
+    WF_CHECK(status == WF_ERR_PARSE);
 }
 
 static void test_offline_xrpc(void) {
