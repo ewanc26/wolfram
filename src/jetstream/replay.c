@@ -7,8 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef HAVE_LIBZSTD
+#include <zstd.h>
+#endif
+
 #define WF_JSON_MAX_EXACT_U64 UINT64_C(9007199254740991)
 #define WF_REPLAY_MAX_NAME_BYTES 256u
+#define WF_REPLAY_MAX_BLOCK_EVENTS (1u << 18)
 
 static char *wf_replay_strdup(const char *text) {
     if (!text) return NULL;
@@ -16,6 +21,193 @@ static char *wf_replay_strdup(const char *text) {
     char *copy = malloc(len);
     if (copy) memcpy(copy, text, len);
     return copy;
+}
+
+static uint16_t wf_replay_u16(const unsigned char *p) {
+    return (uint16_t)p[0] | ((uint16_t)p[1] << 8u);
+}
+
+static uint32_t wf_replay_u32(const unsigned char *p) {
+    return (uint32_t)p[0] | ((uint32_t)p[1] << 8u) | ((uint32_t)p[2] << 16u) |
+           ((uint32_t)p[3] << 24u);
+}
+
+static uint64_t wf_replay_u64(const unsigned char *p) {
+    uint64_t value = 0u;
+    for (unsigned int i = 0u; i < 8u; ++i) value |= (uint64_t)p[i] << (i * 8u);
+    return value;
+}
+
+void wf_jetstream_replay_events_free(wf_jetstream_replay_event *events,
+                                     size_t count) {
+    if (!events) return;
+    for (size_t i = 0u; i < count; ++i) {
+        free(events[i].collection);
+        free(events[i].did);
+        free(events[i].rkey);
+        free(events[i].rev);
+        free(events[i].payload);
+    }
+    free(events);
+}
+
+static char *wf_replay_copy_column(const unsigned char *blob, size_t *offset,
+                                   size_t length, size_t total) {
+    if (length > total - *offset) return NULL;
+    char *copy = malloc(length + 1u);
+    if (!copy) return NULL;
+    memcpy(copy, blob + *offset, length);
+    copy[length] = '\0';
+    *offset += length;
+    return copy;
+}
+
+wf_status
+wf_jetstream_replay_block_decode(const void *bytes, size_t bytes_len,
+                                 wf_jetstream_replay_event **out_events,
+                                 size_t *out_count) {
+    if (!bytes || !out_events || !out_count || bytes_len < 4u ||
+        bytes_len > WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES)
+        return WF_ERR_INVALID_ARG;
+    *out_events = NULL;
+    *out_count = 0u;
+    const unsigned char *data = bytes;
+    const uint32_t count32 = wf_replay_u32(data);
+    const size_t count = count32;
+    const size_t fixed =
+        4u + count * (8u + 8u + 8u + 1u + 1u + 2u + 1u + 1u + 4u);
+    if (count > WF_REPLAY_MAX_BLOCK_EVENTS || count > (SIZE_MAX - 4u) / 34u ||
+        fixed > bytes_len)
+        return WF_ERR_INVALID_ARG;
+    if (count == 0u) return bytes_len == 4u ? WF_OK : WF_ERR_INVALID_ARG;
+
+    wf_jetstream_replay_event *events = calloc(count, sizeof(*events));
+    if (!events) return WF_ERR_ALLOC;
+    size_t offset = 4u;
+    const unsigned char *seq = data + offset;
+    offset += count * 8u;
+    const unsigned char *witnessed = data + offset;
+    offset += count * 8u;
+    const unsigned char *indexed = data + offset;
+    offset += count * 8u;
+    const unsigned char *kind = data + offset;
+    offset += count;
+    const unsigned char *collection_len = data + offset;
+    offset += count;
+    const unsigned char *did_len = data + offset;
+    offset += count * 2u;
+    const unsigned char *rkey_len = data + offset;
+    offset += count;
+    const unsigned char *rev_len = data + offset;
+    offset += count;
+    const unsigned char *payload_len = data + offset;
+    offset += count * 4u;
+
+    size_t collection_total = 0u, did_total = 0u, rkey_total = 0u,
+           rev_total = 0u, payload_total = 0u;
+    for (size_t i = 0u; i < count; ++i) {
+        if (kind[i] < 1u || kind[i] > 6u ||
+            collection_total > SIZE_MAX - collection_len[i] ||
+            did_total > SIZE_MAX - wf_replay_u16(did_len + i * 2u) ||
+            rkey_total > SIZE_MAX - rkey_len[i] ||
+            rev_total > SIZE_MAX - rev_len[i] ||
+            payload_total > SIZE_MAX - wf_replay_u32(payload_len + i * 4u)) {
+            wf_jetstream_replay_events_free(events, count);
+            return WF_ERR_INVALID_ARG;
+        }
+        collection_total += collection_len[i];
+        did_total += wf_replay_u16(did_len + i * 2u);
+        rkey_total += rkey_len[i];
+        rev_total += rev_len[i];
+        payload_total += wf_replay_u32(payload_len + i * 4u);
+    }
+    if (collection_total > bytes_len - offset ||
+        did_total > bytes_len - offset - collection_total ||
+        rkey_total > bytes_len - offset - collection_total - did_total ||
+        rev_total >
+            bytes_len - offset - collection_total - did_total - rkey_total ||
+        payload_total != bytes_len - offset - collection_total - did_total -
+                             rkey_total - rev_total) {
+        wf_jetstream_replay_events_free(events, count);
+        return WF_ERR_INVALID_ARG;
+    }
+    const unsigned char *collection_blob = data + offset;
+    offset += collection_total;
+    const unsigned char *did_blob = data + offset;
+    offset += did_total;
+    const unsigned char *rkey_blob = data + offset;
+    offset += rkey_total;
+    const unsigned char *rev_blob = data + offset;
+    offset += rev_total;
+    const unsigned char *payload_blob = data + offset;
+    size_t collection_at = 0u, did_at = 0u, rkey_at = 0u, rev_at = 0u,
+           payload_at = 0u;
+    for (size_t i = 0u; i < count; ++i) {
+        events[i].seq = wf_replay_u64(seq + i * 8u);
+        events[i].witnessed_at = (int64_t)wf_replay_u64(witnessed + i * 8u);
+        events[i].indexed_at = (int64_t)wf_replay_u64(indexed + i * 8u);
+        events[i].kind = kind[i];
+        events[i].collection =
+            wf_replay_copy_column(collection_blob, &collection_at,
+                                  collection_len[i], collection_total);
+        events[i].did = wf_replay_copy_column(
+            did_blob, &did_at, wf_replay_u16(did_len + i * 2u), did_total);
+        events[i].rkey =
+            wf_replay_copy_column(rkey_blob, &rkey_at, rkey_len[i], rkey_total);
+        events[i].rev =
+            wf_replay_copy_column(rev_blob, &rev_at, rev_len[i], rev_total);
+        const size_t plen = wf_replay_u32(payload_len + i * 4u);
+        if (plen > payload_total - payload_at)
+            events[i].payload = NULL;
+        else if (plen) {
+            events[i].payload = malloc(plen);
+            if (events[i].payload)
+                memcpy(events[i].payload, payload_blob + payload_at, plen);
+        }
+        events[i].payload_len = plen;
+        payload_at += plen;
+        if (!events[i].collection || !events[i].did || !events[i].rkey ||
+            !events[i].rev || (plen && !events[i].payload)) {
+            wf_jetstream_replay_events_free(events, count);
+            return WF_ERR_ALLOC;
+        }
+    }
+    *out_events = events;
+    *out_count = count;
+    return WF_OK;
+}
+
+wf_status
+wf_jetstream_replay_block_decode_zstd(const void *bytes, size_t bytes_len,
+                                      wf_jetstream_replay_event **out_events,
+                                      size_t *out_count) {
+#ifndef HAVE_LIBZSTD
+    (void)bytes;
+    (void)bytes_len;
+    (void)out_events;
+    (void)out_count;
+    return WF_ERR_INVALID_ARG;
+#else
+    if (!bytes || bytes_len == 0u ||
+        bytes_len > WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES)
+        return WF_ERR_INVALID_ARG;
+    const unsigned long long size = ZSTD_getFrameContentSize(bytes, bytes_len);
+    if (size == ZSTD_CONTENTSIZE_ERROR || size == ZSTD_CONTENTSIZE_UNKNOWN ||
+        size > WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES)
+        return WF_ERR_INVALID_ARG;
+    unsigned char *decoded = malloc((size_t)size);
+    if (!decoded) return WF_ERR_ALLOC;
+    const size_t result =
+        ZSTD_decompress(decoded, (size_t)size, bytes, bytes_len);
+    if (ZSTD_isError(result) || result != (size_t)size) {
+        free(decoded);
+        return WF_ERR_INVALID_ARG;
+    }
+    const wf_status status = wf_jetstream_replay_block_decode(
+        decoded, result, out_events, out_count);
+    free(decoded);
+    return status;
+#endif
 }
 
 static int wf_replay_kind_valid(const char *kind) {
