@@ -104,6 +104,13 @@ wf_status wf_jetstream_replay_segment_header_parse(
     const void *bytes, size_t bytes_len,
     wf_jetstream_replay_segment_header *out);
 
+/* Read one compressed block frame from a segment body. The returned block
+ * pointer aliases the input and is valid until the input is released. */
+wf_status wf_jetstream_replay_block_frame(const void *bytes, size_t bytes_len,
+                                          size_t offset, const void **out_block,
+                                          size_t *out_block_len,
+                                          size_t *out_next_offset);
+
 /* One decoded row from a sealed-segment block. All strings and payload bytes
  * are owned by the event and released with wf_jetstream_replay_events_free. */
 typedef struct wf_jetstream_replay_event {

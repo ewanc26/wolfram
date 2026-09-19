@@ -378,6 +378,22 @@ static void test_parse_segment_header(void) {
                                                       &parsed) == WF_ERR_PARSE);
 }
 
+static void test_block_frame_bounds(void) {
+    unsigned char frame[12] = {0};
+    size_t at = 0u;
+    put_u64(frame, &at, 4u);
+    memcpy(frame + at, "test", 4u);
+    const void *block = NULL;
+    size_t block_len = 0u;
+    size_t next = 0u;
+    WF_CHECK(wf_jetstream_replay_block_frame(frame, sizeof(frame), 0u, &block,
+                                             &block_len, &next) == WF_OK);
+    WF_CHECK(block_len == 4u && next == 12u && memcmp(block, "test", 4u) == 0);
+    memset(frame, 0, 8u);
+    WF_CHECK(wf_jetstream_replay_block_frame(frame, sizeof(frame), 0u, &block,
+                                             &block_len, &next) != WF_OK);
+}
+
 int main(void) {
     test_request_json();
     test_parse_plan();
@@ -385,5 +401,6 @@ int main(void) {
     test_offline_xrpc();
     test_decode_columnar_block();
     test_parse_segment_header();
+    test_block_frame_bounds();
     WF_TEST_SUMMARY();
 }

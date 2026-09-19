@@ -76,6 +76,26 @@ wf_status wf_jetstream_replay_segment_header_parse(
     return WF_OK;
 }
 
+wf_status wf_jetstream_replay_block_frame(const void *bytes, size_t bytes_len,
+                                          size_t offset, const void **out_block,
+                                          size_t *out_block_len,
+                                          size_t *out_next_offset) {
+    if (!bytes || !out_block || !out_block_len || !out_next_offset ||
+        offset > bytes_len || bytes_len - offset < 8u)
+        return WF_ERR_INVALID_ARG;
+    const unsigned char *data = bytes;
+    const uint64_t length64 = wf_replay_u64(data + offset);
+    if (length64 == 0u ||
+        length64 > WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES - 8u ||
+        length64 > bytes_len - offset - 8u)
+        return WF_ERR_PARSE;
+    const size_t length = (size_t)length64;
+    *out_block = data + offset + 8u;
+    *out_block_len = length;
+    *out_next_offset = offset + 8u + length;
+    return WF_OK;
+}
+
 void wf_jetstream_replay_events_free(wf_jetstream_replay_event *events,
                                      size_t count) {
     if (!events) return;
