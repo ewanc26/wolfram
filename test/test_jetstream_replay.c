@@ -229,6 +229,18 @@ static void test_parse_manifest(void) {
     WF_CHECK(wf_jetstream_replay_manifest_parse(invalid, sizeof(invalid) - 1u,
                                                 &manifest) == WF_ERR_PARSE);
     wf_jetstream_replay_manifest_free(&manifest);
+
+    const char bad_order[] =
+        "{\"segments\":["
+        "{\"name\":\"a\",\"index\":1,\"sizeBytes\":1,\"eventCount\":1,"
+        "\"checksum\":\"0123456789abcdef\",\"minSeq\":1,\"maxSeq\":2,"
+        "\"minWitnessedAt\":1,\"maxWitnessedAt\":2},"
+        "{\"name\":\"b\",\"index\":0,\"sizeBytes\":1,\"eventCount\":1,"
+        "\"checksum\":\"fedcba9876543210\",\"minSeq\":3,\"maxSeq\":4,"
+        "\"minWitnessedAt\":3,\"maxWitnessedAt\":4}]}";
+    WF_CHECK(wf_jetstream_replay_manifest_parse(
+                 bad_order, sizeof(bad_order) - 1u, &manifest) == WF_ERR_PARSE);
+    wf_jetstream_replay_manifest_free(&manifest);
 }
 
 static void test_offline_xrpc(void) {

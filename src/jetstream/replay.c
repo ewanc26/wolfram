@@ -229,6 +229,13 @@ wf_jetstream_replay_manifest_parse(const char *json, size_t json_len,
             segment->max_seq < segment->min_seq ||
             segment->max_witnessed_at < segment->min_witnessed_at)
             goto done;
+        if (i > 0) {
+            const wf_jetstream_replay_manifest_segment *previous =
+                &out->segments[(size_t)i - 1u];
+            if (segment->index <= previous->index ||
+                segment->min_seq <= previous->max_seq)
+                goto done;
+        }
         segment->name = wf_replay_strdup(name->valuestring);
         segment->checksum = wf_replay_strdup(checksum->valuestring);
         if (!segment->name || !segment->checksum) {
