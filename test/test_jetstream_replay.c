@@ -157,8 +157,8 @@ static void test_parse_plan(void) {
 
     const char missing_stats[] =
         "{\"plannedThroughSeq\":100,\"sealedTipSeq\":100,\"segments\":[]}";
-    wf_status status =
-        wf_jetstream_replay_plan_parse(missing_stats, sizeof(missing_stats) - 1u, &page);
+    status = wf_jetstream_replay_plan_parse(missing_stats,
+                                             sizeof(missing_stats) - 1u, &page);
     WF_CHECK(status == WF_ERR_PARSE);
 
     const char bad_checksum[] =
@@ -167,8 +167,8 @@ static void test_parse_plan(void) {
         "\"minSeq\":1,\"maxSeq\":1,\"mode\":\"segment\"}],"
         "\"stats\":{\"segmentsExamined\":1,\"segmentsMatched\":1,"
         "\"blocksMatched\":0,\"entries\":1}}";
-    wf_status status =
-        wf_jetstream_replay_plan_parse(bad_checksum, sizeof(bad_checksum) - 1u, &page);
+    status = wf_jetstream_replay_plan_parse(bad_checksum,
+                                             sizeof(bad_checksum) - 1u, &page);
     WF_CHECK(status == WF_ERR_PARSE);
 
     const char bad_blocks[] =
@@ -178,8 +178,8 @@ static void test_parse_plan(void) {
         "\"blocks\":[{\"first\":2,\"last\":1}]}],"
         "\"stats\":{\"segmentsExamined\":1,\"segmentsMatched\":1,"
         "\"blocksMatched\":1,\"entries\":1}}";
-    wf_status status =
-        wf_jetstream_replay_plan_parse(bad_blocks, sizeof(bad_blocks) - 1u, &page);
+    status = wf_jetstream_replay_plan_parse(bad_blocks,
+                                             sizeof(bad_blocks) - 1u, &page);
     WF_CHECK(status == WF_ERR_PARSE);
 }
 
