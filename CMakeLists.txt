@@ -200,6 +200,7 @@ add_library(
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/oauth/verify.c>
   # Jetstream
   src/jetstream/jetstream.c
+  src/jetstream/replay.c
   # Label subscriptions
   src/label/label.c
   # Label query/get (request/response)
@@ -1286,6 +1287,12 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_jetstream PRIVATE HAVE_LIBZSTD)
   endif()
   add_test(NAME jetstream COMMAND test_jetstream)
+
+  add_executable(test_jetstream_replay test/test_jetstream_replay.c)
+  target_link_libraries(test_jetstream_replay PRIVATE wolfram)
+  target_include_directories(
+    test_jetstream_replay PRIVATE test ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
+  add_test(NAME jetstream_replay COMMAND test_jetstream_replay)
 
   add_executable(test_jetstream_typed test/test_jetstream_typed.c)
   target_link_libraries(test_jetstream_typed PRIVATE wolfram)
