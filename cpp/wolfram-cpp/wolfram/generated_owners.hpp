@@ -27,6 +27,7 @@
 #include <wolfram/identity.h>
 #include <wolfram/identity_typed.h>
 #include <wolfram/jetstream.h>
+#include <wolfram/jetstream_replay.h>
 #include <wolfram/label.h>
 #include <wolfram/labeler_typed.h>
 #include <wolfram/lexicon_typed.h>
@@ -328,6 +329,9 @@ using wf_jetstream_event_handle =
     unique_handle<wf_jetstream_event, wf_jetstream_event_free>;
 using wf_jetstream_event_typed_handle =
     unique_handle<wf_jetstream_event_typed, wf_jetstream_event_typed_free>;
+using wf_jetstream_replay_plan_page_handle =
+    unique_handle<wf_jetstream_replay_plan_page,
+                  wf_jetstream_replay_plan_page_free>;
 using wf_label_message_handle =
     unique_handle<wf_label_message, wf_label_message_free>;
 using wf_labeler_label_list_handle =
