@@ -215,8 +215,8 @@ static wf_status wf_replay_parse_segment(const cJSON *value,
     return wf_replay_parse_blocks(blocks, out);
 }
 
-wf_status wf_jetstream_replay_plan_parse(
-    const char *json, size_t json_len, wf_jetstream_replay_plan_page *out) {
+wf_status wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
+                                         wf_jetstream_replay_plan_page *out) {
     if (!json || !json_len || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -269,7 +269,8 @@ done:
 }
 
 wf_status wf_jetstream_replay_plan(
-    wf_xrpc_client *client, const wf_jetstream_replay_filter *filter,
+    wf_xrpc_client *client,
+    const wf_jetstream_replay_filter *filter,
     wf_jetstream_replay_plan_page *out) {
     if (!client || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
