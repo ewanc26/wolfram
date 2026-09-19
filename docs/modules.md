@@ -9,7 +9,7 @@
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 | `wolfram/oauth.h`         | Implemented | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |
-| `wolfram/jetstream.h`     | Implemented | Filtered Jetstream JSON subscription transport, cursor reconnect/backoff, optional zstd, and typed commit/identity/account/sync event payload parsing (owned `wf_jetstream_event_typed`) |
+| `wolfram/jetstream.h` / `wolfram/jetstream_replay.h` | Implemented | Filtered Jetstream live JSON subscriptions plus Jetstream v2 `planSnapshot` replay planning, strict pagination metadata, owned segment/block plans, cursor reconnect/backoff, optional zstd, and typed event parsing |
 | `wolfram/json.h`         | Implemented | Generic (non-Lexicon) JSON: canonical round-trip and a JSON-Schema validator subset (type/required/properties/items, enum/const, format, numeric bounds, string length/pattern, array constraints, additionalProperties, anyOf/oneOf/not) |
 | `wolfram/label.h`        | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
