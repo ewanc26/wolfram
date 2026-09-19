@@ -17,6 +17,7 @@
 #include "wolfram/agent.h"
 #include "wolfram/websocket.h"
 #include "wolfram/jetstream.h"
+#include "wolfram/jetstream_replay.h"
 #include "wolfram/sync.h"
 #include "wolfram/syntax.h"
 #include "wolfram/validate.h"
