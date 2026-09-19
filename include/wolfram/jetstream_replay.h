@@ -90,9 +90,8 @@ wf_jetstream_replay_plan_json(const wf_jetstream_replay_filter *filter,
                               char **out_json, size_t *out_json_len);
 
 /** Parse one planSnapshot response into owned typed data. */
-wf_status
-wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
-                               wf_jetstream_replay_plan_page *out);
+wf_status wf_jetstream_replay_plan_parse(
+    const char *json, size_t json_len, wf_jetstream_replay_plan_page *out);
 
 /**
  * Issue network.bsky.jetstream.planSnapshot through an existing XRPC client.
@@ -101,10 +100,9 @@ wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
  * wf_xrpc_client_set_auth(client, key) before this call. Wolfram does not copy
  * the key into replay state or return it in any result.
  */
-wf_status
-wf_jetstream_replay_plan(wf_xrpc_client *client,
-                         const wf_jetstream_replay_filter *filter,
-                         wf_jetstream_replay_plan_page *out);
+wf_status wf_jetstream_replay_plan(
+    wf_xrpc_client *client, const wf_jetstream_replay_filter *filter,
+    wf_jetstream_replay_plan_page *out);
 
 /** Release all storage owned by a parsed plan page and reset it to zero. */
 void wf_jetstream_replay_plan_page_free(wf_jetstream_replay_plan_page *page);
