@@ -140,6 +140,14 @@ wf_jetstream_replay_block_decode_zstd(const void *bytes, size_t bytes_len,
 void wf_jetstream_replay_events_free(wf_jetstream_replay_event *events,
                                      size_t count);
 
+/* Decode every compressed block in a sealed segment. The segment header's
+ * footer_offset bounds the scan; footer bytes and indexes are not interpreted
+ * by this API. */
+wf_status
+wf_jetstream_replay_segment_decode(const void *bytes, size_t bytes_len,
+                                   wf_jetstream_replay_event **out_events,
+                                   size_t *out_count);
+
 typedef struct wf_jetstream_replay_stats {
     uint64_t segments_examined;
     uint64_t segments_matched;

@@ -394,6 +394,33 @@ static void test_block_frame_bounds(void) {
                                              &block_len, &next) != WF_OK);
 }
 
+static void test_empty_segment_decode(void) {
+    unsigned char segment[256] = {0};
+    memcpy(segment, "jss0", 4u);
+    size_t at = 4u;
+    put_u64(segment, &at, 1u); /* checksum */
+    segment[at++] = 1u;
+    segment[at++] = 0u;
+    put_u32(segment, &at, 0u); /* blocks */
+    put_u32(segment, &at, 0u); /* events */
+    put_u32(segment, &at, 0u); /* unique DIDs */
+    put_u64(segment, &at, 0u);
+    put_u64(segment, &at, 0u);
+    put_u64(segment, &at, 0u);
+    put_u64(segment, &at, 0u);
+    put_u64(segment, &at, 256u);
+    put_u64(segment, &at, 256u);
+    put_u64(segment, &at, 256u);
+    put_u64(segment, &at, 256u);
+    put_u64(segment, &at, 256u);
+    wf_jetstream_replay_event *events = NULL;
+    size_t count = 0u;
+    WF_CHECK(wf_jetstream_replay_segment_decode(segment, sizeof(segment),
+                                                &events, &count) == WF_OK);
+    WF_CHECK(events == NULL && count == 0u);
+    wf_jetstream_replay_events_free(events, count);
+}
+
 int main(void) {
     test_request_json();
     test_parse_plan();
@@ -402,5 +429,6 @@ int main(void) {
     test_decode_columnar_block();
     test_parse_segment_header();
     test_block_frame_bounds();
+    test_empty_segment_decode();
     WF_TEST_SUMMARY();
 }
