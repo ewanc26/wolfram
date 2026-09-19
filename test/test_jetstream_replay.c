@@ -366,12 +366,13 @@ static void test_parse_segment_header(void) {
     put_u64(header, &at, 300u);
     put_u64(header, &at, 340u);
     put_u64(header, &at, 380u);
+    put_u64(header, &at, 420u);
     wf_jetstream_replay_segment_header parsed = {0};
     WF_CHECK(wf_jetstream_replay_segment_header_parse(header, sizeof(header),
                                                       &parsed) == WF_OK);
     WF_CHECK(parsed.version == 1u && parsed.block_count == 2u &&
              parsed.min_seq == 10u && parsed.max_seq == 20u &&
-             parsed.block_index_offset == 380u);
+             parsed.block_index_offset == 420u);
     header[0] = 'x';
     WF_CHECK(wf_jetstream_replay_segment_header_parse(header, sizeof(header),
                                                       &parsed) == WF_ERR_PARSE);
