@@ -145,6 +145,18 @@ static int wf_replay_hex16(const char *value) {
     return 1;
 }
 
+static int wf_replay_json_i64(const cJSON *object, const char *name,
+                              int64_t *out) {
+    const cJSON *item = cJSON_GetObjectItemCaseSensitive(object, name);
+    if (!cJSON_IsNumber(item) || !isfinite(item->valuedouble) ||
+        floor(item->valuedouble) != item->valuedouble ||
+        item->valuedouble < (double)INT64_MIN ||
+        item->valuedouble > (double)INT64_MAX)
+        return 0;
+    *out = (int64_t)item->valuedouble;
+    return 1;
+}
+
 static void wf_replay_segment_free(wf_jetstream_replay_segment *segment) {
     if (!segment) return;
     free(segment->name);
@@ -159,6 +171,76 @@ void wf_jetstream_replay_plan_page_free(wf_jetstream_replay_plan_page *page) {
         wf_replay_segment_free(&page->segments[i]);
     free(page->segments);
     memset(page, 0, sizeof(*page));
+}
+
+void wf_jetstream_replay_manifest_free(wf_jetstream_replay_manifest *manifest) {
+    if (!manifest) return;
+    for (size_t i = 0u; i < manifest->segments_count; ++i) {
+        free(manifest->segments[i].name);
+        free(manifest->segments[i].checksum);
+    }
+    free(manifest->segments);
+    memset(manifest, 0, sizeof(*manifest));
+}
+
+wf_status
+wf_jetstream_replay_manifest_parse(const char *json, size_t json_len,
+                                   wf_jetstream_replay_manifest *out) {
+    if (!json || !json_len || !out) return WF_ERR_INVALID_ARG;
+    if (json_len > WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES) return WF_ERR_PARSE;
+    memset(out, 0, sizeof(*out));
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) return WF_ERR_PARSE;
+    wf_status status = WF_ERR_PARSE;
+    const cJSON *segments = cJSON_GetObjectItemCaseSensitive(root, "segments");
+    const int count =
+        cJSON_IsArray(segments) ? cJSON_GetArraySize(segments) : -1;
+    if (count < 0 || (size_t)count > WF_JETSTREAM_REPLAY_MAX_SEGMENTS)
+        goto done;
+    if (count) {
+        out->segments = calloc((size_t)count, sizeof(*out->segments));
+        if (!out->segments) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
+        out->segments_count = (size_t)count;
+    }
+    for (int i = 0; i < count; ++i) {
+        const cJSON *item = cJSON_GetArrayItem(segments, i);
+        wf_jetstream_replay_manifest_segment *segment =
+            &out->segments[(size_t)i];
+        const cJSON *name = cJSON_GetObjectItemCaseSensitive(item, "name");
+        const cJSON *checksum =
+            cJSON_GetObjectItemCaseSensitive(item, "checksum");
+        if (!cJSON_IsObject(item) || !cJSON_IsString(name) ||
+            !name->valuestring || !name->valuestring[0] ||
+            strlen(name->valuestring) > WF_REPLAY_MAX_NAME_BYTES ||
+            !cJSON_IsString(checksum) ||
+            !wf_replay_hex16(checksum->valuestring) ||
+            !wf_replay_json_u64(item, "index", &segment->index) ||
+            !wf_replay_json_u64(item, "sizeBytes", &segment->size_bytes) ||
+            !wf_replay_json_u64(item, "eventCount", &segment->event_count) ||
+            !wf_replay_json_u64(item, "minSeq", &segment->min_seq) ||
+            !wf_replay_json_u64(item, "maxSeq", &segment->max_seq) ||
+            !wf_replay_json_i64(item, "minWitnessedAt",
+                                &segment->min_witnessed_at) ||
+            !wf_replay_json_i64(item, "maxWitnessedAt",
+                                &segment->max_witnessed_at) ||
+            segment->max_seq < segment->min_seq ||
+            segment->max_witnessed_at < segment->min_witnessed_at)
+            goto done;
+        segment->name = wf_replay_strdup(name->valuestring);
+        segment->checksum = wf_replay_strdup(checksum->valuestring);
+        if (!segment->name || !segment->checksum) {
+            status = WF_ERR_ALLOC;
+            goto done;
+        }
+    }
+    status = WF_OK;
+done:
+    cJSON_Delete(root);
+    if (status != WF_OK) wf_jetstream_replay_manifest_free(out);
+    return status;
 }
 
 static wf_status wf_replay_parse_blocks(const cJSON *value,

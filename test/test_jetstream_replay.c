@@ -207,6 +207,30 @@ static void test_parse_plan(void) {
     }
 }
 
+static void test_parse_manifest(void) {
+    const char json[] =
+        "{\"segments\":[{\"name\":\"seg_0000000000.jss\",\"index\":0,"
+        "\"sizeBytes\":193462065,\"eventCount\":2569479,"
+        "\"checksum\":\"0123456789abcdef\",\"minSeq\":1,\"maxSeq\":20,"
+        "\"minWitnessedAt\":10,\"maxWitnessedAt\":20}]}";
+    wf_jetstream_replay_manifest manifest = {0};
+    WF_CHECK(wf_jetstream_replay_manifest_parse(json, sizeof(json) - 1u,
+                                                &manifest) == WF_OK);
+    WF_CHECK(manifest.segments_count == 1u);
+    WF_CHECK(manifest.segments[0].size_bytes == 193462065u);
+    WF_CHECK(manifest.segments[0].event_count == 2569479u);
+    WF_CHECK(strcmp(manifest.segments[0].checksum, "0123456789abcdef") == 0);
+    wf_jetstream_replay_manifest_free(&manifest);
+
+    const char invalid[] =
+        "{\"segments\":[{\"name\":\"x\",\"index\":0,\"sizeBytes\":1,"
+        "\"eventCount\":1,\"checksum\":\"bad\",\"minSeq\":1,"
+        "\"maxSeq\":1,\"minWitnessedAt\":1,\"maxWitnessedAt\":1}]}";
+    WF_CHECK(wf_jetstream_replay_manifest_parse(invalid, sizeof(invalid) - 1u,
+                                                &manifest) == WF_ERR_PARSE);
+    wf_jetstream_replay_manifest_free(&manifest);
+}
+
 static void test_offline_xrpc(void) {
     wf_xrpc_client *client = wf_xrpc_client_new("https://jetstream.example");
     WF_CHECK(client != NULL);
@@ -255,6 +279,7 @@ static void test_offline_xrpc(void) {
 int main(void) {
     test_request_json();
     test_parse_plan();
+    test_parse_manifest();
     test_offline_xrpc();
     WF_TEST_SUMMARY();
 }

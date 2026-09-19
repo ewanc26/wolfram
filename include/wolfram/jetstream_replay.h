@@ -63,6 +63,23 @@ typedef struct wf_jetstream_replay_segment {
     size_t blocks_count;
 } wf_jetstream_replay_segment;
 
+typedef struct wf_jetstream_replay_manifest_segment {
+    char *name;
+    uint64_t index;
+    uint64_t size_bytes;
+    uint64_t event_count;
+    char *checksum;
+    uint64_t min_seq;
+    uint64_t max_seq;
+    int64_t min_witnessed_at;
+    int64_t max_witnessed_at;
+} wf_jetstream_replay_manifest_segment;
+
+typedef struct wf_jetstream_replay_manifest {
+    wf_jetstream_replay_manifest_segment *segments;
+    size_t segments_count;
+} wf_jetstream_replay_manifest;
+
 typedef struct wf_jetstream_replay_stats {
     uint64_t segments_examined;
     uint64_t segments_matched;
@@ -117,6 +134,13 @@ wf_status wf_jetstream_replay_get_segment(wf_xrpc_client *client,
 /** List the current sealed archive manifest as a raw JSON response. */
 wf_status wf_jetstream_replay_list_segments(wf_xrpc_client *client,
                                             wf_response *out);
+
+/** Parse a bounded listSegments JSON response into owned metadata. */
+wf_status wf_jetstream_replay_manifest_parse(const char *json, size_t json_len,
+                                             wf_jetstream_replay_manifest *out);
+
+/** Release parsed listSegments metadata and reset it to zero. */
+void wf_jetstream_replay_manifest_free(wf_jetstream_replay_manifest *manifest);
 
 /** Download one immutable compressed block as raw response bytes. */
 wf_status wf_jetstream_replay_get_block(wf_xrpc_client *client,
