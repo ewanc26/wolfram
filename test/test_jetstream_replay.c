@@ -288,10 +288,119 @@ static void test_offline_xrpc(void) {
     wf_xrpc_client_free(client);
 }
 
+static void put_u32(unsigned char *out, size_t *at, uint32_t value) {
+    for (unsigned int i = 0u; i < 4u; ++i)
+        out[(*at)++] = (unsigned char)(value >> (i * 8u));
+}
+
+static void put_u64(unsigned char *out, size_t *at, uint64_t value) {
+    for (unsigned int i = 0u; i < 8u; ++i)
+        out[(*at)++] = (unsigned char)(value >> (i * 8u));
+}
+
+static void test_decode_columnar_block(void) {
+    const size_t block_size = 4u + 8u + 8u + 8u + 1u + 1u + 2u + 1u + 1u + 4u +
+                              19u + 13u + 2u + 4u + 3u;
+    unsigned char *block = calloc(1u, block_size);
+    WF_CHECK(block != NULL);
+    if (!block) return;
+    size_t at = 0u;
+    put_u32(block, &at, 1u);
+    put_u64(block, &at, 42u);
+    put_u64(block, &at, 1000u);
+    put_u64(block, &at, 0u);
+    block[at++] = 1u;  /* create */
+    block[at++] = 19u; /* collection length */
+    block[at++] = 13u;
+    block[at++] = 0u; /* DID length */
+    block[at++] = 2u; /* rkey */
+    block[at++] = 4u; /* rev */
+    put_u32(block, &at, 3u);
+    memcpy(block + at, "app.bsky.feed.post", 19u);
+    at += 19u;
+    memcpy(block + at, "did:plc:alice", 13u);
+    at += 13u;
+    memcpy(block + at, "rk", 2u);
+    at += 2u;
+    memcpy(block + at, "rev1", 4u);
+    at += 4u;
+    memcpy(block + at, "abc", 3u);
+    at += 3u;
+    wf_jetstream_replay_event *events = NULL;
+    size_t count = 0u;
+    WF_CHECK(wf_jetstream_replay_block_decode(block, block_size, &events,
+                                              &count) == WF_OK);
+    WF_CHECK(count == 1u && events != NULL);
+    if (events) {
+        WF_CHECK(events[0].seq == 42u && events[0].kind == 1u);
+        WF_CHECK(strcmp(events[0].collection, "app.bsky.feed.post") == 0);
+        WF_CHECK(strcmp(events[0].did, "did:plc:alice") == 0);
+        WF_CHECK(events[0].payload_len == 3u &&
+                 memcmp(events[0].payload, "abc", 3u) == 0);
+    }
+    wf_jetstream_replay_events_free(events, count);
+    block[0] = 0xffu;
+    block[1] = 0xffu;
+    block[2] = 0xffu;
+    block[3] = 0xffu;
+    WF_CHECK(wf_jetstream_replay_block_decode(block, block_size, &events,
+                                              &count) != WF_OK);
+    free(block);
+}
+
+static void test_parse_segment_header(void) {
+    unsigned char header[256] = {0};
+    memcpy(header, "jss0", 4u);
+    size_t at = 4u;
+    put_u64(header, &at, 99u); /* checksum */
+    header[at++] = 1u;
+    header[at++] = 0u;        /* version */
+    put_u32(header, &at, 2u); /* blocks */
+    put_u32(header, &at, 4u); /* events */
+    put_u32(header, &at, 1u); /* unique DIDs */
+    put_u64(header, &at, 10u);
+    put_u64(header, &at, 20u);
+    put_u64(header, &at, 100u);
+    put_u64(header, &at, 200u);
+    put_u64(header, &at, 256u);
+    put_u64(header, &at, 300u);
+    put_u64(header, &at, 340u);
+    put_u64(header, &at, 380u);
+    put_u64(header, &at, 420u);
+    wf_jetstream_replay_segment_header parsed = {0};
+    WF_CHECK(wf_jetstream_replay_segment_header_parse(header, sizeof(header),
+                                                      &parsed) == WF_OK);
+    WF_CHECK(parsed.version == 1u && parsed.block_count == 2u &&
+             parsed.min_seq == 10u && parsed.max_seq == 20u &&
+             parsed.block_index_offset == 420u);
+    header[0] = 'x';
+    WF_CHECK(wf_jetstream_replay_segment_header_parse(header, sizeof(header),
+                                                      &parsed) == WF_ERR_PARSE);
+}
+
+static void test_block_frame_bounds(void) {
+    unsigned char frame[12] = {0};
+    size_t at = 0u;
+    put_u64(frame, &at, 4u);
+    memcpy(frame + at, "test", 4u);
+    const void *block = NULL;
+    size_t block_len = 0u;
+    size_t next = 0u;
+    WF_CHECK(wf_jetstream_replay_block_frame(frame, sizeof(frame), 0u, &block,
+                                             &block_len, &next) == WF_OK);
+    WF_CHECK(block_len == 4u && next == 12u && memcmp(block, "test", 4u) == 0);
+    memset(frame, 0, 8u);
+    WF_CHECK(wf_jetstream_replay_block_frame(frame, sizeof(frame), 0u, &block,
+                                             &block_len, &next) != WF_OK);
+}
+
 int main(void) {
     test_request_json();
     test_parse_plan();
     test_parse_manifest();
     test_offline_xrpc();
+    test_decode_columnar_block();
+    test_parse_segment_header();
+    test_block_frame_bounds();
     WF_TEST_SUMMARY();
 }
