@@ -181,6 +181,15 @@ static void test_parse_plan(void) {
         "\"stats\":{\"segmentsExamined\":1,\"segmentsMatched\":1,"
         "\"blocksMatched\":1,\"entries\":1}}";
     expect_parse_error(bad_blocks, sizeof(bad_blocks) - 1u);
+
+    char *oversized = malloc(WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES + 1u);
+    WF_CHECK(oversized != NULL);
+    if (oversized) {
+        memset(oversized, ' ', WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES + 1u);
+        expect_parse_error(oversized,
+                           WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES + 1u);
+        free(oversized);
+    }
 }
 
 static void test_offline_xrpc(void) {

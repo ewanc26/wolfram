@@ -162,7 +162,8 @@ static wf_status wf_replay_parse_blocks(const cJSON *value,
                                         wf_jetstream_replay_segment *segment) {
     if (!cJSON_IsArray(value)) return WF_ERR_PARSE;
     const int count = cJSON_GetArraySize(value);
-    if (count < 0) return WF_ERR_PARSE;
+    if (count < 0 || (size_t)count > WF_JETSTREAM_REPLAY_MAX_BLOCK_RANGES)
+        return WF_ERR_PARSE;
     if (count == 0) return WF_OK;
     segment->blocks = calloc((size_t)count, sizeof(*segment->blocks));
     if (!segment->blocks) return WF_ERR_ALLOC;
@@ -218,6 +219,7 @@ static wf_status wf_replay_parse_segment(const cJSON *value,
 wf_status wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
                                          wf_jetstream_replay_plan_page *out) {
     if (!json || !json_len || !out) return WF_ERR_INVALID_ARG;
+    if (json_len > WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES) return WF_ERR_PARSE;
     memset(out, 0, sizeof(*out));
 
     cJSON *root = cJSON_ParseWithLength(json, json_len);
@@ -246,7 +248,8 @@ wf_status wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
     }
 
     const int count = cJSON_GetArraySize(segments);
-    if (count < 0) goto done;
+    if (count < 0 || (size_t)count > WF_JETSTREAM_REPLAY_MAX_SEGMENTS)
+        goto done;
     if (count) {
         out->segments = calloc((size_t)count, sizeof(*out->segments));
         if (!out->segments) {
@@ -268,10 +271,9 @@ done:
     return status;
 }
 
-wf_status wf_jetstream_replay_plan(
-    wf_xrpc_client *client,
-    const wf_jetstream_replay_filter *filter,
-    wf_jetstream_replay_plan_page *out) {
+wf_status wf_jetstream_replay_plan(wf_xrpc_client *client,
+                                   const wf_jetstream_replay_filter *filter,
+                                   wf_jetstream_replay_plan_page *out) {
     if (!client || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 

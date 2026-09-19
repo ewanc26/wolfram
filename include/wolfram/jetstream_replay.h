@@ -15,6 +15,9 @@ extern "C" {
 #define WF_JETSTREAM_REPLAY_MAX_KINDS 4u
 #define WF_JETSTREAM_REPLAY_MAX_DIDS 10000u
 #define WF_JETSTREAM_REPLAY_MAX_COLLECTIONS 100u
+#define WF_JETSTREAM_REPLAY_MAX_SEGMENTS 10000u
+#define WF_JETSTREAM_REPLAY_MAX_BLOCK_RANGES 100000u
+#define WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES (16u * 1024u * 1024u)
 
 /**
  * planSnapshot filter/window. Empty arrays mean "all", matching the lexicon.
@@ -100,10 +103,9 @@ wf_status wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
  * wf_xrpc_client_set_auth(client, key) before this call. Wolfram does not copy
  * the key into replay state or return it in any result.
  */
-wf_status wf_jetstream_replay_plan(
-    wf_xrpc_client *client,
-    const wf_jetstream_replay_filter *filter,
-    wf_jetstream_replay_plan_page *out);
+wf_status wf_jetstream_replay_plan(wf_xrpc_client *client,
+                                   const wf_jetstream_replay_filter *filter,
+                                   wf_jetstream_replay_plan_page *out);
 
 /** Release all storage owned by a parsed plan page and reset it to zero. */
 void wf_jetstream_replay_plan_page_free(wf_jetstream_replay_plan_page *page);
