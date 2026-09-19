@@ -21,7 +21,8 @@ static int wf_replay_kind_valid(const char *kind) {
             strcmp(kind, "account") == 0 || strcmp(kind, "sync") == 0);
 }
 
-static int wf_replay_string_list_valid(const char *const *values, size_t count) {
+static int wf_replay_string_list_valid(const char *const *values,
+                                       size_t count) {
     if (count && !values) return 0;
     for (size_t i = 0u; i < count; ++i) {
         if (!values[i] || !values[i][0]) return 0;
@@ -50,7 +51,8 @@ wf_jetstream_replay_filter_validate(const wf_jetstream_replay_filter *filter) {
         if (!wf_replay_kind_valid(filter->kinds[i])) return WF_ERR_INVALID_ARG;
         if (strcmp(filter->kinds[i], "commit") == 0) includes_commit = 1;
     }
-    if (filter->collections_count && !includes_commit) return WF_ERR_INVALID_ARG;
+    if (filter->collections_count && !includes_commit)
+        return WF_ERR_INVALID_ARG;
 
     for (size_t i = 0u; i < filter->dids_count; ++i) {
         if (strncmp(filter->dids[i], "did:", 4u) != 0)
@@ -188,8 +190,7 @@ static wf_status wf_replay_parse_segment(const cJSON *value,
     const cJSON *checksum = cJSON_GetObjectItemCaseSensitive(value, "checksum");
     const cJSON *mode = cJSON_GetObjectItemCaseSensitive(value, "mode");
     if (!cJSON_IsString(name) || !name->valuestring || !name->valuestring[0] ||
-        !cJSON_IsString(checksum) ||
-        !wf_replay_hex16(checksum->valuestring) ||
+        !cJSON_IsString(checksum) || !wf_replay_hex16(checksum->valuestring) ||
         !cJSON_IsString(mode) || !mode->valuestring ||
         !wf_replay_json_u64(value, "index", &out->index) ||
         !wf_replay_json_u64(value, "minSeq", &out->min_seq) ||
@@ -206,8 +207,7 @@ static wf_status wf_replay_parse_segment(const cJSON *value,
         out->mode = WF_JETSTREAM_REPLAY_SEGMENT_WHOLE;
         return WF_OK;
     }
-    if (strcmp(mode->valuestring, "blocks") != 0)
-        return WF_ERR_PARSE;
+    if (strcmp(mode->valuestring, "blocks") != 0) return WF_ERR_PARSE;
 
     out->mode = WF_JETSTREAM_REPLAY_SEGMENT_BLOCKS;
     const cJSON *blocks = cJSON_GetObjectItemCaseSensitive(value, "blocks");
@@ -215,9 +215,8 @@ static wf_status wf_replay_parse_segment(const cJSON *value,
     return wf_replay_parse_blocks(blocks, out);
 }
 
-wf_status
-wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
-                               wf_jetstream_replay_plan_page *out) {
+wf_status wf_jetstream_replay_plan_parse(
+    const char *json, size_t json_len, wf_jetstream_replay_plan_page *out) {
     if (!json || !json_len || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
@@ -269,17 +268,15 @@ done:
     return status;
 }
 
-wf_status
-wf_jetstream_replay_plan(wf_xrpc_client *client,
-                         const wf_jetstream_replay_filter *filter,
-                         wf_jetstream_replay_plan_page *out) {
+wf_status wf_jetstream_replay_plan(
+    wf_xrpc_client *client, const wf_jetstream_replay_filter *filter,
+    wf_jetstream_replay_plan_page *out) {
     if (!client || !out) return WF_ERR_INVALID_ARG;
     memset(out, 0, sizeof(*out));
 
     char *body = NULL;
     size_t body_len = 0u;
-    wf_status status =
-        wf_jetstream_replay_plan_json(filter, &body, &body_len);
+    wf_status status = wf_jetstream_replay_plan_json(filter, &body, &body_len);
     (void)body_len;
     if (status != WF_OK) return status;
 
@@ -297,8 +294,7 @@ wf_jetstream_replay_plan(wf_xrpc_client *client,
     wf_response_free(&response);
     if (status != WF_OK) return status;
 
-    if ((filter->has_before_seq &&
-         out->sealed_tip_seq > filter->before_seq) ||
+    if ((filter->has_before_seq && out->sealed_tip_seq > filter->before_seq) ||
         (out->sealed_tip_seq > filter->after_seq &&
          out->planned_through_seq <= filter->after_seq)) {
         wf_jetstream_replay_plan_page_free(out);
