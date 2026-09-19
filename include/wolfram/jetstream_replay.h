@@ -80,6 +80,66 @@ typedef struct wf_jetstream_replay_manifest {
     size_t segments_count;
 } wf_jetstream_replay_manifest;
 
+/* The fixed 256-byte sealed-segment header. Offsets are little-endian and
+ * reserved bytes are not interpreted. */
+typedef struct wf_jetstream_replay_segment_header {
+    uint16_t version;
+    uint32_t block_count;
+    uint32_t event_count;
+    uint32_t unique_did_count;
+    uint64_t checksum;
+    uint64_t min_seq;
+    uint64_t max_seq;
+    int64_t min_witnessed_at;
+    int64_t max_witnessed_at;
+    uint64_t footer_offset;
+    uint64_t did_bloom_offset;
+    uint64_t block_did_bloom_offset;
+    uint64_t collection_index_offset;
+    uint64_t block_index_offset;
+} wf_jetstream_replay_segment_header;
+
+/* Parse the fixed header at the start of a sealed .jss segment. */
+wf_status wf_jetstream_replay_segment_header_parse(
+    const void *bytes, size_t bytes_len,
+    wf_jetstream_replay_segment_header *out);
+
+/* Read one compressed block frame from a segment body. The returned block
+ * pointer aliases the input and is valid until the input is released. */
+wf_status wf_jetstream_replay_block_frame(const void *bytes, size_t bytes_len,
+                                          size_t offset, const void **out_block,
+                                          size_t *out_block_len,
+                                          size_t *out_next_offset);
+
+/* One decoded row from a sealed-segment block. All strings and payload bytes
+ * are owned by the event and released with wf_jetstream_replay_events_free. */
+typedef struct wf_jetstream_replay_event {
+    uint64_t seq;
+    int64_t witnessed_at;
+    int64_t indexed_at;
+    uint8_t kind;
+    char *collection;
+    char *did;
+    char *rkey;
+    char *rev;
+    unsigned char *payload;
+    size_t payload_len;
+} wf_jetstream_replay_event;
+
+/* Decode one uncompressed columnar block or one standalone zstd-compressed
+ * block. The input is bounded by WF_JETSTREAM_REPLAY_MAX_RESPONSE_BYTES and
+ * event_count is capped defensively by the implementation. */
+wf_status
+wf_jetstream_replay_block_decode(const void *bytes, size_t bytes_len,
+                                 wf_jetstream_replay_event **out_events,
+                                 size_t *out_count);
+wf_status
+wf_jetstream_replay_block_decode_zstd(const void *bytes, size_t bytes_len,
+                                      wf_jetstream_replay_event **out_events,
+                                      size_t *out_count);
+void wf_jetstream_replay_events_free(wf_jetstream_replay_event *events,
+                                     size_t count);
+
 typedef struct wf_jetstream_replay_stats {
     uint64_t segments_examined;
     uint64_t segments_matched;
