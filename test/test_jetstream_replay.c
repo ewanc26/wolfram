@@ -288,10 +288,71 @@ static void test_offline_xrpc(void) {
     wf_xrpc_client_free(client);
 }
 
+static void put_u32(unsigned char *out, size_t *at, uint32_t value) {
+    for (unsigned int i = 0u; i < 4u; ++i)
+        out[(*at)++] = (unsigned char)(value >> (i * 8u));
+}
+
+static void put_u64(unsigned char *out, size_t *at, uint64_t value) {
+    for (unsigned int i = 0u; i < 8u; ++i)
+        out[(*at)++] = (unsigned char)(value >> (i * 8u));
+}
+
+static void test_decode_columnar_block(void) {
+    const size_t block_size = 4u + 8u + 8u + 8u + 1u + 1u + 2u + 1u + 1u + 4u +
+                              19u + 13u + 2u + 4u + 3u;
+    unsigned char *block = calloc(1u, block_size);
+    WF_CHECK(block != NULL);
+    if (!block) return;
+    size_t at = 0u;
+    put_u32(block, &at, 1u);
+    put_u64(block, &at, 42u);
+    put_u64(block, &at, 1000u);
+    put_u64(block, &at, 0u);
+    block[at++] = 1u;  /* create */
+    block[at++] = 19u; /* collection length */
+    block[at++] = 13u;
+    block[at++] = 0u; /* DID length */
+    block[at++] = 2u; /* rkey */
+    block[at++] = 4u; /* rev */
+    put_u32(block, &at, 3u);
+    memcpy(block + at, "app.bsky.feed.post", 19u);
+    at += 19u;
+    memcpy(block + at, "did:plc:alice", 13u);
+    at += 13u;
+    memcpy(block + at, "rk", 2u);
+    at += 2u;
+    memcpy(block + at, "rev1", 4u);
+    at += 4u;
+    memcpy(block + at, "abc", 3u);
+    at += 3u;
+    wf_jetstream_replay_event *events = NULL;
+    size_t count = 0u;
+    WF_CHECK(wf_jetstream_replay_block_decode(block, block_size, &events,
+                                              &count) == WF_OK);
+    WF_CHECK(count == 1u && events != NULL);
+    if (events) {
+        WF_CHECK(events[0].seq == 42u && events[0].kind == 1u);
+        WF_CHECK(strcmp(events[0].collection, "app.bsky.feed.post") == 0);
+        WF_CHECK(strcmp(events[0].did, "did:plc:alice") == 0);
+        WF_CHECK(events[0].payload_len == 3u &&
+                 memcmp(events[0].payload, "abc", 3u) == 0);
+    }
+    wf_jetstream_replay_events_free(events, count);
+    block[0] = 0xffu;
+    block[1] = 0xffu;
+    block[2] = 0xffu;
+    block[3] = 0xffu;
+    WF_CHECK(wf_jetstream_replay_block_decode(block, block_size, &events,
+                                              &count) != WF_OK);
+    free(block);
+}
+
 int main(void) {
     test_request_json();
     test_parse_plan();
     test_parse_manifest();
     test_offline_xrpc();
+    test_decode_columnar_block();
     WF_TEST_SUMMARY();
 }
