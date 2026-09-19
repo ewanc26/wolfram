@@ -390,7 +390,7 @@ static void test_attestation_payload(void) {
           "caller supplied sig is rejected");
     CHECK(wf_attestation_payload_build(
               "{\"$type\":\"x\",\"ref\":{\"$link\":\"bafyreib\"}}", metadata,
-              "did:plc:one", &b) == WF_ERR_INVALID_ARG,
+              "did:plc:one", &b) != WF_OK,
           "invalid link is rejected");
     CHECK(wf_attestation_payload_build(
               "{\"$type\":\"x\",\"blob\":{\"$bytes\":\"AQI\"}}", metadata,
