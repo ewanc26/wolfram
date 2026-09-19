@@ -12,6 +12,8 @@ extern "C" {
 #endif
 
 #define WF_JETSTREAM_PLAN_SNAPSHOT_NSID "network.bsky.jetstream.planSnapshot"
+#define WF_JETSTREAM_GET_SEGMENT_NSID "network.bsky.jetstream.getSegment"
+#define WF_JETSTREAM_GET_BLOCK_NSID "network.bsky.jetstream.getBlock"
 #define WF_JETSTREAM_REPLAY_MAX_KINDS 4u
 #define WF_JETSTREAM_REPLAY_MAX_DIDS 10000u
 #define WF_JETSTREAM_REPLAY_MAX_COLLECTIONS 100u
@@ -106,6 +108,15 @@ wf_status wf_jetstream_replay_plan_parse(const char *json, size_t json_len,
 wf_status wf_jetstream_replay_plan(wf_xrpc_client *client,
                                    const wf_jetstream_replay_filter *filter,
                                    wf_jetstream_replay_plan_page *out);
+
+/** Download one immutable sealed segment as raw response bytes. */
+wf_status wf_jetstream_replay_get_segment(wf_xrpc_client *client,
+                                          const char *name, wf_response *out);
+
+/** Download one immutable compressed block as raw response bytes. */
+wf_status wf_jetstream_replay_get_block(wf_xrpc_client *client,
+                                        const char *segment,
+                                        uint64_t block_index, wf_response *out);
 
 /** Release all storage owned by a parsed plan page and reset it to zero. */
 void wf_jetstream_replay_plan_page_free(wf_jetstream_replay_plan_page *page);

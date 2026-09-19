@@ -10,6 +10,8 @@ typedef struct replay_handler_state {
     int saw_nsid;
     int saw_post;
     int saw_json;
+    int saw_segment;
+    int saw_block;
 } replay_handler_state;
 
 static char *dup_text(const char *text) {
@@ -29,6 +31,10 @@ static wf_status replay_handler(void *userdata, const char *method,
     state->saw_post = method && strcmp(method, "POST") == 0;
     state->saw_nsid =
         url && strstr(url, "/xrpc/network.bsky.jetstream.planSnapshot") != NULL;
+    state->saw_segment =
+        url && strstr(url, "/xrpc/network.bsky.jetstream.getSegment") != NULL;
+    state->saw_block =
+        url && strstr(url, "/xrpc/network.bsky.jetstream.getBlock") != NULL;
     const int content_type_ok =
         content_type && strcmp(content_type, "application/json") == 0;
     const int body_ok = body && body_len == strlen(body) &&
@@ -53,6 +59,12 @@ static wf_status replay_handler(void *userdata, const char *method,
     out->body = dup_text(response);
     if (!out->body) return WF_ERR_ALLOC;
     out->body_len = strlen(response);
+    if (state->saw_segment || state->saw_block) {
+        free(out->body);
+        out->body = dup_text("raw-archive-bytes");
+        if (!out->body) return WF_ERR_ALLOC;
+        out->body_len = strlen(out->body);
+    }
     return WF_OK;
 }
 
@@ -217,6 +229,20 @@ static void test_offline_xrpc(void) {
     WF_CHECK(page.sealed_tip_seq == 20u && page.planned_through_seq == 20u);
     WF_CHECK(page.segments_count == 1u);
     wf_jetstream_replay_plan_page_free(&page);
+
+    wf_response response = {0};
+    WF_CHECK(wf_jetstream_replay_get_segment(client, "seg_0000000000.jss",
+                                             &response) == WF_OK);
+    WF_CHECK(state.saw_segment &&
+             response.body_len == strlen("raw-archive-bytes"));
+    wf_response_free(&response);
+    WF_CHECK(wf_jetstream_replay_get_block(client, "seg_0000000000.jss", 7u,
+                                           &response) == WF_OK);
+    WF_CHECK(state.saw_block &&
+             response.body_len == strlen("raw-archive-bytes"));
+    wf_response_free(&response);
+    WF_CHECK(wf_jetstream_replay_get_segment(client, "", &response) ==
+             WF_ERR_INVALID_ARG);
     wf_xrpc_client_free(client);
 }
 

@@ -1,11 +1,14 @@
 #include "wolfram/jetstream_replay.h"
 
 #include <cJSON.h>
+#include <inttypes.h>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define WF_JSON_MAX_EXACT_U64 UINT64_C(9007199254740991)
+#define WF_REPLAY_MAX_NAME_BYTES 256u
 
 static char *wf_replay_strdup(const char *text) {
     if (!text) return NULL;
@@ -304,4 +307,37 @@ wf_status wf_jetstream_replay_plan(wf_xrpc_client *client,
         return WF_ERR_PARSE;
     }
     return WF_OK;
+}
+
+static wf_status wf_replay_get_binary(wf_xrpc_client *client, const char *nsid,
+                                      const wf_xrpc_param *params,
+                                      size_t param_count, wf_response *out) {
+    if (!client || !nsid || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    return wf_xrpc_query_params(client, nsid, params, param_count, out);
+}
+
+wf_status wf_jetstream_replay_get_segment(wf_xrpc_client *client,
+                                          const char *name, wf_response *out) {
+    if (!name || !name[0] || strlen(name) > WF_REPLAY_MAX_NAME_BYTES)
+        return WF_ERR_INVALID_ARG;
+    const wf_xrpc_param params[] = {{"name", name}};
+    return wf_replay_get_binary(client, WF_JETSTREAM_GET_SEGMENT_NSID, params,
+                                1u, out);
+}
+
+wf_status wf_jetstream_replay_get_block(wf_xrpc_client *client,
+                                        const char *segment,
+                                        uint64_t block_index,
+                                        wf_response *out) {
+    if (!segment || !segment[0] || strlen(segment) > WF_REPLAY_MAX_NAME_BYTES)
+        return WF_ERR_INVALID_ARG;
+    char index[32];
+    const int written = snprintf(index, sizeof(index), "%" PRIu64, block_index);
+    if (written < 0 || (size_t)written >= sizeof(index))
+        return WF_ERR_INVALID_ARG;
+    const wf_xrpc_param params[] = {{"segment", segment},
+                                    {"blockIndex", index}};
+    return wf_replay_get_binary(client, WF_JETSTREAM_GET_BLOCK_NSID, params, 2u,
+                                out);
 }
