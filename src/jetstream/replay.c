@@ -268,6 +268,69 @@ wf_jetstream_replay_block_decode_zstd(const void *bytes, size_t bytes_len,
 #endif
 }
 
+wf_status
+wf_jetstream_replay_segment_decode(const void *bytes, size_t bytes_len,
+                                   wf_jetstream_replay_event **out_events,
+                                   size_t *out_count) {
+    if (!bytes || !out_events || !out_count) return WF_ERR_INVALID_ARG;
+    *out_events = NULL;
+    *out_count = 0u;
+    wf_jetstream_replay_segment_header header;
+    wf_status status =
+        wf_jetstream_replay_segment_header_parse(bytes, bytes_len, &header);
+    if (status != WF_OK || header.footer_offset > bytes_len)
+        return WF_ERR_PARSE;
+    size_t offset = WF_REPLAY_SEGMENT_HEADER_BYTES;
+    wf_jetstream_replay_event *all = NULL;
+    size_t all_count = 0u;
+    while (offset < header.footer_offset) {
+        const void *compressed = NULL;
+        size_t compressed_len = 0u;
+        size_t next = 0u;
+        status = wf_jetstream_replay_block_frame(bytes, header.footer_offset,
+                                                 offset, &compressed,
+                                                 &compressed_len, &next);
+        if (status != WF_OK || next <= offset) {
+            wf_jetstream_replay_events_free(all, all_count);
+            return WF_ERR_PARSE;
+        }
+        wf_jetstream_replay_event *block = NULL;
+        size_t block_count = 0u;
+        status = wf_jetstream_replay_block_decode_zstd(
+            compressed, compressed_len, &block, &block_count);
+        if (status != WF_OK) {
+            wf_jetstream_replay_events_free(all, all_count);
+            return status;
+        }
+        if (block_count > SIZE_MAX - all_count) {
+            wf_jetstream_replay_events_free(block, block_count);
+            wf_jetstream_replay_events_free(all, all_count);
+            return WF_ERR_INVALID_ARG;
+        }
+        const size_t new_count = all_count + block_count;
+        wf_jetstream_replay_event *grown =
+            realloc(all, new_count * sizeof(*all));
+        if (!grown && new_count) {
+            wf_jetstream_replay_events_free(block, block_count);
+            wf_jetstream_replay_events_free(all, all_count);
+            return WF_ERR_ALLOC;
+        }
+        all = grown;
+        if (block_count)
+            memcpy(all + all_count, block, block_count * sizeof(*block));
+        free(block); /* transfer pointed-to allocations, retain the rows */
+        all_count = new_count;
+        offset = next;
+    }
+    if (offset != header.footer_offset || all_count != header.event_count) {
+        wf_jetstream_replay_events_free(all, all_count);
+        return WF_ERR_PARSE;
+    }
+    *out_events = all;
+    *out_count = all_count;
+    return WF_OK;
+}
+
 static int wf_replay_kind_valid(const char *kind) {
     return kind &&
            (strcmp(kind, "commit") == 0 || strcmp(kind, "identity") == 0 ||
