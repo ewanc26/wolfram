@@ -388,6 +388,14 @@ static void test_attestation_payload(void) {
                                        metadata, "did:plc:one",
                                        &b) == WF_ERR_INVALID_ARG,
           "caller supplied sig is rejected");
+    CHECK(wf_attestation_payload_build(
+              "{\"$type\":\"x\",\"ref\":{\"$link\":\"bafyreib\"}}", metadata,
+              "did:plc:one", &b) == WF_ERR_INVALID_ARG,
+          "invalid link is rejected");
+    CHECK(wf_attestation_payload_build(
+              "{\"$type\":\"x\",\"blob\":{\"$bytes\":\"AQI\"}}", metadata,
+              "did:plc:one", &b) == WF_OK,
+          "bytes values encode");
     wf_attestation_payload_free(&a);
     wf_attestation_payload_free(&b);
 }

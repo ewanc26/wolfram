@@ -179,6 +179,44 @@ static wf_cbor_item *wf_plc_cbor_array(const cJSON *node) {
     return item;
 }
 
+static wf_cbor_item *wf_plc_cbor_special(const cJSON *node) {
+    const cJSON *value;
+    wf_cbor_item *item;
+    wf_cid cid;
+    size_t decoded_len = 0;
+    unsigned char *decoded;
+    if (!node || !cJSON_IsObject(node) || cJSON_GetArraySize(node) != 1)
+        return NULL;
+    value = cJSON_GetObjectItemCaseSensitive(node, "$link");
+    if (value && cJSON_IsString(value) &&
+        wf_cid_from_string(value->valuestring, &cid) == WF_OK) {
+        item = wf_plc_alloc(sizeof(*item));
+        if (!item) return NULL;
+        item->type = WF_CBOR_LINK;
+        item->bytes.data = wf_plc_alloc(cid.len);
+        if (!item->bytes.data) {
+            free(item);
+            return NULL;
+        }
+        memcpy(item->bytes.data, cid.bytes, cid.len);
+        item->bytes.len = cid.len;
+        return item;
+    }
+    value = cJSON_GetObjectItemCaseSensitive(node, "$bytes");
+    if (!value || !cJSON_IsString(value)) return NULL;
+    decoded = wf_plc_base64url_decode(value->valuestring, &decoded_len);
+    if (!decoded) return NULL;
+    item = wf_plc_alloc(sizeof(*item));
+    if (!item) {
+        free(decoded);
+        return NULL;
+    }
+    item->type = WF_CBOR_BYTES;
+    item->bytes.data = decoded;
+    item->bytes.len = decoded_len;
+    return item;
+}
+
 static wf_cbor_item *wf_plc_cbor_from_json(const cJSON *node,
                                            const char *skip) {
     if (!node) return NULL;
@@ -187,7 +225,13 @@ static wf_cbor_item *wf_plc_cbor_from_json(const cJSON *node,
         return wf_plc_cbor_simple(cJSON_IsTrue(node) ? 21 : 20);
     if (cJSON_IsString(node)) return wf_plc_cbor_string(node->valuestring);
     if (cJSON_IsArray(node)) return wf_plc_cbor_array(node);
-    if (cJSON_IsObject(node)) return wf_plc_cbor_object(node, skip);
+    if (cJSON_IsObject(node)) {
+        wf_cbor_item *special = wf_plc_cbor_special(node);
+        if (cJSON_GetObjectItemCaseSensitive(node, "$link") ||
+            cJSON_GetObjectItemCaseSensitive(node, "$bytes"))
+            return special;
+        return wf_plc_cbor_object(node, skip);
+    }
     if (cJSON_IsNumber(node)) {
         wf_cbor_item *item = wf_plc_alloc(sizeof(*item));
         if (!item) return NULL;
