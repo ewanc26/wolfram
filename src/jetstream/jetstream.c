@@ -472,9 +472,94 @@ wf_status wf_jetstream_event_parse(const char *json, size_t json_len,
     memcpy(out->json, json, json_len);
     out->json[json_len] = '\0';
     out->kind = wf_jetstream_kind_from_string(kind->valuestring);
+    cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
+    out->seq = (cJSON_IsNumber(cursor) && cursor->valuedouble >= 0 &&
+                cursor->valuedouble <= 9007199254740991.0 &&
+                (double)(int64_t)cursor->valuedouble == cursor->valuedouble)
+                   ? (int64_t)cursor->valuedouble
+                   : 0;
     out->time_us = (int64_t)(is_info ? 0 : time_us->valuedouble);
     out->json_len = json_len;
     cJSON_Delete(root);
+    return WF_OK;
+}
+
+wf_status wf_jetstream_event_parse_v2(const char *json, size_t json_len,
+                                      wf_jetstream_event *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    cJSON *frame = cJSON_ParseWithLength(json, json_len);
+    cJSON *payload =
+        frame ? cJSON_GetObjectItemCaseSensitive(frame, "payload") : NULL;
+    cJSON *type =
+        payload ? cJSON_GetObjectItemCaseSensitive(payload, "$type") : NULL;
+    cJSON *seq =
+        payload ? cJSON_GetObjectItemCaseSensitive(payload, "seq") : NULL;
+    cJSON *did =
+        payload ? cJSON_GetObjectItemCaseSensitive(payload, "did") : NULL;
+    if (!cJSON_IsObject(frame) || !cJSON_IsObject(payload) ||
+        !cJSON_IsString(type) || !cJSON_IsNumber(seq) || seq->valuedouble < 0 ||
+        seq->valuedouble > 9007199254740991.0 ||
+        (double)(int64_t)seq->valuedouble != seq->valuedouble ||
+        !cJSON_IsString(did)) {
+        cJSON_Delete(frame);
+        return WF_ERR_PARSE;
+    }
+    const char *suffix = strrchr(type->valuestring, '#');
+    if (!suffix || strcmp(suffix + 1, "commit") != 0) {
+        cJSON_Delete(frame);
+        return WF_ERR_PARSE;
+    }
+    cJSON *normalized = cJSON_CreateObject();
+    cJSON *commit = cJSON_CreateObject();
+    cJSON *operation = cJSON_GetObjectItemCaseSensitive(payload, "operation");
+    cJSON *collection = cJSON_GetObjectItemCaseSensitive(payload, "collection");
+    cJSON *rkey = cJSON_GetObjectItemCaseSensitive(payload, "rkey");
+    if (!normalized || !commit || !cJSON_IsString(operation) ||
+        !cJSON_IsString(collection) || !cJSON_IsString(rkey) ||
+        !cJSON_AddStringToObject(normalized, "did", did->valuestring) ||
+        !cJSON_AddNumberToObject(normalized, "cursor", seq->valuedouble) ||
+        !cJSON_AddStringToObject(normalized, "kind", "commit") ||
+        !cJSON_AddStringToObject(commit, "operation", operation->valuestring) ||
+        !cJSON_AddStringToObject(commit, "collection",
+                                 collection->valuestring) ||
+        !cJSON_AddStringToObject(commit, "rkey", rkey->valuestring)) {
+        cJSON_Delete(normalized);
+        cJSON_Delete(commit);
+        cJSON_Delete(frame);
+        return WF_ERR_ALLOC;
+    }
+    cJSON *record = cJSON_GetObjectItemCaseSensitive(payload, "record");
+    if (record) {
+        cJSON *copy = cJSON_Duplicate(record, 1);
+        if (!copy || !cJSON_AddItemToObject(commit, "record", copy)) {
+            cJSON_Delete(copy);
+            cJSON_Delete(normalized);
+            cJSON_Delete(commit);
+            cJSON_Delete(frame);
+            return WF_ERR_ALLOC;
+        }
+    }
+    cJSON_AddItemToObject(normalized, "commit", commit);
+    char *normalized_json = cJSON_PrintUnformatted(normalized);
+    if (!normalized_json) {
+        cJSON_Delete(normalized);
+        cJSON_Delete(frame);
+        return WF_ERR_ALLOC;
+    }
+    out->did = strdup(did->valuestring);
+    out->json = normalized_json;
+    out->json_len = strlen(normalized_json);
+    out->kind = WF_JETSTREAM_EVENT_COMMIT;
+    out->seq = (int64_t)seq->valuedouble;
+    if (!out->did) {
+        wf_jetstream_event_free(out);
+        cJSON_Delete(normalized);
+        cJSON_Delete(frame);
+        return WF_ERR_ALLOC;
+    }
+    cJSON_Delete(normalized);
+    cJSON_Delete(frame);
     return WF_OK;
 }
 
@@ -526,8 +611,11 @@ wf_status wf_jetstream_next(wf_jetstream *stream, wf_jetstream_event *out) {
         }
         if (status != WF_OK) return status;
         if (message.type == WF_WEBSOCKET_TEXT && !stream->options.compress)
-            status = wf_jetstream_event_parse((const char *)message.data,
-                                              message.len, out);
+            status = stream->options.protocol_version == 2
+                         ? wf_jetstream_event_parse_v2(
+                               (const char *)message.data, message.len, out)
+                         : wf_jetstream_event_parse((const char *)message.data,
+                                                    message.len, out);
         else if (message.type == WF_WEBSOCKET_BINARY &&
                  stream->options.compress)
             status = wf_jetstream_event_parse_zstd(
@@ -554,7 +642,8 @@ wf_status wf_jetstream_next(wf_jetstream *stream, wf_jetstream_event *out) {
             continue;
         }
 
-        stream->cursor = out->time_us;
+        stream->cursor =
+            stream->options.protocol_version == 2 ? out->seq : out->time_us;
         stream->last_ping_ms = wf_now_ms();
         stream->retry_delay_ms =
             stream->options.reconnect_initial_delay_ms
