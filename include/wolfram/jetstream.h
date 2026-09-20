@@ -67,6 +67,7 @@ typedef enum wf_jetstream_event_kind {
 typedef struct wf_jetstream_event {
     wf_jetstream_event_kind kind;
     char *did;
+    int64_t seq; /* v2 sequence cursor; zero for legacy/info frames */
     int64_t time_us;
     char *json;
     size_t json_len;
@@ -184,6 +185,11 @@ wf_status wf_jetstream_event_parse_zstd(const void *compressed,
 /** Parse one uncompressed Jetstream JSON message without doing I/O. */
 wf_status wf_jetstream_event_parse(const char *json, size_t json_len,
                                    wf_jetstream_event *out);
+
+/** Parse one proposal-0015 `xrpc.v1.json` v2 message frame. The returned
+ * JSON is normalized to the legacy event shape for existing consumers. */
+wf_status wf_jetstream_event_parse_v2(const char *json, size_t json_len,
+                                      wf_jetstream_event *out);
 
 void wf_jetstream_event_free(wf_jetstream_event *event);
 void wf_jetstream_free(wf_jetstream *stream);
