@@ -162,6 +162,10 @@ wf_status wf_websocket_connect_with_headers(const char *url,
 #endif
     curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url ? curl_url : url);
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
+    /* A stalled DNS/TLS/upgrade handshake must become a reconnectable
+     * transport failure; otherwise a bounded Jetstream batch can hang before
+     * it ever reaches curl_ws_recv. */
+    curl_easy_setopt(socket->curl, CURLOPT_CONNECTTIMEOUT_MS, 10000L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
 
