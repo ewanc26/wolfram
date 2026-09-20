@@ -121,7 +121,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     char *curl_url = NULL;
     if (strncmp(url, "wss://", 6) == 0) {
         size_t url_len = strlen(url);
-        curl_url = malloc(url_len + 1);
+        curl_url = malloc(url_len + 3);
         if (!curl_url) {
             curl_easy_cleanup(socket->curl);
             free(socket);
