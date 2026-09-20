@@ -166,6 +166,10 @@ wf_status wf_websocket_connect_with_headers(const char *url,
      * transport failure; otherwise a bounded Jetstream batch can hang before
      * it ever reaches curl_ws_recv. */
     curl_easy_setopt(socket->curl, CURLOPT_CONNECTTIMEOUT_MS, 10000L);
+    /* Apple's libcurl can remain in TLS setup after the connect phase has
+     * completed, so also bound this one blocking perform. Clear it after the
+     * upgrade: the WebSocket itself is intentionally long-lived. */
+    curl_easy_setopt(socket->curl, CURLOPT_TIMEOUT_MS, 15000L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
 
@@ -190,6 +194,8 @@ wf_status wf_websocket_connect_with_headers(const char *url,
 #if defined(__APPLE__)
     if (result == CURLE_OK) wf_websocket_make_nonblocking(socket->curl);
 #endif
+    if (result == CURLE_OK)
+        curl_easy_setopt(socket->curl, CURLOPT_TIMEOUT_MS, 0L);
     free(curl_url);
     curl_slist_free_all(header_list);
     if (result != CURLE_OK) {
