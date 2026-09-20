@@ -34,6 +34,22 @@ int main(void) {
     free(url);
     url = NULL;
 
+    const char v2_frame[] =
+        "{\"$type\":\"message\",\"payload\":{"
+        "\"$type\":\"network.bsky.jetstream.subscribeEvents#commit\","
+        "\"seq\":42,\"did\":\"did:plc:test\",\"time\":\"2026-09-20T00:00:00."
+        "000000Z\","
+        "\"operation\":\"delete\",\"collection\":\"app.bsky.feed.post\","
+        "\"rkey\":\"3k\"}}";
+    wf_jetstream_event v2_event = {0};
+    WF_CHECK(wf_jetstream_event_parse_v2(v2_frame, sizeof(v2_frame) - 1,
+                                         &v2_event) == WF_OK);
+    WF_CHECK(v2_event.seq == 42);
+    WF_CHECK(v2_event.kind == WF_JETSTREAM_EVENT_COMMIT);
+    WF_CHECK(strstr(v2_event.json, "\"kind\":\"commit\"") != NULL);
+    WF_CHECK(strstr(v2_event.json, "\"operation\":\"delete\"") != NULL);
+    wf_jetstream_event_free(&v2_event);
+
     const char *kinds[] = {"commit", "identity"};
     options.protocol_version = 2;
     options.kinds = kinds;
