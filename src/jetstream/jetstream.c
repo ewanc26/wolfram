@@ -550,6 +550,13 @@ wf_status wf_jetstream_event_parse_v2(const char *json, size_t json_len,
             return WF_ERR_ALLOC;
         }
     }
+    cJSON *rev = cJSON_GetObjectItemCaseSensitive(payload, "rev");
+    if (rev && cJSON_IsString(rev) &&
+        !cJSON_AddStringToObject(commit, "rev", rev->valuestring)) {
+        cJSON_Delete(normalized);
+        cJSON_Delete(frame);
+        return WF_ERR_ALLOC;
+    }
     cJSON_AddItemToObject(normalized, "commit", commit);
     char *normalized_json = cJSON_PrintUnformatted(normalized);
     if (!normalized_json) {
