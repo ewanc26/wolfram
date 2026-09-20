@@ -529,6 +529,8 @@ wf_status wf_jetstream_event_parse_v2(const char *json, size_t json_len,
         !cJSON_IsString(collection) || !cJSON_IsString(rkey) ||
         !cJSON_AddStringToObject(normalized, "did", did->valuestring) ||
         !cJSON_AddNumberToObject(normalized, "cursor", seq->valuedouble) ||
+        !cJSON_AddNumberToObject(normalized, "seq", seq->valuedouble) ||
+        !cJSON_AddNumberToObject(normalized, "time_us", seq->valuedouble) ||
         !cJSON_AddStringToObject(normalized, "kind", "commit") ||
         !cJSON_AddStringToObject(commit, "operation", operation->valuestring) ||
         !cJSON_AddStringToObject(commit, "collection",
