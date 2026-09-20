@@ -80,18 +80,25 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
 }
 
 static int wf_websocket_protocol_supported(const char *wanted) {
-#if LIBCURL_VERSION_NUM < 0x075600
-    (void)wanted;
-#endif
 #if LIBCURL_VERSION_NUM >= 0x075600
+#if defined(__APPLE__)
+    /* libcurl's WebSocket API is compile-time gated, but WebSocket schemes
+     * are not listed in curl_version_info()->protocols on all builds (notably
+     * Apple's libcurl). */
+    return strcmp(wanted, "ws") == 0 || strcmp(wanted, "wss") == 0;
+#else
     const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
     const char *const *protocol;
     if (!info || !info->protocols) return 0;
     for (protocol = info->protocols; *protocol; ++protocol) {
         if (strcmp(*protocol, wanted) == 0) return 1;
     }
-#endif
     return 0;
+#endif
+#else
+    (void)wanted;
+    return 0;
+#endif
 }
 
 int wf_websocket_supported(void) {
@@ -121,7 +128,21 @@ wf_status wf_websocket_connect_with_headers(const char *url,
         free(socket);
         return WF_ERR_ALLOC;
     }
-    curl_easy_setopt(socket->curl, CURLOPT_URL, url);
+    char *curl_url = NULL;
+#if defined(__APPLE__)
+    if (strncmp(url, "wss://", 6) == 0) {
+        size_t url_len = strlen(url);
+        curl_url = malloc(url_len + 3);
+        if (!curl_url) {
+            curl_easy_cleanup(socket->curl);
+            free(socket);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(curl_url, "https://", 8);
+        memcpy(curl_url + 8, url + 6, url_len - 5);
+    }
+#endif
+    curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url ? curl_url : url);
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
@@ -144,6 +165,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     /* CONNECT_ONLY completes the WS upgrade within this single perform call,
      * so the header list is not needed past it (curl does not retain it). */
     CURLcode result = curl_easy_perform(socket->curl);
+    free(curl_url);
     curl_slist_free_all(header_list);
     if (result != CURLE_OK) {
         curl_easy_cleanup(socket->curl);
