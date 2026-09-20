@@ -3,6 +3,7 @@
 #include <curl/curl.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #if defined(__APPLE__)
@@ -25,6 +26,26 @@ static void wf_websocket_curl_ensure_init(void) {
 }
 
 #if defined(__APPLE__)
+static void wf_websocket_base64(const unsigned char *input, size_t input_len,
+                                char *output) {
+    static const char alphabet[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    size_t in = 0;
+    size_t out = 0;
+    while (in < input_len) {
+        const size_t remaining = input_len - in;
+        const unsigned int a = input[in++];
+        const unsigned int b = remaining > 1u ? input[in++] : 0;
+        const unsigned int c = remaining > 2u ? input[in++] : 0;
+        output[out++] = alphabet[a >> 2];
+        output[out++] = alphabet[((a & 3u) << 4) | (b >> 4)];
+        output[out++] =
+            remaining > 1u ? alphabet[((b & 15u) << 2) | (c >> 6)] : '=';
+        output[out++] = remaining > 2u ? alphabet[c & 63u] : '=';
+    }
+    output[out] = '\0';
+}
+
 /* Apple's system libcurl exposes the WebSocket API but does not advertise
  * ws/wss as transfer schemes. The wss->https compatibility path also leaves
  * curl_ws_recv waiting on an otherwise idle blocking socket, so make the
@@ -174,6 +195,42 @@ wf_status wf_websocket_connect_with_headers(const char *url,
                      "wolfram/" WOLFRAM_VERSION_STRING);
 
     struct curl_slist *header_list = NULL;
+#if defined(__APPLE__)
+    char websocket_key[25] = {0};
+    if (curl_url) {
+        unsigned char key_bytes[16];
+        arc4random_buf(key_bytes, sizeof(key_bytes));
+        wf_websocket_base64(key_bytes, sizeof(key_bytes), websocket_key);
+        const char *const upgrade_headers[] = {
+            "Connection: Upgrade",
+            "Upgrade: websocket",
+            "Sec-WebSocket-Version: 13",
+        };
+        for (size_t i = 0;
+             i < sizeof(upgrade_headers) / sizeof(upgrade_headers[0]); ++i) {
+            struct curl_slist *next =
+                curl_slist_append(header_list, upgrade_headers[i]);
+            if (!next) {
+                curl_slist_free_all(header_list);
+                curl_easy_cleanup(socket->curl);
+                free(socket);
+                return WF_ERR_ALLOC;
+            }
+            header_list = next;
+        }
+        char key_header[64];
+        snprintf(key_header, sizeof(key_header), "Sec-WebSocket-Key: %s",
+                 websocket_key);
+        struct curl_slist *next = curl_slist_append(header_list, key_header);
+        if (!next) {
+            curl_slist_free_all(header_list);
+            curl_easy_cleanup(socket->curl);
+            free(socket);
+            return WF_ERR_ALLOC;
+        }
+        header_list = next;
+    }
+#endif
     for (size_t i = 0; i < header_count; i++) {
         if (!headers[i]) continue;
         struct curl_slist *next = curl_slist_append(header_list, headers[i]);
