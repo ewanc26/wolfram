@@ -9,6 +9,7 @@
  */
 
 #include "wolfram/plc.h"
+#include "wolfram/identity.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -211,6 +212,18 @@ static void test_get_last_op_and_build_handle_update(void) {
     }
     CHECK(op_json != NULL && strcmp(op_json, g_canned_last_op) == 0,
           "wf_plc_get_last_op returns the served operation verbatim");
+    char **resolved_rotation_keys = NULL;
+    size_t resolved_rotation_key_count = 0;
+    status = wf_did_resolve_rotation_keys(
+        client, "did:plc:testaccount123456789", &resolved_rotation_keys,
+        &resolved_rotation_key_count);
+    CHECK(status == WF_OK && resolved_rotation_key_count == 1,
+          "wf_did_resolve_rotation_keys returns PLC keys");
+    CHECK(resolved_rotation_key_count == 0 ||
+              strcmp(resolved_rotation_keys[0], rotation_didkey) == 0,
+          "wf_did_resolve_rotation_keys preserves key value");
+    wf_did_rotation_keys_free(resolved_rotation_keys,
+                              resolved_rotation_key_count);
     free(cid);
     free(op_json);
 
