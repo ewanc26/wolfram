@@ -36,6 +36,15 @@ typedef struct wf_signing_key {
 wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out);
 
 /**
+ * Load a raw 32-byte private scalar from exactly 64 hexadecimal characters.
+ * The input is never retained after the call. Zero scalars and unknown key
+ * types are rejected; callers remain responsible for protecting the returned
+ * in-memory key.
+ */
+wf_status wf_signing_key_from_hex(wf_key_type type, const char *hex,
+                                  wf_signing_key *out);
+
+/**
  * Derive the `did:key:z...` multibase-encoded public key for a signing key.
  *
  * The returned string uses the same multicodec prefixes the SDK's verifier
