@@ -11,11 +11,15 @@ extern "C" {
 #endif
 
 typedef struct wf_jetstream_options {
-    const char *endpoint; /* absolute ws(s) URL, usually ending in /subscribe */
+    const char *endpoint; /* absolute ws(s) URL */
+    int protocol_version; /* 1 = legacy /subscribe; 2 = subscribeEvents */
     const char *const *wanted_collections;
     size_t wanted_collections_count;
     const char *const *wanted_dids;
     size_t wanted_dids_count;
+    const char *const
+        *kinds; /* v2 event kinds: commit, identity, account, sync */
+    size_t kinds_count;
     int64_t cursor; /* Unix microseconds; 0 omits the parameter */
     uint32_t max_message_size_bytes; /* 0 means no server-side limit */
     int require_hello; /* pause delivery until the first options update */

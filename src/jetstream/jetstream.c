@@ -80,9 +80,12 @@ wf_status wf_jetstream_build_url(const wf_jetstream_options *options,
         (strncmp(options->endpoint, "ws://", 5) != 0 &&
          strncmp(options->endpoint, "wss://", 6) != 0) ||
         options->wanted_collections_count > 100 ||
-        options->wanted_dids_count > 10000 ||
+        options->wanted_dids_count > 10000 || options->kinds_count > 4 ||
+        (options->protocol_version != 0 && options->protocol_version != 1 &&
+         options->protocol_version != 2) ||
         (options->wanted_collections_count && !options->wanted_collections) ||
         (options->wanted_dids_count && !options->wanted_dids) ||
+        (options->kinds_count && !options->kinds) ||
         (options->compress &&
          (!options->zstd_dictionary || !options->zstd_dictionary_len ||
           !wf_jetstream_zstd_supported())) ||
@@ -99,16 +102,27 @@ wf_status wf_jetstream_build_url(const wf_jetstream_options *options,
     for (size_t i = 0; i < options->wanted_dids_count; ++i) {
         if (!options->wanted_dids[i]) return WF_ERR_INVALID_ARG;
     }
+    for (size_t i = 0; i < options->kinds_count; ++i) {
+        if (!options->kinds[i]) return WF_ERR_INVALID_ARG;
+    }
+    const int v2 = options->protocol_version == 2;
+    const char *const collections_name =
+        v2 ? "collections" : "wantedCollections";
+    const char *const dids_name = v2 ? "dids" : "wantedDids";
     struct wf_url_buffer buf = {0};
     int first = strchr(options->endpoint, '?') == NULL;
     if (!wf_url_append(&buf, options->endpoint)) return WF_ERR_ALLOC;
     for (size_t i = 0; i < options->wanted_collections_count; ++i) {
-        if (!wf_url_param(&buf, &first, "wantedCollections",
+        if (!wf_url_param(&buf, &first, collections_name,
                           options->wanted_collections[i]))
             goto alloc_error;
     }
     for (size_t i = 0; i < options->wanted_dids_count; ++i) {
-        if (!wf_url_param(&buf, &first, "wantedDids", options->wanted_dids[i]))
+        if (!wf_url_param(&buf, &first, dids_name, options->wanted_dids[i]))
+            goto alloc_error;
+    }
+    for (size_t i = 0; i < options->kinds_count; ++i) {
+        if (!wf_url_param(&buf, &first, "kinds", options->kinds[i]))
             goto alloc_error;
     }
     char number[32];

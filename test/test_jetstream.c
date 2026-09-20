@@ -34,6 +34,28 @@ int main(void) {
     free(url);
     url = NULL;
 
+    const char *kinds[] = {"commit", "identity"};
+    options.protocol_version = 2;
+    options.kinds = kinds;
+    options.kinds_count = 2;
+    options.cursor = 42;
+    options.max_message_size_bytes = 0;
+    options.require_hello = 0;
+    WF_CHECK(wf_jetstream_build_url(&options, &url) == WF_OK);
+    WF_CHECK(
+        url &&
+        strcmp(
+            url,
+            "wss://jetstream.example/subscribe?"
+            "collections=app.bsky.feed.post&collections=app.bsky.graph.%2A"
+            "&dids=did%3Aplc%3Aa%2Fb&kinds=commit&kinds=identity&cursor=42") ==
+            0);
+    free(url);
+    url = NULL;
+    options.protocol_version = 0;
+    options.kinds = NULL;
+    options.kinds_count = 0;
+
     static const unsigned char dictionary[] =
         "wolfram Jetstream test dictionary: did time_us kind commit record";
     options.compress = 1;
