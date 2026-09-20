@@ -23,7 +23,6 @@ static void wf_websocket_curl_ensure_init(void) {
 
 struct wf_websocket {
 #if LIBCURL_VERSION_NUM >= 0x075600
-#if defined(__APPLE__)
     CURL *curl;
     unsigned char *pending;
     size_t pending_len;
@@ -86,15 +85,6 @@ static int wf_websocket_protocol_supported(const char *wanted) {
      * are not listed in curl_version_info()->protocols on all builds (notably
      * Apple's libcurl). */
     return strcmp(wanted, "ws") == 0 || strcmp(wanted, "wss") == 0;
-#else
-    const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
-    const char *const *protocol;
-    if (!info || !info->protocols) return 0;
-    for (protocol = info->protocols; *protocol; ++protocol) {
-        if (strcmp(*protocol, wanted) == 0) return 1;
-    }
-    return 0;
-#endif
 #else
     (void)wanted;
     return 0;
