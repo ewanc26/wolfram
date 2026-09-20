@@ -70,6 +70,10 @@ typedef struct wf_agent {
 #endif
 } wf_agent;
 
+wf_xrpc_client *wf_agent_get_xrpc_client(wf_agent *agent) {
+    return agent ? agent->client : NULL;
+}
+
 static char *wf_agent_strdup(const char *s) {
     if (!s) {
         return NULL;
