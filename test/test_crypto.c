@@ -74,6 +74,29 @@ int main(void) {
         WF_CHECK(sig[32] != 0 || sig[63] != 0);
     }
 
+    /* Operator configuration loader: exact hex, preserved bytes, and
+     * fail-closed malformed/zero inputs. */
+    {
+        wf_signing_key key = {0};
+        const char *scalar =
+            "0000000000000000000000000000000000000000000000000000000000000001";
+        WF_CHECK(wf_signing_key_from_hex(WF_KEY_TYPE_P256, scalar, &key) ==
+                 WF_OK);
+        WF_CHECK(key.type == WF_KEY_TYPE_P256 && key.bytes[31] == 1);
+        WF_CHECK(wf_signing_key_from_hex(WF_KEY_TYPE_P256, "00", &key) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_signing_key_from_hex(WF_KEY_TYPE_P256,
+                                         "0000000000000000000000000000000000000"
+                                         "00000000000000000000000000g",
+                                         &key) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_signing_key_from_hex(WF_KEY_TYPE_P256,
+                                         "0000000000000000000000000000000000000"
+                                         "000000000000000000000000000",
+                                         &key) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_signing_key_from_hex(WF_KEY_TYPE_UNKNOWN, scalar, &key) ==
+                 WF_ERR_INVALID_ARG);
+    }
+
     /* Invalid key type */
     {
         wf_signing_key key;
