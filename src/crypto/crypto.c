@@ -776,6 +776,35 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
 #endif
 }
 
+static int wf_hex_nibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+wf_status wf_signing_key_from_hex(wf_key_type type, const char *hex,
+                                  wf_signing_key *out) {
+    if (!hex || !out ||
+        (type != WF_KEY_TYPE_P256 && type != WF_KEY_TYPE_SECP256K1) ||
+        strlen(hex) != sizeof(out->bytes) * 2u) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_signing_key candidate = {0};
+    candidate.type = type;
+    int nonzero = 0;
+    for (size_t i = 0; i < sizeof(candidate.bytes); ++i) {
+        const int high = wf_hex_nibble(hex[i * 2u]);
+        const int low = wf_hex_nibble(hex[i * 2u + 1u]);
+        if (high < 0 || low < 0) return WF_ERR_INVALID_ARG;
+        candidate.bytes[i] = (unsigned char)((high << 4) | low);
+        nonzero |= candidate.bytes[i] != 0;
+    }
+    if (!nonzero) return WF_ERR_INVALID_ARG;
+    *out = candidate;
+    return WF_OK;
+}
+
 wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
                   size_t msg_len, unsigned char *sig_out, size_t sig_out_cap) {
     WF_LOG_DEBUG("crypto",
