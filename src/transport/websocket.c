@@ -1,11 +1,28 @@
 #include "wolfram/websocket.h"
 
 #include <curl/curl.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_WIN32)
+#include <poll.h>
+#endif
 
 #define WF_WEBSOCKET_MAX_MESSAGE (16u * 1024u * 1024u)
+
+/* JetStream and other WebSocket users can be the first libcurl-backed
+ * transport an application invokes. Keep WebSocket self-contained instead of
+ * relying on XRPC having initialized libcurl first. */
+static pthread_once_t curl_once = PTHREAD_ONCE_INIT;
+
+static void wf_websocket_curl_global_init(void) {
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+}
+
+static void wf_websocket_curl_ensure_init(void) {
+    pthread_once(&curl_once, wf_websocket_curl_global_init);
+}
 
 struct wf_websocket {
 #if LIBCURL_VERSION_NUM >= 0x075600
@@ -96,6 +113,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     }
     *out = NULL;
 #if LIBCURL_VERSION_NUM >= 0x075600
+    wf_websocket_curl_ensure_init();
     const char *protocol = strncmp(url, "wss://", 6) == 0 ? "wss" : "ws";
     if (!wf_websocket_protocol_supported(protocol)) return WF_ERR_INVALID_ARG;
 
@@ -189,7 +207,23 @@ wf_status wf_websocket_receive(wf_websocket *socket,
         const struct curl_ws_frame *meta = NULL;
         CURLcode result =
             curl_ws_recv(socket->curl, chunk, sizeof(chunk), &received, &meta);
-        if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
+        if (result == CURLE_AGAIN) {
+#if !defined(_WIN32)
+            curl_socket_t active = CURL_SOCKET_BAD;
+            if (curl_easy_getinfo(socket->curl, CURLINFO_ACTIVESOCKET,
+                                  &active) == CURLE_OK &&
+                active != CURL_SOCKET_BAD) {
+                struct pollfd descriptor = {
+                    .fd = active,
+                    .events = POLLIN,
+                    .revents = 0,
+                };
+                const int ready = poll(&descriptor, 1, 100);
+                if (ready > 0 && (descriptor.revents & POLLIN)) continue;
+            }
+#endif
+            return WF_ERR_WOULD_BLOCK;
+        }
         if (result != CURLE_OK || !meta || (meta->flags & CURLWS_CLOSE)) {
             wf_websocket_discard_pending(socket);
             return WF_ERR_NETWORK;
