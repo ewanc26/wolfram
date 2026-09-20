@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__APPLE__)
+#include <fcntl.h>
+#endif
 
 #define WF_WEBSOCKET_MAX_MESSAGE (16u * 1024u * 1024u)
 
@@ -20,6 +23,21 @@ static void wf_websocket_curl_global_init(void) {
 static void wf_websocket_curl_ensure_init(void) {
     pthread_once(&curl_once, wf_websocket_curl_global_init);
 }
+
+#if defined(__APPLE__)
+/* Apple's system libcurl exposes the WebSocket API but does not advertise
+ * ws/wss as transfer schemes. The wss->https compatibility path also leaves
+ * curl_ws_recv waiting on an otherwise idle blocking socket, so make the
+ * active descriptor non-blocking before handing it to the receive API. */
+static void wf_websocket_make_nonblocking(CURL *curl) {
+    curl_socket_t socket = CURL_SOCKET_BAD;
+    if (curl_easy_getinfo(curl, CURLINFO_ACTIVESOCKET, &socket) != CURLE_OK ||
+        socket == CURL_SOCKET_BAD)
+        return;
+    const int flags = fcntl(socket, F_GETFL, 0);
+    if (flags >= 0) (void)fcntl(socket, F_SETFL, flags | O_NONBLOCK);
+}
+#endif
 
 struct wf_websocket {
 #if LIBCURL_VERSION_NUM >= 0x075600
@@ -165,6 +183,9 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     /* CONNECT_ONLY completes the WS upgrade within this single perform call,
      * so the header list is not needed past it (curl does not retain it). */
     CURLcode result = curl_easy_perform(socket->curl);
+#if defined(__APPLE__)
+    if (result == CURLE_OK) wf_websocket_make_nonblocking(socket->curl);
+#endif
     free(curl_url);
     curl_slist_free_all(header_list);
     if (result != CURLE_OK) {
