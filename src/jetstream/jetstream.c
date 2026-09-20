@@ -230,7 +230,17 @@ static wf_status wf_jetstream_open(wf_jetstream *stream) {
     char *url = NULL;
     stream->options.cursor = stream->cursor;
     wf_status status = wf_jetstream_build_url(&stream->options, &url);
-    if (status == WF_OK) status = wf_websocket_connect(url, &stream->socket);
+    if (status == WF_OK) {
+        if (stream->options.protocol_version == 2) {
+            const char *const headers[] = {
+                "Sec-WebSocket-Protocol: xrpc.v1.json",
+            };
+            status = wf_websocket_connect_with_headers(url, headers, 1u,
+                                                       &stream->socket);
+        } else {
+            status = wf_websocket_connect(url, &stream->socket);
+        }
+    }
     free(url);
     return status;
 }
