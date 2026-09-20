@@ -80,18 +80,15 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
 }
 
 static int wf_websocket_protocol_supported(const char *wanted) {
-#if LIBCURL_VERSION_NUM < 0x075600
-    (void)wanted;
-#endif
 #if LIBCURL_VERSION_NUM >= 0x075600
-    const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
-    const char *const *protocol;
-    if (!info || !info->protocols) return 0;
-    for (protocol = info->protocols; *protocol; ++protocol) {
-        if (strcmp(*protocol, wanted) == 0) return 1;
-    }
-#endif
+    /* libcurl's WebSocket API is compile-time gated, but WebSocket schemes
+     * are not listed in curl_version_info()->protocols on all builds (notably
+     * Apple's libcurl). */
+    return strcmp(wanted, "ws") == 0 || strcmp(wanted, "wss") == 0;
+#else
+    (void)wanted;
     return 0;
+#endif
 }
 
 int wf_websocket_supported(void) {
