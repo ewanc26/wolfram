@@ -118,7 +118,22 @@ wf_status wf_websocket_connect_with_headers(const char *url,
         free(socket);
         return WF_ERR_ALLOC;
     }
-    curl_easy_setopt(socket->curl, CURLOPT_URL, url);
+    char *curl_url = NULL;
+    if (strncmp(url, "wss://", 6) == 0) {
+        size_t url_len = strlen(url);
+        curl_url = malloc(url_len + 1);
+        if (!curl_url) {
+            curl_easy_cleanup(socket->curl);
+            free(socket);
+            return WF_ERR_ALLOC;
+        }
+        memcpy(curl_url, "https://", 8);
+        memcpy(curl_url + 8, url + 6, url_len - 5);
+    } else {
+        curl_url = strdup(url);
+    }
+    curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url);
+    free(curl_url);
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
