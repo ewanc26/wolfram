@@ -129,11 +129,8 @@ wf_status wf_websocket_connect_with_headers(const char *url,
         }
         memcpy(curl_url, "https://", 8);
         memcpy(curl_url + 8, url + 6, url_len - 5);
-    } else {
-        curl_url = strdup(url);
     }
-    curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url);
-    free(curl_url);
+    curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url ? curl_url : url);
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
                      "wolfram/" WOLFRAM_VERSION_STRING);
@@ -156,6 +153,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     /* CONNECT_ONLY completes the WS upgrade within this single perform call,
      * so the header list is not needed past it (curl does not retain it). */
     CURLcode result = curl_easy_perform(socket->curl);
+    free(curl_url);
     curl_slist_free_all(header_list);
     if (result != CURLE_OK) {
         curl_easy_cleanup(socket->curl);
