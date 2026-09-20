@@ -97,6 +97,11 @@ wf_status wf_did_resolve(wf_xrpc_client *client, const char *did,
 wf_status wf_did_resolve_raw(wf_xrpc_client *client, const char *did,
                              char **out_json);
 
+/** Resolve the current PLC rotation keys for a did:plc identity. */
+wf_status wf_did_resolve_rotation_keys(wf_xrpc_client *client, const char *did,
+                                       char ***out_keys, size_t *out_count);
+void wf_did_rotation_keys_free(char **keys, size_t count);
+
 /**
  * Resolve a known atproto service by its canonical ID and expected type.
  * Unknown service types return WF_ERR_NOT_FOUND; use the by-ID API below for

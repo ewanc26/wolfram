@@ -837,6 +837,62 @@ wf_status wf_did_resolve_raw(wf_xrpc_client *client, const char *did,
     return WF_OK;
 }
 
+wf_status wf_did_resolve_rotation_keys(wf_xrpc_client *client, const char *did,
+                                       char ***out_keys, size_t *out_count) {
+    if (!client || !did || strncmp(did, "did:plc:", 8) != 0 || !out_keys ||
+        !out_count)
+        return WF_ERR_INVALID_ARG;
+    *out_keys = NULL;
+    *out_count = 0;
+    char *cid = NULL;
+    char *operation = NULL;
+    wf_status status = wf_plc_get_last_op(client, "https://plc.directory", did,
+                                          &cid, &operation);
+    free(cid);
+    if (status != WF_OK || !operation) {
+        free(operation);
+        return status;
+    }
+    cJSON *root = cJSON_Parse(operation);
+    free(operation);
+    cJSON *keys =
+        root ? cJSON_GetObjectItemCaseSensitive(root, "rotationKeys") : NULL;
+    if (!cJSON_IsArray(keys)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    size_t count = (size_t)cJSON_GetArraySize(keys);
+    char **result = count ? calloc(count, sizeof(*result)) : NULL;
+    if (count && !result) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    for (size_t i = 0; i < count; ++i) {
+        cJSON *item = cJSON_GetArrayItem(keys, (int)i);
+        if (!cJSON_IsString(item) || !item->valuestring) {
+            wf_did_rotation_keys_free(result, count);
+            cJSON_Delete(root);
+            return WF_ERR_PARSE;
+        }
+        result[i] = strdup(item->valuestring);
+        if (!result[i]) {
+            wf_did_rotation_keys_free(result, count);
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
+    }
+    cJSON_Delete(root);
+    *out_keys = result;
+    *out_count = count;
+    return WF_OK;
+}
+
+void wf_did_rotation_keys_free(char **keys, size_t count) {
+    if (!keys) return;
+    for (size_t i = 0; i < count; ++i) free(keys[i]);
+    free(keys);
+}
+
 wf_status wf_did_document_parse(const char *json, size_t json_len,
                                 wf_did_document *out) {
     if (!json || !out) return WF_ERR_INVALID_ARG;
