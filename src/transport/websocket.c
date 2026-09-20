@@ -1,11 +1,25 @@
 #include "wolfram/websocket.h"
 
 #include <curl/curl.h>
+#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define WF_WEBSOCKET_MAX_MESSAGE (16u * 1024u * 1024u)
+
+/* JetStream and other WebSocket users can be the first libcurl-backed
+ * transport an application invokes. Keep WebSocket self-contained instead of
+ * relying on XRPC having initialized libcurl first. */
+static pthread_once_t curl_once = PTHREAD_ONCE_INIT;
+
+static void wf_websocket_curl_global_init(void) {
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+}
+
+static void wf_websocket_curl_ensure_init(void) {
+    pthread_once(&curl_once, wf_websocket_curl_global_init);
+}
 
 struct wf_websocket {
 #if LIBCURL_VERSION_NUM >= 0x075600
@@ -96,6 +110,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     }
     *out = NULL;
 #if LIBCURL_VERSION_NUM >= 0x075600
+    wf_websocket_curl_ensure_init();
     const char *protocol = strncmp(url, "wss://", 6) == 0 ? "wss" : "ws";
     if (!wf_websocket_protocol_supported(protocol)) return WF_ERR_INVALID_ARG;
 
