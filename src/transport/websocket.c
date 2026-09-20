@@ -5,6 +5,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_WIN32)
+#include <poll.h>
+#endif
 #if defined(__APPLE__)
 #include <fcntl.h>
 #endif
@@ -257,7 +260,20 @@ wf_status wf_websocket_receive(wf_websocket *socket,
         const struct curl_ws_frame *meta = NULL;
         CURLcode result =
             curl_ws_recv(socket->curl, chunk, sizeof(chunk), &received, &meta);
-        if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
+        if (result == CURLE_AGAIN) {
+#if !defined(_WIN32)
+            curl_socket_t active = CURL_SOCKET_BAD;
+            if (curl_easy_getinfo(socket->curl, CURLINFO_ACTIVESOCKET,
+                                  &active) == CURLE_OK &&
+                active != CURL_SOCKET_BAD) {
+                struct pollfd descriptor = {.fd = active, .events = POLLIN};
+                if (poll(&descriptor, 1, 100) > 0 &&
+                    (descriptor.revents & POLLIN))
+                    continue;
+            }
+#endif
+            return WF_ERR_WOULD_BLOCK;
+        }
         if (result != CURLE_OK || !meta || (meta->flags & CURLWS_CLOSE)) {
             wf_websocket_discard_pending(socket);
             return WF_ERR_NETWORK;
