@@ -82,6 +82,7 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
 
 static int wf_websocket_protocol_supported(const char *wanted) {
 #if LIBCURL_VERSION_NUM >= 0x075600
+#if defined(__APPLE__)
     /* libcurl's WebSocket API is compile-time gated, but WebSocket schemes
      * are not listed in curl_version_info()->protocols on all builds (notably
      * Apple's libcurl). */
