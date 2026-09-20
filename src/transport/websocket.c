@@ -81,10 +81,20 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
 
 static int wf_websocket_protocol_supported(const char *wanted) {
 #if LIBCURL_VERSION_NUM >= 0x075600
+#if defined(__APPLE__)
     /* libcurl's WebSocket API is compile-time gated, but WebSocket schemes
      * are not listed in curl_version_info()->protocols on all builds (notably
      * Apple's libcurl). */
     return strcmp(wanted, "ws") == 0 || strcmp(wanted, "wss") == 0;
+#else
+    const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
+    const char *const *protocol;
+    if (!info || !info->protocols) return 0;
+    for (protocol = info->protocols; *protocol; ++protocol) {
+        if (strcmp(*protocol, wanted) == 0) return 1;
+    }
+    return 0;
+#endif
 #else
     (void)wanted;
     return 0;
@@ -119,6 +129,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
         return WF_ERR_ALLOC;
     }
     char *curl_url = NULL;
+#if defined(__APPLE__)
     if (strncmp(url, "wss://", 6) == 0) {
         size_t url_len = strlen(url);
         curl_url = malloc(url_len + 3);
@@ -130,6 +141,7 @@ wf_status wf_websocket_connect_with_headers(const char *url,
         memcpy(curl_url, "https://", 8);
         memcpy(curl_url + 8, url + 6, url_len - 5);
     }
+#endif
     curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url ? curl_url : url);
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
     curl_easy_setopt(socket->curl, CURLOPT_USERAGENT,
