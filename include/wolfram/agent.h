@@ -28,6 +28,11 @@ extern "C" {
 
 typedef struct wf_agent wf_agent;
 
+/* Borrow the authenticated data-plane XRPC client owned by `agent`.
+ * The returned pointer remains owned by the agent, is invalid after
+ * wf_agent_free, and must not be freed by the caller. */
+wf_xrpc_client *wf_agent_get_xrpc_client(wf_agent *agent);
+
 /* Lifecycle */
 wf_agent *wf_agent_new(const char *service_url);
 void wf_agent_free(wf_agent *agent);
