@@ -135,7 +135,7 @@ wf_status wf_jetstream_build_url(const wf_jetstream_options *options,
         if (!wf_url_param(&buf, &first, "maxMessageSizeBytes", number))
             goto alloc_error;
     }
-    if (options->compress && !wf_url_param(&buf, &first, "compress", "true"))
+    if (options->compress && !wf_url_param(&buf, &first, "compress", "1"))
         goto alloc_error;
     if (options->require_hello &&
         !wf_url_param(&buf, &first, "requireHello", "true"))
@@ -620,7 +620,7 @@ wf_status wf_jetstream_next(wf_jetstream *stream, wf_jetstream_event *out) {
             return WF_ERR_WOULD_BLOCK;
         }
         if (status != WF_OK) return status;
-        if (message.type == WF_WEBSOCKET_TEXT && !stream->options.compress)
+        if (message.type == WF_WEBSOCKET_TEXT)
             status = stream->options.protocol_version == 2
                          ? wf_jetstream_event_parse_v2(
                                (const char *)message.data, message.len, out)
