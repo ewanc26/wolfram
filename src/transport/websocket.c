@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if !defined(_WIN32)
+#include <poll.h>
+#endif
 #if defined(__APPLE__)
 #include <fcntl.h>
 #endif
@@ -26,30 +29,10 @@ static void wf_websocket_curl_ensure_init(void) {
 }
 
 #if defined(__APPLE__)
-static void wf_websocket_base64(const unsigned char *input, size_t input_len,
-                                char *output) {
-    static const char alphabet[] =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    size_t in = 0;
-    size_t out = 0;
-    while (in < input_len) {
-        const size_t remaining = input_len - in;
-        const unsigned int a = input[in++];
-        const unsigned int b = remaining > 1u ? input[in++] : 0;
-        const unsigned int c = remaining > 2u ? input[in++] : 0;
-        output[out++] = alphabet[a >> 2];
-        output[out++] = alphabet[((a & 3u) << 4) | (b >> 4)];
-        output[out++] =
-            remaining > 1u ? alphabet[((b & 15u) << 2) | (c >> 6)] : '=';
-        output[out++] = remaining > 2u ? alphabet[c & 63u] : '=';
-    }
-    output[out] = '\0';
-}
-
 /* Apple's system libcurl exposes the WebSocket API but does not advertise
- * ws/wss as transfer schemes. The wss->https compatibility path also leaves
- * curl_ws_recv waiting on an otherwise idle blocking socket, so make the
- * active descriptor non-blocking before handing it to the receive API. */
+ * ws/wss as transfer schemes, and its WS receive can park on an idle blocking
+ * socket. Make the active descriptor non-blocking once the upgrade completes
+ * so a quiet stream surfaces as CURLE_AGAIN instead of hanging. */
 static void wf_websocket_make_nonblocking(CURL *curl) {
     curl_socket_t socket = CURL_SOCKET_BAD;
     if (curl_easy_getinfo(curl, CURLINFO_ACTIVESOCKET, &socket) != CURLE_OK ||
@@ -167,21 +150,11 @@ wf_status wf_websocket_connect_with_headers(const char *url,
         free(socket);
         return WF_ERR_ALLOC;
     }
-    char *curl_url = NULL;
-#if defined(__APPLE__)
-    if (strncmp(url, "wss://", 6) == 0) {
-        size_t url_len = strlen(url);
-        curl_url = malloc(url_len + 3);
-        if (!curl_url) {
-            curl_easy_cleanup(socket->curl);
-            free(socket);
-            return WF_ERR_ALLOC;
-        }
-        memcpy(curl_url, "https://", 8);
-        memcpy(curl_url + 8, url + 6, url_len - 5);
-    }
-#endif
-    curl_easy_setopt(socket->curl, CURLOPT_URL, curl_url ? curl_url : url);
+    /* Give libcurl the native ws/wss URL so it performs the RFC 6455 upgrade
+     * itself. Earlier macOS builds rewrote wss to https and hand-built the
+     * upgrade request; Apple's libcurl then rejected the peer's valid 101
+     * response. Its own handshake accepts the same lowercase headers. */
+    curl_easy_setopt(socket->curl, CURLOPT_URL, url);
     curl_easy_setopt(socket->curl, CURLOPT_CONNECT_ONLY, 2L);
     /* A stalled DNS/TLS/upgrade handshake must become a reconnectable
      * transport failure; otherwise a bounded Jetstream batch can hang before
@@ -195,42 +168,6 @@ wf_status wf_websocket_connect_with_headers(const char *url,
                      "wolfram/" WOLFRAM_VERSION_STRING);
 
     struct curl_slist *header_list = NULL;
-#if defined(__APPLE__)
-    char websocket_key[25] = {0};
-    if (curl_url) {
-        unsigned char key_bytes[16];
-        arc4random_buf(key_bytes, sizeof(key_bytes));
-        wf_websocket_base64(key_bytes, sizeof(key_bytes), websocket_key);
-        const char *const upgrade_headers[] = {
-            "Connection: Upgrade",
-            "Upgrade: websocket",
-            "Sec-WebSocket-Version: 13",
-        };
-        for (size_t i = 0;
-             i < sizeof(upgrade_headers) / sizeof(upgrade_headers[0]); ++i) {
-            struct curl_slist *next =
-                curl_slist_append(header_list, upgrade_headers[i]);
-            if (!next) {
-                curl_slist_free_all(header_list);
-                curl_easy_cleanup(socket->curl);
-                free(socket);
-                return WF_ERR_ALLOC;
-            }
-            header_list = next;
-        }
-        char key_header[64];
-        snprintf(key_header, sizeof(key_header), "Sec-WebSocket-Key: %s",
-                 websocket_key);
-        struct curl_slist *next = curl_slist_append(header_list, key_header);
-        if (!next) {
-            curl_slist_free_all(header_list);
-            curl_easy_cleanup(socket->curl);
-            free(socket);
-            return WF_ERR_ALLOC;
-        }
-        header_list = next;
-    }
-#endif
     for (size_t i = 0; i < header_count; i++) {
         if (!headers[i]) continue;
         struct curl_slist *next = curl_slist_append(header_list, headers[i]);
@@ -253,7 +190,6 @@ wf_status wf_websocket_connect_with_headers(const char *url,
 #endif
     if (result == CURLE_OK)
         curl_easy_setopt(socket->curl, CURLOPT_TIMEOUT_MS, 0L);
-    free(curl_url);
     curl_slist_free_all(header_list);
     if (result != CURLE_OK) {
         curl_easy_cleanup(socket->curl);
@@ -314,7 +250,24 @@ wf_status wf_websocket_receive(wf_websocket *socket,
         const struct curl_ws_frame *meta = NULL;
         CURLcode result =
             curl_ws_recv(socket->curl, chunk, sizeof(chunk), &received, &meta);
-        if (result == CURLE_AGAIN) return WF_ERR_WOULD_BLOCK;
+        if (result == CURLE_AGAIN) {
+#if !defined(_WIN32)
+            /* Data may already be readable on the socket even though curl
+             * returned CURLE_AGAIN; wait shortly on the descriptor so a busy
+             * stream is retried inside this call instead of bouncing a
+             * debatable WOULD_BLOCK up to the caller's own sleep cycle. */
+            curl_socket_t active = CURL_SOCKET_BAD;
+            if (curl_easy_getinfo(socket->curl, CURLINFO_ACTIVESOCKET,
+                                  &active) == CURLE_OK &&
+                active != CURL_SOCKET_BAD) {
+                struct pollfd descriptor = {.fd = active, .events = POLLIN};
+                if (poll(&descriptor, 1, 100) > 0 &&
+                    (descriptor.revents & POLLIN))
+                    continue;
+            }
+#endif
+            return WF_ERR_WOULD_BLOCK;
+        }
         if (result != CURLE_OK || !meta || (meta->flags & CURLWS_CLOSE)) {
             wf_websocket_discard_pending(socket);
             return WF_ERR_NETWORK;
