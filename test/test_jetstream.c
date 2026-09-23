@@ -80,7 +80,7 @@ int main(void) {
     WF_CHECK(wf_jetstream_build_url(&options, &url) ==
              (wf_jetstream_zstd_supported() ? WF_OK : WF_ERR_INVALID_ARG));
     if (url) {
-        WF_CHECK(strstr(url, "&compress=true") != NULL);
+        WF_CHECK(strstr(url, "&compress=1") != NULL);
         free(url);
         url = NULL;
     }
