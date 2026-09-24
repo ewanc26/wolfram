@@ -546,6 +546,11 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 10000L);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 30L);
+    /* Follow redirects (bounded): the Jetstream archive's getBlock 307s to a
+     * CDN URL, and blob/PDS endpoints may redirect to their canonical host.
+     * POST bodies are preserved across 307/308 by libcurl. */
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
     if (cfg->ca_bundle) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, cfg->ca_bundle);
     }
