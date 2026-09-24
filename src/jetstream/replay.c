@@ -396,6 +396,15 @@ static int wf_replay_add_strings(cJSON *root, const char *name,
     return 1;
 }
 
+/* Serialise a sequence number as an exact JSON integer. cJSON's number path
+ * goes through double formatting, which switches to scientific notation past
+ * ~1e15; the Jetstream archive rejects such bodies with a 400. */
+static int wf_replay_add_seq(cJSON *root, const char *name, uint64_t seq) {
+    char raw[32];
+    snprintf(raw, sizeof(raw), "%llu", (unsigned long long)seq);
+    return cJSON_AddRawToObject(root, name, raw) != NULL;
+}
+
 wf_status
 wf_jetstream_replay_plan_json(const wf_jetstream_replay_filter *filter,
                               char **out_json, size_t *out_json_len) {
@@ -417,10 +426,12 @@ wf_jetstream_replay_plan_json(const wf_jetstream_replay_filter *filter,
         (filter->collections_count &&
          !wf_replay_add_strings(root, "collections", filter->collections,
                                 filter->collections_count)) ||
-        !cJSON_AddNumberToObject(root, "afterSeq", (double)filter->after_seq) ||
+        /* Sequence numbers must serialise as exact JSON integers: the
+         * Jetstream archive rejects scientific notation, and cJSON's double
+         * formatting switches to exponents once a value exceeds ~1e15. */
+        !wf_replay_add_seq(root, "afterSeq", filter->after_seq) ||
         (filter->has_before_seq &&
-         !cJSON_AddNumberToObject(root, "beforeSeq",
-                                  (double)filter->before_seq))) {
+         !wf_replay_add_seq(root, "beforeSeq", filter->before_seq))) {
         cJSON_Delete(root);
         return WF_ERR_ALLOC;
     }
