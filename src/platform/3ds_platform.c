@@ -17,17 +17,20 @@
 
 /* ── Init / shutdown ────────────────────────────────────────────────── */
 
+/* libctru's socInit() takes a caller-owned context buffer. 0x1000 is the size
+ * libctru's own examples pass. */
+static u32 soc_ctx[0x1000 / sizeof(u32)];
+
 wf_status wf_platform_init(void) {
-    if (socInit() < 0) return WF_ERR_NETWORK;
-    if (httpcInit(0) != 0) {
-        socExit();
-        return WF_ERR_NETWORK;
-    }
+    /* Only the socket layer is needed here. The 3DS transport is the shared
+     * libcurl one (see WOLFRAM_USE_SOCKET_TRANSPORT in CMakeLists.txt), and
+     * devkitPro's 3DS libcurl talks to libctru's sockets directly, so the HTTPC
+     * service is deliberately not started. */
+    if (socInit(soc_ctx, sizeof(soc_ctx)) < 0) return WF_ERR_NETWORK;
     return WF_OK;
 }
 
 void wf_platform_shutdown(void) {
-    httpcExit();
     socExit();
 }
 
@@ -53,8 +56,10 @@ void wf_platform_mutex_unlock(wf_platform_mutex *m) {
 }
 
 void wf_platform_mutex_free(wf_platform_mutex *m) {
+    /* libctru 2.x exposes no destroy/teardown for LightLock; it is a bare
+     * futex word with no allocated resources, so freeing the wrapper is the
+     * whole teardown. */
     if (!m) return;
-    LightLock_Destroy(&m->lock);
     free(m);
 }
 
