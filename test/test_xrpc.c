@@ -206,6 +206,56 @@ int main(void) {
         wf_xrpc_client_free(c);
     }
 
+    /* An authenticated request rejected with 401/ExpiredToken/InvalidToken
+     * and no refresh path surfaces as WF_ERR_AUTH, not WF_ERR_HTTP, so
+     * callers can fail fast on dead credentials. */
+    {
+        wf_xrpc_client *c = wf_xrpc_client_new("https://jetstream.example");
+        WF_CHECK(c != NULL);
+        wf_xrpc_client_set_auth(c, "archive-token");
+
+        struct wf_test_err_ctx ctx = {.status = 401,
+                                      .body = "{\"error\":\"InvalidToken\"}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &ctx);
+        wf_response res = {0};
+        WF_CHECK(wf_xrpc_query(c, "network.bsky.jetstream.getBlock", NULL,
+                               &res) == WF_ERR_AUTH);
+        wf_response_free(&res);
+        const char *le = wf_xrpc_last_error(c);
+        WF_CHECK(le != NULL); /* the rejection message is recorded */
+
+        /* ExpiredToken via a 200-less envelope on a non-401 status maps the
+         * same way: the envelope, not the HTTP status, drives the decision. */
+        struct wf_test_err_ctx expired = {
+            .status = 400, .body = "{\"error\":\"ExpiredToken\"}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &expired);
+        WF_CHECK(wf_xrpc_query(c, "network.bsky.jetstream.getBlock", NULL,
+                               &res) == WF_ERR_AUTH);
+        wf_response_free(&res);
+
+        /* An unauthenticated request rejected with 401 stays WF_ERR_HTTP:
+         * there were no credentials to be rejected. */
+        wf_xrpc_client_set_auth(c, NULL);
+        struct wf_test_err_ctx unauth = {
+            .status = 401, .body = "{\"error\":\"ExpiredToken\"}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &unauth);
+        WF_CHECK(wf_xrpc_query(c, "network.bsky.jetstream.getBlock", NULL,
+                               &res) == WF_ERR_HTTP);
+        wf_response_free(&res);
+
+        /* A different 4xx stays WF_ERR_HTTP. */
+        wf_xrpc_client_set_auth(c, "archive-token");
+        struct wf_test_err_ctx other = {
+            .status = 400, .body = "{\"error\":\"InvalidRequest\"}"};
+        wf_xrpc_set_handler(c, wf_test_error_handler, &other);
+        WF_CHECK(wf_xrpc_query(c, "network.bsky.jetstream.getBlock", NULL,
+                               &res) == WF_ERR_HTTP);
+        wf_response_free(&res);
+
+        wf_xrpc_set_handler(c, NULL, NULL);
+        wf_xrpc_client_free(c);
+    }
+
     /*
      * Application TLS RNG. Whether one can be installed depends on the linked
      * libcurl's backend, which differs between a desktop build (usually

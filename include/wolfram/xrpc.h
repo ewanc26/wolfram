@@ -46,6 +46,8 @@ typedef enum wf_status {
     WF_ERR_UNSUPPORTED = 19,
     WF_ERR_PERMISSION = 20,
     WF_ERR_RATE_LIMIT = 21, /* rate limiter rejected the request */
+    WF_ERR_AUTH =
+        27, /* server rejected the credentials and no refresh fixed it */
     WF_ERR_DUPLICATE = 22,
     WF_ERR_CONFLICT = 23,
     WF_ERR_NOT_IMPLEMENTED = 24,

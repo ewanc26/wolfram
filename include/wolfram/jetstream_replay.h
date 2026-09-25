@@ -112,7 +112,13 @@ wf_status wf_jetstream_replay_block_frame(const void *bytes, size_t bytes_len,
                                           size_t *out_next_offset);
 
 /* One decoded row from a sealed-segment block. All strings and payload bytes
- * are owned by the event and released with wf_jetstream_replay_events_free. */
+ * are owned by the event and released with wf_jetstream_replay_events_free.
+ *
+ * `kind` is the server-assigned row discriminator. Known values: 1 create,
+ * 2 update, 3 delete, 4 identity, 5 account, 6 sync, 7 create_resync (a
+ * commit create re-witnessed during a repo resync). The decoder treats kind
+ * as opaque — new kinds decode like any other row, and callers skip kinds
+ * they do not consume. */
 typedef struct wf_jetstream_replay_event {
     uint64_t seq;
     int64_t witnessed_at;

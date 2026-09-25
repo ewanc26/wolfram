@@ -114,6 +114,15 @@ static wf_status test_http_handler(void *ctx, const wf_xrpc_request *req,
     if (!req->path || strncmp(req->path, "/oauth/", 7) != 0)
         return WF_ERR_INVALID_ARG;
     if (strcmp(req->method, "GET") == 0 &&
+        strcmp(req->path, "/oauth/consent") == 0) {
+        /* Landing route for the followed redirect: the transport follows 3xx
+         * hops (bounded), so a redirect surfaces as the final response of
+         * the hop chain rather than as a bare 3xx status. */
+        wf_xrpc_response_set_body(resp, "{\"landed\":true}", 14);
+        resp->http_status = 200;
+        return WF_OK;
+    }
+    if (strcmp(req->method, "GET") == 0 &&
         strcmp(req->path, "/oauth/redirect-test") == 0) {
         wf_xrpc_response_add_header(resp, "Location",
                                     "/oauth/consent?client_id=native");
@@ -262,6 +271,8 @@ static int run_test(void) {
                                            test_http_handler, NULL) != WF_OK ||
         wf_xrpc_server_register_http_route(server, "GET",
                                            "/oauth/redirect-test",
+                                           test_http_handler, NULL) != WF_OK ||
+        wf_xrpc_server_register_http_route(server, "GET", "/oauth/consent",
                                            test_http_handler, NULL) != WF_OK) {
         fprintf(stderr, "FAIL: register generic HTTP routes\n");
         wf_xrpc_server_free(server);
@@ -399,25 +410,31 @@ static int run_test(void) {
     }
 
     /*
-     * Test 2c: Location header on a redirect.
+     * Test 2c: redirects are followed, and the hop's Location is still
+     * captured.
      *
-     * A 3xx response makes wf_http_get_with_headers return WF_ERR_HTTP, so
-     * `res.status` alone already says a redirect happened — but not where
-     * to. MetalBear's OAuth authorize endpoint answers every outcome with a
-     * 302 (success redirects to the client, a blocked attempt redirects to
-     * sign-in), so telling those apart is exactly what a caller needs
-     * Location for.
+     * The transport follows 3xx hops (bounded to 5, POST bodies preserved
+     * across 307/308) because the Jetstream archive's getBlock 307s to a CDN
+     * URL. A redirect therefore surfaces as the final response of the hop
+     * chain, not as a bare 3xx status. The intermediate hop's Location
+     * header is still captured on `res.location` — a caller that needs to
+     * tell two redirects apart (e.g. MetalBear's OAuth authorize endpoint
+     * answering every outcome with a 302) reads it off the final response.
      */
     {
         char url[160];
         snprintf(url, sizeof(url), "%s/oauth/redirect-test", base_url);
         wf_response_free(&res);
         wf_status s = wf_http_get_with_headers(client, url, NULL, 0, &res);
-        if (s != WF_ERR_HTTP) {
+        if (s != WF_OK) {
             fprintf(stderr, "FAIL: redirect query (status=%d)\n", (int)s);
             failures++;
-        } else if (res.status != 302) {
-            fprintf(stderr, "FAIL: redirect status=%ld\n", res.status);
+        } else if (res.status != 200) {
+            fprintf(stderr, "FAIL: redirect final status=%ld\n", res.status);
+            failures++;
+        } else if (!res.body || res.body_len != 14 ||
+                   memcmp(res.body, "{\"landed\":true}", 14) != 0) {
+            fprintf(stderr, "FAIL: redirect landing body mismatch\n");
             failures++;
         } else if (!res.location ||
                    strcmp(res.location, "/oauth/consent?client_id=native") !=
