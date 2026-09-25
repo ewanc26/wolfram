@@ -727,6 +727,7 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
             refreshing = client->refreshing;
             pthread_mutex_unlock(&client->mutex);
 
+            int refreshed_ok = 0;
             if (refresh_cb && !refreshing) {
                 pthread_mutex_lock(&client->mutex);
                 client->refreshing = 1;
@@ -749,8 +750,16 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
                     had_auth = cfg->auth_header != NULL;
                     free(url);
                     url = NULL;
+                    refreshed_ok = 1;
                     continue; /* re-issue once with the refreshed credentials */
                 }
+            }
+            /* The credentials were rejected (401 / ExpiredToken /
+             * InvalidToken) and no refresh path fixed them. Surface this as
+             * WF_ERR_AUTH rather than WF_ERR_HTTP so callers can fail fast
+             * instead of retrying or misreading the error body as data. */
+            if (!refreshed_ok) {
+                status = WF_ERR_AUTH;
             }
         }
         break;
@@ -770,7 +779,7 @@ static void wf_xrpc_update_last_error(wf_xrpc_client *client,
     pthread_mutex_lock(&client->mutex);
     free(client->last_error);
     client->last_error = NULL;
-    if (status == WF_ERR_HTTP) {
+    if (status == WF_ERR_HTTP || status == WF_ERR_AUTH) {
         wf_xrpc_set_error_str(&client->last_error, out);
     }
     pthread_mutex_unlock(&client->mutex);

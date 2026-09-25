@@ -164,8 +164,12 @@ wf_jetstream_replay_block_decode(const void *bytes, size_t bytes_len,
     size_t collection_total = 0u, did_total = 0u, rkey_total = 0u,
            rev_total = 0u, payload_total = 0u;
     for (size_t i = 0u; i < count; ++i) {
-        if (kind[i] < 1u || kind[i] > 6u ||
-            collection_total > SIZE_MAX - collection_len[i] ||
+        /* kind is a server-assigned discriminator: 0 has never been a valid
+         * row kind, but new kinds appear over the wire (7 = create_resync,
+         * a commit create re-witnessed during a repo resync), so only 0 is
+         * rejected here. Callers that only understand a subset of kinds skip
+         * the rest; the column arithmetic below is what bounds the block. */
+        if (kind[i] == 0u || collection_total > SIZE_MAX - collection_len[i] ||
             did_total > SIZE_MAX - wf_replay_u16(did_len + i * 2u) ||
             rkey_total > SIZE_MAX - rkey_len[i] ||
             rev_total > SIZE_MAX - rev_len[i] ||
