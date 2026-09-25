@@ -672,12 +672,18 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 - Wii HTTPS and WebSocket, and Wii U platform/transport, are real and
   cross-build-verified (though unverified on physical hardware — see items 59
   and 60). Wii secp256k1 is now implemented via mbedTLS (which supports
-  secp256k1 natively). 3DS platform primitives (LightLock mutex, osGetTime
-  clock, httpc transport) and mbedtls-based P-256/did:key crypto are real.
-  Remaining gaps: 3DS transport (httpc-based HTTPS) and 3DS crypto
-  (mbedtls-based P-256 and secp256k1) need cross-build verification since
-  devkitARM is not available in this environment. See the `TODO` markers in
-  `src/platform/3ds_platform.c` and `src/crypto/crypto_3ds.c`.
+  secp256k1 natively). The 3DS is now cross-build-verified too: it shares the
+  desktop/Wii U libcurl transport (linked against devkitPro's `3ds-curl` +
+  `3ds-mbedtls` + `3ds-zlib` portlibs) instead of a bespoke httpc one, so there
+  is no undefined `wii_tls_*` at consumer link time. P-256 key generation and
+  ECDSA signing are backed by a CTR-DRBG seeded from the console's hardware RNG
+  (`sslcGenerateRandomData`) in `src/crypto/3ds_random.c`, so — unlike the Wii
+  and the Wii U — the 3DS does not require an application-provisioned entropy
+  seed. 3DS platform primitives (LightLock mutex, osGetTime clock) are real.
+  Cross-build verified (library plus a linked `.3dsx` homebrew) but, like the
+  other consoles, still unverified on physical hardware. See
+  `src/platform/3ds_platform.c`, `src/crypto/3ds_random.c`, and
+  `include/wolfram/3ds.h`.
 - Sync v1.1 (ordered `com.atproto.sync.getRepo` CAR block ordering, and
   partial repo export by collection) surveyed on request and deliberately
   not started: neither has a stable upstream target yet. The reference

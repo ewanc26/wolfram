@@ -64,20 +64,21 @@ else()
 endif()
 
 # Transport selection is a separate axis from platform, because "embedded" is
-# not one thing. The Wii and 3DS have no libcurl, so they use the hand-rolled
-# socket+mbedTLS transport (xrpc_wii.c / websocket_wii.c). That transport pulls
-# in src/transport/wii_tls.c, which is written against libogc's net_* API and so
+# not one thing. Only the Wii uses the hand-rolled socket+mbedTLS transport
+# (xrpc_wii.c / websocket_wii.c). That transport pulls in
+# src/transport/wii_tls.c, which is written against libogc's net_* API and so
 # only builds for the Wii.
 #
-# The Wii U is a different case: devkitPro packages libcurl for it (dkp-pacman
-# -S wiiu-curl), so it uses the same curl-based transport as desktop. Routing it
-# through the socket transport instead left libwolfram.a with undefined
-# wii_tls_* symbols — invisible inside a static archive, but a hard link failure
-# for any executable that actually used XRPC.
+# The Wii U and the 3DS are the other case: devkitPro packages libcurl for both
+# (dkp-pacman -S wiiu-curl / 3ds-curl), so they use the same curl-based
+# transport as desktop. Routing either through the socket transport instead
+# left libwolfram.a with undefined wii_tls_* symbols -- invisible inside a
+# static archive, but a hard link failure for any executable that actually used
+# XRPC.
 #
 # Crypto stays keyed off the embedded axis regardless: no console ships OpenSSL,
 # so they all use the mbedTLS-backed crypto_wii.c.
-if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_3DS)
+if(WOLFRAM_BUILD_WII)
   set(WOLFRAM_USE_SOCKET_TRANSPORT ON)
 else()
   set(WOLFRAM_USE_SOCKET_TRANSPORT OFF)
@@ -430,9 +431,22 @@ elseif(WOLFRAM_BUILD_WIIU)
       "Building for Nintendo Wii U (WOLFRAM_BUILD_WIIU=ON), curl + mbedTLS linked"
   )
 elseif(WOLFRAM_BUILD_3DS)
+  # 3ds_random.c supplies wii_tls_random(), the mbedTLS f_rng that crypto_wii.c
+  # needs for P-256 key generation and ECDSA signing. The Wii gets that symbol
+  # from wii_tls.c and the Wii U from wiiu_random.c; the 3DS builds neither
+  # (wii_tls.c is libogc-only, and the 3DS does not need an application-provisioned
+  # seed because devkitPro's mbedTLS seeds from the console's hardware RNG).
   target_sources(wolfram PRIVATE src/platform/3ds_platform.c
+                                 src/crypto/3ds_random.c
                                  src/platform/openssl_compat.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_3DS)
+  # The 3DS uses the curl-based transport (see WOLFRAM_USE_SOCKET_TRANSPORT
+  # above). devkitPro builds 3ds-curl against mbedTLS, which is what the
+  # application TLS RNG hook in xrpc.c requires; without this definition
+  # wf_3ds_apply_tls_rng() would be refused by wf_xrpc_tls_rng_supported().
+  # curl is linked statically here, so its headers need CURL_STATICLIB or they
+  # declare the wrong linkage.
+  target_compile_definitions(wolfram PUBLIC WOLFRAM_CURL_MBEDTLS CURL_STATICLIB)
   target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
   if(DEFINED ENV{DEVKITPRO})
     set(DEVKITPRO "$ENV{DEVKITPRO}")
@@ -441,13 +455,40 @@ elseif(WOLFRAM_BUILD_3DS)
   endif()
   set(LIBCTRU "${DEVKITPRO}/libctru")
   set(PORTLIBS "${DEVKITPRO}/portlibs/3ds")
+  if(NOT EXISTS "${PORTLIBS}/lib/libmbedtls.a")
+    message(
+      FATAL_ERROR
+        "WOLFRAM_BUILD_3DS=ON requires mbedTLS for the 3DS. It was not found "
+        "at ${PORTLIBS}/lib/libmbedtls.a. Install it with:\n"
+        "    dkp-pacman -S 3ds-mbedtls\n"
+        "or set DEVKITPRO to your devkitPro root.")
+  endif()
+  if(NOT EXISTS "${PORTLIBS}/lib/libcurl.a")
+    message(
+      FATAL_ERROR
+        "WOLFRAM_BUILD_3DS=ON requires libcurl for the 3DS. It was not found at "
+        "${PORTLIBS}/lib/libcurl.a. Install it with:\n"
+        "    dkp-pacman -S 3ds-curl\n"
+        "or set DEVKITPRO to your devkitPro root.")
+  endif()
+  # devkitPro builds 3ds-curl with zlib support, so libcurl.a references
+  # inflate()/inflateInit_()/zlibVersion(). Link the portlib explicitly.
+  if(NOT EXISTS "${PORTLIBS}/lib/libz.a")
+    message(
+      FATAL_ERROR
+        "WOLFRAM_BUILD_3DS=ON requires zlib for the 3DS (devkitPro's libcurl is "
+        "built with zlib support). It was not found at ${PORTLIBS}/lib/libz.a. "
+        "Install it with:\n"
+        "    dkp-pacman -S 3ds-zlib")
+  endif()
   target_include_directories(wolfram PRIVATE ${LIBCTRU}/include
                                              ${PORTLIBS}/include)
-  target_link_libraries(wolfram PUBLIC ${LIBCTRU}/lib/libctru.a
-                                       ${PORTLIBS}/lib/libmbedtls.a
-                                       ${PORTLIBS}/lib/libmbedx509.a
-                                       ${PORTLIBS}/lib/libmbedcrypto.a)
-  message(STATUS "Building for Nintendo 3DS (WOLFRAM_BUILD_3DS=ON), libctru + mbedtls linked")
+  target_link_libraries(
+    wolfram
+    PUBLIC ${LIBCTRU}/lib/libctru.a ${PORTLIBS}/lib/libcurl.a
+           ${PORTLIBS}/lib/libmbedtls.a ${PORTLIBS}/lib/libmbedx509.a
+           ${PORTLIBS}/lib/libmbedcrypto.a ${PORTLIBS}/lib/libz.a)
+  message(STATUS "Building for Nintendo 3DS (WOLFRAM_BUILD_3DS=ON), libctru + curl + mbedtls linked")
 elseif(WOLFRAM_BUILD_WINDOWS)
   target_sources(wolfram PRIVATE src/platform/windows_platform.c)
   target_compile_definitions(wolfram PUBLIC WOLFRAM_WINDOWS)
