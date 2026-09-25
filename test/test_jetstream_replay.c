@@ -348,6 +348,56 @@ static void test_decode_columnar_block(void) {
     free(block);
 }
 
+/* Kind 7 (create_resync) rows appear in production blocks: a commit create
+ * re-witnessed during a repo resync. The decoder must accept kinds beyond
+ * the originally assumed 1-6 range; only kind 0 is invalid. */
+static void test_decode_kind7_block(void) {
+    const size_t block_size = 4u + 8u + 8u + 8u + 1u + 1u + 2u + 1u + 1u + 4u +
+                              19u + 13u + 2u + 4u + 3u;
+    unsigned char *block = calloc(1u, block_size);
+    WF_CHECK(block != NULL);
+    if (!block) return;
+    size_t at = 0u;
+    put_u32(block, &at, 1u);
+    put_u64(block, &at, 43u);
+    put_u64(block, &at, 2000u);
+    put_u64(block, &at, 0u);
+    block[at++] = 7u;  /* create_resync */
+    block[at++] = 19u; /* collection length */
+    block[at++] = 13u;
+    block[at++] = 0u; /* DID length */
+    block[at++] = 2u; /* rkey */
+    block[at++] = 4u; /* rev */
+    put_u32(block, &at, 3u);
+    memcpy(block + at, "app.bsky.feed.post", 19u);
+    at += 19u;
+    memcpy(block + at, "did:plc:alice", 13u);
+    at += 13u;
+    memcpy(block + at, "rk", 2u);
+    at += 2u;
+    memcpy(block + at, "rev1", 4u);
+    at += 4u;
+    memcpy(block + at, "abc", 3u);
+    at += 3u;
+    wf_jetstream_replay_event *events = NULL;
+    size_t count = 0u;
+    WF_CHECK(wf_jetstream_replay_block_decode(block, block_size, &events,
+                                              &count) == WF_OK);
+    WF_CHECK(count == 1u && events != NULL);
+    if (events) {
+        WF_CHECK(events[0].seq == 43u && events[0].kind == 7u);
+        WF_CHECK(strcmp(events[0].collection, "app.bsky.feed.post") == 0);
+        WF_CHECK(events[0].payload_len == 3u);
+    }
+    wf_jetstream_replay_events_free(events, count);
+
+    /* Kind 0 has never been a valid row kind and stays rejected. */
+    block[4u + 24u] = 0u;
+    WF_CHECK(wf_jetstream_replay_block_decode(block, block_size, &events,
+                                              &count) != WF_OK);
+    free(block);
+}
+
 static void test_parse_segment_header(void) {
     unsigned char header[256] = {0};
     memcpy(header, "jss0", 4u);
@@ -427,6 +477,7 @@ int main(void) {
     test_parse_manifest();
     test_offline_xrpc();
     test_decode_columnar_block();
+    test_decode_kind7_block();
     test_parse_segment_header();
     test_block_frame_bounds();
     test_empty_segment_decode();
