@@ -1,15 +1,81 @@
 /**
- * openssl_compat.c — Pure-C implementations of the minimal OpenSSL API
- *                     needed by the wolfram SDK on Wii.
+ * openssl_compat.c — Minimal OpenSSL API implementations for the console
+ *                     targets (Wii / Wii U / 3DS), which ship no OpenSSL.
  *
  * SHA-256 is a straightforward FIPS 180-4 implementation.
+ * The incremental EVP_MD_CTX digest API used by repo/cid is backed by
+ * mbedTLS's SHA-256.
  * Base64 encode/decode is standard RFC 4648.
- * RAND_bytes is a stub that returns failure.
+ * RAND_bytes delegates to the platform's DRBG (wii_tls_random).
  */
 
 #include "openssl_compat.h"
 
+#include <mbedtls/sha256.h>
+#include <stdlib.h>
 #include <string.h>
+
+/* ── EVP message digest (SHA-256 streaming) ──────────────────────────── */
+
+/* The incremental EVP_MD_CTX API that repo/cid's hasher needs, backed by
+ * mbedTLS's SHA-256. The one-shot SHA256() below is a separate pure-C
+ * implementation kept for the base64/did:key paths; reusing mbedTLS here keeps
+ * the streaming hasher from being a second hand-rolled SHA-256 to get right. */
+
+struct wf_evp_md_ctx {
+    mbedtls_sha256_context sha;
+    int running;
+};
+
+struct wf_evp_md {
+    int is_sha256;
+};
+
+static const struct wf_evp_md g_sha256_md = {1};
+
+const EVP_MD *EVP_sha256(void) {
+    return &g_sha256_md;
+}
+
+EVP_MD_CTX *EVP_MD_CTX_new(void) {
+    EVP_MD_CTX *ctx = (EVP_MD_CTX *)calloc(1, sizeof(*ctx));
+    if (!ctx) return NULL;
+    mbedtls_sha256_init(&ctx->sha);
+    return ctx;
+}
+
+void EVP_MD_CTX_free(EVP_MD_CTX *ctx) {
+    if (!ctx) return;
+    mbedtls_sha256_free(&ctx->sha);
+    free(ctx);
+}
+
+int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, void *impl) {
+    (void)impl;
+    if (!ctx || !type || !type->is_sha256) return 0;
+    mbedtls_sha256_free(&ctx->sha);
+    mbedtls_sha256_init(&ctx->sha);
+    ctx->running = mbedtls_sha256_starts_ret(&ctx->sha, 0) == 0;
+    return ctx->running;
+}
+
+int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t len) {
+    if (!ctx || !ctx->running || (!data && len != 0)) return 0;
+    if (len == 0) return 1;
+    return mbedtls_sha256_update_ret(&ctx->sha, (const unsigned char *)data,
+                                     len) == 0;
+}
+
+int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *out,
+                       unsigned int *out_len) {
+    if (!ctx || !ctx->running || !out || !out_len) return 0;
+    ctx->running = 0;
+    /* SHA-256 output is fixed-width, so mbedTLS's _ret finish takes no
+     * length out-param; report the constant. */
+    if (mbedtls_sha256_finish_ret(&ctx->sha, out) != 0) return 0;
+    *out_len = SHA256_DIGEST_LENGTH;
+    return 1;
+}
 
 /* ── SHA-256 (FIPS 180-4) ───────────────────────────────────────────── */
 
@@ -191,10 +257,10 @@ int EVP_DecodeBlock(unsigned char *out, const unsigned char *in, int len) {
 
 /* ── Random bytes ──────────────────────────────────────────────────── */
 
-#if defined(WOLFRAM_WII) || defined(WOLFRAM_WIIU)
-/* wii_tls.c (Wii) / wiiu_random.c (Wii U) already seed an
- * mbedtls_ctr_drbg_context from real hardware entropy for TLS and P-256
- * signing (see wii_tls_init / wiiu_random_init) -- reuse that DRBG instead
+#if defined(WOLFRAM_WII) || defined(WOLFRAM_WIIU) || defined(WOLFRAM_3DS)
+/* wii_tls.c (Wii) / wiiu_random.c (Wii U) / 3ds_random.c (3DS) each maintain a
+ * mbedtls_ctr_drbg_context that already backs TLS and P-256 signing (see
+ * wii_tls_init / wiiu_drbg_init / threeds_drbg_init) -- reuse that DRBG instead
  * of maintaining a second one here. */
 extern int wii_tls_random(void *p, unsigned char *out, size_t len);
 
@@ -203,9 +269,8 @@ int RAND_bytes(unsigned char *buf, int len) {
     return wii_tls_random(NULL, buf, (size_t)len) == 0 ? 1 : 0;
 }
 #else
-/* 3DS has no seeded DRBG wired up yet (crypto_3ds.c is itself an
- * unverified gap -- devkitARM is not available to cross-build/test it, see
- * docs/roadmap.md item 60). Fail loudly rather than return zero bytes. */
+/* No console target provides wii_tls_random. Fail loudly rather than return
+ * zero bytes. */
 int RAND_bytes(unsigned char *buf, int len) {
     (void)buf;
     (void)len;

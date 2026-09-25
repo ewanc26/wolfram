@@ -75,12 +75,38 @@ typedef struct {
 typedef struct {
     int dummy;
 } BIGNUM;
-typedef struct {
-    int dummy;
-} EVP_MD_CTX;
-typedef struct {
-    int dummy;
-} EVP_MD;
+
+/* ── EVP message digest (SHA-256 streaming) ──────────────────────────── */
+
+/* Opaque: the concrete context wraps an mbedtls_sha256_context and lives in
+ * openssl_compat.c. repo/cid's incremental hasher only ever handles the
+ * pointer. */
+typedef struct wf_evp_md_ctx EVP_MD_CTX;
+typedef struct wf_evp_md EVP_MD;
+
+/* Matches OpenSSL's EVP_MAX_MD_SIZE (SHA-512's digest size). The only digest
+ * this layer implements is SHA-256, so a 32-byte output buffer would do, but
+ * the constant is part of the surface cid.c sizes a buffer with. */
+#define EVP_MAX_MD_SIZE 64
+
+EVP_MD_CTX *EVP_MD_CTX_new(void);
+void EVP_MD_CTX_free(EVP_MD_CTX *ctx);
+
+/** The SHA-256 digest descriptor. Only SHA-256 is implemented. */
+const EVP_MD *EVP_sha256(void);
+
+/** (Re)start a digest. `type` must be EVP_sha256(); `impl` is ignored.
+ *  Returns 1 on success, 0 on failure. */
+int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *type, void *impl);
+
+/** Absorb `len` bytes. Returns 1 on success, 0 on failure. */
+int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t len);
+
+/** Produce the digest and reset the context. `out_len` receives the digest
+ *  length. Returns 1 on success, 0 on failure. */
+int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *out,
+                       unsigned int *out_len);
+
 typedef struct {
     int dummy;
 } EVP_CIPHER_CTX;
