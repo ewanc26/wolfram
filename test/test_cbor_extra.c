@@ -261,6 +261,18 @@ static void test_parse_deep_nesting(void) {
     wf_cbor_free(ok);
 }
 
+static void test_scan_item(void) {
+    size_t used = 99;
+    /* one item followed by trailing bytes: reports only the item's length */
+    unsigned char two[] = {0xa1, 0x61, 0x61, 0x01, 0xa0};
+    WF_CHECK(wf_cbor_scan_item(two, sizeof(two), &used) == 1 && used == 4);
+    unsigned char hostile[] = {0x9a, 0xff, 0xff, 0xff, 0xff};
+    WF_CHECK(wf_cbor_scan_item(hostile, sizeof(hostile), &used) == 0);
+    WF_CHECK(wf_cbor_scan_item(NULL, 0, &used) == 0);
+    WF_CHECK(wf_cbor_scan_item(two, 0, &used) == 0);
+    WF_CHECK(wf_cbor_scan_item(two, sizeof(two), NULL) == 0);
+}
+
 /* ── CID helpers round-trips ── */
 static void test_cid_roundtrip(void) {
     /* known vector from bluesky-social/atproto car-file-fixtures */
@@ -312,6 +324,7 @@ int main(void) {
     test_parse_invalid_extra();
     test_parse_hostile_sizes();
     test_parse_deep_nesting();
+    test_scan_item();
     test_cid_roundtrip();
     test_cid_from_string_invalid();
     WF_TEST_SUMMARY();

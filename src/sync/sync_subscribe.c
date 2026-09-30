@@ -2,6 +2,7 @@
 #include "wolfram/websocket.h"
 #include "wolfram/crypto.h"
 
+#include "wolfram/repo/cbor.h"
 #include <cbor.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -711,15 +712,22 @@ static wf_status subscribe_loop(wf_subscribe_handle *handle) {
         }
 
         struct cbor_load_result lr = {0};
-        cbor_item_t *header = cbor_load(msg.data, msg.len, &lr);
+        size_t header_len = 0, body_len = 0;
+        if (!wf_cbor_scan_item(msg.data, msg.len, &header_len) ||
+            header_len >= msg.len ||
+            !wf_cbor_scan_item(msg.data + header_len, msg.len - header_len,
+                               &body_len)) {
+            wf_websocket_message_free(&msg);
+            continue;
+        }
+        cbor_item_t *header = cbor_load(msg.data, header_len, &lr);
         if (!header || lr.error.code != CBOR_ERR_NONE || lr.read >= msg.len) {
             cbor_decref(&header);
             wf_websocket_message_free(&msg);
             continue;
         }
 
-        cbor_item_t *body =
-            cbor_load(msg.data + lr.read, msg.len - lr.read, &lr);
+        cbor_item_t *body = cbor_load(msg.data + lr.read, body_len, &lr);
         if (!body || lr.error.code != CBOR_ERR_NONE) {
             cbor_decref(&header);
             cbor_decref(&body);
@@ -858,13 +866,17 @@ wf_status wf_subscribe_decode_frame(const unsigned char *data, size_t len,
     memset(out, 0, sizeof(*out));
 
     struct cbor_load_result lr = {0};
-    cbor_item_t *header = cbor_load(data, len, &lr);
+    size_t header_len = 0, body_len = 0;
+    if (!wf_cbor_scan_item(data, len, &header_len) || header_len >= len ||
+        !wf_cbor_scan_item(data + header_len, len - header_len, &body_len))
+        return WF_ERR_PARSE;
+    cbor_item_t *header = cbor_load(data, header_len, &lr);
     if (!header || lr.error.code != CBOR_ERR_NONE || lr.read >= len) {
         cbor_decref(&header);
         return WF_ERR_PARSE;
     }
 
-    cbor_item_t *body = cbor_load(data + lr.read, len - lr.read, &lr);
+    cbor_item_t *body = cbor_load(data + lr.read, body_len, &lr);
     if (!body || lr.error.code != CBOR_ERR_NONE) {
         cbor_decref(&header);
         cbor_decref(&body);

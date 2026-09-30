@@ -11,6 +11,7 @@
 #include "wolfram/xrpc.h"
 #include "wolfram/websocket.h"
 #include <cJSON.h>
+#include "wolfram/repo/cbor.h"
 #include <cbor.h>
 
 #include <stdio.h>
@@ -181,7 +182,13 @@ wf_status wf_chat_mod_frame_parse_cbor(const unsigned char *frame, size_t len,
 
     /* Two independent CBOR items back to back: header map ++ body map. */
     struct cbor_load_result lr = {0};
-    cbor_item_t *header = cbor_load(frame, len, &lr);
+    size_t scan_header_len = 0, scan_body_len = 0;
+    if (!wf_cbor_scan_item(frame, len, &scan_header_len) ||
+        scan_header_len >= len ||
+        !wf_cbor_scan_item(frame + scan_header_len, len - scan_header_len,
+                           &scan_body_len))
+        return WF_ERR_PARSE;
+    cbor_item_t *header = cbor_load(frame, scan_header_len, &lr);
     if (!header || lr.error.code != CBOR_ERR_NONE || lr.read >= len ||
         !cbor_isa_map(header)) {
         if (header) cbor_decref(&header);
@@ -189,7 +196,7 @@ wf_status wf_chat_mod_frame_parse_cbor(const unsigned char *frame, size_t len,
     }
     size_t header_read = lr.read;
 
-    cbor_item_t *body = cbor_load(frame + header_read, len - header_read, &lr);
+    cbor_item_t *body = cbor_load(frame + header_read, scan_body_len, &lr);
     if (!body || lr.error.code != CBOR_ERR_NONE) {
         cbor_decref(&header);
         if (body) cbor_decref(&body);

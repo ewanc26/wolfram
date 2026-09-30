@@ -31,6 +31,8 @@
 #include "wolfram/xrpc.h"
 #include "test.h"
 
+#include <time.h>
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -448,11 +450,54 @@ static void test_e2e_local(void) {
 
 #endif /* WOLFRAM_BUILD_SERVER */
 
+static void test_decode_hostile_sizes(void) {
+    wf_chat_mod_frame fr = {0};
+    /* hostile declared sizes (valid header + hostile body, and vice versa)
+     * must be rejected promptly, before any allocation sized by the count */
+    static const unsigned char hdr[] = {0xa1, 0x62, 0x6f, 0x70, 0x01};
+    static const unsigned char arr32[] = {0xa1, 0x61, 0x61, 0x9a,
+                                          0xff, 0xff, 0xff, 0xff};
+    static const unsigned char map64[] = {0xbb, 0xff, 0xff, 0xff, 0xff,
+                                          0xff, 0xff, 0xff, 0xff};
+    static const unsigned char *const bad[] = {arr32, map64};
+    static const size_t bad_len[] = {sizeof(arr32), sizeof(map64)};
+    for (size_t k = 0; k < 2; k++) {
+        unsigned char frame[32];
+        clock_t t0 = clock();
+        memcpy(frame, hdr, sizeof(hdr));
+        memcpy(frame + sizeof(hdr), bad[k], bad_len[k]);
+        WF_CHECK(wf_chat_mod_frame_parse_cbor(frame, sizeof(hdr) + bad_len[k],
+                                              &fr) != WF_OK);
+        memcpy(frame, bad[k], bad_len[k]);
+        memcpy(frame + bad_len[k], hdr, sizeof(hdr));
+        WF_CHECK(wf_chat_mod_frame_parse_cbor(frame, bad_len[k] + sizeof(hdr),
+                                              &fr) != WF_OK);
+        WF_CHECK((double)(clock() - t0) / CLOCKS_PER_SEC < 0.5);
+    }
+    {
+        /* 200000-level nested body */
+        size_t n = sizeof(hdr) + 200000 + 1;
+        unsigned char *frame = malloc(n);
+        WF_CHECK(frame != NULL);
+        if (frame) {
+            clock_t t0 = clock();
+            memcpy(frame, hdr, sizeof(hdr));
+            memset(frame + sizeof(hdr), 0x81, 200000);
+            frame[n - 1] = 0x00;
+            WF_CHECK(wf_chat_mod_frame_parse_cbor(frame, n, &fr) != WF_OK);
+            WF_CHECK((double)(clock() - t0) / CLOCKS_PER_SEC < 1.0);
+            free(frame);
+        }
+    }
+    wf_chat_mod_frame_free(&fr);
+}
+
 int main(void) {
     test_decode_message();
     test_decode_all_fields();
     test_decode_error_frame();
     test_decode_truncated_and_garbage();
+    test_decode_hostile_sizes();
     test_url_builder();
 #if defined(WOLFRAM_BUILD_SERVER)
     test_e2e_local();

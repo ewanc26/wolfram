@@ -67,6 +67,14 @@ static int wf_cbor_prescan(const unsigned char *data, size_t len, size_t *pos,
     }
 }
 
+int wf_cbor_scan_item(const unsigned char *data, size_t len, size_t *used) {
+    size_t pos = 0;
+    if (!data || !used || len == 0) return 0;
+    if (!wf_cbor_prescan(data, len, &pos, 0)) return 0;
+    *used = pos;
+    return 1;
+}
+
 static int wf_cbor_varint(const unsigned char *data, size_t len,
                           uint64_t *value, size_t *used) {
     uint64_t result = 0;
