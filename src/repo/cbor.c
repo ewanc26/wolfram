@@ -7,7 +7,65 @@
 
 /* ── DAG-CBOR decoder ─────────────────────────────────────── */
 
-#define WF_CBOR_MAX_DEPTH 128
+#define WF_CBOR_MAX_DEPTH 64
+
+/* Structural pre-scan run before libcbor sees the input. libcbor sizes its
+ * allocations and loops from declared counts, so a few bytes claiming 2^32-1
+ * children cost seconds and gigabytes before the truncation is noticed. Here
+ * every declared length is checked against the bytes actually remaining (an
+ * array child needs >= 1 byte, a map pair >= 2, a string/bytes its length),
+ * and nesting is bounded, so all later work is linear in the input size. Only
+ * the shapes DAG-CBOR allows are walked; anything else is rejected here or by
+ * the semantic checks that follow. */
+static int wf_cbor_prescan(const unsigned char *data, size_t len, size_t *pos,
+                           unsigned depth) {
+    unsigned char head, major, info;
+    uint64_t arg = 0, remaining;
+    unsigned extra, i;
+
+    if (depth > WF_CBOR_MAX_DEPTH || *pos >= len) return 0;
+    head = data[(*pos)++];
+    major = head >> 5;
+    info = head & 0x1f;
+    if (info < 24) {
+        arg = info;
+    } else if (info <= 27) {
+        extra = 1u << (info - 24);
+        if (len - *pos < extra) return 0;
+        for (i = 0; i < extra; i++) arg = (arg << 8) | data[(*pos)++];
+    } else {
+        return 0; /* reserved and indefinite-length encodings */
+    }
+    remaining = len - *pos;
+
+    switch (major) {
+        case 0:
+        case 1:
+            return 1;
+        case 2:
+        case 3:
+            if (arg > remaining) return 0;
+            *pos += (size_t)arg;
+            return 1;
+        case 4:
+            if (arg > remaining) return 0;
+            for (; arg > 0; arg--)
+                if (!wf_cbor_prescan(data, len, pos, depth + 1)) return 0;
+            return 1;
+        case 5:
+            if (arg > remaining / 2) return 0;
+            for (; arg > 0; arg--)
+                if (!wf_cbor_prescan(data, len, pos, depth + 1) ||
+                    !wf_cbor_prescan(data, len, pos, depth + 1))
+                    return 0;
+            return 1;
+        case 6:
+            return arg == 42 && wf_cbor_prescan(data, len, pos, depth + 1);
+        default:
+            /* only false/true/null/undefined; floats are not DAG-CBOR */
+            return info >= 20 && info <= 23;
+    }
+}
 
 static int wf_cbor_varint(const unsigned char *data, size_t len,
                           uint64_t *value, size_t *used) {
@@ -118,6 +176,7 @@ static wf_cbor_item *wf_cbor_from_libcbor(const cbor_item_t *source,
                 break;
             item->type = WF_CBOR_STRING;
             item->string.len = cbor_string_length(source);
+            if (item->string.len == SIZE_MAX) break;
             item->string.str = malloc(item->string.len + 1);
             if (!item->string.str) break;
             if (item->string.len > 0)
@@ -129,6 +188,7 @@ static wf_cbor_item *wf_cbor_from_libcbor(const cbor_item_t *source,
             if (!cbor_array_is_definite(source)) break;
             item->type = WF_CBOR_ARRAY;
             count = cbor_array_size(source);
+            if (count > SIZE_MAX / sizeof(*item->children.items)) break;
             item->children.count = count;
             if (count > 0) {
                 cbor_item_t **children = cbor_array_handle(source);
@@ -148,6 +208,7 @@ static wf_cbor_item *wf_cbor_from_libcbor(const cbor_item_t *source,
             if (!cbor_map_is_definite(source)) break;
             item->type = WF_CBOR_MAP;
             count = cbor_map_size(source);
+            if (count > SIZE_MAX / sizeof(*item->map.pairs)) break;
             item->map.count = count;
             pairs = cbor_map_handle(source);
             if (count > 0) {
@@ -219,7 +280,9 @@ wf_cbor_item *wf_cbor_parse(const unsigned char *data, size_t len) {
     unsigned char *encoded = NULL;
     size_t encoded_len = 0;
     wf_cbor_item *item = NULL;
+    size_t scanned = 0;
     if (!data || len == 0) return NULL;
+    if (!wf_cbor_prescan(data, len, &scanned, 0) || scanned != len) return NULL;
     decoded = cbor_load(data, len, &result);
     if (!decoded || result.error.code != CBOR_ERR_NONE || result.read != len)
         goto done;
