@@ -1407,6 +1407,101 @@ static int test_rate_limit_headers(void) {
     return 1;
 }
 
+/* ------------------------------------------------------------------ */
+/* Body size caps: server request bodies and client response bodies    */
+/* ------------------------------------------------------------------ */
+static wf_status test_big_handler(void *ctx, const wf_xrpc_request *req,
+                                  wf_xrpc_response *resp) {
+    (void)ctx;
+    (void)req;
+    char *body = malloc(8192);
+    if (!body) return WF_ERR_ALLOC;
+    memset(body, 'a', 8192);
+    wf_xrpc_response_set_body(resp, body, 8192);
+    free(body);
+    return WF_OK;
+}
+
+static int test_body_caps(void) {
+    int failures = 0;
+    wf_response res = {0};
+    wf_xrpc_server *server = wf_xrpc_server_start("127.0.0.1", 0, 1);
+    if (!server) {
+        fprintf(stderr, "FAIL: body caps start\n");
+        return 1;
+    }
+    if (wf_xrpc_server_register_procedure(server, "io.example.pong",
+                                          test_pong_handler, NULL) != WF_OK ||
+        wf_xrpc_server_register_query(server, "io.example.big",
+                                      test_big_handler, NULL) != WF_OK ||
+        wf_xrpc_server_set_max_body_bytes(server, 1024) != WF_OK ||
+        wf_xrpc_server_set_max_body_bytes(NULL, 1) != WF_ERR_INVALID_ARG) {
+        fprintf(stderr, "FAIL: body caps setup\n");
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+    char base_url[64];
+    snprintf(base_url, sizeof(base_url), "http://127.0.0.1:%u",
+             (unsigned)wf_xrpc_server_port(server));
+    wf_xrpc_client *client = wf_xrpc_client_new(base_url);
+    if (!client) {
+        wf_xrpc_server_free(server);
+        return 1;
+    }
+
+    /* Server: a body under the cap is accepted, one over it gets 413. */
+    char small[512], large[4096];
+    memset(small, 'x', sizeof(small) - 1);
+    small[sizeof(small) - 1] = '\0';
+    memset(large, 'x', sizeof(large) - 1);
+    large[sizeof(large) - 1] = '\0';
+    if (wf_xrpc_procedure(client, "io.example.pong", small, &res) != WF_OK ||
+        res.status != 200) {
+        fprintf(stderr, "FAIL: body under cap rejected\n");
+        failures++;
+    }
+    wf_response_free(&res);
+    wf_status s = wf_xrpc_procedure(client, "io.example.pong", large, &res);
+    if (s != WF_ERR_HTTP || res.status != 413) {
+        fprintf(stderr, "FAIL: oversized body: status=%d http=%ld, want 413\n",
+                (int)s, res.status);
+        failures++;
+    }
+    wf_response_free(&res);
+
+    /* Client: an 8 KiB response passes by default, aborts over a 1 KiB cap. */
+    s = wf_xrpc_query(client, "io.example.big", NULL, &res);
+    if (s != WF_OK || res.body_len != 8192) {
+        fprintf(stderr, "FAIL: default client cap rejected 8 KiB body\n");
+        failures++;
+    }
+    wf_response_free(&res);
+    wf_xrpc_client_set_max_response_bytes(client, 1024);
+    memset(&res, 0, sizeof(res));
+    s = wf_xrpc_query(client, "io.example.big", NULL, &res);
+    if (s != WF_ERR_NETWORK || res.body != NULL) {
+        fprintf(stderr, "FAIL: oversized response: status=%d, want NETWORK\n",
+                (int)s);
+        failures++;
+    }
+    wf_response_free(&res);
+    wf_xrpc_client_set_max_response_bytes(client, 0);
+    s = wf_xrpc_query(client, "io.example.big", NULL, &res);
+    if (s != WF_OK || res.body_len != 8192) {
+        fprintf(stderr, "FAIL: cap 0 did not restore the default\n");
+        failures++;
+    }
+    wf_response_free(&res);
+
+    wf_xrpc_client_free(client);
+    wf_xrpc_server_free(server);
+    if (failures == 0) {
+        printf("PASS: body size caps\n");
+        return 0;
+    }
+    return 1;
+}
+
 int main(void) {
     int failures = 0;
 
@@ -1418,6 +1513,7 @@ int main(void) {
     failures += test_request_client_ip();
     failures += test_trusted_client_ip_header();
     failures += test_rate_limit_headers();
+    failures += test_body_caps();
 
     return failures;
 }
