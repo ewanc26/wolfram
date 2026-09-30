@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 /* ── item constructors (owned by caller; wf_cbor_free frees recursively) ── */
 static wf_cbor_item *mk_uint(uint64_t v) {
@@ -169,6 +170,97 @@ static void test_parse_invalid_extra(void) {
     WF_CHECK(wf_cbor_parse((const unsigned char *)"", 0) == NULL);
 }
 
+/* ── hostile declared sizes / nesting must fail fast ── */
+static double parse_seconds(const unsigned char *d, size_t n, int *rejected) {
+    clock_t t0 = clock();
+    wf_cbor_item *item = wf_cbor_parse(d, n);
+    double secs = (double)(clock() - t0) / CLOCKS_PER_SEC;
+    *rejected = item == NULL;
+    wf_cbor_free(item);
+    return secs;
+}
+
+static void test_parse_hostile_sizes(void) {
+    int rejected;
+
+    /* {"a": [<2^32-1 children, none present>]} */
+    unsigned char arr32[] = {0xa1, 0x61, 0x61, 0x9a, 0xff, 0xff, 0xff, 0xff};
+    WF_CHECK(parse_seconds(arr32, sizeof(arr32), &rejected) < 0.5);
+    WF_CHECK(rejected);
+
+    /* map declaring 2^40 entries */
+    unsigned char map40[] = {0xbb, 0x00, 0x00, 0x01, 0x00,
+                             0x00, 0x00, 0x00, 0x00};
+    WF_CHECK(parse_seconds(map40, sizeof(map40), &rejected) < 0.5);
+    WF_CHECK(rejected);
+
+    /* map / array / string / bytes declaring 2^64-1 */
+    unsigned char map64[] = {0xbb, 0xff, 0xff, 0xff, 0xff,
+                             0xff, 0xff, 0xff, 0xff};
+    unsigned char arr64[] = {0x9b, 0xff, 0xff, 0xff, 0xff,
+                             0xff, 0xff, 0xff, 0xff};
+    unsigned char str64[] = {0x7b, 0xff, 0xff, 0xff, 0xff,
+                             0xff, 0xff, 0xff, 0xff};
+    unsigned char byt64[] = {0x5b, 0xff, 0xff, 0xff, 0xff,
+                             0xff, 0xff, 0xff, 0xff};
+    WF_CHECK(parse_seconds(map64, sizeof(map64), &rejected) < 0.5 && rejected);
+    WF_CHECK(parse_seconds(arr64, sizeof(arr64), &rejected) < 0.5 && rejected);
+    WF_CHECK(parse_seconds(str64, sizeof(str64), &rejected) < 0.5 && rejected);
+    WF_CHECK(parse_seconds(byt64, sizeof(byt64), &rejected) < 0.5 && rejected);
+
+    /* 32-bit string / bytes lengths with no payload */
+    unsigned char str32[] = {0x7a, 0xff, 0xff, 0xff, 0xff};
+    unsigned char byt32[] = {0x5a, 0xff, 0xff, 0xff, 0xff};
+    WF_CHECK(parse_seconds(str32, sizeof(str32), &rejected) < 0.5 && rejected);
+    WF_CHECK(parse_seconds(byt32, sizeof(byt32), &rejected) < 0.5 && rejected);
+
+    /* map declaring 2 pairs but only room for 1 (pair needs >= 2 bytes) */
+    unsigned char map_short[] = {0xa2, 0x61, 0x61, 0x01};
+    WF_CHECK(parse_seconds(map_short, sizeof(map_short), &rejected) < 0.5);
+    WF_CHECK(rejected);
+
+    /* string one byte short */
+    unsigned char str_short[] = {0x63, 'a', 'b'};
+    WF_CHECK(wf_cbor_parse(str_short, sizeof(str_short)) == NULL);
+}
+
+static void test_parse_deep_nesting(void) {
+    enum { LEVELS = 200000 };
+    size_t n = LEVELS + 1, i;
+    unsigned char *buf = malloc(n);
+    int rejected;
+    WF_CHECK(buf != NULL);
+    if (!buf) return;
+
+    /* 200000 nested single-element arrays */
+    memset(buf, 0x81, LEVELS);
+    buf[LEVELS] = 0x00;
+    WF_CHECK(parse_seconds(buf, n, &rejected) < 1.0);
+    WF_CHECK(rejected);
+
+    /* 200000 nested {"a": ...} maps */
+    free(buf);
+    n = LEVELS * 3 + 1;
+    buf = malloc(n);
+    WF_CHECK(buf != NULL);
+    if (!buf) return;
+    for (i = 0; i < LEVELS; i++) {
+        buf[i * 3] = 0xa1;
+        buf[i * 3 + 1] = 0x61;
+        buf[i * 3 + 2] = 'a';
+    }
+    buf[LEVELS * 3] = 0x00;
+    WF_CHECK(parse_seconds(buf, n, &rejected) < 1.0);
+    WF_CHECK(rejected);
+    free(buf);
+
+    /* a handful of levels still parses */
+    unsigned char shallow[] = {0x81, 0x81, 0xa1, 0x61, 0x61, 0x81, 0x00};
+    wf_cbor_item *ok = wf_cbor_parse(shallow, sizeof(shallow));
+    WF_CHECK(ok != NULL);
+    wf_cbor_free(ok);
+}
+
 /* ── CID helpers round-trips ── */
 static void test_cid_roundtrip(void) {
     /* known vector from bluesky-social/atproto car-file-fixtures */
@@ -218,6 +310,8 @@ int main(void) {
     test_serialize_link();
     test_roundtrip_parse();
     test_parse_invalid_extra();
+    test_parse_hostile_sizes();
+    test_parse_deep_nesting();
     test_cid_roundtrip();
     test_cid_from_string_invalid();
     WF_TEST_SUMMARY();
