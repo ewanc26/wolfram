@@ -60,6 +60,14 @@ typedef struct wf_cbor_item {
 } wf_cbor_item;
 
 wf_cbor_item *wf_cbor_parse(const unsigned char *data, size_t len);
+
+/* Structurally validate the single DAG-CBOR item at the start of `data` without
+ * allocating: declared array/map counts and string/bytes lengths must fit in
+ * the remaining input and nesting is bounded. On success returns 1 and sets
+ * `*used` to the item's length. Use it to vet untrusted bytes before handing
+ * them to another CBOR decoder, e.g. header+body frames that are two items
+ * back to back. */
+int wf_cbor_scan_item(const unsigned char *data, size_t len, size_t *used);
 void wf_cbor_free(wf_cbor_item *item);
 unsigned char *wf_cbor_serialize(const wf_cbor_item *item, size_t *out_len);
 
