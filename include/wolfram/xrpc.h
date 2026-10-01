@@ -102,6 +102,20 @@ void wf_xrpc_client_free(wf_xrpc_client *client);
  */
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 
+/** Default cap on a buffered HTTP response body (256 MiB). */
+#define WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES ((size_t)256 * 1024 * 1024)
+
+/**
+ * Cap the size of an HTTP response body this client will buffer. A response
+ * that runs past the cap aborts the transfer and the call returns
+ * WF_ERR_NETWORK, so a hostile or broken server cannot stream an unbounded
+ * body into memory. 0 restores the default
+ * (WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES). Raise it for callers that fetch
+ * repositories or blobs larger than the default.
+ */
+void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
+                                           size_t max_bytes);
+
 /**
  * Set a custom CA bundle path for TLS verification. When non-NULL, libcurl
  * uses this PEM file instead of the system default. Pass NULL to restore

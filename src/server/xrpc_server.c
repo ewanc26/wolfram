@@ -33,6 +33,7 @@ typedef struct post_buf {
     char *data;
     size_t len;
     size_t cap;
+    int overflow; /* body passed max_body_bytes; chunks are discarded */
 } post_buf;
 
 #define WF_POST_BUF_MAGIC UINT32_C(0x57465042)
@@ -1469,6 +1470,23 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
         }
         post_buf *pb = (post_buf *)*con_cls;
         if (*upload_data_size > 0) {
+            /* Keep consuming so the connection stays in sync, but stop
+             * buffering once the cap is passed: the body is answered with 413
+             * at the end instead of growing without bound. */
+            pthread_mutex_lock(&server->routes_mutex);
+            size_t max_body = server->max_body_bytes
+                                  ? server->max_body_bytes
+                                  : WF_XRPC_SERVER_DEFAULT_MAX_BODY_BYTES;
+            pthread_mutex_unlock(&server->routes_mutex);
+            if (pb->overflow || *upload_data_size > max_body ||
+                pb->len > max_body - *upload_data_size) {
+                free(pb->data);
+                pb->data = NULL;
+                pb->len = pb->cap = 0;
+                pb->overflow = 1;
+                *upload_data_size = 0;
+                return MHD_YES;
+            }
             if (!post_buf_append(pb, upload_data, *upload_data_size)) {
                 free(pb->data);
                 free(pb);
@@ -1479,6 +1497,13 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
             return MHD_YES;
         }
         /* upload_data_size == 0 means upload complete — process now */
+        if (pb->overflow) {
+            wf_xrpc_response_set_error(&resp, 413, "PayloadTooLarge",
+                                       "Request body too large");
+            free(pb);
+            *con_cls = NULL;
+            goto send;
+        }
         http_route = wf_server_find_http_route(server, method, url);
         if (http_route) {
             if (pb->len > 0) params = cJSON_ParseWithLength(pb->data, pb->len);
@@ -2347,6 +2372,15 @@ void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
     server->fallback = handler;
     server->fallback_ctx = ctx;
     pthread_mutex_unlock(&server->routes_mutex);
+}
+
+wf_status wf_xrpc_server_set_max_body_bytes(wf_xrpc_server *server,
+                                            size_t max_bytes) {
+    if (!server) return WF_ERR_INVALID_ARG;
+    pthread_mutex_lock(&server->routes_mutex);
+    server->max_body_bytes = max_bytes;
+    pthread_mutex_unlock(&server->routes_mutex);
+    return WF_OK;
 }
 
 wf_status wf_xrpc_server_set_trusted_client_ip_header(wf_xrpc_server *server,

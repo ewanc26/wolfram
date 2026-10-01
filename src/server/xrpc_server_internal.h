@@ -102,6 +102,9 @@ struct wf_xrpc_server {
      * peer (see wf_xrpc_server_set_trusted_client_ip_header); NULL (the
      * default) always uses the raw socket peer address. */
     char *trusted_client_ip_header;
+    /* Cap on a buffered POST body (see wf_xrpc_server_set_max_body_bytes);
+     * 0 means WF_XRPC_SERVER_DEFAULT_MAX_BODY_BYTES. */
+    size_t max_body_bytes;
 };
 
 /** A live WebSocket connection, created after a successful upgrade. */
