@@ -1,6 +1,7 @@
 #include "wolfram/label.h"
 #include "wolfram/syntax.h"
 #include "wolfram/repo/cbor.h"
+#include "../repo/cbor_map_find.h"
 #include "wolfram/crypto.h"
 #include "wolfram/identity.h"
 
@@ -221,6 +222,120 @@ static wf_status wf_label_parse_info(cJSON *root, wf_label_message *out) {
         }
     }
     return WF_OK;
+}
+
+/* ── DAG-CBOR event-stream frames ──────────────────────────────────────── */
+
+/* Convert a parsed DAG-CBOR value into the JSON shape wf_label_message_parse
+ * already validates. Byte strings (a label's `sig`) become base64url strings,
+ * the form wf_label_verify_signature decodes. Returns NULL for anything a
+ * label frame cannot contain (CID links) or on allocation failure. */
+static cJSON *wf_label_cbor_to_json(const wf_cbor_item *item) {
+    if (!item) return NULL;
+    switch (item->type) {
+        case WF_CBOR_UNSIGNED:
+            return cJSON_CreateNumber((double)item->uinteger);
+        case WF_CBOR_NEGATIVE:
+            return cJSON_CreateNumber(-1.0 - (double)item->neginteger);
+        case WF_CBOR_STRING:
+            return cJSON_CreateString(item->string.str);
+        case WF_CBOR_BYTES: {
+            char *encoded = NULL;
+            cJSON *node;
+            if (wf_crypto_base64url_encode(item->bytes.data, item->bytes.len,
+                                           &encoded) != WF_OK)
+                return NULL;
+            node = cJSON_CreateString(encoded);
+            free(encoded);
+            return node;
+        }
+        case WF_CBOR_SIMPLE:
+            if (item->simple_value == 20) return cJSON_CreateFalse();
+            if (item->simple_value == 21) return cJSON_CreateTrue();
+            return cJSON_CreateNull();
+        case WF_CBOR_ARRAY: {
+            cJSON *array = cJSON_CreateArray();
+            if (!array) return NULL;
+            for (size_t i = 0; i < item->children.count; i++) {
+                cJSON *child = wf_label_cbor_to_json(item->children.items[i]);
+                if (!child) {
+                    cJSON_Delete(array);
+                    return NULL;
+                }
+                cJSON_AddItemToArray(array, child);
+            }
+            return array;
+        }
+        case WF_CBOR_MAP: {
+            cJSON *object = cJSON_CreateObject();
+            if (!object) return NULL;
+            for (size_t i = 0; i < item->map.count; i++) {
+                const wf_cbor_item *key = item->map.pairs[i].key;
+                cJSON *value = wf_label_cbor_to_json(item->map.pairs[i].value);
+                if (!key || key->type != WF_CBOR_STRING || !value) {
+                    cJSON_Delete(value);
+                    cJSON_Delete(object);
+                    return NULL;
+                }
+                cJSON_AddItemToObject(object, key->string.str, value);
+            }
+            return object;
+        }
+        default:
+            return NULL;
+    }
+}
+
+wf_status wf_label_frame_parse_cbor(const unsigned char *frame, size_t len,
+                                    wf_label_message *out) {
+    size_t header_len = 0, body_len = 0;
+    wf_cbor_item *header = NULL, *body = NULL;
+    cJSON *json = NULL;
+    wf_status status = WF_ERR_PARSE;
+
+    if (!frame || !out || len == 0) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+
+    /* A frame is two DAG-CBOR items back to back: header map, then body map.
+     * Scan each before decoding so hostile declared sizes are rejected
+     * without allocating. */
+    if (!wf_cbor_scan_item(frame, len, &header_len) || header_len >= len ||
+        !wf_cbor_scan_item(frame + header_len, len - header_len, &body_len) ||
+        header_len + body_len != len)
+        return WF_ERR_PARSE;
+    header = wf_cbor_parse(frame, header_len);
+    body = wf_cbor_parse(frame + header_len, body_len);
+    if (!header || !body || header->type != WF_CBOR_MAP ||
+        body->type != WF_CBOR_MAP)
+        goto done;
+
+    wf_cbor_item *op = wf_cbor_map_find(header, "op", 2);
+    wf_cbor_item *type = wf_cbor_map_find(header, "t", 1);
+    /* op 1 is a message; op -1 is an error frame, which carries no label
+     * data and is reported as a parse failure. */
+    if (!op || op->type != WF_CBOR_UNSIGNED || op->uinteger != 1 || !type ||
+        type->type != WF_CBOR_STRING)
+        goto done;
+
+    json = wf_label_cbor_to_json(body);
+    if (!json || !cJSON_AddStringToObject(json, "$type", type->string.str)) {
+        status = json ? WF_ERR_ALLOC : WF_ERR_PARSE;
+        goto done;
+    }
+    if (strcmp(type->string.str, "#labels") == 0) {
+        status = wf_label_parse_labels(json, 0, out);
+    } else if (strcmp(type->string.str, "#info") == 0) {
+        status = wf_label_parse_info(json, out);
+    } else {
+        status = WF_ERR_INVALID_ARG;
+    }
+    if (status != WF_OK) wf_label_message_free(out);
+
+done:
+    cJSON_Delete(json);
+    wf_cbor_free(header);
+    wf_cbor_free(body);
+    return status;
 }
 
 /* ── signature verification ────────────────────────────────────────────── */
@@ -691,8 +806,12 @@ wf_status wf_label_subscribe_start(const wf_label_subscribe_options *opts,
         }
 
         wf_label_message message = {0};
-        status =
-            wf_label_message_parse((const char *)msg.data, msg.len, &message);
+        /* Binary frames are the DAG-CBOR event-stream encoding a labeler
+         * sends; text frames are decoded as JSON. */
+        status = msg.type == WF_WEBSOCKET_BINARY
+                     ? wf_label_frame_parse_cbor(msg.data, msg.len, &message)
+                     : wf_label_message_parse((const char *)msg.data, msg.len,
+                                              &message);
         wf_websocket_message_free(&msg);
         if (status != WF_OK) {
             if (handle->opts.on_error) {

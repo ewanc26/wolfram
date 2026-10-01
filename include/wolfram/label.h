@@ -93,6 +93,18 @@ wf_status wf_label_build_url(const char *service, int64_t cursor,
 wf_status wf_label_message_parse(const char *json, size_t json_len,
                                  wf_label_message *out);
 
+/**
+ * Parse one binary subscribeLabels frame: the AT Protocol event-stream
+ * encoding, a DAG-CBOR header map ({op, t}) followed by a DAG-CBOR body map.
+ * `#labels` and `#info` messages are decoded into `*out` exactly as
+ * wf_label_message_parse does for JSON; a label's `sig` bytes are re-encoded
+ * as base64url so wf_label_verify_signature applies unchanged. Hostile
+ * declared sizes and deep nesting are rejected before any allocation.
+ * Returns WF_ERR_PARSE for malformed frames and error frames (op -1).
+ */
+wf_status wf_label_frame_parse_cbor(const unsigned char *frame, size_t len,
+                                    wf_label_message *out);
+
 /** Free a parsed subscribeLabels frame. */
 void wf_label_message_free(wf_label_message *message);
 

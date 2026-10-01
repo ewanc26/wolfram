@@ -1352,6 +1352,11 @@ if(WOLFRAM_BUILD_TESTS)
                              PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME label_subscribe_typed COMMAND test_label_subscribe_typed)
 
+  add_executable(test_label_frame test/test_label_frame.c)
+  target_link_libraries(test_label_frame PRIVATE wolfram)
+  target_include_directories(test_label_frame PRIVATE test)
+  add_test(NAME label_frame COMMAND test_label_frame)
+
   add_executable(test_label_verify test/test_label_verify.c)
   target_link_libraries(test_label_verify PRIVATE wolfram)
   target_include_directories(test_label_verify PRIVATE test ${cjson_SOURCE_DIR})
