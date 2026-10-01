@@ -1205,9 +1205,11 @@ char *wf_xrpc_get_base_url(wf_xrpc_client *client) {
  *
  * On WF_OK, `out` is populated and must be released with `wf_response_free`.
  */
-wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
-                                   const wf_http_header *extra,
-                                   size_t extra_count, wf_response *out) {
+/* max_bytes == 0 keeps the client's own response cap. */
+static wf_status wf_http_get_impl(wf_xrpc_client *client, const char *url,
+                                  const wf_http_header *extra,
+                                  size_t extra_count, size_t max_bytes,
+                                  wf_response *out) {
     struct curl_slist *headers = NULL;
     wf_status status = WF_OK;
     size_t i;
@@ -1219,6 +1221,7 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
 
     struct wf_client_config *cfg = wf_client_snapshot(client);
     if (!cfg) return WF_ERR_ALLOC;
+    if (max_bytes) cfg->max_response_bytes = max_bytes;
 
     if (cfg->auth_header) {
         headers = curl_slist_append(headers, cfg->auth_header);
@@ -1259,6 +1262,12 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
     return status;
 }
 
+wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
+                                   const wf_http_header *extra,
+                                   size_t extra_count, wf_response *out) {
+    return wf_http_get_impl(client, url, extra, extra_count, 0, out);
+}
+
 /**
  * Perform a generic HTTP GET to an arbitrary URL (not an XRPC endpoint).
  *
@@ -1268,7 +1277,12 @@ wf_status wf_http_get_with_headers(wf_xrpc_client *client, const char *url,
  */
 wf_status wf_http_get(wf_xrpc_client *client, const char *url,
                       wf_response *out) {
-    return wf_http_get_with_headers(client, url, NULL, 0, out);
+    return wf_http_get_impl(client, url, NULL, 0, 0, out);
+}
+
+wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
+                              size_t max_bytes, wf_response *out) {
+    return wf_http_get_impl(client, url, NULL, 0, max_bytes, out);
 }
 
 /* ── Async API ──────────────────────────────────────────────────────── */
