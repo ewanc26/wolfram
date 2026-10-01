@@ -47,6 +47,10 @@ typedef enum wf_label_message_type {
     WF_LABEL_MESSAGE_NONE = 0,
     WF_LABEL_MESSAGE_LABELS,
     WF_LABEL_MESSAGE_INFO,
+    /* Server-sent error frame (op -1), e.g. FutureCursor / ConsumerTooSlow.
+     * Carried in `data.info`: `name` holds the error code, `message` the
+     * optional human-readable detail. */
+    WF_LABEL_MESSAGE_ERROR,
 } wf_label_message_type;
 
 typedef struct wf_label_message {
@@ -98,9 +102,10 @@ wf_status wf_label_message_parse(const char *json, size_t json_len,
  * encoding, a DAG-CBOR header map ({op, t}) followed by a DAG-CBOR body map.
  * `#labels` and `#info` messages are decoded into `*out` exactly as
  * wf_label_message_parse does for JSON; a label's `sig` bytes are re-encoded
- * as base64url so wf_label_verify_signature applies unchanged. Hostile
- * declared sizes and deep nesting are rejected before any allocation.
- * Returns WF_ERR_PARSE for malformed frames and error frames (op -1).
+ * as base64url so wf_label_verify_signature applies unchanged. An error frame
+ * (op -1, body `{error, message?}`) decodes into WF_LABEL_MESSAGE_ERROR.
+ * Hostile declared sizes and deep nesting are rejected before any allocation.
+ * Returns WF_ERR_PARSE for malformed frames.
  */
 wf_status wf_label_frame_parse_cbor(const unsigned char *frame, size_t len,
                                     wf_label_message *out);

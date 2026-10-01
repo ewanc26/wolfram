@@ -130,16 +130,34 @@ static void test_frame_parse_cbor(void) {
     wf_label_message_free(&message);
     free(frame);
 
-    /* error frame (op = -1) carries no label data */
+    /* error frame (op = -1) carries no label data, but decodes its name */
     wf_cbor_item *eop = calloc(1, sizeof(*eop));
     eop->type = WF_CBOR_NEGATIVE;
     eop->neginteger = 0;
     const char *ek[] = {"op"};
     wf_cbor_item *ev[] = {eop};
-    const char *ebk[] = {"error"};
-    wf_cbor_item *ebv[] = {cb_str("FutureCursor")};
-    frame = cb_frame(cb_map(1, ek, ev), cb_map(1, ebk, ebv), &len);
-    WF_CHECK(wf_label_frame_parse_cbor(frame, len, &message) == WF_ERR_PARSE);
+    const char *ebk[] = {"error", "message"};
+    wf_cbor_item *ebv[] = {cb_str("FutureCursor"),
+                           cb_str("cursor in the future")};
+    frame = cb_frame(cb_map(1, ek, ev), cb_map(2, ebk, ebv), &len);
+    WF_CHECK(wf_label_frame_parse_cbor(frame, len, &message) == WF_OK);
+    WF_CHECK(message.type == WF_LABEL_MESSAGE_ERROR);
+    WF_CHECK(message.data.info.name &&
+             strcmp(message.data.info.name, "FutureCursor") == 0);
+    WF_CHECK(message.data.info.has_message && message.data.info.message &&
+             strcmp(message.data.info.message, "cursor in the future") == 0);
+    wf_label_message_free(&message);
+    free(frame);
+
+    /* error frame missing the required "error" key is a parse failure */
+    const char *ebk2[] = {"message"};
+    wf_cbor_item *ebv2[] = {cb_str("no error name")};
+    wf_cbor_item *eop2 = calloc(1, sizeof(*eop2));
+    eop2->type = WF_CBOR_NEGATIVE;
+    eop2->neginteger = 0;
+    wf_cbor_item *ev2[] = {eop2};
+    frame = cb_frame(cb_map(1, ek, ev2), cb_map(1, ebk2, ebv2), &len);
+    WF_CHECK(wf_label_frame_parse_cbor(frame, len, &message) != WF_OK);
     free(frame);
 
     /* hostile declared sizes in the body are rejected, as is bad input */
