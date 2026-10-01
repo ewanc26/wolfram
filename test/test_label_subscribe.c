@@ -121,9 +121,13 @@ static void test_message_parse(void) {
 }
 
 static void test_label_subscribe_smoke(void) {
+    /* Live network test: only when a labeler is named explicitly, so the
+     * registered test stays hermetic and cannot block CI. */
     const char *service = getenv("WF_LABEL_SUBSCRIBE_SERVICE");
     if (!service || !service[0]) {
-        service = "https://mod.bsky.app";
+        printf(
+            "SKIP: label subscribe smoke (set WF_LABEL_SUBSCRIBE_SERVICE)\n");
+        return;
     }
 
     g_label_count = 0;
