@@ -810,6 +810,14 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url,
     return wf_http_get_with_headers(client, url, NULL, 0, out);
 }
 
+/* The Wii transport has one fixed response cap; a tighter per-request limit
+ * is not supported, so this is a plain GET. */
+wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
+                              size_t max_bytes, wf_response *out) {
+    (void)max_bytes;
+    return wf_http_get(client, url, out);
+}
+
 wf_status wf_http_post(wf_xrpc_client *client, const char *url,
                        const char *content_type, const char *body,
                        const wf_http_header *extra, size_t extra_count,

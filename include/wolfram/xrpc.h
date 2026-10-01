@@ -311,6 +311,17 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url,
                       wf_response *out);
 
 /**
+ * Like wf_http_get, but caps this one response body at `max_bytes` instead of
+ * the client's wf_xrpc_client_set_max_response_bytes limit (0 keeps the
+ * client's limit). Use it for documents that are small by nature -- DID
+ * documents, handle well-known files, PLC log entries -- so a hostile server
+ * cannot make the caller buffer or process far more than it should. A body
+ * past the cap aborts the transfer and returns WF_ERR_NETWORK.
+ */
+wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
+                              size_t max_bytes, wf_response *out);
+
+/**
  * Perform a generic HTTP POST. This is the transport primitive used by
  * non-XRPC protocols such as OAuth. On WF_OK or WF_ERR_HTTP, `out` is
  * populated (including an optional DPoP-Nonce) and must be freed.

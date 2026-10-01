@@ -1493,6 +1493,33 @@ static int test_body_caps(void) {
     }
     wf_response_free(&res);
 
+    /* Per-request limit: wf_http_get_limited overrides the client cap. */
+    {
+        char url[128];
+        snprintf(url, sizeof(url), "%s/xrpc/io.example.big", base_url);
+        memset(&res, 0, sizeof(res));
+        s = wf_http_get_limited(client, url, 1024, &res);
+        if (s != WF_ERR_NETWORK || res.body != NULL) {
+            fprintf(stderr, "FAIL: limited GET over cap: status=%d\n", (int)s);
+            failures++;
+        }
+        wf_response_free(&res);
+        s = wf_http_get_limited(client, url, 16384, &res);
+        if (s != WF_OK || res.body_len != 8192) {
+            fprintf(stderr, "FAIL: limited GET under cap: status=%d\n", (int)s);
+            failures++;
+        }
+        wf_response_free(&res);
+        /* 0 keeps the client's own cap, which is tighter here */
+        wf_xrpc_client_set_max_response_bytes(client, 1024);
+        s = wf_http_get_limited(client, url, 0, &res);
+        if (s != WF_ERR_NETWORK) {
+            fprintf(stderr, "FAIL: limited GET with 0: status=%d\n", (int)s);
+            failures++;
+        }
+        wf_response_free(&res);
+    }
+
     wf_xrpc_client_free(client);
     wf_xrpc_server_free(server);
     if (failures == 0) {
