@@ -198,12 +198,16 @@ static wf_status wf_label_parse_labels(cJSON *root, int force_neg,
     return WF_OK;
 }
 
-static wf_status wf_label_parse_info(cJSON *root, wf_label_message *out) {
-    cJSON *name_member = cJSON_GetObjectItemCaseSensitive(root, "name");
+/* Shared by #info (key "name") and error frames (key "error"): both carry an
+ * optional "message" alongside a required name-ish string. */
+static wf_status wf_label_parse_name_message(cJSON *root, const char *name_key,
+                                             wf_label_message_type type,
+                                             wf_label_message *out) {
+    cJSON *name_member = cJSON_GetObjectItemCaseSensitive(root, name_key);
     cJSON *message_member = cJSON_GetObjectItemCaseSensitive(root, "message");
     if (!name_member || !cJSON_IsString(name_member)) return WF_ERR_INVALID_ARG;
 
-    out->type = WF_LABEL_MESSAGE_INFO;
+    out->type = type;
     out->data.info.name = wf_label_strdup(name_member->valuestring);
     if (!out->data.info.name) {
         wf_label_info_clear(&out->data.info);
@@ -222,6 +226,17 @@ static wf_status wf_label_parse_info(cJSON *root, wf_label_message *out) {
         }
     }
     return WF_OK;
+}
+
+static wf_status wf_label_parse_info(cJSON *root, wf_label_message *out) {
+    return wf_label_parse_name_message(root, "name", WF_LABEL_MESSAGE_INFO,
+                                       out);
+}
+
+/* Server-sent error frame body: {error, message?}. */
+static wf_status wf_label_parse_error(cJSON *root, wf_label_message *out) {
+    return wf_label_parse_name_message(root, "error", WF_LABEL_MESSAGE_ERROR,
+                                       out);
 }
 
 /* ── DAG-CBOR event-stream frames ──────────────────────────────────────── */
@@ -310,10 +325,23 @@ wf_status wf_label_frame_parse_cbor(const unsigned char *frame, size_t len,
         goto done;
 
     wf_cbor_item *op = wf_cbor_map_find(header, "op", 2);
+    if (!op) goto done;
+
+    /* op -1 is a server-sent error frame (e.g. FutureCursor), body
+     * {error, message?}; it carries no `t` and no label data. */
+    if (op->type == WF_CBOR_NEGATIVE && op->neginteger == 0) {
+        json = wf_label_cbor_to_json(body);
+        if (!json) {
+            status = WF_ERR_PARSE;
+            goto done;
+        }
+        status = wf_label_parse_error(json, out);
+        goto done;
+    }
+
     wf_cbor_item *type = wf_cbor_map_find(header, "t", 1);
-    /* op 1 is a message; op -1 is an error frame, which carries no label
-     * data and is reported as a parse failure. */
-    if (!op || op->type != WF_CBOR_UNSIGNED || op->uinteger != 1 || !type ||
+    /* op 1 is a message. */
+    if (op->type != WF_CBOR_UNSIGNED || op->uinteger != 1 || !type ||
         type->type != WF_CBOR_STRING)
         goto done;
 
@@ -552,6 +580,13 @@ wf_label_dispatch_record(const wf_label_subscribe_handle *handle,
 static void wf_label_dispatch_message(wf_label_subscribe_handle *handle,
                                       wf_label_message *message) {
     if (!handle || !message) return;
+    if (message->type == WF_LABEL_MESSAGE_ERROR) {
+        if (handle->opts.on_error) {
+            handle->opts.on_error(WF_ERR_HTTP, message->data.info.name,
+                                  handle->opts.userdata);
+        }
+        return;
+    }
     if (message->type == WF_LABEL_MESSAGE_LABELS) {
         for (size_t i = 0; i < message->data.labels.count && !handle->stopped;
              ++i) {
@@ -615,6 +650,7 @@ void wf_label_message_free(wf_label_message *message) {
             wf_label_batch_clear(&message->data.labels);
             break;
         case WF_LABEL_MESSAGE_INFO:
+        case WF_LABEL_MESSAGE_ERROR:
             wf_label_info_clear(&message->data.info);
             break;
         default:
