@@ -9,6 +9,8 @@
  */
 
 #include "test.h"
+
+#include <stdint.h>
 #include "wolfram/oauth/verify.h"
 #include "wolfram/oauth/dpop.h"
 #include "wolfram/crypto.h"
@@ -667,6 +669,35 @@ int main(void) {
         }
         wf_oauth_verified_token_free(dt);
         wf_oauth_dpop_replay_cache_free(replay2);
+    }
+
+    /* --- Out-of-range exp claims saturate instead of invoking UB --- */
+    {
+        const double raw_exp[] = {1e300, -1e300};
+        for (int i = 0; i < 2; i++) {
+            cJSON *h = cJSON_CreateObject();
+            cJSON *p = cJSON_CreateObject();
+            cJSON_AddStringToObject(h, "alg", "ES256");
+            cJSON_AddStringToObject(h, "kid", "test-key-1");
+            cJSON_AddStringToObject(p, "iss", "https://op.example.com");
+            cJSON_AddStringToObject(p, "sub", did);
+            cJSON_AddStringToObject(p, "aud", "https://api.example.com");
+            cJSON_AddStringToObject(p, "scope", "atproto repo");
+            cJSON_AddNumberToObject(p, "iat", (double)now);
+            cJSON_AddNumberToObject(p, "exp", raw_exp[i]);
+            char *jwt = make_jwt(at_ec, h, p);
+            wf_oauth_verified_token *bt = NULL;
+            wf_status st = wf_oauth_verify_bearer(jwt, keys, &bt);
+            if (i == 0) {
+                /* +huge saturates to INT64_MAX: not expired */
+                WF_CHECK(st == WF_OK && bt && bt->exp == INT64_MAX);
+            } else {
+                /* -huge saturates to INT64_MIN: expired */
+                WF_CHECK(st != WF_OK && !bt);
+            }
+            wf_oauth_verified_token_free(bt);
+            free(jwt);
+        }
     }
 
     /* --- RFC 7523 client assertion (private_key_jwt) verification --- */

@@ -41,6 +41,11 @@
 #include <idn2.h>
 #endif
 
+/* A DID document and a handle's .well-known/atproto-did are small by nature;
+ * cap what a third-party server can make us buffer (and then parse). */
+#define WF_DID_DOC_MAX_BYTES ((size_t)1024 * 1024)
+#define WF_HANDLE_WELL_KNOWN_MAX_BYTES ((size_t)4 * 1024)
+
 static char *wf_strdup(const char *s) {
     if (!s) return NULL;
     size_t len = strlen(s) + 1;
@@ -623,7 +628,8 @@ static wf_status did_fetch_document_uncached(wf_xrpc_client *client,
     }
 
     wf_response res = {0};
-    wf_status status = wf_http_get(client, url, &res);
+    wf_status status =
+        wf_http_get_limited(client, url, WF_DID_DOC_MAX_BYTES, &res);
     free(url);
     if (status != WF_OK) {
         /* WF_ERR_HTTP still transfers the body into `res` per wf_http_get's
@@ -1252,7 +1258,8 @@ static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client,
     snprintf(url, url_len, "https://%s/.well-known/atproto-did", handle);
 
     wf_response res = {0};
-    wf_status status = wf_http_get(client, url, &res);
+    wf_status status =
+        wf_http_get_limited(client, url, WF_HANDLE_WELL_KNOWN_MAX_BYTES, &res);
     free(url);
 
     if (status != WF_OK) {
