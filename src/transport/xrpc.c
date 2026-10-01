@@ -14,6 +14,7 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +52,8 @@ struct wf_xrpc_client {
     wf_tls_rng_fn tls_rng; /* NULL unless the application supplied one */
     void *tls_rng_userdata;
     char *last_error; /* XRPC error message from the last non-2xx response */
-    pthread_mutex_t mutex;           /* guards all mutable fields above */
+    size_t max_response_bytes; /* 0 = WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES */
+    pthread_mutex_t mutex;     /* guards all mutable fields above */
     struct wf_xrpc_pending *pending; /* linked list of in-flight async ops */
 };
 
@@ -67,6 +69,7 @@ struct wf_client_config {
     void *handler_userdata;
     wf_tls_rng_fn tls_rng;
     void *tls_rng_userdata;
+    size_t max_response_bytes; /* 0 = WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES */
 };
 
 static void wf_config_free(struct wf_client_config *cfg);
@@ -110,6 +113,7 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     cfg->handler_userdata = client->handler_userdata;
     cfg->tls_rng = client->tls_rng;
     cfg->tls_rng_userdata = client->tls_rng_userdata;
+    cfg->max_response_bytes = client->max_response_bytes;
     pthread_mutex_unlock(&client->mutex);
     if ((!cfg->base_url && client->base_url) ||
         (!cfg->auth_header && client->auth_header) ||
@@ -205,6 +209,8 @@ struct wf_buffer {
     char *data;
     size_t len;
     size_t cap;
+    size_t max; /* response body cap; 0 = WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES */
+    int exceeded;
 };
 
 struct wf_header_capture {
@@ -259,6 +265,19 @@ static size_t wf_curl_write_cb(char *ptr, size_t size, size_t nmemb,
                                void *userdata) {
     struct wf_buffer *buf = (struct wf_buffer *)userdata;
     size_t chunk = size * nmemb;
+    size_t max = buf->max ? buf->max : WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES;
+
+    /* A remote peer controls how long the body runs; stop buffering once it
+     * passes the cap instead of growing until memory is exhausted. Returning
+     * a short count makes curl abort the transfer. */
+    if (size != 0 && nmemb > SIZE_MAX / size) {
+        buf->exceeded = 1;
+        return 0;
+    }
+    if (chunk > max || buf->len > max - chunk) {
+        buf->exceeded = 1;
+        return 0;
+    }
 
     if (buf->len + chunk + 1 > buf->cap) {
         size_t new_cap = buf->cap == 0 ? 4096 : buf->cap * 2;
@@ -380,6 +399,14 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
         snprintf(client->auth_header, needed, "Authorization: Bearer %s",
                  access_jwt);
     }
+    pthread_mutex_unlock(&client->mutex);
+}
+
+void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
+                                           size_t max_bytes) {
+    if (!client) return;
+    pthread_mutex_lock(&client->mutex);
+    client->max_response_bytes = max_bytes;
     pthread_mutex_unlock(&client->mutex);
 }
 
@@ -529,6 +556,7 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     }
 
     struct wf_buffer buf = {0};
+    buf.max = cfg->max_response_bytes;
     struct wf_header_capture capture = {0};
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
@@ -575,7 +603,8 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     CURLcode curl_rc = curl_easy_perform(curl);
     if (curl_rc != CURLE_OK) {
         WF_LOG_ERROR("xrpc", "HTTP %s %s failed: %s", method, url,
-                     curl_easy_strerror(curl_rc));
+                     buf.exceeded ? "response body exceeds size limit"
+                                  : curl_easy_strerror(curl_rc));
         status = WF_ERR_NETWORK;
     } else {
         long http_status = 0;

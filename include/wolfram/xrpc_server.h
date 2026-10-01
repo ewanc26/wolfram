@@ -142,7 +142,8 @@ typedef struct wf_xrpc_response {
 } wf_xrpc_response;
 
 /** Zero-initialiser for a response struct. */
-#define WF_XRPC_RESPONSE_INIT {200, NULL, 0, NULL, NULL}
+#define WF_XRPC_RESPONSE_INIT                                                  \
+    { 200, NULL, 0, NULL, NULL }
 
 /** Set the response body (copies the string). */
 void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
@@ -558,6 +559,21 @@ void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
  */
 wf_status wf_xrpc_server_set_trusted_client_ip_header(wf_xrpc_server *server,
                                                       const char *header_name);
+
+/** Default cap on a buffered POST request body (64 MiB). */
+#define WF_XRPC_SERVER_DEFAULT_MAX_BODY_BYTES ((size_t)64 * 1024 * 1024)
+
+/**
+ * Cap the size of a POST body the server will buffer for a procedure or HTTP
+ * route. A request whose body grows past the cap is answered with 413
+ * PayloadTooLarge and its buffer is discarded, so an unauthenticated client
+ * cannot exhaust memory by streaming an endless body. 0 restores the default
+ * (WF_XRPC_SERVER_DEFAULT_MAX_BODY_BYTES); raise it if a route accepts larger
+ * blob uploads. Streaming procedure routes do not buffer the body and are not
+ * subject to this cap. Returns WF_ERR_INVALID_ARG if `server` is NULL.
+ */
+wf_status wf_xrpc_server_set_max_body_bytes(wf_xrpc_server *server,
+                                            size_t max_bytes);
 
 /**
  * Like wf_xrpc_server_set_auth_callback, but also records an owned middleware
