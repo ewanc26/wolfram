@@ -375,7 +375,8 @@ int cmd_ozone(int argc, char **argv) {
         const char *pos[3];
         int pi = 0;
         for (int i = 3; i < argc; ++i) {
-            if (strcmp(argv[i], "--key") == 0 && i + 1 < argc)
+            if (strcmp(argv[i], "--key") == 0 && i + 1 < argc &&
+                key_count < 256)
                 keys[key_count++] = argv[++i];
             else if (strcmp(argv[i], "--scope") == 0 && i + 1 < argc)
                 scope = argv[++i];
