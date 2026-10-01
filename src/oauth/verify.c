@@ -13,6 +13,7 @@
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -43,7 +44,16 @@ static wf_status json_int(const cJSON *root, const char *name, int64_t *out,
         return WF_OK;
     }
     if (present) *present = 1;
-    *out = (int64_t)item->valuedouble;
+    /* Casting a double outside the int64 range is undefined behaviour, so
+     * saturate explicitly: the result is then the same on every platform. */
+    double d = item->valuedouble;
+    if (d != d) return WF_ERR_PARSE;
+    if (d >= 9223372036854775808.0)
+        *out = INT64_MAX;
+    else if (d <= -9223372036854775808.0)
+        *out = INT64_MIN;
+    else
+        *out = (int64_t)d;
     return WF_OK;
 }
 

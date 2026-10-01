@@ -19,6 +19,13 @@
 #include "wolfram/repo/cid.h"
 #include "librb64u.h"
 
+/* Response caps for the PLC directory: a single operation is ~1 KiB and even
+ * a heavily edited account's audit log is well under the audit cap. Audit-log
+ * verification does signature checks per operation, so the cap also bounds
+ * CPU spent on a hostile directory's response. */
+#define WF_PLC_LAST_OP_MAX_BYTES ((size_t)256 * 1024)
+#define WF_PLC_AUDIT_LOG_MAX_BYTES ((size_t)16 * 1024 * 1024)
+
 /* ── small utilities ────────────────────────────────────────── */
 
 static char *wf_plc_strdup(const char *value) {
@@ -1023,7 +1030,8 @@ wf_status wf_plc_get_last_op(wf_xrpc_client *client,
     memcpy(url + base_len + 1, did, did_len);
     memcpy(url + base_len + 1 + did_len, suffix, sizeof(suffix));
 
-    status = wf_http_get(client, url, &response);
+    status =
+        wf_http_get_limited(client, url, WF_PLC_LAST_OP_MAX_BYTES, &response);
     if (status != WF_OK) {
         /* WF_ERR_HTTP still transfers the body into `response` (see
          * xrpc.c's transfer contract), so free it on every non-WF_OK
@@ -1099,7 +1107,8 @@ wf_status wf_plc_get_audit_log(wf_xrpc_client *client,
     memcpy(url + base_len + 1, did, did_len);
     memcpy(url + base_len + 1 + did_len, suffix, sizeof(suffix));
 
-    status = wf_http_get(client, url, &response);
+    status =
+        wf_http_get_limited(client, url, WF_PLC_AUDIT_LOG_MAX_BYTES, &response);
     if (status != WF_OK) {
         free(response.body);
         return status;
