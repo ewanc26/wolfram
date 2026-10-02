@@ -419,6 +419,37 @@ static wf_status wf_agent_build_post_record(wf_agent *agent, const char *text,
         return WF_ERR_ALLOC;
     }
 
+    if (agent->post_langs && agent->post_langs[0]) {
+        cJSON *langs = cJSON_CreateArray();
+        if (!langs) {
+            cJSON_Delete(facets);
+            cJSON_Delete(record);
+            return WF_ERR_ALLOC;
+        }
+        const char *p = agent->post_langs;
+        while (*p) {
+            const char *end = strchr(p, ',');
+            size_t len = end ? (size_t) (end - p) : strlen(p);
+            char *tag = wf_agent_strndup(p, len);
+            cJSON *item = tag ? cJSON_CreateString(tag) : NULL;
+            free(tag);
+            if (!item || !cJSON_AddItemToArray(langs, item)) {
+                cJSON_Delete(item);
+                cJSON_Delete(langs);
+                cJSON_Delete(facets);
+                cJSON_Delete(record);
+                return WF_ERR_ALLOC;
+            }
+            p += len + (end ? 1 : 0);
+        }
+        if (!cJSON_AddItemToObject(record, "langs", langs)) {
+            cJSON_Delete(langs);
+            cJSON_Delete(facets);
+            cJSON_Delete(record);
+            return WF_ERR_ALLOC;
+        }
+    }
+
     if (facets) {
         if (!cJSON_AddItemToObject(record, "facets", facets)) {
             cJSON_Delete(facets);

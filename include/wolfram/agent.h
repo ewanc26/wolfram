@@ -55,6 +55,12 @@ void wf_agent_free(wf_agent *agent);
  * NULL agent and WF_ERR_ALLOC if the path cannot be copied. */
 wf_status wf_agent_set_ca_bundle(wf_agent *agent, const char *path);
 
+/* Set the language tags (comma-separated BCP-47, at most three, e.g. "en" or
+ * "en,cy") written to the `langs` field of every post, reply and quote this
+ * agent creates. NULL or "" clears it. Invalid input returns
+ * WF_ERR_INVALID_ARG and leaves the current value unchanged. */
+wf_status wf_agent_set_post_langs(wf_agent *agent, const char *langs);
+
 /*
  * Supply the RNG used for the TLS handshake — see wf_xrpc_client_set_tls_rng
  * for what this is for and when it is honoured. Returns that function's status

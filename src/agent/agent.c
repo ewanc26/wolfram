@@ -58,6 +58,9 @@ typedef struct wf_agent {
     char *ca_bundle;
     wf_tls_rng_fn tls_rng;
     void *tls_rng_userdata;
+    /* Default BCP-47 tags written to new posts' `langs` (comma-separated,
+     * max 3). NULL means none. Owned by the agent. */
+    char *post_langs;
 #ifdef WOLFRAM_BUILD_STORE
     /* Optional persistence target. Caller-owned; never freed by the agent. */
     wf_store *store;
@@ -1020,6 +1023,44 @@ void wf_agent_apply_tls(wf_agent *agent, wf_xrpc_client *client) {
     }
 }
 
+wf_status wf_agent_set_post_langs(wf_agent *agent, const char *langs) {
+    if (!agent) {
+        return WF_ERR_INVALID_ARG;
+    }
+    char *copy = NULL;
+    if (langs && langs[0]) {
+        /* At most three tags, each 2-35 chars of [A-Za-z0-9-]. */
+        int tags = 1;
+        size_t run = 0;
+        for (const char *p = langs;; p++) {
+            if (*p == ',' || *p == '\0') {
+                if (run < 2 || run > 35) {
+                    return WF_ERR_INVALID_ARG;
+                }
+                if (*p == '\0') {
+                    break;
+                }
+                if (++tags > 3) {
+                    return WF_ERR_INVALID_ARG;
+                }
+                run = 0;
+            } else if ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+                       (*p >= '0' && *p <= '9') || *p == '-') {
+                run++;
+            } else {
+                return WF_ERR_INVALID_ARG;
+            }
+        }
+        copy = wf_agent_strdup(langs);
+        if (!copy) {
+            return WF_ERR_ALLOC;
+        }
+    }
+    free(agent->post_langs);
+    agent->post_langs = copy;
+    return WF_OK;
+}
+
 wf_status wf_agent_set_ca_bundle(wf_agent *agent, const char *path) {
     if (!agent) {
         return WF_ERR_INVALID_ARG;
@@ -1083,6 +1124,7 @@ void wf_agent_free(wf_agent *agent) {
     wf_xrpc_client_free(agent->client);
     wf_xrpc_client_free(agent->chat_client);
     free(agent->service_url);
+    free(agent->post_langs);
     free(agent->ca_bundle);
     free(agent->mirror_did);
     free(agent->mirror_signing_key);

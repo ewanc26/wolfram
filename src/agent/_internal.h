@@ -31,6 +31,9 @@ typedef struct wf_agent {
     char *ca_bundle;
     wf_tls_rng_fn tls_rng;
     void *tls_rng_userdata;
+    /* Default BCP-47 tags written to new posts' `langs` (comma-separated,
+     * max 3). NULL means none. Owned by the agent. */
+    char *post_langs;
 #ifdef WOLFRAM_BUILD_STORE
     /* Optional persistence target. Caller-owned; never freed by the agent. */
     wf_store *store;

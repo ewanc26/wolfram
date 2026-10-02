@@ -200,6 +200,43 @@ int main(void) {
         wf_agent_post_result_free(&out);
     }
 
+    /* ---- post langs ---- */
+    {
+        WF_CHECK(wf_agent_set_post_langs(agent, "en,cy") == WF_OK);
+        wf_agent_post_result out = {0};
+        WF_CHECK(wf_agent_post(agent, "hello", &out) == WF_OK);
+        wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
+        cJSON *root = cJSON_Parse(last_body);
+        cJSON *rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record")
+                          : NULL;
+        cJSON *langs = rec ? cJSON_GetObjectItemCaseSensitive(rec, "langs")
+                           : NULL;
+        WF_CHECK(cJSON_IsArray(langs) && cJSON_GetArraySize(langs) == 2);
+        WF_CHECK(strcmp(cJSON_GetArrayItem(langs, 0)->valuestring, "en") == 0);
+        WF_CHECK(strcmp(cJSON_GetArrayItem(langs, 1)->valuestring, "cy") == 0);
+        cJSON_Delete(root);
+        wf_agent_post_result_free(&out);
+
+        /* Invalid input is refused and leaves the setting alone. */
+        WF_CHECK(wf_agent_set_post_langs(agent, "e") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_set_post_langs(agent, "en,fr,de,es") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_set_post_langs(agent, "en,,fr") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_set_post_langs(agent, "en_US") == WF_ERR_INVALID_ARG);
+
+        /* Cleared: no langs field. */
+        WF_CHECK(wf_agent_set_post_langs(agent, NULL) == WF_OK);
+        memset(&out, 0, sizeof(out));
+        WF_CHECK(wf_agent_post(agent, "hello", &out) == WF_OK);
+        wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
+        root = cJSON_Parse(last_body);
+        rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
+        WF_CHECK(rec && !cJSON_GetObjectItemCaseSensitive(rec, "langs"));
+        cJSON_Delete(root);
+        wf_agent_post_result_free(&out);
+    }
+
     /* ---- createStarterPack ---- */
     {
         wf_agent_post_result out = {0};
