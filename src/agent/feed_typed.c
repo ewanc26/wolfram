@@ -784,8 +784,8 @@ wf_status wf_agent_search_posts_typed(wf_agent *agent, const char *query,
     status = wf_agent_parse_posts(res.body, res.body_len, out);
     if (status == WF_OK && next_cursor) {
         cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
-        cJSON *c = root ? cJSON_GetObjectItemCaseSensitive(root, "cursor")
-                        : NULL;
+        cJSON *c =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "cursor") : NULL;
         if (cJSON_IsString(c) && c->valuestring[0]) {
             *next_cursor = strdup(c->valuestring);
             if (!*next_cursor) {
@@ -798,4 +798,3 @@ wf_status wf_agent_search_posts_typed(wf_agent *agent, const char *query,
     wf_response_free(&res);
     return status;
 }
-

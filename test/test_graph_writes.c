@@ -202,11 +202,12 @@ int main(void) {
 
     /* ---- profile pinned post ---- */
     {
-        WF_CHECK(wf_mock_pds_register(
-            pds, "app.bsky.actor.getProfile",
-            "{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\","
-            "\"pinnedPost\":{\"uri\":\"at://did:plc:abc123/app.bsky.feed."
-            "post/pin1\",\"cid\":\"bafy\"}}") == WF_OK);
+        WF_CHECK(
+            wf_mock_pds_register(
+                pds, "app.bsky.actor.getProfile",
+                "{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\","
+                "\"pinnedPost\":{\"uri\":\"at://did:plc:abc123/app.bsky.feed."
+                "post/pin1\",\"cid\":\"bafy\"}}") == WF_OK);
         wf_agent_profile prof;
         memset(&prof, 0, sizeof(prof));
         WF_CHECK(wf_agent_get_profile(agent, "alice.test", &prof) == WF_OK);
@@ -215,10 +216,11 @@ int main(void) {
                         "at://did:plc:abc123/app.bsky.feed.post/pin1") == 0);
         wf_agent_profile_free(&prof);
 
-        WF_CHECK(wf_mock_pds_register(
-            pds, "app.bsky.actor.getProfile",
-            "{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\"}") ==
-                 WF_OK);
+        WF_CHECK(
+            wf_mock_pds_register(
+                pds, "app.bsky.actor.getProfile",
+                "{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\"}") ==
+            WF_OK);
         memset(&prof, 0, sizeof(prof));
         WF_CHECK(wf_agent_get_profile(agent, "alice.test", &prof) == WF_OK);
         WF_CHECK(prof.pinned_post_uri == NULL);
@@ -232,10 +234,10 @@ int main(void) {
         WF_CHECK(wf_agent_post(agent, "hello", &out) == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
         cJSON *root = cJSON_Parse(last_body);
-        cJSON *rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record")
-                          : NULL;
-        cJSON *langs = rec ? cJSON_GetObjectItemCaseSensitive(rec, "langs")
-                           : NULL;
+        cJSON *rec =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
+        cJSON *langs =
+            rec ? cJSON_GetObjectItemCaseSensitive(rec, "langs") : NULL;
         WF_CHECK(cJSON_IsArray(langs) && cJSON_GetArraySize(langs) == 2);
         WF_CHECK(strcmp(cJSON_GetArrayItem(langs, 0)->valuestring, "en") == 0);
         WF_CHECK(strcmp(cJSON_GetArrayItem(langs, 1)->valuestring, "cy") == 0);
@@ -267,13 +269,13 @@ int main(void) {
         const char *embed = "{\"$type\":\"app.bsky.embed.images\","
                             "\"images\":[]}";
         wf_agent_post_result out = {0};
-        WF_CHECK(wf_agent_reply_refs_with_embed(
-                     agent, "re", "at://r/p/1", "rc", "at://r/p/2", "pc", embed,
-                     &out) == WF_OK);
+        WF_CHECK(wf_agent_reply_refs_with_embed(agent, "re", "at://r/p/1", "rc",
+                                                "at://r/p/2", "pc", embed,
+                                                &out) == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
         cJSON *root = cJSON_Parse(last_body);
-        cJSON *rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record")
-                          : NULL;
+        cJSON *rec =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
         WF_CHECK(rec && cJSON_GetObjectItemCaseSensitive(rec, "reply"));
         cJSON *em = rec ? cJSON_GetObjectItemCaseSensitive(rec, "embed") : NULL;
         WF_CHECK(cJSON_IsObject(em));
@@ -290,13 +292,14 @@ int main(void) {
 
     /* ---- searchPosts typed ---- */
     {
-        WF_CHECK(wf_mock_pds_register(
-                     pds, "app.bsky.feed.searchPosts",
-                     "{\"cursor\":\"next1\",\"posts\":[{\"uri\":\"at://did:plc:x/"
-                     "app.bsky.feed.post/1\",\"cid\":\"bafy\",\"author\":{\"did\":"
-                     "\"did:plc:x\",\"handle\":\"x.test\"},\"record\":{\"text\":"
-                     "\"hi\",\"createdAt\":\"2026-01-01T00:00:00Z\"},"
-                     "\"indexedAt\":\"2026-01-01T00:00:00Z\"}]}") == WF_OK);
+        WF_CHECK(
+            wf_mock_pds_register(
+                pds, "app.bsky.feed.searchPosts",
+                "{\"cursor\":\"next1\",\"posts\":[{\"uri\":\"at://did:plc:x/"
+                "app.bsky.feed.post/1\",\"cid\":\"bafy\",\"author\":{\"did\":"
+                "\"did:plc:x\",\"handle\":\"x.test\"},\"record\":{\"text\":"
+                "\"hi\",\"createdAt\":\"2026-01-01T00:00:00Z\"},"
+                "\"indexedAt\":\"2026-01-01T00:00:00Z\"}]}") == WF_OK);
         wf_agent_post_list pl;
         memset(&pl, 0, sizeof(pl));
         char *nc = NULL;
