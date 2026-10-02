@@ -200,6 +200,31 @@ int main(void) {
         wf_agent_post_result_free(&out);
     }
 
+    /* ---- profile pinned post ---- */
+    {
+        WF_CHECK(wf_mock_pds_register(
+            pds, "app.bsky.actor.getProfile",
+            "{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\","
+            "\"pinnedPost\":{\"uri\":\"at://did:plc:abc123/app.bsky.feed."
+            "post/pin1\",\"cid\":\"bafy\"}}") == WF_OK);
+        wf_agent_profile prof;
+        memset(&prof, 0, sizeof(prof));
+        WF_CHECK(wf_agent_get_profile(agent, "alice.test", &prof) == WF_OK);
+        WF_CHECK(prof.pinned_post_uri != NULL &&
+                 strcmp(prof.pinned_post_uri,
+                        "at://did:plc:abc123/app.bsky.feed.post/pin1") == 0);
+        wf_agent_profile_free(&prof);
+
+        WF_CHECK(wf_mock_pds_register(
+            pds, "app.bsky.actor.getProfile",
+            "{\"did\":\"did:plc:abc123\",\"handle\":\"alice.test\"}") ==
+                 WF_OK);
+        memset(&prof, 0, sizeof(prof));
+        WF_CHECK(wf_agent_get_profile(agent, "alice.test", &prof) == WF_OK);
+        WF_CHECK(prof.pinned_post_uri == NULL);
+        wf_agent_profile_free(&prof);
+    }
+
     /* ---- post langs ---- */
     {
         WF_CHECK(wf_agent_set_post_langs(agent, "en,cy") == WF_OK);
