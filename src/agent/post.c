@@ -429,7 +429,7 @@ static wf_status wf_agent_build_post_record(wf_agent *agent, const char *text,
         const char *p = agent->post_langs;
         while (*p) {
             const char *end = strchr(p, ',');
-            size_t len = end ? (size_t) (end - p) : strlen(p);
+            size_t len = end ? (size_t)(end - p) : strlen(p);
             char *tag = wf_agent_strndup(p, len);
             cJSON *item = tag ? cJSON_CreateString(tag) : NULL;
             free(tag);
@@ -963,10 +963,12 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
 }
 
 /* Reply with separate root and parent strong references. */
-static wf_status wf_agent_reply_refs_impl(
-    wf_agent *agent, const char *text, const char *root_uri,
-    const char *root_cid, const char *parent_uri, const char *parent_cid,
-    cJSON *embed, wf_agent_post_result *out) {
+static wf_status wf_agent_reply_refs_impl(wf_agent *agent, const char *text,
+                                          const char *root_uri,
+                                          const char *root_cid,
+                                          const char *parent_uri,
+                                          const char *parent_cid, cJSON *embed,
+                                          wf_agent_post_result *out) {
     /* Takes ownership of `embed` (nullable) on every path. */
     if (!agent || !text || !root_uri || !root_cid || !parent_uri ||
         !parent_cid || !out) {
@@ -1060,8 +1062,8 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
                               const char *root_uri, const char *root_cid,
                               const char *parent_uri, const char *parent_cid,
                               wf_agent_post_result *out) {
-    return wf_agent_reply_refs_impl(agent, text, root_uri, root_cid,
-                                    parent_uri, parent_cid, NULL, out);
+    return wf_agent_reply_refs_impl(agent, text, root_uri, root_cid, parent_uri,
+                                    parent_cid, NULL, out);
 }
 
 wf_status wf_agent_reply_refs_with_embed(
@@ -1080,8 +1082,8 @@ wf_status wf_agent_reply_refs_with_embed(
         cJSON_Delete(embed);
         return WF_ERR_INVALID_ARG;
     }
-    return wf_agent_reply_refs_impl(agent, text, root_uri, root_cid,
-                                    parent_uri, parent_cid, embed, out);
+    return wf_agent_reply_refs_impl(agent, text, root_uri, root_cid, parent_uri,
+                                    parent_cid, embed, out);
 }
 
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
