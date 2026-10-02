@@ -137,6 +137,8 @@ int wf_wiiu_entropy_ready(void) {
 
 #include "wolfram/agent.h"
 
+int wii_tls_random(void *p, unsigned char *out, size_t len);
+
 wf_status wf_wiiu_apply_tls_rng(wf_agent *agent) {
     if (!agent) return WF_ERR_INVALID_ARG;
     if (!wf_wiiu_entropy_ready()) return WF_ERR_CRYPTO;
