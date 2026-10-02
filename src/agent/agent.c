@@ -1230,7 +1230,14 @@ const char *wf_agent_get_handle(wf_agent *agent) {
  * if the last request succeeded or carried no error envelope. */
 const char *wf_agent_last_error(const wf_agent *agent) {
     if (!agent || !agent->client) return NULL;
-    return wf_xrpc_last_error(agent->client);
+    /* Login and refresh go through the session's own client, so a failed
+     * createSession leaves its envelope there rather than on the data-plane
+     * client. */
+    const char *err = wf_xrpc_last_error(agent->client);
+    if (!err && agent->session && agent->session->client) {
+        err = wf_xrpc_last_error(agent->session->client);
+    }
+    return err;
 }
 
 void wf_agent_post_result_free(wf_agent_post_result *result) {
