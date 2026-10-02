@@ -262,6 +262,32 @@ int main(void) {
         wf_agent_post_result_free(&out);
     }
 
+    /* ---- reply with embed ---- */
+    {
+        const char *embed = "{\"$type\":\"app.bsky.embed.images\","
+                            "\"images\":[]}";
+        wf_agent_post_result out = {0};
+        WF_CHECK(wf_agent_reply_refs_with_embed(
+                     agent, "re", "at://r/p/1", "rc", "at://r/p/2", "pc", embed,
+                     &out) == WF_OK);
+        wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
+        cJSON *root = cJSON_Parse(last_body);
+        cJSON *rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record")
+                          : NULL;
+        WF_CHECK(rec && cJSON_GetObjectItemCaseSensitive(rec, "reply"));
+        cJSON *em = rec ? cJSON_GetObjectItemCaseSensitive(rec, "embed") : NULL;
+        WF_CHECK(cJSON_IsObject(em));
+        cJSON_Delete(root);
+        wf_agent_post_result_free(&out);
+
+        WF_CHECK(wf_agent_reply_refs_with_embed(agent, "re", "at://r/p/1", "rc",
+                                                "at://r/p/2", "pc", "[1]",
+                                                &out) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_reply_refs_with_embed(agent, "re", "at://r/p/1", "rc",
+                                                "at://r/p/2", "pc", "{bad",
+                                                &out) == WF_ERR_PARSE);
+    }
+
     /* ---- createStarterPack ---- */
     {
         wf_agent_post_result out = {0};

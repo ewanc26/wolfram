@@ -963,22 +963,28 @@ wf_status wf_agent_post_with_embed(wf_agent *agent, const char *text,
 }
 
 /* Reply with separate root and parent strong references. */
-wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
-                              const char *root_uri, const char *root_cid,
-                              const char *parent_uri, const char *parent_cid,
-                              wf_agent_post_result *out) {
+static wf_status wf_agent_reply_refs_impl(
+    wf_agent *agent, const char *text, const char *root_uri,
+    const char *root_cid, const char *parent_uri, const char *parent_cid,
+    cJSON *embed, wf_agent_post_result *out) {
+    /* Takes ownership of `embed` (nullable) on every path. */
     if (!agent || !text || !root_uri || !root_cid || !parent_uri ||
         !parent_cid || !out) {
+        cJSON_Delete(embed);
         return WF_ERR_INVALID_ARG;
     }
 
     // Build post record with facets
     wf_richtext rt = {0};
     wf_status status = wf_richtext_init(&rt, text);
-    if (status != WF_OK) return status;
+    if (status != WF_OK) {
+        cJSON_Delete(embed);
+        return status;
+    }
     status = wf_richtext_detect_facets(&rt);
     if (status != WF_OK) {
         wf_richtext_free(&rt);
+        cJSON_Delete(embed);
         return status;
     }
     cJSON *facets = NULL;
@@ -991,6 +997,7 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
             facets = cJSON_CreateArray();
             if (!facets) {
                 wf_richtext_free(&rt);
+                cJSON_Delete(embed);
                 return WF_ERR_ALLOC;
             }
         }
@@ -998,6 +1005,7 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
         if (status != WF_OK) {
             cJSON_Delete(facets);
             wf_richtext_free(&rt);
+            cJSON_Delete(embed);
             return status;
         }
     }
@@ -1005,19 +1013,26 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
 
     cJSON *record = NULL;
     status = wf_agent_build_post_record(agent, text, facets, &record);
-    if (status != WF_OK) return status;
+    if (status != WF_OK) {
+        cJSON_Delete(embed);
+        return status;
+    }
 
     // Build reply object
     cJSON *reply = cJSON_CreateObject();
     if (!reply) {
         cJSON_Delete(record);
+        cJSON_Delete(embed);
         return WF_ERR_ALLOC;
     }
     cJSON *root = cJSON_CreateObject();
     cJSON *parent = cJSON_CreateObject();
     if (!root || !parent) {
         cJSON_Delete(reply);
+        cJSON_Delete(root);
+        cJSON_Delete(parent);
         cJSON_Delete(record);
+        cJSON_Delete(embed);
         return WF_ERR_ALLOC;
     }
     cJSON_AddStringToObject(root, "uri", root_uri);
@@ -1029,10 +1044,44 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
     if (!cJSON_AddItemToObject(record, "reply", reply)) {
         cJSON_Delete(reply);
         cJSON_Delete(record);
+        cJSON_Delete(embed);
+        return WF_ERR_ALLOC;
+    }
+    if (embed && !cJSON_AddItemToObject(record, "embed", embed)) {
+        cJSON_Delete(embed);
+        cJSON_Delete(record);
         return WF_ERR_ALLOC;
     }
     return wf_agent_create_record_call(agent, WF_AGENT_POST_COLLECTION, record,
                                        out);
+}
+
+wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
+                              const char *root_uri, const char *root_cid,
+                              const char *parent_uri, const char *parent_cid,
+                              wf_agent_post_result *out) {
+    return wf_agent_reply_refs_impl(agent, text, root_uri, root_cid,
+                                    parent_uri, parent_cid, NULL, out);
+}
+
+wf_status wf_agent_reply_refs_with_embed(
+    wf_agent *agent, const char *text, const char *root_uri,
+    const char *root_cid, const char *parent_uri, const char *parent_cid,
+    const char *embed_json, wf_agent_post_result *out) {
+    if (!embed_json || !embed_json[0]) {
+        return wf_agent_reply_refs(agent, text, root_uri, root_cid, parent_uri,
+                                   parent_cid, out);
+    }
+    cJSON *embed = cJSON_Parse(embed_json);
+    if (!embed) {
+        return WF_ERR_PARSE;
+    }
+    if (!cJSON_IsObject(embed)) {
+        cJSON_Delete(embed);
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_agent_reply_refs_impl(agent, text, root_uri, root_cid,
+                                    parent_uri, parent_cid, embed, out);
 }
 
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
