@@ -758,3 +758,44 @@ wf_agent_describe_feed_generator_typed(wf_agent *agent,
     wf_response_free(&res);
     return status;
 }
+
+wf_status wf_agent_search_posts_typed(wf_agent *agent, const char *query,
+                                      int limit, const char *cursor,
+                                      wf_agent_post_list *out,
+                                      char **next_cursor) {
+    if (!agent || !query || !query[0] || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (limit < 0 || limit > 100) {
+        return WF_ERR_INVALID_ARG;
+    }
+    if (next_cursor) {
+        *next_cursor = NULL;
+    }
+
+    wf_response res = {0};
+    wf_status status = wf_agent_search_posts(agent, query, limit, cursor, NULL,
+                                             NULL, NULL, NULL, &res);
+    if (status != WF_OK) {
+        wf_response_free(&res);
+        return status;
+    }
+
+    status = wf_agent_parse_posts(res.body, res.body_len, out);
+    if (status == WF_OK && next_cursor) {
+        cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
+        cJSON *c = root ? cJSON_GetObjectItemCaseSensitive(root, "cursor")
+                        : NULL;
+        if (cJSON_IsString(c) && c->valuestring[0]) {
+            *next_cursor = strdup(c->valuestring);
+            if (!*next_cursor) {
+                wf_agent_post_list_free(out);
+                status = WF_ERR_ALLOC;
+            }
+        }
+        cJSON_Delete(root);
+    }
+    wf_response_free(&res);
+    return status;
+}
+
