@@ -123,6 +123,7 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     free(profile->avatar_cid);
     free(profile->following);
     free(profile->blocking);
+    free(profile->pinned_post_uri);
     memset(profile, 0, sizeof(*profile));
 }
 
@@ -678,6 +679,15 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
         /* The profile view exposes an avatar URL, not a CID; keep the
          * field populated with the server value for convenience. */
         status = wf_agent_set_string(&out->avatar_cid, avatar->valuestring);
+    }
+
+    cJSON *pinned = cJSON_GetObjectItemCaseSensitive(root, "pinnedPost");
+    if (status == WF_OK && cJSON_IsObject(pinned)) {
+        cJSON *pinned_uri = cJSON_GetObjectItemCaseSensitive(pinned, "uri");
+        if (cJSON_IsString(pinned_uri) && pinned_uri->valuestring) {
+            status = wf_agent_set_string(&out->pinned_post_uri,
+                                         pinned_uri->valuestring);
+        }
     }
 
     cJSON *viewer = cJSON_GetObjectItemCaseSensitive(root, "viewer");

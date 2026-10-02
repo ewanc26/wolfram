@@ -202,6 +202,8 @@ typedef struct wf_agent_profile {
     int followers_count;
     int follows_count;
     int posts_count;
+    /* pinnedPost.uri, or NULL when the account has no pinned post. */
+    char *pinned_post_uri;
 } wf_agent_profile;
 
 wf_status wf_agent_get_profile(wf_agent *agent, const char *actor,
