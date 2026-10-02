@@ -288,6 +288,28 @@ int main(void) {
                                                 &out) == WF_ERR_PARSE);
     }
 
+    /* ---- searchPosts typed ---- */
+    {
+        WF_CHECK(wf_mock_pds_register(
+                     pds, "app.bsky.feed.searchPosts",
+                     "{\"cursor\":\"next1\",\"posts\":[{\"uri\":\"at://did:plc:x/"
+                     "app.bsky.feed.post/1\",\"cid\":\"bafy\",\"author\":{\"did\":"
+                     "\"did:plc:x\",\"handle\":\"x.test\"},\"record\":{\"text\":"
+                     "\"hi\",\"createdAt\":\"2026-01-01T00:00:00Z\"},"
+                     "\"indexedAt\":\"2026-01-01T00:00:00Z\"}]}") == WF_OK);
+        wf_agent_post_list pl;
+        memset(&pl, 0, sizeof(pl));
+        char *nc = NULL;
+        WF_CHECK(wf_agent_search_posts_typed(agent, "hello", 25, NULL, &pl,
+                                             &nc) == WF_OK);
+        WF_CHECK(pl.post_count == 1);
+        WF_CHECK(nc && strcmp(nc, "next1") == 0);
+        free(nc);
+        wf_agent_post_list_free(&pl);
+        WF_CHECK(wf_agent_search_posts_typed(agent, "", 25, NULL, &pl, NULL) ==
+                 WF_ERR_INVALID_ARG);
+    }
+
     /* ---- createStarterPack ---- */
     {
         wf_agent_post_result out = {0};

@@ -172,6 +172,12 @@ void wf_agent_feed_gen_describe_free(wf_agent_feed_gen_describe *out);
 /* Typed convenience wrappers for the remaining core feed read endpoints. On
  * success `out` is owned by the caller (free with the matching `_free`); on
  * error it is left reset. */
+/* app.bsky.feed.searchPosts. `*next_cursor` is a malloc'd string the caller
+ * frees, or NULL when there is no further page. */
+wf_status wf_agent_search_posts_typed(wf_agent *agent, const char *query,
+                                      int limit, const char *cursor,
+                                      wf_agent_post_list *out,
+                                      char **next_cursor);
 wf_status wf_agent_get_posts_typed(wf_agent *agent, const char *const *uris,
                                    size_t uri_count, wf_agent_post_list *out);
 wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
