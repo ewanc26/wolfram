@@ -155,6 +155,12 @@ wf_status wf_agent_reply_refs(wf_agent *agent, const char *text,
                               const char *parent_uri, const char *parent_cid,
                               wf_agent_post_result *out);
 
+/* As wf_agent_reply_refs, with an embed (e.g. images) on the reply. */
+wf_status wf_agent_reply_refs_with_embed(
+    wf_agent *agent, const char *text, const char *root_uri,
+    const char *root_cid, const char *parent_uri, const char *parent_cid,
+    const char *embed_json, wf_agent_post_result *out);
+
 /* Convenience for replying directly to a top-level post. The supplied post
  * is used as both root and parent. */
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
