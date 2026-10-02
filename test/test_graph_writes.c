@@ -473,11 +473,12 @@ int main(void) {
     {
         /* Scoped mute: the request body must carry onlyReposts/onlyQuoteposts,
          * not just the actor. */
-        wf_status st = wf_agent_mute_actor_scoped(agent, "did:plc:abc123", true,
-                                                  false);
+        wf_status st =
+            wf_agent_mute_actor_scoped(agent, "did:plc:abc123", true, false);
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "app.bsky.graph.muteActor") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "app.bsky.graph.muteActor") == 0);
         WF_CHECK(json_top_eq(last_body, "actor", "did:plc:abc123"));
         WF_CHECK(json_top_is_true(last_body, "onlyReposts"));
         WF_CHECK(json_top_absent(last_body, "onlyQuoteposts"));
@@ -488,7 +489,8 @@ int main(void) {
             wf_agent_mute_actor_scoped(agent, "did:plc:abc123", false, false);
         WF_CHECK(st == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
-        WF_CHECK(last_nsid && strcmp(last_nsid, "app.bsky.graph.muteActor") == 0);
+        WF_CHECK(last_nsid &&
+                 strcmp(last_nsid, "app.bsky.graph.muteActor") == 0);
         WF_CHECK(json_top_eq(last_body, "actor", "did:plc:abc123"));
         WF_CHECK(json_top_absent(last_body, "onlyReposts"));
         WF_CHECK(json_top_absent(last_body, "onlyQuoteposts"));
