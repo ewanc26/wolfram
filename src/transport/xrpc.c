@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "wolfram/log.h"
 
@@ -53,7 +54,11 @@ struct wf_xrpc_client {
     void *tls_rng_userdata;
     char *last_error; /* XRPC error message from the last non-2xx response */
     size_t max_response_bytes; /* 0 = WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES */
-    pthread_mutex_t mutex;     /* guards all mutable fields above */
+    char *user_agent;          /* NULL = "wolfram/<version>" */
+    int https_only;        /* nonzero: refuse non-https URLs and redirects */
+    long max_redirects;    /* < 0 = WF_XRPC_DEFAULT_MAX_REDIRECTS */
+    long total_timeout_ms; /* 0 = no overall deadline */
+    pthread_mutex_t mutex; /* guards all mutable fields above */
     struct wf_xrpc_pending *pending; /* linked list of in-flight async ops */
 };
 
@@ -70,9 +75,10 @@ struct wf_client_config {
     wf_tls_rng_fn tls_rng;
     void *tls_rng_userdata;
     size_t max_response_bytes; /* 0 = WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES */
-    /* Set only by wf_http_get_public: restrict the request AND every redirect
-     * hop to https, and cap redirects at WF_PUBLIC_MAX_REDIRECTS. */
+    char *user_agent;
     int https_only;
+    long max_redirects;
+    long total_timeout_ms;
 };
 
 /* Redirect cap for wf_http_get_public (CDN image URLs rarely hop at all). */
@@ -100,6 +106,7 @@ static void wf_config_free(struct wf_client_config *cfg) {
     free(cfg->base_url);
     free(cfg->auth_header);
     free(cfg->ca_bundle);
+    free(cfg->user_agent);
     free(cfg);
 }
 
@@ -120,10 +127,16 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     cfg->tls_rng = client->tls_rng;
     cfg->tls_rng_userdata = client->tls_rng_userdata;
     cfg->max_response_bytes = client->max_response_bytes;
+    cfg->user_agent = client->user_agent ? strdup(client->user_agent) : NULL;
+    cfg->https_only = client->https_only;
+    cfg->max_redirects = client->max_redirects;
+    cfg->total_timeout_ms = client->total_timeout_ms;
+    int copy_failed = (!cfg->base_url && client->base_url) ||
+                      (!cfg->auth_header && client->auth_header) ||
+                      (!cfg->ca_bundle && client->ca_bundle) ||
+                      (!cfg->user_agent && client->user_agent);
     pthread_mutex_unlock(&client->mutex);
-    if ((!cfg->base_url && client->base_url) ||
-        (!cfg->auth_header && client->auth_header) ||
-        (!cfg->ca_bundle && client->ca_bundle)) {
+    if (copy_failed) {
         wf_config_free(cfg);
         return NULL;
     }
@@ -332,6 +345,7 @@ wf_xrpc_client *wf_xrpc_client_new(const char *service_base_url) {
     }
 
     client->auth_header = NULL;
+    client->max_redirects = WF_XRPC_DEFAULT_MAX_REDIRECTS;
     if (pthread_mutex_init(&client->mutex, NULL) != 0) {
         free(client->base_url);
         free(client);
@@ -358,6 +372,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     free(client->base_url);
     free(client->auth_header);
     free(client->ca_bundle);
+    free(client->user_agent);
     free(client->last_error);
     free(client);
 }
@@ -413,6 +428,45 @@ void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
     if (!client) return;
     pthread_mutex_lock(&client->mutex);
     client->max_response_bytes = max_bytes;
+    pthread_mutex_unlock(&client->mutex);
+}
+
+wf_status wf_xrpc_client_set_user_agent(wf_xrpc_client *client,
+                                        const char *user_agent) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    char *copy = NULL;
+    if (user_agent && user_agent[0]) {
+        copy = strdup(user_agent);
+        if (!copy) return WF_ERR_ALLOC;
+    }
+    pthread_mutex_lock(&client->mutex);
+    free(client->user_agent);
+    client->user_agent = copy;
+    pthread_mutex_unlock(&client->mutex);
+    return WF_OK;
+}
+
+void wf_xrpc_client_set_https_only(wf_xrpc_client *client, int https_only) {
+    if (!client) return;
+    pthread_mutex_lock(&client->mutex);
+    client->https_only = https_only ? 1 : 0;
+    pthread_mutex_unlock(&client->mutex);
+}
+
+void wf_xrpc_client_set_max_redirects(wf_xrpc_client *client,
+                                      long max_redirects) {
+    if (!client) return;
+    pthread_mutex_lock(&client->mutex);
+    client->max_redirects =
+        max_redirects < 0 ? WF_XRPC_DEFAULT_MAX_REDIRECTS : max_redirects;
+    pthread_mutex_unlock(&client->mutex);
+}
+
+void wf_xrpc_client_set_total_timeout_ms(wf_xrpc_client *client,
+                                         long timeout_ms) {
+    if (!client) return;
+    pthread_mutex_lock(&client->mutex);
+    client->total_timeout_ms = timeout_ms < 0 ? 0 : timeout_ms;
     pthread_mutex_unlock(&client->mutex);
 }
 
@@ -530,12 +584,25 @@ static void wf_xrpc_set_error_str(char **slot, const wf_response *out) {
  * valid for the lifetime of the call. Does not touch client state; callers
  * are responsible for updating `last_error` under the client mutex if needed.
  */
+static int wf_url_is_https(const char *url) {
+    return url && strncasecmp(url, "https://", 8) == 0;
+}
+
 static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
                                      const char *method, const char *url,
                                      const char *content_type, const void *body,
                                      size_t body_len,
                                      struct curl_slist *headers,
                                      wf_response *out) {
+    /* Checked ahead of the handler seam so the policy is testable without a
+     * network, and ahead of curl so a refusal never costs a connection. Curl's
+     * own protocol restriction below is what covers redirects. */
+    if (cfg->https_only && !wf_url_is_https(url)) {
+        WF_LOG_ERROR("xrpc", "HTTP %s refused: not an https URL", method);
+        curl_slist_free_all(headers);
+        return WF_ERR_INVALID_ARG;
+    }
+
     if (cfg->handler) {
         wf_http_header *harr = NULL;
         size_t hcount = 0;
@@ -570,7 +637,8 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, wf_curl_header_cb);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &capture);
     curl_easy_setopt(curl, CURLOPT_USERAGENT,
-                     "wolfram/" WOLFRAM_VERSION_STRING);
+                     cfg->user_agent ? cfg->user_agent
+                                     : "wolfram/" WOLFRAM_VERSION_STRING);
     /* Bound the connection handshake and abort a genuinely stalled transfer
      * (a peer that accepts the connection but never sends a response) --
      * previously every request made through this function could hang
@@ -583,11 +651,22 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     /* Follow redirects (bounded): the Jetstream archive's getBlock 307s to a
      * CDN URL, and blob/PDS endpoints may redirect to their canonical host.
      * POST bodies are preserved across 307/308 by libcurl. */
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    /* With following on, libcurl treats MAXREDIRS 0 as "the first redirect is
+     * already too many" and errors; "do not follow" must switch it off. */
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION,
+                     cfg->max_redirects == 0 ? 0L : 1L);
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS,
-                     cfg->https_only ? WF_PUBLIC_MAX_REDIRECTS : 5L);
+                     cfg->max_redirects < 0
+                         ? (long)WF_XRPC_DEFAULT_MAX_REDIRECTS
+                         : cfg->max_redirects);
+    if (cfg->total_timeout_ms > 0) {
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, cfg->total_timeout_ms);
+        /* Timeouts raise SIGALRM-based resolver paths in some libcurl builds;
+         * that is never safe off the main thread. */
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+    }
     if (cfg->https_only) {
-#if LIBCURL_VERSION_NUM >= 0x075500
+#if LIBCURL_VERSION_NUM >= 0x075500 /* 7.85.0: CURLOPT_PROTOCOLS_STR */
         curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "https");
         curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "https");
 #else
@@ -1318,6 +1397,9 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
     free(cfg->auth_header);
     cfg->auth_header = NULL;
     cfg->https_only = 1;
+    /* An untrusted URL must not be able to walk a redirect chain for ever, so
+     * cap it tighter than the client's default. */
+    cfg->max_redirects = WF_PUBLIC_MAX_REDIRECTS;
     wf_status status =
         wf_xrpc_perform_cfg(cfg, "GET", url, NULL, NULL, 0, NULL, out);
     wf_config_free(cfg);

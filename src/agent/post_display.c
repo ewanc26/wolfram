@@ -100,8 +100,8 @@ static int wf_pd_is_boundary(const char *text, size_t len, size_t pos) {
 }
 
 static int wf_pd_facet_cmp(const void *a, const void *b) {
-    const wf_post_facet *fa = (const wf_post_facet *)a;
-    const wf_post_facet *fb = (const wf_post_facet *)b;
+    const wf_display_facet *fa = (const wf_display_facet *)a;
+    const wf_display_facet *fb = (const wf_display_facet *)b;
     if (fa->byte_start != fb->byte_start) {
         return fa->byte_start < fb->byte_start ? -1 : 1;
     }
@@ -164,7 +164,7 @@ static wf_status wf_pd_parse_facets(const cJSON *record, wf_post_display *out) {
     if (cap == 0) {
         return WF_OK;
     }
-    wf_post_facet *cand = (wf_post_facet *)calloc(cap, sizeof(*cand));
+    wf_display_facet *cand = (wf_display_facet *)calloc(cap, sizeof(*cand));
     if (!cand) {
         return WF_ERR_ALLOC;
     }

@@ -30,13 +30,17 @@ typedef enum wf_facet_kind {
 } wf_facet_kind;
 
 /* A validated richtext facet. [byte_start, byte_end) are byte offsets into
- * wf_post_display.text, on UTF-8 boundaries, within bounds, non-empty. */
-typedef struct wf_post_facet {
+ * wf_post_display.text, on UTF-8 boundaries, within bounds, non-empty.
+ *
+ * Deliberately not called wf_post_facet: post_view_typed.h declares a
+ * different, unvalidated facet of that name (int offsets, reported as sent).
+ * Both headers are pulled into wolfram.hpp, so the names must stay distinct. */
+typedef struct wf_display_facet {
     wf_facet_kind kind;
     size_t byte_start;
     size_t byte_end;
     char *target;
-} wf_post_facet;
+} wf_display_facet;
 
 typedef enum wf_post_embed_kind {
     WF_EMBED_NONE = 0,
@@ -52,8 +56,8 @@ typedef enum wf_post_embed_kind {
  * function resets it. Release with wf_post_display_free. */
 typedef struct wf_post_display {
     char *text; /* UTF-8; "" when the post has none (never NULL on WF_OK) */
-    char *created_at;      /* record createdAt, or NULL */
-    wf_post_facet *facets; /* sorted by byte_start, non-overlapping */
+    char *created_at;         /* record createdAt, or NULL */
+    wf_display_facet *facets; /* sorted by byte_start, non-overlapping */
     size_t facet_count;
     size_t image_count; /* images embed, or the media of recordWithMedia */
     wf_post_embed_kind embed_kind;

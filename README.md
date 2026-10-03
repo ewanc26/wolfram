@@ -92,6 +92,44 @@ The default desktop configure requires libcurl and OpenSSL, fetches pinned
 cJSON/libcbor sources, and builds examples and tests. A clean configure may
 require network access even when tests themselves are offline.
 
+Two tests, `relay_server` and `sync_publish_server`, fail on macOS and pass in
+CI. They are the only two that stand up a loopback HTTP server and drive a
+real WebSocket handshake and stream against it; on macOS the client side fails
+(`FAIL: client wf_websocket_connect to relay`, and `FAIL: published event
+seq N was not matched` in the sync case). Confirmed against unmodified `main`
+on 2026-10-03, so red there is not by itself evidence that a change broke
+something — check on Linux, or exclude them locally with
+`ctest -E 'relay_server|sync_publish_server'`.
+
+## Releases
+
+Wolfram is a source library, so a release is a version bump, an annotated tag
+and a GitHub release with no attached artifacts. Cut one with:
+
+```sh
+tools/release.sh minor              # 0.24.0 -> 0.25.0
+tools/release.sh 0.26.0             # or name the version outright
+tools/release.sh --dry-run minor    # run the checks, change nothing
+tools/release.sh --full minor       # also cover the full-features configuration
+```
+
+The version lives only in `project()` in `CMakeLists.txt`; everything else is
+derived from it. There is no CHANGELOG, so the release notes are generated
+from the commit subjects since the previous tag.
+
+The script refuses to run unless it is on `main` with a clean tree and local
+`main` identical to `origin/main` — a tag on a commit nobody else can fetch is
+not a release. It runs the default build and test configuration that CI's
+`default` job covers, then pushes the bump commit and waits for CI to go green
+before tagging (`--no-wait` skips the wait). If CI fails, the bump is left
+pushed but nothing is tagged, and the script prints the commands to finish by
+hand once it is fixed.
+
+`--full` additionally builds and tests the server, store, store-crypto and C++
+wrapper configuration. On macOS that run excludes `relay_server` and
+`sync_publish_server`, the two documented macOS failures above, and says so;
+every other test still has to pass.
+
 ## Cross-compilation Support
 
 Cross-compilation targets for Nintendo platforms and other architectures are supported:

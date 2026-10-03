@@ -226,6 +226,7 @@ add_library(
   src/agent/agent_ext.c
   src/agent/feed_typed.c
   src/agent/post_display.c
+  src/agent/post_view_typed.c
   src/agent/thread_typed.c
   src/agent/graph_typed.c
   src/agent/graph_social_typed.c
@@ -1209,6 +1210,15 @@ if(WOLFRAM_BUILD_TESTS)
   target_include_directories(test_xrpc PRIVATE test)
   add_test(NAME xrpc COMMAND test_xrpc)
 
+  if(NOT WIN32 AND NOT WOLFRAM_BUILD_EMBEDDED)
+    # Loopback HTTP server + POSIX sockets: the fetch policy and shared-client
+    # tests run the real libcurl path without touching the network.
+    add_executable(test_xrpc_fetch_policy test/test_xrpc_fetch_policy.c)
+    target_link_libraries(test_xrpc_fetch_policy PRIVATE wolfram Threads::Threads)
+    target_include_directories(test_xrpc_fetch_policy PRIVATE test)
+    add_test(NAME xrpc_fetch_policy COMMAND test_xrpc_fetch_policy)
+  endif()
+
   if(NOT WOLFRAM_BUILD_EMBEDDED)
     add_executable(test_xrpc_wii_host test/test_xrpc_wii_host.c
                                       src/transport/xrpc_wii.c)
@@ -1566,6 +1576,11 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_post_display PRIVATE wolfram)
   target_include_directories(test_post_display PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME post_display COMMAND test_post_display)
+
+  add_executable(test_post_view_typed test/test_post_view_typed.c)
+  target_link_libraries(test_post_view_typed PRIVATE wolfram)
+  target_include_directories(test_post_view_typed PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME post_view_typed COMMAND test_post_view_typed)
 
   add_executable(test_bookmark_typed test/test_bookmark_typed.c)
   target_link_libraries(test_bookmark_typed PRIVATE wolfram)
