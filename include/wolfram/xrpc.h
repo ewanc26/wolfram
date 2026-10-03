@@ -361,6 +361,20 @@ wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
                               size_t max_bytes, wf_response *out);
 
 /**
+ * Unauthenticated GET of an absolute https:// URL, for public CDN content
+ * (avatars, thumbnails). Uses the client's CA bundle, TLS RNG hook and
+ * response-size settings but NEVER sends the client's Authorization header,
+ * and does not touch the client's state, so it is safe alongside other
+ * requests on the same client. `max_bytes` caps the body (0 keeps the client's
+ * limit; overrun returns WF_ERR_NETWORK). Both the URL and every redirect hop
+ * must be https, with at most 3 redirects. Non-https URLs return
+ * WF_ERR_INVALID_ARG. On WF_OK or WF_ERR_HTTP, `out` is populated and must be
+ * freed with wf_response_free.
+ */
+wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
+                             size_t max_bytes, wf_response *out);
+
+/**
  * Perform a generic HTTP POST. This is the transport primitive used by
  * non-XRPC protocols such as OAuth. On WF_OK or WF_ERR_HTTP, `out` is
  * populated (including an optional DPoP-Nonce) and must be freed.
