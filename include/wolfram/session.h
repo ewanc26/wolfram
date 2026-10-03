@@ -53,7 +53,9 @@ void wf_session_free(wf_session *session);
  * Calls com.atproto.server.createSession.
  *
  * On WF_OK, session->data is populated and the access JWT is set
- * as the auth token on the underlying client.
+ * as the auth token on the underlying client. A rejected login returns
+ * WF_ERR_AUTH (HTTP 401) or WF_ERR_RATE_LIMIT (HTTP 429); the server's error
+ * envelope stays available from the client's last error.
  */
 wf_status wf_session_login(wf_session *session, const char *identifier,
                            const char *password);
@@ -78,6 +80,23 @@ wf_status wf_session_login_with_opts(wf_session *session,
                                      const char *identifier,
                                      const char *password,
                                      const wf_session_login_opts *opts);
+
+/**
+ * Serialise the credentials needed to resume a session (access and refresh
+ * JWTs, handle, DID and PDS URL) as a single-line JSON object. The caller
+ * frees *out_json with free(). The output contains live tokens: treat it as
+ * a secret and never log it.
+ */
+wf_status wf_session_data_to_json(const wf_session_data *data, char **out_json);
+
+/**
+ * Parse JSON produced by wf_session_data_to_json into `out` (initialised by
+ * this call). accessJwt, refreshJwt, handle and did are required; pdsUrl is
+ * optional. Free with wf_agent_session_data_free. On failure `out` is left
+ * empty.
+ */
+wf_status wf_session_data_from_json(const char *json, size_t json_len,
+                                    wf_session_data *out);
 
 /**
  * Resume previously persisted credentials, then immediately refresh them.
