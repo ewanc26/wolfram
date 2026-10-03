@@ -136,6 +136,14 @@ git ls-remote --exit-code --tags origin "refs/tags/v$new" >/dev/null 2>&1 &&
 # lazy quantifier, which BSD sed (macOS) rejects, and these expansions mean the
 # same thing in bash and zsh.
 remote_url="$(git remote get-url origin)"
+# Only a network remote can be turned into a release URL. Checking the shape
+# first means a filesystem remote is refused outright, rather than being
+# chewed up by the prefix removals below into something that looks plausible.
+case "$remote_url" in
+	*://*) ;;  # https://host/... or ssh://...
+	*@*:*) ;;  # git@host:owner/repo
+	*) fail "origin ($remote_url) is not a network remote; cannot derive the release URL" ;;
+esac
 remote_path="${remote_url%.git}"
 remote_path="${remote_path#*://}" # https:// or ssh://
 remote_path="${remote_path#*@}"   # user@, if present
@@ -191,7 +199,24 @@ revert_bump() {
 	git checkout -- CMakeLists.txt
 }
 
+# A release that fails partway must not leave a bumped CMakeLists.txt behind:
+# the next run would then read the wrong "current" version and skip a number.
+# This is an EXIT trap rather than an ERR trap because fail() ends in an
+# explicit `exit 1`, which never raises ERR -- an ERR trap leaves the tree
+# dirty on exactly the paths that matter most.
+bumped=0
+committed=0
+cleanup() {
+	local rc=$?
+	if ((rc != 0)) && ((bumped == 1 && committed == 0)); then
+		echo "release: reverting the version bump" >&2
+		revert_bump || true
+	fi
+}
+trap cleanup EXIT
+
 apply_bump "$new"
+bumped=1
 echo ">> Bumped CMakeLists.txt to ${new}"
 
 # ---------------------------------------------------------------------------
@@ -219,16 +244,6 @@ run_config() {
 	ctest --test-dir "$dir" --output-on-failure -j"$(jobs)" 2>&1 |
 		tail -n 25 || fail "${label}: ctest failed"
 }
-
-# abort_on_failure keeps a failed run from leaving a bumped CMakeLists.txt
-# behind: the release stops, but the tree goes back to how it was found.
-abort_on_failure() {
-	echo "release: checks failed; reverting the version bump" >&2
-	revert_bump
-	exit 1
-}
-
-trap abort_on_failure ERR
 
 run_config "$BUILD_DIR" "default build"
 
@@ -275,7 +290,6 @@ if ((dry_run)); then
 	echo "$notes"
 	echo
 	echo ">> Dry run complete; nothing was committed, tagged or published."
-	trap - ERR
 	exit 0
 fi
 
@@ -285,6 +299,9 @@ fi
 
 git add CMakeLists.txt
 git commit -q -m "version: bump to ${new}"
+# Past this point the bump is a commit, not a working-tree edit: a later
+# failure must not undo it, because it is already the pushed history.
+committed=1
 bump_sha="$(git rev-parse HEAD)"
 
 echo ">> Pushing ${bump_sha}"
@@ -303,14 +320,12 @@ if ((wait_ci)); then
 		echo "release: no CI run found for ${bump_sha}; the bump is pushed but untagged." >&2
 		echo "  Re-run with --no-wait once CI is green, or tag manually:" >&2
 		echo "    git tag -a v${new} -m v${new} ${bump_sha} && git push origin v${new}" >&2
-		trap - ERR
 		exit 1
 	fi
 	if ! gh run watch "$run_id" --exit-status; then
 		echo "release: CI failed on ${bump_sha}; the bump is pushed but untagged." >&2
 		echo "  Fix and push, then tag the fixed commit, or tag manually:" >&2
 		echo "    git tag -a v${new} -m v${new} <sha> && git push origin v${new}" >&2
-		trap - ERR
 		exit 1
 	fi
 	echo ">> CI green"
@@ -324,5 +339,4 @@ git push origin "v${new}"
 
 gh release create "v${new}" --title "v${new}" --notes "$notes"
 
-trap - ERR
 echo ">> Released ${repo_url}/releases/tag/v${new}"
