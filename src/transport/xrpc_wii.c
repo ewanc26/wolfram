@@ -877,3 +877,22 @@ wf_status wf_xrpc_error(const wf_response *resp, char **out_error,
     cJSON_Delete(root);
     return WF_OK;
 }
+
+/* Same contract as the curl transport's wf_http_get_public. This transport has
+ * no redirect following, so only the https-only and no-credential rules apply.
+ * A stack copy of the client with the auth header cleared leaves the caller's
+ * client untouched. */
+wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
+                             size_t max_bytes, wf_response *out) {
+    (void)max_bytes;
+    if (!client || !url || !out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    if (strncmp(url, "https://", 8) != 0 || url[8] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+    struct wf_xrpc_client anon = *client;
+    anon.auth_header = NULL;
+    anon.refresh_cb = NULL;
+    anon.last_error = NULL;
+    return wf_xrpc_perform(&anon, "GET", url, NULL, NULL, 0, NULL, 0, out);
+}

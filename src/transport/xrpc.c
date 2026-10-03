@@ -81,6 +81,9 @@ struct wf_client_config {
     long total_timeout_ms;
 };
 
+/* Redirect cap for wf_http_get_public (CDN image URLs rarely hop at all). */
+#define WF_PUBLIC_MAX_REDIRECTS 3L
+
 static void wf_config_free(struct wf_client_config *cfg);
 static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client);
 
@@ -1375,6 +1378,32 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url,
 wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
                               size_t max_bytes, wf_response *out) {
     return wf_http_get_impl(client, url, NULL, 0, max_bytes, out);
+}
+
+wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
+                             size_t max_bytes, wf_response *out) {
+    if (!client || !url || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+    if (strncmp(url, "https://", 8) != 0 || url[8] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+    if (max_bytes) cfg->max_response_bytes = max_bytes;
+    /* The snapshot is private to this call, so dropping the credential here
+     * never touches the client's own (shared) auth state. */
+    free(cfg->auth_header);
+    cfg->auth_header = NULL;
+    cfg->https_only = 1;
+    /* An untrusted URL must not be able to walk a redirect chain for ever, so
+     * cap it tighter than the client's default. */
+    cfg->max_redirects = WF_PUBLIC_MAX_REDIRECTS;
+    wf_status status =
+        wf_xrpc_perform_cfg(cfg, "GET", url, NULL, NULL, 0, NULL, out);
+    wf_config_free(cfg);
+    return status;
 }
 
 /* ── Async API ──────────────────────────────────────────────────────── */

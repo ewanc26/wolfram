@@ -48,6 +48,9 @@
 #include <wolfram/ozone_moderation_ops_typed.h>
 #include <wolfram/ozone_typed.h>
 #include <wolfram/platform.h>
+#include <wolfram/plc.h>
+#include <wolfram/post_display.h>
+#include <wolfram/post_view_typed.h>
 #include <wolfram/relay_server.h>
 #include <wolfram/repo/car.h>
 #include <wolfram/repo/cid.h>
@@ -171,6 +174,8 @@ using wf_agent_trending_topics_handle =
     unique_handle<wf_agent_trending_topics, wf_agent_trending_topics_free>;
 using wf_agent_unspecced_config_handle =
     unique_handle<wf_agent_unspecced_config, wf_agent_unspecced_config_free>;
+using wf_attestation_payload_handle =
+    unique_handle<wf_attestation_payload, wf_attestation_payload_free>;
 using wf_auth_client_handle =
     unique_handle<wf_auth_client, wf_auth_client_free>;
 using wf_blob_store_handle = unique_handle<wf_blob_store, wf_blob_store_free>;
@@ -329,6 +334,9 @@ using wf_jetstream_event_handle =
     unique_handle<wf_jetstream_event, wf_jetstream_event_free>;
 using wf_jetstream_event_typed_handle =
     unique_handle<wf_jetstream_event_typed, wf_jetstream_event_typed_free>;
+using wf_jetstream_replay_manifest_handle =
+    unique_handle<wf_jetstream_replay_manifest,
+                  wf_jetstream_replay_manifest_free>;
 using wf_jetstream_replay_plan_page_handle =
     unique_handle<wf_jetstream_replay_plan_page,
                   wf_jetstream_replay_plan_page_free>;
@@ -1341,6 +1349,15 @@ using wf_ozone_team_member_list_handle =
     unique_handle<wf_ozone_team_member_list, wf_ozone_team_member_list_free>;
 using wf_platform_mutex_handle =
     unique_handle<wf_platform_mutex, wf_platform_mutex_free>;
+using wf_post_display_handle =
+    unique_handle<wf_post_display, wf_post_display_free>;
+using wf_post_embed_handle = unique_handle<wf_post_embed, wf_post_embed_free>;
+using wf_post_reason_handle =
+    unique_handle<wf_post_reason, wf_post_reason_free>;
+using wf_post_record_handle =
+    unique_handle<wf_post_record, wf_post_record_free>;
+using wf_post_reply_root_handle =
+    unique_handle<wf_post_reply_root, wf_post_reply_root_free>;
 using wf_rate_limiter_handle =
     unique_handle<wf_rate_limiter, wf_rate_limiter_free>;
 using wf_relay_config_handle =
