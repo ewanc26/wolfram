@@ -8,6 +8,8 @@
 #include "wolfram/syntax.h"
 #include "wolfram/store.h"
 
+#include "_agent_struct.h"
+
 #include <cJSON.h>
 #include "wolfram/atproto_lex.h"
 
@@ -36,42 +38,6 @@
 #define WF_AGENT_FACET_MENTION_TYPE "app.bsky.richtext.facet#mention"
 #define WF_AGENT_FACET_LINK_TYPE "app.bsky.richtext.facet#link"
 #define WF_AGENT_FACET_TAG_TYPE "app.bsky.richtext.facet#tag"
-
-typedef struct wf_agent {
-    wf_xrpc_client *client;
-    /* Separate XRPC client for the Bluesky chat service (chat.bsky.convo.*).
-     * Lazily created via wf_agent_chat_service_resolve. Kept in sync with the
-     * private struct in _internal.h. */
-    wf_xrpc_client *chat_client;
-    wf_session *session;
-    char *service_url;
-    /* Offline identity (for local repo mirror without network login). */
-    char *mirror_did;
-    char *mirror_signing_key;
-    /* Local repo mirror — a wf_car whose root is the latest verified commit. */
-    wf_car mirror;
-    /* TLS settings, remembered rather than applied once: an agent owns three
-     * clients (data plane, session, and the lazily-created chat client), and a
-     * platform that needs a CA bundle or its own handshake RNG needs every one
-     * of them configured, including ones that do not exist yet at the time the
-     * application sets this. */
-    char *ca_bundle;
-    wf_tls_rng_fn tls_rng;
-    void *tls_rng_userdata;
-    /* Default BCP-47 tags written to new posts' `langs` (comma-separated,
-     * max 3). NULL means none. Owned by the agent. */
-    char *post_langs;
-#ifdef WOLFRAM_BUILD_STORE
-    /* Optional persistence target. Caller-owned; never freed by the agent. */
-    wf_store *store;
-    /* Labels loaded from the attached store (or NULL). Aggregated across the
-     * agent's own DID and any followed/known DIDs reached at load time.
-     * Caller of wf_agent_load_labels_from_store owns the lifecycle intent, but
-     * the agent owns the allocation and frees it on wf_agent_free. */
-    wf_mod_label *persisted_labels;
-    size_t persisted_label_count;
-#endif
-} wf_agent;
 
 wf_xrpc_client *wf_agent_get_xrpc_client(wf_agent *agent) {
     return agent ? agent->client : NULL;
