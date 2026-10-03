@@ -130,7 +130,22 @@ git rev-parse -q --verify "refs/tags/v$new" >/dev/null && fail "tag v$new alread
 git ls-remote --exit-code --tags origin "refs/tags/v$new" >/dev/null 2>&1 &&
 	fail "tag v$new already exists on origin"
 
-repo_url="https://github.com/$(git remote get-url origin | sed -E 's#.*[:/]([^/]+)/([^/]+?)(\.git)?$#\1/\2#')"
+# owner/repo from the origin URL. Both the scp-style (git@host:owner/repo.git)
+# and URL (https://host/owner/repo.git) forms end in owner/repo. Stripped with
+# plain prefix removals rather than sed because the obvious sed form needs a
+# lazy quantifier, which BSD sed (macOS) rejects, and these expansions mean the
+# same thing in bash and zsh.
+remote_url="$(git remote get-url origin)"
+remote_path="${remote_url%.git}"
+remote_path="${remote_path#*://}" # https:// or ssh://
+remote_path="${remote_path#*@}"   # user@, if present
+case "$remote_path" in
+	*:*/*) remote_path="${remote_path#*:}" ;; # host:owner/repo (scp-style)
+	*/*/*) remote_path="${remote_path#*/}" ;; # host/owner/repo (URL-style)
+esac
+[[ "$remote_path" == */* && "$remote_path" != */*/* ]] ||
+	fail "could not read owner/repo from origin ($remote_url)"
+repo_url="https://github.com/${remote_path}"
 
 # The previous tag defines the release notes range. Highest existing tag wins.
 prev_tag="$(git tag --list 'v[0-9]*' --sort=-v:refname | head -1 || true)"
