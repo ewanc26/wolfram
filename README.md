@@ -92,6 +92,15 @@ The default desktop configure requires libcurl and OpenSSL, fetches pinned
 cJSON/libcbor sources, and builds examples and tests. A clean configure may
 require network access even when tests themselves are offline.
 
+Two tests, `relay_server` and `sync_publish_server`, fail on macOS and pass in
+CI. They are the only two that stand up a loopback HTTP server and drive a
+real WebSocket handshake and stream against it; on macOS the client side fails
+(`FAIL: client wf_websocket_connect to relay`, and `FAIL: published event
+seq N was not matched` in the sync case). Confirmed against unmodified `main`
+on 2026-10-03, so red there is not by itself evidence that a change broke
+something — check on Linux, or exclude them locally with
+`ctest -E 'relay_server|sync_publish_server'`.
+
 ## Cross-compilation Support
 
 Cross-compilation targets for Nintendo platforms and other architectures are supported:
