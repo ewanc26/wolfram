@@ -116,6 +116,45 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
                                            size_t max_bytes);
 
+/** Default cap on redirects followed by one request. */
+#define WF_XRPC_DEFAULT_MAX_REDIRECTS 5
+
+/**
+ * Override the User-Agent sent by this client (default "wolfram/<version>").
+ * NULL or "" restores the default. The string is copied.
+ */
+wf_status wf_xrpc_client_set_user_agent(wf_xrpc_client *client,
+                                        const char *user_agent);
+
+/**
+ * Refuse anything but https. When enabled, a request whose URL is not
+ * https:// fails with WF_ERR_INVALID_ARG before any connection is made, and
+ * libcurl is restricted to https for redirects too, so a redirect to plain
+ * http fails the transfer (WF_ERR_NETWORK). Meant for clients that fetch
+ * URLs handed over by a remote party (avatars, link cards), where a
+ * downgrade would leak what is being read. Off by default: PDSes on a LAN
+ * legitimately use http.
+ */
+void wf_xrpc_client_set_https_only(wf_xrpc_client *client, int https_only);
+
+/**
+ * Cap the redirects one request follows. 0 disables following; a negative
+ * value restores WF_XRPC_DEFAULT_MAX_REDIRECTS. Exceeding the cap fails the
+ * request with WF_ERR_NETWORK.
+ */
+void wf_xrpc_client_set_max_redirects(wf_xrpc_client *client,
+                                      long max_redirects);
+
+/**
+ * Overall deadline for one request, connect through last byte, in
+ * milliseconds. 0 (the default) means no overall deadline: only the connect
+ * timeout and the low-speed stall abort apply, which is right for large
+ * transfers but not for callers that would rather give up than wait. A
+ * request that hits the deadline fails with WF_ERR_NETWORK.
+ */
+void wf_xrpc_client_set_total_timeout_ms(wf_xrpc_client *client,
+                                         long timeout_ms);
+
 /**
  * Set a custom CA bundle path for TLS verification. When non-NULL, libcurl
  * uses this PEM file instead of the system default. Pass NULL to restore

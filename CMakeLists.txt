@@ -1209,6 +1209,15 @@ if(WOLFRAM_BUILD_TESTS)
   target_include_directories(test_xrpc PRIVATE test)
   add_test(NAME xrpc COMMAND test_xrpc)
 
+  if(NOT WIN32 AND NOT WOLFRAM_BUILD_EMBEDDED)
+    # Loopback HTTP server + POSIX sockets: the fetch policy and shared-client
+    # tests run the real libcurl path without touching the network.
+    add_executable(test_xrpc_fetch_policy test/test_xrpc_fetch_policy.c)
+    target_link_libraries(test_xrpc_fetch_policy PRIVATE wolfram Threads::Threads)
+    target_include_directories(test_xrpc_fetch_policy PRIVATE test)
+    add_test(NAME xrpc_fetch_policy COMMAND test_xrpc_fetch_policy)
+  endif()
+
   if(NOT WOLFRAM_BUILD_EMBEDDED)
     add_executable(test_xrpc_wii_host test/test_xrpc_wii_host.c
                                       src/transport/xrpc_wii.c)
