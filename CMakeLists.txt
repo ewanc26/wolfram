@@ -225,6 +225,7 @@ add_library(
   src/agent/notification.c
   src/agent/agent_ext.c
   src/agent/feed_typed.c
+  src/agent/post_display.c
   src/agent/thread_typed.c
   src/agent/graph_typed.c
   src/agent/graph_social_typed.c
@@ -1560,6 +1561,11 @@ if(WOLFRAM_BUILD_TESTS)
     test_feed_typed
     PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   add_test(NAME feed_typed COMMAND test_feed_typed)
+
+  add_executable(test_post_display test/test_post_display.c)
+  target_link_libraries(test_post_display PRIVATE wolfram)
+  target_include_directories(test_post_display PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME post_display COMMAND test_post_display)
 
   add_executable(test_bookmark_typed test/test_bookmark_typed.c)
   target_link_libraries(test_bookmark_typed PRIVATE wolfram)

@@ -70,7 +70,13 @@ struct wf_client_config {
     wf_tls_rng_fn tls_rng;
     void *tls_rng_userdata;
     size_t max_response_bytes; /* 0 = WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES */
+    /* Set only by wf_http_get_public: restrict the request AND every redirect
+     * hop to https, and cap redirects at WF_PUBLIC_MAX_REDIRECTS. */
+    int https_only;
 };
+
+/* Redirect cap for wf_http_get_public (CDN image URLs rarely hop at all). */
+#define WF_PUBLIC_MAX_REDIRECTS 3L
 
 static void wf_config_free(struct wf_client_config *cfg);
 static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client);
@@ -578,7 +584,17 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
      * CDN URL, and blob/PDS endpoints may redirect to their canonical host.
      * POST bodies are preserved across 307/308 by libcurl. */
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS,
+                     cfg->https_only ? WF_PUBLIC_MAX_REDIRECTS : 5L);
+    if (cfg->https_only) {
+#if LIBCURL_VERSION_NUM >= 0x075500
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "https");
+        curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "https");
+#else
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS, (long)CURLPROTO_HTTPS);
+        curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS, (long)CURLPROTO_HTTPS);
+#endif
+    }
     if (cfg->ca_bundle) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, cfg->ca_bundle);
     }
@@ -1283,6 +1299,29 @@ wf_status wf_http_get(wf_xrpc_client *client, const char *url,
 wf_status wf_http_get_limited(wf_xrpc_client *client, const char *url,
                               size_t max_bytes, wf_response *out) {
     return wf_http_get_impl(client, url, NULL, 0, max_bytes, out);
+}
+
+wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
+                             size_t max_bytes, wf_response *out) {
+    if (!client || !url || !out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    memset(out, 0, sizeof(*out));
+    if (strncmp(url, "https://", 8) != 0 || url[8] == '\0') {
+        return WF_ERR_INVALID_ARG;
+    }
+    struct wf_client_config *cfg = wf_client_snapshot(client);
+    if (!cfg) return WF_ERR_ALLOC;
+    if (max_bytes) cfg->max_response_bytes = max_bytes;
+    /* The snapshot is private to this call, so dropping the credential here
+     * never touches the client's own (shared) auth state. */
+    free(cfg->auth_header);
+    cfg->auth_header = NULL;
+    cfg->https_only = 1;
+    wf_status status =
+        wf_xrpc_perform_cfg(cfg, "GET", url, NULL, NULL, 0, NULL, out);
+    wf_config_free(cfg);
+    return status;
 }
 
 /* ── Async API ──────────────────────────────────────────────────────── */
