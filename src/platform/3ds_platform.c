@@ -12,14 +12,16 @@
 
 #include <3ds.h>
 #include <3ds/services/soc.h>
+#include <3ds/services/ps.h>
 #include <3ds/synchronization.h>
 #include <3ds/os.h>
 
 /* ── Init / shutdown ────────────────────────────────────────────────── */
 
 /* libctru's socInit() takes a caller-owned context buffer. 0x1000 is the size
- * libctru's own examples pass. */
-static u32 soc_ctx[0x1000 / sizeof(u32)];
+ * libctru's own examples pass. It must also be page-aligned: the kernel maps
+ * it as a memory block, and an unaligned buffer trips Azahar's assertion. */
+static u32 soc_ctx[0x1000 / sizeof(u32)] __attribute__((aligned(0x1000)));
 
 wf_status wf_platform_init(void) {
     /* Only the socket layer is needed here. The 3DS transport is the shared
@@ -27,10 +29,18 @@ wf_status wf_platform_init(void) {
      * devkitPro's 3DS libcurl talks to libctru's sockets directly, so the HTTPC
      * service is deliberately not started. */
     if (socInit(soc_ctx, sizeof(soc_ctx)) < 0) return WF_ERR_NETWORK;
+    /* The hardware entropy behind mbedTLS (sslcGenerateRandomData) sends its
+     * request on the ps:ps session handle, which stays NULL until psInit()
+     * runs. Without it every handshake and signature fails to seed. */
+    if (R_FAILED(psInit())) {
+        socExit();
+        return WF_ERR_CRYPTO;
+    }
     return WF_OK;
 }
 
 void wf_platform_shutdown(void) {
+    psExit();
     socExit();
 }
 

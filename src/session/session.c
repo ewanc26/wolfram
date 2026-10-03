@@ -357,6 +357,16 @@ wf_status wf_session_login_with_opts(wf_session *session,
     free(json_str);
 
     if (status != WF_OK) {
+        /* createSession is unauthenticated, so the transport reports a
+         * rejected login as a plain HTTP error. Give callers the specific
+         * outcomes: 401 is "wrong identifier or password" and 429 is the
+         * service rate-limiting login attempts. */
+        if (status == WF_ERR_HTTP) {
+            if (res.status == 401)
+                status = WF_ERR_AUTH;
+            else if (res.status == 429)
+                status = WF_ERR_RATE_LIMIT;
+        }
         wf_response_free(&res);
         return status;
     }
@@ -527,4 +537,68 @@ wf_status wf_session_delete(wf_session *session) {
 
 int wf_session_has_session(const wf_session *session) {
     return session ? session->has_session : 0;
+}
+
+wf_status wf_session_data_to_json(const wf_session_data *data,
+                                  char **out_json) {
+    if (!data || !out_json || !data->access_jwt || !data->refresh_jwt ||
+        !data->handle || !data->did) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out_json = NULL;
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) return WF_ERR_ALLOC;
+    if (!cJSON_AddStringToObject(root, "accessJwt", data->access_jwt) ||
+        !cJSON_AddStringToObject(root, "refreshJwt", data->refresh_jwt) ||
+        !cJSON_AddStringToObject(root, "handle", data->handle) ||
+        !cJSON_AddStringToObject(root, "did", data->did) ||
+        (data->pds_url &&
+         !cJSON_AddStringToObject(root, "pdsUrl", data->pds_url))) {
+        cJSON_Delete(root);
+        return WF_ERR_ALLOC;
+    }
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!json) return WF_ERR_ALLOC;
+    *out_json = json;
+    return WF_OK;
+}
+
+wf_status wf_session_data_from_json(const char *json, size_t json_len,
+                                    wf_session_data *out) {
+    if (!json || !out) return WF_ERR_INVALID_ARG;
+    wf_session_data_init(out);
+
+    cJSON *root = cJSON_ParseWithLength(json, json_len);
+    if (!root) return WF_ERR_PARSE;
+
+    cJSON *access = cJSON_GetObjectItemCaseSensitive(root, "accessJwt");
+    cJSON *refresh = cJSON_GetObjectItemCaseSensitive(root, "refreshJwt");
+    cJSON *handle = cJSON_GetObjectItemCaseSensitive(root, "handle");
+    cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
+    cJSON *pds = cJSON_GetObjectItemCaseSensitive(root, "pdsUrl");
+
+    wf_status status = WF_OK;
+    if (!cJSON_IsString(access) || !cJSON_IsString(refresh) ||
+        !cJSON_IsString(handle) || !cJSON_IsString(did) ||
+        (pds && !cJSON_IsString(pds))) {
+        status = WF_ERR_PARSE;
+    } else {
+        out->access_jwt = wf_strdup(access->valuestring);
+        out->refresh_jwt = wf_strdup(refresh->valuestring);
+        out->handle = wf_strdup(handle->valuestring);
+        out->did = wf_strdup(did->valuestring);
+        if (pds) out->pds_url = wf_strdup(pds->valuestring);
+        if (!out->access_jwt || !out->refresh_jwt || !out->handle ||
+            !out->did || (pds && !out->pds_url)) {
+            status = WF_ERR_ALLOC;
+        }
+    }
+    cJSON_Delete(root);
+    if (status != WF_OK) {
+        wf_session_data_free(out);
+        wf_session_data_init(out);
+    }
+    return status;
 }
