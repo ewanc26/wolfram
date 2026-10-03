@@ -18,8 +18,9 @@
 /* ── Init / shutdown ────────────────────────────────────────────────── */
 
 /* libctru's socInit() takes a caller-owned context buffer. 0x1000 is the size
- * libctru's own examples pass. */
-static u32 soc_ctx[0x1000 / sizeof(u32)];
+ * libctru's own examples pass. It must also be page-aligned: the kernel maps
+ * it as a memory block, and an unaligned buffer trips Azahar's assertion. */
+static u32 soc_ctx[0x1000 / sizeof(u32)] __attribute__((aligned(0x1000)));
 
 wf_status wf_platform_init(void) {
     /* Only the socket layer is needed here. The 3DS transport is the shared
