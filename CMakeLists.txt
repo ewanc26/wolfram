@@ -49,11 +49,23 @@ option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)"
 # while `ctest` still reported 100% passed, because it never saw them.
 option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
 
+option(WOLFRAM_BUILD_OAUTH_NODE "Build the hosted Wolfram OAuth pairing node" OFF)
+
+# The OAuth node is a hosted web service. It deliberately never enters an
+# embedded build, where the OAuth client itself is not part of Wolfram.
+# Enabling it also enables the existing HTTP/XRPC server module.
 # Derived: true for any embedded/console target
 if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_WIIU OR WOLFRAM_BUILD_3DS)
   set(WOLFRAM_BUILD_EMBEDDED ON)
 else()
   set(WOLFRAM_BUILD_EMBEDDED OFF)
+endif()
+
+if(WOLFRAM_BUILD_OAUTH_NODE AND WOLFRAM_BUILD_EMBEDDED)
+  message(FATAL_ERROR "WOLFRAM_BUILD_OAUTH_NODE is only supported on hosted builds")
+endif()
+if(WOLFRAM_BUILD_OAUTH_NODE)
+  set(WOLFRAM_BUILD_SERVER ON CACHE BOOL "" FORCE)
 endif()
 
 # Derived: true for any non-POSIX target (embedded or Windows)
@@ -159,6 +171,11 @@ if(NOT WOLFRAM_BUILD_NON_POSIX)
     wf_lexgen_tool PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR}
                            ${OPENSSL_INCLUDE_DIR})
   target_link_libraries(wf_lexgen_tool PRIVATE cjson OpenSSL::Crypto)
+endif()
+
+if(WOLFRAM_BUILD_OAUTH_NODE)
+  add_executable(wolfram-oauth-node tools/oauth_node.c)
+  target_link_libraries(wolfram-oauth-node PRIVATE wolfram Threads::Threads OpenSSL::Crypto)
 endif()
 
 add_library(
@@ -309,7 +326,8 @@ add_library(
   # Generic JSON round-trip / schema-subset validation
   $<IF:$<BOOL:${WOLFRAM_BUILD_NON_POSIX}>,src/json/json.c,cpp/wolfram/json.cpp>
   # Image dimension probing via vendored stb_image (header-only, third_party/)
-  src/image.c)
+  src/image.c
+  $<$<BOOL:${WOLFRAM_BUILD_OAUTH_NODE}>:src/node/oauth_node.c>)
 
 # The version lives only in the `VERSION` above; derive the public
 # WOLFRAM_VERSION_* macros from PROJECT_VERSION at compile time.
