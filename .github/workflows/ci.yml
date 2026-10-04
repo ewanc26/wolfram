@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/ci]
+    branches: [main, feat/ci, feat/oauth-node]
   pull_request:
   workflow_dispatch:
 
@@ -12,6 +12,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
+  oauth-node:
+    name: Hosted OAuth node
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OAuth node dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config libcurl4-openssl-dev \
+            libcjson-dev libmbedtls-dev libmicrohttpd-dev libssl-dev
+      - name: Configure
+        run: |
+          cmake -S . -B build-oauth \
+            -DWOLFRAM_BUILD_OAUTH_NODE=ON \
+            -DWOLFRAM_BUILD_TESTS=OFF \
+            -DWOLFRAM_BUILD_EXAMPLES=OFF \
+            -DWOLFRAM_BUILD_TEST_HTTPD=ON \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - name: Build OAuth node
+        run: cmake --build build-oauth -j2 --target wolfram-oauth-node
   # Default build: core C23 library + CLI + unit tests. No optional modules.
   default:
     name: default build + ctest

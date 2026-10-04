@@ -74,6 +74,12 @@ wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn,
 wf_status wf_agent_login(wf_agent *agent, const char *identifier,
                          const char *password);
 wf_status wf_agent_resume(wf_agent *agent, const wf_session_data *data);
+
+/* Attach a bearer credential supplied by an external auth broker. The agent
+ * does not attempt local refresh; the broker owns token refresh. */
+wf_status wf_agent_set_bearer(wf_agent *agent, const char *access_token,
+                              const char *handle, const char *did);
+
 wf_status wf_agent_get_session(wf_agent *agent);
 wf_status wf_agent_logout(wf_agent *agent);
 /* Copies the current session credentials; free the copy with

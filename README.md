@@ -107,7 +107,7 @@ Wolfram is a source library, so a release is a version bump, an annotated tag
 and a GitHub release with no attached artifacts. Cut one with:
 
 ```sh
-tools/release.sh minor              # 0.24.0 -> 0.25.0
+tools/release.sh minor              # 0.25.0 -> 0.26.0
 tools/release.sh 0.26.0             # or name the version outright
 tools/release.sh --dry-run minor    # run the checks, change nothing
 tools/release.sh --full minor       # also cover the full-features configuration
