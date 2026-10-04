@@ -208,8 +208,9 @@ jobs:
         if: github.head_ref == 'feat/oauth-node'
         run: |
           clang-format-18 -i src/node/oauth_node.c tools/oauth_node.c
-          mkdir -p /tmp/oauth-node-formatted
-          cp src/node/oauth_node.c tools/oauth_node.c /tmp/oauth-node-formatted/
+          mkdir -p /tmp/oauth-node-formatted/src/node /tmp/oauth-node-formatted/tools
+          cp src/node/oauth_node.c /tmp/oauth-node-formatted/src/node/
+          cp tools/oauth_node.c /tmp/oauth-node-formatted/tools/
 
       - name: Upload OAuth node formatted files
         if: github.head_ref == 'feat/oauth-node'
