@@ -40,7 +40,7 @@ The node exposes:
 - `GET /xrpc/uk.ewancroft.oauth.poll?code=<pair-code>`
 - authenticated XRPC proxying for console sessions
 
-The production Slingshot resolver is fixed to `https://slingshot.microcosm.blue` by default. A different resolver can be supplied through the node configuration API when embedding the node rather than using the standalone executable.
+The production Slingshot resolver is fixed to `https://slingshot.micocosm.blue` by default. A different resolver can be supplied through the node configuration API when embedding the node rather than using the standalone executable.
 
 ## Browser sign-in flow
 
