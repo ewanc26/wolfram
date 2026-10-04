@@ -86,6 +86,7 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     free(profile->handle);
     free(profile->display_name);
     free(profile->description);
+    free(profile->avatar);
     free(profile->avatar_cid);
     free(profile->following);
     free(profile->blocking);
@@ -642,9 +643,28 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
 
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(root, "avatar");
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        /* The profile view exposes an avatar URL, not a CID; keep the
-         * field populated with the server value for convenience. */
+        /* A bare string rather than a blob object: keep the server value in
+         * avatar_cid as before, and in avatar where the URL belongs. */
         status = wf_agent_set_string(&out->avatar_cid, avatar->valuestring);
+        if (status == WF_OK) {
+            status = wf_agent_set_string(&out->avatar, avatar->valuestring);
+        }
+    } else if (status == WF_OK && cJSON_IsObject(avatar)) {
+        /* The shape getProfile actually sends. Reading only the string form
+         * meant a real server response yielded no avatar at all, so a client
+         * drawing a profile had nothing to fetch. */
+        cJSON *url = cJSON_GetObjectItemCaseSensitive(avatar, "url");
+        cJSON *ref = cJSON_GetObjectItemCaseSensitive(avatar, "ref");
+        cJSON *link = cJSON_IsObject(ref)
+                          ? cJSON_GetObjectItemCaseSensitive(ref, "$link")
+                          : NULL;
+
+        if (cJSON_IsString(url) && url->valuestring) {
+            status = wf_agent_set_string(&out->avatar, url->valuestring);
+        }
+        if (status == WF_OK && cJSON_IsString(link) && link->valuestring) {
+            status = wf_agent_set_string(&out->avatar_cid, link->valuestring);
+        }
     }
 
     cJSON *pinned = cJSON_GetObjectItemCaseSensitive(root, "pinnedPost");

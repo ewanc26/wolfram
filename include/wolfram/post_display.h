@@ -52,6 +52,20 @@ typedef enum wf_post_embed_kind {
     WF_EMBED_UNKNOWN
 } wf_post_embed_kind;
 
+/* One image of an images embed (or of the media half of recordWithMedia).
+ *
+ * `thumb` is the CDN thumbnail URL, or NULL when the view omits it or sends it
+ * empty: a client that draws images must skip those rather than treat
+ * image_count as the number it can draw. `alt` is the author's alt text, NULL
+ * when absent. `width`/`height` are the declared aspect ratio, both 0 when the
+ * view omits it -- enough to lay a box out without decoding anything. */
+typedef struct wf_display_image {
+    char *thumb;
+    char *alt;
+    int width;
+    int height;
+} wf_display_image;
+
 /* Owned display data. Zero-initialise before use is not required; the fill
  * function resets it. Release with wf_post_display_free. */
 typedef struct wf_post_display {
@@ -59,10 +73,16 @@ typedef struct wf_post_display {
     char *created_at;         /* record createdAt, or NULL */
     wf_display_facet *facets; /* sorted by byte_start, non-overlapping */
     size_t facet_count;
+    /* One entry per element of the view's images array, in order, so
+     * images[i] is the i-th image the author attached. Entries with no thumb
+     * are kept: the count is the author's count, not a drawable count. */
+    wf_display_image *images;
     size_t image_count; /* images embed, or the media of recordWithMedia */
     wf_post_embed_kind embed_kind;
     char *external_title; /* EXTERNAL, or media of RECORD_WITH_MEDIA; or NULL */
     char *external_uri;
+    char *external_description; /* EXTERNAL only; NULL when absent */
+    char *external_thumb;       /* EXTERNAL only; NULL when absent */
     char *quote_uri; /* only when the quoted record is viewable; else NULL */
     char *quote_author_handle;
     char *quote_text;
