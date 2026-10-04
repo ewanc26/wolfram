@@ -40,11 +40,11 @@ struct wf_buffer {
 
 /* The console has little RAM; a remote peer must not be able to grow the
  * response buffer without bound. */
-#define WF_XRPC_WII_MAX_RESPONSE_BYTES ((size_t)32 * 1024 * 1024)
+#define WF_XRPC_MAC9_MAX_RESPONSE_BYTES ((size_t)32 * 1024 * 1024)
 
 static int wf_buffer_append(struct wf_buffer *b, const void *src, size_t n) {
-    if (n > WF_XRPC_WII_MAX_RESPONSE_BYTES ||
-        b->len > WF_XRPC_WII_MAX_RESPONSE_BYTES - n)
+    if (n > WF_XRPC_MAC9_MAX_RESPONSE_BYTES ||
+        b->len > WF_XRPC_MAC9_MAX_RESPONSE_BYTES - n)
         return -1;
     if (b->len + n + 1 > b->cap) {
         size_t cap = b->cap ? b->cap : 4096;
