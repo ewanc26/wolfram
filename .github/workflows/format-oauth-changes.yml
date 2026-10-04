@@ -1,0 +1,38 @@
+name: format OAuth changes once
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [synchronize, opened, reopened, ready_for_review]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.head_ref == 'feat/oauth-node'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-format-18
+      - name: Format OAuth changes
+        run: |
+          clang-format-18 -i             include/wolfram/oauth_node.h             src/agent/agent.c             src/node/oauth_node.c             tools/oauth_node.c
+          git diff --check
+      - name: Commit formatted files
+        run: |
+          if git diff --quiet --             include/wolfram/oauth_node.h             src/agent/agent.c             src/node/oauth_node.c             tools/oauth_node.c; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add include/wolfram/oauth_node.h src/agent/agent.c src/node/oauth_node.c tools/oauth_node.c
+          git commit -m "style: format OAuth changes"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
