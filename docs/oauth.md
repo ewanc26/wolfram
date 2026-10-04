@@ -17,6 +17,8 @@ surface is split across focused headers under `wolfram/oauth/`:
 
 `oauth.h` includes all of the above.
 
+For console clients that cannot host the browser flow locally, see [Hosted OAuth node](oauth-node.md).
+
 > Every networking call is marked `// needs network`. The DPoP key for the
 > public-client flow is generated for you and round-tripped through the
 > serialized authorization state, so you never handle the raw key directly in
