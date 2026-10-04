@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/ci]
+    branches: [main, feat/ci, feat/oauth-node]
   pull_request:
   workflow_dispatch:
 
