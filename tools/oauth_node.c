@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
                                    .client_name = client_name,
                                    .scope = scope,
                                    .slingshot_url =
-                                       "https://slingshot.microcosm.blue",
+                                       "https://slingshot.micocosm.blue",
                                    .pairing_ttl = (unsigned int)ttl};
 
     wf_oauth_node *node = wf_oauth_node_new(&config);
