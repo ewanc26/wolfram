@@ -1155,8 +1155,8 @@ wf_status wf_agent_set_bearer(wf_agent *agent, const char *access_token,
 
     wf_agent_session_data_reset(&agent->session->data);
 
-    wf_status status = wf_agent_set_string(&agent->session->data.access_jwt,
-                                           access_token);
+    wf_status status =
+        wf_agent_set_string(&agent->session->data.access_jwt, access_token);
     if (status == WF_OK)
         status = wf_agent_set_string(&agent->session->data.handle, handle);
     if (status == WF_OK)
