@@ -556,6 +556,7 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
     free(pair->oauth_state_json); pair->oauth_state_json = NULL;
     free(expected_state);
 
+    bool accepted = false;
     if (st == WF_OK && result.session.subject &&
         strcmp(result.session.subject, expected_did) == 0) {
         wf_oauth_session_state_free(&pair->session);
@@ -564,6 +565,7 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
         pair->complete = 1;
         pair->expires_at = now_seconds() + NODE_SESSION_TTL;
         pair->error[0] = '\0';
+        accepted = true;
     } else if (st == WF_ERR_HTTP && result.error) {
         snprintf(pair->error, sizeof pair->error, "%s",
                  result.error_description ? result.error_description : result.error);
@@ -579,7 +581,7 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
     free(state_json);
     wf_oauth_authorization_complete_result_free(&result);
 
-    if (st == WF_OK) {
+    if (accepted) {
         html(resp, 200,
              "<!doctype html><meta charset=utf-8><meta name=viewport content=width=device-width,initial-scale=1>"
              "<title>Account connected</title><body style='font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.25rem'>"
