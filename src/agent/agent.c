@@ -1144,6 +1144,38 @@ wf_status wf_agent_resume(wf_agent *agent, const wf_session_data *data) {
     return status;
 }
 
+wf_status wf_agent_set_bearer(wf_agent *agent, const char *access_token,
+                              const char *handle, const char *did) {
+    if (!agent || !agent->session || !agent->client || !access_token ||
+        !access_token[0] || !handle || !handle[0] || !did || !did[0] ||
+        wf_syntax_did_is_valid(did) != WF_OK ||
+        wf_syntax_handle_is_valid(handle) != WF_OK) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_session_data_reset(&agent->session->data);
+
+    wf_status status = wf_agent_set_string(&agent->session->data.access_jwt,
+                                           access_token);
+    if (status == WF_OK)
+        status = wf_agent_set_string(&agent->session->data.handle, handle);
+    if (status == WF_OK)
+        status = wf_agent_set_string(&agent->session->data.did, did);
+    if (status == WF_OK)
+        status = wf_agent_set_string(&agent->session->data.pds_url,
+                                     agent->service_url);
+    if (status != WF_OK) {
+        wf_agent_session_data_reset(&agent->session->data);
+        agent->session->has_session = 0;
+        wf_xrpc_client_set_auth(agent->client, NULL);
+        return status;
+    }
+
+    agent->session->has_session = 1;
+    wf_xrpc_client_set_auth(agent->client, access_token);
+    return WF_OK;
+}
+
 wf_status wf_agent_get_session(wf_agent *agent) {
     if (!agent || !agent->session || !agent->client) {
         return WF_ERR_INVALID_ARG;
