@@ -173,11 +173,6 @@ if(NOT WOLFRAM_BUILD_NON_POSIX)
   target_link_libraries(wf_lexgen_tool PRIVATE cjson OpenSSL::Crypto)
 endif()
 
-if(WOLFRAM_BUILD_OAUTH_NODE)
-  add_executable(wolfram-oauth-node tools/oauth_node.c)
-  target_link_libraries(wolfram-oauth-node PRIVATE wolfram Threads::Threads OpenSSL::Crypto)
-endif()
-
 add_library(
   wolfram
   # Transport
@@ -328,6 +323,11 @@ add_library(
   # Image dimension probing via vendored stb_image (header-only, third_party/)
   src/image.c
   $<$<BOOL:${WOLFRAM_BUILD_OAUTH_NODE}>:src/node/oauth_node.c>)
+
+if(WOLFRAM_BUILD_OAUTH_NODE)
+  add_executable(wolfram-oauth-node tools/oauth_node.c)
+  target_link_libraries(wolfram-oauth-node PRIVATE wolfram Threads::Threads OpenSSL::Crypto)
+endif()
 
 # The version lives only in the `VERSION` above; derive the public
 # WOLFRAM_VERSION_* macros from PROJECT_VERSION at compile time.
