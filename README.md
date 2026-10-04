@@ -207,6 +207,36 @@ cmake --build build-3ds
 Requires [devkitPro](https://devkitpro.org/) with devkitARM and libctru
 installed. The toolchain file is at `.devdeps/3ds.cmake`.
 
+#### Crypto on the consoles
+
+No console ships OpenSSL, so all three console targets compile
+`src/crypto/crypto_wii.c` (mbedTLS, via devkitPro's 3DS/Wii portlibs) instead
+of `src/crypto/crypto.c`, and `src/platform/openssl_compat.c` supplies the
+handful of OpenSSL entry points that survive (`SHA256`, base64). P-256 signing,
+verification and did:key derivation all work, and the console and desktop
+backends interoperate in both directions: a signature made by one verifies
+under the other. This is emulator-verified on 3DS, and the DER
+`ECDSA-Sig-Value` parser agrees with the OpenSSL backend on every input tested,
+including the malformed ones — `wf_crypto_ecdsa_der_to_raw` holds the same DER
+minimality rule OpenSSL does so the two cannot drift.
+
+The console crypto surface is otherwise complete, and this is worth checking
+when adding to `crypto.h`, because a function missing from `crypto_wii.c` does
+not fail the console build — it produces a link error in the *application*
+instead, long after the library looks healthy:
+
+```sh
+# every function declared in a public header must be defined in the archive
+nm build-3ds/libwolfram.a | grep -E '^[0-9a-f]+ T ' | awk '{print $3}' | sort -u > /tmp/have.txt
+grep -ohE '\bwf_[a-z0-9_]+\(' include/wolfram/*.h | tr -d '(' | sort -u > /tmp/want.txt
+comm -23 /tmp/want.txt /tmp/have.txt
+```
+
+Expect the XRPC server, blob store, filesystem store, OAuth client and the other
+consoles' entropy hooks in that list; they are excluded on purpose
+(`CMakeLists.txt`, `WOLFRAM_BUILD_EMBEDDED`). Anything in `crypto.h` should not
+be.
+
 ### Windows
 
 A cross-compilation target for Windows (MinGW-w64) is supported.

@@ -146,6 +146,35 @@ static int test_parse_profile_viewer(void) {
         return 0;
     }
     wf_agent_profile_free(&profile2);
+
+    /* The blob-object shape getProfile actually sends: url is what a client
+     * fetches, $link is the CID. Reading only the string form meant a real
+     * response produced no avatar at all. */
+    const char *json3 =
+        "{\"did\":\"did:plc:carol\",\"handle\":\"carol.test\",\"avatar\":{"
+        "\"type\":\"blob\",\"ref\":{\"$link\":"
+        "\"bafkreiblueavatar\"},\"mimeType\":\"image/jpeg\","
+        "\"url\":\"https://cdn.example/carol@jpeg\"}}";
+    wf_agent_profile profile3 = {0};
+    if (wf_agent_parse_profile(json3, strlen(json3), &profile3) != WF_OK ||
+        !profile3.avatar || !profile3.avatar_cid ||
+        strcmp(profile3.avatar, "https://cdn.example/carol@jpeg") != 0 ||
+        strcmp(profile3.avatar_cid, "bafkreiblueavatar") != 0) {
+        wf_agent_profile_free(&profile3);
+        return 0;
+    }
+    wf_agent_profile_free(&profile3);
+
+    /* An avatar object with no url must not fabricate one. */
+    const char *json4 = "{\"did\":\"did:plc:dave\",\"handle\":\"dave.test\","
+                        "\"avatar\":{\"type\":\"blob\"}}";
+    wf_agent_profile profile4 = {0};
+    if (wf_agent_parse_profile(json4, strlen(json4), &profile4) != WF_OK ||
+        profile4.avatar != NULL) {
+        wf_agent_profile_free(&profile4);
+        return 0;
+    }
+    wf_agent_profile_free(&profile4);
     return 1;
 }
 
