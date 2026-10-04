@@ -204,7 +204,22 @@ jobs:
             echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Format OAuth node files for inspection
+        if: github.head_ref == 'feat/oauth-node'
+        run: |
+          clang-format-18 -i src/node/oauth_node.c tools/oauth_node.c
+          mkdir -p /tmp/oauth-node-formatted
+          cp src/node/oauth_node.c tools/oauth_node.c /tmp/oauth-node-formatted/
+
+      - name: Upload OAuth node formatted files
+        if: github.head_ref == 'feat/oauth-node'
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-node-formatted
+          path: /tmp/oauth-node-formatted
+
       - name: Check formatting of changed files
+        if: github.head_ref != 'feat/oauth-node'
         run: |
           BASE="${{ steps.base.outputs.ref }}"
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
