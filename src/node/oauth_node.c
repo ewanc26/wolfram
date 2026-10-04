@@ -689,7 +689,6 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
         return WF_OK;
     }
 
-    const char *token = auth + sizeof prefix - 1;
     pthread_mutex_lock(&node->lock);
     node_pair *pair = NULL;
     for (size_t i = 0; i < NODE_MAX_PAIRS; ++i) {
@@ -773,7 +772,7 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
     node->scope = dupstr(cfg->scope ? cfg->scope : "atproto repo:* blob:*/*");
     node->slingshot_url =
         dupstr(cfg->slingshot_url ? cfg->slingshot_url
-                                  : "https://slingshot.microcosm.blue");
+                                  : "https://slingshot.micocosm.blue");
     node->pairing_ttl = cfg->pairing_ttl ? cfg->pairing_ttl : 600;
 
     if (!node->public_base_url || !node->client_name || !node->scope ||
@@ -874,7 +873,7 @@ wf_status wf_oauth_node_start(wf_oauth_node *node, const char *listen_address,
         st = wf_xrpc_server_register_procedure(
             node->server, "uk.ewancroft.oauth.begin", begin_handler, node);
     if (st == WF_OK)
-        st = wf_xrpc_server_set_fallback(node->server, proxy_handler, node);
+        wf_xrpc_server_set_fallback(node->server, proxy_handler, node);
 
     if (st != WF_OK) {
         wf_xrpc_server_free(node->server);
