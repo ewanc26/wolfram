@@ -5,7 +5,7 @@ if(POLICY CMP0156)
 endif()
 project(
   wolfram
-  VERSION 0.25.0
+  VERSION 0.26.0
   DESCRIPTION "A C/C++ SDK for the AT Protocol"
   LANGUAGES C CXX)
 
@@ -33,6 +33,15 @@ option(WOLFRAM_BUILD_WIIU "Build for Nintendo Wii U (devkitPPC/wut)" OFF)
 option(WOLFRAM_MHD_SHIM
        "Use the bundled libmicrohttpd shim instead of the real library" OFF)
 option(WOLFRAM_BUILD_3DS "Build for Nintendo 3DS (devkitARM/libctru)" OFF)
+
+# Build the Classic Mac OS 9 XRPC transport as a standalone transport library.
+# The full Wolfram SDK still requires a Mac OS 9 crypto backend; the transport
+# itself is useful to Platinum and other classic clients that authenticate via
+# an external bridge and therefore do not need local OAuth/DPoP signing.
+option(WOLFRAM_BUILD_MACOS9_TRANSPORT
+       "Build the Classic Mac OS 9 Open Transport/macTLS XRPC transport" OFF)
+set(WOLFRAM_MACTLS_ROOT "" CACHE PATH
+    "macTLS source root containing os9/ostls_async.h")
 
 # Windows cross-compilation (MinGW-w64). Uses Win32 APIs instead of POSIX.
 option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)"
@@ -171,6 +180,36 @@ if(NOT WOLFRAM_BUILD_NON_POSIX)
     wf_lexgen_tool PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR}
                            ${OPENSSL_INCLUDE_DIR})
   target_link_libraries(wf_lexgen_tool PRIVATE cjson OpenSSL::Crypto)
+endif()
+
+if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
+  if(NOT WOLFRAM_MACTLS_ROOT)
+    message(FATAL_ERROR
+      "WOLFRAM_BUILD_MACOS9_TRANSPORT=ON requires "
+      "-DWOLFRAM_MACTLS_ROOT=/path/to/macTLS")
+  endif()
+  if(NOT EXISTS "${WOLFRAM_MACTLS_ROOT}/os9/ostls_async.h")
+    message(FATAL_ERROR
+      "WOLFRAM_MACTLS_ROOT does not contain os9/ostls_async.h")
+  endif()
+
+  add_library(wolfram-macos9-transport STATIC
+              src/transport/xrpc_mac9.c
+              src/transport/mac9_tls.c)
+  target_include_directories(
+    wolfram-macos9-transport
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${cjson_SOURCE_DIR}
+            ${cjson_BINARY_DIR}
+            ${WOLFRAM_MACTLS_ROOT}/os9)
+  target_link_libraries(wolfram-macos9-transport PUBLIC cjson)
+  target_compile_definitions(
+    wolfram-macos9-transport
+    PUBLIC WOLFRAM_VERSION_MAJOR=0
+           WOLFRAM_VERSION_MINOR=26
+           WOLFRAM_VERSION_PATCH=0
+           WOLFRAM_VERSION_STRING="0.26.0")
 endif()
 
 add_library(
