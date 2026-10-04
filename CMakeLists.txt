@@ -326,6 +326,7 @@ add_library(
 
 if(WOLFRAM_BUILD_OAUTH_NODE)
   add_executable(wolfram-oauth-node tools/oauth_node.c)
+  target_include_directories(wolfram-oauth-node PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR})
   target_link_libraries(wolfram-oauth-node PRIVATE wolfram Threads::Threads OpenSSL::Crypto)
 endif()
 
