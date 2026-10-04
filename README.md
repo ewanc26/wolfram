@@ -305,3 +305,18 @@ service obliges you to offer its users the corresponding source.
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ewanc26/wolfram&type=date&legend=bottom-right" />
  </picture>
 </a>
+
+## Classic Mac OS 9 transport
+
+Wolfram includes a standalone Classic Mac OS 9 XRPC transport for consumers such as Platinum. It uses Open Transport for TCP and the external [macTLS](https://github.com/mplsllc/macTLS) async stream for TLS 1.3 with TLS 1.2 fallback. The transport does not use libcurl, OpenSSL, pthreads, or modern POSIX networking APIs.
+
+Build the transport with:
+
+```sh
+cmake -S . -B build-macos9-transport \
+  -DWOLFRAM_BUILD_MACOS9_TRANSPORT=ON \
+  -DWOLFRAM_MACTLS_ROOT=/path/to/macTLS
+cmake --build build-macos9-transport --target wolfram-macos9-transport
+```
+
+The transport exposes the same low-level XRPC request semantics as the Wii backend, including bearer authentication, DPoP nonce capture, bounded response buffering, and Content-Length/chunked HTTP responses. The Mac OS 9 adapter yields through an application callback so a cooperative event loop can continue servicing the UI. The complete `libwolfram` Mac OS 9 port remains separate because it needs a dedicated crypto backend for signing and verification.
