@@ -18,6 +18,10 @@
 #include <string.h>
 
 #define WF_DISPLAY_MAX_FACETS 512
+/* A declared image dimension past this is not a photograph and not worth
+ * believing: an aspect ratio of 1e9 would otherwise be a division waiting to
+ * happen in a caller's layout. */
+#define WF_DISPLAY_MAX_DIM 16384
 
 static char *wf_pd_strdup(const char *s) {
     size_t len = strlen(s);
@@ -72,8 +76,15 @@ void wf_post_display_free(wf_post_display *d) {
         free(d->facets[i].target);
     }
     free(d->facets);
+    for (size_t i = 0; i < d->image_count; ++i) {
+        free(d->images[i].thumb);
+        free(d->images[i].alt);
+    }
+    free(d->images);
     free(d->external_title);
     free(d->external_uri);
+    free(d->external_description);
+    free(d->external_thumb);
     free(d->quote_uri);
     free(d->quote_author_handle);
     free(d->quote_text);
@@ -250,20 +261,93 @@ static wf_post_embed_kind wf_pd_media_kind(const cJSON *e) {
     return WF_EMBED_UNKNOWN;
 }
 
+/* One declared dimension of an aspectRatio, or 0 when it is absent or not a
+ * sane positive integer. */
+static int wf_pd_dim(const cJSON *ratio, const char *key) {
+    const cJSON *n = cJSON_GetObjectItemCaseSensitive(ratio, key);
+    if (!cJSON_IsNumber(n)) {
+        return 0;
+    }
+    double v = n->valuedouble;
+    if (!isfinite(v) || v < 1.0 || v > (double)WF_DISPLAY_MAX_DIM ||
+        v != floor(v)) {
+        return 0;
+    }
+    return (int)v;
+}
+
+/* Fill images/image_count from an images view. Every element of the array is
+ * kept, including one with no thumbnail: the author's count is what the caller
+ * reports, and skipping entries here would renumber them. */
+static wf_status wf_pd_apply_images(const cJSON *media, wf_post_display *out) {
+    const cJSON *arr = cJSON_GetObjectItemCaseSensitive(media, "images");
+    if (!cJSON_IsArray(arr)) {
+        return WF_OK;
+    }
+    int n = cJSON_GetArraySize(arr);
+    if (n <= 0) {
+        return WF_OK;
+    }
+    wf_display_image *imgs =
+        (wf_display_image *)calloc((size_t)n, sizeof(*imgs));
+    if (!imgs) {
+        return WF_ERR_ALLOC;
+    }
+    size_t i = 0;
+    wf_status status = WF_OK;
+    const cJSON *item;
+    cJSON_ArrayForEach(item, arr) {
+        wf_display_image *dst = &imgs[i];
+        status = wf_pd_copy_str(item, "thumb", &dst->thumb);
+        if (status == WF_OK) {
+            status = wf_pd_copy_str(item, "alt", &dst->alt);
+        }
+        const cJSON *ratio = wf_pd_obj(item, "aspectRatio");
+        dst->width = wf_pd_dim(ratio, "width");
+        dst->height = wf_pd_dim(ratio, "height");
+        if (dst->width == 0 || dst->height == 0) {
+            /* Half a ratio is not a ratio: width alone is a caller's divide by
+             * zero, so both go together or neither does. */
+            dst->width = 0;
+            dst->height = 0;
+        }
+        i++;
+        if (status != WF_OK) {
+            break;
+        }
+    }
+    if (status != WF_OK) {
+        for (size_t j = 0; j < i; ++j) {
+            free(imgs[j].thumb);
+            free(imgs[j].alt);
+        }
+        free(imgs);
+        return status;
+    }
+    out->images = imgs;
+    out->image_count = (size_t)n;
+    return WF_OK;
+}
+
 /* Fill image_count / external_* from an images/video/external view. */
 static wf_status wf_pd_apply_media(const cJSON *media, wf_post_embed_kind kind,
                                    wf_post_display *out) {
     if (kind == WF_EMBED_IMAGES) {
-        const cJSON *images = cJSON_GetObjectItemCaseSensitive(media, "images");
-        int n = cJSON_IsArray(images) ? cJSON_GetArraySize(images) : 0;
-        out->image_count = n > 0 ? (size_t)n : 0;
-    } else if (kind == WF_EMBED_EXTERNAL) {
+        return wf_pd_apply_images(media, out);
+    }
+    if (kind == WF_EMBED_EXTERNAL) {
         const cJSON *ext = wf_pd_obj(media, "external");
         wf_status s = wf_pd_copy_str(ext, "title", &out->external_title);
-        if (s != WF_OK) {
-            return s;
+        if (s == WF_OK) {
+            s = wf_pd_copy_str(ext, "uri", &out->external_uri);
         }
-        return wf_pd_copy_str(ext, "uri", &out->external_uri);
+        if (s == WF_OK) {
+            s = wf_pd_copy_str(ext, "description", &out->external_description);
+        }
+        if (s == WF_OK) {
+            s = wf_pd_copy_str(ext, "thumb", &out->external_thumb);
+        }
+        return s;
     }
     return WF_OK;
 }

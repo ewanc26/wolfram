@@ -466,6 +466,80 @@ wf_status wf_crypto_p256_verify(const unsigned char x[32],
     return wii_p256_verify_raw(x, y, hash, sig, sig_len, 0);
 }
 
+wf_status wf_crypto_p256_verify_allow_malleable(const unsigned char x[32],
+                                                const unsigned char y[32],
+                                                const unsigned char *msg,
+                                                size_t msg_len,
+                                                const unsigned char *sig,
+                                                size_t sig_len) {
+    unsigned char hash[32];
+    if (!msg || msg_len == 0) return WF_ERR_INVALID_ARG;
+    SHA256(msg, msg_len, hash);
+    return wii_p256_verify_raw(x, y, hash, sig, sig_len, 1);
+}
+
+/* DER ECDSA-Sig-Value (RFC 3279 §2.2.3):
+ *
+ *   SEQUENCE { INTEGER r, INTEGER s }
+ *
+ * mbedTLS 4.x only exposes mbedtls_ecdsa_read_signature(), which parses *and*
+ * verifies in one step and so cannot serve a format conversion. This is the
+ * structural parser that the OpenSSL backend gets from d2i_ECDSA_SIG, written
+ * out because the console build has no OpenSSL.
+ *
+ * Trailing bytes after the SEQUENCE are ignored, which is what
+ * d2i_ECDSA_SIG() does with the caller's buffer: the length prefix delimits
+ * the value, and callers pass a buffer they own rather than a wire frame.
+ *
+ * The INTEGER content is held to DER's minimality rule, because that is where
+ * OpenSSL's parser sits and the two backends must not disagree: at most one
+ * leading 0x00, and only where the following byte's high bit would otherwise
+ * make the value negative. So 02 01 80 (negative) and 02 00 (empty) are
+ * rejected, as is 02 21 00...0080 where the padding runs to 31 bytes -- but
+ * 02 03 00 80 01 parses as 0x8001, because that single zero is load-bearing.
+ * Each rejection costs nothing in practice: no conformant signer emits these,
+ * and the value is about to be range-checked by verification anyway. */
+static wf_status wii_der_read_integer(const unsigned char **pp,
+                                      const unsigned char *end,
+                                      unsigned char out[32]) {
+    const unsigned char *p = *pp;
+    if (end - p < 2 || p[0] != 0x02) return WF_ERR_PARSE;
+    const size_t len = p[1];
+    p += 2;
+    if (len == 0 || (size_t)(end - p) < len) return WF_ERR_PARSE;
+    if (p[0] & 0x80) return WF_ERR_PARSE; /* negative scalar */
+    size_t skip = 0;
+    if (p[0] == 0x00 && len > 1) {
+        if (p[1] == 0x00) return WF_ERR_PARSE; /* padding DER would not emit */
+        skip = 1; /* required to keep it positive */
+    }
+    size_t significant = len - skip;
+    if (significant > 32) return WF_ERR_PARSE; /* does not fit in 32 bytes */
+    memset(out, 0, 32);
+    memcpy(out + (32 - significant), p + skip, significant);
+    *pp = p + len;
+    return WF_OK;
+}
+
+wf_status wf_crypto_ecdsa_der_to_raw(const unsigned char *der, size_t der_len,
+                                     unsigned char raw_out[64]) {
+    if (!der || der_len == 0 || !raw_out) return WF_ERR_INVALID_ARG;
+    const unsigned char *p = der;
+    const unsigned char *end = der + der_len;
+    if (end - p < 2 || p[0] != 0x30) return WF_ERR_PARSE;
+    /* A P-256 ECDSA-Sig-Value is at most 72 bytes, so the definite short-form
+     * length is the only encoding that can occur; the long form is malformed
+     * here rather than parsed. */
+    const size_t seq_len = p[1];
+    p += 2;
+    if (seq_len == 0 || (size_t)(end - p) < seq_len) return WF_ERR_PARSE;
+    end = p + seq_len;
+    if (wii_der_read_integer(&p, end, raw_out) != WF_OK) return WF_ERR_PARSE;
+    if (wii_der_read_integer(&p, end, raw_out + 32) != WF_OK)
+        return WF_ERR_PARSE;
+    return WF_OK;
+}
+
 wf_status wf_crypto_p256_jwk_coords(const char *jwk_json, unsigned char x[32],
                                     unsigned char y[32]) {
     cJSON *root, *item;
@@ -796,6 +870,35 @@ wf_status wf_signing_key_generate(wf_key_type type, wf_signing_key *out) {
         return WF_OK;
     }
     return WF_ERR_INVALID_ARG;
+}
+
+static int wii_hex_nibble(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    c = (char)tolower((unsigned char)c);
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    return -1;
+}
+
+wf_status wf_signing_key_from_hex(wf_key_type type, const char *hex,
+                                  wf_signing_key *out) {
+    if (!hex || !out ||
+        (type != WF_KEY_TYPE_P256 && type != WF_KEY_TYPE_SECP256K1) ||
+        strlen(hex) != sizeof(out->bytes) * 2u) {
+        return WF_ERR_INVALID_ARG;
+    }
+    wf_signing_key candidate = {0};
+    candidate.type = type;
+    int nonzero = 0;
+    for (size_t i = 0; i < sizeof(candidate.bytes); ++i) {
+        const int high = wii_hex_nibble(hex[i * 2u]);
+        const int low = wii_hex_nibble(hex[i * 2u + 1u]);
+        if (high < 0 || low < 0) return WF_ERR_INVALID_ARG;
+        candidate.bytes[i] = (unsigned char)((high << 4) | low);
+        nonzero |= candidate.bytes[i] != 0;
+    }
+    if (!nonzero) return WF_ERR_INVALID_ARG;
+    *out = candidate;
+    return WF_OK;
 }
 
 wf_status wf_signing_key_public_didkey(const wf_signing_key *key,

@@ -353,6 +353,114 @@ static void test_embeds(void) {
     wf_post_display_free(&d);
 }
 
+/* The thumbnail data a client draws from: every image keeps its place in the
+ * author's order, an image with no thumb is still counted, and the declared
+ * aspect ratio is read as-is when it is sane and dropped when it is not. */
+static void test_embed_images(void) {
+    wf_post_display d;
+    const char *view =
+        "{\"$type\":\"app.bsky.embed.images#view\",\"images\":["
+        "{\"thumb\":\"https://cdn/a.jpg\",\"alt\":\"a cat\","
+        "\"aspectRatio\":{\"width\":4,\"height\":3}},"
+        "{\"thumb\":\"https://cdn/b.jpg\"},"
+        "{},"
+        "{\"thumb\":\"\",\"aspectRatio\":{\"width\":0,\"height\":0}}]}";
+
+    WF_CHECK(disp("{}", view, &d) == WF_OK);
+    WF_CHECK(d.embed_kind == WF_EMBED_IMAGES && d.image_count == 4);
+    WF_CHECK(d.images[0].thumb &&
+             strcmp(d.images[0].thumb, "https://cdn/a.jpg") == 0);
+    WF_CHECK(d.images[0].alt && strcmp(d.images[0].alt, "a cat") == 0);
+    WF_CHECK(d.images[0].width == 4 && d.images[0].height == 3);
+    WF_CHECK(d.images[1].thumb && !d.images[1].alt);
+    WF_CHECK(d.images[1].width == 0 && d.images[1].height == 0);
+    WF_CHECK(d.images[2].thumb == NULL && d.images[2].alt == NULL);
+    WF_CHECK(d.images[3].thumb == NULL);
+    wf_post_display_free(&d);
+
+    /* Alt text that is present but empty is not alt text, and a thumb that is
+     * present but empty is not a URL: neither may be handed out as a string. */
+    WF_CHECK(disp("{}",
+                  "{\"$type\":\"app.bsky.embed.images#view\",\"images\":["
+                  "{\"thumb\":\"https://cdn/a.jpg\",\"alt\":\"\"}]}",
+                  &d) == WF_OK);
+    WF_CHECK(d.image_count == 1 && d.images[0].thumb &&
+             d.images[0].alt == NULL);
+    wf_post_display_free(&d);
+
+    /* Nonsense aspect ratios are dropped rather than believed, so a caller
+     * dividing by width cannot divide by zero or by a number that overflows
+     * its own box. */
+    const char *ratios[] = {"{\"width\":0,\"height\":3}",
+                            "{\"width\":3,\"height\":0}",
+                            "{\"width\":-4,\"height\":3}",
+                            "{\"width\":1.5,\"height\":3}",
+                            "{\"width\":1e12,\"height\":3}",
+                            "{\"width\":\"4\",\"height\":3}",
+                            "{\"width\":4}",
+                            "[]",
+                            "5",
+                            "{}",
+                            "null",
+                            "{\"width\":4,\"height\":\"3\"}"};
+    for (size_t i = 0; i < sizeof(ratios) / sizeof(ratios[0]); ++i) {
+        char buf[512];
+        snprintf(buf, sizeof(buf),
+                 "{\"$type\":\"app.bsky.embed.images#view\",\"images\":"
+                 "[{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":%s}]}",
+                 ratios[i]);
+        WF_CHECK(disp("{}", buf, &d) == WF_OK);
+        /* Every one of these is dropped whole, and the thumb survives it: a
+         * missing ratio costs the box its shape, not the image. */
+        WF_CHECK(d.image_count == 1 && d.images[0].thumb);
+        WF_CHECK(d.images[0].width == 0 && d.images[0].height == 0);
+        wf_post_display_free(&d);
+    }
+
+    /* The media half of a recordWithMedia carries its images the same way. */
+    WF_CHECK(
+        disp("{}",
+             "{\"$type\":\"app.bsky.embed.recordWithMedia#view\",\"record\":"
+             "{\"record\":" VIEW_RECORD "},\"media\":" IMGS_VIEW "}",
+             &d) == WF_OK);
+    WF_CHECK(d.embed_kind == WF_EMBED_RECORD_WITH_MEDIA && d.image_count == 3 &&
+             d.images != NULL);
+    WF_CHECK(d.images[0].thumb == NULL);
+    wf_post_display_free(&d);
+}
+
+/* A link card needs the description and thumbnail beside the title and URI, and
+ * an external view that has neither is still a link. */
+static void test_embed_external(void) {
+    wf_post_display d;
+
+    WF_CHECK(disp("{}",
+                  "{\"$type\":\"app.bsky.embed.external#view\",\"external\":"
+                  "{\"uri\":\"https://e.x/p\",\"title\":\"T\","
+                  "\"description\":\"d\",\"thumb\":\"https://cdn/t.jpg\"}}",
+                  &d) == WF_OK);
+    WF_CHECK(d.external_description &&
+             strcmp(d.external_description, "d") == 0);
+    WF_CHECK(d.external_thumb &&
+             strcmp(d.external_thumb, "https://cdn/t.jpg") == 0);
+    WF_CHECK(d.image_count == 0 && d.images == NULL);
+    wf_post_display_free(&d);
+
+#define EXT_BARE_TITLE                                                         \
+    "{\"$type\":\"app.bsky.embed.external#view\",\"external\":{\"uri\":"       \
+    "\"https://e.x/p\",\"description\":\"\",\"thumb\":7}}"
+    const char *bare[] = {
+        "{\"$type\":\"app.bsky.embed.external#view\"}",
+        "{\"$type\":\"app.bsky.embed.external#view\",\"external\":{}}",
+        EXT_BARE_TITLE};
+    for (size_t i = 0; i < 3; ++i) {
+        WF_CHECK(disp("{}", bare[i], &d) == WF_OK);
+        WF_CHECK(d.embed_kind == WF_EMBED_EXTERNAL);
+        WF_CHECK(d.external_description == NULL && d.external_thumb == NULL);
+        wf_post_display_free(&d);
+    }
+}
+
 static void test_reposted_by(void) {
     wf_agent_feed_item it;
     char *name = (char *)0x1;
@@ -486,6 +594,8 @@ int main(void) {
     test_basics();
     test_facets();
     test_embeds();
+    test_embed_images();
+    test_embed_external();
     test_reposted_by();
     test_fetch_public();
     WF_TEST_SUMMARY();
