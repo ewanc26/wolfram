@@ -84,7 +84,8 @@ static int random_code(char *out, size_t cap) {
 static int random_token(char *out, size_t cap) {
     static const char hex[] = "0123456789abcdef";
     unsigned char raw[32];
-    if (!out || cap < sizeof raw * 2 + 1 || !random_bytes(raw, sizeof raw)) return 0;
+    if (!out || cap < sizeof raw * 2 + 1 || !random_bytes(raw, sizeof raw))
+        return 0;
     for (size_t i = 0; i < sizeof raw; ++i) {
         out[i * 2] = hex[raw[i] >> 4];
         out[i * 2 + 1] = hex[raw[i] & 15U];
@@ -118,7 +119,8 @@ static node_pair *pair_alloc(wf_oauth_node *node) {
     int64_t now = now_seconds();
     for (size_t i = 0; i < NODE_MAX_PAIRS; ++i) {
         node_pair *p = &node->pairs[i];
-        if (p->used && !p->complete && p->expires_at < now && !p->callback_consuming)
+        if (p->used && !p->complete && p->expires_at < now &&
+            !p->callback_consuming)
             pair_free(p);
         if (!p->used) {
             memset(p, 0, sizeof *p);
@@ -132,7 +134,8 @@ static node_pair *pair_alloc(wf_oauth_node *node) {
 
 static const char *param_string(const wf_xrpc_request *req, const char *name) {
     cJSON *v = req && req->params
-        ? cJSON_GetObjectItemCaseSensitive(req->params, name) : NULL;
+                   ? cJSON_GetObjectItemCaseSensitive(req->params, name)
+                   : NULL;
     return v && cJSON_IsString(v) ? v->valuestring : NULL;
 }
 
@@ -140,7 +143,8 @@ static void set_json(wf_xrpc_response *resp, cJSON *root) {
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (!json) {
-        wf_xrpc_response_set_error(resp, 500, "InternalError", "Could not encode the response.");
+        wf_xrpc_response_set_error(resp, 500, "InternalError",
+                                   "Could not encode the response.");
         return;
     }
     wf_xrpc_response_set_content_type(resp, "application/json");
@@ -166,19 +170,39 @@ static void redirect(wf_xrpc_response *resp, const char *location) {
 static char *escape_html(const char *s) {
     size_t cap = 1;
     for (const char *p = s ? s : ""; *p; ++p)
-        cap += (*p == '&') ? 5 : (*p == '<' || *p == '>') ? 4 :
-               (*p == '"') ? 6 : (*p == '\'') ? 5 : 1;
+        cap += (*p == '&')                ? 5
+               : (*p == '<' || *p == '>') ? 4
+               : (*p == '"')              ? 6
+               : (*p == '\'')             ? 5
+                                          : 1;
     char *out = malloc(cap);
     if (!out) return NULL;
     char *q = out;
     for (const char *p = s ? s : ""; *p; ++p) {
         switch (*p) {
-        case '&': memcpy(q, "&amp;", 5); q += 5; break;
-        case '<': memcpy(q, "&lt;", 4); q += 4; break;
-        case '>': memcpy(q, "&gt;", 4); q += 4; break;
-        case '"': memcpy(q, "&quot;", 6); q += 6; break;
-        case '\'': memcpy(q, "&#39;", 5); q += 5; break;
-        default: *q++ = *p; break;
+            case '&':
+                memcpy(q, "&amp;", 5);
+                q += 5;
+                break;
+            case '<':
+                memcpy(q, "&lt;", 4);
+                q += 4;
+                break;
+            case '>':
+                memcpy(q, "&gt;", 4);
+                q += 4;
+                break;
+            case '"':
+                memcpy(q, "&quot;", 6);
+                q += 6;
+                break;
+            case '\'':
+                memcpy(q, "&#39;", 5);
+                q += 5;
+                break;
+            default:
+                *q++ = *p;
+                break;
         }
     }
     *q = '\0';
@@ -212,7 +236,8 @@ static wf_status resolve_handle(wf_oauth_node *node, const char *handle,
                                 char **did_out) {
     wf_response res = {0};
     wf_xrpc_param p = {"handle", handle};
-    wf_status st = slingshot_query(node, "com.atproto.identity.resolveHandle", &p, 1, &res);
+    wf_status st = slingshot_query(node, "com.atproto.identity.resolveHandle",
+                                   &p, 1, &res);
     if (st != WF_OK) {
         wf_response_free(&res);
         return st;
@@ -234,7 +259,8 @@ static wf_status resolve_pds(wf_oauth_node *node, const char *did,
                              char **pds_out) {
     wf_response res = {0};
     wf_xrpc_param p = {"identifier", did};
-    wf_status st = slingshot_query(node, "blue.microcosm.identity.resolveMiniDoc", &p, 1, &res);
+    wf_status st = slingshot_query(
+        node, "blue.microcosm.identity.resolveMiniDoc", &p, 1, &res);
     if (st != WF_OK) {
         wf_response_free(&res);
         return st;
@@ -267,31 +293,34 @@ static wf_status start_pair(wf_oauth_node *node, node_pair *pair,
     if (st != WF_OK) goto done;
 
     transport = wf_xrpc_client_new(pds);
-    if (!transport) { st = WF_ERR_ALLOC; goto done; }
+    if (!transport) {
+        st = WF_ERR_ALLOC;
+        goto done;
+    }
 
     st = wf_oauth_discover(transport, pds, &resource, &pair->server);
     if (st == WF_OK) {
-        wf_oauth_client_auth auth = {
-            .client_id = node->client_id,
-            .authorization_server_issuer = pair->server.issuer,
-            .signing_key = NULL,
-            .key_id = NULL
-        };
+        wf_oauth_client_auth auth = {.client_id = node->client_id,
+                                     .authorization_server_issuer =
+                                         pair->server.issuer,
+                                     .signing_key = NULL,
+                                     .key_id = NULL};
         wf_oauth_authorization_begin_options options = {
             .redirect_uri = node->redirect_uri,
             .scope = node->scope,
             .login_hint = did,
             .app_state = pair->pair_code,
             .now = now_seconds(),
-            .state_ttl = (int64_t)node->pairing_ttl
-        };
+            .state_ttl = (int64_t)node->pairing_ttl};
         wf_oauth_authorization_begin_result begun = {0};
-        st = wf_oauth_authorization_begin(transport, &pair->server, &node->client,
-                                          &auth, &options, &begun);
+        st = wf_oauth_authorization_begin(
+            transport, &pair->server, &node->client, &auth, &options, &begun);
         if (st == WF_OK) {
             pair->handle = dupstr(handle);
-            pair->did = did; did = NULL;
-            pair->pds_url = pds; pds = NULL;
+            pair->did = did;
+            did = NULL;
+            pair->pds_url = pds;
+            pds = NULL;
             pair->authorization_url = begun.authorization_url;
             begun.authorization_url = NULL;
             pair->oauth_state = begun.state;
@@ -317,7 +346,8 @@ static wf_status begin_handler(void *ctx, const wf_xrpc_request *req,
     wf_oauth_node *node = ctx;
     const char *handle = param_string(req, "handle");
     if (!handle || !handle[0]) {
-        wf_xrpc_response_set_error(resp, 400, "InvalidRequest", "handle is required");
+        wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
+                                   "handle is required");
         return WF_OK;
     }
 
@@ -325,7 +355,8 @@ static wf_status begin_handler(void *ctx, const wf_xrpc_request *req,
     node_pair *pair = pair_alloc(node);
     pthread_mutex_unlock(&node->lock);
     if (!pair) {
-        wf_xrpc_response_set_error(resp, 503, "Unavailable", "No pairing slots are available.");
+        wf_xrpc_response_set_error(resp, 503, "Unavailable",
+                                   "No pairing slots are available.");
         return WF_OK;
     }
 
@@ -335,18 +366,21 @@ static wf_status begin_handler(void *ctx, const wf_xrpc_request *req,
         pthread_mutex_lock(&node->lock);
         pair_free(pair);
         pthread_mutex_unlock(&node->lock);
-        wf_xrpc_response_set_error(resp, 502, "OAuthStartFailed",
-                                    "The handle could not be resolved or OAuth could not be started.");
+        wf_xrpc_response_set_error(
+            resp, 502, "OAuthStartFailed",
+            "The handle could not be resolved or OAuth could not be started.");
         return WF_OK;
     }
 
     cJSON *root = cJSON_CreateObject();
     if (!root) {
-        wf_xrpc_response_set_error(resp, 500, "InternalError", "Out of memory.");
+        wf_xrpc_response_set_error(resp, 500, "InternalError",
+                                   "Out of memory.");
         return WF_OK;
     }
     char url[512];
-    snprintf(url, sizeof url, "%s/pair/%s", node->public_base_url, pair->pair_code);
+    snprintf(url, sizeof url, "%s/pair/%s", node->public_base_url,
+             pair->pair_code);
     cJSON_AddStringToObject(root, "pair_code", pair->pair_code);
     cJSON_AddStringToObject(root, "pair_url", url);
     cJSON_AddNumberToObject(root, "expires_at", (double)pair->expires_at);
@@ -359,7 +393,8 @@ static wf_status poll_handler(void *ctx, const wf_xrpc_request *req,
     wf_oauth_node *node = ctx;
     const char *code = param_string(req, "code");
     if (!code || !code[0]) {
-        wf_xrpc_response_set_error(resp, 400, "InvalidRequest", "code is required");
+        wf_xrpc_response_set_error(resp, 400, "InvalidRequest",
+                                   "code is required");
         return WF_OK;
     }
 
@@ -367,18 +402,21 @@ static wf_status poll_handler(void *ctx, const wf_xrpc_request *req,
     node_pair *pair = pair_find(node, code);
     if (!pair) {
         pthread_mutex_unlock(&node->lock);
-        wf_xrpc_response_set_error(resp, 404, "NotFound", "Unknown pairing code.");
+        wf_xrpc_response_set_error(resp, 404, "NotFound",
+                                   "Unknown pairing code.");
         return WF_OK;
     }
     if (!pair->complete && pair->expires_at < now_seconds()) {
         pair->error[0] = 'e';
-        snprintf(pair->error, sizeof pair->error, "This pairing request expired.");
+        snprintf(pair->error, sizeof pair->error,
+                 "This pairing request expired.");
     }
 
     cJSON *root = cJSON_CreateObject();
     if (!root) {
         pthread_mutex_unlock(&node->lock);
-        wf_xrpc_response_set_error(resp, 500, "InternalError", "Out of memory.");
+        wf_xrpc_response_set_error(resp, 500, "InternalError",
+                                   "Out of memory.");
         return WF_OK;
     }
     if (pair->error[0]) {
@@ -412,7 +450,9 @@ static wf_status pair_page_handler(void *ctx, const wf_xrpc_request *req,
     if (!pair) {
         pthread_mutex_unlock(&node->lock);
         free(code);
-        html(resp, 404, "<h1>Pairing link not found</h1><p>Request a new link from the console.</p>");
+        html(resp, 404,
+             "<h1>Pairing link not found</h1><p>Request a new link from the "
+             "console.</p>");
         return WF_OK;
     }
     char *handle = dupstr(pair->handle);
@@ -423,26 +463,37 @@ static wf_status pair_page_handler(void *ctx, const wf_xrpc_request *req,
     free(code);
 
     if (complete) {
-        free(handle); free(auth_url);
+        free(handle);
+        free(auth_url);
         html(resp, 200,
-             "<!doctype html><meta charset=utf-8><meta name=viewport content=width=device-width,initial-scale=1>"
-             "<body style='font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.25rem'>"
-             "<h1>Account connected</h1><p>You can return to the console now.</p></body>");
+             "<!doctype html><meta charset=utf-8><meta name=viewport "
+             "content=width=device-width,initial-scale=1>"
+             "<body "
+             "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
+             "4rem auto;padding:0 1.25rem'>"
+             "<h1>Account connected</h1><p>You can return to the console "
+             "now.</p></body>");
         return WF_OK;
     }
     if (failed || !handle || !auth_url) {
-        free(handle); free(auth_url);
+        free(handle);
+        free(auth_url);
         html(resp, 410,
-             "<!doctype html><meta charset=utf-8><body style='font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.25rem'>"
-             "<h1>Pairing unavailable</h1><p>Request a new sign-in link from the console.</p></body>");
+             "<!doctype html><meta charset=utf-8><body "
+             "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
+             "4rem auto;padding:0 1.25rem'>"
+             "<h1>Pairing unavailable</h1><p>Request a new sign-in link from "
+             "the console.</p></body>");
         return WF_OK;
     }
 
     char *safe_handle = escape_html(handle);
     char *safe_url = escape_html(auth_url);
-    free(handle); free(auth_url);
+    free(handle);
+    free(auth_url);
     if (!safe_handle || !safe_url) {
-        free(safe_handle); free(safe_url);
+        free(safe_handle);
+        free(safe_url);
         html(resp, 500, "<h1>Out of memory</h1>");
         return WF_OK;
     }
@@ -450,19 +501,29 @@ static wf_status pair_page_handler(void *ctx, const wf_xrpc_request *req,
     size_t cap = strlen(safe_handle) + strlen(safe_url) + 2048;
     char *body = malloc(cap);
     if (!body) {
-        free(safe_handle); free(safe_url);
+        free(safe_handle);
+        free(safe_url);
         html(resp, 500, "<h1>Out of memory</h1>");
         return WF_OK;
     }
     snprintf(body, cap,
-             "<!doctype html><meta charset=utf-8><meta name=viewport content=width=device-width,initial-scale=1>"
-             "<title>Connect account</title><body style='font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.25rem'>"
-             "<h1>Connect your account</h1><p>This request was opened for <strong>%s</strong>.</p>"
-             "<p>The next page is your PDS's own sign-in and consent screen. This OAuth node never asks for or receives your PDS password.</p>"
-             "<p><a href='%s' style='display:inline-block;padding:.8rem 1rem;border-radius:.7rem;background:#111;color:#fff;text-decoration:none'>"
-             "Continue to PDS sign-in</a></p><p style='color:#666'>After authorising the client, you will be returned here.</p></body>",
+             "<!doctype html><meta charset=utf-8><meta name=viewport "
+             "content=width=device-width,initial-scale=1>"
+             "<title>Connect account</title><body "
+             "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
+             "4rem auto;padding:0 1.25rem'>"
+             "<h1>Connect your account</h1><p>This request was opened for "
+             "<strong>%s</strong>.</p>"
+             "<p>The next page is your PDS's own sign-in and consent screen. "
+             "This OAuth node never asks for or receives your PDS password.</p>"
+             "<p><a href='%s' style='display:inline-block;padding:.8rem "
+             "1rem;border-radius:.7rem;background:#111;color:#fff;text-"
+             "decoration:none'>"
+             "Continue to PDS sign-in</a></p><p style='color:#666'>After "
+             "authorising the client, you will be returned here.</p></body>",
              safe_handle, safe_url);
-    free(safe_handle); free(safe_url);
+    free(safe_handle);
+    free(safe_url);
     html(resp, 200, body);
     free(body);
     return WF_OK;
@@ -473,7 +534,8 @@ static wf_status metadata_handler(void *ctx, const wf_xrpc_request *req,
     (void)req;
     wf_oauth_node *node = ctx;
     wf_xrpc_response_set_content_type(resp, "application/json");
-    wf_xrpc_response_set_body(resp, node->metadata_json, strlen(node->metadata_json));
+    wf_xrpc_response_set_body(resp, node->metadata_json,
+                              strlen(node->metadata_json));
     return WF_OK;
 }
 
@@ -510,7 +572,10 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
     pthread_mutex_unlock(&node->lock);
 
     if (!pds || !state_json || !expected_did || !expected_state) {
-        free(pds); free(state_json); free(expected_did); free(expected_state);
+        free(pds);
+        free(state_json);
+        free(expected_did);
+        free(expected_state);
         pthread_mutex_lock(&node->lock);
         pair->callback_consuming = 0;
         pthread_mutex_unlock(&node->lock);
@@ -521,7 +586,9 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
     wf_xrpc_client *transport = wf_xrpc_client_new(pds);
     free(pds);
     if (!transport) {
-        free(state_json); free(expected_did); free(expected_state);
+        free(state_json);
+        free(expected_did);
+        free(expected_state);
         pthread_mutex_lock(&node->lock);
         pair->callback_consuming = 0;
         pthread_mutex_unlock(&node->lock);
@@ -535,25 +602,25 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
         .code = param_string(req, "code"),
         .issuer = param_string(req, "iss"),
         .error = param_string(req, "error"),
-        .error_description = param_string(req, "error_description")
-    };
-    wf_oauth_client_auth auth = {
-        .client_id = node->client_id,
-        .authorization_server_issuer = pair->server.issuer,
-        .signing_key = NULL,
-        .key_id = NULL
-    };
+        .error_description = param_string(req, "error_description")};
+    wf_oauth_client_auth auth = {.client_id = node->client_id,
+                                 .authorization_server_issuer =
+                                     pair->server.issuer,
+                                 .signing_key = NULL,
+                                 .key_id = NULL};
     wf_oauth_authorization_complete_result result = {0};
     wf_status st = wf_oauth_authorization_complete(
-        transport, &pair->server, &node->client, &auth, &params,
-        expected_state, state_json, strlen(state_json), node->redirect_uri,
-        now_seconds(), &result);
+        transport, &pair->server, &node->client, &auth, &params, expected_state,
+        state_json, strlen(state_json), node->redirect_uri, now_seconds(),
+        &result);
     wf_xrpc_client_free(transport);
 
     pthread_mutex_lock(&node->lock);
     pair->callback_consuming = 0;
-    free(pair->oauth_state); pair->oauth_state = NULL;
-    free(pair->oauth_state_json); pair->oauth_state_json = NULL;
+    free(pair->oauth_state);
+    pair->oauth_state = NULL;
+    free(pair->oauth_state_json);
+    pair->oauth_state_json = NULL;
     free(expected_state);
 
     bool accepted = false;
@@ -568,12 +635,14 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
         accepted = true;
     } else if (st == WF_ERR_HTTP && result.error) {
         snprintf(pair->error, sizeof pair->error, "%s",
-                 result.error_description ? result.error_description : result.error);
+                 result.error_description ? result.error_description
+                                          : result.error);
     } else {
-        snprintf(pair->error, sizeof pair->error,
-                 "%s", st == WF_OK
-                     ? "The authorised account did not match the verified handle."
-                     : "The PDS rejected or could not complete the OAuth exchange.");
+        snprintf(
+            pair->error, sizeof pair->error, "%s",
+            st == WF_OK
+                ? "The authorised account did not match the verified handle."
+                : "The PDS rejected or could not complete the OAuth exchange.");
     }
     pthread_mutex_unlock(&node->lock);
 
@@ -583,22 +652,29 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
 
     if (accepted) {
         html(resp, 200,
-             "<!doctype html><meta charset=utf-8><meta name=viewport content=width=device-width,initial-scale=1>"
-             "<title>Account connected</title><body style='font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.25rem'>"
-             "<h1>Account connected</h1><p>You can return to the console now.</p></body>");
+             "<!doctype html><meta charset=utf-8><meta name=viewport "
+             "content=width=device-width,initial-scale=1>"
+             "<title>Account connected</title><body "
+             "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
+             "4rem auto;padding:0 1.25rem'>"
+             "<h1>Account connected</h1><p>You can return to the console "
+             "now.</p></body>");
     } else {
         html(resp, 400,
-             "<!doctype html><meta charset=utf-8><meta name=viewport content=width=device-width,initial-scale=1>"
-             "<title>Sign-in failed</title><body style='font-family:system-ui,sans-serif;max-width:42rem;margin:4rem auto;padding:0 1.25rem'>"
-             "<h1>Sign-in failed</h1><p>The console will show the error. You can close this page.</p></body>");
+             "<!doctype html><meta charset=utf-8><meta name=viewport "
+             "content=width=device-width,initial-scale=1>"
+             "<title>Sign-in failed</title><body "
+             "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
+             "4rem auto;padding:0 1.25rem'>"
+             "<h1>Sign-in failed</h1><p>The console will show the error. You "
+             "can close this page.</p></body>");
     }
     return WF_OK;
 }
 
 static int bearer_is(const char *header, const char *token) {
     static const char prefix[] = "Bearer ";
-    return header && token &&
-           strncmp(header, prefix, sizeof prefix - 1) == 0 &&
+    return header && token && strncmp(header, prefix, sizeof prefix - 1) == 0 &&
            strcmp(header + sizeof prefix - 1, token) == 0;
 }
 
@@ -608,7 +684,8 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
     const char *auth = req->auth_header;
     static const char prefix[] = "Bearer ";
     if (!auth || strncmp(auth, prefix, sizeof prefix - 1) != 0) {
-        wf_xrpc_response_set_error(resp, 401, "AuthRequired", "A node bearer token is required.");
+        wf_xrpc_response_set_error(resp, 401, "AuthRequired",
+                                   "A node bearer token is required.");
         return WF_OK;
     }
 
@@ -624,52 +701,56 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
     }
     if (!pair || pair->expires_at < now_seconds()) {
         pthread_mutex_unlock(&node->lock);
-        wf_xrpc_response_set_error(resp, 401, "InvalidToken", "The node session is not valid.");
+        wf_xrpc_response_set_error(resp, 401, "InvalidToken",
+                                   "The node session is not valid.");
         return WF_OK;
     }
 
     wf_xrpc_client *transport = wf_xrpc_client_new(pair->pds_url);
     if (!transport) {
         pthread_mutex_unlock(&node->lock);
-        wf_xrpc_response_set_error(resp, 502, "UpstreamUnavailable", "Could not create the PDS client.");
+        wf_xrpc_response_set_error(resp, 502, "UpstreamUnavailable",
+                                   "Could not create the PDS client.");
         return WF_OK;
     }
 
-    wf_oauth_client_auth client_auth = {
-        .client_id = node->client_id,
-        .authorization_server_issuer = pair->server.issuer,
-        .signing_key = NULL,
-        .key_id = NULL
-    };
-    wf_auth_client *auth_client =
-        wf_auth_client_new(transport, &pair->session, &pair->server, &client_auth);
+    wf_oauth_client_auth client_auth = {.client_id = node->client_id,
+                                        .authorization_server_issuer =
+                                            pair->server.issuer,
+                                        .signing_key = NULL,
+                                        .key_id = NULL};
+    wf_auth_client *auth_client = wf_auth_client_new(
+        transport, &pair->session, &pair->server, &client_auth);
     if (!auth_client) {
         wf_xrpc_client_free(transport);
         pthread_mutex_unlock(&node->lock);
-        wf_xrpc_response_set_error(resp, 500, "InternalError", "Could not create the PDS client.");
+        wf_xrpc_response_set_error(resp, 500, "InternalError",
+                                   "Could not create the PDS client.");
         return WF_OK;
     }
 
     wf_response upstream = {0};
     wf_status st;
     if (strcmp(req->method, "GET") == 0) {
-        st = wf_auth_client_query(auth_client, req->nsid, req->raw_query, &upstream);
+        st = wf_auth_client_query(auth_client, req->nsid, req->raw_query,
+                                  &upstream);
     } else if (strcmp(req->method, "POST") == 0) {
         if (req->content_type &&
             strncasecmp(req->content_type, "application/json", 16) != 0) {
             st = wf_auth_client_upload_blob(auth_client, req->nsid, req->body,
-                                            req->body_len, req->content_type, &upstream);
+                                            req->body_len, req->content_type,
+                                            &upstream);
         } else {
-            st = wf_auth_client_procedure(auth_client, req->nsid,
-                                           req->body ? (const char *)req->body : NULL,
-                                           &upstream);
+            st = wf_auth_client_procedure(
+                auth_client, req->nsid,
+                req->body ? (const char *)req->body : NULL, &upstream);
         }
     } else {
         st = WF_ERR_INVALID_ARG;
     }
 
-    resp->http_status = upstream.status > 0 ? (int)upstream.status :
-                        (st == WF_OK ? 200 : 502);
+    resp->http_status =
+        upstream.status > 0 ? (int)upstream.status : (st == WF_OK ? 200 : 502);
     wf_xrpc_response_set_content_type(resp, "application/json");
     if (upstream.body)
         wf_xrpc_response_set_body(resp, upstream.body, upstream.body_len);
@@ -687,10 +768,12 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
     if (!node) return NULL;
 
     node->public_base_url = dupstr(cfg->public_base_url);
-    node->client_name = dupstr(cfg->client_name ? cfg->client_name : "Wolfram OAuth Node");
+    node->client_name =
+        dupstr(cfg->client_name ? cfg->client_name : "Wolfram OAuth Node");
     node->scope = dupstr(cfg->scope ? cfg->scope : "atproto repo:* blob:*/*");
-    node->slingshot_url = dupstr(
-        cfg->slingshot_url ? cfg->slingshot_url : "https://slingshot.microcosm.blue");
+    node->slingshot_url =
+        dupstr(cfg->slingshot_url ? cfg->slingshot_url
+                                  : "https://slingshot.microcosm.blue");
     node->pairing_ttl = cfg->pairing_ttl ? cfg->pairing_ttl : 600;
 
     if (!node->public_base_url || !node->client_name || !node->scope ||
@@ -703,14 +786,22 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
            node->public_base_url[strlen(node->public_base_url) - 1] == '/')
         node->public_base_url[strlen(node->public_base_url) - 1] = '\0';
 
-    size_t n = strlen(node->public_base_url) + strlen("/oauth-client-metadata.json") + 1;
+    size_t n = strlen(node->public_base_url) +
+               strlen("/oauth-client-metadata.json") + 1;
     node->client_id = malloc(n);
-    if (!node->client_id) { wf_oauth_node_free(node); return NULL; }
-    snprintf(node->client_id, n, "%s/oauth-client-metadata.json", node->public_base_url);
+    if (!node->client_id) {
+        wf_oauth_node_free(node);
+        return NULL;
+    }
+    snprintf(node->client_id, n, "%s/oauth-client-metadata.json",
+             node->public_base_url);
 
     n = strlen(node->public_base_url) + strlen("/oauth/callback") + 1;
     node->redirect_uri = malloc(n);
-    if (!node->redirect_uri) { wf_oauth_node_free(node); return NULL; }
+    if (!node->redirect_uri) {
+        wf_oauth_node_free(node);
+        return NULL;
+    }
     snprintf(node->redirect_uri, n, "%s/oauth/callback", node->public_base_url);
 
     cJSON *meta = cJSON_CreateObject();
@@ -718,7 +809,10 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
     cJSON *grants = cJSON_CreateArray();
     cJSON *responses = cJSON_CreateArray();
     if (!meta || !redirects || !grants || !responses) {
-        cJSON_Delete(meta); cJSON_Delete(redirects); cJSON_Delete(grants); cJSON_Delete(responses);
+        cJSON_Delete(meta);
+        cJSON_Delete(redirects);
+        cJSON_Delete(grants);
+        cJSON_Delete(responses);
         wf_oauth_node_free(node);
         return NULL;
     }
@@ -738,16 +832,19 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
 
     node->metadata_json = cJSON_PrintUnformatted(meta);
     cJSON_Delete(meta);
-    if (!node->metadata_json) { wf_oauth_node_free(node); return NULL; }
+    if (!node->metadata_json) {
+        wf_oauth_node_free(node);
+        return NULL;
+    }
 
     if (pthread_mutex_init(&node->lock, NULL) != 0) {
         wf_oauth_node_free(node);
         return NULL;
     }
 
-    if (wf_oauth_client_metadata_parse(node->metadata_json,
-                                        strlen(node->metadata_json),
-                                        node->client_id, &node->client) != WF_OK) {
+    if (wf_oauth_client_metadata_parse(
+            node->metadata_json, strlen(node->metadata_json), node->client_id,
+            &node->client) != WF_OK) {
         wf_oauth_node_free(node);
         return NULL;
     }
@@ -768,14 +865,14 @@ wf_status wf_oauth_node_start(wf_oauth_node *node, const char *listen_address,
         st = wf_xrpc_server_register_http_prefix(node->server, "GET", "/pair/",
                                                  pair_page_handler, node);
     if (st == WF_OK)
-        st = wf_xrpc_server_register_http_route(node->server, "GET", "/oauth/callback",
-                                                callback_handler, node);
+        st = wf_xrpc_server_register_http_route(
+            node->server, "GET", "/oauth/callback", callback_handler, node);
     if (st == WF_OK)
-        st = wf_xrpc_server_register_query(node->server, "uk.ewancroft.oauth.poll",
-                                           poll_handler, node);
+        st = wf_xrpc_server_register_query(
+            node->server, "uk.ewancroft.oauth.poll", poll_handler, node);
     if (st == WF_OK)
-        st = wf_xrpc_server_register_procedure(node->server, "uk.ewancroft.oauth.begin",
-                                               begin_handler, node);
+        st = wf_xrpc_server_register_procedure(
+            node->server, "uk.ewancroft.oauth.begin", begin_handler, node);
     if (st == WF_OK)
         st = wf_xrpc_server_set_fallback(node->server, proxy_handler, node);
 

@@ -55,13 +55,12 @@ int main(int argc, char **argv) {
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
 
-    wf_oauth_node_config config = {
-        .public_base_url = public_url,
-        .client_name = client_name,
-        .scope = scope,
-        .slingshot_url = "https://slingshot.microcosm.blue",
-        .pairing_ttl = (unsigned int)ttl
-    };
+    wf_oauth_node_config config = {.public_base_url = public_url,
+                                   .client_name = client_name,
+                                   .scope = scope,
+                                   .slingshot_url =
+                                       "https://slingshot.microcosm.blue",
+                                   .pairing_ttl = (unsigned int)ttl};
 
     wf_oauth_node *node = wf_oauth_node_new(&config);
     if (!node) {
@@ -69,15 +68,17 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    wf_status status = wf_oauth_node_start(node, listen_address, (uint16_t)port, 4);
+    wf_status status =
+        wf_oauth_node_start(node, listen_address, (uint16_t)port, 4);
     if (status != WF_OK) {
-        fprintf(stderr, "wolfram-oauth-node: failed to start (%d)\n", (int)status);
+        fprintf(stderr, "wolfram-oauth-node: failed to start (%d)\n",
+                (int)status);
         wf_oauth_node_free(node);
         return 1;
     }
 
-    fprintf(stderr, "wolfram-oauth-node: listening on %s:%u\n",
-            listen_address, (unsigned)wf_oauth_node_port(node));
+    fprintf(stderr, "wolfram-oauth-node: listening on %s:%u\n", listen_address,
+            (unsigned)wf_oauth_node_port(node));
 
     while (!stop_requested) pause();
     wf_oauth_node_free(node);
