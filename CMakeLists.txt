@@ -1549,6 +1549,11 @@ if(WOLFRAM_BUILD_TESTS)
   target_include_directories(test_image_aspect PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME image_aspect COMMAND test_image_aspect)
 
+  add_executable(test_image_decode test/test_image_decode.c)
+  target_link_libraries(test_image_decode PRIVATE wolfram)
+  target_include_directories(test_image_decode PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME image_decode COMMAND test_image_decode)
+
   add_executable(test_agent_preferences test/test_agent_preferences.c)
   target_link_libraries(test_agent_preferences PRIVATE wolfram)
   target_include_directories(test_agent_preferences PRIVATE test
