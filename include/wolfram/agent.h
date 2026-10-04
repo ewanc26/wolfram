@@ -196,6 +196,10 @@ typedef struct wf_agent_profile {
     char *handle;
     char *display_name;
     char *description;
+    /* The avatar blob's CDN URL, from `avatar.url`. getProfile sends avatar as
+     * a blob object, so this is the field to fetch an image from; avatar_cid
+     * only gets a value when the response carries one. */
+    char *avatar;
     char *avatar_cid;
     char *following; /* viewer.following record URI, or NULL */
     /* viewer.blocking record URI, or NULL. Unlike `muted` below, blocking is
