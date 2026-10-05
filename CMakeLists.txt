@@ -5,7 +5,7 @@ if(POLICY CMP0156)
 endif()
 project(
   wolfram
-  VERSION 0.25.0
+  VERSION 0.26.0
   DESCRIPTION "A C/C++ SDK for the AT Protocol"
   LANGUAGES C CXX)
 
@@ -14,6 +14,14 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# The version lives only in the `VERSION` above; derive the public
+# WOLFRAM_VERSION_* macros from PROJECT_VERSION. Done this early so every
+# target below can use them, not just `wolfram`.
+string(REPLACE "." ";" WOLFRAM_VERSION_PARTS "${PROJECT_VERSION}")
+list(GET WOLFRAM_VERSION_PARTS 0 WOLFRAM_VERSION_MAJOR)
+list(GET WOLFRAM_VERSION_PARTS 1 WOLFRAM_VERSION_MINOR)
+list(GET WOLFRAM_VERSION_PARTS 2 WOLFRAM_VERSION_PATCH)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
@@ -33,6 +41,15 @@ option(WOLFRAM_BUILD_WIIU "Build for Nintendo Wii U (devkitPPC/wut)" OFF)
 option(WOLFRAM_MHD_SHIM
        "Use the bundled libmicrohttpd shim instead of the real library" OFF)
 option(WOLFRAM_BUILD_3DS "Build for Nintendo 3DS (devkitARM/libctru)" OFF)
+
+# Build the Classic Mac OS 9 XRPC transport as a standalone transport library.
+# The full Wolfram SDK still requires a Mac OS 9 crypto backend; the transport
+# itself is useful to Platinum and other classic clients that authenticate via
+# an external bridge and therefore do not need local OAuth/DPoP signing.
+option(WOLFRAM_BUILD_MACOS9_TRANSPORT
+       "Build the Classic Mac OS 9 Open Transport/macTLS XRPC transport" OFF)
+set(WOLFRAM_MACTLS_ROOT "" CACHE PATH
+    "macTLS source root containing os9/ostls_async.h")
 
 # Windows cross-compilation (MinGW-w64). Uses Win32 APIs instead of POSIX.
 option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)"
@@ -171,6 +188,69 @@ if(NOT WOLFRAM_BUILD_NON_POSIX)
     wf_lexgen_tool PRIVATE ${cjson_SOURCE_DIR} ${cjson_BINARY_DIR}
                            ${OPENSSL_INCLUDE_DIR})
   target_link_libraries(wf_lexgen_tool PRIVATE cjson OpenSSL::Crypto)
+endif()
+
+if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
+  if(NOT WOLFRAM_MACTLS_ROOT)
+    message(FATAL_ERROR
+      "WOLFRAM_BUILD_MACOS9_TRANSPORT=ON requires "
+      "-DWOLFRAM_MACTLS_ROOT=/path/to/macTLS")
+  endif()
+  if(NOT EXISTS "${WOLFRAM_MACTLS_ROOT}/os9/ostls_async.h")
+    message(FATAL_ERROR
+      "WOLFRAM_MACTLS_ROOT does not contain os9/ostls_async.h")
+  endif()
+
+  # The Classic Mac OS 9 XRPC transport, built as its own library.
+  #
+  # This is deliberately not part of libwolfram. The full SDK still needs a
+  # Classic Mac OS 9 crypto backend for OAuth/DPoP signing and verification,
+  # whereas this transport is usable on its own by any client that
+  # authenticates through an external bridge (Platinum) and therefore needs no
+  # local signing. Keeping it separate makes the missing crypto backend explicit
+  # instead of implying the whole SDK builds here.
+  #
+  # It also has no cJSON dependency. cJSON is C99 and would not compile under a
+  # strict C89 CodeWarrior configuration, so the XRPC error envelope is decoded
+  # by a small bounded scanner inside xrpc_mac9.c. That leaves the target with
+  # nothing but libc and macTLS, which is what makes it linkable into a Mac OS
+  # 9 application at all.
+  add_library(wolfram-macos9-transport STATIC
+              src/transport/xrpc_mac9.c
+              src/transport/macos9_tls.c)
+  target_include_directories(
+    wolfram-macos9-transport
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE ${WOLFRAM_MACTLS_ROOT}/os9)
+
+  # Enforce the C89/CodeWarrior-era constraints on the host build instead of
+  # only documenting them. The rest of the tree is C23; without this the target
+  # would happily accept mid-block declarations, `//` comments and C99 libc
+  # calls that a CodeWarrior-era compiler rejects, and CI would pass on code
+  # that cannot be built for the platform it exists to serve.
+  #
+  # CMake spells C89 as the dialect value 90, which with extensions disabled
+  # becomes -std=c90: no GNU keywords, no C99 anything. -Wvla rules out variable
+  # length arrays, which C89 does not have, and -Wdeclaration-after-statement
+  # plus -Wstrict-prototypes catch the two constructs CodeWarrior's default
+  # language mode rejects most often.
+  set_target_properties(wolfram-macos9-transport PROPERTIES
+                        C_STANDARD 90
+                        C_STANDARD_REQUIRED ON
+                        C_EXTENSIONS OFF)
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    target_compile_options(wolfram-macos9-transport PRIVATE
+                           -Wdeclaration-after-statement
+                           -Wstrict-prototypes
+                           -Wvla)
+  endif()
+
+  target_compile_definitions(
+    wolfram-macos9-transport
+    PUBLIC WOLFRAM_VERSION_MAJOR=${WOLFRAM_VERSION_MAJOR}
+           WOLFRAM_VERSION_MINOR=${WOLFRAM_VERSION_MINOR}
+           WOLFRAM_VERSION_PATCH=${WOLFRAM_VERSION_PATCH}
+           WOLFRAM_VERSION_STRING="${PROJECT_VERSION}")
 endif()
 
 add_library(
@@ -330,12 +410,6 @@ if(WOLFRAM_BUILD_OAUTH_NODE)
   target_link_libraries(wolfram-oauth-node PRIVATE wolfram Threads::Threads OpenSSL::Crypto)
 endif()
 
-# The version lives only in the `VERSION` above; derive the public
-# WOLFRAM_VERSION_* macros from PROJECT_VERSION at compile time.
-string(REPLACE "." ";" WOLFRAM_VERSION_PARTS "${PROJECT_VERSION}")
-list(GET WOLFRAM_VERSION_PARTS 0 WOLFRAM_VERSION_MAJOR)
-list(GET WOLFRAM_VERSION_PARTS 1 WOLFRAM_VERSION_MINOR)
-list(GET WOLFRAM_VERSION_PARTS 2 WOLFRAM_VERSION_PATCH)
 target_compile_definitions(
   wolfram
   PUBLIC WOLFRAM_VERSION_MAJOR=${WOLFRAM_VERSION_MAJOR}
@@ -2066,6 +2140,24 @@ if(WOLFRAM_BUILD_TESTS)
                                      ${cjson_SOURCE_DIR})
     add_test(NAME actor_status_typed_httpd
              COMMAND test_actor_status_typed_httpd)
+  endif()
+
+  # The Classic Mac OS 9 transport's own tests. They link the static transport
+  # library directly and drive it through wf_xrpc_set_handler(), so the
+  # HTTP/XRPC framing, JSON envelope decoding and refresh+retry paths are all
+  # covered on a host with no Open Transport, no macTLS and no network at all.
+  # Deliberately not gated on WOLFRAM_BUILD_TEST_HTTPD: there is no server here.
+  if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
+    add_executable(test_macos9_transport test/test_macos9_transport.c
+                                           test/macos9_mactls_stub.c)
+    # The stubs satisfy the macTLS symbols the transport references, so the test
+    # links without Open Transport. macos9_mactls_stub.h includes
+    # ostls_async.h, hence the macTLS include path.
+    target_include_directories(test_macos9_transport
+                               PRIVATE ${WOLFRAM_MACTLS_ROOT}/os9)
+    target_link_libraries(test_macos9_transport
+                          PRIVATE wolfram-macos9-transport)
+    add_test(NAME macos9_transport COMMAND test_macos9_transport)
   endif()
 endif()
 
