@@ -216,6 +216,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Enabling the transport configures the whole project too, so the usual
+      # non-posix dependencies are still required; clang backs the dialect
+      # check below. Deliberately no libsecp256k1-dev: the transport must not
+      # depend on optional native crypto.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            clang
+
       - name: Fetch macTLS
         run: git clone --depth 1 https://github.com/mplsllc/macTLS.git /tmp/macTLS
 
