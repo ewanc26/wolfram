@@ -51,6 +51,28 @@ jobs:
       - name: Check README header and logo against docs/house-style.md
         run: bash .flow-canon/tools/style-check.sh .
 
+  repo-config:
+    name: labels and metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch canonical flow
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .flow-canon
+      - name: Install PyYAML
+        run: python3 -c "import yaml" 2>/dev/null || pip install --quiet pyyaml
+      - name: Labels match labels.yml and Wolfram's core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .flow-canon/tools/repo_sync.py labels check --repo "${{ github.repository }}" --canon .flow-canon/.github/labels.yml
+      - name: Metadata matches repo-metadata.yml and Wolfram's core
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .flow-canon/tools/repo_sync.py metadata check --repo "${{ github.repository }}" --canon .flow-canon/.github/repo-metadata.yml
+
   drift:
     name: drift
     # Wolfram is the canonical copy; there is nothing to drift from.
