@@ -37,6 +37,20 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: bash .flow-canon/tools/flow-check.sh
 
+  style:
+    name: style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch canonical flow
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .flow-canon
+      - name: Check README header and logo against docs/house-style.md
+        run: bash .flow-canon/tools/style-check.sh .
+
   drift:
     name: drift
     # Wolfram is the canonical copy; there is nothing to drift from.

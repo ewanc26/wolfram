@@ -23,9 +23,10 @@ If `main` goes red, that is fixed before anything else is merged.
 | `CI gate` | `ci.yml` | Every build and test job passed. One name to require, so adding a job does not mean editing branch protection. |
 | `flow / conventions` | `flow.yml`, [`flow-reusable.yml`](../.github/workflows/flow-reusable.yml) | Branch name, PR title, PR body sections, commit subjects, no empty commits, no merge commits ([`tools/flow-check.sh`](../tools/flow-check.sh)). |
 | `flow / drift` | same | The PR template and the AGENTS.md flow block match Wolfram's ([`tools/flow-drift.sh`](../tools/flow-drift.sh)). Skipped in Wolfram itself. |
-| `flow scripts self-test` | `ci.yml` | The two scripts above reject known-bad input ([`tools/flow-selftest.sh`](../tools/flow-selftest.sh)). |
+| `flow / style` | same | README header, section order and logo match [house-style.md](house-style.md) ([`tools/style-check.sh`](../tools/style-check.sh)). |
+| `flow scripts self-test` | `ci.yml` | The scripts above reject known-bad input ([`flow-selftest.sh`](../tools/flow-selftest.sh), [`style-selftest.sh`](../tools/style-selftest.sh)). |
 
-The repository should allow rebase merging only. Branch protection on `main` should require `CI gate` and `flow / conventions`, require branches to be up to date, and forbid force pushes. GitHub only lets the repository owner set that, so until it is set the checks report but do not block. That is tracked in the `needs-owner` issue for it.
+The repository should allow rebase merging only. Branch protection on `main` should require `CI gate`, `flow / conventions` and `flow / style`, require branches to be up to date, and forbid force pushes. GitHub only lets the repository owner set that, so until it is set the checks report but do not block. That is tracked in the `needs-owner` issue for it.
 
 ## Using it from another repo
 
