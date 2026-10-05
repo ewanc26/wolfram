@@ -278,6 +278,8 @@ add_library(
   # Session
   src/session/session.c
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/session/auth_client.c>
+  # OAuth pairing client: pure begin/poll parsing and driver, console-buildable
+  src/session/oauth/pairing.c
   # OAuth (metadata, PKCE, DPoP, PAR, state, callback, flow)
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:
   src/session/oauth/util.c
@@ -285,7 +287,6 @@ add_library(
   src/session/oauth/pkce.c
   src/session/oauth/dpop.c
   src/session/oauth/par.c
-  src/session/oauth/pairing.c
   src/session/oauth/state.c
   src/session/oauth/callback.c
   src/session/oauth/flow.c
