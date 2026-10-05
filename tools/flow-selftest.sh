@@ -56,10 +56,16 @@ git init -q "$r"
 	git rev-parse HEAD >"$tmp/empty"
 	echo c >c && git add c && git commit -q -m "stuff"
 	git rev-parse HEAD >"$tmp/badsubj"
+	git switch -q -c side "$(cat "$tmp/real")"
+	echo d >d && git add d && git commit -q -m "fix: side work"
+	git switch -q -
+	git merge -q --no-ff side -m "fix: merge side"
+	git rev-parse HEAD >"$tmp/merge"
 )
 chk_commits() { (cd "$r" && PR_TITLE="fix: a thing" PR_BRANCH="fix/x" PR_BODY="$good_body" BASE_SHA="${2:-$(cat "$tmp/base")}" HEAD_SHA="$1" bash "$check"); }
 expect pass "non-empty commits" -- chk_commits "$(cat "$tmp/real")"
 expect fail "non-conventional commit subject" -- chk_commits "$(cat "$tmp/badsubj")" "$(cat "$tmp/empty")"
+expect fail "merge commit in range" -- chk_commits "$(cat "$tmp/merge")" "$(cat "$tmp/badsubj")"
 expect fail "empty commit in range" -- chk_commits "$(cat "$tmp/empty")"
 
 # Drift, against this checkout as the canonical copy.

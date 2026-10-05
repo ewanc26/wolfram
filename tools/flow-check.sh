@@ -24,7 +24,7 @@ title="${PR_TITLE-}"
 branch="${PR_BRANCH-}"
 body="${PR_BODY-}"
 
-# Title: Conventional Commits. A squash merge uses it as the commit subject.
+# Title: Conventional Commits. The PR is rebase-merged, so the title is not the commit subject, but it is what a reader sees first.
 if ! [[ "$title" =~ ^(${types}|revert)(\([a-z0-9._/-]+\))?!?:\ [^[:space:]].*$ ]] || ((${#title} > 100)); then
 	bad "PR title must be 'type(scope): summary' (type: ${types}|revert; at most 100 characters), got: ${title}"
 fi
@@ -72,6 +72,11 @@ done
 # carried, lifted here so there is one copy), and no empty commits.
 if [ -n "${BASE_SHA-}" ] && [ -n "${HEAD_SHA-}" ] &&
 	git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+	# A rebase merge cannot take merge commits; do not merge main into a PR
+	# branch (see docs/flow.md for what to do when a PR falls behind).
+	if [ -n "$(git rev-list --merges "${BASE_SHA}..${HEAD_SHA}")" ]; then
+		bad "the PR contains merge commits: rebase merging cannot land them. Cut a fresh branch from main and cherry-pick instead of merging main in"
+	fi
 	while IFS= read -r c; do
 		[ -n "$c" ] || continue
 		subj="$(git log -1 --format=%s "$c")"
