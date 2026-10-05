@@ -201,6 +201,64 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build:${{ github.workspace }}/build/_deps/cjson-build:${{ github.workspace }}/build/_deps/libcbor-build/src
         run: dotnet test dotnet/Wolfram.Interop.Tests/Wolfram.Interop.Tests.csproj
 
+  # The Classic Mac OS 9 transport is a C89/CodeWarrior target, which no other
+  # job here checks: the main builds compile it as part of nothing (it is a
+  # separate, opt-in target) and would happily accept C99 constructs that
+  # CodeWarrior rejects. macTLS is a third-party Open Transport/BearSSL library
+  # that only builds for real PowerPC Mac OS 9, but its public header carries
+  # plain-C fallback typedefs, so the transport compiles and links against
+  # stubs on a Linux runner. That is enough to keep the dialect honest and to
+  # run the transport's offline tests; it is not a substitute for a native
+  # CodeWarrior build.
+  macos9-transport:
+    name: Mac OS 9 transport (C89)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch macTLS
+        run: git clone --depth 1 https://github.com/mplsllc/macTLS.git /tmp/macTLS
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DWOLFRAM_BUILD_MACOS9_TRANSPORT=ON \
+            -DWOLFRAM_MACTLS_ROOT=/tmp/macTLS
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Assert the target really is compiled as strict C89
+        run: |
+          # Guards against the enforcement silently regressing: if the
+          # -std=c90 flags disappear, the dialect checks below would still
+          # pass and nothing would notice.
+          FLAGS=build/CMakeFiles/wolfram-macos9-transport.dir/flags.make
+          test -f "$FLAGS"
+          grep -q -- '-std=c90' "$FLAGS"
+          grep -q -- '-Wdeclaration-after-statement' "$FLAGS"
+
+      - name: Recompile as strict C89 with every extension rejected
+        run: |
+          # Independent of CMake, and stricter than it: -pedantic-errors turns
+          # GNU extensions and C99 constructs into hard errors, so this catches
+          # anything the target's own flags let through.
+          for f in src/transport/xrpc_mac9.c src/transport/macos9_tls.c; do
+            clang -std=c89 -pedantic-errors -Wall -Wextra \
+              -Wno-unused-parameter -Werror \
+              -Iinclude -I/tmp/macTLS/os9 \
+              -DWOLFRAM_VERSION_MAJOR=0 -DWOLFRAM_VERSION_MINOR=26 \
+              -DWOLFRAM_VERSION_PATCH=0 -DWOLFRAM_VERSION_STRING='"0.26.0"' \
+              -c "$f" -o /dev/null
+          done
+
+      - name: Run the transport's offline tests
+        run: ./build/test_macos9_transport
+
+      - name: Run the full suite with the transport enabled
+        run: ctest --test-dir build --output-on-failure
+
   # Formatting check: clang-format on changed lines only. The existing tree
   # predates this config and has not been mass-reformatted, so only
   # new/modified lines are required to conform — see .clang-format.
