@@ -153,17 +153,31 @@ jobs:
   # Apple's own libcurl is what a developer's Mac links, so the build prefers
   # the system one as a stock checkout would.
   macos:
-    name: macOS full-features build + ctest
+    name: macOS full-features build + ctest (${{ matrix.curl }} libcurl)
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # `system` is Apple's libcurl, which on current macOS exports the
+        # WebSocket API but was built without WebSocket support: the
+        # WebSocket tests must SKIP there, not fail. `homebrew` is a libcurl
+        # with WebSockets, which exercises the real handshake and stream.
+        curl: [system, homebrew]
     steps:
       - uses: actions/checkout@v7
 
       - name: Install dependencies
-        run: brew install cmake pkg-config libsodium libmicrohttpd zstd c-ares secp256k1 sqlite
+        run: |
+          brew install cmake pkg-config libsodium libmicrohttpd zstd c-ares secp256k1 sqlite
+          if [ "${{ matrix.curl }}" = homebrew ]; then brew install curl; fi
 
       - name: Configure
         run: |
-          cmake -S . -B build \
+          EXTRA=""
+          if [ "${{ matrix.curl }}" = homebrew ]; then
+            EXTRA="-DCMAKE_PREFIX_PATH=$(brew --prefix curl)"
+          fi
+          cmake -S . -B build $EXTRA \
             -DCMAKE_BUILD_TYPE=Debug \
             -DWOLFRAM_BUILD_SERVER=ON \
             -DWOLFRAM_BUILD_STORE=ON \
@@ -182,6 +196,7 @@ jobs:
         if: failure()
         run: |
           curl --version | head -3
+          grep -i 'CURL_LIBRARY\|CURL_INCLUDE' build/CMakeCache.txt || true
           otool -L build/libwolfram* | head -20 || true
           export WOLFRAM_LOG_LEVEL=debug WOLFRAM_CURL_VERBOSE=1
           ./build/test_relay_server 2>&1 | head -150 || true
