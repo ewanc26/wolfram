@@ -2141,6 +2141,24 @@ if(WOLFRAM_BUILD_TESTS)
     add_test(NAME actor_status_typed_httpd
              COMMAND test_actor_status_typed_httpd)
   endif()
+
+  # The Classic Mac OS 9 transport's own tests. They link the static transport
+  # library directly and drive it through wf_xrpc_set_handler(), so the
+  # HTTP/XRPC framing, JSON envelope decoding and refresh+retry paths are all
+  # covered on a host with no Open Transport, no macTLS and no network at all.
+  # Deliberately not gated on WOLFRAM_BUILD_TEST_HTTPD: there is no server here.
+  if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
+    add_executable(test_macos9_transport test/test_macos9_transport.c
+                                           test/macos9_mactls_stub.c)
+    # The stubs satisfy the macTLS symbols the transport references, so the test
+    # links without Open Transport. macos9_mactls_stub.h includes
+    # ostls_async.h, hence the macTLS include path.
+    target_include_directories(test_macos9_transport
+                               PRIVATE ${WOLFRAM_MACTLS_ROOT}/os9)
+    target_link_libraries(test_macos9_transport
+                          PRIVATE wolfram-macos9-transport)
+    add_test(NAME macos9_transport COMMAND test_macos9_transport)
+  endif()
 endif()
 
 if(WOLFRAM_BUILD_CPP)
