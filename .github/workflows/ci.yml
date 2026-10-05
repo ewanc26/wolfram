@@ -349,6 +349,8 @@ jobs:
       - run: tools/flow-selftest.sh
       - run: tools/style-selftest.sh
       - run: tools/embedded-check.sh
+      - run: python3 -c "import yaml" 2>/dev/null || pip install --quiet pyyaml
+      - run: tools/repo-sync-selftest.sh
 
   # One name for branch protection to require. It fails when any gating job
   # failed or was cancelled, so a new job is covered by adding it to `needs`
