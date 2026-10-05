@@ -705,3 +705,8 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
 - OpenSSL (libcrypto) — for SHA-256 hashing.
 - [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing on desktop. Console targets use mbedTLS's built-in secp256k1 support instead.
+
+
+## Current platform work
+
+56. Classic Mac OS 9 XRPC transport — Open Transport TCP through the macTLS async stream, cooperative pumping/yielding, bearer authentication with one automatic refresh-and-retry, DPoP-Nonce capture, Content-Length/chunked response handling, bounded buffering on every response path, and HTTP GET/POST support. Exposed as the standalone `wolfram-macos9-transport` target, compiled as strict C89 for CodeWarrior and covered by offline tests through the handler seam. The full SDK still needs a dedicated Mac OS 9 crypto backend before the complete library can replace the desktop/embedded crypto selection; CI verifies the C89 dialect and the transport's own logic, but a native CodeWarrior build and a real Mac OS 9 runtime test are still outstanding.
