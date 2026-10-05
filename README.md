@@ -5,16 +5,14 @@
 <p align="center">
   <a href="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml"><img src="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/ewanc26/wolfram/releases/latest"><img src="https://img.shields.io/github/v/release/ewanc26/wolfram?sort=semver" alt="Latest release"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/ewanc26/wolfram" alt="AGPL-3.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ewanc26/wolfram?label=licence" alt="Licence"></a>
   <a href="https://github.com/sponsors/ewanc26"><img src="https://img.shields.io/github/sponsors/ewanc26?logo=githubsponsors&logoColor=white&label=sponsors" alt="Sponsor"></a>
 </p>
 
-# wolfram
+# Wolfram
 
 A C/C++ SDK for the AT Protocol — a client-side, wire-level implementation of the
 protocol, not a port of the upstream `atproto` service backends.
-
-![version](https://img.shields.io/github/v/release/ewanc26/wolfram?label=version)
 
 > **Not affiliated with Wolfram Alpha.** Despite the name, this project is an
 > independent AT Protocol SDK and has no connection to, or endorsement from,
