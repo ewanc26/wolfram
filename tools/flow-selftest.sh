@@ -29,6 +29,7 @@ expect() { # expect pass|fail <name> -- command...
 chk() { PR_TITLE="$1" PR_BRANCH="$2" PR_BODY="$3" bash "$check"; }
 
 expect pass "valid PR" -- chk "fix(sync): close the socket" "fix/relay-macos" "$good_body"
+expect pass "ui type (Indigo's)" -- chk "ui(settings): mark reduce motion" "ui/reduce-motion" "$good_body"
 expect pass "no scope, breaking marker" -- chk "feat!: drop v1" "feat/drop-v1" "$good_body"
 expect fail "title without a type" -- chk "Add stuff" "feat/x" "$good_body"
 expect fail "title with unknown type" -- chk "wip: thing" "feat/x" "$good_body"
@@ -49,13 +50,16 @@ git init -q "$r"
 	git config user.name t
 	echo a >a && git add a && git commit -q -m base
 	git rev-parse HEAD >"$tmp/base"
-	echo b >b && git add b && git commit -q -m real
+	echo b >b && git add b && git commit -q -m "fix: real change"
 	git rev-parse HEAD >"$tmp/real"
-	git commit -q --allow-empty -m empty
+	git commit -q --allow-empty -m "fix: nothing"
 	git rev-parse HEAD >"$tmp/empty"
+	echo c >c && git add c && git commit -q -m "stuff"
+	git rev-parse HEAD >"$tmp/badsubj"
 )
-chk_commits() { (cd "$r" && PR_TITLE="fix: a thing" PR_BRANCH="fix/x" PR_BODY="$good_body" BASE_SHA="$(cat "$tmp/base")" HEAD_SHA="$1" bash "$check"); }
+chk_commits() { (cd "$r" && PR_TITLE="fix: a thing" PR_BRANCH="fix/x" PR_BODY="$good_body" BASE_SHA="${2:-$(cat "$tmp/base")}" HEAD_SHA="$1" bash "$check"); }
 expect pass "non-empty commits" -- chk_commits "$(cat "$tmp/real")"
+expect fail "non-conventional commit subject" -- chk_commits "$(cat "$tmp/badsubj")" "$(cat "$tmp/empty")"
 expect fail "empty commit in range" -- chk_commits "$(cat "$tmp/empty")"
 
 # Drift, against this checkout as the canonical copy.

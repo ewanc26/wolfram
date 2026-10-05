@@ -6,7 +6,7 @@ The short, agent-facing version is the `flow` block in [AGENTS.md](../AGENTS.md)
 
 ## The path of a change
 
-1. Branch from `main`, named `type/slug`: `feat/muted-words`, `fix/relay-macos`. Types are `feat fix docs ci chore refactor test perf build release`.
+1. Branch from `main`, named `type/slug`: `feat/muted-words`, `fix/relay-macos`. Types are `feat fix docs ci chore refactor test perf build ui release`.
 2. Commit in small, focused steps. Subjects are [Conventional Commits](https://www.conventionalcommits.org/): `fix(sync): close the socket on a short read`. I do not push empty commits.
 3. Open a pull request against `main` using the template. The title is a Conventional Commit too, because a squash merge uses it as the subject.
 4. Wait for CI. Nothing merges red.
@@ -19,7 +19,7 @@ If `main` goes red, that is fixed before anything else is merged.
 | Check | Where it lives | What it enforces |
 | --- | --- | --- |
 | `CI gate` | `ci.yml` | Every build and test job passed. One name to require, so adding a job does not mean editing branch protection. |
-| `flow / conventions` | `flow.yml`, [`flow-reusable.yml`](../.github/workflows/flow-reusable.yml) | Branch name, PR title, PR body sections, no empty commits ([`tools/flow-check.sh`](../tools/flow-check.sh)). |
+| `flow / conventions` | `flow.yml`, [`flow-reusable.yml`](../.github/workflows/flow-reusable.yml) | Branch name, PR title, PR body sections, commit subjects, no empty commits ([`tools/flow-check.sh`](../tools/flow-check.sh)). |
 | `flow / drift` | same | The PR template and the AGENTS.md flow block match Wolfram's ([`tools/flow-drift.sh`](../tools/flow-drift.sh)). Skipped in Wolfram itself. |
 | `flow scripts self-test` | `ci.yml` | The two scripts above reject known-bad input ([`tools/flow-selftest.sh`](../tools/flow-selftest.sh)). |
 
