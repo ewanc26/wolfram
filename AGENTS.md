@@ -34,3 +34,11 @@ Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md f
 - Transport-level limits are policies, not conveniences: `https_only` and the response-size cap are checked before any I/O and before the `wf_xrpc_set_handler()` test seam, so neither can be switched off by a handler.
 - The public macTLS surface lives in `include/wolfram/macos9_tls.h`; keep `<wolfram/xrpc.h>` free of Mac-specific types.
 - Test the transport offline via `wf_xrpc_set_handler()` and the stubs in `test/macos9_mactls_stub.c`. The suite asserts no macTLS entry point is ever called, so a test cannot pass by reaching the network.
+
+## OAuth pairing
+
+- The console sign-in contract (`uk.ewancroft.oauth.begin` / `.poll`) is specified once in `docs/oauth-pairing.md` and implemented client-side in `include/wolfram/oauth_pairing.h`. Clients must call it; do not hand-roll the cJSON walk or the poll loop in a consumer.
+- Change the contract by changing `test/vectors/oauth_pairing.json` and the doc in the same PR as the node and the client. The vectors are shared with consumers.
+- The poll `token` is a bearer credential. Never log it, the pair code, a poll URL or a raw reply. Keep the stderr-capture test passing.
+- A 404 on poll is terminal. Do not make the driver retry it.
+

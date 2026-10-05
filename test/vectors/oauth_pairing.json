@@ -1,0 +1,297 @@
+{
+ "description": "Test vectors for the OAuth node pairing contract (docs/oauth-pairing.md). Clients and the node must agree on these. Reply vectors: 'body' is a JSON value, or 'body_text' a raw string; 'expect' is an object or 'parse_error'. Driver vectors script a whole session.",
+ "build_begin": [
+  {
+   "name": "plain handle",
+   "handle": "alice.bsky.social",
+   "body": "{\"handle\":\"alice.bsky.social\"}"
+  },
+  {
+   "name": "quote is escaped",
+   "handle": "a\"b",
+   "body": "{\"handle\":\"a\\\"b\"}"
+  },
+  {
+   "name": "empty handle rejected",
+   "handle": "",
+   "invalid": true
+  },
+  {
+   "name": "newline rejected",
+   "handle": "a\nb",
+   "invalid": true
+  }
+ ],
+ "begin": [
+  {
+   "n": 1,
+   "name": "full",
+   "body": {
+    "pair_code": "abc123",
+    "pair_url": "https://auth.example.com/pair/abc123",
+    "expires_at": 1760000600
+   },
+   "expect": {
+    "pair_code": "abc123",
+    "pair_url": "https://auth.example.com/pair/abc123",
+    "expires_at": 1760000600
+   }
+  },
+  {
+   "name": "expires_at optional",
+   "body": {
+    "pair_code": "ABC",
+    "pair_url": "http://127.0.0.1:8080/pair/ABC"
+   },
+   "expect": {
+    "pair_code": "ABC",
+    "pair_url": "http://127.0.0.1:8080/pair/ABC",
+    "expires_at": 0
+   }
+  },
+  {
+   "n": 2,
+   "name": "url missing",
+   "body": {
+    "pair_code": "abc123"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "n": 3,
+   "name": "wrong type",
+   "body": {
+    "pair_code": 1,
+    "pair_url": "x"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "n": 4,
+   "name": "url too long is rejected, never truncated",
+   "body": {
+    "pair_code": "abc123",
+    "pair_url": "https://auth.example.com/pair/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "n": 5,
+   "name": "not json",
+   "body_text": "not json",
+   "expect": "parse_error"
+  },
+  {
+   "n": 5,
+   "name": "empty body",
+   "body_text": "",
+   "expect": "parse_error"
+  },
+  {
+   "name": "url must be http(s)",
+   "body": {
+    "pair_code": "ABC",
+    "pair_url": "javascript:alert(1)"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "expires_at must be a number",
+   "body": {
+    "pair_code": "ABC",
+    "pair_url": "https://a.example/pair/1",
+    "expires_at": "soon"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "not an object",
+   "body": [],
+   "expect": "parse_error"
+  }
+ ],
+ "poll": [
+  {
+   "n": 6,
+   "name": "pending",
+   "body": {
+    "status": "pending"
+   },
+   "expect": {
+    "state": "pending"
+   }
+  },
+  {
+   "n": 7,
+   "name": "complete",
+   "body": {
+    "status": "complete",
+    "token": "T",
+    "handle": "a.example",
+    "did": "did:plc:abc",
+    "service": "https://auth.example.com"
+   },
+   "expect": {
+    "state": "complete",
+    "token": "T",
+    "handle": "a.example",
+    "did": "did:plc:abc",
+    "service": "https://auth.example.com"
+   }
+  },
+  {
+   "n": 8,
+   "name": "complete without did/service",
+   "body": {
+    "status": "complete",
+    "token": "T",
+    "handle": "a.example"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "n": 9,
+   "name": "error with message",
+   "body": {
+    "status": "error",
+    "message": "This pairing request expired."
+   },
+   "expect": {
+    "state": "error",
+    "message": "This pairing request expired."
+   }
+  },
+  {
+   "n": 10,
+   "name": "error without message",
+   "body": {
+    "status": "error"
+   },
+   "expect": {
+    "state": "error",
+    "message": ""
+   }
+  },
+  {
+   "n": 11,
+   "name": "unknown status",
+   "body": {
+    "status": "weird"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "complete with non-DID did",
+   "body": {
+    "status": "complete",
+    "token": "T",
+    "handle": "a.b",
+    "did": "plc:x",
+    "service": "https://auth.example.com"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "complete with non-http service",
+   "body": {
+    "status": "complete",
+    "token": "T",
+    "handle": "a.b",
+    "did": "did:plc:x",
+    "service": "ftp://auth.example.com"
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "missing status",
+   "body": {
+    "token": "T"
+   },
+   "expect": "parse_error"
+  }
+ ],
+ "driver": [
+  {
+   "n": 12,
+   "name": "404 unknown code is terminal: exactly one poll",
+   "polls": [
+    {
+     "http": 404,
+     "body": {
+      "error": "NotFound",
+      "message": "Unknown pairing code."
+     }
+    }
+   ],
+   "expect": {
+    "status": "auth",
+    "polls_made": 1,
+    "message": "Unknown pairing code."
+   }
+  },
+  {
+   "n": 13,
+   "name": "5xx and pending are retried until complete",
+   "polls": [
+    {
+     "http": 503,
+     "body": {
+      "error": "Unavailable"
+     }
+    },
+    {
+     "http": 200,
+     "body": {
+      "status": "pending"
+     }
+    },
+    {
+     "http": 200,
+     "body": {
+      "status": "complete",
+      "token": "SECRETTOKEN-0123",
+      "handle": "a.example",
+      "did": "did:plc:abc",
+      "service": "https://auth.example.com"
+     }
+    }
+   ],
+   "expect": {
+    "status": "ok",
+    "polls_made": 3
+   }
+  },
+  {
+   "name": "terminal error reply",
+   "polls": [
+    {
+     "http": 200,
+     "body": {
+      "status": "error",
+      "message": "This pairing request expired."
+     }
+    }
+   ],
+   "expect": {
+    "status": "auth",
+    "polls_made": 1,
+    "message": "This pairing request expired."
+   }
+  },
+  {
+   "name": "contract violation on 200 is terminal",
+   "polls": [
+    {
+     "http": 200,
+     "body": {
+      "status": "weird"
+     }
+    }
+   ],
+   "expect": {
+    "status": "parse",
+    "polls_made": 1
+   }
+  }
+ ]
+}
