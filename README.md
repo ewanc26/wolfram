@@ -11,8 +11,8 @@
 
 # Wolfram
 
-A C/C++ SDK for the AT Protocol — a client-side, wire-level implementation of the
-protocol, not a port of the upstream `atproto` service backends.
+A C/C++ SDK for the AT Protocol: a client-side, wire-level implementation, not a
+port of the upstream service backends.
 
 > **Not affiliated with Wolfram Alpha.** Despite the name, this project is an
 > independent AT Protocol SDK and has no connection to, or endorsement from,
