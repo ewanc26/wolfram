@@ -13,7 +13,7 @@
 # violation is printed, not just the first.
 set -u
 
-types='feat|fix|docs|ci|chore|refactor|test|perf|build|release'
+types='feat|fix|docs|ci|chore|refactor|test|perf|build|ui|release'
 fail=0
 bad() {
 	echo "flow: $*" >&2
@@ -68,11 +68,16 @@ for s in "What this changes" "Verification" "Docs"; do
 	fi
 done
 
-# Commits: an empty commit is never a fix.
+# Commits: Conventional Commit subjects (the check Indigo's flow script
+# carried, lifted here so there is one copy), and no empty commits.
 if [ -n "${BASE_SHA-}" ] && [ -n "${HEAD_SHA-}" ] &&
 	git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null && git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
 	while IFS= read -r c; do
 		[ -n "$c" ] || continue
+		subj="$(git log -1 --format=%s "$c")"
+		if ! [[ "$subj" =~ ^(${types}|revert)(\([a-z0-9._/-]+\))?!?:\ [^[:space:]].*$ ]] || ((${#subj} > 100)); then
+			bad "commit $(git rev-parse --short "$c") subject must be 'type(scope): summary' (at most 100 characters), got: ${subj}"
+		fi
 		if [ -z "$(git diff-tree --root --no-commit-id --name-only -r "$c")" ]; then
 			bad "commit $(git rev-parse --short "$c") is empty"
 		fi
