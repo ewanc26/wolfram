@@ -33,6 +33,7 @@ This block is byte-identical in every repo of the stack and is drift-checked by 
 - State exactly what was verified and where (host, emulator, hardware). Never claim hardware you did not use.
 - Releases go through the repo's own release script only, and only after every consumer in the stack has been verified against the change.
 - Anything only the owner can supply (credentials, hardware results, money, irreversible actions): file an issue labelled `needs-owner` and move on.
+- READMEs and logos follow `docs/house-style.md` (wolfram), checked by `flow / style`.
 - No secrets in the repo or its CI. No Vercel. No registry publishing.
 <!-- flow:end -->
 
