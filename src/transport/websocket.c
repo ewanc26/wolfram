@@ -1,5 +1,7 @@
 #include "wolfram/websocket.h"
 
+#include "wolfram/log.h"
+
 #include <curl/curl.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -184,7 +186,16 @@ wf_status wf_websocket_connect_with_headers(const char *url,
 
     /* CONNECT_ONLY completes the WS upgrade within this single perform call,
      * so the header list is not needed past it (curl does not retain it). */
+    /* Diagnostics only: WOLFRAM_CURL_VERBOSE=1 makes libcurl narrate the
+     * upgrade on stderr. The WebSocket upgrade carries no credentials of its
+     * own, but caller-supplied headers (Jetstream, labelers) can, so never set
+     * this in production. */
+    if (getenv("WOLFRAM_CURL_VERBOSE"))
+        curl_easy_setopt(socket->curl, CURLOPT_VERBOSE, 1L);
     CURLcode result = curl_easy_perform(socket->curl);
+    if (result != CURLE_OK)
+        WF_LOG_DEBUG("websocket", "connect failed: %s (curl %d)",
+                     curl_easy_strerror(result), (int)result);
 #if defined(__APPLE__)
     if (result == CURLE_OK) wf_websocket_make_nonblocking(socket->curl);
 #endif
