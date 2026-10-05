@@ -98,7 +98,9 @@ wf_status wf_oauth_pair_begin_request(wf_xrpc_client *client,
 wf_status wf_oauth_pair_poll_once(wf_xrpc_client *client, const char *code,
                                   wf_oauth_pair_poll *out);
 
-/* Hooks for the driver. `sleep_ms` is required (the SDK has no portable
+/* Hooks for the driver. Every hook is called synchronously on the thread
+ * that calls wf_oauth_pair_run (a client's session worker, typically), never
+ * from another thread, so a hook may take that client's own locks. `sleep_ms` is required (the SDK has no portable
  * sleep); the rest may be NULL. */
 typedef struct wf_oauth_pair_hooks {
     /* Called once, after begin succeeds, to show the user the URL and code. */
