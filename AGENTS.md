@@ -22,7 +22,7 @@ Primarily C AT Protocol SDK: client-side, wire-level implementation (XRPC, OAuth
 
 This block is byte-identical in every repo of the stack and is drift-checked by CI. Do not edit a copy; change it by PR to wolfram, then copy it out.
 
-- Branch from main as `<type>/<slug>`. Types: feat fix docs ci chore refactor test perf build release. Slug: lowercase `a-z 0-9 . _ -`.
+- Branch from main as `<type>/<slug>`. Types: feat fix docs ci chore refactor test perf build ui release (titles and commits also allow revert). Slug: lowercase `a-z 0-9 . _ -`.
 - Commit subjects and PR titles are Conventional Commits: `type(scope): summary`. Keep commits focused. Never push an empty commit.
 - Agent commits end with the `Co-Authored-By:` and `Claude-Session:` trailers the session supplies. PR descriptions use `.github/PULL_REQUEST_TEMPLATE.md` (What this changes, Verification, Docs) and end with the session link.
 - Nothing goes straight to main. Branch, open a PR, wait for green CI, merge the PR (squash). Required checks: `CI gate` and `flow / conventions`.
