@@ -187,8 +187,10 @@ jobs:
       - name: Build
         run: cmake --build build -j"$(sysctl -n hw.ncpu)"
 
+      # A per-test timeout so a hung WebSocket test fails by name instead of
+      # holding the job until the six-hour limit.
       - name: Test
-        run: ctest --test-dir build --output-on-failure -j"$(sysctl -n hw.ncpu)"
+        run: ctest --test-dir build --output-on-failure --timeout 120 -j"$(sysctl -n hw.ncpu)"
 
       # Only on failure: say which libcurl was linked and let the two
       # WebSocket tests narrate their own handshakes.
