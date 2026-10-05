@@ -62,3 +62,10 @@ Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md f
 - A 404 on poll is terminal. Do not make the driver retry it.
 - A source that console targets must link goes in `tools/embedded-sources.txt` and outside every `NOT:BOOL:WOLFRAM_BUILD_EMBEDDED` block of `CMakeLists.txt`; `tools/embedded-check.sh` enforces it in CI. A header that says it builds on consoles while its source is excluded compiles and then fails to link in the client.
 
+## Client self-update
+
+- Manifest parsing, version comparison and SHA-256 verification live in `include/wolfram/update.h` and are specified in `docs/update.md`. Clients call them; do not re-implement in a consumer.
+- `src/update/update_core.c` is strict C89 with no `stdint.h` and is part of the Mac OS 9 target; CI compiles it with `-std=c89 -pedantic-errors`. Keep it that way. `manifest.c` needs cJSON and stays out of that target.
+- Change the manifest or version rules by changing `test/vectors/update/*.json` and `docs/update.md` in the same PR. Consumers, including Platinum's TypeScript port, run those vectors.
+- Never describe a SHA-256 from the same release as authentication. `signature` is reserved and unverified; do not add a public key to the repo, the owner supplies it.
+

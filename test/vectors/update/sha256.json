@@ -1,0 +1,43 @@
+{
+ "description": "SHA-256 known-answer vectors. input_hex is the message; or 'repeat' gives one byte repeated count times. Digests are lowercase hex and were checked against FIPS 180-4 examples.",
+ "vectors": [
+  {
+   "name": "empty",
+   "input_hex": "",
+   "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+   "name": "abc (FIPS 180-4 example)",
+   "input_hex": "616263",
+   "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  },
+  {
+   "name": "448-bit message (FIPS 180-4 example)",
+   "input_hex": "6162636462636465636465666465666765666768666768696768696a68696a6b696a6b6c6a6b6c6d6b6c6d6e6c6d6e6f6d6e6f706e6f7071",
+   "sha256": "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
+  },
+  {
+   "name": "55 bytes (one-block padding edge)",
+   "input_hex": "61616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161",
+   "sha256": "9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"
+  },
+  {
+   "name": "56 bytes (padding spills to a second block)",
+   "input_hex": "6161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161",
+   "sha256": "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"
+  },
+  {
+   "name": "64 bytes",
+   "input_hex": "61616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161",
+   "sha256": "ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb"
+  },
+  {
+   "name": "one million 'a' (FIPS 180-4 example)",
+   "repeat": {
+    "byte_hex": "61",
+    "count": 1000000
+   },
+   "sha256": "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"
+  }
+ ]
+}
