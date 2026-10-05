@@ -348,6 +348,7 @@ jobs:
       - uses: actions/checkout@v7
       - run: tools/flow-selftest.sh
       - run: tools/style-selftest.sh
+      - run: tools/embedded-check.sh
 
   # One name for branch protection to require. It fails when any gating job
   # failed or was cancelled, so a new job is covered by adding it to `needs`
