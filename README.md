@@ -317,6 +317,16 @@ cmake -S . -B build-macos9-transport \
   -DWOLFRAM_BUILD_MACOS9_TRANSPORT=ON \
   -DWOLFRAM_MACTLS_ROOT=/path/to/macTLS
 cmake --build build-macos9-transport --target wolfram-macos9-transport
+ctest --test-dir build-macos9-transport -R macos9_transport
 ```
 
-The transport exposes the same low-level XRPC request semantics as the Wii backend, including bearer authentication, DPoP nonce capture, bounded response buffering, and Content-Length/chunked HTTP responses. The Mac OS 9 adapter yields through an application callback so a cooperative event loop can continue servicing the UI. The complete `libwolfram` Mac OS 9 port remains separate because it needs a dedicated crypto backend for signing and verification.
+The transport exposes the same low-level XRPC request semantics as every other Wolfram backend, including bearer authentication, one automatic refresh-and-retry on an expired token, DPoP nonce capture, bounded response buffering, and Content-Length/chunked HTTP responses. Every response path is bounded by `wf_xrpc_client_set_max_response_bytes()`, so a hostile or broken server cannot stream an unbounded body into memory. The Mac OS 9 adapter yields through an application callback so a cooperative event loop can continue servicing the UI.
+
+Most applications should use the ordinary `<wolfram/xrpc.h>` API and leave the transport alone. `<wolfram/macos9_tls.h>` is public only because a client has to install a yield callback so a request can be pumped without freezing its UI.
+
+The transport is written to strict C89 for CodeWarrior, and CMake enforces that rather than only documenting it: the target compiles as `-std=c90` with `-Wdeclaration-after-statement`, `-Wstrict-prototypes` and `-Wvla`, and CI recompiles both sources with `-std=c89 -pedantic-errors`. It also has no cJSON dependency, because cJSON is C99 and would not compile under those settings; the XRPC error envelope is decoded by a small bounded scanner instead.
+
+Two things this does **not** give you, both by design:
+
+- It is not a full `libwolfram` Mac OS 9 port. That needs a dedicated Classic Mac OS 9 crypto backend for OAuth/DPoP signing and verification, which is not in scope. Clients that authenticate through an external bridge (Platinum does) need no local signing and can use this transport as-is.
+- CI compiles and tests it on Linux against macTLS's public header, which carries plain-C fallback typedefs. That verifies the C89 dialect and the transport's own logic, but it is not a native CodeWarrior build or a real Mac OS 9 runtime test.
