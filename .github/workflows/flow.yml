@@ -1,7 +1,9 @@
 # Unified-flow checks for Wolfram itself. Other repos use the same reusable
 # workflow with `uses: ewanc26/wolfram/.github/workflows/flow-reusable.yml@main`
-# (see docs/flow.md). Here it is called locally and pinned to the PR's own
-# commit, so a change to the checks is judged by the changed checks.
+# (see docs/flow.md). Here it is called locally and pinned to the PR's merge
+# ref (the PR as it would land on main), so a change to the checks is judged by
+# the changed checks, and a PR branched before the checks existed still finds
+# them.
 name: flow
 
 on:
@@ -15,4 +17,4 @@ jobs:
   flow:
     uses: ./.github/workflows/flow-reusable.yml
     with:
-      canon_ref: ${{ github.event.pull_request.head.sha }}
+      canon_ref: ${{ github.ref }}
