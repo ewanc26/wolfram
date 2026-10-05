@@ -3,14 +3,17 @@
 # release.sh — cut a Wolfram release: version bump, checks, tag, GitHub release.
 #
 # Usage:
-#   tools/release.sh [--dry-run] [--full] [--no-wait] <major|minor|patch|x.y.z>
+#   tools/release.sh [--dry-run] [--full] [--consumers-verified] <major|minor|patch|x.y.z>
 #
 #   --dry-run  Run the checks and print the plan; change nothing, tag nothing.
 #   --full     Also build and test the full-features configuration
 #              (server, store, store-crypto, C++ wrapper) that CI's `full` job
 #              covers, not just the default one.
-#   --no-wait  Do not wait for CI on the bump commit before tagging. Only use
-#              when you have already confirmed that run yourself.
+#   --consumers-verified
+#              Required for a real release. Asserts that metalbear, cobalt,
+#              indigo and platinum have been built against this change. The
+#              script cannot check that itself; the flag makes the claim
+#              explicit and it is recorded in the release PR.
 #
 # Requires: git, cmake, a C/C++ toolchain, gh (authenticated), network access.
 #
@@ -38,6 +41,10 @@
 #     remote main: the tag would point at something nobody else can fetch. So
 #     this refuses to run unless local main is identical to origin/main.
 #
+#   * Nothing goes straight to main. The bump is committed on release/vX.Y.Z,
+#     opened as a PR, merged (squash) only when its checks pass, and the tag is
+#     created on the merge commit afterwards.
+#
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,14 +56,14 @@ FULL_BUILD_DIR="${FULL_BUILD_DIR:-build-release-full}"
 
 dry_run=0
 run_full=0
-wait_ci=1
+consumers_verified=0
 bump=""
 
 for arg in "$@"; do
 	case "$arg" in
 		--dry-run) dry_run=1 ;;
 		--full) run_full=1 ;;
-		--no-wait) wait_ci=0 ;;
+		--consumers-verified) consumers_verified=1 ;;
 		-h | --help)
 			sed -n '3,10p' "${BASH_SOURCE[0]}"
 			exit 0
@@ -70,7 +77,7 @@ for arg in "$@"; do
 done
 
 [ -n "$bump" ] || {
-	echo "usage: tools/release.sh [--dry-run] [--full] [--no-wait] <major|minor|patch|x.y.z>" >&2
+	echo "usage: tools/release.sh [--dry-run] [--full] [--consumers-verified] <major|minor|patch|x.y.z>" >&2
 	exit 2
 }
 
@@ -81,6 +88,8 @@ fail() {
 
 command -v cmake >/dev/null || fail "cmake not found"
 command -v gh >/dev/null || fail "gh not found"
+((dry_run)) || ((consumers_verified)) ||
+	fail "refusing to release: pass --consumers-verified once metalbear, cobalt, indigo and platinum build against this change (or use --dry-run)"
 
 # ---------------------------------------------------------------------------
 # Preconditions
@@ -297,41 +306,43 @@ fi
 # Commit, push, wait, tag, publish
 # ---------------------------------------------------------------------------
 
+branch_name="release/v${new}"
+git switch -q -c "$branch_name"
 git add CMakeLists.txt
-git commit -q -m "version: bump to ${new}"
+git commit -q -m "chore(release): bump version to ${new}" \
+	-m "Co-Authored-By: ${RELEASE_COAUTHOR:-release.sh <noreply@github.com>}"
 # Past this point the bump is a commit, not a working-tree edit: a later
-# failure must not undo it, because it is already the pushed history.
+# failure must not undo it.
 committed=1
 bump_sha="$(git rev-parse HEAD)"
 
-echo ">> Pushing ${bump_sha}"
-git push origin main
+# Nothing goes straight to main, releases included: the bump travels as a PR
+# and is merged only once CI on it is green.
+echo ">> Pushing ${branch_name} (${bump_sha})"
+git push -u origin "$branch_name"
 
-if ((wait_ci)); then
-	echo ">> Waiting for CI on main before tagging"
-	run_id=""
-	for _ in $(seq 1 20); do
-		run_id="$(gh run list --commit "$bump_sha" --workflow ci.yml --limit 1 \
-			--json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
-		[ -n "$run_id" ] && [ "$run_id" != null ] && break
-		sleep 3
-	done
-	if [ -z "$run_id" ] || [ "$run_id" = null ]; then
-		echo "release: no CI run found for ${bump_sha}; the bump is pushed but untagged." >&2
-		echo "  Re-run with --no-wait once CI is green, or tag manually:" >&2
-		echo "    git tag -a v${new} -m v${new} ${bump_sha} && git push origin v${new}" >&2
-		exit 1
-	fi
-	if ! gh run watch "$run_id" --exit-status; then
-		echo "release: CI failed on ${bump_sha}; the bump is pushed but untagged." >&2
-		echo "  Fix and push, then tag the fixed commit, or tag manually:" >&2
-		echo "    git tag -a v${new} -m v${new} <sha> && git push origin v${new}" >&2
-		exit 1
-	fi
-	echo ">> CI green"
-fi
+pr_body="Version bump to ${new}. Opened by tools/release.sh after the default${run_full:+ and full-features} build and ctest passed locally.
 
-# Notes exclude the bump commit, so they stop at its parent.
+Consumers verified by the releaser (--consumers-verified): metalbear, cobalt, indigo and platinum build and pass against this version.
+
+Tagging happens only after this PR is merged green."
+pr_url="$(gh pr create --base main --head "$branch_name" \
+	--title "chore(release): v${new}" --body "$pr_body")"
+echo ">> Opened ${pr_url}"
+
+echo ">> Waiting for CI on the release PR"
+sleep 10
+gh pr checks "$pr_url" --watch --fail-fast ||
+	fail "CI failed on ${pr_url}; nothing merged or tagged. Fix on the branch and merge by hand once green."
+echo ">> CI green"
+
+gh pr merge "$pr_url" --squash --match-head-commit "$bump_sha" \
+	--subject "chore(release): v${new}"
+git switch -q main
+git pull -q --ff-only origin main
+bump_sha="$(git rev-parse HEAD)"
+
+# Notes exclude the squashed bump commit, so they stop at its parent.
 notes="$(build_notes "$(git rev-parse HEAD^)")"
 
 git tag -a "v${new}" -m "v${new}" "$bump_sha"
