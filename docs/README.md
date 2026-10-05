@@ -26,6 +26,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [bindings-cpp-csharp.md](bindings-cpp-csharp.md) | `cpp/`, `dotnet/` | C++ RAII (`wolfram-cpp`) and C# (`Wolfram.Interop`) binding guidance. |
 | [modules.md](modules.md) | all | Full module/status table. |
 | [design.md](design.md) | — | Design, rationale, and the name. |
+| [flow.md](flow.md) | — | Branches, PRs, checks, merging and releases, shared by the whole stack. |
 | [roadmap.md](roadmap.md) | — | What's built and what's next. |
 
 ## Getting started

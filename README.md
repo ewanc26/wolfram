@@ -107,10 +107,10 @@ Wolfram is a source library, so a release is a version bump, an annotated tag
 and a GitHub release with no attached artifacts. Cut one with:
 
 ```sh
-tools/release.sh minor              # 0.25.0 -> 0.26.0
-tools/release.sh 0.26.0             # or name the version outright
-tools/release.sh --dry-run minor    # run the checks, change nothing
-tools/release.sh --full minor       # also cover the full-features configuration
+tools/release.sh --consumers-verified minor        # 0.25.0 -> 0.26.0
+tools/release.sh --consumers-verified 0.26.0       # or name the version outright
+tools/release.sh --dry-run minor                   # run the checks, change nothing
+tools/release.sh --full --consumers-verified minor # also cover the full-features configuration
 ```
 
 The version lives only in `project()` in `CMakeLists.txt`; everything else is
@@ -119,11 +119,14 @@ from the commit subjects since the previous tag.
 
 The script refuses to run unless it is on `main` with a clean tree and local
 `main` identical to `origin/main` — a tag on a commit nobody else can fetch is
-not a release. It runs the default build and test configuration that CI's
-`default` job covers, then pushes the bump commit and waits for CI to go green
-before tagging (`--no-wait` skips the wait). If CI fails, the bump is left
-pushed but nothing is tagged, and the script prints the commands to finish by
-hand once it is fixed.
+not a release. It also refuses without `--consumers-verified`: a release is cut
+only once metalbear, cobalt, indigo and platinum have been built against the
+change, and the script cannot check that for you, so the flag is your word.
+Nothing is pushed to `main` directly. The script runs the default build and
+test configuration that CI's `default` job covers, commits the bump on
+`release/vX.Y.Z`, opens a pull request, merges it once its checks are green,
+and tags the merge commit. If CI fails, nothing is merged or tagged. The rest
+of the working flow is in [docs/flow.md](docs/flow.md).
 
 `--full` additionally builds and tests the server, store, store-crypto and C++
 wrapper configuration. On macOS that run excludes `relay_server` and

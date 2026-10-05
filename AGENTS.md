@@ -15,8 +15,24 @@ Primarily C AT Protocol SDK: client-side, wire-level implementation (XRPC, OAuth
 - Preserve existing architecture, naming, formatting, and error-handling conventions.
 - Use project scripts for validation; never claim checks you did not run.
 - Keep changes scoped and update tests or documentation when behavior changes.
-- Use feature branches and pull requests.
 - Treat generated files, credentials, deployment configuration, and release metadata as sensitive.
+
+<!-- flow:begin -->
+## Unified flow (canonical: ewanc26/wolfram, docs/flow.md)
+
+This block is byte-identical in every repo of the stack and is drift-checked by CI. Do not edit a copy; change it by PR to wolfram, then copy it out.
+
+- Branch from main as `<type>/<slug>`. Types: feat fix docs ci chore refactor test perf build release. Slug: lowercase `a-z 0-9 . _ -`.
+- Commit subjects and PR titles are Conventional Commits: `type(scope): summary`. Keep commits focused. Never push an empty commit.
+- Agent commits end with the `Co-Authored-By:` and `Claude-Session:` trailers the session supplies. PR descriptions use `.github/PULL_REQUEST_TEMPLATE.md` (What this changes, Verification, Docs) and end with the session link.
+- Nothing goes straight to main. Branch, open a PR, wait for green CI, merge the PR (squash). Required checks: `CI gate` and `flow / conventions`.
+- Never merge red. Never force-push. Never skip, disable or delete a test to get green: read the job log, reproduce, fix the root cause, wait, repeat. A red main is fixed before anything else.
+- Update AGENTS.md, README and docs/ in the same PR as the change. AGENTS.md is imperative and exact; README and docs are user-facing prose.
+- State exactly what was verified and where (host, emulator, hardware). Never claim hardware you did not use.
+- Releases go through the repo's own release script only, and only after every consumer in the stack has been verified against the change.
+- Anything only the owner can supply (credentials, hardware results, money, irreversible actions): file an issue labelled `needs-owner` and move on.
+- No secrets in the repo or its CI. No Vercel. No registry publishing.
+<!-- flow:end -->
 
 ## Recent history
 
