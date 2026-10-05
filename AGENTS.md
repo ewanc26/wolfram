@@ -60,4 +60,5 @@ Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md f
 - Change the contract by changing `test/vectors/oauth_pairing.json` and the doc in the same PR as the node and the client. The vectors are shared with consumers.
 - The poll `token` is a bearer credential. Never log it, the pair code, a poll URL or a raw reply. Keep the stderr-capture test passing.
 - A 404 on poll is terminal. Do not make the driver retry it.
+- A source that console targets must link goes in `tools/embedded-sources.txt` and outside every `NOT:BOOL:WOLFRAM_BUILD_EMBEDDED` block of `CMakeLists.txt`; `tools/embedded-check.sh` enforces it in CI. A header that says it builds on consoles while its source is excluded compiles and then fails to link in the client.
 
