@@ -285,6 +285,7 @@ add_library(
   src/session/oauth/pkce.c
   src/session/oauth/dpop.c
   src/session/oauth/par.c
+  src/session/oauth/pairing.c
   src/session/oauth/state.c
   src/session/oauth/callback.c
   src/session/oauth/flow.c
@@ -1669,6 +1670,14 @@ if(WOLFRAM_BUILD_TESTS)
     test_feed_typed
     PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   add_test(NAME feed_typed COMMAND test_feed_typed)
+
+  add_executable(test_oauth_pairing test/test_oauth_pairing.c)
+  target_link_libraries(test_oauth_pairing PRIVATE wolfram)
+  target_include_directories(test_oauth_pairing PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_oauth_pairing
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME oauth_pairing COMMAND test_oauth_pairing)
 
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)
