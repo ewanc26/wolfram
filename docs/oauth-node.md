@@ -60,7 +60,7 @@ The user enters their normal PDS credentials and completes any MFA and consent s
 
 The node validates the OAuth state, exchanges the authorization code, and requires the OAuth subject DID to equal the DID previously resolved from the handle. Only then is the pairing marked complete.
 
-The console polls the pairing code and receives an opaque node session token. It uses that token for subsequent XRPC calls to the node. The node performs those calls against the real PDS using the stored OAuth session and DPoP.
+The wire contract, reply rules and test vectors are in [oauth-pairing.md](oauth-pairing.md). The console polls the pairing code and receives an opaque node session token. It uses that token for subsequent XRPC calls to the node. The node performs those calls against the real PDS using the stored OAuth session and DPoP.
 
 ## Security model
 
