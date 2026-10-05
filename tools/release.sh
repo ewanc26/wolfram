@@ -42,7 +42,7 @@
 #     this refuses to run unless local main is identical to origin/main.
 #
 #   * Nothing goes straight to main. The bump is committed on release/vX.Y.Z,
-#     opened as a PR, merged (squash) only when its checks pass, and the tag is
+#     opened as a PR, rebase-merged only when its checks pass, and the tag is
 #     created on the merge commit afterwards.
 #
 set -euo pipefail
@@ -336,13 +336,12 @@ gh pr checks "$pr_url" --watch --fail-fast ||
 	fail "CI failed on ${pr_url}; nothing merged or tagged. Fix on the branch and merge by hand once green."
 echo ">> CI green"
 
-gh pr merge "$pr_url" --squash --match-head-commit "$bump_sha" \
-	--subject "chore(release): v${new}"
+gh pr merge "$pr_url" --rebase --match-head-commit "$bump_sha" \
 git switch -q main
 git pull -q --ff-only origin main
 bump_sha="$(git rev-parse HEAD)"
 
-# Notes exclude the squashed bump commit, so they stop at its parent.
+# Notes exclude the rebased bump commit, so they stop at its parent.
 notes="$(build_notes "$(git rev-parse HEAD^)")"
 
 git tag -a "v${new}" -m "v${new}" "$bump_sha"
