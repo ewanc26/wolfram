@@ -27,6 +27,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [modules.md](modules.md) | all | Full module/status table. |
 | [design.md](design.md) | — | Design, rationale, and the name. |
 | [flow.md](flow.md) | — | Branches, PRs, checks, merging and releases, shared by the whole stack. |
+| [house-style.md](house-style.md) | — | README header, section order and logo rules shared by the five repos. |
 | [roadmap.md](roadmap.md) | — | What's built and what's next. |
 
 ## Getting started
