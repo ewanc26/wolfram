@@ -54,6 +54,12 @@ The template has three sections that must not be left empty: what changed, what 
 
 Releases are cut only by [`tools/release.sh`](../tools/release.sh), and only once the consumers have been built against the change. The script refuses to run without `--consumers-verified`, which is a claim it cannot check, so it is on whoever passes it. It does not push to `main`: the version bump goes through a `release/vX.Y.Z` pull request, is merged when green, and the tag lands on the merge commit. See the [README](../README.md#releases) for usage.
 
+## Labels and repository metadata
+
+Every issue carries exactly one kind (`bug`, `enhancement`, `documentation`, `refactor`, `test`, `chore`, `question`) and at least one `area: <x>`. The rest of the taxonomy is workflow (`needs-owner`, `parity`, `duplication`), optional `impact: <x>`, and the usual triage labels. [`.github/labels.yml`](../.github/labels.yml) is the only definition; the `core` block is the same in all five repos and a repo adds labels only under `local`, as `area: <x>`. [`tools/labels-sync.sh`](../tools/labels-sync.sh) checks or applies it, renames included (renaming keeps a label on existing issues), and `flow / labels and metadata` fails when a repo's live labels differ from its file.
+
+Description, homepage, topics and the wiki, discussions and projects switches are [`.github/repo-metadata.yml`](../.github/repo-metadata.yml), with a shared `core` and a per-repo block. The agents' sandbox cannot write repository metadata, so I apply it myself with [`tools/apply-repo-metadata.sh`](../tools/apply-repo-metadata.sh). Until `enforce_live` is set in a repo's file the live comparison only warns.
+
 ## Things only the owner can supply
 
 Credentials, hardware results, money and irreversible actions are not guessed at. They get an issue labelled `needs-owner`, and the work carries on around them.
