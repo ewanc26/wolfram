@@ -103,13 +103,39 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
 #endif
 }
 
+#if defined(__APPLE__)
+/* Apple's libcurl exports curl_ws_send/curl_ws_recv whether or not WebSockets
+ * were compiled in. macOS 26's system libcurl 8.7.1 exports them, does not
+ * list ws/wss in curl_version_info()->protocols, and answers
+ * `Protocol "ws" not supported` (CURLE_UNSUPPORTED_PROTOCOL) to a ws:// URL.
+ * Neither the symbols nor the protocol list can be trusted there, so ask
+ * libcurl: attempt a connect to a closed loopback port. UNSUPPORTED_PROTOCOL
+ * means no WebSocket support; any other outcome (connection refused) means
+ * the scheme is handled. A Homebrew libcurl with WebSockets passes. */
+static int wf_websocket_apple_result;
+static pthread_once_t apple_probe_once = PTHREAD_ONCE_INIT;
+
+static void wf_websocket_apple_run_probe(void) {
+    wf_websocket_curl_ensure_init();
+    CURL *curl = curl_easy_init();
+    if (!curl) return;
+    curl_easy_setopt(curl, CURLOPT_URL, "ws://127.0.0.1:1/");
+    curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000L);
+    CURLcode result = curl_easy_perform(curl);
+    wf_websocket_apple_result = result != CURLE_UNSUPPORTED_PROTOCOL;
+    WF_LOG_DEBUG("websocket", "Apple libcurl WebSocket probe: %s (curl %d)",
+                 curl_easy_strerror(result), (int)result);
+    curl_easy_cleanup(curl);
+}
+#endif
+
 static int wf_websocket_protocol_supported(const char *wanted) {
 #if LIBCURL_VERSION_NUM >= 0x075600
 #if defined(__APPLE__)
-    /* libcurl's WebSocket API is compile-time gated, but WebSocket schemes
-     * are not listed in curl_version_info()->protocols on all builds (notably
-     * Apple's libcurl). */
-    return strcmp(wanted, "ws") == 0 || strcmp(wanted, "wss") == 0;
+    (void)wanted;
+    pthread_once(&apple_probe_once, wf_websocket_apple_run_probe);
+    return wf_websocket_apple_result;
 #else
     const curl_version_info_data *info = curl_version_info(CURLVERSION_NOW);
     const char *const *protocol;
@@ -205,7 +231,8 @@ wf_status wf_websocket_connect_with_headers(const char *url,
     if (result != CURLE_OK) {
         curl_easy_cleanup(socket->curl);
         free(socket);
-        return WF_ERR_NETWORK;
+        return result == CURLE_UNSUPPORTED_PROTOCOL ? WF_ERR_UNSUPPORTED
+                                                    : WF_ERR_NETWORK;
     }
     *out = socket;
     return WF_OK;
