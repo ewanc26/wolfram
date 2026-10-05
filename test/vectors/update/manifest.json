@@ -1,0 +1,425 @@
+{
+ "description": "Manifest vectors (docs/update.md). 'manifest' is the JSON document; 'policy' the caller's constraints; 'expect' is ok, parse_error (WF_ERR_PARSE) or validation_error (WF_ERR_VALIDATION).",
+ "vectors": [
+  {
+   "name": "valid",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "signature present is flagged, not verified",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": "AAAA"
+   },
+   "expect": "ok",
+   "has_signature": true
+  },
+  {
+   "name": "notes optional",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "uppercase sha256 accepted",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    "signature": null
+   },
+   "expect": "ok"
+  },
+  {
+   "name": "unknown schema",
+   "manifest": {
+    "schema": 2,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "missing schema",
+   "manifest": {
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "sha256 63 chars",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "sha256 non-hex",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "http url",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "http://github.com/x",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "userinfo in url",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://user@github.com/x",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "space in url",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/a b",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "empty host",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https:///x",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "url too long, never truncated",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "size zero",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 0,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "fractional size",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1.5,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "size as string",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": "10",
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "leading v in version",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "v0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "two-part version",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "missing app",
+   "manifest": {
+    "schema": 1,
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "notes too long",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "parse_error"
+  },
+  {
+   "name": "size over policy max",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 9000000,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "validation_error",
+   "policy": {
+    "max_size": 8388608
+   }
+  },
+  {
+   "name": "app mismatch",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "validation_error",
+   "policy": {
+    "app": "indigo"
+   }
+  },
+  {
+   "name": "url outside prefix",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "validation_error",
+   "policy": {
+    "url_prefix": "https://github.com/ewanc26/indigo/releases/download/"
+   }
+  },
+  {
+   "name": "url inside prefix",
+   "manifest": {
+    "schema": 1,
+    "app": "cobalt",
+    "version": "0.6.0",
+    "notes": "Fixes.",
+    "asset": {
+     "name": "cobalt-0.6.0.wuhb",
+     "url": "https://github.com/ewanc26/cobalt/releases/download/v0.6.0/cobalt-0.6.0.wuhb",
+     "size": 1234567,
+     "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "signature": null
+   },
+   "expect": "ok",
+   "policy": {
+    "url_prefix": "https://github.com/ewanc26/cobalt/releases/download/",
+    "app": "cobalt",
+    "max_size": 8388608
+   }
+  }
+ ]
+}

@@ -20,6 +20,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [video.md](video.md) | `video_typed.h` | Video blob upload, job-status polling, and post embedding. |
 | [validate.md](validate.md) | `validate.h` | Runtime validation with `wf_validate_value` / `wf_validate_record` against a lexicon registry. |
 | [oauth.md](oauth.md) | `oauth.h` + `oauth/` | Protected-resource / authorization-server metadata discovery, PKCE S256, ES256 DPoP, PAR begin, callback completion, and the `wf_auth_client`. |
+| [update.md](update.md) | `update.h` | Release manifest parsing, semver comparison and SHA-256 download verification for client self-update. |
 | [notification.md](notification.md) | `notification.h` | Notification listing and preferences. |
 | [unspecced.md](unspecced.md) | `unspecced_typed.h` | `app.bsky.unspecced` typed parsers (trends, suggested users, thread v2, etc.). |
 | [cli.md](cli.md) | `cli` | The `wolfram` command-line client reference. |

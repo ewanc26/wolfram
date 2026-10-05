@@ -217,7 +217,8 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
   # 9 application at all.
   add_library(wolfram-macos9-transport STATIC
               src/transport/xrpc_mac9.c
-              src/transport/macos9_tls.c)
+              src/transport/macos9_tls.c
+              src/update/update_core.c)
   target_include_directories(
     wolfram-macos9-transport
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -285,6 +286,8 @@ add_library(
   src/session/oauth/pkce.c
   src/session/oauth/dpop.c
   src/session/oauth/par.c
+  src/update/update_core.c
+  src/update/manifest.c
   src/session/oauth/state.c
   src/session/oauth/callback.c
   src/session/oauth/flow.c
@@ -1669,6 +1672,14 @@ if(WOLFRAM_BUILD_TESTS)
     test_feed_typed
     PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   add_test(NAME feed_typed COMMAND test_feed_typed)
+
+  add_executable(test_update test/test_update.c)
+  target_link_libraries(test_update PRIVATE wolfram)
+  target_include_directories(test_update PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_update
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME update COMMAND test_update)
 
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)

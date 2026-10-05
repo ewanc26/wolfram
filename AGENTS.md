@@ -34,3 +34,11 @@ Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md f
 - Transport-level limits are policies, not conveniences: `https_only` and the response-size cap are checked before any I/O and before the `wf_xrpc_set_handler()` test seam, so neither can be switched off by a handler.
 - The public macTLS surface lives in `include/wolfram/macos9_tls.h`; keep `<wolfram/xrpc.h>` free of Mac-specific types.
 - Test the transport offline via `wf_xrpc_set_handler()` and the stubs in `test/macos9_mactls_stub.c`. The suite asserts no macTLS entry point is ever called, so a test cannot pass by reaching the network.
+
+## Client self-update
+
+- Manifest parsing, version comparison and SHA-256 verification live in `include/wolfram/update.h` and are specified in `docs/update.md`. Clients call them; do not re-implement in a consumer.
+- `src/update/update_core.c` is strict C89 with no `stdint.h` and is part of the Mac OS 9 target; CI compiles it with `-std=c89 -pedantic-errors`. Keep it that way. `manifest.c` needs cJSON and stays out of that target.
+- Change the manifest or version rules by changing `test/vectors/update/*.json` and `docs/update.md` in the same PR. Consumers, including Platinum's TypeScript port, run those vectors.
+- Never describe a SHA-256 from the same release as authentication. `signature` is reserved and unverified; do not add a public key to the repo, the owner supplies it.
+

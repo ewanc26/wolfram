@@ -22,6 +22,7 @@
 #include "wolfram/syntax.h"
 #include "wolfram/validate.h"
 #include "wolfram/oauth.h"
+#include "wolfram/update.h"
 #include "wolfram/richtext.h"
 #include "wolfram/label.h"
 #include "wolfram/sync_subscribe.h"

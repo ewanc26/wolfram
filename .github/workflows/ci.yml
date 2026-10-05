@@ -259,7 +259,7 @@ jobs:
           # Independent of CMake, and stricter than it: -pedantic-errors turns
           # GNU extensions and C99 constructs into hard errors, so this catches
           # anything the target's own flags let through.
-          for f in src/transport/xrpc_mac9.c src/transport/macos9_tls.c; do
+          for f in src/transport/xrpc_mac9.c src/transport/macos9_tls.c src/update/update_core.c; do
             clang -std=c89 -pedantic-errors -Wall -Wextra \
               -Wno-unused-parameter -Werror \
               -Iinclude -I/tmp/macTLS/os9 \
