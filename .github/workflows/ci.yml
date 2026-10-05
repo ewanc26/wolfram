@@ -146,6 +146,36 @@ jobs:
           BSKY_SERVICE: ${{ github.ref == 'refs/heads/main' && secrets.BSKY_SERVICE || '' }}
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
+  # macOS: the full-features configuration, including relay_server and
+  # sync_publish_server, which stand up a loopback HTTP server and drive a real
+  # WebSocket handshake against it. Linux alone could not see the macOS-only
+  # failures of those two tests (README.md). Dependencies come from Homebrew;
+  # Apple's own libcurl is what a developer's Mac links, so the build prefers
+  # the system one as a stock checkout would.
+  macos:
+    name: macOS full-features build + ctest
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: brew install cmake pkg-config libsodium libmicrohttpd zstd c-ares secp256k1 sqlite
+
+      - name: Configure
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DWOLFRAM_BUILD_SERVER=ON \
+            -DWOLFRAM_BUILD_STORE=ON \
+            -DWOLFRAM_BUILD_STORE_CRYPTO=ON \
+            -DWOLFRAM_BUILD_CPP=ON
+
+      - name: Build
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)"
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j"$(sysctl -n hw.ncpu)"
+
   # C# interop wrapper. Requires the .NET SDK; gated so the overall CI does
   # not fail when dotnet is unavailable. The wrapper P/Invokes the shared
   # libwolfram, so we build it as a shared library and point WOLFRAM_NATIVE_LIB
