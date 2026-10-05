@@ -176,6 +176,17 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j"$(sysctl -n hw.ncpu)"
 
+      # Only on failure: say which libcurl was linked and let the two
+      # WebSocket tests narrate their own handshakes.
+      - name: Diagnose WebSocket failures
+        if: failure()
+        run: |
+          curl --version | head -3
+          otool -L build/libwolfram* | head -20 || true
+          export WOLFRAM_LOG_LEVEL=debug WOLFRAM_CURL_VERBOSE=1
+          ./build/test_relay_server 2>&1 | head -150 || true
+          ./build/test_sync_publish_server 2>&1 | head -150 || true
+
   # C# interop wrapper. Requires the .NET SDK; gated so the overall CI does
   # not fail when dotnet is unavailable. The wrapper P/Invokes the shared
   # libwolfram, so we build it as a shared library and point WOLFRAM_NATIVE_LIB
