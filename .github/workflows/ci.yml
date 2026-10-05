@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/ci]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -338,6 +338,42 @@ jobs:
         run: |
           pip install --quiet cmakelang
           cmake-format --check CMakeLists.txt || echo "::warning::CMakeLists.txt is not cmake-format clean yet (non-blocking until the tree is reformatted)."
+
+  # The flow checks are scripts, and a script that cannot fail checks nothing.
+  # The self-test feeds each rule a violation and requires it to be refused.
+  flow-scripts:
+    name: flow scripts self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: tools/flow-selftest.sh
+
+  # One name for branch protection to require. It fails when any gating job
+  # failed or was cancelled, so a new job is covered by adding it to `needs`
+  # here instead of editing repository settings. The desloppify scan is
+  # informational and deliberately not listed.
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs:
+      - oauth-node
+      - default
+      - no-secp256k1
+      - full
+      - dotnet
+      - macos9-transport
+      - format
+      - flow-scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every gating job to have passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = success ] || { echo "::error::a gating job finished as '$r'"; exit 1; }
+          done
 
   # Mechanical codebase-health scan (desloppify). Informational only: its
   # score is 75% subjective design review, which needs an LLM in the loop

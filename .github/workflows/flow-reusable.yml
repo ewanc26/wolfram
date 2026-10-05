@@ -1,0 +1,54 @@
+# Reusable: the unified-flow checks. Wolfram hosts the canonical copy; the
+# other repos call it from a three-line .github/workflows/flow.yml. See
+# docs/flow.md.
+name: flow-reusable
+
+on:
+  workflow_call:
+    inputs:
+      canon_ref:
+        description: Ref of ewanc26/wolfram to take the scripts and canonical files from.
+        type: string
+        default: main
+
+permissions:
+  contents: read
+
+jobs:
+  conventions:
+    name: conventions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch canonical flow
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .flow-canon
+      - name: Check branch, title, body and commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .flow-canon/tools/flow-check.sh
+
+  drift:
+    name: drift
+    # Wolfram is the canonical copy; there is nothing to drift from.
+    if: github.repository != 'ewanc26/wolfram'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Fetch canonical flow
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .flow-canon
+      - name: Compare with the canonical copy
+        run: bash .flow-canon/tools/flow-drift.sh .flow-canon .
