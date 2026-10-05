@@ -15,6 +15,14 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# The version lives only in the `VERSION` above; derive the public
+# WOLFRAM_VERSION_* macros from PROJECT_VERSION. Done this early so every
+# target below can use them, not just `wolfram`.
+string(REPLACE "." ";" WOLFRAM_VERSION_PARTS "${PROJECT_VERSION}")
+list(GET WOLFRAM_VERSION_PARTS 0 WOLFRAM_VERSION_MAJOR)
+list(GET WOLFRAM_VERSION_PARTS 1 WOLFRAM_VERSION_MINOR)
+list(GET WOLFRAM_VERSION_PARTS 2 WOLFRAM_VERSION_PATCH)
+
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
@@ -193,23 +201,56 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
       "WOLFRAM_MACTLS_ROOT does not contain os9/ostls_async.h")
   endif()
 
+  # The Classic Mac OS 9 XRPC transport, built as its own library.
+  #
+  # This is deliberately not part of libwolfram. The full SDK still needs a
+  # Classic Mac OS 9 crypto backend for OAuth/DPoP signing and verification,
+  # whereas this transport is usable on its own by any client that
+  # authenticates through an external bridge (Platinum) and therefore needs no
+  # local signing. Keeping it separate makes the missing crypto backend explicit
+  # instead of implying the whole SDK builds here.
+  #
+  # It also has no cJSON dependency. cJSON is C99 and would not compile under a
+  # strict C89 CodeWarrior configuration, so the XRPC error envelope is decoded
+  # by a small bounded scanner inside xrpc_mac9.c. That leaves the target with
+  # nothing but libc and macTLS, which is what makes it linkable into a Mac OS
+  # 9 application at all.
   add_library(wolfram-macos9-transport STATIC
               src/transport/xrpc_mac9.c
-              src/transport/mac9_tls.c)
+              src/transport/macos9_tls.c)
   target_include_directories(
     wolfram-macos9-transport
-    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-            ${cjson_SOURCE_DIR}
-            ${cjson_BINARY_DIR}
-            ${WOLFRAM_MACTLS_ROOT}/os9)
-  target_link_libraries(wolfram-macos9-transport PUBLIC cjson)
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    PRIVATE ${WOLFRAM_MACTLS_ROOT}/os9)
+
+  # Enforce the C89/CodeWarrior-era constraints on the host build instead of
+  # only documenting them. The rest of the tree is C23; without this the target
+  # would happily accept mid-block declarations, `//` comments and C99 libc
+  # calls that a CodeWarrior-era compiler rejects, and CI would pass on code
+  # that cannot be built for the platform it exists to serve.
+  #
+  # CMake spells C89 as the dialect value 90, which with extensions disabled
+  # becomes -std=c90: no GNU keywords, no C99 anything. -Wvla rules out variable
+  # length arrays, which C89 does not have, and -Wdeclaration-after-statement
+  # plus -Wstrict-prototypes catch the two constructs CodeWarrior's default
+  # language mode rejects most often.
+  set_target_properties(wolfram-macos9-transport PROPERTIES
+                        C_STANDARD 90
+                        C_STANDARD_REQUIRED ON
+                        C_EXTENSIONS OFF)
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    target_compile_options(wolfram-macos9-transport PRIVATE
+                           -Wdeclaration-after-statement
+                           -Wstrict-prototypes
+                           -Wvla)
+  endif()
+
   target_compile_definitions(
     wolfram-macos9-transport
-    PUBLIC WOLFRAM_VERSION_MAJOR=0
-           WOLFRAM_VERSION_MINOR=26
-           WOLFRAM_VERSION_PATCH=0
-           WOLFRAM_VERSION_STRING="0.26.0")
+    PUBLIC WOLFRAM_VERSION_MAJOR=${WOLFRAM_VERSION_MAJOR}
+           WOLFRAM_VERSION_MINOR=${WOLFRAM_VERSION_MINOR}
+           WOLFRAM_VERSION_PATCH=${WOLFRAM_VERSION_PATCH}
+           WOLFRAM_VERSION_STRING="${PROJECT_VERSION}")
 endif()
 
 add_library(
@@ -369,12 +410,6 @@ if(WOLFRAM_BUILD_OAUTH_NODE)
   target_link_libraries(wolfram-oauth-node PRIVATE wolfram Threads::Threads OpenSSL::Crypto)
 endif()
 
-# The version lives only in the `VERSION` above; derive the public
-# WOLFRAM_VERSION_* macros from PROJECT_VERSION at compile time.
-string(REPLACE "." ";" WOLFRAM_VERSION_PARTS "${PROJECT_VERSION}")
-list(GET WOLFRAM_VERSION_PARTS 0 WOLFRAM_VERSION_MAJOR)
-list(GET WOLFRAM_VERSION_PARTS 1 WOLFRAM_VERSION_MINOR)
-list(GET WOLFRAM_VERSION_PARTS 2 WOLFRAM_VERSION_PATCH)
 target_compile_definitions(
   wolfram
   PUBLIC WOLFRAM_VERSION_MAJOR=${WOLFRAM_VERSION_MAJOR}
