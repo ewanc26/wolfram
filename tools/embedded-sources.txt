@@ -1,2 +1,4 @@
 # Sources every console (embedded) build must link. One per line.
 src/session/oauth/pairing.c
+src/update/update_core.c
+src/update/manifest.c
