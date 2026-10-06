@@ -91,6 +91,17 @@ def labels_apply(doc, repo, live, dry):
     have = {l["name"].lower(): l for l in live}
     renames = {k.lower(): v for k, v in (doc.get("renames") or {}).items()}
     inv = {v.lower(): k for k, v in renames.items()}
+    # A rename cannot happen when the new name already exists (Platinum hit this
+    # with `accessibility` / `impact: accessibility`). Delete the old label only
+    # when nothing carries it, so no issue silently loses a label.
+    for old, new in renames.items():
+        if old in have and new.lower() in have:
+            used = json.loads(gh([f"repos/{repo}/issues?labels={urlq(have[old]['name'])}&state=all&per_page=1"]) or "[]")
+            if used:
+                print(f"keep    {have[old]['name']} (still on issue #{used[0]['number']}; relabel it as '{new}' by hand, then rerun)")
+            else:
+                print(f"delete  {have[old]['name']} (unused; '{new}' exists)")
+                if not dry: gh(["-X", "DELETE", f"repos/{repo}/labels/{urlq(have[old]['name'])}"])
     for l in desired_labels(doc):
         n = l["name"].lower()
         fields = ["-f", f"color={l['color']}", "-f", f"description={l['description']}"]
