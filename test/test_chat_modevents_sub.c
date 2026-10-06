@@ -381,10 +381,15 @@ static void *e2e_runner(void *arg) {
     snprintf(url, sizeof(url), "ws://127.0.0.1:%u", ctx->port);
     opts.service = url;
 
-    wf_chat_mod_events_handle *h = NULL;
+    /* Publish the handle straight into ctx: wf_chat_mod_events_start assigns
+     * *out before it enters its receive/reconnect loop and clears it only on
+     * the way out, so the main thread can always reach the subscription to
+     * stop it. Stashing it in a local left ctx->handle NULL, which made
+     * wf_chat_mod_events_stop() a no-op and hung the join forever: a
+     * subscription reconnects indefinitely by design, so it never returns on
+     * its own. */
     ctx->handle = NULL;
-    wf_chat_mod_events_start(&opts, &h);
-    ctx->handle = NULL;
+    wf_chat_mod_events_start(&opts, &ctx->handle);
     ctx->done = 1;
     return NULL;
 }
@@ -421,7 +426,16 @@ static void test_e2e_local(void) {
 
     /* Best-effort: stop the subscription after a bounded time so we can never
      * hang CI. If the local loopback WS handshake completed, we will have
-     * received the framed event by then. */
+     * received the framed event by then.
+     *
+     * Wait for the runner to either publish its handle or exit before stopping
+     * it. Stopping a still-NULL handle is a no-op, and the join after it would
+     * then block on a subscription that is designed to reconnect forever. */
+    struct timespec poll_ts = {.tv_sec = 0, .tv_nsec = 10L * 1000L * 1000L};
+    for (int waited_ms = 0; waited_ms < 5000 && !ctx.handle && !ctx.done;
+         waited_ms += 10)
+        nanosleep(&poll_ts, NULL);
+
     struct timespec ts = {.tv_sec = 5, .tv_nsec = 0};
     nanosleep(&ts, NULL);
     wf_chat_mod_events_stop(ctx.handle);
