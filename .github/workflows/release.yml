@@ -4,9 +4,13 @@
 # like any other. When CI then finishes green on that merge commit, this
 # workflow runs `tools/release.sh publish X.Y.Z`, which re-checks that `CI gate`
 # is green on the exact commit, creates the GitHub release (GitHub creates the
-# tag) with the changelog section as notes, and attaches the source tarball and
-# its SHA-256. It exists because an agent's sandbox may be forbidden to create
-# releases or push tags; the workflow's own token is not.
+# tag, annotated and pushed with the workflow's token) with the changelog
+# section as notes, and attaches the source tarball and its SHA-256. It exists
+# because an agent's sandbox is forbidden to create releases or push tags;
+# the workflow's own token is not. A tag pushed with GITHUB_TOKEN does not
+# trigger other workflows, so anything that should happen for a new version
+# belongs in this workflow, after the publish step. The changelog drift check
+# gives this workflow 30 minutes to tag a merged release before it fails.
 #
 # It never re-tags: publish refuses if the tag exists. It can also be run by
 # hand for a version whose release commit is already on main.
