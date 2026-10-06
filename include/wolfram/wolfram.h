@@ -23,6 +23,7 @@
 #include "wolfram/validate.h"
 #include "wolfram/oauth.h"
 #include "wolfram/oauth_pairing.h"
+#include "wolfram/time.h"
 #include "wolfram/update.h"
 #include "wolfram/richtext.h"
 #include "wolfram/label.h"
