@@ -1691,6 +1691,11 @@ if(WOLFRAM_BUILD_TESTS)
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME update COMMAND test_update)
 
+  add_executable(test_agent_set_bearer test/test_agent_set_bearer.c)
+  target_link_libraries(test_agent_set_bearer PRIVATE wolfram)
+  target_include_directories(test_agent_set_bearer PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME agent_set_bearer COMMAND test_agent_set_bearer)
+
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)
   target_include_directories(test_post_display PRIVATE test ${cjson_SOURCE_DIR})

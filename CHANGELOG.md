@@ -19,6 +19,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Fixed
 
+- `wf_agent_set_bearer()` refused every valid DID and handle: it compared the syntax validators, which return nonzero for valid input, against `WF_OK`. Sign-in through the OAuth node could never finish. Cobalt's end-to-end test of the pairing client found it. ([#124](https://github.com/ewanc26/wolfram/issues/124))
 - On macOS, Apple's libcurl exports the WebSocket API without supporting it. Wolfram assumed support and the WebSocket tests failed; it now asks libcurl with a probe connect. ([#108](https://github.com/ewanc26/wolfram/pull/108))
 - `chat_modevents_sub` hung with any libcurl that completes the loopback upgrade, because the test never published its subscription handle and so could never stop it. (`aabb55e`, https://github.com/ewanc26/wolfram/commit/aabb55e)
 - The pairing client and the update module are now linked into console builds; the pairing client first shipped inside the non-console block and failed to link on the 3DS. ([#117](https://github.com/ewanc26/wolfram/pull/117))
