@@ -2,7 +2,7 @@
 """changelog-check.py -- keep CHANGELOG.md current (Keep a Changelog style).
 
   changelog-check.py pr     BASE_SHA HEAD_SHA   (PR body in $PR_BODY)
-  changelog-check.py drift  [repo-dir]
+  changelog-check.py drift  [repo-dir] [--allow-untagged X.Y.Z] [--pending-ok]
 
 pr:    a PR that changes anything outside docs/, .github/, test/, tests/ or
        *.md files must add or change a line under `## [Unreleased]`. A PR body
@@ -11,8 +11,10 @@ pr:    a PR that changes anything outside docs/, .github/, test/, tests/ or
 drift: `## [Unreleased]` is the first section; its subsections are only Added,
        Changed, Fixed, Removed, Security; every Unreleased entry links a PR or
        issue (#123 or a URL); every version tag vX.Y.Z has a `## [X.Y.Z]`
-       section, and every version section has its tag (unless it is the
-       version in flight on a release/ branch, see --allow-untagged).
+       section, and every version section has its tag, except the version in
+       flight on a release/ branch (--allow-untagged) and, with --pending-ok
+       (pull requests), the newest section whose release is merged but not
+       yet published (a warning).
 Exit 1 with one line per problem.
 """
 import os, re, subprocess, sys
@@ -57,7 +59,7 @@ def pr(base, head):
     else:
         print("changelog: Unreleased updated")
 
-def drift(root, allow_untagged):
+def drift(root, allow_untagged, pending_ok=False):
     path = os.path.join(root, "CHANGELOG.md")
     if not os.path.exists(path):
         bad("CHANGELOG.md is missing"); return
@@ -80,8 +82,14 @@ def drift(root, allow_untagged):
     for t in tags:
         if t not in versions:
             bad(f"tag v{t} exists but CHANGELOG.md has no ## [{t}] section")
-    for v in versions:
+    for i, v in enumerate(versions):
         if v not in tags and v != allow_untagged:
+            if pending_ok and i == 0:
+                # The newest section's release is merged but not yet published:
+                # the release workflow tags it once CI is green. Other PRs must
+                # not be red meanwhile, but say so.
+                print(f"::warning::CHANGELOG.md has ## [{v}] but no tag v{v} yet (release pending)")
+                continue
             bad(f"CHANGELOG.md has ## [{v}] but there is no tag v{v}")
 
 def main():
@@ -93,7 +101,9 @@ def main():
         rest = a[1:]
         if "--allow-untagged" in rest:
             i = rest.index("--allow-untagged"); allow = rest[i + 1]; del rest[i:i + 2]
-        drift(rest[0] if rest else ".", allow)
+        pending = "--pending-ok" in rest
+        rest = [r for r in rest if r != "--pending-ok"]
+        drift(rest[0] if rest else ".", allow, pending)
     else:
         sys.exit(__doc__)
     if problems:
