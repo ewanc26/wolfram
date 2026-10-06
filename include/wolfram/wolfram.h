@@ -24,6 +24,7 @@
 #include "wolfram/oauth.h"
 #include "wolfram/oauth_pairing.h"
 #include "wolfram/muted_words.h"
+#include "wolfram/qr.h"
 #include "wolfram/time.h"
 #include "wolfram/update.h"
 #include "wolfram/richtext.h"
