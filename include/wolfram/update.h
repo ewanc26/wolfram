@@ -14,9 +14,10 @@
  *
  * Security: a SHA-256 taken from a manifest fetched over TLS from the same
  * release is integrity against corruption, not authenticity against a
- * compromised release. `signature` is reserved for a detached signature; a
- * manifest that carries one is reported through `has_signature` and is NOT
- * verified by this version, so callers must not treat it as verified.
+ * compromised release. Authenticity is a detached Ed25519 signature over the
+ * manifest bytes (`update.json.sig`), checked by wf_update_verify_signature()
+ * against a key compiled into the client. The manifest's own `signature` field
+ * stays reserved: it is reported through `has_signature` and is NOT verified.
  */
 
 #ifndef WOLFRAM_UPDATE_H
@@ -132,6 +133,25 @@ wf_status wf_update_verify_feed(wf_update_verify *v, const void *data,
 /* WF_OK only if exactly `size` bytes arrived and the SHA-256 matches
  * (constant-time compare); WF_ERR_VALIDATION otherwise. */
 wf_status wf_update_verify_final(wf_update_verify *v);
+
+/* ---- signature ------------------------------------------------------- */
+
+#define WF_UPDATE_PUBLIC_KEY_LEN 32
+
+/*
+ * Check the exact bytes of update.json against its detached Ed25519 signature,
+ * the `update.json.sig` asset: 128 hex characters (either case), optionally
+ * followed by one newline. `pk` is the 32-byte public key compiled into the
+ * client. WF_OK only if the signature verifies; WF_ERR_PARSE if the signature
+ * text is not exactly that shape; WF_ERR_VALIDATION if it does not verify. Call
+ * it on the downloaded bytes BEFORE parsing them, and refuse to update on any
+ * result other than WF_OK: an unsigned release is not a valid one.
+ *
+ * Built where wolfram/ed25519.h is (C99); not part of the Mac OS 9 C89 target.
+ */
+wf_status wf_update_verify_signature(const void *manifest, size_t manifest_len,
+                                     const char *sig_text, size_t sig_len,
+                                     const unsigned char pk[WF_UPDATE_PUBLIC_KEY_LEN]);
 
 #ifdef __cplusplus
 }
