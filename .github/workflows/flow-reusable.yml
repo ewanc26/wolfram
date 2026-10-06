@@ -93,6 +93,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .flow-canon/tools/repo_sync.py labels check --repo "${{ github.repository }}" --canon .flow-canon/.github/labels.yml
+      - name: Issue forms match Wolfram's, apart from the area options
+        run: python3 .flow-canon/tools/repo_sync.py forms check --repo "${{ github.repository }}" --canon .flow-canon/.github/ISSUE_TEMPLATE
       - name: Metadata matches repo-metadata.yml and Wolfram's core
         env:
           GH_TOKEN: ${{ github.token }}

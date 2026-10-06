@@ -16,6 +16,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 ### Changed
 
 - `tools/release.sh publish` now lets GitHub create the tag when it creates the release, instead of pushing the tag itself, so it works where `git push` of a tag is refused. ([#126](https://github.com/ewanc26/wolfram/pull/126))
+- Issues are filed through nine atomic forms (one per kind, plus parity gap, duplication and needs-owner) instead of the old Markdown templates. Blank issues are off and the contact link is a private security advisory. The forms are shared by all five repos and drift-checked. ([#127](https://github.com/ewanc26/wolfram/pull/127))
 - `tools/release.sh` no longer pushes to `main`. A release goes through a `release/vX.Y.Z` pull request, is tagged only on a commit whose `CI gate` is green, and takes its notes from this file. It also refuses to run without `--consumers-verified`. ([#102](https://github.com/ewanc26/wolfram/pull/102), [#121](https://github.com/ewanc26/wolfram/pull/121))
 
 ### Fixed
