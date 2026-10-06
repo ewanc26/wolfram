@@ -62,6 +62,9 @@ git add -A; git commit -qm "chore(release): v0.3.0"; ct=$(git log -1 --format=%c
 expect pass "untagged section inside the 30-minute grace window" python3 "$chk" drift . --now $((ct + 600))
 expect fail "untagged section after the grace window (failed release workflow)" python3 "$chk" drift . --now $((ct + 2400))
 expect fail "untagged section just past the window" python3 "$chk" drift . --now $((ct + 1801))
+expect pass "a PR body can excuse one untagged version, with a reason" env PR_BODY=$'Changelog-untagged: 0.3.0 — the fix for the release workflow cannot wait for its release' python3 "$chk" drift . --now $((ct + 2400))
+expect fail "an excuse without a reason is refused" env PR_BODY='Changelog-untagged: 0.3.0' python3 "$chk" drift . --now $((ct + 2400))
+expect fail "an excuse for a different version is refused" env PR_BODY=$'Changelog-untagged: 0.9.9 — wrong one' python3 "$chk" drift . --now $((ct + 2400))
 expect pass "grace window is configurable" python3 "$chk" drift . --grace-minutes 120 --now $((ct + 2400))
 expect fail "a section nobody committed is never excused" python3 "$chk" drift . --now $((ct + 1)) --grace-minutes 0
 printf '%s' "$good" | sed 's/^## \[0.1.0\]/## [0.3.0] - 2026-02-01\n\nNext.\n\n## [0.1.0]/' >CHANGELOG.md

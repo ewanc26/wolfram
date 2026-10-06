@@ -71,6 +71,7 @@ jobs:
       - name: Every tag has a section and every section a tag
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           allow=""
           case "$HEAD_REF" in release/v*) allow="--allow-untagged ${HEAD_REF#release/v}" ;; esac
