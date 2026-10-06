@@ -393,6 +393,7 @@ add_library(
   src/plc/plc.c
   # New utilities and embed support
   src/util.c
+  src/time.c
   src/agent/blob.c
   # Blob persistence removed: migrated to MetalBear project.
   src/agent/embed.c
@@ -1695,6 +1696,15 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_agent_set_bearer PRIVATE wolfram)
   target_include_directories(test_agent_set_bearer PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME agent_set_bearer COMMAND test_agent_set_bearer)
+
+  add_executable(test_time test/test_time.c)
+  target_link_libraries(test_time PRIVATE wolfram)
+  target_include_directories(test_time PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_time
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors"
+            SYNTAX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/syntax")
+  add_test(NAME time COMMAND test_time)
 
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)

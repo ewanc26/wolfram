@@ -1,0 +1,205 @@
+{
+ "description": "RFC 3339 / lexicon datetime vectors for wolfram/time.h. parse: input -> epoch seconds or null if it must be refused. format: epoch -> text. relative: age in seconds -> text. Epochs were computed with Python's calendar.timegm.",
+ "parse": [
+  {
+   "input": "1985-04-12T23:20:50.123Z",
+   "epoch": 482196050
+  },
+  {
+   "input": "1985-04-12T23:20:50Z",
+   "epoch": 482196050
+  },
+  {
+   "input": "1970-01-01T00:00:00Z",
+   "epoch": 0
+  },
+  {
+   "input": "1985-04-12T23:20:50.123+00:00",
+   "epoch": 482196050
+  },
+  {
+   "input": "1985-04-12T23:20:50.123-07:00",
+   "epoch": 482221250
+  },
+  {
+   "input": "1985-04-12T23:20:50.123+01:45",
+   "epoch": 482189750
+  },
+  {
+   "input": "1969-12-31T23:59:59Z",
+   "epoch": -1
+  },
+  {
+   "input": "2000-02-29T12:00:00Z",
+   "epoch": 951825600
+  },
+  {
+   "input": "1900-03-01T00:00:00Z",
+   "epoch": -2203891200
+  },
+  {
+   "input": "0001-01-01T00:00:00Z",
+   "epoch": -62135596800
+  },
+  {
+   "input": "9999-12-31T23:59:59Z",
+   "epoch": 253402300799
+  },
+  {
+   "input": "2016-12-31T23:59:60Z",
+   "epoch": 1483228800
+  },
+  {
+   "input": "1985-04-12T23:20:50.1234567890123Z",
+   "epoch": 482196050
+  },
+  {
+   "input": "1985-02-30T00:00:00Z",
+   "epoch": null
+  },
+  {
+   "input": "1900-02-29T00:00:00Z",
+   "epoch": null
+  },
+  {
+   "input": "2001-02-29T00:00:00Z",
+   "epoch": null
+  },
+  {
+   "input": "1985-13-12T23:20:50.123Z",
+   "epoch": null
+  },
+  {
+   "input": "1985-04-12T25:20:50.123Z",
+   "epoch": null
+  },
+  {
+   "input": "1985-04-12T23:20:50.123z",
+   "epoch": null
+  },
+  {
+   "input": "1985-04-12T23:20:50.123",
+   "epoch": null
+  },
+  {
+   "input": "1985-04-12 23:20:50Z",
+   "epoch": null
+  },
+  {
+   "input": "1985-04-12T23:20:50.123-00:00",
+   "epoch": null
+  },
+  {
+   "input": "",
+   "epoch": null
+  },
+  {
+   "input": "not a date",
+   "epoch": null
+  }
+ ],
+ "format": [
+  {
+   "epoch": 0,
+   "text": "1970-01-01T00:00:00Z"
+  },
+  {
+   "epoch": -1,
+   "text": "1969-12-31T23:59:59Z"
+  },
+  {
+   "epoch": 86399,
+   "text": "1970-01-01T23:59:59Z"
+  },
+  {
+   "epoch": 86400,
+   "text": "1970-01-02T00:00:00Z"
+  },
+  {
+   "epoch": 951782400,
+   "text": "2000-02-29T00:00:00Z"
+  },
+  {
+   "epoch": 482196050,
+   "text": "1985-04-12T23:20:50Z"
+  },
+  {
+   "epoch": 253402300799,
+   "text": "9999-12-31T23:59:59Z"
+  },
+  {
+   "epoch": -62135596800,
+   "text": "0001-01-01T00:00:00Z"
+  },
+  {
+   "epoch": 1483228799,
+   "text": "2016-12-31T23:59:59Z"
+  }
+ ],
+ "relative": [
+  {
+   "age_seconds": 0,
+   "text": "0s"
+  },
+  {
+   "age_seconds": 45,
+   "text": "45s"
+  },
+  {
+   "age_seconds": 59,
+   "text": "59s"
+  },
+  {
+   "age_seconds": 60,
+   "text": "1m"
+  },
+  {
+   "age_seconds": 3599,
+   "text": "59m"
+  },
+  {
+   "age_seconds": 3600,
+   "text": "1h"
+  },
+  {
+   "age_seconds": 86399,
+   "text": "23h"
+  },
+  {
+   "age_seconds": 86400,
+   "text": "1d"
+  },
+  {
+   "age_seconds": 259200,
+   "text": "3d"
+  },
+  {
+   "age_seconds": 604799,
+   "text": "6d"
+  },
+  {
+   "age_seconds": 604800,
+   "text": "1w"
+  },
+  {
+   "age_seconds": 1728000,
+   "text": "2w"
+  },
+  {
+   "age_seconds": 31535999,
+   "text": "52w"
+  },
+  {
+   "age_seconds": 31536000,
+   "text": "1y"
+  },
+  {
+   "age_seconds": 69120000,
+   "text": "2y"
+  },
+  {
+   "age_seconds": -9999,
+   "text": "0s"
+  }
+ ]
+}
