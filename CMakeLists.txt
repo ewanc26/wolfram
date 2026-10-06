@@ -324,6 +324,7 @@ add_library(
   src/agent/agent_ext.c
   src/agent/feed_typed.c
   src/agent/post_display.c
+  src/agent/muted_words.c
   src/agent/post_view_typed.c
   src/agent/thread_typed.c
   src/agent/graph_typed.c
@@ -1713,6 +1714,14 @@ if(WOLFRAM_BUILD_TESTS)
     test_base64url_strict
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME base64url_strict COMMAND test_base64url_strict)
+
+  add_executable(test_muted_words test/test_muted_words.c)
+  target_link_libraries(test_muted_words PRIVATE wolfram)
+  target_include_directories(test_muted_words PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_muted_words
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME muted_words COMMAND test_muted_words)
 
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)

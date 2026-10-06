@@ -4,3 +4,4 @@ src/update/update_core.c
 src/update/manifest.c
 src/time.c
 src/crypto/base64url_strict.c
+src/agent/muted_words.c
