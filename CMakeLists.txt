@@ -395,6 +395,8 @@ add_library(
   # New utilities and embed support
   src/util.c
   src/time.c
+  src/update/ed25519.c
+  src/update/signature.c
   src/qr.c
   src/crypto/base64url_strict.c
   src/agent/blob.c
@@ -1715,6 +1717,13 @@ if(WOLFRAM_BUILD_TESTS)
     test_base64url_strict
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME base64url_strict COMMAND test_base64url_strict)
+  add_executable(test_ed25519 test/test_ed25519.c)
+  target_link_libraries(test_ed25519 PRIVATE wolfram)
+  target_include_directories(test_ed25519 PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_ed25519
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME ed25519 COMMAND test_ed25519)
 
   add_executable(test_muted_words test/test_muted_words.c)
   target_link_libraries(test_muted_words PRIVATE wolfram)

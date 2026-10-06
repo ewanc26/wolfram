@@ -26,6 +26,7 @@
 #include "wolfram/muted_words.h"
 #include "wolfram/qr.h"
 #include "wolfram/time.h"
+#include "wolfram/ed25519.h"
 #include "wolfram/update.h"
 #include "wolfram/richtext.h"
 #include "wolfram/label.h"

@@ -6,6 +6,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- I've added `wf_update_verify_signature()` and `wolfram/ed25519.h`: Ed25519 verification (with its own SHA-512, no OpenSSL or mbedTLS behind it, so the consoles can use it) for a detached `update.json.sig` over the manifest, so an update can be checked against a public key compiled into the client and a replaced release refused. Checked against RFC 8032 vectors and 1500 random signatures against pyca/cryptography. Signing stays in each client's release workflow. ([#146](https://github.com/ewanc26/wolfram/pull/146), [#106](https://github.com/ewanc26/wolfram/issues/106))
 - The libcurl transport now reports a failed TLS handshake or certificate check as `WF_ERR_TLS` instead of lumping it in with `WF_ERR_NETWORK`, so a client can tell "the secure connection failed" from "I can't reach it". The console and Mac OS 9 transports still say `WF_ERR_NETWORK` until I can check them on hardware. The C++ and C# status mirrors also gain `WF_ERR_AUTH`, which they were missing. ([#142](https://github.com/ewanc26/wolfram/pull/142), [#141](https://github.com/ewanc26/wolfram/issues/141))
 
 ### Fixed
