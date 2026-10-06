@@ -90,14 +90,12 @@ The default desktop configure requires libcurl and OpenSSL, fetches pinned
 cJSON/libcbor sources, and builds examples and tests. A clean configure may
 require network access even when tests themselves are offline.
 
-Two tests, `relay_server` and `sync_publish_server`, fail on macOS and pass in
-CI. They are the only two that stand up a loopback HTTP server and drive a
-real WebSocket handshake and stream against it; on macOS the client side fails
-(`FAIL: client wf_websocket_connect to relay`, and `FAIL: published event
-seq N was not matched` in the sync case). Confirmed against unmodified `main`
-on 2026-10-03, so red there is not by itself evidence that a change broke
-something — check on Linux, or exclude them locally with
-`ctest -E 'relay_server|sync_publish_server'`.
+On macOS the WebSocket tests (`relay_server`, `sync_publish_server`,
+`chat_modevents_sub`) depend on which libcurl is linked. Apple's own libcurl
+exports the WebSocket API but was built without it, so `wf_websocket_supported()`
+asks it with a probe connect, finds `ws` unsupported, and the tests take their
+degraded path and say why in their output. With Homebrew's libcurl they run in
+full. CI runs both on macOS, and both are part of `CI gate`.
 
 ## Releases
 
@@ -127,9 +125,7 @@ and tags the merge commit. If CI fails, nothing is merged or tagged. The rest
 of the working flow is in [docs/flow.md](docs/flow.md).
 
 `--full` additionally builds and tests the server, store, store-crypto and C++
-wrapper configuration. On macOS that run excludes `relay_server` and
-`sync_publish_server`, the two documented macOS failures above, and says so;
-every other test still has to pass.
+wrapper configuration.
 
 ## Cross-compilation Support
 

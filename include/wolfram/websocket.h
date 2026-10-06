@@ -28,8 +28,17 @@ typedef struct wf_websocket_message {
     wf_websocket_message_type type;
 } wf_websocket_message;
 
-/** True when the linked libcurl advertises ws and wss protocol support. */
+/** True when the linked transport can open ws:// or wss:// connections. With
+ * libcurl that is decided by its protocol list, or on Apple (whose libcurl
+ * exports the WebSocket API whether or not it was built with it) by a
+ * runtime probe; see wf_websocket_support_detail(). */
 int wf_websocket_supported(void);
+
+/** How wf_websocket_supported() reached its answer, as one human-readable
+ * line (for test output and logs), e.g. "runtime probe: ws:// connect to a
+ * closed loopback port answered Unsupported protocol (curl 1)". Static
+ * storage; never NULL. */
+const char *wf_websocket_support_detail(void);
 
 /**
  * Connect and complete a WebSocket upgrade for an absolute ws:// or wss:// URL.

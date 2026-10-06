@@ -454,7 +454,9 @@ static void test_e2e_local(void) {
             printf("PASS: e2e server observed Authorization: %s\n",
                    ctx.captured_auth_header);
     } else {
-        printf("SKIP: e2e loopback WS unavailable (best-effort)\n");
+        printf("SKIP: e2e loopback WS unavailable (best-effort); websocket "
+               "supported=%d (%s)\n",
+               wf_websocket_supported(), wf_websocket_support_detail());
     }
     free(ctx.last_type);
     free(ctx.captured_auth_header);

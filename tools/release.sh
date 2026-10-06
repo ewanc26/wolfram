@@ -262,14 +262,6 @@ if ((run_full)); then
 		-DWOLFRAM_BUILD_STORE=ON \
 		-DWOLFRAM_BUILD_STORE_CRYPTO=ON \
 		-DWOLFRAM_BUILD_CPP=ON
-
-	# relay_server and sync_publish_server stand up a loopback HTTP server and
-	# drive a real WebSocket handshake against it. Both fail on macOS and pass
-	# on the Linux CI, which is recorded in README.md. Skip exactly those two
-	# on Darwin and say so; every other test still has to pass.
-	if [ "$(uname -s)" = Darwin ]; then
-		echo ">> Skipping relay_server and sync_publish_server: documented macOS failures (README.md); Linux CI covers them"
-	fi
 fi
 
 # ---------------------------------------------------------------------------

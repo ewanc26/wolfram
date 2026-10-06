@@ -113,6 +113,7 @@ wf_status wf_websocket_send_text(wf_websocket *socket, const char *text,
  * means no WebSocket support; any other outcome (connection refused) means
  * the scheme is handled. A Homebrew libcurl with WebSockets passes. */
 static int wf_websocket_apple_result;
+static char wf_websocket_apple_detail[160] = "runtime probe: not run";
 static pthread_once_t apple_probe_once = PTHREAD_ONCE_INIT;
 
 static void wf_websocket_apple_run_probe(void) {
@@ -124,6 +125,10 @@ static void wf_websocket_apple_run_probe(void) {
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 2000L);
     CURLcode result = curl_easy_perform(curl);
     wf_websocket_apple_result = result != CURLE_UNSUPPORTED_PROTOCOL;
+    snprintf(wf_websocket_apple_detail, sizeof wf_websocket_apple_detail,
+             "runtime probe: ws:// connect to a closed loopback port answered "
+             "%s (curl %d)",
+             curl_easy_strerror(result), (int)result);
     WF_LOG_DEBUG("websocket", "Apple libcurl WebSocket probe: %s (curl %d)",
                  curl_easy_strerror(result), (int)result);
     curl_easy_cleanup(curl);
@@ -154,6 +159,21 @@ static int wf_websocket_protocol_supported(const char *wanted) {
 int wf_websocket_supported(void) {
     return wf_websocket_protocol_supported("ws") ||
            wf_websocket_protocol_supported("wss");
+}
+
+const char *wf_websocket_support_detail(void) {
+#if LIBCURL_VERSION_NUM >= 0x075600
+#if defined(__APPLE__)
+    pthread_once(&apple_probe_once, wf_websocket_apple_run_probe);
+    return wf_websocket_apple_detail;
+#else
+    return wf_websocket_supported()
+               ? "curl_version_info() lists the ws/wss protocols"
+               : "curl_version_info() does not list ws or wss";
+#endif
+#else
+    return "linked libcurl predates the WebSocket API (7.86.0)";
+#endif
 }
 
 wf_status wf_websocket_connect_with_headers(const char *url,

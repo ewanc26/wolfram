@@ -426,6 +426,7 @@ jobs:
       - macos9-transport
       - format
       - flow-scripts
+      - macos
     runs-on: ubuntu-latest
     steps:
       - name: Require every gating job to have passed

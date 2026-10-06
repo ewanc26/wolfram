@@ -280,6 +280,8 @@ static int run_test(void) {
         return 1;
     }
 
+    printf("WEBSOCKET: supported=%d (%s)\n", wf_websocket_supported(),
+           wf_websocket_support_detail());
     if (wf_websocket_supported()) {
         /* ---- Full path: relay forwards the upstream subscription ---- */
         uint16_t up_port;
