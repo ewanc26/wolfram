@@ -74,7 +74,7 @@ jobs:
         run: |
           allow=""
           case "$HEAD_REF" in release/v*) allow="--allow-untagged ${HEAD_REF#release/v}" ;; esac
-          python3 .flow-canon/tools/changelog-check.py drift . --pending-ok $allow
+          python3 .flow-canon/tools/changelog-check.py drift . $allow
 
   repo-config:
     name: labels and metadata

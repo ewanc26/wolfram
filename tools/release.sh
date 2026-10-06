@@ -237,11 +237,25 @@ publish() {
 	# The release call creates the tag at $sha server-side. Some environments
 	# (the agents' sandbox) refuse `git push` of a tag but allow the REST API, and
 	# one call cannot leave a tag without a release or the reverse.
-	rel_id="$(gh api -X POST "repos/${slug}/releases" -f tag_name="v${new}" \
-		-f target_commitish="$sha" -f name="v${new}" -f body="$notes" --jq .id)" ||
-		fail "could not create the release (and so no tag): nothing was published"
-	git fetch -q origin "refs/tags/v${new}:refs/tags/v${new}" ||
-		echo "release: created v${new}; fetch the tag with 'git fetch --tags'" >&2
+	if [ -n "${GITHUB_ACTIONS:-}" ]; then
+		# In the release workflow: an annotated tag, pushed with the
+		# workflow's own token, then the release on that tag. Everything that
+		# should happen on a new tag happens in this same run, because tags
+		# pushed with GITHUB_TOKEN do not trigger other workflows.
+		git config user.name "github-actions[bot]"
+		git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+		git tag -a "v${new}" -m "v${new}" "$sha"
+		git push origin "refs/tags/v${new}"
+		rel_id="$(gh api -X POST "repos/${slug}/releases" -f tag_name="v${new}" \
+			-f name="v${new}" -f body="$notes" --jq .id)" ||
+			fail "pushed v${new} but could not create its release; re-run publish is refused (tag exists), create the release by hand"
+	else
+		rel_id="$(gh api -X POST "repos/${slug}/releases" -f tag_name="v${new}" \
+			-f target_commitish="$sha" -f name="v${new}" -f body="$notes" --jq .id)" ||
+			fail "could not create the release (and so no tag): nothing was published"
+		git fetch -q origin "refs/tags/v${new}:refs/tags/v${new}" ||
+			echo "release: created v${new}; fetch the tag with 'git fetch --tags'" >&2
+	fi
 	asset="wolfram-${new}.tar.gz"
 	git archive --format=tar.gz --prefix="wolfram-${new}/" -o "$tmp/$asset" "v${new}"
 	(cd "$tmp" && { sha256sum "$asset" 2>/dev/null || shasum -a 256 "$asset"; } >"$asset.sha256")
