@@ -7,6 +7,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 ### Added
 
 - I've added `wolfram/time.h`: parse a lexicon `datetime` to Unix seconds (numeric offsets converted, not refused), format one back, and give a short relative age, all without `timegm` or the locale, so Cobalt and Indigo can delete their copies. ([#133](https://github.com/ewanc26/wolfram/pull/133), [#116](https://github.com/ewanc26/wolfram/issues/116))
+- I've added `wf_crypto_base64url_decode_strict()`: URL alphabet only, no padding, no length of 1 mod 4, and trailing bits must be zero, so each byte string has exactly one encoding. MetalBear can drop the copy in its OAuth code. ([#134](https://github.com/ewanc26/wolfram/pull/134), [#115](https://github.com/ewanc26/wolfram/issues/115))
+
 ### Changed
 
 - A merged release PR now publishes itself: the `release` workflow runs `tools/release.sh publish` once CI is green on the release commit, so a release no longer depends on anyone being able to create one from their own machine. ([#131](https://github.com/ewanc26/wolfram/pull/131)). The changelog drift check gives that workflow 30 minutes to tag a merged release, then fails, so a release that never got tagged turns checks red.

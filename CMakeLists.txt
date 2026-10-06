@@ -394,6 +394,7 @@ add_library(
   # New utilities and embed support
   src/util.c
   src/time.c
+  src/crypto/base64url_strict.c
   src/agent/blob.c
   # Blob persistence removed: migrated to MetalBear project.
   src/agent/embed.c
@@ -1705,6 +1706,13 @@ if(WOLFRAM_BUILD_TESTS)
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors"
             SYNTAX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures/syntax")
   add_test(NAME time COMMAND test_time)
+  add_executable(test_base64url_strict test/test_base64url_strict.c)
+  target_link_libraries(test_base64url_strict PRIVATE wolfram)
+  target_include_directories(test_base64url_strict PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_base64url_strict
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME base64url_strict COMMAND test_base64url_strict)
 
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)
