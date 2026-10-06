@@ -1,0 +1,64 @@
+# Publishes a release after a release PR has been merged.
+#
+# `tools/release.sh prepare` pushes release/vX.Y.Z and the PR is rebase-merged
+# like any other. When CI then finishes green on that merge commit, this
+# workflow runs `tools/release.sh publish X.Y.Z`, which re-checks that `CI gate`
+# is green on the exact commit, creates the GitHub release (GitHub creates the
+# tag) with the changelog section as notes, and attaches the source tarball and
+# its SHA-256. It exists because an agent's sandbox may be forbidden to create
+# releases or push tags; the workflow's own token is not.
+#
+# It never re-tags: publish refuses if the tag exists. It can also be run by
+# hand for a version whose release commit is already on main.
+name: release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to publish (x.y.z), already merged to main
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  checks: read
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Work out the version
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            echo "version=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          subject="$(git log -1 --format=%s "$RUN_SHA")"
+          if [[ "$subject" =~ ^chore\(release\):\ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "Not a release commit ($subject); nothing to publish."
+          fi
+      - name: Publish
+        if: steps.v.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/release.sh publish "${{ steps.v.outputs.version }}"

@@ -118,8 +118,9 @@ the script cannot check that for me. It runs the default build and tests
 (`--full` adds the server, store, store-crypto and C++ configuration), bumps the
 version in `project()` in `CMakeLists.txt`, moves the Unreleased changelog
 section into a dated one, and pushes the branch. Nothing goes to `main`
-directly. `publish` tags the commit that carries the version only if its
-`CI gate` check is green, and never re-tags an existing version. The rest of the
+directly. `publish` creates the release at the commit that carries the version
+only if its `CI gate` check is green, and never re-tags an existing version. The
+`release` workflow runs it after a merged release PR. The rest of the
 working flow is in [docs/flow.md](docs/flow.md).
 
 ## Cross-compilation Support

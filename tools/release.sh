@@ -17,7 +17,9 @@
 #          origin/main, requires a green `CI gate` check on that exact commit,
 #          creates the GitHub release for vX.Y.Z at that commit (GitHub makes
 #          the tag; no `git push` of a tag), with the changelog section as
-#          notes, a source tarball and its SHA-256 attached.
+#          notes, a source tarball and its SHA-256 attached. The `release`
+#          workflow runs this automatically after a merged release PR, because
+#          an agent's sandbox may not be allowed to create releases.
 #
 # Requires: git, cmake, a C/C++ toolchain, python3, gh (REST access).
 #
