@@ -1,0 +1,523 @@
+{
+ "description": "Muted-word matching vectors for wolfram/muted_words.h. 'words' are app.bsky.actor.defs#mutedWord objects. 'now' is Unix seconds (1000000000 is 2001-09-09T01:46:40Z). Behaviour follows the lexicon and the rules Indigo and Cobalt already implemented, plus actorTarget and expiresAt which they did not.",
+ "cases": [
+  {
+   "name": "plain word matches whole word",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "my cat sleeps",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "plain word is case-insensitive",
+   "words": [
+    {
+     "value": "Cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "A CAT!",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "plain word does not match inside a longer word",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "category theory",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "plain word does not match as a suffix",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "bobcat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "plain word at the start and end of the text",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "word with punctuation matches as a substring",
+   "words": [
+    {
+     "value": "c++",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "I write c++ daily",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "word with punctuation inside a longer token",
+   "words": [
+    {
+     "value": "c++",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "abc++def",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "word with a space matches as a substring",
+   "words": [
+    {
+     "value": "good morning",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "oh, good morning!",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "non-ASCII bytes count as letters",
+   "words": [
+    {
+     "value": "caf\u00e9",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "un caf\u00e9 noir",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "non-ASCII word is not matched inside a longer word",
+   "words": [
+    {
+     "value": "caf\u00e9",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "caf\u00e9s",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "non-ASCII case is not folded",
+   "words": [
+    {
+     "value": "\u00c9clair",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "un \u00e9clair",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "empty value never matches",
+   "words": [
+    {
+     "value": "",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "anything",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "content target does not match tags",
+   "words": [
+    {
+     "value": "rust",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": null,
+   "tags": [
+    "rust"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "tag target does not match text",
+   "words": [
+    {
+     "value": "rust",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "rust is great",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "tag target matches a tag",
+   "words": [
+    {
+     "value": "rust",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "x",
+   "tags": [
+    "rust"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "tag match ignores case",
+   "words": [
+    {
+     "value": "Rust",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "x",
+   "tags": [
+    "rUST"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "tag value written with a leading #",
+   "words": [
+    {
+     "value": "#rust",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "x",
+   "tags": [
+    "rust"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "tag given with a leading #",
+   "words": [
+    {
+     "value": "rust",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "x",
+   "tags": [
+    "#rust"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "tag must match exactly, not as a prefix",
+   "words": [
+    {
+     "value": "rust",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "x",
+   "tags": [
+    "rustlang"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "both targets",
+   "words": [
+    {
+     "value": "rust",
+     "targets": [
+      "content",
+      "tag"
+     ]
+    }
+   ],
+   "text": "nothing here",
+   "tags": [
+    "rust"
+   ],
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "exclude-following skips a followed author",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "actorTarget": "exclude-following"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": true,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "exclude-following applies to a stranger",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "actorTarget": "exclude-following"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "actorTarget all applies to a followed author",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "actorTarget": "all"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": true,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "an expired word does not apply",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "expiresAt": "2001-09-09T01:46:39Z"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000100,
+   "match": false
+  },
+  {
+   "name": "a word expiring in the future applies",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "expiresAt": "2033-05-18T03:33:20Z"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000100,
+   "match": true
+  },
+  {
+   "name": "an unparseable expiry is treated as not expired",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "expiresAt": "soon"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "expiry with a numeric offset is converted",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "expiresAt": "2001-09-09T03:46:39+02:00"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000100,
+   "match": false
+  },
+  {
+   "name": "unknown clock (now 0) expires nothing",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ],
+     "expiresAt": "2001-09-09T01:46:39Z"
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 0,
+   "match": true
+  },
+  {
+   "name": "any of several words",
+   "words": [
+    {
+     "value": "dog",
+     "targets": [
+      "content"
+     ]
+    },
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "no words",
+   "words": [],
+   "text": "my cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "no text and no tags",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": null,
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  }
+ ]
+}
