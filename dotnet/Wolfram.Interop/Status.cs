@@ -34,4 +34,6 @@ public enum Status
     ErrNotImplemented = 24,
     ErrInternal = 25,
     ErrUnknown = 26,
+    ErrAuth = 27,
+    ErrTls = 28,
 }
