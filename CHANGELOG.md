@@ -15,6 +15,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Changed
 
+- `tools/release.sh publish` now lets GitHub create the tag when it creates the release, instead of pushing the tag itself, so it works where `git push` of a tag is refused. ([#126](https://github.com/ewanc26/wolfram/pull/126))
 - `tools/release.sh` no longer pushes to `main`. A release goes through a `release/vX.Y.Z` pull request, is tagged only on a commit whose `CI gate` is green, and takes its notes from this file. It also refuses to run without `--consumers-verified`. ([#102](https://github.com/ewanc26/wolfram/pull/102), [#121](https://github.com/ewanc26/wolfram/pull/121))
 
 ### Fixed
