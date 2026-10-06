@@ -3,6 +3,7 @@
 
   repo_sync.py labels   check|apply [--repo O/R] [--file F] [--canon F] [--live-json F] [--dry-run]
   repo_sync.py metadata check|apply [--repo O/R] [--file F] [--canon F] [--live-json F] [--dry-run]
+  repo_sync.py forms    check|apply --repo O/R --canon <wolfram ISSUE_TEMPLATE dir> [--file DIR] [--labels F]
 
 `check` exits 1 on any difference and prints one line each. It is two checks:
   file   the repo's `core` block must equal the canonical (Wolfram's) one, and
@@ -169,17 +170,74 @@ def meta_apply(doc, repo, dry):
     gh(["-X", "PATCH", f"repos/{repo}", "--input", "-"], data=json.dumps(body))
     gh(["-X", "PUT", f"repos/{repo}/topics", "--input", "-"], data=json.dumps({"names": w["topics"]}))
 
+# ---- issue forms --------------------------------------------------------
+import glob, os, re
+AREA_RE = re.compile(r"(        # areas:begin[^\n]*\n)(.*?)(        # areas:end\n)", re.S)
+
+def repo_areas(labels_doc):
+    names = [l["name"] for l in (labels_doc.get("core") or []) + (labels_doc.get("local") or [])]
+    return [n[len("area: "):] for n in names if n.startswith("area: ")]
+
+def render_form(canon_text, areas, repo_slug):
+    t = AREA_RE.sub(lambda m: m.group(1) + "".join(f"        - {a}\n" for a in areas) + m.group(3), canon_text)
+    return t.replace("ewanc26/wolfram", repo_slug)
+
+def forms_expected(canon_dir, labels_doc, repo_slug):
+    areas = repo_areas(labels_doc)
+    out = {}
+    for f in sorted(glob.glob(os.path.join(canon_dir, "*.yml"))):
+        out[os.path.basename(f)] = render_form(open(f, encoding="utf-8").read(), areas, repo_slug)
+    return out
+
+def forms_check(a, labels_doc):
+    want = forms_expected(a.canon, labels_doc, a.repo)
+    have = {os.path.basename(f) for f in glob.glob(os.path.join(a.file, "*"))}
+    for name, text in want.items():
+        path = os.path.join(a.file, name)
+        if not os.path.exists(path):
+            bad(f"issue form {name} is missing")
+        elif open(path, encoding="utf-8").read() != text:
+            bad(f"issue form {name} differs from Wolfram's canonical copy (only the area options may differ: they come from labels.yml)")
+    for name in sorted(have - set(want)):
+        bad(f"{name} is not a canonical issue form; remove it (old Markdown templates included)")
+    for name, text in want.items():
+        if name == "config.yml": continue
+        d = yaml.safe_load(text)
+        for l in d.get("labels", []):
+            known = {x["name"] for x in (labels_doc.get("core") or [])}
+            if l not in known:
+                bad(f"{name} applies label '{l}', which labels.yml does not define")
+
+def forms_apply(a, labels_doc):
+    os.makedirs(a.file, exist_ok=True)
+    for name, text in forms_expected(a.canon, labels_doc, a.repo).items():
+        open(os.path.join(a.file, name), "w", encoding="utf-8").write(text)
+        print(f"wrote {os.path.join(a.file, name)}")
+
 # ---- main ---------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("what", choices=["labels", "metadata"])
+    ap.add_argument("what", choices=["labels", "metadata", "forms"])
     ap.add_argument("mode", choices=["check", "apply"])
     ap.add_argument("--repo")
     ap.add_argument("--file")
     ap.add_argument("--canon")
+    ap.add_argument("--labels", help="forms: the repo's labels.yml (default .github/labels.yml)")
     ap.add_argument("--live-json")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
+    if a.what == "forms":
+        if not a.repo or not a.canon:
+            sys.exit("forms needs --repo OWNER/REPO and --canon <wolfram .github/ISSUE_TEMPLATE dir>")
+        a.file = a.file or ".github/ISSUE_TEMPLATE"
+        ldoc = load(a.labels or ".github/labels.yml")
+        if a.mode == "apply": forms_apply(a, ldoc)
+        else: forms_check(a, ldoc)
+        if problems:
+            for p in problems: print(f"repo-sync: {p}", file=sys.stderr)
+            sys.exit(1)
+        print("repo-sync: forms ok")
+        return
     default = ".github/labels.yml" if a.what == "labels" else ".github/repo-metadata.yml"
     doc = load(a.file or default)
     canon = load(a.canon or a.file or default)

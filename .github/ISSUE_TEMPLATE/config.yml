@@ -1,8 +1,6 @@
+# Canonical in ewanc26/wolfram; drift-checked in every repo (the repo name is substituted).
 blank_issues_enabled: false
 contact_links:
-  - name: "Discussions / Questions"
-    url: https://github.com/ewanc26/wolfram/discussions
-    about: Ask questions and discuss wolfram with the community before opening an issue.
-  - name: "AT Protocol reference"
-    url: https://github.com/bluesky-social/atproto
-    about: Lexicons and wire formats — useful when reporting protocol-level bugs or proposing features.
+  - name: Report a security problem privately
+    url: https://github.com/ewanc26/wolfram/security/advisories/new
+    about: Never open a public issue for a vulnerability. Use a private security advisory instead.
