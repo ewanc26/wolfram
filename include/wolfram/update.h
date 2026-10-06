@@ -149,9 +149,10 @@ wf_status wf_update_verify_final(wf_update_verify *v);
  *
  * Built where wolfram/ed25519.h is (C99); not part of the Mac OS 9 C89 target.
  */
-wf_status wf_update_verify_signature(const void *manifest, size_t manifest_len,
-                                     const char *sig_text, size_t sig_len,
-                                     const unsigned char pk[WF_UPDATE_PUBLIC_KEY_LEN]);
+wf_status
+wf_update_verify_signature(const void *manifest, size_t manifest_len,
+                           const char *sig_text, size_t sig_len,
+                           const unsigned char pk[WF_UPDATE_PUBLIC_KEY_LEN]);
 
 #ifdef __cplusplus
 }
