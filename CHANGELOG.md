@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-06
+
 ### Added
 
 - I've added a client for the sign-in pairing contract the hosted OAuth node speaks: `wolfram/oauth_pairing.h` parses the begin and poll replies and runs the whole begin/poll loop, stopping on a 404 instead of polling a dead code for nine minutes. The contract and its test vectors are in `docs/oauth-pairing.md` and `test/vectors/oauth_pairing.json`. ([#117](https://github.com/ewanc26/wolfram/pull/117), [#101](https://github.com/ewanc26/wolfram/issues/101))
@@ -285,7 +287,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.26.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.27.0...HEAD
+[0.27.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.27.0
 [0.26.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.26.0
 [0.25.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.25.0
 [0.24.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.24.0
