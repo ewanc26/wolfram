@@ -395,6 +395,7 @@ add_library(
   # New utilities and embed support
   src/util.c
   src/time.c
+  src/qr.c
   src/crypto/base64url_strict.c
   src/agent/blob.c
   # Blob persistence removed: migrated to MetalBear project.
@@ -1722,6 +1723,13 @@ if(WOLFRAM_BUILD_TESTS)
     test_muted_words
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME muted_words COMMAND test_muted_words)
+  add_executable(test_qr test/test_qr.c)
+  target_link_libraries(test_qr PRIVATE wolfram)
+  target_include_directories(test_qr PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_qr
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME qr COMMAND test_qr)
 
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)
