@@ -6,7 +6,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Changed
 
-- A merged release PR now publishes itself: the `release` workflow runs `tools/release.sh publish` once CI is green on the release commit, so a release no longer depends on anyone being able to create one from their own machine. ([#131](https://github.com/ewanc26/wolfram/pull/131))
+- A merged release PR now publishes itself: the `release` workflow runs `tools/release.sh publish` once CI is green on the release commit, so a release no longer depends on anyone being able to create one from their own machine. ([#131](https://github.com/ewanc26/wolfram/pull/131)). A pull request meanwhile only gets a warning, not a failure, when the newest changelog section is waiting for its tag.
 
 ## [0.27.0] - 2026-10-06
 
