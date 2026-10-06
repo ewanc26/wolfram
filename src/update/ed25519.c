@@ -59,8 +59,7 @@ static const u64 H512[8] = {
 
 #define ROR(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
 
-static void sha512_block(u64 st[8], const u8 *p)
-{
+static void sha512_block(u64 st[8], const u8 *p) {
     u64 w[80], a, b, c, d, e, f, g, h, t1, t2;
     int i;
 
@@ -74,25 +73,42 @@ static void sha512_block(u64 st[8], const u8 *p)
         u64 s1 = ROR(w[i - 2], 19) ^ ROR(w[i - 2], 61) ^ (w[i - 2] >> 6);
         w[i] = w[i - 16] + s0 + w[i - 7] + s1;
     }
-    a = st[0]; b = st[1]; c = st[2]; d = st[3];
-    e = st[4]; f = st[5]; g = st[6]; h = st[7];
+    a = st[0];
+    b = st[1];
+    c = st[2];
+    d = st[3];
+    e = st[4];
+    f = st[5];
+    g = st[6];
+    h = st[7];
     for (i = 0; i < 80; i++) {
         t1 = h + (ROR(e, 14) ^ ROR(e, 18) ^ ROR(e, 41)) + ((e & f) ^ (~e & g)) +
              K512[i] + w[i];
         t2 = (ROR(a, 28) ^ ROR(a, 34) ^ ROR(a, 39)) +
              ((a & b) ^ (a & c) ^ (b & c));
-        h = g; g = f; f = e; e = d + t1;
-        d = c; c = b; b = a; a = t1 + t2;
+        h = g;
+        g = f;
+        f = e;
+        e = d + t1;
+        d = c;
+        c = b;
+        b = a;
+        a = t1 + t2;
     }
-    st[0] += a; st[1] += b; st[2] += c; st[3] += d;
-    st[4] += e; st[5] += f; st[6] += g; st[7] += h;
+    st[0] += a;
+    st[1] += b;
+    st[2] += c;
+    st[3] += d;
+    st[4] += e;
+    st[5] += f;
+    st[6] += g;
+    st[7] += h;
 }
 
 /* SHA-512 of up to three buffers concatenated, so verify can hash
  * R || A || M without copying the message. */
 static void sha512_3(u8 out[64], const u8 *p1, size_t n1, const u8 *p2,
-                     size_t n2, const u8 *p3, size_t n3)
-{
+                     size_t n2, const u8 *p3, size_t n3) {
     u64 st[8];
     u8 buf[128];
     size_t fill = 0, total = n1 + n2 + n3, i;
@@ -100,8 +116,12 @@ static void sha512_3(u8 out[64], const u8 *p1, size_t n1, const u8 *p2,
     size_t lens[3];
     int k;
 
-    parts[0] = p1; parts[1] = p2; parts[2] = p3;
-    lens[0] = n1; lens[1] = n2; lens[2] = n3;
+    parts[0] = p1;
+    parts[1] = p2;
+    parts[2] = p3;
+    lens[0] = n1;
+    lens[1] = n2;
+    lens[2] = n3;
     memcpy(st, H512, sizeof st);
     for (k = 0; k < 3; k++) {
         const u8 *p = parts[k];
@@ -110,7 +130,9 @@ static void sha512_3(u8 out[64], const u8 *p1, size_t n1, const u8 *p2,
             size_t take = 128 - fill;
             if (take > n) take = n;
             memcpy(buf + fill, p, take);
-            fill += take; p += take; n -= take;
+            fill += take;
+            p += take;
+            n -= take;
             if (fill == 128) {
                 sha512_block(st, buf);
                 fill = 0;
@@ -141,14 +163,12 @@ static void sha512_3(u8 out[64], const u8 *p1, size_t n1, const u8 *p2,
 
 static const gf gf0 = {0}, gf1 = {1};
 
-static void set25519(gf r, const gf a)
-{
+static void set25519(gf r, const gf a) {
     int i;
     for (i = 0; i < 16; i++) r[i] = a[i];
 }
 
-static void car25519(gf o)
-{
+static void car25519(gf o) {
     int i;
     i64 c;
     for (i = 0; i < 16; i++) {
@@ -159,8 +179,7 @@ static void car25519(gf o)
     }
 }
 
-static void sel25519(gf p, gf q, int b)
-{
+static void sel25519(gf p, gf q, int b) {
     i64 t, c = ~((i64)b - 1);
     int i;
     for (i = 0; i < 16; i++) {
@@ -170,8 +189,7 @@ static void sel25519(gf p, gf q, int b)
     }
 }
 
-static void pack25519(u8 *o, const gf n)
-{
+static void pack25519(u8 *o, const gf n) {
     int i, j, b;
     gf m, t;
     for (i = 0; i < 16; i++) t[i] = n[i];
@@ -195,8 +213,7 @@ static void pack25519(u8 *o, const gf n)
     }
 }
 
-static int neq25519(const gf a, const gf b)
-{
+static int neq25519(const gf a, const gf b) {
     u8 c[32], d[32];
     unsigned diff = 0;
     int i;
@@ -206,34 +223,29 @@ static int neq25519(const gf a, const gf b)
     return diff != 0;
 }
 
-static int par25519(const gf a)
-{
+static int par25519(const gf a) {
     u8 d[32];
     pack25519(d, a);
     return d[0] & 1;
 }
 
-static void unpack25519(gf o, const u8 *n)
-{
+static void unpack25519(gf o, const u8 *n) {
     int i;
     for (i = 0; i < 16; i++) o[i] = n[2 * i] + ((i64)n[2 * i + 1] << 8);
     o[15] &= 0x7fff;
 }
 
-static void A(gf o, const gf a, const gf b)
-{
+static void A(gf o, const gf a, const gf b) {
     int i;
     for (i = 0; i < 16; i++) o[i] = a[i] + b[i];
 }
 
-static void Z(gf o, const gf a, const gf b)
-{
+static void Z(gf o, const gf a, const gf b) {
     int i;
     for (i = 0; i < 16; i++) o[i] = a[i] - b[i];
 }
 
-static void M(gf o, const gf a, const gf b)
-{
+static void M(gf o, const gf a, const gf b) {
     i64 t[31];
     int i, j;
     for (i = 0; i < 31; i++) t[i] = 0;
@@ -245,14 +257,12 @@ static void M(gf o, const gf a, const gf b)
     car25519(o);
 }
 
-static void S(gf o, const gf a)
-{
+static void S(gf o, const gf a) {
     M(o, a, a);
 }
 
 /* o = i^(2^255 - 21), the inverse. */
-static void inv25519(gf o, const gf i)
-{
+static void inv25519(gf o, const gf i) {
     gf c;
     int a;
     for (a = 0; a < 16; a++) c[a] = i[a];
@@ -264,8 +274,7 @@ static void inv25519(gf o, const gf i)
 }
 
 /* o = i^(2^252 - 3). */
-static void pow2523(gf o, const gf i)
-{
+static void pow2523(gf o, const gf i) {
     gf c;
     int a;
     for (a = 0; a < 16; a++) c[a] = i[a];
@@ -277,8 +286,7 @@ static void pow2523(gf o, const gf i)
 }
 
 /* o = base^e for a 32-byte little-endian exponent (public values only). */
-static void pow_bytes(gf o, const gf base, const u8 e[32])
-{
+static void pow_bytes(gf o, const gf base, const u8 e[32]) {
     gf r;
     int i;
     set25519(r, gf1);
@@ -296,8 +304,7 @@ static int consts_ready;
 
 static int unpackneg(gf r[4], const u8 p[32]);
 
-static void init_consts(void)
-{
+static void init_consts(void) {
     gf a, b, t;
     u8 e[32], by[32];
     int i;
@@ -338,8 +345,7 @@ static void init_consts(void)
 
 /* ---- group arithmetic (extended coordinates) -------------------------- */
 
-static void point_add(gf p[4], gf q[4])
-{
+static void point_add(gf p[4], gf q[4]) {
     gf a, b, c, d, t, e, f, g, h;
     Z(a, p[1], p[0]);
     Z(t, q[1], q[0]);
@@ -361,14 +367,12 @@ static void point_add(gf p[4], gf q[4])
     M(p[3], e, h);
 }
 
-static void cswap(gf p[4], gf q[4], u8 b)
-{
+static void cswap(gf p[4], gf q[4], u8 b) {
     int i;
     for (i = 0; i < 4; i++) sel25519(p[i], q[i], b);
 }
 
-static void point_pack(u8 *r, gf p[4])
-{
+static void point_pack(u8 *r, gf p[4]) {
     gf tx, ty, zi;
     inv25519(zi, p[2]);
     M(tx, p[0], zi);
@@ -377,8 +381,7 @@ static void point_pack(u8 *r, gf p[4])
     r[31] ^= (u8)(par25519(tx) << 7);
 }
 
-static void scalarmult(gf p[4], gf q[4], const u8 *s)
-{
+static void scalarmult(gf p[4], gf q[4], const u8 *s) {
     int i;
     set25519(p[0], gf0);
     set25519(p[1], gf1);
@@ -393,8 +396,7 @@ static void scalarmult(gf p[4], gf q[4], const u8 *s)
     }
 }
 
-static void scalarbase(gf p[4], const u8 *s)
-{
+static void scalarbase(gf p[4], const u8 *s) {
     gf q[4];
     set25519(q[0], BX);
     set25519(q[1], BY);
@@ -410,8 +412,7 @@ static const u64 L[32] = {0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
                           0,    0,    0,    0,    0,    0,    0,    0,
                           0,    0,    0,    0,    0,    0,    0,    0x10};
 
-static void modL(u8 *r, i64 x[64])
-{
+static void modL(u8 *r, i64 x[64]) {
     i64 carry, i, j;
     for (i = 63; i >= 32; --i) {
         carry = 0;
@@ -436,8 +437,7 @@ static void modL(u8 *r, i64 x[64])
     }
 }
 
-static void reduce64(u8 *r)
-{
+static void reduce64(u8 *r) {
     i64 x[64];
     int i;
     for (i = 0; i < 64; i++) x[i] = (i64)r[i];
@@ -446,8 +446,7 @@ static void reduce64(u8 *r)
 }
 
 /* S must be < L for the signature to be canonical (RFC 8032 section 5.1.7). */
-static int scalar_below_L(const u8 s[32])
-{
+static int scalar_below_L(const u8 s[32]) {
     int i;
     for (i = 31; i >= 0; i--) {
         if (s[i] < (u8)L[i]) return 1;
@@ -457,8 +456,7 @@ static int scalar_below_L(const u8 s[32])
 }
 
 /* Decompress -A: r = (-x, y). Returns nonzero if p is not a curve point. */
-static int unpackneg(gf r[4], const u8 p[32])
-{
+static int unpackneg(gf r[4], const u8 p[32]) {
     gf t, chk, num, den, den2, den4, den6;
     set25519(r[2], gf1);
     unpack25519(r[1], p);
@@ -495,8 +493,7 @@ static int unpackneg(gf r[4], const u8 p[32])
 
 wf_status wf_ed25519_verify(const unsigned char sig[WF_ED25519_SIGNATURE_LEN],
                             const void *msg, size_t len,
-                            const unsigned char pk[WF_ED25519_PUBLIC_LEN])
-{
+                            const unsigned char pk[WF_ED25519_PUBLIC_LEN]) {
     u8 t[32], h[64], diff;
     gf p[4], q[4];
     int i;
