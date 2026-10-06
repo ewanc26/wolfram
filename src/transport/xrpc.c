@@ -588,6 +588,25 @@ static int wf_url_is_https(const char *url) {
     return url && strncasecmp(url, "https://", 8) == 0;
 }
 
+/* libcurl results that mean the secure channel could not be set up, as
+ * opposed to the peer being unreachable or the transfer failing afterwards. */
+static int wf_xrpc_curl_is_tls_error(CURLcode rc) {
+    switch (rc) {
+        case CURLE_SSL_CONNECT_ERROR:
+        case CURLE_SSL_ENGINE_NOTFOUND:
+        case CURLE_SSL_ENGINE_SETFAILED:
+        case CURLE_SSL_CERTPROBLEM:
+        case CURLE_SSL_CIPHER:
+        case CURLE_PEER_FAILED_VERIFICATION:
+        case CURLE_SSL_CACERT_BADFILE:
+        case CURLE_SSL_CRL_BADFILE:
+        case CURLE_SSL_ISSUER_ERROR:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
                                      const char *method, const char *url,
                                      const char *content_type, const void *body,
@@ -701,6 +720,7 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
                      buf.exceeded ? "response body exceeds size limit"
                                   : curl_easy_strerror(curl_rc));
         status = WF_ERR_NETWORK;
+        if (wf_xrpc_curl_is_tls_error(curl_rc)) status = WF_ERR_TLS;
     } else {
         long http_status = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);

@@ -87,6 +87,10 @@ inline std::string wolfram::status_category::message(int ev) const {
             return "not implemented";
         case WF_ERR_INTERNAL:
             return "internal error";
+        case WF_ERR_AUTH:
+            return "authentication rejected";
+        case WF_ERR_TLS:
+            return "TLS handshake or certificate failure";
         default:
             return "unknown error";
     }

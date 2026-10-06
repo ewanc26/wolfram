@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- The libcurl transport now reports a failed TLS handshake or certificate check as `WF_ERR_TLS` instead of lumping it in with `WF_ERR_NETWORK`, so a client can tell "the secure connection failed" from "I can't reach it". The console and Mac OS 9 transports still say `WF_ERR_NETWORK` until I can check them on hardware. The C++ and C# status mirrors also gain `WF_ERR_AUTH`, which they were missing. ([#142](https://github.com/ewanc26/wolfram/pull/142), [#141](https://github.com/ewanc26/wolfram/issues/141))
+
 ### Fixed
 
 - `tools/repo_sync.py labels apply` now deletes an old label that was meant to be renamed when the new name already exists, but only if no issue still carries it; otherwise it says which issue to relabel. Platinum hit this with `accessibility`. ([#139](https://github.com/ewanc26/wolfram/pull/139))
