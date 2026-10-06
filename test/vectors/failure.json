@@ -1,0 +1,361 @@
+{
+ "_comment": "Shared vectors for wf_failure_classify(). Each client's tests may read this file. status is the wf_status name, http the HTTP status or 0, xrpc_error the error name or null.",
+ "statuses": {
+  "WF_OK": 0,
+  "WF_ERR_INVALID_ARG": 1,
+  "WF_ERR_ALLOC": 2,
+  "WF_ERR_NETWORK": 3,
+  "WF_ERR_HTTP": 4,
+  "WF_ERR_PARSE": 5,
+  "WF_ERR_NOT_FOUND": 6,
+  "WF_ERR_WOULD_BLOCK": 7,
+  "WF_ERR_DID_RESOLVE": 8,
+  "WF_ERR_DID_DOCUMENT_NOT_FOUND": 9,
+  "WF_ERR_HANDLE_RESOLVE": 10,
+  "WF_ERR_HANDLE_DOCUMENT_NOT_FOUND": 11,
+  "WF_ERR_CRYPTO": 14,
+  "WF_ERR_VALIDATION": 15,
+  "WF_ERR_STATE": 16,
+  "WF_ERR_CONFIG": 17,
+  "WF_ERR_TIMEOUT": 18,
+  "WF_ERR_UNSUPPORTED": 19,
+  "WF_ERR_PERMISSION": 20,
+  "WF_ERR_RATE_LIMIT": 21,
+  "WF_ERR_AUTH": 27,
+  "WF_ERR_NOT_IMPLEMENTED": 24,
+  "WF_ERR_INTERNAL": 25,
+  "WF_ERR_UNKNOWN": 26,
+  "WF_ERR_TLS": 28
+ },
+ "cases": [
+  {
+   "status": "WF_OK",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "none"
+  },
+  {
+   "status": "WF_OK",
+   "http": 500,
+   "xrpc_error": "InternalServerError",
+   "kind": "none",
+   "note": "success wins whatever else is passed"
+  },
+  {
+   "status": "WF_ERR_AUTH",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_RATE_LIMIT",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "rate-limit"
+  },
+  {
+   "status": "WF_ERR_TIMEOUT",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "timeout"
+  },
+  {
+   "status": "WF_ERR_TLS",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "tls"
+  },
+  {
+   "status": "WF_ERR_CRYPTO",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "tls"
+  },
+  {
+   "status": "WF_ERR_CONFIG",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "tls"
+  },
+  {
+   "status": "WF_ERR_NETWORK",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "network"
+  },
+  {
+   "status": "WF_ERR_DID_RESOLVE",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "network"
+  },
+  {
+   "status": "WF_ERR_DID_DOCUMENT_NOT_FOUND",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "network"
+  },
+  {
+   "status": "WF_ERR_HANDLE_RESOLVE",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "network"
+  },
+  {
+   "status": "WF_ERR_HANDLE_DOCUMENT_NOT_FOUND",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "network"
+  },
+  {
+   "status": "WF_ERR_PARSE",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "bad-response"
+  },
+  {
+   "status": "WF_ERR_UNSUPPORTED",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "not-ready"
+  },
+  {
+   "status": "WF_ERR_NOT_IMPLEMENTED",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "not-ready"
+  },
+  {
+   "status": "WF_ERR_INTERNAL",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_INVALID_ARG",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_ALLOC",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_NOT_FOUND",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_WOULD_BLOCK",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_VALIDATION",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_STATE",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_PERMISSION",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_UNKNOWN",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_NETWORK",
+   "http": 401,
+   "xrpc_error": "AuthenticationRequired",
+   "kind": "network",
+   "note": "a transport failure ignores the HTTP details"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "AuthenticationRequired",
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "ExpiredToken",
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "InvalidToken",
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "AuthMissing",
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "AuthFactorTokenRequired",
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "RateLimitExceeded",
+   "kind": "rate-limit"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "UpstreamTimeout",
+   "kind": "timeout"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "InternalServerError",
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "UpstreamFailure",
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "NotEnoughResources",
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 200,
+   "xrpc_error": "ExpiredToken",
+   "kind": "bad-credentials",
+   "note": "the error name wins over the HTTP status"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 500,
+   "xrpc_error": "RateLimitExceeded",
+   "kind": "rate-limit"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 401,
+   "xrpc_error": null,
+   "kind": "bad-credentials"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 408,
+   "xrpc_error": null,
+   "kind": "timeout"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 504,
+   "xrpc_error": null,
+   "kind": "timeout"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 429,
+   "xrpc_error": null,
+   "kind": "rate-limit"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 500,
+   "xrpc_error": null,
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 502,
+   "xrpc_error": null,
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 503,
+   "xrpc_error": null,
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 599,
+   "xrpc_error": null,
+   "kind": "server"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 403,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 404,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 0,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 600,
+   "xrpc_error": null,
+   "kind": "other"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 503,
+   "xrpc_error": "SomethingNew",
+   "kind": "server",
+   "note": "an unknown error name falls through to the HTTP status"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 503,
+   "xrpc_error": "",
+   "kind": "server",
+   "note": "an empty error name is no name"
+  },
+  {
+   "status": "WF_ERR_HTTP",
+   "http": 400,
+   "xrpc_error": "InvalidRequest",
+   "kind": "other"
+  }
+ ]
+}

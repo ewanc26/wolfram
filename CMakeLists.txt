@@ -218,7 +218,8 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
   add_library(wolfram-macos9-transport STATIC
               src/transport/xrpc_mac9.c
               src/transport/macos9_tls.c
-              src/update/update_core.c)
+              src/update/update_core.c
+              src/failure.c)
   target_include_directories(
     wolfram-macos9-transport
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -395,6 +396,7 @@ add_library(
   # New utilities and embed support
   src/util.c
   src/time.c
+  src/failure.c
   src/qr.c
   src/crypto/base64url_strict.c
   src/agent/blob.c
@@ -1715,6 +1717,13 @@ if(WOLFRAM_BUILD_TESTS)
     test_base64url_strict
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME base64url_strict COMMAND test_base64url_strict)
+  add_executable(test_failure test/test_failure.c)
+  target_link_libraries(test_failure PRIVATE wolfram)
+  target_include_directories(test_failure PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_failure
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME failure COMMAND test_failure)
 
   add_executable(test_muted_words test/test_muted_words.c)
   target_link_libraries(test_muted_words PRIVATE wolfram)
