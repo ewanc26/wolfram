@@ -58,9 +58,12 @@ expect fail "tag without a section" python3 "$chk" drift .
 git tag -d v0.2.0 >/dev/null
 printf '%s' "$good" | sed 's/^## \[0.1.0\]/## [0.3.0] - 2026-02-01\n\nNext.\n\n## [0.1.0]/' >CHANGELOG.md
 expect fail "section without a tag" python3 "$chk" drift .
-expect pass "newest section awaiting its tag, in a PR (--pending-ok)" python3 "$chk" drift . --pending-ok
-printf '%s' "$good" | sed 's/^## \[0.1.0\]/## [0.3.0] - 2026-02-01\n\nNext.\n\n## [0.2.0] - 2026-01-15\n\nMiddle.\n\n## [0.1.0]/' >CHANGELOG.md
-expect fail "an older section without a tag is still an error (--pending-ok)" python3 "$chk" drift . --pending-ok
+git add -A; git commit -qm "chore(release): v0.3.0"; ct=$(git log -1 --format=%ct)
+expect pass "untagged section inside the 30-minute grace window" python3 "$chk" drift . --now $((ct + 600))
+expect fail "untagged section after the grace window (failed release workflow)" python3 "$chk" drift . --now $((ct + 2400))
+expect fail "untagged section just past the window" python3 "$chk" drift . --now $((ct + 1801))
+expect pass "grace window is configurable" python3 "$chk" drift . --grace-minutes 120 --now $((ct + 2400))
+expect fail "a section nobody committed is never excused" python3 "$chk" drift . --now $((ct + 1)) --grace-minutes 0
 printf '%s' "$good" | sed 's/^## \[0.1.0\]/## [0.3.0] - 2026-02-01\n\nNext.\n\n## [0.1.0]/' >CHANGELOG.md
 expect pass "section without a tag on its own release branch" python3 "$chk" drift . --allow-untagged 0.3.0
 printf '%s' "$good" | sed 's/### Added/### New stuff/' >CHANGELOG.md
