@@ -50,9 +50,15 @@ Then copy `.github/PULL_REQUEST_TEMPLATE.md` and the `<!-- flow:begin -->` block
 
 The template has three sections that must not be left empty: what changed, what was verified, and which docs moved. "Verified" means what was actually run, and on what: host, emulator or hardware. If I did not run it on a Wii U, the PR does not say I did.
 
+## Changelog
+
+`CHANGELOG.md` is in the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) shape, with `## [Unreleased]` at the top grouped into Added, Changed, Fixed, Removed and Security. Every PR that changes anything outside `docs/`, `.github/`, `test/`, `tests/` and Markdown files adds or edits a line there, written as me and linking the PR or issue. A change nobody using the code could notice can say so instead, with a line in the PR body: `Changelog: none — <reason>`, and the check prints the reason. `flow / changelog` ([`tools/changelog-check.py`](../tools/changelog-check.py)) enforces that, and also that every version tag has a section and every section has its tag.
+
 ## Releases
 
-Releases are cut only by [`tools/release.sh`](../tools/release.sh), and only once the consumers have been built against the change. The script refuses to run without `--consumers-verified`, which is a claim it cannot check, so it is on whoever passes it. It does not push to `main`: the version bump goes through a `release/vX.Y.Z` pull request, is merged when green, and the tag lands on the merge commit. See the [README](../README.md#releases) for usage.
+A release happens whenever a merged, green set of changes is something a consumer needs: a feature, a fix, anything a pin bump is waiting on. Docs-only and CI-only changes don't count unless a consumer needs them. The version follows semver; while the major version is 0, a breaking change bumps the minor.
+
+Releases are cut only by [`tools/release.sh`](../tools/release.sh), in two steps. `prepare` runs the builds and tests, bumps the version, moves Unreleased into a dated section and pushes a `release/vX.Y.Z` branch; that goes through a pull request like any change. `publish`, once the PR is merged, tags the merge commit only if its `CI gate` is green and creates the GitHub release with the changelog section as notes. `prepare` refuses to run without `--consumers-verified`, which is a claim the script cannot check, so it is on whoever passes it: consumer bump branches are built and tested against the change first. Tags are never moved and a version is never re-tagged; a wrong release gets a new patch. See the [README](../README.md#releases) for usage.
 
 ## Labels and repository metadata
 
