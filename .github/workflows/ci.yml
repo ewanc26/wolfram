@@ -64,6 +64,14 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
+      # The job log is hard to read back with the tools agents use; annotations
+      # are not. Name the failing tests there.
+      - name: Name the failing tests
+        if: failure()
+        run: |
+          f=build/Testing/Temporary/LastTestsFailed.log
+          if [ -f "$f" ]; then echo "::error title=ctest failures::$(tr '\n' ' ' <"$f")"; fi
+
   # libsecp256k1 is optional: the P-256 path stays available while k256 APIs
   # fail honestly at runtime. Keep that documented dependency boundary
   # buildable instead of exercising only hosts that installed every option.
@@ -91,6 +99,14 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+
+      # The job log is hard to read back with the tools agents use; annotations
+      # are not. Name the failing tests there.
+      - name: Name the failing tests
+        if: failure()
+        run: |
+          f=build/Testing/Temporary/LastTestsFailed.log
+          if [ -f "$f" ]; then echo "::error title=ctest failures::$(tr '\n' ' ' <"$f")"; fi
 
   # Full-features build: server + store + store-crypto + C++ wrapper.
   # Also exercises the C++ lexicon generator test suite (CTest lexgen).
@@ -146,6 +162,14 @@ jobs:
           BSKY_SERVICE: ${{ github.ref == 'refs/heads/main' && secrets.BSKY_SERVICE || '' }}
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
+      # The job log is hard to read back with the tools agents use; annotations
+      # are not. Name the failing tests there.
+      - name: Name the failing tests
+        if: failure()
+        run: |
+          f=build/Testing/Temporary/LastTestsFailed.log
+          if [ -f "$f" ]; then echo "::error title=ctest failures::$(tr '\n' ' ' <"$f")"; fi
+
   # macOS: the full-features configuration, including relay_server and
   # sync_publish_server, which stand up a loopback HTTP server and drive a real
   # WebSocket handshake against it. Linux alone could not see the macOS-only
@@ -191,6 +215,14 @@ jobs:
       # holding the job until the six-hour limit.
       - name: Test
         run: ctest --test-dir build --output-on-failure --timeout 120 -j"$(sysctl -n hw.ncpu)"
+
+      # The job log is hard to read back with the tools agents use; annotations
+      # are not. Name the failing tests there.
+      - name: Name the failing tests
+        if: failure()
+        run: |
+          f=build/Testing/Temporary/LastTestsFailed.log
+          if [ -f "$f" ]; then echo "::error title=ctest failures::$(tr '\n' ' ' <"$f")"; fi
 
       # Only on failure: say which libcurl was linked and let the two
       # WebSocket tests narrate their own handshakes.
