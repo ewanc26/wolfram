@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-10-06
+
 ### Added
 
 - I've added `wolfram/failure.h`: `wf_failure_classify(status, http_status, xrpc_error)` gives one failure kind (bad credentials, network, timeout, TLS, rate limit, server, bad response, not ready, other) and `wf_failure_tag()` a stable tag for it, so Cobalt, Indigo and the rest stop deriving it separately. The mapping is in `docs/failure.md` and pinned by `test/vectors/failure.json`; message text stays in each client. It builds as C89, so the Mac OS 9 target compiles it. ([#145](https://github.com/ewanc26/wolfram/pull/145), [#114](https://github.com/ewanc26/wolfram/issues/114))
@@ -309,7 +311,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.27.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.28.0...HEAD
+[0.28.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.28.0
 [0.27.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.27.0
 [0.26.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.26.0
 [0.25.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.25.0
