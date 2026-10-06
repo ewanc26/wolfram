@@ -6,6 +6,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- I've added `wolfram/qr.h`: a QR code encoder that returns the module matrix (byte mode, versions 1 to 10, error correction levels L to H), so a client without a browser can show a link as a code to scan. Checked by decoding every version and level with an independent decoder. ([#138](https://github.com/ewanc26/wolfram/pull/138), [#132](https://github.com/ewanc26/wolfram/issues/132))
 - I've added `wolfram/time.h`: parse a lexicon `datetime` to Unix seconds (numeric offsets converted, not refused), format one back, and give a short relative age, all without `timegm` or the locale, so Cobalt and Indigo can delete their copies. ([#133](https://github.com/ewanc26/wolfram/pull/133), [#116](https://github.com/ewanc26/wolfram/issues/116))
 - I've added `wf_crypto_base64url_decode_strict()`: URL alphabet only, no padding, no length of 1 mod 4, and trailing bits must be zero, so each byte string has exactly one encoding. MetalBear can drop the copy in its OAuth code. ([#134](https://github.com/ewanc26/wolfram/pull/134), [#115](https://github.com/ewanc26/wolfram/issues/115))
 
