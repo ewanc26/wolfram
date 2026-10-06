@@ -100,32 +100,27 @@ full. CI runs both on macOS, and both are part of `CI gate`.
 ## Releases
 
 Wolfram is a source library, so a release is a version bump, an annotated tag
-and a GitHub release with no attached artifacts. Cut one with:
+and a GitHub release whose notes are that version's section of
+[CHANGELOG.md](CHANGELOG.md), with the source tarball and its SHA-256
+attached. It takes two steps and a pull request:
 
 ```sh
-tools/release.sh --consumers-verified minor        # 0.25.0 -> 0.26.0
-tools/release.sh --consumers-verified 0.26.0       # or name the version outright
-tools/release.sh --dry-run minor                   # run the checks, change nothing
-tools/release.sh --full --consumers-verified minor # also cover the full-features configuration
+tools/release.sh prepare --consumers-verified minor   # 0.26.0 -> 0.27.0 on release/v0.27.0
+tools/release.sh prepare --dry-run minor              # run the checks, print the notes, change nothing
+# open a PR from release/v0.27.0, rebase-merge it once CI is green, then:
+tools/release.sh publish 0.27.0
 ```
 
-The version lives only in `project()` in `CMakeLists.txt`; everything else is
-derived from it. There is no CHANGELOG, so the release notes are generated
-from the commit subjects since the previous tag.
-
-The script refuses to run unless it is on `main` with a clean tree and local
-`main` identical to `origin/main` — a tag on a commit nobody else can fetch is
-not a release. It also refuses without `--consumers-verified`: a release is cut
-only once metalbear, cobalt, indigo and platinum have been built against the
-change, and the script cannot check that for you, so the flag is your word.
-Nothing is pushed to `main` directly. The script runs the default build and
-test configuration that CI's `default` job covers, commits the bump on
-`release/vX.Y.Z`, opens a pull request, merges it once its checks are green,
-and tags the merge commit. If CI fails, nothing is merged or tagged. The rest
-of the working flow is in [docs/flow.md](docs/flow.md).
-
-`--full` additionally builds and tests the server, store, store-crypto and C++
-wrapper configuration.
+`prepare` refuses to run unless it is on `main` with a clean tree identical to
+`origin/main`, and without `--consumers-verified`: I only release once
+MetalBear, Cobalt, Indigo and Platinum have been built against the change, and
+the script cannot check that for me. It runs the default build and tests
+(`--full` adds the server, store, store-crypto and C++ configuration), bumps the
+version in `project()` in `CMakeLists.txt`, moves the Unreleased changelog
+section into a dated one, and pushes the branch. Nothing goes to `main`
+directly. `publish` tags the commit that carries the version only if its
+`CI gate` check is green, and never re-tags an existing version. The rest of the
+working flow is in [docs/flow.md](docs/flow.md).
 
 ## Cross-compilation Support
 
