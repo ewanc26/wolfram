@@ -89,6 +89,27 @@ expect fail "live drift fails once enforce_live is set" meta "$tmp/enf.yml" "$tm
 mutjson "$tmp/live-meta.json" "$tmp/v2.json" "d['topics'].pop()"
 expect fail "live topics differ (enforced)" meta "$tmp/enf.yml" "$tmp/v2.json"
 
+echo "-- issue forms"
+F="$here/.github/ISSUE_TEMPLATE"
+forms() { python3 "$tool" forms check --repo "$1" --canon "$F" --file "$2" --labels "${3:-$L}"; }
+rm -rf "$tmp/f1"; cp -r "$F" "$tmp/f1"
+expect pass "forms equal the canonical copy" forms ewanc26/wolfram "$tmp/f1"
+sed -i 's/What I found/What I noticed/' "$tmp/f1/bug.yml"
+expect fail "a form's field edited in a repo" forms ewanc26/wolfram "$tmp/f1"
+rm -rf "$tmp/f2"; cp -r "$F" "$tmp/f2"; rm "$tmp/f2/chore.yml"
+expect fail "a canonical form is missing" forms ewanc26/wolfram "$tmp/f2"
+rm -rf "$tmp/f3"; cp -r "$F" "$tmp/f3"; echo "name: old" >"$tmp/f3/bug_report.md"
+expect fail "an old non-canonical template is left behind" forms ewanc26/wolfram "$tmp/f3"
+rm -rf "$tmp/f4"; cp -r "$F" "$tmp/f4"; sed -i 's/blank_issues_enabled: false/blank_issues_enabled: true/' "$tmp/f4/config.yml"
+expect fail "blank issues enabled" forms ewanc26/wolfram "$tmp/f4"
+mut "$L" "$tmp/lg.yml" "d['local'].append({'name':'area: games','color':'1d76db','description':'Game logic'})"
+rm -rf "$tmp/f5"; python3 "$tool" forms apply --repo ewanc26/wolfram --canon "$F" --file "$tmp/f5" --labels "$tmp/lg.yml" >/dev/null
+expect pass "a repo's extra area appears in its dropdown only" forms ewanc26/wolfram "$tmp/f5" "$tmp/lg.yml"
+expect fail "the extra area is missing from the dropdown" forms ewanc26/wolfram "$tmp/f1" "$tmp/lg.yml"
+rm -rf "$tmp/f6"; python3 "$tool" forms apply --repo ewanc26/cobalt --canon "$F" --file "$tmp/f6" >/dev/null
+expect pass "another repo's config.yml names that repo" forms ewanc26/cobalt "$tmp/f6"
+grep -q "ewanc26/cobalt/security/advisories/new" "$tmp/f6/config.yml" && echo "ok   pass  advisory link points at the repo itself" || { echo "FAIL advisory link"; fails=$((fails + 1)); }
+
 echo
 if [ $fails -ne 0 ]; then echo "repo-sync-selftest: $fails case(s) behaved wrongly"; exit 1; fi
 echo "repo-sync-selftest: all cases behaved"
