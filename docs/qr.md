@@ -10,7 +10,7 @@ if (wf_qr_encode("https://bsky.app/profile/ewancroft.uk", WF_QR_ECC_M, &modules,
 }
 ```
 
-What it does: byte mode only, versions 1 to 10 (up to 271 bytes at level L, 122 at M, 86 at Q, 62 at H), levels L, M, Q and H, the smallest version that fits, and the mask with the lowest penalty under ISO/IEC 18004. Longer data returns `WF_ERR_INVALID_ARG`. It allocates only the returned matrix, uses no libc beyond `malloc` and `memcpy`, and builds on every target.
+What it does: byte mode only, versions 1 to 10 (up to 271 bytes at level L, 213 at M, 151 at Q, 119 at H), levels L, M, Q and H, the smallest version that fits, and the mask with the lowest penalty under ISO/IEC 18004. Longer data returns `WF_ERR_INVALID_ARG`. It allocates only the returned matrix, uses no libc beyond `malloc` and `memcpy`, and builds on every target.
 
 What it doesn't: numeric or alphanumeric modes (a URL in byte mode is a little bigger than in alphanumeric, which is fine at these sizes), versions above 10, ECI, structured append, Micro QR, or a quiet zone: the border is the caller's.
 
