@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- `tools/repo_sync.py labels apply` now deletes an old label that was meant to be renamed when the new name already exists, but only if no issue still carries it; otherwise it says which issue to relabel. Platinum hit this with `accessibility`. ([#139](https://github.com/ewanc26/wolfram/pull/139))
+
 ### Added
 
 - I've added `wolfram/muted_words.h`: one implementation of muted-word matching for the account's preferences, including `actorTarget` (`exclude-following`) and `expiresAt`, which Cobalt's and Indigo's copies never read. ([#137](https://github.com/ewanc26/wolfram/pull/137), [#112](https://github.com/ewanc26/wolfram/issues/112))
