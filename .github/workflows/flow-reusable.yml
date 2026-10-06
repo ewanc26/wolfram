@@ -51,6 +51,31 @@ jobs:
       - name: Check README header and logo against docs/house-style.md
         run: bash .flow-canon/tools/style-check.sh .
 
+  changelog:
+    name: changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch canonical flow
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .flow-canon
+      - name: Unreleased is updated by any change outside docs/CI/tests
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 .flow-canon/tools/changelog-check.py pr "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - name: Every tag has a section and every section a tag
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          allow=""
+          case "$HEAD_REF" in release/v*) allow="--allow-untagged ${HEAD_REF#release/v}" ;; esac
+          python3 .flow-canon/tools/changelog-check.py drift . $allow
+
   repo-config:
     name: labels and metadata
     runs-on: ubuntu-latest
