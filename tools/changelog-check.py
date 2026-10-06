@@ -85,8 +85,15 @@ def drift(root, allow_untagged, grace_minutes=30, now=None):
             bad(f"tag v{t} exists but CHANGELOG.md has no ## [{t}] section")
     import time
     now = int(now if now is not None else time.time())
+    # A PR can excuse one untagged version, visibly, in its body: the fix for a
+    # broken release workflow cannot itself wait for the release it repairs.
+    ex = re.search(r"^Changelog-untagged:\s*(\d+\.\d+\.\d+)\s*(?:—|--|-)\s*(\S.*)$",
+                   os.environ.get("PR_BODY", "").replace("\r", ""), re.M)
+    excused = ex.group(1) if ex else None
+    if ex:
+        print(f"changelog: v{excused} excused from needing its tag by the PR body: {ex.group(2).strip()}")
     for v in versions:
-        if v in tags or v == allow_untagged:
+        if v in tags or v == allow_untagged or v == excused:
             continue
         # Between a release PR merging and the release workflow creating the
         # tag there is a short gap. Allow it, but only for a bounded time: a
