@@ -143,6 +143,21 @@ wf_status wf_crypto_base64url_decode(const char *in, unsigned char **out,
                                      size_t *out_len);
 
 /**
+ * Strict base64url decoder, for places where two different strings must never
+ * mean the same bytes (JWT segments, signed payloads). Unlike
+ * wf_crypto_base64url_decode it accepts only the URL alphabet (A-Z a-z 0-9 - _:
+ * no `+`, `/` or `=`), refuses a length of 1 mod 4, and requires the unused
+ * trailing bits to be zero, so each byte string has exactly one encoding.
+ * `len` bytes are read, so an embedded NUL is just an invalid character. An
+ * empty input is WF_ERR_PARSE. Pure C: no OpenSSL, builds on every target.
+ * On WF_OK, *out is heap-allocated (*out_len bytes, plus one NUL for
+ * convenience); the caller frees it with free(). On error *out is NULL.
+ */
+wf_status wf_crypto_base64url_decode_strict(const char *in, size_t len,
+                                            unsigned char **out,
+                                            size_t *out_len);
+
+/**
  * Base64url-encode `in` (`len` bytes) without padding. On WF_OK, *out is a
  * heap-allocated NUL-terminated string; the caller frees *out with free().
  */
