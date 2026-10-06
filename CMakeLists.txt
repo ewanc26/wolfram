@@ -1731,6 +1731,13 @@ if(WOLFRAM_BUILD_TESTS)
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME qr COMMAND test_qr)
 
+  if(NOT WOLFRAM_BUILD_EMBEDDED AND NOT WIN32)
+    add_executable(test_xrpc_tls_status test/test_xrpc_tls_status.c)
+    target_link_libraries(test_xrpc_tls_status PRIVATE wolfram Threads::Threads)
+    target_include_directories(test_xrpc_tls_status PRIVATE test ${cjson_SOURCE_DIR})
+    add_test(NAME xrpc_tls_status COMMAND test_xrpc_tls_status)
+  endif()
+
   add_executable(test_post_display test/test_post_display.c)
   target_link_libraries(test_post_display PRIVATE wolfram)
   target_include_directories(test_post_display PRIVATE test ${cjson_SOURCE_DIR})
