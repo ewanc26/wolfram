@@ -557,6 +557,8 @@ static int run_test(void) {
         goto cleanup_events;
     }
 
+    printf("WEBSOCKET: supported=%d (%s)\n", wf_websocket_supported(),
+           wf_websocket_support_detail());
     if (!wf_websocket_supported()) {
         /* The linked libcurl lacks WebSocket (ws) protocol support, so the
          * real wf_subscribe_start client cannot connect. Drive the same
