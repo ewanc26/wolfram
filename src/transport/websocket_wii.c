@@ -238,6 +238,10 @@ int wf_websocket_supported(void) {
     return 1; /* wss:// is genuinely implemented on this backend */
 }
 
+const char *wf_websocket_support_detail(void) {
+    return "socket transport: WebSocket framing is built in";
+}
+
 wf_status wf_websocket_connect_with_headers(const char *url,
                                             const char *const *request_headers,
                                             size_t request_header_count,
