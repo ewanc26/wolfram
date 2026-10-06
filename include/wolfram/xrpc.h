@@ -52,7 +52,12 @@ typedef enum wf_status {
     WF_ERR_CONFLICT = 23,
     WF_ERR_NOT_IMPLEMENTED = 24,
     WF_ERR_INTERNAL = 25,
-    WF_ERR_UNKNOWN = 26
+    WF_ERR_UNKNOWN = 26,
+    /* The TLS handshake or certificate verification failed (the peer was
+     * reached, but the secure channel could not be set up). Reported by the
+     * libcurl transport; console and Mac OS 9 transports still report these
+     * failures as WF_ERR_NETWORK until they are verified on hardware. */
+    WF_ERR_TLS = 28
 } wf_status;
 
 /** Opaque XRPC client. Holds the service base URL, auth state, and
