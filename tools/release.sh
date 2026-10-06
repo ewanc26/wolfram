@@ -15,8 +15,9 @@
 #          cannot check for you.
 # publish  After the release PR is merged: finds the bump commit on
 #          origin/main, requires a green `CI gate` check on that exact commit,
-#          tags it vX.Y.Z, and creates the GitHub release with the changelog
-#          section as notes, a source tarball and its SHA-256 attached.
+#          creates the GitHub release for vX.Y.Z at that commit (GitHub makes
+#          the tag; no `git push` of a tag), with the changelog section as
+#          notes, a source tarball and its SHA-256 attached.
 #
 # Requires: git, cmake, a C/C++ toolchain, python3, gh (REST access).
 #
@@ -231,9 +232,14 @@ publish() {
 	if ((dry_run)); then
 		echo ">> Dry run. Notes:"; echo; echo "$notes"; rm -rf "$tmp"; return
 	fi
-	git tag -a "v${new}" -m "v${new}" "$sha"
-	git push origin "v${new}"
-	rel_id="$(gh api -X POST "repos/${slug}/releases" -f tag_name="v${new}" -f name="v${new}" -f body="$notes" --jq .id)"
+	# The release call creates the tag at $sha server-side. Some environments
+	# (the agents' sandbox) refuse `git push` of a tag but allow the REST API, and
+	# one call cannot leave a tag without a release or the reverse.
+	rel_id="$(gh api -X POST "repos/${slug}/releases" -f tag_name="v${new}" \
+		-f target_commitish="$sha" -f name="v${new}" -f body="$notes" --jq .id)" ||
+		fail "could not create the release (and so no tag): nothing was published"
+	git fetch -q origin "refs/tags/v${new}:refs/tags/v${new}" ||
+		echo "release: created v${new}; fetch the tag with 'git fetch --tags'" >&2
 	asset="wolfram-${new}.tar.gz"
 	git archive --format=tar.gz --prefix="wolfram-${new}/" -o "$tmp/$asset" "v${new}"
 	(cd "$tmp" && { sha256sum "$asset" 2>/dev/null || shasum -a 256 "$asset"; } >"$asset.sha256")
