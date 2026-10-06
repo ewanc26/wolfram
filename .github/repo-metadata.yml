@@ -15,4 +15,4 @@ repo:
   description: "A C/C++ SDK for the AT Protocol: a client-side, wire-level implementation, not a port of the upstream service backends."
   homepage: ""
   topics: [api-client, c-sdk, decentralized, decentralized-social, embedded, lexicon, libwolfram, memory-management, oauth2, posix, sdk, shared-library, static-library, systems-programming, xrpc]
-  enforce_live: false
+  enforce_live: true
