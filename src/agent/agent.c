@@ -1168,8 +1168,9 @@ wf_status wf_agent_set_bearer(wf_agent *agent, const char *access_token,
                               const char *handle, const char *did) {
     if (!agent || !agent->session || !agent->client || !access_token ||
         !access_token[0] || !handle || !handle[0] || !did || !did[0] ||
-        wf_syntax_did_is_valid(did) != WF_OK ||
-        wf_syntax_handle_is_valid(handle) != WF_OK) {
+        /* The syntax validators return nonzero for valid input; they are
+         * predicates, not wf_status. */
+        !wf_syntax_did_is_valid(did) || !wf_syntax_handle_is_valid(handle)) {
         return WF_ERR_INVALID_ARG;
     }
 
