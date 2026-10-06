@@ -50,7 +50,8 @@ int main(void) {
             cJSON_GetObjectItemCaseSensitive(c, "status")->valuestring;
         const cJSON *sv = cJSON_GetObjectItemCaseSensitive(statuses, sname);
         WF_CHECK(sv != NULL);
-        long http = (long)cJSON_GetObjectItemCaseSensitive(c, "http")->valuedouble;
+        long http =
+            (long)cJSON_GetObjectItemCaseSensitive(c, "http")->valuedouble;
         const cJSON *e = cJSON_GetObjectItemCaseSensitive(c, "xrpc_error");
         const char *err = cJSON_IsString(e) ? e->valuestring : NULL;
         const char *want =
@@ -58,8 +59,8 @@ int main(void) {
         wf_failure_kind got =
             wf_failure_classify((wf_status)(int)sv->valuedouble, http, err);
         if (strcmp(wf_failure_tag(got), want) != 0)
-            fprintf(stderr, "case %d (%s, %ld, %s): got %s, want %s\n", n, sname,
-                    http, err ? err : "null", wf_failure_tag(got), want);
+            fprintf(stderr, "case %d (%s, %ld, %s): got %s, want %s\n", n,
+                    sname, http, err ? err : "null", wf_failure_tag(got), want);
         WF_CHECK(strcmp(wf_failure_tag(got), want) == 0);
         n++;
     }

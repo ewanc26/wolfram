@@ -1,13 +1,13 @@
 /*
  * failure.h -- one answer to "what kind of failure was that?" for every client.
  *
- * A client decides what to tell the person: "wrong password", "no network", "the
- * secure connection failed", "slow down". `wf_status` alone cannot say, because
- * a rejected login can arrive as WF_ERR_AUTH or as an HTTP 401 with an XRPC
- * error name, and a rate limit as WF_ERR_RATE_LIMIT or an HTTP 429. This maps
- * the three things a caller has (the status, the HTTP status, the XRPC error
- * name) to one kind, the same in every client. Message text stays with the
- * client, because wording and language differ per platform.
+ * A client decides what to tell the person: "wrong password", "no network",
+ * "the secure connection failed", "slow down". `wf_status` alone cannot say,
+ * because a rejected login can arrive as WF_ERR_AUTH or as an HTTP 401 with an
+ * XRPC error name, and a rate limit as WF_ERR_RATE_LIMIT or an HTTP 429. This
+ * maps the three things a caller has (the status, the HTTP status, the XRPC
+ * error name) to one kind, the same in every client. Message text stays with
+ * the client, because wording and language differ per platform.
  *
  * Pure C89, no allocation, builds everywhere including the Mac OS 9 target.
  * The mapping is documented in docs/failure.md and pinned by
