@@ -66,7 +66,8 @@ int main(void) {
         WF_CHECK(unhex(str(v, "public"), pk) == 32);
         WF_CHECK(unhex(str(v, "signature"), sig) == 64);
         wf_status st = wf_ed25519_verify(sig, msg, n, pk);
-        if (st != WF_OK) fprintf(stderr, "valid vector failed: %s\n", str(v, "note"));
+        if (st != WF_OK)
+            fprintf(stderr, "valid vector failed: %s\n", str(v, "note"));
         WF_CHECK(st == WF_OK);
         /* the same through the update wrapper, with and without a newline */
         char hex[160];
@@ -80,7 +81,8 @@ int main(void) {
         WF_CHECK(unhex(str(v, "public"), pk) == 32);
         WF_CHECK(unhex(str(v, "signature"), sig) == 64);
         wf_status st = wf_ed25519_verify(sig, msg, n, pk);
-        if (st != WF_ERR_VALIDATION) fprintf(stderr, "invalid vector accepted: %s\n", str(v, "note"));
+        if (st != WF_ERR_VALIDATION)
+            fprintf(stderr, "invalid vector accepted: %s\n", str(v, "note"));
         WF_CHECK(st == WF_ERR_VALIDATION);
         ninvalid++;
     }
@@ -93,15 +95,21 @@ int main(void) {
         char hex[129];
         WF_CHECK(wf_ed25519_verify(NULL, "x", 1, zero32) == WF_ERR_INVALID_ARG);
         WF_CHECK(wf_ed25519_verify(zero64, "x", 1, NULL) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_ed25519_verify(zero64, NULL, 1, zero32) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_ed25519_verify(zero64, NULL, 1, zero32) ==
+                 WF_ERR_INVALID_ARG);
         memset(hex, '0', 128);
         hex[128] = '\0';
-        WF_CHECK(wf_update_verify_signature("x", 1, hex, 127, zero32) == WF_ERR_PARSE);
-        WF_CHECK(wf_update_verify_signature("x", 1, hex, 129, zero32) == WF_ERR_PARSE);
+        WF_CHECK(wf_update_verify_signature("x", 1, hex, 127, zero32) ==
+                 WF_ERR_PARSE);
+        WF_CHECK(wf_update_verify_signature("x", 1, hex, 129, zero32) ==
+                 WF_ERR_PARSE);
         hex[5] = 'g';
-        WF_CHECK(wf_update_verify_signature("x", 1, hex, 128, zero32) == WF_ERR_PARSE);
-        WF_CHECK(wf_update_verify_signature(NULL, 1, hex, 128, zero32) == WF_ERR_INVALID_ARG);
-        WF_CHECK(wf_update_verify_signature("x", 1, "", 0, zero32) == WF_ERR_PARSE);
+        WF_CHECK(wf_update_verify_signature("x", 1, hex, 128, zero32) ==
+                 WF_ERR_PARSE);
+        WF_CHECK(wf_update_verify_signature(NULL, 1, hex, 128, zero32) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_update_verify_signature("x", 1, "", 0, zero32) ==
+                 WF_ERR_PARSE);
     }
 
     cJSON_Delete(root);

@@ -8,18 +8,17 @@
 
 #include <string.h>
 
-static int hexval(int c)
-{
+static int hexval(int c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     if (c >= 'A' && c <= 'F') return c - 'A' + 10;
     return -1;
 }
 
-wf_status wf_update_verify_signature(const void *manifest, size_t manifest_len,
-                                     const char *sig_text, size_t sig_len,
-                                     const unsigned char pk[WF_ED25519_PUBLIC_LEN])
-{
+wf_status
+wf_update_verify_signature(const void *manifest, size_t manifest_len,
+                           const char *sig_text, size_t sig_len,
+                           const unsigned char pk[WF_ED25519_PUBLIC_LEN]) {
     unsigned char sig[WF_ED25519_SIGNATURE_LEN];
     size_t i;
 
