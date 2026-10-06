@@ -3,3 +3,4 @@ src/session/oauth/pairing.c
 src/update/update_core.c
 src/update/manifest.c
 src/time.c
+src/crypto/base64url_strict.c
