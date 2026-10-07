@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- CI bounds each `apt-get` call to a timeout and retries it three times. A stuck package mirror had left jobs running for an hour, which blocked the release that waits on `CI gate`. ([#186](https://github.com/ewanc26/wolfram/pull/186))
+
 ## [0.37.0] - 2026-10-07
 
 ### Added

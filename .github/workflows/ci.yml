@@ -20,10 +20,15 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install OAuth node dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
             build-essential cmake pkg-config libcurl4-openssl-dev \
-            libcjson-dev libmbedtls-dev libmicrohttpd-dev libssl-dev
+            libcjson-dev libmbedtls-dev libmicrohttpd-dev libssl-dev && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
       - name: Configure
         run: |
           cmake -S . -B build-oauth \
@@ -43,14 +48,19 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
             pkg-config \
             libcurl4-openssl-dev \
             libssl-dev \
-            libsecp256k1-dev
+            libsecp256k1-dev && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
 
       - name: Clean build directory
         run: rm -rf build
@@ -83,13 +93,18 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
             pkg-config \
             libcurl4-openssl-dev \
-            libssl-dev
+            libssl-dev && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
@@ -118,8 +133,10 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
             pkg-config \
@@ -130,7 +147,10 @@ jobs:
             libsqlite3-dev \
             libmicrohttpd-dev \
             libzstd-dev \
-            libc-ares-dev
+            libc-ares-dev && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
 
       - name: Clean build directory
         run: rm -rf build
@@ -262,14 +282,19 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
             pkg-config \
             libcurl4-openssl-dev \
             libssl-dev \
-            libsecp256k1-dev
+            libsecp256k1-dev && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
 
       - name: Set up .NET SDK
         id: dotnet
@@ -326,14 +351,19 @@ jobs:
       # depend on optional native crypto.
       - name: Install system dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
             build-essential \
             cmake \
             pkg-config \
             libcurl4-openssl-dev \
             libssl-dev \
-            clang
+            clang && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
 
       - name: Fetch macTLS
         run: git clone --depth 1 https://github.com/mplsllc/macTLS.git /tmp/macTLS
@@ -391,8 +421,13 @@ jobs:
 
       - name: Install clang-format
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends clang-format-18
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends clang-format-18 && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
 
       - name: Determine diff base
         id: base
