@@ -101,6 +101,13 @@ typedef struct wf_post_embed {
     char *external_title;
     char *external_description;
     char *external_thumb; /* NULL when absent */
+    /* video#view, direct or as media: the poster frame and alt text (each NULL
+     * when absent) and the aspectRatio (0 when absent). The playlist is not
+     * kept: no client here plays video. */
+    char *video_thumb;
+    char *video_alt;
+    int video_width;
+    int video_height;
     /* A quoted post, only for record#view / recordWithMedia#view whose record
      * is a viewRecord (not found / blocked / detached leave this unset). */
     int has_quote;

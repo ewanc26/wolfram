@@ -225,6 +225,8 @@ void wf_post_embed_free(wf_post_embed *embed) {
     free(embed->external_title);
     free(embed->external_description);
     free(embed->external_thumb);
+    free(embed->video_thumb);
+    free(embed->video_alt);
     free(embed->quote_author_display_name);
     free(embed->quote_author_handle);
     free(embed->quote_text);
@@ -292,6 +294,24 @@ static wf_status pv_read_external(const cJSON *external_view,
     return st;
 }
 
+static wf_status pv_read_video(const cJSON *video_view, wf_post_embed *out) {
+    const cJSON *ratio =
+        cJSON_GetObjectItemCaseSensitive(video_view, "aspectRatio");
+    int w = pv_int(ratio, "width");
+    int h = pv_int(ratio, "height");
+
+    if (w > 0 && h > 0) {
+        out->video_width = w;
+        out->video_height = h;
+    }
+    wf_status st =
+        pv_dup(&out->video_thumb, pv_string(video_view, "thumbnail"));
+    if (st == WF_OK) {
+        st = pv_dup(&out->video_alt, pv_string(video_view, "alt"));
+    }
+    return st;
+}
+
 /* record#view carries { record: viewRecord }; recordWithMedia#view nests that
  * one level deeper under record.record. */
 static wf_status pv_read_quote(const cJSON *embed, int with_media,
@@ -349,6 +369,9 @@ wf_status wf_post_embed_from_json(const cJSON *embed, wf_post_embed *out) {
     } else if (st == WF_OK &&
                pv_has_prefix(media_type, "app.bsky.embed.external")) {
         st = pv_read_external(media, out);
+    } else if (st == WF_OK &&
+               pv_has_prefix(media_type, "app.bsky.embed.video")) {
+        st = pv_read_video(media, out);
     }
     if (st == WF_OK &&
         (with_media || pv_has_prefix(type, "app.bsky.embed.record"))) {
