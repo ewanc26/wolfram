@@ -174,10 +174,10 @@ wf_status wf_agent_reply(wf_agent *agent, const char *text,
                          wf_agent_post_result *out);
 
 /* Post `count` texts as a thread: the first as a top-level post, each later one
- * as a reply to the one before it with the first as the root. Stops at the first
- * failure and returns its status; the posts before it exist and are not rolled
- * back, so *posted (optional) says how many went through. `first` and `last`
- * (both optional, zero them first) receive the first and the last post's
+ * as a reply to the one before it with the first as the root. Stops at the
+ * first failure and returns its status; the posts before it exist and are not
+ * rolled back, so *posted (optional) says how many went through. `first` and
+ * `last` (both optional, zero them first) receive the first and the last post's
  * uri and cid, and the caller frees them with wf_agent_post_result_free.
  * WF_ERR_INVALID_ARG for no texts or a NULL or empty text. */
 wf_status wf_agent_post_thread(wf_agent *agent, const char *const *texts,

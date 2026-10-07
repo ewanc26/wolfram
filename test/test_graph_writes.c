@@ -296,8 +296,8 @@ int main(void) {
         wf_agent_post_result first = {0}, last = {0};
         size_t posted = 99;
 
-        WF_CHECK(wf_agent_post_thread(agent, texts, 3, &posted, &first, &last) ==
-                 WF_OK);
+        WF_CHECK(wf_agent_post_thread(agent, texts, 3, &posted, &first,
+                                      &last) == WF_OK);
         WF_CHECK(posted == 3);
         WF_CHECK(first.uri && last.uri && first.cid && last.cid);
         /* The mock answers every createRecord with the same ref, so the last
@@ -306,9 +306,12 @@ int main(void) {
         cJSON *root = cJSON_Parse(last_body);
         cJSON *rec =
             root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
-        cJSON *reply = rec ? cJSON_GetObjectItemCaseSensitive(rec, "reply") : NULL;
-        cJSON *rt = reply ? cJSON_GetObjectItemCaseSensitive(reply, "root") : NULL;
-        cJSON *pa = reply ? cJSON_GetObjectItemCaseSensitive(reply, "parent") : NULL;
+        cJSON *reply =
+            rec ? cJSON_GetObjectItemCaseSensitive(rec, "reply") : NULL;
+        cJSON *rt =
+            reply ? cJSON_GetObjectItemCaseSensitive(reply, "root") : NULL;
+        cJSON *pa =
+            reply ? cJSON_GetObjectItemCaseSensitive(reply, "parent") : NULL;
         cJSON *ru = rt ? cJSON_GetObjectItemCaseSensitive(rt, "uri") : NULL;
         cJSON *pu = pa ? cJSON_GetObjectItemCaseSensitive(pa, "uri") : NULL;
         WF_CHECK(cJSON_IsString(ru) && strcmp(ru->valuestring, first.uri) == 0);

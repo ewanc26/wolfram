@@ -1118,7 +1118,8 @@ wf_status wf_agent_post_thread(wf_agent *agent, const char *const *texts,
              * the root's strings. */
             prev.uri = wf_agent_strdup(root.uri);
             prev.cid = wf_agent_strdup(root.cid);
-            if ((root.uri && !prev.uri) || (root.cid && !prev.cid)) st = WF_ERR_ALLOC;
+            if ((root.uri && !prev.uri) || (root.cid && !prev.cid))
+                st = WF_ERR_ALLOC;
         } else {
             wf_agent_post_result_free(&prev);
             prev = cur;
