@@ -23,6 +23,20 @@ wf_status wf_agent_create_threadgate(wf_agent *agent, const char *post_uri,
                                      size_t hidden_count,
                                      wf_agent_post_result *out);
 
+/* Who may reply to a new top-level post, the choice every client offers. */
+typedef enum wf_reply_gate {
+    WF_REPLY_GATE_EVERYONE = 0,           /* no threadgate record at all */
+    WF_REPLY_GATE_FOLLOWED_MENTIONED = 1, /* people you follow, and mentions */
+    WF_REPLY_GATE_NOBODY = 2              /* replies off */
+} wf_reply_gate;
+
+/* Apply `gate` to `post_uri` with a threadgate record. EVERYONE writes
+ * nothing and returns WF_OK, because no threadgate already means everyone.
+ * WF_ERR_INVALID_ARG for a NULL or empty URI or a value outside the enum. A
+ * failure leaves the post as it is, ungated; the post is not undone. */
+wf_status wf_agent_set_reply_gate(wf_agent *agent, const char *post_uri,
+                                  wf_reply_gate gate);
+
 /* Create a postgate record (embedding rules) on a post.
  *
  * post_uri             — AT-URI of the post to gate.
