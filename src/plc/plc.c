@@ -5,6 +5,7 @@
  */
 
 #include "wolfram/plc.h"
+#include "wolfram/util.h"
 
 #include <openssl/sha.h>
 #include <stdio.h>
@@ -27,18 +28,6 @@
 #define WF_PLC_AUDIT_LOG_MAX_BYTES ((size_t)16 * 1024 * 1024)
 
 /* ── small utilities ────────────────────────────────────────── */
-
-static char *wf_plc_strdup(const char *value) {
-    size_t len;
-    char *copy;
-
-    if (!value) return NULL;
-    len = strlen(value);
-    copy = malloc(len + 1);
-    if (!copy) return NULL;
-    memcpy(copy, value, len + 1);
-    return copy;
-}
 
 static void *wf_plc_alloc(size_t n) {
     return calloc(1, n);
@@ -683,7 +672,7 @@ wf_status wf_plc_operation_verify(const char *signed_json,
         if (!cJSON_IsString(rk) || !rk->valuestring[0]) continue;
         didkey = rk->valuestring;
         if (wf_verify(didkey, cbor, cbor_len, sig, sig_len) == WF_OK) {
-            *out_signer_didkey = wf_plc_strdup(didkey);
+            *out_signer_didkey = wf_str_dup(didkey);
             if (!*out_signer_didkey) {
                 status = WF_ERR_ALLOC;
                 goto cleanup;

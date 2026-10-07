@@ -11,6 +11,7 @@
  */
 
 #include "wolfram/video_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -19,29 +20,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_video_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_video_set_string(char **dst, const char *src) {
-    char *copy = wf_video_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- blob ---- */
 
@@ -72,13 +50,13 @@ static wf_status wf_video_parse_blob(cJSON *obj, wf_video_blob *b) {
     cJSON *size = cJSON_GetObjectItemCaseSensitive(obj, "size");
 
     if (cJSON_IsString(type) && type->valuestring) {
-        status = wf_video_set_string(&b->type, type->valuestring);
+        status = wf_str_set(&b->type, type->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(link) && link->valuestring) {
-        status = wf_video_set_string(&b->cid, link->valuestring);
+        status = wf_str_set(&b->cid, link->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(mime) && mime->valuestring) {
-        status = wf_video_set_string(&b->mime_type, mime->valuestring);
+        status = wf_str_set(&b->mime_type, mime->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(size)) {
         b->has_size = true;
@@ -182,12 +160,12 @@ static wf_status wf_video_parse_job_status_def(cJSON *obj,
     if (!cJSON_IsString(state) || !state->valuestring) {
         return WF_ERR_PARSE;
     }
-    status = wf_video_set_string(&d->job_id, job_id->valuestring);
+    status = wf_str_set(&d->job_id, job_id->valuestring);
     if (status == WF_OK) {
-        status = wf_video_set_string(&d->did, did->valuestring);
+        status = wf_str_set(&d->did, did->valuestring);
     }
     if (status == WF_OK) {
-        status = wf_video_set_string(&d->state, state->valuestring);
+        status = wf_str_set(&d->state, state->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(progress)) {
         d->has_progress = true;
@@ -202,15 +180,14 @@ static wf_status wf_video_parse_job_status_def(cJSON *obj,
         }
     }
     if (status == WF_OK && cJSON_IsString(error) && error->valuestring) {
-        status = wf_video_set_string(&d->error, error->valuestring);
+        status = wf_str_set(&d->error, error->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(failure_code) &&
         failure_code->valuestring) {
-        status =
-            wf_video_set_string(&d->failure_code, failure_code->valuestring);
+        status = wf_str_set(&d->failure_code, failure_code->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(message) && message->valuestring) {
-        status = wf_video_set_string(&d->message, message->valuestring);
+        status = wf_str_set(&d->message, message->valuestring);
     }
 
     if (status == WF_OK) {
@@ -409,10 +386,10 @@ static wf_status wf_video_parse_upload_limits(cJSON *obj,
         return WF_ERR_PARSE;
     }
     if (status == WF_OK && cJSON_IsString(message) && message->valuestring) {
-        status = wf_video_set_string(&l->message, message->valuestring);
+        status = wf_str_set(&l->message, message->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(error) && error->valuestring) {
-        status = wf_video_set_string(&l->error, error->valuestring);
+        status = wf_str_set(&l->error, error->valuestring);
     }
     if (status == WF_OK) {
         cJSON_DetachItemFromObject(obj, "canUpload");

@@ -12,6 +12,7 @@
  */
 
 #include "wolfram/sync_list_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -20,29 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_sync_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_sync_set_string(char **dst, const char *src) {
-    char *copy = wf_sync_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- repo ref (listRepos) ---- */
 
@@ -66,13 +44,13 @@ static wf_status wf_sync_parse_repo_ref(cJSON *obj, wf_sync_repo_ref *r) {
     cJSON *status_node = cJSON_GetObjectItemCaseSensitive(obj, "status");
 
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_sync_set_string(&r->did, did->valuestring);
+        status = wf_str_set(&r->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(head) && head->valuestring) {
-        status = wf_sync_set_string(&r->head, head->valuestring);
+        status = wf_str_set(&r->head, head->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring) {
-        status = wf_sync_set_string(&r->rev, rev->valuestring);
+        status = wf_str_set(&r->rev, rev->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(active)) {
         r->has_active = true;
@@ -81,7 +59,7 @@ static wf_status wf_sync_parse_repo_ref(cJSON *obj, wf_sync_repo_ref *r) {
     if (status == WF_OK && cJSON_IsString(status_node) &&
         status_node->valuestring) {
         r->has_status = true;
-        status = wf_sync_set_string(&r->status, status_node->valuestring);
+        status = wf_str_set(&r->status, status_node->valuestring);
     }
     return status;
 }
@@ -101,7 +79,7 @@ wf_sync_parse_repo_by_collection(cJSON *obj, wf_sync_repo_by_collection *r) {
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_sync_set_string(&r->did, did->valuestring);
+        status = wf_str_set(&r->did, did->valuestring);
     }
     return status;
 }
@@ -126,7 +104,7 @@ static wf_status wf_sync_parse_host_obj(cJSON *obj, wf_sync_host *h) {
     cJSON *status_node = cJSON_GetObjectItemCaseSensitive(obj, "status");
 
     if (cJSON_IsString(hostname) && hostname->valuestring) {
-        status = wf_sync_set_string(&h->hostname, hostname->valuestring);
+        status = wf_str_set(&h->hostname, hostname->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(seq)) {
         h->has_seq = true;
@@ -139,7 +117,7 @@ static wf_status wf_sync_parse_host_obj(cJSON *obj, wf_sync_host *h) {
     if (status == WF_OK && cJSON_IsString(status_node) &&
         status_node->valuestring) {
         h->has_status = true;
-        status = wf_sync_set_string(&h->status, status_node->valuestring);
+        status = wf_str_set(&h->status, status_node->valuestring);
     }
     return status;
 }
@@ -168,7 +146,7 @@ static wf_status wf_sync_parse_string_array(cJSON *arr, char ***out_items,
             status = WF_ERR_PARSE;
             break;
         }
-        status = wf_sync_set_string(&items[i], it->valuestring);
+        status = wf_str_set(&items[i], it->valuestring);
     }
     if (status == WF_OK) {
         *out_items = items;
@@ -234,7 +212,7 @@ wf_status wf_sync_parse_repo_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_sync_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -301,7 +279,7 @@ wf_sync_parse_repo_by_collection_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_sync_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -341,7 +319,7 @@ wf_status wf_sync_parse_blob_cid_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_sync_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -403,7 +381,7 @@ wf_status wf_sync_parse_host_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_sync_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

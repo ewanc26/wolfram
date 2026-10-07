@@ -8,6 +8,7 @@
  */
 
 #include "wolfram/moderation.h"
+#include "wolfram/util.h"
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -72,14 +73,6 @@ const wf_mod_behavior WF_MOD_NOOP_BEHAVIOR = {
 /* ------------------------------------------------------------------ */
 /* Utility functions                                                    */
 /* ------------------------------------------------------------------ */
-
-static char *dup_str(const char *s) {
-    if (!s) return NULL;
-    size_t len = strlen(s);
-    char *r = malloc(len + 1);
-    if (r) memcpy(r, s, len + 1);
-    return r;
-}
 
 /* Match the reference SDK's comparison against new Date().toISOString().
  * Lexicon datetime values are RFC 3339 strings; the API emits canonical UTC
@@ -231,8 +224,8 @@ wf_status wf_mod_interpret_label_def(wf_mod_label_def *out,
     if (!out || !identifier) return WF_ERR_INVALID_ARG;
 
     memset(out, 0, sizeof(*out));
-    out->identifier = dup_str(identifier);
-    out->defined_by = dup_str(defined_by);
+    out->identifier = wf_str_dup(identifier);
+    out->defined_by = wf_str_dup(defined_by);
     out->configurable = 1;
 
     /* Default setting */
@@ -390,12 +383,12 @@ static wf_status add_cause(wf_mod_decision *d, const wf_mod_cause *cause) {
 static wf_status cause_copy_deep(wf_mod_cause *dst, const wf_mod_cause *src) {
     *dst = *src;
     if (src->type == WF_MOD_CAUSE_LABEL) {
-        dst->label.src = dup_str(src->label.src);
-        dst->label.uri = dup_str(src->label.uri);
-        dst->label.val = dup_str(src->label.val);
-        dst->label.cts = dup_str(src->label.cts);
-        dst->label.cid = dup_str(src->label.cid);
-        dst->label.exp = dup_str(src->label.exp);
+        dst->label.src = wf_str_dup(src->label.src);
+        dst->label.uri = wf_str_dup(src->label.uri);
+        dst->label.val = wf_str_dup(src->label.val);
+        dst->label.cts = wf_str_dup(src->label.cts);
+        dst->label.cid = wf_str_dup(src->label.cid);
+        dst->label.exp = wf_str_dup(src->label.exp);
         dst->label.neg = src->label.neg;
         dst->label.has_cid = src->label.has_cid;
         dst->label.ver = src->label.ver;
@@ -403,8 +396,8 @@ static wf_status cause_copy_deep(wf_mod_cause *dst, const wf_mod_cause *src) {
         dst->matches = calloc(src->match_count, sizeof(wf_mod_mute_word_match));
         if (!dst->matches) return WF_ERR_ALLOC;
         for (size_t i = 0; i < src->match_count; i++) {
-            dst->matches[i].value = dup_str(src->matches[i].value);
-            dst->matches[i].predicate = dup_str(src->matches[i].predicate);
+            dst->matches[i].value = wf_str_dup(src->matches[i].value);
+            dst->matches[i].predicate = wf_str_dup(src->matches[i].predicate);
         }
     }
     return WF_OK;
@@ -418,7 +411,7 @@ wf_status wf_mod_decision_merge(wf_mod_decision *out, const wf_mod_decision *a,
 
     const wf_mod_decision *first = a ? a : b;
     if (first) {
-        out->did = dup_str(first->did);
+        out->did = wf_str_dup(first->did);
         out->is_me = first->is_me;
     }
 
@@ -695,8 +688,8 @@ wf_status wf_mod_add_muted_word(wf_mod_decision *d,
     c.matches = calloc(match_count, sizeof(wf_mod_mute_word_match));
     if (!c.matches) return WF_ERR_ALLOC;
     for (size_t i = 0; i < match_count; i++) {
-        c.matches[i].value = dup_str(matches[i].value);
-        c.matches[i].predicate = dup_str(matches[i].predicate);
+        c.matches[i].value = wf_str_dup(matches[i].value);
+        c.matches[i].predicate = wf_str_dup(matches[i].predicate);
     }
     return add_cause(d, &c);
 }
@@ -776,12 +769,12 @@ wf_status wf_mod_add_label(wf_mod_decision *d, wf_mod_label_target target,
     c.type = WF_MOD_CAUSE_LABEL;
     c.priority = (uint32_t)priority;
     c.downgraded = 0;
-    c.label.src = dup_str(label->src);
-    c.label.uri = dup_str(label->uri);
-    c.label.val = dup_str(label->val);
-    c.label.cts = dup_str(label->cts);
-    c.label.cid = dup_str(label->cid);
-    c.label.exp = dup_str(label->exp);
+    c.label.src = wf_str_dup(label->src);
+    c.label.uri = wf_str_dup(label->uri);
+    c.label.val = wf_str_dup(label->val);
+    c.label.cts = wf_str_dup(label->cts);
+    c.label.cid = wf_str_dup(label->cid);
+    c.label.exp = wf_str_dup(label->exp);
     c.label.neg = label->neg;
     c.label.has_cid = label->has_cid;
     c.label.ver = label->ver;
@@ -800,7 +793,7 @@ wf_status wf_mod_add_label(wf_mod_decision *d, wf_mod_label_target target,
 
 static void set_did_and_me(wf_mod_decision *d, const char *did,
                            const wf_mod_opts *opts) {
-    d->did = dup_str(did);
+    d->did = wf_str_dup(did);
     d->is_me = (opts->user_did && str_eq(did, opts->user_did)) ? 1 : 0;
 }
 
@@ -1195,7 +1188,7 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         }
         for (size_t i = 0; i < tag_count; i++) {
             if (tags[i]) {
-                lower_tags[i] = dup_str(tags[i]);
+                lower_tags[i] = wf_str_dup(tags[i]);
                 if (lower_tags[i]) to_lower(lower_tags[i]);
             }
         }
@@ -1217,7 +1210,7 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         const wf_mod_muted_word *mw = &muted_words[i];
         if (!mw->value) continue;
 
-        char *muted_word = dup_str(mw->value);
+        char *muted_word = wf_str_dup(mw->value);
         if (!muted_word) continue;
         to_lower(muted_word);
         size_t mw_len = strlen(muted_word);
@@ -1245,8 +1238,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
             }
         }
         if (tag_match) {
-            results[result_count].value = dup_str(mw->value);
-            results[result_count].predicate = dup_str(mw->value);
+            results[result_count].value = wf_str_dup(mw->value);
+            results[result_count].predicate = wf_str_dup(mw->value);
             result_count++;
             free(muted_word);
             continue;
@@ -1261,8 +1254,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         /* Single character or language exception: use substring match */
         if (mw_len == 1 || exception) {
             if (strstr(post_text, muted_word)) {
-                results[result_count].value = dup_str(mw->value);
-                results[result_count].predicate = dup_str(mw->value);
+                results[result_count].value = wf_str_dup(mw->value);
+                results[result_count].predicate = wf_str_dup(mw->value);
                 result_count++;
             }
             free(muted_word);
@@ -1277,8 +1270,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
 
         /* Exact match */
         if (strcmp(muted_word, post_text) == 0) {
-            results[result_count].value = dup_str(mw->value);
-            results[result_count].predicate = dup_str(mw->value);
+            results[result_count].value = wf_str_dup(mw->value);
+            results[result_count].predicate = wf_str_dup(mw->value);
             result_count++;
             free(muted_word);
             continue;
@@ -1287,8 +1280,8 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
         /* Muted phrase with space or punctuation */
         if (word_has_space_or_punct(muted_word) &&
             strstr(post_text, muted_word)) {
-            results[result_count].value = dup_str(mw->value);
-            results[result_count].predicate = dup_str(mw->value);
+            results[result_count].value = wf_str_dup(mw->value);
+            results[result_count].predicate = wf_str_dup(mw->value);
             result_count++;
             free(muted_word);
             continue;
@@ -1311,7 +1304,7 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                 /* Compare exact word */
                 if (word_len == mw_len &&
                     strncmp(word_start, muted_word, mw_len) == 0) {
-                    results[result_count].value = dup_str(mw->value);
+                    results[result_count].value = wf_str_dup(mw->value);
                     /* Copy the matched word */
                     char *pred = malloc(word_len + 1);
                     if (pred) {
@@ -1330,7 +1323,7 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                 if (trimmed_len > 0) {
                     if (trimmed_len == mw_len &&
                         strncmp(trimmed, muted_word, mw_len) == 0) {
-                        results[result_count].value = dup_str(mw->value);
+                        results[result_count].value = wf_str_dup(mw->value);
                         char *pred = malloc(word_len + 1);
                         if (pred) {
                             memcpy(pred, word_start, word_len);
@@ -1354,7 +1347,7 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                             }
                             if (strcmp(spaced, muted_word) == 0) {
                                 results[result_count].value =
-                                    dup_str(mw->value);
+                                    wf_str_dup(mw->value);
                                 char *pred = malloc(word_len + 1);
                                 if (pred) {
                                     memcpy(pred, word_start, word_len);
@@ -1378,7 +1371,7 @@ wf_status wf_mod_match_mute_words(wf_mod_mute_word_match **out_matches,
                                 contig[ci] = '\0';
                                 if (strcmp(contig, muted_word) == 0) {
                                     results[result_count].value =
-                                        dup_str(mw->value);
+                                        wf_str_dup(mw->value);
                                     char *pred = malloc(word_len + 1);
                                     if (pred) {
                                         memcpy(pred, word_start, word_len);
@@ -1447,7 +1440,7 @@ static wf_status json_strarr_push(char ***arr, size_t *count, size_t *cap,
         *arr = na;
         *cap = nc;
     }
-    (*arr)[*count] = dup_str(s);
+    (*arr)[*count] = wf_str_dup(s);
     if (!(*arr)[*count]) return WF_ERR_ALLOC;
     (*count)++;
     return WF_OK;
@@ -1467,7 +1460,7 @@ static wf_status json_labeler_push(wf_mod_labeler_pref **arr, size_t *count,
     }
     wf_mod_labeler_pref *lp = &(*arr)[*count];
     memset(lp, 0, sizeof(*lp));
-    lp->did = dup_str(did);
+    lp->did = wf_str_dup(did);
     if (!lp->did) return WF_ERR_ALLOC;
     (*count)++;
     return WF_OK;
@@ -1486,9 +1479,9 @@ static wf_status json_muted_word_push(wf_mod_muted_word **arr, size_t *count,
     }
     wf_mod_muted_word *dst = &(*arr)[*count];
     memset(dst, 0, sizeof(*dst));
-    dst->value = dup_str(mw->value);
-    dst->actor_target = dup_str(mw->actor_target);
-    dst->expires_at = dup_str(mw->expires_at);
+    dst->value = wf_str_dup(mw->value);
+    dst->actor_target = wf_str_dup(mw->actor_target);
+    dst->expires_at = wf_str_dup(mw->expires_at);
     dst->targets_content = mw->targets_content;
     dst->targets_tag = mw->targets_tag;
     if (!dst->value) return WF_ERR_ALLOC;
@@ -1537,7 +1530,7 @@ static wf_status apply_global_label(wf_mod_prefs *p, const char *label,
         p->global_label_prefs = prefs;
         p->global_label_cap = nc;
     }
-    p->global_label_identifiers[p->global_label_count] = dup_str(label);
+    p->global_label_identifiers[p->global_label_count] = wf_str_dup(label);
     p->global_label_prefs[p->global_label_count] = pref;
     if (!p->global_label_identifiers[p->global_label_count])
         return WF_ERR_ALLOC;
@@ -1894,12 +1887,12 @@ wf_status wf_mod_labels_from_json(wf_mod_label **out, size_t *out_count,
         }
         wf_mod_label *lab = &arr[*out_count];
         memset(lab, 0, sizeof(*lab));
-        lab->src = dup_str(src);
-        lab->uri = dup_str(uri);
-        lab->val = dup_str(val);
-        lab->cts = dup_str(cts);
-        lab->cid = dup_str(cid);
-        lab->exp = dup_str(exp);
+        lab->src = wf_str_dup(src);
+        lab->uri = wf_str_dup(uri);
+        lab->val = wf_str_dup(val);
+        lab->cts = wf_str_dup(cts);
+        lab->cid = wf_str_dup(cid);
+        lab->exp = wf_str_dup(exp);
         lab->neg = neg;
         lab->has_cid = (cid != NULL);
         lab->ver = ver;

@@ -1,4 +1,5 @@
 #include "wolfram/sync_subscribe.h"
+#include "wolfram/util.h"
 #include "wolfram/websocket.h"
 #include "wolfram/crypto.h"
 
@@ -24,13 +25,6 @@ struct wf_subscribe_handle {
 
 /* Default idle interval between client keepalive pings when the option is 0. */
 #define WF_SUBSCRIBE_DEFAULT_PING_INTERVAL_MS 30000
-
-static char *wf_strdup(const char *s) {
-    size_t n = strlen(s) + 1;
-    char *c = malloc(n);
-    if (c) memcpy(c, s, n);
-    return c;
-}
 
 static uint64_t wf_now_ms(void) {
     struct timespec ts;
@@ -157,7 +151,7 @@ static wf_status build_url(const char *service, int64_t cursor,
                      svc);
     }
     if (n < 0 || (size_t)n >= sizeof(buf)) return WF_ERR_INVALID_ARG;
-    *out_url = wf_strdup(buf);
+    *out_url = wf_str_dup(buf);
     return *out_url ? WF_OK : WF_ERR_ALLOC;
 }
 
@@ -831,7 +825,7 @@ wf_status wf_subscribe_start(const wf_subscribe_options *opts,
 
     handle->opts = *opts;
     if (opts->service) {
-        handle->service_copy = wf_strdup(opts->service);
+        handle->service_copy = wf_str_dup(opts->service);
         if (!handle->service_copy) {
             free(handle);
             return WF_ERR_ALLOC;

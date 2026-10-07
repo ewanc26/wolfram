@@ -6,6 +6,7 @@
  */
 
 #include "wolfram/chat_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/agent.h"
 #include "wolfram/xrpc.h"
@@ -20,30 +21,6 @@
 #include <time.h>
 
 #include "_internal.h"
-
-/* Local copies of the small string helpers (kept static per TU, matching
- * the rest of the *_typed.c files under src/agent/). */
-static char *wf_chat_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_chat_set_string(char **dst, const char *src) {
-    char *copy = wf_chat_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ── moderation.subscribeModEvents ─────────────────────────────────────── */
 
@@ -74,17 +51,17 @@ wf_status wf_agent_parse_mod_event(const char *json, size_t json_len,
     cJSON *ad = cJSON_GetObjectItemCaseSensitive(root, "actorDid");
     cJSON *sd = cJSON_GetObjectItemCaseSensitive(root, "subjectDid");
     if (cJSON_IsString(tp) && tp->valuestring)
-        status = wf_chat_set_string(&out->type, tp->valuestring);
+        status = wf_str_set(&out->type, tp->valuestring);
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring)
-        status = wf_chat_set_string(&out->convo_id, cid->valuestring);
+        status = wf_str_set(&out->convo_id, cid->valuestring);
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring)
-        status = wf_chat_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     if (status == WF_OK && cJSON_IsString(ca) && ca->valuestring)
-        status = wf_chat_set_string(&out->created_at, ca->valuestring);
+        status = wf_str_set(&out->created_at, ca->valuestring);
     if (status == WF_OK && cJSON_IsString(ad) && ad->valuestring)
-        status = wf_chat_set_string(&out->actor_did, ad->valuestring);
+        status = wf_str_set(&out->actor_did, ad->valuestring);
     if (status == WF_OK && cJSON_IsString(sd) && sd->valuestring)
-        status = wf_chat_set_string(&out->subject_did, sd->valuestring);
+        status = wf_str_set(&out->subject_did, sd->valuestring);
 
     if (status != WF_OK) wf_chat_mod_event_reset(out);
     cJSON_Delete(root);
@@ -449,14 +426,14 @@ wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
                                     : WF_CHAT_MOD_DEFAULT_RECONNECT_DELAY_MS;
     h->retry_delay_ms = h->initial_retry_delay_ms;
 
-    h->service_copy = wf_chat_strdup(opts->service);
+    h->service_copy = wf_str_dup(opts->service);
     if (!h->service_copy) {
         free(h);
         return WF_ERR_ALLOC;
     }
     h->opts.service = h->service_copy;
     if (opts->cursor && opts->cursor[0]) {
-        h->cursor_copy = wf_chat_strdup(opts->cursor);
+        h->cursor_copy = wf_str_dup(opts->cursor);
         if (!h->cursor_copy) {
             free(h->service_copy);
             free(h);
@@ -465,7 +442,7 @@ wf_status wf_chat_mod_events_start(const wf_chat_mod_events_options *opts,
         h->opts.cursor = h->cursor_copy;
     }
     if (opts->access_token && opts->access_token[0]) {
-        h->token_copy = wf_chat_strdup(opts->access_token);
+        h->token_copy = wf_str_dup(opts->access_token);
         if (!h->token_copy) {
             free(h->cursor_copy);
             free(h->service_copy);

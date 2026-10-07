@@ -7,34 +7,12 @@
  */
 
 #include "wolfram/actor_typed.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_actor_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_actor_set_string(char **dst, const char *src) {
-    char *copy = wf_actor_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_actor_profile_view_reset(wf_agent_profile_view *p) {
     if (!p) {
@@ -73,23 +51,23 @@ static wf_status wf_actor_parse_profile_view(wf_agent_profile_view *p,
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_actor_set_string(&p->did, did->valuestring);
+        status = wf_str_set(&p->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_actor_set_string(&p->handle, handle->valuestring);
+        status = wf_str_set(&p->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_actor_set_string(&p->display_name, name->valuestring);
+        status = wf_str_set(&p->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_actor_set_string(&p->avatar, avatar->valuestring);
+        status = wf_str_set(&p->avatar, avatar->valuestring);
     }
 
     cJSON *viewer = cJSON_GetObjectItemCaseSensitive(obj, "viewer");
     if (status == WF_OK && cJSON_IsObject(viewer)) {
         cJSON *blocking = cJSON_GetObjectItemCaseSensitive(viewer, "blocking");
         if (cJSON_IsString(blocking) && blocking->valuestring) {
-            status = wf_actor_set_string(&p->blocking, blocking->valuestring);
+            status = wf_str_set(&p->blocking, blocking->valuestring);
         }
         cJSON *muted = cJSON_GetObjectItemCaseSensitive(viewer, "muted");
         if (cJSON_IsBool(muted)) {
@@ -108,16 +86,16 @@ wf_actor_parse_profile_view_basic(wf_agent_profile_view_basic *p, cJSON *obj) {
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_actor_set_string(&p->did, did->valuestring);
+        status = wf_str_set(&p->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_actor_set_string(&p->handle, handle->valuestring);
+        status = wf_str_set(&p->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_actor_set_string(&p->display_name, name->valuestring);
+        status = wf_str_set(&p->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_actor_set_string(&p->avatar, avatar->valuestring);
+        status = wf_str_set(&p->avatar, avatar->valuestring);
     }
     if (status == WF_OK) {
         cJSON *viewer = cJSON_DetachItemFromObject(obj, "viewer");
@@ -183,7 +161,7 @@ static wf_status wf_actor_parse_actor_list(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_actor_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
         if (status == WF_OK) {
             cJSON *rec_id = cJSON_GetObjectItemCaseSensitive(root, "recId");
@@ -193,8 +171,7 @@ static wf_status wf_actor_parse_actor_list(const char *json, size_t json_len,
                     out->has_rec_id = 1;
                     out->rec_id = (int64_t)rec_id->valuedouble;
                 } else if (cJSON_IsString(rec_id) && rec_id->valuestring) {
-                    status = wf_actor_set_string(&out->rec_id_str,
-                                                 rec_id->valuestring);
+                    status = wf_str_set(&out->rec_id_str, rec_id->valuestring);
                 } else {
                     status = WF_ERR_PARSE;
                 }
@@ -207,8 +184,8 @@ static wf_status wf_actor_parse_actor_list(const char *json, size_t json_len,
                 if (!cJSON_IsString(rec_id_str) || !rec_id_str->valuestring) {
                     status = WF_ERR_PARSE;
                 } else if (!out->rec_id_str) {
-                    status = wf_actor_set_string(&out->rec_id_str,
-                                                 rec_id_str->valuestring);
+                    status =
+                        wf_str_set(&out->rec_id_str, rec_id_str->valuestring);
                 }
             }
         }
@@ -297,7 +274,7 @@ wf_status wf_agent_parse_profiles(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_actor_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -363,7 +340,7 @@ wf_agent_parse_actor_typeahead(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_actor_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -428,11 +405,11 @@ wf_status wf_agent_parse_actor_likes(const char *json, size_t json_len,
         }
         if (status == WF_OK && cJSON_IsString(created) &&
             created->valuestring) {
-            status = wf_actor_set_string(&l->created_at, created->valuestring);
+            status = wf_str_set(&l->created_at, created->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(indexed) &&
             indexed->valuestring) {
-            status = wf_actor_set_string(&l->indexed_at, indexed->valuestring);
+            status = wf_str_set(&l->indexed_at, indexed->valuestring);
         }
 
         if (status != WF_OK) {
@@ -449,7 +426,7 @@ wf_status wf_agent_parse_actor_likes(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_actor_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

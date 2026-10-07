@@ -7,6 +7,7 @@
  */
 
 #include "wolfram/crypto.h"
+#include "wolfram/util.h"
 #include "wolfram/oauth/verify.h"
 
 #include <cJSON.h>
@@ -22,17 +23,6 @@
 /* ------------------------------------------------------------------ */
 /* Small helpers                                                       */
 /* ------------------------------------------------------------------ */
-
-static char *wf_strdup(const char *s) {
-    size_t n;
-    char *out;
-    if (!s) return NULL;
-    n = strlen(s) + 1;
-    out = malloc(n);
-    if (!out) return NULL;
-    memcpy(out, s, n);
-    return out;
-}
 
 /* Parse a positive (or zero) integer claim. Returns WF_OK and sets *out (and
  * *present=1) when present; *present=0 when absent. */
@@ -64,7 +54,7 @@ static wf_status json_string_dup(const cJSON *root, const char *name,
         *out = NULL;
         return WF_OK;
     }
-    *out = wf_strdup(item->valuestring);
+    *out = wf_str_dup(item->valuestring);
     return *out ? WF_OK : WF_ERR_ALLOC;
 }
 
@@ -99,7 +89,7 @@ wf_status wf_oauth_trusted_keys_add_jwk(wf_oauth_trusted_keys *keys,
         keys->jwks = grown;
         keys->cap = newcap;
     }
-    copy = wf_strdup(jwk_json);
+    copy = wf_str_dup(jwk_json);
     if (!copy) return WF_ERR_ALLOC;
     keys->jwks[keys->count++] = copy;
     return WF_OK;
@@ -199,7 +189,7 @@ wf_oauth_dpop_replay_cache_mark_seen(wf_oauth_dpop_replay_cache *cache,
         cache->entries = grown;
         cache->cap = newcap;
     }
-    cache->entries[cache->count].jti = wf_strdup(jti);
+    cache->entries[cache->count].jti = wf_str_dup(jti);
     if (!cache->entries[cache->count].jti) return WF_ERR_ALLOC;
     cache->entries[cache->count].expires = ttl > 0 ? now + ttl : 0;
     cache->count++;
@@ -535,10 +525,10 @@ wf_status wf_oauth_verify_bearer(const char *access_token,
 
     aud = cJSON_GetObjectItemCaseSensitive(j->payload, "aud");
     if (cJSON_IsString(aud)) {
-        tok->aud = wf_strdup(aud->valuestring);
+        tok->aud = wf_str_dup(aud->valuestring);
     } else if (cJSON_IsArray(aud) && cJSON_GetArraySize(aud) > 0) {
         cJSON *first = cJSON_GetArrayItem(aud, 0);
-        if (cJSON_IsString(first)) tok->aud = wf_strdup(first->valuestring);
+        if (cJSON_IsString(first)) tok->aud = wf_str_dup(first->valuestring);
     }
     if (status == WF_OK) {
         status = json_string_dup(j->payload, "scope", &tok->scope);
@@ -555,7 +545,7 @@ wf_status wf_oauth_verify_bearer(const char *access_token,
     if (cJSON_IsObject(cnf)) {
         has_cnf = 1;
         jkt = cJSON_GetObjectItemCaseSensitive(cnf, "jkt");
-        if (cJSON_IsString(jkt)) tok->dpop_jkt = wf_strdup(jkt->valuestring);
+        if (cJSON_IsString(jkt)) tok->dpop_jkt = wf_str_dup(jkt->valuestring);
     }
     (void)has_cnf;
 
@@ -725,7 +715,7 @@ wf_status wf_oauth_verify_dpop(const char *dpop_proof, const char *access_token,
         status = WF_ERR_ALLOC;
         goto done;
     }
-    tok->dpop_jkt = wf_strdup(proof_jkt);
+    tok->dpop_jkt = wf_str_dup(proof_jkt);
     if (!tok->dpop_jkt) {
         status = WF_ERR_ALLOC;
         goto done;
@@ -944,9 +934,9 @@ wf_status wf_oauth_verify_client_assertion(
         status = WF_ERR_ALLOC;
         goto done;
     }
-    outa->client_id = wf_strdup(expected_client_id);
-    outa->kid = wf_strdup(kid_s);
-    outa->jti = wf_strdup(jti_s);
+    outa->client_id = wf_str_dup(expected_client_id);
+    outa->kid = wf_str_dup(kid_s);
+    outa->jti = wf_str_dup(jti_s);
     if (!outa->client_id || !outa->kid || !outa->jti) {
         status = WF_ERR_ALLOC;
         goto done;

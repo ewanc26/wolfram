@@ -7,6 +7,7 @@
  */
 
 #include "wolfram/admin_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 
@@ -14,29 +15,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_admin_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_admin_set_string(char **dst, const char *src) {
-    char *copy = wf_admin_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_admin_account_view_reset(wf_admin_account_view *v) {
     if (!v) {
@@ -94,16 +72,16 @@ static wf_status wf_admin_read_account_view(cJSON *obj,
     cJSON *deact = cJSON_GetObjectItemCaseSensitive(obj, "deactivatedAt");
 
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_admin_set_string(&v->did, did->valuestring);
+        status = wf_str_set(&v->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_admin_set_string(&v->handle, handle->valuestring);
+        status = wf_str_set(&v->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(email) && email->valuestring) {
-        status = wf_admin_set_string(&v->email, email->valuestring);
+        status = wf_str_set(&v->email, email->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_admin_set_string(&v->indexed_at, indexed->valuestring);
+        status = wf_str_set(&v->indexed_at, indexed->valuestring);
     }
     if (status == WF_OK) {
         if (cJSON_IsBool(inv_dis)) {
@@ -111,8 +89,7 @@ static wf_status wf_admin_read_account_view(cJSON *obj,
             v->invites_disabled = cJSON_IsTrue(inv_dis);
         }
         if (cJSON_IsString(deact) && deact->valuestring) {
-            status =
-                wf_admin_set_string(&v->deactivated_at, deact->valuestring);
+            status = wf_str_set(&v->deactivated_at, deact->valuestring);
         }
     }
     return status;
@@ -231,7 +208,7 @@ wf_admin_parse_account_view_list(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_admin_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -285,7 +262,7 @@ wf_status wf_admin_parse_subject_status(const char *json, size_t json_len,
     if (cJSON_IsObject(subject)) {
         cJSON *sdid = cJSON_GetObjectItemCaseSensitive(subject, "did");
         if (cJSON_IsString(sdid) && sdid->valuestring) {
-            status = wf_admin_set_string(&out->did, sdid->valuestring);
+            status = wf_str_set(&out->did, sdid->valuestring);
         }
     }
 
@@ -301,8 +278,7 @@ wf_status wf_admin_parse_subject_status(const char *json, size_t json_len,
                 }
                 cJSON *ref = cJSON_GetObjectItemCaseSensitive(takedown, "ref");
                 if (cJSON_IsString(ref) && ref->valuestring) {
-                    status = wf_admin_set_string(&out->takedown_ref,
-                                                 ref->valuestring);
+                    status = wf_str_set(&out->takedown_ref, ref->valuestring);
                 }
             }
             cJSON_Delete(takedown);
@@ -322,8 +298,8 @@ wf_status wf_admin_parse_subject_status(const char *json, size_t json_len,
                 cJSON *ref =
                     cJSON_GetObjectItemCaseSensitive(deactivated, "ref");
                 if (cJSON_IsString(ref) && ref->valuestring) {
-                    status = wf_admin_set_string(&out->deactivated_ref,
-                                                 ref->valuestring);
+                    status =
+                        wf_str_set(&out->deactivated_ref, ref->valuestring);
                 }
             }
             cJSON_Delete(deactivated);
@@ -349,7 +325,7 @@ static wf_status wf_admin_read_invite_code(cJSON *obj,
     cJSON *at = cJSON_GetObjectItemCaseSensitive(obj, "createdAt");
 
     if (cJSON_IsString(code) && code->valuestring) {
-        status = wf_admin_set_string(&c->code, code->valuestring);
+        status = wf_str_set(&c->code, code->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(avail)) {
         c->has_available = true;
@@ -360,13 +336,13 @@ static wf_status wf_admin_read_invite_code(cJSON *obj,
         c->disabled = cJSON_IsTrue(dis);
     }
     if (status == WF_OK && cJSON_IsString(for_acc) && for_acc->valuestring) {
-        status = wf_admin_set_string(&c->for_account, for_acc->valuestring);
+        status = wf_str_set(&c->for_account, for_acc->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(by) && by->valuestring) {
-        status = wf_admin_set_string(&c->created_by, by->valuestring);
+        status = wf_str_set(&c->created_by, by->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(at) && at->valuestring) {
-        status = wf_admin_set_string(&c->created_at, at->valuestring);
+        status = wf_str_set(&c->created_at, at->valuestring);
     }
     return status;
 }
@@ -436,7 +412,7 @@ wf_status wf_admin_parse_invite_codes(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_admin_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
