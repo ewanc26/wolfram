@@ -960,7 +960,6 @@ wf_status wf_agent_list_records(wf_agent *agent, const char *collection,
                                 params, param_count, out);
 }
 
-
 wf_status wf_agent_get_profile(wf_agent *agent, const char *actor,
                                wf_agent_profile *out) {
     if (!agent || !actor || !out) {
@@ -1075,10 +1074,6 @@ wf_status wf_agent_put_preferences_json(
     return wf_lex_app_bsky_actor_put_preferences_main_call(agent->client, input,
                                                            out);
 }
-
-
-
-
 
 wf_status wf_agent_search_actors(wf_agent *agent, const char *query, int limit,
                                  const char *cursor, wf_response *out) {

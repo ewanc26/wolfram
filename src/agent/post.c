@@ -77,7 +77,6 @@ static void wf_agent_post_result_reset(wf_agent_post_result *result) {
     memset(result, 0, sizeof(*result));
 }
 
-
 static wf_status wf_agent_set_string(char **dst, const char *src);
 static int wf_agent_is_logged_in(const wf_agent *agent);
 
@@ -470,7 +469,6 @@ static wf_status wf_agent_delete_record_call(wf_agent *agent,
     wf_response_free(&res);
     return status;
 }
-
 
 static wf_status wf_agent_build_follow_record(wf_agent *agent,
                                               const char *subject_did,
