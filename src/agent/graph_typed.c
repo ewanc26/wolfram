@@ -11,35 +11,13 @@
  */
 
 #include "wolfram/graph_typed.h"
+#include "wolfram/util.h"
 #include "wolfram/actor_typed.h"
 
 #include <cJSON.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_graph_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_graph_set_string(char **dst, const char *src) {
-    char *copy = wf_graph_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_graph_profile_view_reset(wf_agent_profile_view *p) {
     if (!p) {
@@ -123,30 +101,27 @@ wf_status wf_agent_parse_likes(const char *json, size_t json_len,
                 cJSON_GetObjectItemCaseSensitive(actor, "displayName");
             cJSON *avatar = cJSON_GetObjectItemCaseSensitive(actor, "avatar");
             if (cJSON_IsString(did) && did->valuestring) {
-                status = wf_graph_set_string(&l->actor.did, did->valuestring);
+                status = wf_str_set(&l->actor.did, did->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(handle) &&
                 handle->valuestring) {
-                status =
-                    wf_graph_set_string(&l->actor.handle, handle->valuestring);
+                status = wf_str_set(&l->actor.handle, handle->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-                status = wf_graph_set_string(&l->actor.display_name,
-                                             name->valuestring);
+                status = wf_str_set(&l->actor.display_name, name->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(avatar) &&
                 avatar->valuestring) {
-                status =
-                    wf_graph_set_string(&l->actor.avatar, avatar->valuestring);
+                status = wf_str_set(&l->actor.avatar, avatar->valuestring);
             }
         }
         if (status == WF_OK && cJSON_IsString(created) &&
             created->valuestring) {
-            status = wf_graph_set_string(&l->created_at, created->valuestring);
+            status = wf_str_set(&l->created_at, created->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(indexed) &&
             indexed->valuestring) {
-            status = wf_graph_set_string(&l->indexed_at, indexed->valuestring);
+            status = wf_str_set(&l->indexed_at, indexed->valuestring);
         }
 
         if (status != WF_OK) {
@@ -160,7 +135,7 @@ wf_status wf_agent_parse_likes(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -259,7 +234,7 @@ static void wf_graph_relationship_list_reset(wf_agent_relationship_list *list) {
  * (no error) when the value is absent/null. */
 static wf_status wf_graph_set_opt_aturi(char **dst, cJSON *src) {
     if (cJSON_IsString(src) && src->valuestring) {
-        return wf_graph_set_string(dst, src->valuestring);
+        return wf_str_set(dst, src->valuestring);
     }
     return WF_OK;
 }
@@ -279,7 +254,7 @@ wf_status wf_agent_parse_relationships(const char *json, size_t json_len,
     wf_status status = WF_OK;
     cJSON *actor = cJSON_GetObjectItemCaseSensitive(root, "actor");
     if (cJSON_IsString(actor) && actor->valuestring) {
-        status = wf_graph_set_string(&out->actor, actor->valuestring);
+        status = wf_str_set(&out->actor, actor->valuestring);
     }
 
     cJSON *arr = cJSON_GetObjectItemCaseSensitive(root, "relationships");
@@ -307,7 +282,7 @@ wf_status wf_agent_parse_relationships(const char *json, size_t json_len,
         }
         cJSON *did = cJSON_GetObjectItemCaseSensitive(obj, "did");
         if (cJSON_IsString(did) && did->valuestring) {
-            status = wf_graph_set_string(&r->did, did->valuestring);
+            status = wf_str_set(&r->did, did->valuestring);
         } else {
             status = WF_ERR_PARSE;
             break;

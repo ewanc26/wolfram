@@ -7,6 +7,7 @@
  */
 
 #include "wolfram/ageassurance_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/atproto_lex.h"
 
@@ -16,29 +17,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_aa_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_aa_set_string(char **dst, const char *src) {
-    char *copy = wf_aa_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_aa_begin_reset(wf_ageassurance_begin *b) {
     if (!b) {
@@ -84,17 +62,17 @@ static wf_status wf_aa_parse_state_obj(cJSON *obj, wf_ageassurance_begin *out) {
     if (!cJSON_IsString(status) || !cJSON_IsString(access)) {
         return WF_ERR_PARSE;
     }
-    wf_status st = wf_aa_set_string(&out->status, status->valuestring);
+    wf_status st = wf_str_set(&out->status, status->valuestring);
     if (st != WF_OK) {
         return st;
     }
-    st = wf_aa_set_string(&out->access, access->valuestring);
+    st = wf_str_set(&out->access, access->valuestring);
     if (st != WF_OK) {
         return st;
     }
     cJSON *last = cJSON_GetObjectItemCaseSensitive(obj, "lastInitiatedAt");
     if (cJSON_IsString(last)) {
-        st = wf_aa_set_string(&out->last_initiated_at, last->valuestring);
+        st = wf_str_set(&out->last_initiated_at, last->valuestring);
         if (st != WF_OK) {
             return st;
         }
@@ -178,8 +156,8 @@ wf_status wf_ageassurance_parse_state(const char *json, size_t json_len,
     cJSON *created =
         cJSON_GetObjectItemCaseSensitive(metadata, "accountCreatedAt");
     if (cJSON_IsString(created)) {
-        st = wf_aa_set_string(&out->metadata.account_created_at,
-                              created->valuestring);
+        st =
+            wf_str_set(&out->metadata.account_created_at, created->valuestring);
         if (st != WF_OK) {
             cJSON_Delete(root);
             wf_aa_state_reset(out);

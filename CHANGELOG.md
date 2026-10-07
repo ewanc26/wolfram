@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Changed
+
+- I've replaced the 36 private copies of `strdup` and 38 of `set_string` scattered through `src/` with one `wf_str_dup` and `wf_str_set` in `wolfram/util.h`, and deleted the copies. Behaviour is the same; `wf_str_dup` is NULL-safe and `wf_str_set` leaves the destination alone on an allocation failure, as every copy did. ([#176](https://github.com/ewanc26/wolfram/pull/176))
+
 ### Removed
 
 - I've deleted about 1,800 lines of dead code from `src/agent/agent.c` and `post.c`: six blocks under `#if 0` that said they had moved to `post.c`, `feed.c`, `graph.c` and `notification.c`, and the helpers only they used. Nothing a caller can see changes. ([#175](https://github.com/ewanc26/wolfram/pull/175))

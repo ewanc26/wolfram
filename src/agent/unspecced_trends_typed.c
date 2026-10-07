@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/unspecced_trends_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/atproto_lex.h"
 #include "agent/_internal.h"
@@ -18,29 +19,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_ut_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_ut_set_string(char **dst, const char *src) {
-    char *copy = wf_ut_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- trend view ---- */
 
@@ -76,29 +54,29 @@ static wf_status wf_ut_parse_trend_view(cJSON *obj,
     cJSON *actors = cJSON_GetObjectItemCaseSensitive(obj, "actors");
 
     if (cJSON_IsString(topic) && topic->valuestring) {
-        status = wf_ut_set_string(&t->topic, topic->valuestring);
+        status = wf_str_set(&t->topic, topic->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_ut_set_string(&t->display_name, name->valuestring);
+        status = wf_str_set(&t->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-        status = wf_ut_set_string(&t->description, desc->valuestring);
+        status = wf_str_set(&t->description, desc->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(link) && link->valuestring) {
-        status = wf_ut_set_string(&t->link, link->valuestring);
+        status = wf_str_set(&t->link, link->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(started) && started->valuestring) {
-        status = wf_ut_set_string(&t->started_at, started->valuestring);
+        status = wf_str_set(&t->started_at, started->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(count)) {
         t->has_post_count = 1;
         t->post_count = (int64_t)count->valuedouble;
     }
     if (status == WF_OK && cJSON_IsString(st_json) && st_json->valuestring) {
-        status = wf_ut_set_string(&t->status, st_json->valuestring);
+        status = wf_str_set(&t->status, st_json->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(category) && category->valuestring) {
-        status = wf_ut_set_string(&t->category, category->valuestring);
+        status = wf_str_set(&t->category, category->valuestring);
     }
     int actors_detached = 0;
     if (status == WF_OK && cJSON_IsArray(actors) &&
@@ -254,7 +232,7 @@ static wf_status wf_ut_parse_thread_item(cJSON *obj,
     cJSON *value = cJSON_GetObjectItemCaseSensitive(obj, "value");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_ut_set_string(&it->uri, uri->valuestring);
+        status = wf_str_set(&it->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(depth)) {
         it->has_depth = 1;

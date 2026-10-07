@@ -11,6 +11,7 @@
  */
 
 #include "wolfram/labeler_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -19,29 +20,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_labeler_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_labeler_set_string(char **dst, const char *src) {
-    char *copy = wf_labeler_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- label ---- */
 
@@ -76,32 +54,32 @@ static wf_status wf_labeler_parse_label(cJSON *obj, wf_labeler_label *l) {
         l->ver = (int64_t)ver->valuedouble;
     }
     if (cJSON_IsString(src) && src->valuestring) {
-        status = wf_labeler_set_string(&l->src, src->valuestring);
+        status = wf_str_set(&l->src, src->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_labeler_set_string(&l->uri, uri->valuestring);
+        status = wf_str_set(&l->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
         l->has_cid = true;
-        status = wf_labeler_set_string(&l->cid, cid->valuestring);
+        status = wf_str_set(&l->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(val) && val->valuestring) {
-        status = wf_labeler_set_string(&l->val, val->valuestring);
+        status = wf_str_set(&l->val, val->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(neg)) {
         l->has_neg = true;
         l->neg = cJSON_IsTrue(neg);
     }
     if (status == WF_OK && cJSON_IsString(cts) && cts->valuestring) {
-        status = wf_labeler_set_string(&l->cts, cts->valuestring);
+        status = wf_str_set(&l->cts, cts->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(exp) && exp->valuestring) {
         l->has_exp = true;
-        status = wf_labeler_set_string(&l->exp, exp->valuestring);
+        status = wf_str_set(&l->exp, exp->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(sig) && sig->valuestring) {
         l->has_sig = true;
-        status = wf_labeler_set_string(&l->sig, sig->valuestring);
+        status = wf_str_set(&l->sig, sig->valuestring);
     }
     return status;
 }
@@ -193,13 +171,13 @@ wf_labeler_parse_label_value_def_locale(cJSON *obj,
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "name");
     cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
     if (cJSON_IsString(lang) && lang->valuestring) {
-        status = wf_labeler_set_string(&l->lang, lang->valuestring);
+        status = wf_str_set(&l->lang, lang->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_labeler_set_string(&l->name, name->valuestring);
+        status = wf_str_set(&l->name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-        status = wf_labeler_set_string(&l->description, desc->valuestring);
+        status = wf_str_set(&l->description, desc->valuestring);
     }
     return status;
 }
@@ -215,17 +193,17 @@ wf_labeler_parse_label_value_def(cJSON *obj, wf_labeler_label_value_def *d) {
     cJSON *locales = cJSON_GetObjectItemCaseSensitive(obj, "locales");
 
     if (cJSON_IsString(identifier) && identifier->valuestring) {
-        status = wf_labeler_set_string(&d->identifier, identifier->valuestring);
+        status = wf_str_set(&d->identifier, identifier->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(severity) && severity->valuestring) {
-        status = wf_labeler_set_string(&d->severity, severity->valuestring);
+        status = wf_str_set(&d->severity, severity->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(blurs) && blurs->valuestring) {
-        status = wf_labeler_set_string(&d->blurs, blurs->valuestring);
+        status = wf_str_set(&d->blurs, blurs->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(def) && def->valuestring) {
         d->has_default_setting = true;
-        status = wf_labeler_set_string(&d->default_setting, def->valuestring);
+        status = wf_str_set(&d->default_setting, def->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(adult)) {
         d->has_adult_only = true;
@@ -266,7 +244,7 @@ wf_labeler_parse_label_value_def(cJSON *obj, wf_labeler_label_value_def *d) {
         /* defs#labelValueDefinition.defaultSetting defaults to "warn" when the
          * field is absent on the wire; apply the spec default so consumers
          * always receive a concrete value. */
-        d->default_setting = wf_labeler_strdup("warn");
+        d->default_setting = wf_str_dup("warn");
         if (!d->default_setting) {
             status = WF_ERR_ALLOC;
         } else {
@@ -314,8 +292,7 @@ static wf_status wf_labeler_parse_policies(cJSON *obj, wf_labeler_policies *p) {
                     status = WF_ERR_PARSE;
                     break;
                 }
-                status =
-                    wf_labeler_set_string(&p->label_values[i], it->valuestring);
+                status = wf_str_set(&p->label_values[i], it->valuestring);
             }
             if (status == WF_OK) {
                 p->label_value_count = n;
@@ -400,16 +377,16 @@ static wf_status wf_labeler_parse_creator(cJSON *obj, wf_labeler_creator *c) {
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_labeler_set_string(&c->did, did->valuestring);
+        status = wf_str_set(&c->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_labeler_set_string(&c->handle, handle->valuestring);
+        status = wf_str_set(&c->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_labeler_set_string(&c->display_name, name->valuestring);
+        status = wf_str_set(&c->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_labeler_set_string(&c->avatar, avatar->valuestring);
+        status = wf_str_set(&c->avatar, avatar->valuestring);
     }
     if (status == WF_OK) {
         cJSON_DetachItemFromObject(obj, "did");
@@ -476,7 +453,7 @@ static wf_status wf_labeler_parse_string_array(cJSON *arr, char ***out_items,
             status = WF_ERR_PARSE;
             break;
         }
-        status = wf_labeler_set_string(&items[i], it->valuestring);
+        status = wf_str_set(&items[i], it->valuestring);
     }
     if (status == WF_OK) {
         *out_items = items;
@@ -507,10 +484,10 @@ static wf_status wf_labeler_parse_service_view(cJSON *obj,
     cJSON *sc = cJSON_GetObjectItemCaseSensitive(obj, "subjectCollections");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_labeler_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_labeler_set_string(&v->cid, cid->valuestring);
+        status = wf_str_set(&v->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(creator)) {
         status = wf_labeler_parse_creator(creator, &v->creator);
@@ -520,7 +497,7 @@ static wf_status wf_labeler_parse_service_view(cJSON *obj,
         v->like_count = (int64_t)like->valuedouble;
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_labeler_set_string(&v->indexed_at, indexed->valuestring);
+        status = wf_str_set(&v->indexed_at, indexed->valuestring);
     }
     if (status == WF_OK && cJSON_IsArray(labels)) {
         status =
@@ -640,8 +617,8 @@ wf_status wf_labeler_parse_service_record(const char *json, size_t json_len,
                         status = WF_ERR_PARSE;
                         break;
                     }
-                    status = wf_labeler_set_string(&out->self_label_values[i],
-                                                   val->valuestring);
+                    status = wf_str_set(&out->self_label_values[i],
+                                        val->valuestring);
                 }
                 if (status == WF_OK) {
                     out->self_label_count = n;
@@ -656,7 +633,7 @@ wf_status wf_labeler_parse_service_record(const char *json, size_t json_len,
         }
     }
     if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
-        status = wf_labeler_set_string(&out->created_at, created->valuestring);
+        status = wf_str_set(&out->created_at, created->valuestring);
     }
     if (status == WF_OK && rt != NULL) {
         status = wf_labeler_parse_string_array(rt, &out->reason_types,
@@ -710,7 +687,7 @@ wf_status wf_labeler_parse_query_labels(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_labeler_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
     if (status != WF_OK) {
