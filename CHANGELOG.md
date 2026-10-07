@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- I've added `wf_agent_set_reply_gate` and `wf_reply_gate` (`wolfram/threadgate_postgate.h`): the "everyone, followed and mentioned, or nobody" choice as one call, so a client does not build the threadgate rules itself. ([#173](https://github.com/ewanc26/wolfram/pull/173))
+
 ## [0.33.0] - 2026-10-07
 
 ### Added
