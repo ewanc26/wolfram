@@ -91,6 +91,12 @@ struct wf_xrpc_server {
      * drained the list would never be joined, so upgrades are refused from
      * here on rather than accepted into a server that is going away. */
     bool ws_stopping;
+    /* Workers that have left ws_streams but not yet finished their last call
+     * into libmicrohttpd (MHD_upgrade_action). stop() cannot find them in the
+     * list, so it waits for this to reach zero before MHD_stop_daemon frees the
+     * upgrade handles they are about to use. Guarded by ws_mutex. */
+    int ws_closing;
+    pthread_cond_t ws_closing_cond;
     /* Upgrades queued but not yet handed to wf_ws_upgrade_handler. MHD gives
      * no callback when a response is destroyed without upgrading, so a client
      * that disappears between the 101 and the handover would otherwise strand

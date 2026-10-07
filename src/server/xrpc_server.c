@@ -1919,6 +1919,15 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
         return NULL;
     }
 
+    if (pthread_cond_init(&server->ws_closing_cond, NULL) != 0) {
+        pthread_mutex_destroy(&server->sse_mutex);
+        pthread_mutex_destroy(&server->ws_mutex);
+        pthread_mutex_destroy(&server->routes_mutex);
+        pthread_mutex_destroy(&server->rate_limit_mutex);
+        free(server);
+        return NULL;
+    }
+
     if (thread_count == 0) {
         /* Auto-size to CPU cores × 2 (I/O-bound heuristic) so the server
          * scales to the host's capacity without manual tuning. Capped to
@@ -1938,6 +1947,7 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
         thread_count > 1 ? MHD_OPTION_THREAD_POOL_SIZE : (int)MHD_OPTION_END,
         thread_count, MHD_OPTION_END);
     if (!server->daemon) {
+        pthread_cond_destroy(&server->ws_closing_cond);
         pthread_mutex_destroy(&server->sse_mutex);
         pthread_mutex_destroy(&server->ws_mutex);
         pthread_mutex_destroy(&server->routes_mutex);
@@ -2016,6 +2026,15 @@ void wf_xrpc_server_stop(wf_xrpc_server *server) {
         pthread_join(tid, NULL);
     }
 
+    /* A worker that already left the list is not joinable above, but it still
+     * has MHD_upgrade_action to make, and that is only valid while the daemon
+     * is alive. Wait for the last of them. */
+    pthread_mutex_lock(&server->ws_mutex);
+    while (server->ws_closing > 0) {
+        pthread_cond_wait(&server->ws_closing_cond, &server->ws_mutex);
+    }
+    pthread_mutex_unlock(&server->ws_mutex);
+
     MHD_stop_daemon(server->daemon);
     server->daemon = NULL;
 }
@@ -2068,6 +2087,7 @@ void wf_xrpc_server_free(wf_xrpc_server *server) {
     if (server->rate_limit_entries) {
         wf_server_free_rate_limit_entries(server->rate_limit_entries);
     }
+    pthread_cond_destroy(&server->ws_closing_cond);
     pthread_mutex_destroy(&server->sse_mutex);
     pthread_mutex_destroy(&server->ws_mutex);
     pthread_mutex_destroy(&server->routes_mutex);
