@@ -351,6 +351,7 @@ add_library(
   src/agent/ageassurance_typed.c
   src/agent/feedgen_typed.c
   src/agent/saved_feeds.c
+  src/agent/profile_tab.c
   src/agent/feed_gen_typed.c
   # getFeedSkeleton builder (validate/dedupe/cursor pagination)
   src/server/feedgen.c
@@ -1741,6 +1742,10 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_saved_feeds PRIVATE wolfram)
   target_include_directories(test_saved_feeds PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME saved_feeds COMMAND test_saved_feeds)
+  add_executable(test_profile_tab test/test_profile_tab.c)
+  target_link_libraries(test_profile_tab PRIVATE wolfram)
+  target_include_directories(test_profile_tab PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME profile_tab COMMAND test_profile_tab)
   add_executable(test_attach test/test_attach.c)
   target_link_libraries(test_attach PRIVATE wolfram)
   target_include_directories(test_attach PRIVATE test ${cjson_SOURCE_DIR})
