@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-07
+
 ### Added
 
 - I've added `wolfram/profile_tab.h`: the Posts, Replies, Media and Likes tabs of a profile (`wf_profile_tab_name`, `_filter`, `_next`) and `wf_agent_get_profile_tab_typed`, which fetches one page of a tab. Cobalt carried this alone; Indigo had only the Posts tab. ([#179](https://github.com/ewanc26/wolfram/pull/179))
@@ -378,7 +380,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.35.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.36.0
 [0.35.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.35.0
 [0.34.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.34.0
 [0.33.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.33.0
