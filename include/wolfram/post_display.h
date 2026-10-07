@@ -83,6 +83,14 @@ typedef struct wf_post_display {
     char *external_uri;
     char *external_description; /* EXTERNAL only; NULL when absent */
     char *external_thumb;       /* EXTERNAL only; NULL when absent */
+    /* VIDEO, or the media of RECORD_WITH_MEDIA: the poster frame's CDN URL and
+     * the author's alt text, each NULL when absent, and the declared aspect
+     * ratio (both 0 when the view omits it). A client that cannot play video
+     * draws the poster and says so; the playlist is deliberately not kept. */
+    char *video_thumb;
+    char *video_alt;
+    int video_width;
+    int video_height;
     char *quote_uri; /* only when the quoted record is viewable; else NULL */
     char *quote_author_handle;
     char *quote_text;

@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_post_display` now carries a video embed's poster frame, alt text and aspect ratio (`video_thumb`, `video_alt`, `video_width`, `video_height`), so a client that cannot play video can still draw the poster. The playlist is not kept. ([#184](https://github.com/ewanc26/wolfram/pull/184))
+
 ## [0.36.2] - 2026-10-07
 
 ### Changed
