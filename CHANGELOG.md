@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-07
+
 ### Added
 
 - I've added `wolfram/attach.h`: `wf_attach_mime`, `wf_attach_scan_images` and `wf_agent_upload_image_file`, so a client can list the JPEG and PNG files in a folder (within `WF_ATTACH_MAX_BYTES`) and upload one as an image embed without carrying its own copy. ([#168](https://github.com/ewanc26/wolfram/pull/169))
@@ -352,7 +354,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.32.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.33.0...HEAD
+[0.33.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.33.0
 [0.32.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.32.0
 [0.31.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.31.0
 [0.30.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.30.0
