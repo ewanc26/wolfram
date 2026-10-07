@@ -98,3 +98,66 @@ bool wf_muted_words_match(const wf_actor_pref_muted_word *words, size_t count,
     }
     return false;
 }
+
+void wf_muted_list_clear(wf_muted_list *list) {
+    if (list) memset(list, 0, sizeof *list);
+}
+
+bool wf_muted_list_add(wf_muted_list *list, const char *value, bool content,
+                       bool tag, bool exclude_following,
+                       const char *expires_at) {
+    wf_muted_entry *w;
+    if (!list || !value || !value[0] || list->count >= WF_MUTED_LIST_MAX)
+        return false;
+    w = &list->words[list->count++];
+    memset(w, 0, sizeof *w);
+    strncpy(w->value, value, sizeof w->value - 1);
+    w->content = content || !tag;
+    w->tag = tag;
+    w->exclude_following = exclude_following;
+    if (expires_at)
+        strncpy(w->expires_at, expires_at, sizeof w->expires_at - 1);
+    return true;
+}
+
+void wf_muted_list_from_prefs(wf_muted_list *list,
+                              const wf_actor_preferences *prefs, int64_t now) {
+    size_t i;
+    wf_muted_list_clear(list);
+    if (!list || !prefs) return;
+    list->now = now;
+    for (i = 0; i < prefs->muting_keyword_count; i++) {
+        const wf_actor_pref_muted_word *w = &prefs->muting_keywords[i];
+        if (!w->value) continue;
+        wf_muted_list_add(list, w->value, has_target(w, "content"),
+                          has_target(w, "tag"),
+                          w->actor_target &&
+                              strcmp(w->actor_target, "exclude-following") == 0,
+                          w->expires_at);
+    }
+}
+
+bool wf_muted_list_match(const wf_muted_list *list, const char *text,
+                         const char *const *tags, size_t tag_count,
+                         bool author_followed) {
+    wf_actor_pref_muted_word words[WF_MUTED_LIST_MAX];
+    char *targets[WF_MUTED_LIST_MAX][2];
+    char content_target[] = "content";
+    char tag_target[] = "tag";
+    char exclude[] = "exclude-following";
+    size_t i;
+
+    if (!list || list->count == 0) return false;
+    memset(words, 0, sizeof words);
+    for (i = 0; i < list->count; i++) {
+        const wf_muted_entry *e = &list->words[i];
+        words[i].value = (char *)e->value;
+        words[i].expires_at = e->expires_at[0] ? (char *)e->expires_at : NULL;
+        words[i].actor_target = e->exclude_following ? exclude : NULL;
+        if (e->content) targets[i][words[i].target_count++] = content_target;
+        if (e->tag) targets[i][words[i].target_count++] = tag_target;
+        words[i].targets = targets[i];
+    }
+    return wf_muted_words_match(words, list->count, text, tags, tag_count,
+                                author_followed, list->now);
+}
