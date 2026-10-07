@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- The DID document cache's TTLs are guarded by its lock rather than atomics. A 64-bit `time_t` has no lock-free atomic load on the 32-bit PowerPC Wii U, so the library failed to link there once a client resolved a DID (Cobalt's sign-in discovery). ([#191](https://github.com/ewanc26/wolfram/pull/191))
+
 ## [0.38.1] - 2026-10-07
 
 ### Fixed
