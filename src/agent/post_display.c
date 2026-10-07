@@ -77,6 +77,8 @@ void wf_post_display_free(wf_post_display *d) {
     free(d->external_uri);
     free(d->external_description);
     free(d->external_thumb);
+    free(d->video_thumb);
+    free(d->video_alt);
     free(d->quote_uri);
     free(d->quote_author_handle);
     free(d->quote_text);
@@ -321,11 +323,31 @@ static wf_status wf_pd_apply_images(const cJSON *media, wf_post_display *out) {
     return WF_OK;
 }
 
-/* Fill image_count / external_* from an images/video/external view. */
+/* Fill video_* from a video view. A ratio is kept only whole, as for images. */
+static wf_status wf_pd_apply_video(const cJSON *media, wf_post_display *out) {
+    wf_status s = wf_pd_copy_str(media, "thumbnail", &out->video_thumb);
+    if (s == WF_OK) {
+        s = wf_pd_copy_str(media, "alt", &out->video_alt);
+    }
+    const cJSON *ratio = wf_pd_obj(media, "aspectRatio");
+    int w = wf_pd_dim(ratio, "width");
+    int h = wf_pd_dim(ratio, "height");
+    if (w > 0 && h > 0) {
+        out->video_width = w;
+        out->video_height = h;
+    }
+    return s;
+}
+
+/* Fill image_count / video_* / external_* from an images/video/external view.
+ */
 static wf_status wf_pd_apply_media(const cJSON *media, wf_post_embed_kind kind,
                                    wf_post_display *out) {
     if (kind == WF_EMBED_IMAGES) {
         return wf_pd_apply_images(media, out);
+    }
+    if (kind == WF_EMBED_VIDEO) {
+        return wf_pd_apply_video(media, out);
     }
     if (kind == WF_EMBED_EXTERNAL) {
         const cJSON *ext = wf_pd_obj(media, "external");

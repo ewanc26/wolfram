@@ -461,6 +461,33 @@ static void test_embed_external(void) {
     }
 }
 
+/* A video view keeps its poster, alt text and whole aspect ratio; with none of
+ * them it is still a video, and half a ratio is no ratio. */
+static void test_embed_video(void) {
+    wf_post_display d;
+
+    WF_CHECK(disp("{}",
+                  "{\"$type\":\"app.bsky.embed.video#view\",\"cid\":\"c\","
+                  "\"playlist\":\"https://v/p.m3u8\","
+                  "\"thumbnail\":\"https://v/t.jpg\",\"alt\":\"a cat\","
+                  "\"aspectRatio\":{\"width\":1280,\"height\":720}}",
+                  &d) == WF_OK);
+    WF_CHECK(d.embed_kind == WF_EMBED_VIDEO);
+    WF_CHECK(d.video_thumb && strcmp(d.video_thumb, "https://v/t.jpg") == 0);
+    WF_CHECK(d.video_alt && strcmp(d.video_alt, "a cat") == 0);
+    WF_CHECK(d.video_width == 1280 && d.video_height == 720);
+    WF_CHECK(d.image_count == 0 && d.external_thumb == NULL);
+    wf_post_display_free(&d);
+
+    WF_CHECK(disp("{}",
+                  "{\"$type\":\"app.bsky.embed.video#view\","
+                  "\"aspectRatio\":{\"width\":1280}}",
+                  &d) == WF_OK);
+    WF_CHECK(d.embed_kind == WF_EMBED_VIDEO && d.video_thumb == NULL &&
+             d.video_alt == NULL && d.video_width == 0 && d.video_height == 0);
+    wf_post_display_free(&d);
+}
+
 static void test_reposted_by(void) {
     wf_agent_feed_item it;
     char *name = (char *)0x1;
@@ -596,6 +623,7 @@ int main(void) {
     test_embeds();
     test_embed_images();
     test_embed_external();
+    test_embed_video();
     test_reposted_by();
     test_fetch_public();
     WF_TEST_SUMMARY();
