@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-10-07
+
 ### Added
 
 - I've added `wolfram/drag.h`: `wf_drag_begin`, `wf_drag_move` and `wf_drag_end` turn a finger dragged along a list into whole rows to scroll, with the slop that separates a tap from a drag and the carry between frames, so Indigo and Cobalt scroll their feeds by touch with one implementation. Strict C89. ([#157](https://github.com/ewanc26/wolfram/pull/157))
@@ -325,7 +327,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.29.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.30.0...HEAD
+[0.30.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.30.0
 [0.29.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.29.0
 [0.28.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.28.0
 [0.27.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.27.0
