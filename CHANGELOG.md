@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.36.2] - 2026-10-07
+
 ### Changed
 
 - I've split `profile_tab.c` so the tab names, filters and cycle (`wf_profile_tab_name`, `_filter`, `_next`) can be linked without the agent; `wf_agent_get_profile_tab_typed` is in `profile_tab_fetch.c`. No API change. ([#182](https://github.com/ewanc26/wolfram/pull/182))
@@ -384,7 +386,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.36.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.36.2...HEAD
+[0.36.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.36.2
 [0.36.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.36.0
 [0.35.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.35.0
 [0.34.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.34.0
