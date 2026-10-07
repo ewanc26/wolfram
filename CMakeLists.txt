@@ -352,6 +352,7 @@ add_library(
   src/agent/feedgen_typed.c
   src/agent/saved_feeds.c
   src/agent/profile_tab.c
+  src/agent/profile_tab_fetch.c
   src/agent/feed_gen_typed.c
   # getFeedSkeleton builder (validate/dedupe/cursor pagination)
   src/server/feedgen.c
