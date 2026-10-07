@@ -80,3 +80,62 @@ int wf_attach_scan_images(const char *dir, char *names, size_t name_cap,
     sort_rows(names, name_cap, n);
     return n;
 }
+
+/* Files of `dir` that wf_attach_scan_images would list, prefixed with `prefix`
+ * ("" for the top folder, "folder/" for a subfolder), appended after `n` rows.
+ * Returns the new row count. */
+static int scan_into(const char *dir, const char *prefix, char *names,
+                     size_t name_cap, int n, int max, int *too_large) {
+    DIR *d = opendir(dir);
+    if (!d) return n;
+    struct dirent *e;
+    while (n < max && (e = readdir(d)) != NULL) {
+        if (e->d_name[0] == '.' || !wf_attach_mime(e->d_name)) continue;
+        if (strlen(prefix) + strlen(e->d_name) >= name_cap) continue;
+        char path[1024];
+        if (snprintf(path, sizeof path, "%s/%s", dir, e->d_name) >=
+            (int)sizeof path)
+            continue;
+        struct stat st;
+        if (stat(path, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 0)
+            continue;
+        if (st.st_size > WF_ATTACH_MAX_BYTES) {
+            if (too_large) (*too_large)++;
+            continue;
+        }
+        snprintf(names + (size_t)n * name_cap, name_cap, "%s%s", prefix,
+                 e->d_name);
+        n++;
+    }
+    closedir(d);
+    return n;
+}
+
+int wf_attach_scan_images_tree(const char *dir, char *names, size_t name_cap,
+                               int max, int *too_large) {
+    if (too_large) *too_large = 0;
+    if (!dir || !names || name_cap == 0 || max <= 0) return 0;
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+
+    int n = scan_into(dir, "", names, name_cap, 0, max, too_large);
+    /* Collect the subfolder names first: scan_into reads each one. */
+    struct dirent *e;
+    while (n < max && (e = readdir(d)) != NULL) {
+        if (e->d_name[0] == '.') continue;
+        char sub[1024];
+        if (snprintf(sub, sizeof sub, "%s/%s", dir, e->d_name) >=
+            (int)sizeof sub)
+            continue;
+        struct stat st;
+        if (stat(sub, &st) != 0 || !S_ISDIR(st.st_mode)) continue;
+        char prefix[256];
+        if (snprintf(prefix, sizeof prefix, "%s/", e->d_name) >=
+            (int)sizeof prefix)
+            continue;
+        n = scan_into(sub, prefix, names, name_cap, n, max, too_large);
+    }
+    closedir(d);
+    sort_rows(names, name_cap, n);
+    return n;
+}

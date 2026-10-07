@@ -78,5 +78,31 @@ int main(void) {
     snprintf(cmd, sizeof cmd, "rm -rf %s", dir);
     if (system(cmd) != 0) return 1;
 
+    /* The camera layout: images one folder down, named "folder/name". */
+    char cam[] = "/tmp/wf_cam_XXXXXX";
+    WF_CHECK(mkdtemp(cam) != NULL);
+    char cam_sub[600];
+    snprintf(cam_sub, sizeof cam_sub, "%s/100NIN01", cam);
+    mkdir(cam_sub, 0777);
+    write_file(cam, "top.jpg", 3);
+    write_file(cam_sub, "IMG_0002.JPG", 3);
+    write_file(cam_sub, "IMG_0001.JPG", 3);
+    write_file(cam_sub, "notes.txt", 3);
+    char deep[600];
+    snprintf(deep, sizeof deep, "%s/100NIN01/deeper", cam);
+    mkdir(deep, 0777);
+    write_file(deep, "too_deep.jpg", 3); /* two levels down: not listed */
+    char tree[8][64];
+    int tn =
+        wf_attach_scan_images_tree(cam, &tree[0][0], sizeof tree[0], 8, NULL);
+    WF_CHECK(tn == 3);
+    WF_CHECK(tn >= 3 && strcmp(tree[0], "100NIN01/IMG_0001.JPG") == 0);
+    WF_CHECK(tn >= 3 && strcmp(tree[1], "100NIN01/IMG_0002.JPG") == 0);
+    WF_CHECK(tn >= 3 && strcmp(tree[2], "top.jpg") == 0);
+    WF_CHECK(wf_attach_scan_images_tree("/tmp/wf_no_such_dir_xyz", &tree[0][0],
+                                        sizeof tree[0], 8, NULL) == 0);
+    snprintf(cmd, sizeof cmd, "rm -rf %s", cam);
+    (void)system(cmd);
+
     WF_TEST_SUMMARY();
 }

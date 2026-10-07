@@ -5,6 +5,9 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 ## [Unreleased]
 
 ## [0.38.2] - 2026-10-08
+### Added
+
+- `wf_attach_scan_images_tree` lists the images in a folder and one level down, in the camera layout (`DCIM/<folder>/<image>`), so a picker can offer the console's photos as well as its own folder. Entries from a subfolder are `folder/name`. ([#193](https://github.com/ewanc26/wolfram/pull/193))
 
 ### Fixed
 
