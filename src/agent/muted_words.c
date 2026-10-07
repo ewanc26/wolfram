@@ -1,49 +1,21 @@
 /*
  * muted_words.c -- see wolfram/muted_words.h.
+ *
+ * The matching rules are wf_mod_match_mute_words's (moderation.h), a port of
+ * the official client's matcher. This file only adapts the account preferences'
+ * mutedWord (targets as strings, `expiresAt` as a lexicon datetime) to it, so
+ * there is one set of rules: it applies `now` to the expiry, sends content
+ * words against the text and tag words against the tags, and frees nothing it
+ * did not allocate.
  */
 
 #include "wolfram/muted_words.h"
 
+#include "wolfram/moderation.h"
 #include "wolfram/time.h"
 
+#include <stdlib.h>
 #include <string.h>
-
-static bool is_word_byte(unsigned char c) {
-    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') ||
-           (c >= 'A' && c <= 'Z') || c >= 0x80;
-}
-
-static char lower(char c) {
-    return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
-}
-
-static bool ci_equal(const char *a, const char *b) {
-    for (; *a && *b; a++, b++)
-        if (lower(*a) != lower(*b)) return false;
-    return *a == *b;
-}
-
-static bool word_is_plain(const char *w) {
-    for (; *w; w++)
-        if (!is_word_byte((unsigned char)*w)) return false;
-    return true;
-}
-
-static bool contains(const char *hay, const char *needle, bool whole_word) {
-    const size_t n = strlen(needle);
-    if (n == 0) return false;
-    for (const char *p = hay; *p; p++) {
-        size_t i = 0;
-        while (i < n && p[i] && lower(p[i]) == lower(needle[i])) i++;
-        if (i != n) continue;
-        if (whole_word) {
-            if (p != hay && is_word_byte((unsigned char)p[-1])) continue;
-            if (is_word_byte((unsigned char)p[n])) continue;
-        }
-        return true;
-    }
-    return false;
-}
 
 static bool has_target(const wf_actor_pref_muted_word *w, const char *name) {
     for (size_t i = 0; i < w->target_count; i++)
@@ -52,35 +24,77 @@ static bool has_target(const wf_actor_pref_muted_word *w, const char *name) {
     return false;
 }
 
+/* An expiry in the past, judged at `now` rather than the system clock: the
+ * consoles' clocks are not trusted, and 0 means unknown, so nothing expires. An
+ * expiry that does not parse is treated as not expired, the safe direction. */
+static bool expired(const char *expires_at, int64_t now) {
+    int64_t exp;
+    if (now == 0 || !expires_at || !expires_at[0]) return false;
+    return wf_time_parse_rfc3339(expires_at, &exp) == WF_OK && exp <= now;
+}
+
+/* Run the official matcher over the words that pass `want`. */
+static bool match_words(const wf_actor_pref_muted_word *words, size_t count,
+                        const char *want_target, const char *text,
+                        const char *const *tags, size_t tag_count,
+                        bool author_followed, int64_t now) {
+    wf_mod_muted_word *mods = calloc(count ? count : 1, sizeof *mods);
+    wf_mod_mute_word_match *matches = NULL;
+    size_t n = 0, match_count = 0;
+    bool hit = false;
+    size_t i;
+
+    if (!mods) return false;
+    for (i = 0; i < count; i++) {
+        const wf_actor_pref_muted_word *w = &words[i];
+        if (!w->value || !w->value[0] || !has_target(w, want_target)) continue;
+        if (expired(w->expires_at, now)) continue;
+        mods[n].value = w->value;
+        mods[n].actor_target = w->actor_target;
+        mods[n].targets_content = 1;
+        mods[n].targets_tag = 1;
+        n++;
+    }
+    if (n > 0 && wf_mod_match_mute_words(&matches, &match_count, mods, n, text,
+                                         tags, tag_count, NULL,
+                                         author_followed ? 1 : 0) == WF_OK) {
+        hit = match_count > 0;
+        wf_mod_mute_word_matches_free(matches, match_count);
+    }
+    free(mods);
+    return hit;
+}
+
 bool wf_muted_words_match(const wf_actor_pref_muted_word *words, size_t count,
                           const char *text, const char *const *tags,
                           size_t tag_count, bool author_followed, int64_t now) {
-    if (!words) return false;
-    for (size_t i = 0; i < count; i++) {
-        const wf_actor_pref_muted_word *w = &words[i];
-        if (!w->value || !w->value[0]) continue;
-        if (w->actor_target &&
-            strcmp(w->actor_target, "exclude-following") == 0 &&
-            author_followed)
-            continue;
-        if (now != 0 && w->expires_at) {
-            int64_t exp;
-            if (wf_time_parse_rfc3339(w->expires_at, &exp) == WF_OK &&
-                exp <= now)
-                continue;
-        }
-        if (text && has_target(w, "content") &&
-            contains(text, w->value, word_is_plain(w->value)))
-            return true;
-        if (tags && has_target(w, "tag")) {
-            const char *v = w->value[0] == '#' ? w->value + 1 : w->value;
-            for (size_t t = 0; t < tag_count; t++) {
-                const char *tag = tags[t];
-                if (!tag) continue;
-                if (tag[0] == '#') tag++;
-                if (ci_equal(tag, v)) return true;
+    if (!words || count == 0) return false;
+    /* Content words see only the text. The official matcher also checks tags
+     * for every word it is given, so tag words are matched separately, against
+     * the tags and an empty text, and content words against no tags. */
+    if (text && match_words(words, count, "content", text, NULL, 0,
+                            author_followed, now))
+        return true;
+    if (tags && tag_count > 0) {
+        size_t i;
+        /* A tag value may be written with or without the leading '#', on either
+         * side; hand the matcher both forms stripped. */
+        const char **plain = calloc(tag_count, sizeof *plain);
+        wf_actor_pref_muted_word *copy = calloc(count, sizeof *copy);
+        bool hit = false;
+        if (plain && copy) {
+            for (i = 0; i < tag_count; i++)
+                plain[i] = tags[i] && tags[i][0] == '#' ? tags[i] + 1 : tags[i];
+            for (i = 0; i < count; i++) {
+                copy[i] = words[i];
+                if (copy[i].value && copy[i].value[0] == '#') copy[i].value++;
             }
+            hit = match_words(copy, count, "tag", "", plain, tag_count,
+                              author_followed, now);
         }
+        free(plain);
+        free(copy);
+        if (hit) return true;
     }
     return false;
 }

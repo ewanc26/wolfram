@@ -7,20 +7,22 @@
  * implemented this by copy, without `actorTarget` or `expiresAt`; this is the
  * one implementation.
  *
- * Pure and allocation-free on the match path; builds on every target.
+ * The rules are wf_mod_match_mute_words's (moderation.h): a port of the
+ * official client's matcher, so Cobalt, Indigo and the moderation code agree.
+ * This adapts the preferences' mutedWord to it. It allocates a little on each
+ * call and builds on every target.
  *
- * Rules, as the clients already applied them:
- *  - Matching is case-insensitive over ASCII; other bytes compare exactly.
- *    (Unicode case folding is not done: "É" does not match "é".)
- *  - A "plain" word, one made only of ASCII letters, digits and bytes >= 0x80,
- *    matches whole words only: "cat" does not match "category". Any other
- *    word (spaces, punctuation: "c++", "good morning") matches as a substring.
+ * Rules:
+ *  - Matching is case-insensitive. A single word matches whole words (ignoring
+ *    punctuation at its ends: "cat." matches "cat", "cat's" does not); a phrase
+ *    or a word with punctuation in it, and one character, match as a substring.
  *  - An empty value never matches.
  *  - `content` targets match the post text; `tag` targets match a hashtag
  *    exactly (case-insensitive), with or without a leading '#' on either side.
  *  - `exclude-following` words do not apply to accounts the viewer follows.
- *  - A word whose `expiresAt` has passed does not apply. An `expiresAt` that
- *    does not parse is treated as not expired (the safe direction for a mute).
+ *  - A word whose `expiresAt` has passed at `now` does not apply. An
+ *    `expiresAt` that does not parse is treated as not expired (the safe
+ *    direction for a mute), and `now` of 0 (clock unknown) expires nothing.
  */
 
 #ifndef WOLFRAM_MUTED_WORDS_H
