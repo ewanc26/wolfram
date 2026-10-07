@@ -42,10 +42,12 @@ wf_failure_kind wf_failure_classify(wf_status st, long http_status,
             if (k != WF_FAIL_NONE) return k;
             k = from_http(http_status);
             if (k != WF_FAIL_NONE) return k;
-            /* A non-2xx the table does not name (400, 403, 404...) is the
-             * service answering, not failing: the caller's request was refused.
-             */
-            return WF_FAIL_OTHER;
+            /* No status at all (the caller only has the wf_status) is a service
+             * that did not give a usable answer, which a person reads as the
+             * service's problem. A non-2xx the table does not name (400, 403,
+             * 404...) is the service answering, not failing: the request was
+             * refused. */
+            return http_status == 0 ? WF_FAIL_SERVER : WF_FAIL_OTHER;
         case WF_ERR_AUTH:
             return WF_FAIL_BAD_CREDENTIALS;
         case WF_ERR_RATE_LIMIT:
