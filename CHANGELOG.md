@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-10-07
+
 ### Added
 
 - I've added `wf_muted_list` (`wolfram/muted_words.h`): a fixed-size, allocation-free copy of the account's muted words with `wf_muted_list_from_prefs`, `wf_muted_list_add` and `wf_muted_list_match`, so Cobalt and Indigo stop each carrying the same struct, add function and load from the preferences. ([#161](https://github.com/ewanc26/wolfram/pull/161))
@@ -336,7 +338,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.30.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.31.0...HEAD
+[0.31.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.31.0
 [0.30.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.30.0
 [0.29.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.29.0
 [0.28.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.28.0
