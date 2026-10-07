@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-10-07
+
 ### Added
 
 - I've added `wf_agent_set_reply_gate` and `wf_reply_gate` (`wolfram/threadgate_postgate.h`): the "everyone, followed and mentioned, or nobody" choice as one call, so a client does not build the threadgate rules itself. ([#173](https://github.com/ewanc26/wolfram/pull/173))
@@ -358,7 +360,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.33.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.34.0...HEAD
+[0.34.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.34.0
 [0.33.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.33.0
 [0.32.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.32.0
 [0.31.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.31.0
