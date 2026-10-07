@@ -1086,6 +1086,60 @@ wf_status wf_agent_reply_refs_with_embed(
                                     parent_cid, embed, out);
 }
 
+wf_status wf_agent_post_thread(wf_agent *agent, const char *const *texts,
+                               size_t count, size_t *posted,
+                               wf_agent_post_result *first,
+                               wf_agent_post_result *last) {
+    if (posted) *posted = 0;
+    if (!agent || !texts || count == 0) return WF_ERR_INVALID_ARG;
+    for (size_t i = 0; i < count; i++) {
+        if (!texts[i] || !texts[i][0]) return WF_ERR_INVALID_ARG;
+    }
+
+    wf_agent_post_result root = {0};
+    wf_agent_post_result prev = {0};
+    wf_status st = WF_OK;
+    size_t done = 0;
+
+    for (size_t i = 0; i < count && st == WF_OK; i++) {
+        wf_agent_post_result cur = {0};
+        st = i == 0 ? wf_agent_post(agent, texts[0], &cur)
+                    : wf_agent_reply_refs(agent, texts[i], root.uri, root.cid,
+                                          prev.uri, prev.cid, &cur);
+        if (st != WF_OK) {
+            wf_agent_post_result_free(&cur);
+            break;
+        }
+        done++;
+        if (i == 0) {
+            root = cur;
+            prev = (wf_agent_post_result){0};
+            /* Keep a second copy, so `prev` can be replaced without touching
+             * the root's strings. */
+            prev.uri = wf_agent_strdup(root.uri);
+            prev.cid = wf_agent_strdup(root.cid);
+            if ((root.uri && !prev.uri) || (root.cid && !prev.cid))
+                st = WF_ERR_ALLOC;
+        } else {
+            wf_agent_post_result_free(&prev);
+            prev = cur;
+        }
+    }
+
+    if (posted) *posted = done;
+    if (first && done > 0) {
+        *first = root;
+        root = (wf_agent_post_result){0};
+    }
+    if (last && done > 0) {
+        *last = prev;
+        prev = (wf_agent_post_result){0};
+    }
+    wf_agent_post_result_free(&root);
+    wf_agent_post_result_free(&prev);
+    return st;
+}
+
 wf_status wf_agent_reply(wf_agent *agent, const char *text,
                          const char *parent_uri, const char *parent_cid,
                          wf_agent_post_result *out) {
