@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-07
+
 ### Added
 
 - I've added `wf_agent_post_thread` (`wolfram/agent.h`): post several texts as a thread, the first as a top-level post and each later one as a reply to the one before it with the first as root, so a client does not have to carry the root/parent bookkeeping. It stops at the first failure and says how many posts went through. ([#166](https://github.com/ewanc26/wolfram/pull/166))
@@ -346,7 +348,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.31.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.32.0...HEAD
+[0.32.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.32.0
 [0.31.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.31.0
 [0.30.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.30.0
 [0.29.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.29.0
