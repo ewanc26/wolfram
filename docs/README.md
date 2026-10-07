@@ -26,6 +26,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [time.md](time.md) | `time.h` | Datetime parse and format and relative age, without the C time functions. |
 | [cdn.md](cdn.md) | `cdn.h` | Rewrite a Bluesky CDN image URL to a smaller preset and a format the image decoder can read. |
 | [drag.md](drag.md) | `drag.h` | Turn a finger dragged along a list into whole rows to scroll: the tap-versus-drag slop and the carry between frames. |
+| [attach.md](attach.md) | `attach.h` | List postable images in a folder, the MIME type and size limit, and upload one as an image embed. |
 | [failure.md](failure.md) | `failure.h` | One failure kind (bad credentials, network, timeout, TLS, rate limit, server, bad response) from a `wf_status`, an HTTP status and an XRPC error name. |
 | [update.md](update.md) | `update.h` | Release manifest parsing, semver comparison and SHA-256 download verification for client self-update. |
 | [notification.md](notification.md) | `notification.h` | Notification listing and preferences. |

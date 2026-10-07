@@ -401,6 +401,7 @@ add_library(
   src/failure.c
   src/cdn.c
   src/drag.c
+  src/attach.c
   src/update/ed25519.c
   src/update/signature.c
   src/qr.c
@@ -1730,6 +1731,10 @@ if(WOLFRAM_BUILD_TESTS)
     test_failure
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME failure COMMAND test_failure)
+  add_executable(test_attach test/test_attach.c)
+  target_link_libraries(test_attach PRIVATE wolfram)
+  target_include_directories(test_attach PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME attach COMMAND test_attach)
   add_executable(test_cdn test/test_cdn.c)
   target_link_libraries(test_cdn PRIVATE wolfram)
   target_include_directories(test_cdn PRIVATE test ${cjson_SOURCE_DIR})
