@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- I've added `wolfram/attach.h`: `wf_attach_mime`, `wf_attach_scan_images` and `wf_agent_upload_image_file`, so a client can list the JPEG and PNG files in a folder (within `WF_ATTACH_MAX_BYTES`) and upload one as an image embed without carrying its own copy. ([#168](https://github.com/ewanc26/wolfram/pull/168))
+
 ## [0.32.0] - 2026-10-07
 
 ### Added

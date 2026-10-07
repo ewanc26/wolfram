@@ -11,6 +11,7 @@
 
 #include "wolfram/graph_write.h"
 #include "wolfram/agent.h"
+#include "wolfram/attach.h"
 #include "wolfram/syntax.h"
 
 #include "mock_pds.h"
@@ -21,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* Assert a string field `key` inside object `obj` (NULL = top level) of the
  * JSON `body` equals `expect`. */
@@ -288,6 +290,50 @@ int main(void) {
         WF_CHECK(wf_agent_reply_refs_with_embed(agent, "re", "at://r/p/1", "rc",
                                                 "at://r/p/2", "pc", "{bad",
                                                 &out) == WF_ERR_PARSE);
+    }
+
+    /* ---- upload an image file as an embed ---- */
+    {
+        WF_CHECK(wf_mock_pds_register(
+                     pds, "com.atproto.repo.uploadBlob",
+                     "{\"blob\":{\"$type\":\"blob\",\"ref\":{\"$link\":"
+                     "\"bafyimage\"},\"mimeType\":\"image/png\","
+                     "\"size\":3}}") == WF_OK);
+        char path[] = "/tmp/wf_attach_up_XXXXXX";
+        int fd = mkstemp(path);
+        WF_CHECK(fd >= 0);
+        if (fd >= 0) {
+            WF_CHECK(write(fd, "abc", 3) == 3);
+            close(fd);
+        }
+        char png[64];
+        snprintf(png, sizeof png, "%s.png", path);
+        WF_CHECK(rename(path, png) == 0);
+
+        cJSON *embed = NULL;
+        WF_CHECK(wf_agent_upload_image_file(agent, png, "a cat", &embed) == WF_OK);
+        cJSON *images = embed ? cJSON_GetObjectItemCaseSensitive(embed, "images") : NULL;
+        cJSON *img0 = cJSON_GetArrayItem(images, 0);
+        cJSON *alt = img0 ? cJSON_GetObjectItemCaseSensitive(img0, "alt") : NULL;
+        cJSON *blob = img0 ? cJSON_GetObjectItemCaseSensitive(img0, "image") : NULL;
+        cJSON *ref = blob ? cJSON_GetObjectItemCaseSensitive(blob, "ref") : NULL;
+        cJSON *link = ref ? cJSON_GetObjectItemCaseSensitive(ref, "$link") : NULL;
+        WF_CHECK(cJSON_IsString(alt) && strcmp(alt->valuestring, "a cat") == 0);
+        WF_CHECK(cJSON_IsString(link) && strcmp(link->valuestring, "bafyimage") == 0);
+        cJSON_Delete(embed);
+
+        /* Refusals: wrong type, missing file, bad arguments. *embed stays NULL. */
+        embed = (cJSON *)1;
+        WF_CHECK(wf_agent_upload_image_file(agent, "/tmp/nothing.gif", NULL,
+                                            &embed) == WF_ERR_INVALID_ARG);
+        WF_CHECK(embed == NULL);
+        WF_CHECK(wf_agent_upload_image_file(agent, "/tmp/wf_attach_missing.png",
+                                            NULL, &embed) == WF_ERR_NOT_FOUND);
+        WF_CHECK(wf_agent_upload_image_file(NULL, png, NULL, &embed) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_upload_image_file(agent, png, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        remove(png);
     }
 
     /* ---- post a thread ---- */
