@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- I've fixed a use-after-free in `wf_xrpc_server_stop`: a WebSocket worker that had already left the stream list could still be about to call `MHD_upgrade_action` when the daemon was stopped and its upgrade handle freed. That was the intermittent `relay_server` segfault on macOS. `stop()` now waits for such workers. ([#164](https://github.com/ewanc26/wolfram/pull/164))
+
 ## [0.31.0] - 2026-10-07
 
 ### Added
