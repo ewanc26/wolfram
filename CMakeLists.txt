@@ -402,6 +402,7 @@ add_library(
   src/cdn.c
   src/drag.c
   src/attach.c
+  src/agent/attach_upload.c
   src/update/ed25519.c
   src/update/signature.c
   src/qr.c
