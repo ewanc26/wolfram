@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- `wf_agent_login_discovered` falls back to the agent's current host when a handle or DID cannot be resolved to a PDS, instead of failing. An account that does not publish a PDS signs in as it did before discovery. ([#189](https://github.com/ewanc26/wolfram/pull/189))
+
 ## [0.38.0] - 2026-10-07
 
 ### Added
