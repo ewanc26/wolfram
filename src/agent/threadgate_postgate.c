@@ -231,3 +231,30 @@ done:
     wf_syntax_aturi_free(&parsed);
     return status;
 }
+
+wf_status wf_agent_set_reply_gate(wf_agent *agent, const char *post_uri,
+                                  wf_reply_gate gate) {
+    static const char *const allow_following_mentions =
+        "[{\"$type\":\"app.bsky.feed.threadgate#followingRule\"},"
+        "{\"$type\":\"app.bsky.feed.threadgate#mentionRule\"}]";
+    wf_agent_post_result out = {0};
+    wf_status st;
+
+    if (!agent || !post_uri || !post_uri[0]) return WF_ERR_INVALID_ARG;
+    switch (gate) {
+        case WF_REPLY_GATE_EVERYONE:
+            return WF_OK;
+        case WF_REPLY_GATE_FOLLOWED_MENTIONED:
+            st = wf_agent_create_threadgate(
+                agent, post_uri, allow_following_mentions, NULL, 0, &out);
+            break;
+        case WF_REPLY_GATE_NOBODY:
+            st = wf_agent_create_threadgate(agent, post_uri, "[]", NULL, 0,
+                                            &out);
+            break;
+        default:
+            return WF_ERR_INVALID_ARG;
+    }
+    wf_agent_post_result_free(&out);
+    return st;
+}
