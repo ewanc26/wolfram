@@ -133,13 +133,13 @@
    "name": "non-ASCII bytes count as letters",
    "words": [
     {
-     "value": "caf\u00e9",
+     "value": "café",
      "targets": [
       "content"
      ]
     }
    ],
-   "text": "un caf\u00e9 noir",
+   "text": "un café noir",
    "tags": null,
    "author_followed": false,
    "now": 1000000000,
@@ -149,13 +149,13 @@
    "name": "non-ASCII word is not matched inside a longer word",
    "words": [
     {
-     "value": "caf\u00e9",
+     "value": "café",
      "targets": [
       "content"
      ]
     }
    ],
-   "text": "caf\u00e9s",
+   "text": "cafés",
    "tags": null,
    "author_followed": false,
    "now": 1000000000,
@@ -165,13 +165,13 @@
    "name": "non-ASCII case is not folded",
    "words": [
     {
-     "value": "\u00c9clair",
+     "value": "Éclair",
      "targets": [
       "content"
      ]
     }
    ],
-   "text": "un \u00e9clair",
+   "text": "un éclair",
    "tags": null,
    "author_followed": false,
    "now": 1000000000,
@@ -515,6 +515,104 @@
    ],
    "text": null,
    "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "punctuation at the end of a word is ignored",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "I like cat.",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "punctuation around a word is ignored",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "(cat) !",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "an apostrophe inside a word is not an end",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "the cat's toy",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "one character matches as a substring",
+   "words": [
+    {
+     "value": "x",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "xylophone",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": true
+  },
+  {
+   "name": "a tag word does not look at the text",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "tag"
+     ]
+    }
+   ],
+   "text": "cat",
+   "tags": null,
+   "author_followed": false,
+   "now": 1000000000,
+   "match": false
+  },
+  {
+   "name": "a content word does not look at the tags",
+   "words": [
+    {
+     "value": "cat",
+     "targets": [
+      "content"
+     ]
+    }
+   ],
+   "text": "nothing here",
+   "tags": [
+    "cat"
+   ],
    "author_followed": false,
    "now": 1000000000,
    "match": false
