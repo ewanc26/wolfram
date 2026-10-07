@@ -2,6 +2,7 @@
 #include "wolfram/util.h"
 
 #include "wolfram/identity.h"
+#include "wolfram/xrpc.h"
 #include "wolfram/repo.h"
 #include "wolfram/richtext.h"
 #include "wolfram/server.h"
@@ -647,6 +648,47 @@ wf_status wf_agent_login(wf_agent *agent, const char *identifier,
 
     wf_agent_sync_auth(agent);
     wf_agent_apply_session_pds(agent);
+    return WF_OK;
+}
+
+wf_status wf_agent_login_discovered(wf_agent *agent, const char *identifier,
+                                    const char *password, char **out_pds) {
+    if (out_pds) {
+        *out_pds = NULL;
+    }
+    if (!agent || !agent->session || !agent->client || !identifier ||
+        !identifier[0] || !password || !out_pds) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    char *did = NULL;
+    char *pds = NULL;
+    wf_status status;
+    if (wf_did_method_of(identifier) != WF_DID_METHOD_UNKNOWN) {
+        did = wf_str_dup(identifier);
+        status = did ? WF_OK : WF_ERR_ALLOC;
+    } else {
+        status = wf_handle_resolve(agent->client, identifier, &did);
+    }
+    if (status == WF_OK) {
+        status =
+            wf_did_resolve_service_by_id(agent->client, did, "#atproto_pds",
+                                         "AtprotoPersonalDataServer", &pds);
+    }
+    if (status != WF_OK) {
+        free(did);
+        free(pds);
+        return status;
+    }
+
+    wf_xrpc_client_set_base_url(agent->client, pds);
+    status = wf_agent_login(agent, identifier, password);
+    free(did);
+    if (status != WF_OK) {
+        free(pds);
+        return status;
+    }
+    *out_pds = pds;
     return WF_OK;
 }
 

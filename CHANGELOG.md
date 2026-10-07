@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_agent_login_discovered` signs in with a handle or DID and no service: it resolves the account's PDS from its DID document (`#atproto_pds`), points the agent there, and logs in at that PDS. Clients no longer need the user to type the host their account lives on. ([#187](https://github.com/ewanc26/wolfram/pull/187))
+
 ### Fixed
 
 - CI bounds each `apt-get` call to a timeout and retries it three times. A stuck package mirror had left jobs running for an hour, which blocked the release that waits on `CI gate`. ([#186](https://github.com/ewanc26/wolfram/pull/186))
