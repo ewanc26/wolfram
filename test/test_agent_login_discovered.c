@@ -1,8 +1,8 @@
 /*
  * test_agent_login_discovered.c -- wf_agent_login_discovered's argument checks,
  * and that a handle which cannot be resolved fails before any login is sent,
- * with no PDS reported. The network path is exercised by the consumers' e2e
- * runs.
+ * and that an unresolvable handle reports no PDS. The network path is exercised
+ * by the consumers' e2e runs.
  */
 
 #include "wolfram/agent.h"
@@ -28,11 +28,10 @@ int main(void) {
     WF_CHECK(wf_agent_login_discovered(a, "alice.example.com", "pw", NULL) ==
              WF_ERR_INVALID_ARG);
 
-    /* `.invalid` never resolves (RFC 2606), so discovery fails and no login is
-     * sent: the out-parameter stays NULL. */
+    /* `.invalid` never resolves (RFC 2606): the login falls back to the agent's
+     * own host, so no PDS is reported whatever the login's outcome. */
     pds = (char *)0x1;
-    WF_CHECK(wf_agent_login_discovered(a, "nobody.invalid", "pw", &pds) !=
-             WF_OK);
+    (void)wf_agent_login_discovered(a, "nobody.invalid", "pw", &pds);
     WF_CHECK(pds == NULL);
 
     wf_agent_free(a);

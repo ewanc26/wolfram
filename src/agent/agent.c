@@ -676,8 +676,11 @@ wf_status wf_agent_login_discovered(wf_agent *agent, const char *identifier,
                                          "AtprotoPersonalDataServer", &pds);
     }
     if (status != WF_OK) {
+        /* Not resolvable (no DNS or HTTP record, or no PDS in the document):
+         * sign in at the agent's current host, as before discovery existed. */
         free(did);
         free(pds);
+        status = wf_agent_login(agent, identifier, password);
         return status;
     }
 

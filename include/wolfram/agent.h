@@ -80,9 +80,10 @@ wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn,
  *
  * The agent's current base URL is used for resolution (any reachable host will
  * do). `*out_pds` is set to the PDS the login was sent to and is
- * heap-allocated; the caller frees it. On failure before the login nothing is
- * changed: the agent keeps its previous base URL. WF_ERR_NOT_FOUND when the DID
- * document has no PDS endpoint.
+ * heap-allocated; the caller frees it. When the handle or DID cannot be
+ * resolved to a PDS, the login is sent at the agent's current host instead and
+ * `*out_pds` stays NULL, so an account that does not publish a PDS signs in as
+ * it always did.
  */
 wf_status wf_agent_login_discovered(wf_agent *agent, const char *identifier,
                                     const char *password, char **out_pds);
