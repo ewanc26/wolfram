@@ -24,6 +24,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [muted-words.md](muted-words.md) | `muted_words.h` | Muted-word matching for `mutedWordsPref`, including `actorTarget` and `expiresAt`. |
 | [qr.md](qr.md) | `qr.h` | QR code encoder that returns the module matrix (byte mode, versions 1 to 10, levels L to H). |
 | [time.md](time.md) | `time.h` | Datetime parse and format and relative age, without the C time functions. |
+| [cdn.md](cdn.md) | `cdn.h` | Rewrite a Bluesky CDN image URL to a smaller preset and a format the image decoder can read. |
 | [failure.md](failure.md) | `failure.h` | One failure kind (bad credentials, network, timeout, TLS, rate limit, server, bad response) from a `wf_status`, an HTTP status and an XRPC error name. |
 | [update.md](update.md) | `update.h` | Release manifest parsing, semver comparison and SHA-256 download verification for client self-update. |
 | [notification.md](notification.md) | `notification.h` | Notification listing and preferences. |
