@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-07
+
 ### Added
 
 - I've added `wolfram/saved_feeds.h`: `wf_agent_get_saved_feeds` returns the account's saved custom feeds with display names, read tolerantly from the raw preferences (V2, then V1), and `wf_saved_feeds_parse` is the pure JSON half. Cobalt and Indigo each carried the same ~80 lines. ([#177](https://github.com/ewanc26/wolfram/pull/177))
@@ -372,7 +374,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.35.0
 [0.34.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.34.0
 [0.33.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.33.0
 [0.32.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.32.0
