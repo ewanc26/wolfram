@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_attach_scan_images_tree` lists the images in a folder and one level down, in the camera layout (`DCIM/<folder>/<image>`), so a picker can offer the console's photos as well as its own folder. Entries from a subfolder are `folder/name`. ([#193](https://github.com/ewanc26/wolfram/pull/193))
+
 ### Fixed
 
 - The DID document cache's TTLs are guarded by its lock rather than atomics. A 64-bit `time_t` has no lock-free atomic load on the 32-bit PowerPC Wii U, so the library failed to link there once a client resolved a DID (Cobalt's sign-in discovery). ([#191](https://github.com/ewanc26/wolfram/pull/191))
