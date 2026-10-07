@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- I've added `wf_muted_list` (`wolfram/muted_words.h`): a fixed-size, allocation-free copy of the account's muted words with `wf_muted_list_from_prefs`, `wf_muted_list_add` and `wf_muted_list_match`, so Cobalt and Indigo stop each carrying the same struct, add function and load from the preferences. ([#161](https://github.com/ewanc26/wolfram/pull/161))
+
 ### Changed
 
 - `wf_muted_words_match` no longer has its own matching rules: it adapts the account's mutedWord to `wf_mod_match_mute_words`, the official client's matcher, so Cobalt, Indigo and the moderation code apply the same rules. The visible difference is that punctuation at the ends of a word is ignored (`cat` now matches `cat.` and `(cat)`, still not `cat's`) and a single character matches as a substring. It still takes `now`, so the console's clock decides expiry. ([#159](https://github.com/ewanc26/wolfram/pull/159))

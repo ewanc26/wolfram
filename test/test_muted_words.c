@@ -82,6 +82,28 @@ int main(void) {
             (int64_t)cJSON_GetObjectItemCaseSensitive(c, "now")->valuedouble);
         bool want = cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(c, "match"));
         WF_CHECK(got == want);
+        {
+            /* The same case through the fixed-size list a client keeps. */
+            wf_actor_preferences prefs;
+            wf_muted_list list;
+            memset(&prefs, 0, sizeof prefs);
+            prefs.muting_keywords = words;
+            prefs.muting_keyword_count = n;
+            wf_muted_list_from_prefs(
+                &list, &prefs,
+                (int64_t)cJSON_GetObjectItemCaseSensitive(c, "now")
+                    ->valuedouble);
+            bool via_list = wf_muted_list_match(
+                &list, cJSON_IsString(tx) ? tx->valuestring : NULL,
+                cJSON_IsArray(tg) ? tags : NULL, tn,
+                cJSON_IsTrue(
+                    cJSON_GetObjectItemCaseSensitive(c, "author_followed")));
+            WF_CHECK(via_list == want);
+            if (via_list != want)
+                fprintf(
+                    stderr, "  list vector: %s\n",
+                    cJSON_GetObjectItemCaseSensitive(c, "name")->valuestring);
+        }
         if (got != want)
             fprintf(stderr, "  vector: %s\n",
                     cJSON_GetObjectItemCaseSensitive(c, "name")->valuestring);
@@ -96,6 +118,35 @@ int main(void) {
         free(words);
     }
     WF_CHECK(!wf_muted_words_match(NULL, 3, "cat", NULL, 0, false, 1));
+
+    /* The list: adding, the default target, the limits, clearing. */
+    {
+        wf_muted_list list;
+        size_t i;
+        char big[WF_MUTED_VALUE_MAX + 20];
+
+        wf_muted_list_clear(&list);
+        WF_CHECK(!wf_muted_list_match(&list, "cat", NULL, 0, false));
+        WF_CHECK(!wf_muted_list_add(&list, "", true, false, false, NULL));
+        WF_CHECK(!wf_muted_list_add(NULL, "cat", true, false, false, NULL));
+        /* neither target given: content only, as the server means by default */
+        WF_CHECK(wf_muted_list_add(&list, "cat", false, false, false, NULL));
+        WF_CHECK(wf_muted_list_match(&list, "a cat", NULL, 0, false));
+        WF_CHECK(!wf_muted_list_match(&list, "x", (const char *[]){"cat"}, 1,
+                                      false));
+        /* a value longer than the buffer is cut, not overflowed */
+        memset(big, 'a', sizeof big - 1);
+        big[sizeof big - 1] = '\0';
+        WF_CHECK(wf_muted_list_add(&list, big, true, false, false, NULL));
+        WF_CHECK(strlen(list.words[1].value) == WF_MUTED_VALUE_MAX - 1);
+        for (i = list.count; i < WF_MUTED_LIST_MAX; i++)
+            WF_CHECK(wf_muted_list_add(&list, "w", true, false, false, NULL));
+        WF_CHECK(
+            !wf_muted_list_add(&list, "one more", true, false, false, NULL));
+        WF_CHECK(list.count == WF_MUTED_LIST_MAX);
+        wf_muted_list_clear(&list);
+        WF_CHECK(list.count == 0);
+    }
     cJSON_Delete(root);
     free(text);
     WF_TEST_SUMMARY();
