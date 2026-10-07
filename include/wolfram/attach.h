@@ -45,6 +45,17 @@ int wf_attach_scan_images(const char *dir, char *names, size_t name_cap,
                           int max, int *too_large);
 
 /*
+ * As wf_attach_scan_images, plus the images one folder down in `dir`: the
+ * camera layout (DCIM/<folder>/<image>). Entries from `dir` itself are plain
+ * names; entries from a subfolder are "folder/name", so the caller joins
+ * dir + "/" + entry to get the file. Subfolders are read one level only, and
+ * dotfolders are skipped. Sorted by strcmp, at most `max` in all. Returns the
+ * count, 0 if `dir` cannot be opened.
+ */
+int wf_attach_scan_images_tree(const char *dir, char *names, size_t name_cap,
+                               int max, int *too_large);
+
+/*
  * Read the image at `path`, upload it with wf_agent_upload_blob_ex and build an
  * app.bsky.embed.images embed holding it with `alt` (NULL for none). On WF_OK
  * *embed is a new cJSON object the caller deletes, or passes on to a record
