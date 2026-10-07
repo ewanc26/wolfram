@@ -1713,6 +1713,11 @@ if(WOLFRAM_BUILD_TESTS)
   target_include_directories(test_agent_set_bearer PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME agent_set_bearer COMMAND test_agent_set_bearer)
 
+  add_executable(test_agent_login_discovered test/test_agent_login_discovered.c)
+  target_link_libraries(test_agent_login_discovered PRIVATE wolfram)
+  target_include_directories(test_agent_login_discovered PRIVATE test ${cjson_SOURCE_DIR})
+  add_test(NAME agent_login_discovered COMMAND test_agent_login_discovered)
+
   add_executable(test_time test/test_time.c)
   target_link_libraries(test_time PRIVATE wolfram)
   target_include_directories(test_time PRIVATE test ${cjson_SOURCE_DIR})
