@@ -8,6 +8,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 - I've added `wolfram/cdn.h`: `wf_bsky_cdn_url()` rewrites a `cdn.bsky.app` image URL to another preset (`avatar_thumbnail` is 128 px) and to `@jpeg` or `@png`. A URL with no format comes back as WebP, which `wolfram/image.h` cannot decode, and the full-size presets are far larger than a console can draw; Indigo's avatars failed on both counts. Strict C89, with vectors. ([#152](https://github.com/ewanc26/wolfram/pull/152))
 
+### Fixed
+
+- Decoding a JPEG on a thread made with libctru's `threadCreate` no longer crashes the 3DS build. stb_image's thread-local failure reason corrupted memory there, so Indigo's avatar loader died a moment after its first successful decode. `wf_image_decode_rgba` now builds stb without thread-local storage. Found by running Indigo in Azahar. ([#154](https://github.com/ewanc26/wolfram/pull/154))
+
 ## [0.28.0] - 2026-10-06
 
 ### Added
