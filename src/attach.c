@@ -25,7 +25,8 @@ static int ext_equals(const char *ext, const char *want) {
 const char *wf_attach_mime(const char *path) {
     const char *dot = path ? strrchr(path, '.') : NULL;
     if (!dot) return NULL;
-    if (ext_equals(dot, ".jpg") || ext_equals(dot, ".jpeg")) return "image/jpeg";
+    if (ext_equals(dot, ".jpg") || ext_equals(dot, ".jpeg"))
+        return "image/jpeg";
     if (ext_equals(dot, ".png")) return "image/png";
     return NULL;
 }
@@ -48,8 +49,8 @@ static void sort_rows(char *names, size_t name_cap, int n) {
     free(tmp);
 }
 
-int wf_attach_scan_images(const char *dir, char *names, size_t name_cap, int max,
-                          int *too_large) {
+int wf_attach_scan_images(const char *dir, char *names, size_t name_cap,
+                          int max, int *too_large) {
     if (too_large) *too_large = 0;
     if (!dir || !names || name_cap == 0 || max <= 0) return 0;
     DIR *d = opendir(dir);

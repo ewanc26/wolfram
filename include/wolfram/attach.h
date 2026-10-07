@@ -41,8 +41,8 @@ const char *wf_attach_mime(const char *path);
  * how many otherwise-fine images were skipped for size, so a screen can say
  * why a folder looks empty.
  */
-int wf_attach_scan_images(const char *dir, char *names, size_t name_cap, int max,
-                          int *too_large);
+int wf_attach_scan_images(const char *dir, char *names, size_t name_cap,
+                          int max, int *too_large);
 
 /*
  * Read the image at `path`, upload it with wf_agent_upload_blob_ex and build an
