@@ -29,6 +29,7 @@
  */
 
 #include "wolfram/server.h"
+#include "wolfram/util.h"
 #include "wolfram/crypto.h"
 #include "wolfram/syntax.h"
 
@@ -345,20 +346,6 @@ void wf_service_auth_claims_free(wf_service_auth_claims *claims) {
     memset(claims, 0, sizeof(*claims));
 }
 
-static char *wf_sa_strdup(const char *s) {
-    size_t len;
-    char *copy;
-    if (!s) {
-        return NULL;
-    }
-    len = strlen(s);
-    copy = malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
 /* Parse one base64url JWT segment [start, start+len) into a cJSON object. */
 static cJSON *wf_sa_parse_segment(const char *start, size_t len) {
     size_t json_len = 0;
@@ -474,21 +461,21 @@ wf_status wf_server_verify_service_auth(const char *token,
     }
 
     /* Signature valid — copy claims out. */
-    claims.alg = wf_sa_strdup(alg->valuestring);
-    claims.iss = wf_sa_strdup(iss->valuestring);
-    claims.aud = wf_sa_strdup(aud->valuestring);
+    claims.alg = wf_str_dup(alg->valuestring);
+    claims.iss = wf_str_dup(iss->valuestring);
+    claims.aud = wf_str_dup(aud->valuestring);
     claims.exp = (int64_t)exp->valuedouble;
     if (cJSON_IsNumber(iat)) {
         claims.iat = (int64_t)iat->valuedouble;
     }
     if (cJSON_IsString(jti) && jti->valuestring) {
-        claims.jti = wf_sa_strdup(jti->valuestring);
+        claims.jti = wf_str_dup(jti->valuestring);
     }
     if (cJSON_IsString(lxm) && lxm->valuestring) {
-        claims.lxm = wf_sa_strdup(lxm->valuestring);
+        claims.lxm = wf_str_dup(lxm->valuestring);
     }
     if (cJSON_IsString(nuance) && nuance->valuestring) {
-        claims.nuance = wf_sa_strdup(nuance->valuestring);
+        claims.nuance = wf_str_dup(nuance->valuestring);
     }
     if (!claims.alg || !claims.iss || !claims.aud ||
         (cJSON_IsString(jti) && jti->valuestring && !claims.jti) ||

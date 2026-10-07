@@ -1,4 +1,5 @@
 #include "wolfram/agent.h"
+#include "wolfram/util.h"
 
 #include "wolfram/identity.h"
 #include "wolfram/repo.h"
@@ -41,19 +42,6 @@
 
 wf_xrpc_client *wf_agent_get_xrpc_client(wf_agent *agent) {
     return agent ? agent->client : NULL;
-}
-
-static char *wf_agent_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-
-    size_t len = strlen(s) + 1;
-    char *dup = malloc(len);
-    if (dup) {
-        memcpy(dup, s, len);
-    }
-    return dup;
 }
 
 static void wf_agent_post_result_reset(wf_agent_post_result *result) {
@@ -143,7 +131,6 @@ static void wf_agent_session_data_reset(wf_session_data *data) {
     data->active = -1;
 }
 
-static wf_status wf_agent_set_string(char **dst, const char *src);
 static int wf_agent_is_logged_in(const wf_agent *agent);
 
 static wf_status wf_agent_session_data_copy(wf_session_data *dst,
@@ -154,24 +141,24 @@ static wf_status wf_agent_session_data_copy(wf_session_data *dst,
 
     wf_agent_session_data_reset(dst);
 
-    wf_status status = wf_agent_set_string(&dst->access_jwt, src->access_jwt);
+    wf_status status = wf_str_set(&dst->access_jwt, src->access_jwt);
     if (status == WF_OK) {
-        status = wf_agent_set_string(&dst->refresh_jwt, src->refresh_jwt);
+        status = wf_str_set(&dst->refresh_jwt, src->refresh_jwt);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&dst->handle, src->handle);
+        status = wf_str_set(&dst->handle, src->handle);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&dst->did, src->did);
+        status = wf_str_set(&dst->did, src->did);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&dst->email, src->email);
+        status = wf_str_set(&dst->email, src->email);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&dst->status, src->status);
+        status = wf_str_set(&dst->status, src->status);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&dst->pds_url, src->pds_url);
+        status = wf_str_set(&dst->pds_url, src->pds_url);
     }
 
     if (status == WF_OK) {
@@ -242,17 +229,6 @@ static int wf_agent_is_logged_in(const wf_agent *agent) {
            agent->session->data.did && agent->session->data.access_jwt;
 }
 
-static wf_status wf_agent_set_string(char **dst, const char *src) {
-    char *copy = wf_agent_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
-
 static wf_status wf_agent_profile_from_response(const wf_response *res,
                                                 wf_agent_profile *out) {
     if (!res || !out) {
@@ -275,32 +251,30 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
         return WF_ERR_PARSE;
     }
 
-    wf_status status = wf_agent_set_string(&out->did, did->valuestring);
+    wf_status status = wf_str_set(&out->did, did->valuestring);
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->handle, handle->valuestring);
+        status = wf_str_set(&out->handle, handle->valuestring);
     }
 
     cJSON *display_name = cJSON_GetObjectItemCaseSensitive(root, "displayName");
     if (status == WF_OK && cJSON_IsString(display_name) &&
         display_name->valuestring) {
-        status =
-            wf_agent_set_string(&out->display_name, display_name->valuestring);
+        status = wf_str_set(&out->display_name, display_name->valuestring);
     }
 
     cJSON *description = cJSON_GetObjectItemCaseSensitive(root, "description");
     if (status == WF_OK && cJSON_IsString(description) &&
         description->valuestring) {
-        status =
-            wf_agent_set_string(&out->description, description->valuestring);
+        status = wf_str_set(&out->description, description->valuestring);
     }
 
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(root, "avatar");
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
         /* A bare string rather than a blob object: keep the server value in
          * avatar_cid as before, and in avatar where the URL belongs. */
-        status = wf_agent_set_string(&out->avatar_cid, avatar->valuestring);
+        status = wf_str_set(&out->avatar_cid, avatar->valuestring);
         if (status == WF_OK) {
-            status = wf_agent_set_string(&out->avatar, avatar->valuestring);
+            status = wf_str_set(&out->avatar, avatar->valuestring);
         }
     } else if (status == WF_OK && cJSON_IsObject(avatar)) {
         /* The shape getProfile actually sends. Reading only the string form
@@ -313,10 +287,10 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
                           : NULL;
 
         if (cJSON_IsString(url) && url->valuestring) {
-            status = wf_agent_set_string(&out->avatar, url->valuestring);
+            status = wf_str_set(&out->avatar, url->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(link) && link->valuestring) {
-            status = wf_agent_set_string(&out->avatar_cid, link->valuestring);
+            status = wf_str_set(&out->avatar_cid, link->valuestring);
         }
     }
 
@@ -324,8 +298,7 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
     if (status == WF_OK && cJSON_IsObject(pinned)) {
         cJSON *pinned_uri = cJSON_GetObjectItemCaseSensitive(pinned, "uri");
         if (cJSON_IsString(pinned_uri) && pinned_uri->valuestring) {
-            status = wf_agent_set_string(&out->pinned_post_uri,
-                                         pinned_uri->valuestring);
+            status = wf_str_set(&out->pinned_post_uri, pinned_uri->valuestring);
         }
     }
 
@@ -334,14 +307,13 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
         cJSON *following =
             cJSON_GetObjectItemCaseSensitive(viewer, "following");
         if (cJSON_IsString(following) && following->valuestring) {
-            status =
-                wf_agent_set_string(&out->following, following->valuestring);
+            status = wf_str_set(&out->following, following->valuestring);
         }
 
         cJSON *blocking = cJSON_GetObjectItemCaseSensitive(viewer, "blocking");
         if (status == WF_OK && cJSON_IsString(blocking) &&
             blocking->valuestring) {
-            status = wf_agent_set_string(&out->blocking, blocking->valuestring);
+            status = wf_str_set(&out->blocking, blocking->valuestring);
         }
 
         cJSON *muted = cJSON_GetObjectItemCaseSensitive(viewer, "muted");
@@ -469,9 +441,9 @@ static wf_status wf_agent_put_record_call(wf_agent *agent,
         return WF_ERR_PARSE;
     }
 
-    status = wf_agent_set_string(&out->uri, uri->valuestring);
+    status = wf_str_set(&out->uri, uri->valuestring);
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
     if (status != WF_OK) {
         wf_agent_post_result_reset(out);
@@ -496,7 +468,7 @@ wf_agent *wf_agent_new(const char *service_url) {
         return NULL;
     }
 
-    agent->service_url = wf_agent_strdup(service_url);
+    agent->service_url = wf_str_dup(service_url);
     if (!agent->service_url) {
         free(agent);
         return NULL;
@@ -572,7 +544,7 @@ wf_status wf_agent_set_post_langs(wf_agent *agent, const char *langs) {
                 return WF_ERR_INVALID_ARG;
             }
         }
-        copy = wf_agent_strdup(langs);
+        copy = wf_str_dup(langs);
         if (!copy) {
             return WF_ERR_ALLOC;
         }
@@ -589,7 +561,7 @@ wf_status wf_agent_set_ca_bundle(wf_agent *agent, const char *path) {
 
     char *copy = NULL;
     if (path) {
-        copy = wf_agent_strdup(path);
+        copy = wf_str_dup(path);
         if (!copy) {
             return WF_ERR_ALLOC;
         }
@@ -702,14 +674,12 @@ wf_status wf_agent_set_bearer(wf_agent *agent, const char *access_token,
     wf_agent_session_data_reset(&agent->session->data);
 
     wf_status status =
-        wf_agent_set_string(&agent->session->data.access_jwt, access_token);
+        wf_str_set(&agent->session->data.access_jwt, access_token);
     if (status == WF_OK)
-        status = wf_agent_set_string(&agent->session->data.handle, handle);
+        status = wf_str_set(&agent->session->data.handle, handle);
+    if (status == WF_OK) status = wf_str_set(&agent->session->data.did, did);
     if (status == WF_OK)
-        status = wf_agent_set_string(&agent->session->data.did, did);
-    if (status == WF_OK)
-        status = wf_agent_set_string(&agent->session->data.pds_url,
-                                     agent->service_url);
+        status = wf_str_set(&agent->session->data.pds_url, agent->service_url);
     if (status != WF_OK) {
         wf_agent_session_data_reset(&agent->session->data);
         agent->session->has_session = 0;
@@ -900,9 +870,9 @@ wf_status wf_agent_put_record(wf_agent *agent, const char *collection,
         return WF_ERR_PARSE;
     }
 
-    status = wf_agent_set_string(&out->uri, uri->valuestring);
+    status = wf_str_set(&out->uri, uri->valuestring);
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
     if (status != WF_OK) {
         wf_agent_post_result_reset(out);
@@ -1405,7 +1375,7 @@ wf_status wf_agent_resolve_handle(wf_agent *agent, const char *handle,
         return WF_ERR_PARSE;
     }
 
-    status = wf_agent_set_string(out_did, did->valuestring);
+    status = wf_str_set(out_did, did->valuestring);
     if (status != WF_OK) {
         free(*out_did);
         *out_did = NULL;
@@ -1460,7 +1430,7 @@ wf_status wf_agent_describe_server(wf_agent *agent,
         return status;
     }
 
-    status = wf_agent_set_string(&out->did, sdesc.did);
+    status = wf_str_set(&out->did, sdesc.did);
     if (status == WF_OK) {
         out->invite_code_required = sdesc.invite_code_required;
         out->phone_verification_required = sdesc.phone_verification_required;
@@ -1475,7 +1445,7 @@ wf_status wf_agent_describe_server(wf_agent *agent,
     if (status == WF_OK) {
         for (size_t i = 0; i < sdesc.available_user_domains_count; ++i) {
             out->available_user_domains[i] =
-                wf_agent_strdup(sdesc.available_user_domains[i]);
+                wf_str_dup(sdesc.available_user_domains[i]);
             if (!out->available_user_domains[i]) {
                 status = WF_ERR_ALLOC;
                 break;
@@ -1484,15 +1454,14 @@ wf_status wf_agent_describe_server(wf_agent *agent,
         }
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->privacy_policy,
-                                     sdesc.links_privacy_policy);
+        status = wf_str_set(&out->privacy_policy, sdesc.links_privacy_policy);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->terms_of_service,
-                                     sdesc.links_terms_of_service);
+        status =
+            wf_str_set(&out->terms_of_service, sdesc.links_terms_of_service);
     }
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->contact_email, sdesc.contact_email);
+        status = wf_str_set(&out->contact_email, sdesc.contact_email);
     }
 
     if (status != WF_OK) {
@@ -1529,9 +1498,9 @@ wf_status wf_agent_create_app_password(wf_agent *agent, const char *name,
         return status;
     }
 
-    status = wf_agent_set_string(&out->name, spwd.name);
+    status = wf_str_set(&out->name, spwd.name);
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->created_at, spwd.created_at);
+        status = wf_str_set(&out->created_at, spwd.created_at);
     }
     if (status == WF_OK) {
         out->privileged = spwd.privileged;
@@ -1576,9 +1545,9 @@ wf_status wf_agent_list_app_passwords(wf_agent *agent,
             wf_server_app_password *src = &slist.passwords[i];
             wf_agent_app_password *dst = &out->passwords[i];
 
-            status = wf_agent_set_string(&dst->name, src->name);
+            status = wf_str_set(&dst->name, src->name);
             if (status == WF_OK) {
-                status = wf_agent_set_string(&dst->created_at, src->created_at);
+                status = wf_str_set(&dst->created_at, src->created_at);
             }
             if (status == WF_OK) {
                 dst->privileged = src->privileged;

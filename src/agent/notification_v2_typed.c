@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/notification_v2_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -18,29 +19,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_notif_v2_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_notif_v2_set_string(char **dst, const char *src) {
-    char *copy = wf_notif_v2_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* Remove a known scalar key from `obj` after its value has been copied. */
 static void wf_notif_v2_strip_key(cJSON *obj, const char *key) {
@@ -102,7 +80,7 @@ wf_status wf_notif_v2_parse_put_activity_subscription(
     wf_status status = WF_OK;
     cJSON *subject = cJSON_GetObjectItemCaseSensitive(root, "subject");
     if (cJSON_IsString(subject) && subject->valuestring) {
-        status = wf_notif_v2_set_string(&out->subject, subject->valuestring);
+        status = wf_str_set(&out->subject, subject->valuestring);
     }
 
     if (status == WF_OK) {
@@ -157,16 +135,16 @@ wf_notif_v2_read_subscription_view(cJSON *obj,
     cJSON *dn = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_notif_v2_set_string(&v->did, did->valuestring);
+        status = wf_str_set(&v->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_notif_v2_set_string(&v->handle, handle->valuestring);
+        status = wf_str_set(&v->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(dn) && dn->valuestring) {
-        status = wf_notif_v2_set_string(&v->display_name, dn->valuestring);
+        status = wf_str_set(&v->display_name, dn->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_notif_v2_set_string(&v->avatar, avatar->valuestring);
+        status = wf_str_set(&v->avatar, avatar->valuestring);
     }
     return status;
 }
@@ -250,7 +228,7 @@ wf_status wf_notif_v2_parse_list_activity_subscriptions(
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_notif_v2_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

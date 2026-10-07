@@ -9,6 +9,7 @@
  */
 
 #include "wolfram/moderation_report_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/agent.h"
 #include "wolfram/xrpc.h"
@@ -20,30 +21,6 @@
 #include <string.h>
 
 #include "agent/_internal.h"
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_moderation_report_record_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_moderation_report_record_set_string(char **dst,
-                                                        const char *src) {
-    char *copy = wf_moderation_report_record_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_moderation_report_record_reset(wf_moderation_report_record *r) {
     if (!r) {
@@ -85,21 +62,17 @@ wf_status wf_moderation_report_record_parse(const char *json, size_t len,
         status = WF_ERR_PARSE;
     } else {
         out->id = (int64_t)id->valuedouble;
-        status = wf_moderation_report_record_set_string(
-            &out->reason_type, reason_type->valuestring);
+        status = wf_str_set(&out->reason_type, reason_type->valuestring);
         if (status == WF_OK && reason)
-            status = wf_moderation_report_record_set_string(
-                &out->reason, reason->valuestring);
+            status = wf_str_set(&out->reason, reason->valuestring);
         if (status == WF_OK) {
             out->subject = cJSON_Duplicate(subject, true);
             if (!out->subject) status = WF_ERR_ALLOC;
         }
         if (status == WF_OK)
-            status = wf_moderation_report_record_set_string(
-                &out->reported_by, reported_by->valuestring);
+            status = wf_str_set(&out->reported_by, reported_by->valuestring);
         if (status == WF_OK)
-            status = wf_moderation_report_record_set_string(
-                &out->created_at, created_at->valuestring);
+            status = wf_str_set(&out->created_at, created_at->valuestring);
     }
 
     cJSON_Delete(root);

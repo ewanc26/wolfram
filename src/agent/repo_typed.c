@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/repo_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -19,29 +20,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_repo_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_repo_set_string(char **dst, const char *src) {
-    char *copy = wf_repo_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- record ---- */
 
@@ -76,11 +54,11 @@ static wf_status wf_repo_parse_record(cJSON *obj, wf_repo_record *r) {
     cJSON *value = cJSON_GetObjectItemCaseSensitive(obj, "value");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_repo_set_string(&r->uri, uri->valuestring);
+        status = wf_str_set(&r->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
         r->has_cid = true;
-        status = wf_repo_set_string(&r->cid, cid->valuestring);
+        status = wf_str_set(&r->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(value)) {
         r->value = cJSON_DetachItemFromObject(obj, "value");
@@ -192,7 +170,7 @@ wf_status wf_repo_parse_list_records(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_repo_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
     if (status == WF_OK) {
@@ -252,7 +230,7 @@ static wf_status wf_repo_parse_string_array(cJSON *arr, char ***out_items,
             status = WF_ERR_PARSE;
             break;
         }
-        status = wf_repo_set_string(&items[i], it->valuestring);
+        status = wf_str_set(&items[i], it->valuestring);
     }
     if (status == WF_OK) {
         *out_items = items;
@@ -292,10 +270,10 @@ wf_status wf_repo_parse_describe_repo(const char *json, size_t json_len,
     cJSON *hic = cJSON_GetObjectItemCaseSensitive(root, "handleIsCorrect");
 
     if (cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_repo_set_string(&out->handle, handle->valuestring);
+        status = wf_str_set(&out->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(did) && did->valuestring) {
-        status = wf_repo_set_string(&out->did, did->valuestring);
+        status = wf_str_set(&out->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(did_doc)) {
         out->did_doc = cJSON_DetachItemFromObject(root, "didDoc");
@@ -351,11 +329,11 @@ static wf_status wf_repo_parse_missing_blob(cJSON *obj,
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(obj, "cid");
     cJSON *record_uri = cJSON_GetObjectItemCaseSensitive(obj, "recordUri");
     if (cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_repo_set_string(&b->cid, cid->valuestring);
+        status = wf_str_set(&b->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(record_uri) &&
         record_uri->valuestring) {
-        status = wf_repo_set_string(&b->record_uri, record_uri->valuestring);
+        status = wf_str_set(&b->record_uri, record_uri->valuestring);
     }
     return status;
 }
@@ -409,7 +387,7 @@ wf_status wf_repo_parse_list_missing_blobs(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_repo_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
     if (status == WF_OK) {
@@ -451,11 +429,11 @@ static wf_status wf_repo_parse_apply_commit(cJSON *obj,
     cJSON *rev = cJSON_GetObjectItemCaseSensitive(obj, "rev");
     if (cJSON_IsString(cid) && cid->valuestring) {
         r->has_commit_cid = true;
-        status = wf_repo_set_string(&r->commit_cid, cid->valuestring);
+        status = wf_str_set(&r->commit_cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring) {
         r->has_commit_rev = true;
-        status = wf_repo_set_string(&r->commit_rev, rev->valuestring);
+        status = wf_str_set(&r->commit_rev, rev->valuestring);
     }
     return status;
 }
@@ -939,10 +917,10 @@ wf_status wf_repo_parse_write_record_result(const char *json, size_t json_len,
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(root, "uri");
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_repo_set_string(&out->uri, uri->valuestring);
+        status = wf_str_set(&out->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_repo_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
 
     if (status == WF_OK) {
@@ -1007,10 +985,10 @@ wf_status wf_repo_parse_upload_blob_result(const char *json, size_t json_len,
     cJSON *mime = cJSON_GetObjectItemCaseSensitive(blob, "mimeType");
     cJSON *size = cJSON_GetObjectItemCaseSensitive(blob, "size");
     if (cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_repo_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(mime) && mime->valuestring) {
-        status = wf_repo_set_string(&out->mime_type, mime->valuestring);
+        status = wf_str_set(&out->mime_type, mime->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(size)) {
         out->has_size = true;

@@ -13,6 +13,7 @@
  */
 
 #include "wolfram/actor_status_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -21,29 +22,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_actor_status_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_actor_status_set_string(char **dst, const char *src) {
-    char *copy = wf_actor_status_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- record ---- */
 
@@ -106,7 +84,7 @@ static wf_status wf_actor_status_take_string(cJSON *obj, const char *key,
                                              char **dst) {
     cJSON *item = cJSON_GetObjectItemCaseSensitive(obj, key);
     if (cJSON_IsString(item) && item->valuestring) {
-        return wf_actor_status_set_string(dst, item->valuestring);
+        return wf_str_set(dst, item->valuestring);
     }
     return WF_OK;
 }

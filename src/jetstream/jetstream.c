@@ -1,4 +1,5 @@
 #include "wolfram/jetstream.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 #include <stdio.h>
@@ -147,13 +148,6 @@ alloc_error:
     return WF_ERR_ALLOC;
 }
 
-static char *wf_strdup(const char *text) {
-    size_t len = strlen(text) + 1;
-    char *copy = malloc(len);
-    if (copy) memcpy(copy, text, len);
-    return copy;
-}
-
 static wf_jetstream_event_kind wf_jetstream_kind_from_string(const char *kind) {
     if (!kind) return WF_JETSTREAM_EVENT_UNKNOWN;
     if (strcmp(kind, "commit") == 0) return WF_JETSTREAM_EVENT_COMMIT;
@@ -189,7 +183,7 @@ static void wf_jetstream_release_options(wf_jetstream *stream) {
 static int wf_jetstream_copy_options(wf_jetstream *stream,
                                      const wf_jetstream_options *options) {
     stream->options = *options;
-    stream->endpoint = wf_strdup(options->endpoint);
+    stream->endpoint = wf_str_dup(options->endpoint);
     if (!stream->endpoint) return 0;
     stream->options.endpoint = stream->endpoint;
     if (options->wanted_collections_count) {
@@ -197,7 +191,7 @@ static int wf_jetstream_copy_options(wf_jetstream *stream,
             calloc(options->wanted_collections_count, sizeof(char *));
         if (!stream->collections) return 0;
         for (size_t i = 0; i < options->wanted_collections_count; ++i) {
-            stream->collections[i] = wf_strdup(options->wanted_collections[i]);
+            stream->collections[i] = wf_str_dup(options->wanted_collections[i]);
             if (!stream->collections[i]) return 0;
         }
         stream->options.wanted_collections =
@@ -207,7 +201,7 @@ static int wf_jetstream_copy_options(wf_jetstream *stream,
         stream->dids = calloc(options->wanted_dids_count, sizeof(char *));
         if (!stream->dids) return 0;
         for (size_t i = 0; i < options->wanted_dids_count; ++i) {
-            stream->dids[i] = wf_strdup(options->wanted_dids[i]);
+            stream->dids[i] = wf_str_dup(options->wanted_dids[i]);
             if (!stream->dids[i]) return 0;
         }
         stream->options.wanted_dids = (const char *const *)stream->dids;
@@ -684,7 +678,7 @@ void wf_jetstream_event_free(wf_jetstream_event *event) {
 static char *wf_jetstream_dup_string(cJSON *parent, const char *key) {
     cJSON *item = parent ? cJSON_GetObjectItemCaseSensitive(parent, key) : NULL;
     if (!item || !cJSON_IsString(item) || !item->valuestring) return NULL;
-    return wf_strdup(item->valuestring);
+    return wf_str_dup(item->valuestring);
 }
 
 static char *wf_jetstream_dup_seq(cJSON *parent, const char *key) {
@@ -692,7 +686,7 @@ static char *wf_jetstream_dup_seq(cJSON *parent, const char *key) {
     if (!item || !cJSON_IsNumber(item)) return NULL;
     char buf[32];
     snprintf(buf, sizeof(buf), "%lld", (long long)item->valuedouble);
-    return wf_strdup(buf);
+    return wf_str_dup(buf);
 }
 
 static wf_jetstream_commit_op
@@ -790,7 +784,7 @@ wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
         return WF_ERR_PARSE;
     }
     out->kind = wf_jetstream_kind_from_string(kind->valuestring);
-    out->did = wf_strdup(did->valuestring);
+    out->did = wf_str_dup(did->valuestring);
     if (!out->did) {
         cJSON_Delete(root);
         return WF_ERR_ALLOC;

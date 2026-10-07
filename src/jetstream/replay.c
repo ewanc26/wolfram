@@ -1,4 +1,5 @@
 #include "wolfram/jetstream_replay.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 #include <inttypes.h>
@@ -15,14 +16,6 @@
 #define WF_REPLAY_MAX_NAME_BYTES 256u
 #define WF_REPLAY_MAX_BLOCK_EVENTS (1u << 18)
 #define WF_REPLAY_SEGMENT_HEADER_BYTES 256u
-
-static char *wf_replay_strdup(const char *text) {
-    if (!text) return NULL;
-    const size_t len = strlen(text) + 1u;
-    char *copy = malloc(len);
-    if (copy) memcpy(copy, text, len);
-    return copy;
-}
 
 static uint16_t wf_replay_u16(const unsigned char *p) {
     return (uint16_t)p[0] | ((uint16_t)p[1] << 8u);
@@ -564,8 +557,8 @@ wf_jetstream_replay_manifest_parse(const char *json, size_t json_len,
                 segment->min_seq <= previous->max_seq)
                 goto done;
         }
-        segment->name = wf_replay_strdup(name->valuestring);
-        segment->checksum = wf_replay_strdup(checksum->valuestring);
+        segment->name = wf_str_dup(name->valuestring);
+        segment->checksum = wf_str_dup(checksum->valuestring);
         if (!segment->name || !segment->checksum) {
             status = WF_ERR_ALLOC;
             goto done;
@@ -620,8 +613,8 @@ static wf_status wf_replay_parse_segment(const cJSON *value,
         return WF_ERR_PARSE;
     }
 
-    out->name = wf_replay_strdup(name->valuestring);
-    out->checksum = wf_replay_strdup(checksum->valuestring);
+    out->name = wf_str_dup(name->valuestring);
+    out->checksum = wf_str_dup(checksum->valuestring);
     if (!out->name || !out->checksum) return WF_ERR_ALLOC;
 
     if (strcmp(mode->valuestring, "segment") == 0) {

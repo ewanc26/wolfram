@@ -16,6 +16,7 @@
  */
 
 #include "wolfram/ozone_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -27,28 +28,6 @@
 #include <string.h>
 
 /* ---- local string/reset helpers ---- */
-
-static char *wf_ozone_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_ozone_set_string(char **dst, const char *src) {
-    char *copy = wf_ozone_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static wf_status wf_ozone_set_string_array(cJSON *arr, char ***out_items,
                                            size_t *out_count) {
@@ -72,7 +51,7 @@ static wf_status wf_ozone_set_string_array(cJSON *arr, char ***out_items,
             status = WF_ERR_PARSE;
             break;
         }
-        status = wf_ozone_set_string(&items[i], it->valuestring);
+        status = wf_str_set(&items[i], it->valuestring);
     }
     if (status == WF_OK) {
         *out_items = items;
@@ -132,20 +111,20 @@ static wf_status wf_ozone_parse_subject_status(cJSON *obj,
         s->id = (int64_t)id->valuedouble;
     }
     if (cJSON_IsString(subject) && subject->valuestring) {
-        status = wf_ozone_set_string(&s->subject, subject->valuestring);
+        status = wf_str_set(&s->subject, subject->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(review) && review->valuestring) {
-        status = wf_ozone_set_string(&s->review_state, review->valuestring);
+        status = wf_str_set(&s->review_state, review->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
-        status = wf_ozone_set_string(&s->created_at, created->valuestring);
+        status = wf_str_set(&s->created_at, created->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(updated) && updated->valuestring) {
-        status = wf_ozone_set_string(&s->updated_at, updated->valuestring);
+        status = wf_str_set(&s->updated_at, updated->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(comment) && comment->valuestring) {
         s->has_comment = true;
-        status = wf_ozone_set_string(&s->comment, comment->valuestring);
+        status = wf_str_set(&s->comment, comment->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(score)) {
         s->has_priority_score = true;
@@ -163,8 +142,7 @@ static wf_status wf_ozone_parse_subject_status(cJSON *obj,
         status = wf_ozone_set_string_array(tags, &s->tags, &s->tag_count);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status =
-            wf_ozone_set_string(&s->subject_repo_handle, handle->valuestring);
+        status = wf_str_set(&s->subject_repo_handle, handle->valuestring);
     }
 
     if (status == WF_OK) {
@@ -237,7 +215,7 @@ wf_status wf_ozone_parse_subject_statuses(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_ozone_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -299,28 +277,28 @@ static wf_status wf_ozone_parse_team_member(cJSON *obj,
     cJSON *profile = cJSON_GetObjectItemCaseSensitive(obj, "profile");
 
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_ozone_set_string(&m->did, did->valuestring);
+        status = wf_str_set(&m->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(disabled)) {
         m->has_disabled = true;
         m->disabled = cJSON_IsTrue(disabled);
     }
     if (status == WF_OK && cJSON_IsString(role) && role->valuestring) {
-        status = wf_ozone_set_string(&m->role, role->valuestring);
+        status = wf_str_set(&m->role, role->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
-        status = wf_ozone_set_string(&m->created_at, created->valuestring);
+        status = wf_str_set(&m->created_at, created->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(updated) && updated->valuestring) {
-        status = wf_ozone_set_string(&m->updated_at, updated->valuestring);
+        status = wf_str_set(&m->updated_at, updated->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(by) && by->valuestring) {
-        status = wf_ozone_set_string(&m->last_updated_by, by->valuestring);
+        status = wf_str_set(&m->last_updated_by, by->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(profile)) {
         cJSON *ph = cJSON_GetObjectItemCaseSensitive(profile, "handle");
         if (cJSON_IsString(ph) && ph->valuestring) {
-            status = wf_ozone_set_string(&m->profile_handle, ph->valuestring);
+            status = wf_str_set(&m->profile_handle, ph->valuestring);
         }
     }
 
@@ -390,7 +368,7 @@ wf_status wf_ozone_parse_team_members(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_ozone_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
