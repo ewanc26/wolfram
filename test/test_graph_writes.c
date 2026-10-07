@@ -347,19 +347,23 @@ int main(void) {
     /* ---- reply gate ---- */
     {
         const char *uri = "at://did:plc:abc123/app.bsky.feed.post/3k";
-        WF_CHECK(wf_agent_set_reply_gate(agent, uri, WF_REPLY_GATE_NOBODY) == WF_OK);
+        WF_CHECK(wf_agent_set_reply_gate(agent, uri, WF_REPLY_GATE_NOBODY) ==
+                 WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
         cJSON *root = cJSON_Parse(last_body);
-        cJSON *rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
-        cJSON *type = rec ? cJSON_GetObjectItemCaseSensitive(rec, "$type") : NULL;
-        cJSON *allow = rec ? cJSON_GetObjectItemCaseSensitive(rec, "allow") : NULL;
+        cJSON *rec =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
+        cJSON *type =
+            rec ? cJSON_GetObjectItemCaseSensitive(rec, "$type") : NULL;
+        cJSON *allow =
+            rec ? cJSON_GetObjectItemCaseSensitive(rec, "allow") : NULL;
         WF_CHECK(cJSON_IsString(type) &&
                  strcmp(type->valuestring, "app.bsky.feed.threadgate") == 0);
         WF_CHECK(cJSON_IsArray(allow) && cJSON_GetArraySize(allow) == 0);
         cJSON_Delete(root);
 
-        WF_CHECK(wf_agent_set_reply_gate(agent, uri,
-                                         WF_REPLY_GATE_FOLLOWED_MENTIONED) == WF_OK);
+        WF_CHECK(wf_agent_set_reply_gate(
+                     agent, uri, WF_REPLY_GATE_FOLLOWED_MENTIONED) == WF_OK);
         wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
         root = cJSON_Parse(last_body);
         rec = root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
@@ -368,7 +372,8 @@ int main(void) {
         cJSON_Delete(root);
 
         /* Everyone writes nothing: the last request stays the one above. */
-        WF_CHECK(wf_agent_set_reply_gate(agent, uri, WF_REPLY_GATE_EVERYONE) == WF_OK);
+        WF_CHECK(wf_agent_set_reply_gate(agent, uri, WF_REPLY_GATE_EVERYONE) ==
+                 WF_OK);
         WF_CHECK(wf_agent_set_reply_gate(agent, "", WF_REPLY_GATE_NOBODY) ==
                  WF_ERR_INVALID_ARG);
         WF_CHECK(wf_agent_set_reply_gate(agent, uri, (wf_reply_gate)9) ==
