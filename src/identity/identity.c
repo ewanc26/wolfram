@@ -664,14 +664,17 @@ typedef struct {
 
 static wf_did_cache_entry wf_did_cache[WF_DID_CACHE_SLOTS];
 static pthread_mutex_t wf_did_cache_lock = PTHREAD_MUTEX_INITIALIZER;
-static _Atomic time_t wf_did_cache_stale_ttl = 3600; /* 1h, matches ref */
-static _Atomic time_t wf_did_cache_max_ttl = 86400;  /* 1d, matches ref */
+/* Guarded by wf_did_cache_lock, not atomics: a 64-bit time_t has no lock-free
+ * atomic load on 32-bit PowerPC (the Wii U), so __atomic_load_8 does not link.
+ */
+static time_t wf_did_cache_stale_ttl = 3600; /* 1h, matches ref */
+static time_t wf_did_cache_max_ttl = 86400;  /* 1d, matches ref */
 
 void wf_did_cache_configure(time_t stale_ttl_seconds, time_t max_ttl_seconds) {
-    atomic_store_explicit(&wf_did_cache_stale_ttl, stale_ttl_seconds,
-                          memory_order_relaxed);
-    atomic_store_explicit(&wf_did_cache_max_ttl, max_ttl_seconds,
-                          memory_order_relaxed);
+    pthread_mutex_lock(&wf_did_cache_lock);
+    wf_did_cache_stale_ttl = stale_ttl_seconds;
+    wf_did_cache_max_ttl = max_ttl_seconds;
+    pthread_mutex_unlock(&wf_did_cache_lock);
 }
 
 void wf_did_cache_clear(void) {
@@ -736,10 +739,10 @@ store:
 
 static wf_status did_fetch_document(wf_xrpc_client *client, const char *did,
                                     cJSON **out_root) {
-    time_t stale_ttl =
-        atomic_load_explicit(&wf_did_cache_stale_ttl, memory_order_relaxed);
-    time_t max_ttl =
-        atomic_load_explicit(&wf_did_cache_max_ttl, memory_order_relaxed);
+    pthread_mutex_lock(&wf_did_cache_lock);
+    time_t stale_ttl = wf_did_cache_stale_ttl;
+    time_t max_ttl = wf_did_cache_max_ttl;
+    pthread_mutex_unlock(&wf_did_cache_lock);
 
     if (max_ttl <= 0) return did_fetch_document_uncached(client, did, out_root);
 
