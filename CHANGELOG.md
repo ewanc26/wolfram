@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- I've added `wolfram/saved_feeds.h`: `wf_agent_get_saved_feeds` returns the account's saved custom feeds with display names, read tolerantly from the raw preferences (V2, then V1), and `wf_saved_feeds_parse` is the pure JSON half. Cobalt and Indigo each carried the same ~80 lines. ([#177](https://github.com/ewanc26/wolfram/pull/177))
+
 ### Changed
 
 - I've replaced the 36 private copies of `strdup` and 38 of `set_string` scattered through `src/` with one `wf_str_dup` and `wf_str_set` in `wolfram/util.h`, and deleted the copies. Behaviour is the same; `wf_str_dup` is NULL-safe and `wf_str_set` leaves the destination alone on an allocation failure, as every copy did. ([#176](https://github.com/ewanc26/wolfram/pull/176))
