@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Changed
+
+- I've split `profile_tab.c` so the tab names, filters and cycle (`wf_profile_tab_name`, `_filter`, `_next`) can be linked without the agent; `wf_agent_get_profile_tab_typed` is in `profile_tab_fetch.c`. No API change. ([#182](https://github.com/ewanc26/wolfram/pull/182))
+
 ## [0.36.0] - 2026-10-07
 
 ### Added
