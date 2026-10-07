@@ -290,6 +290,52 @@ int main(void) {
                                                 &out) == WF_ERR_PARSE);
     }
 
+    /* ---- post a thread ---- */
+    {
+        const char *const texts[] = {"one", "two", "three"};
+        wf_agent_post_result first = {0}, last = {0};
+        size_t posted = 99;
+
+        WF_CHECK(wf_agent_post_thread(agent, texts, 3, &posted, &first,
+                                      &last) == WF_OK);
+        WF_CHECK(posted == 3);
+        WF_CHECK(first.uri && last.uri && first.cid && last.cid);
+        /* The mock answers every createRecord with the same ref, so the last
+         * request must be a reply whose root and parent are that ref. */
+        wf_mock_pds_get_last_request(pds, &last_nsid, &last_method, &last_body);
+        cJSON *root = cJSON_Parse(last_body);
+        cJSON *rec =
+            root ? cJSON_GetObjectItemCaseSensitive(root, "record") : NULL;
+        cJSON *reply =
+            rec ? cJSON_GetObjectItemCaseSensitive(rec, "reply") : NULL;
+        cJSON *rt =
+            reply ? cJSON_GetObjectItemCaseSensitive(reply, "root") : NULL;
+        cJSON *pa =
+            reply ? cJSON_GetObjectItemCaseSensitive(reply, "parent") : NULL;
+        cJSON *ru = rt ? cJSON_GetObjectItemCaseSensitive(rt, "uri") : NULL;
+        cJSON *pu = pa ? cJSON_GetObjectItemCaseSensitive(pa, "uri") : NULL;
+        WF_CHECK(cJSON_IsString(ru) && strcmp(ru->valuestring, first.uri) == 0);
+        WF_CHECK(cJSON_IsString(pu) && strcmp(pu->valuestring, first.uri) == 0);
+        cJSON_Delete(root);
+        wf_agent_post_result_free(&first);
+        wf_agent_post_result_free(&last);
+
+        /* One text is a plain post; the outputs are optional. */
+        WF_CHECK(wf_agent_post_thread(agent, texts, 1, &posted, NULL, NULL) ==
+                 WF_OK);
+        WF_CHECK(posted == 1);
+
+        /* Bad arguments post nothing. */
+        const char *const bad[] = {"ok", ""};
+        WF_CHECK(wf_agent_post_thread(agent, bad, 2, &posted, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(posted == 0);
+        WF_CHECK(wf_agent_post_thread(agent, texts, 0, &posted, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_agent_post_thread(agent, NULL, 2, &posted, NULL, NULL) ==
+                 WF_ERR_INVALID_ARG);
+    }
+
     /* ---- searchPosts typed ---- */
     {
         WF_CHECK(
