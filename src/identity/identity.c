@@ -12,6 +12,7 @@
  */
 
 #include "wolfram/identity.h"
+#include "wolfram/util.h"
 #include "wolfram/atproto_lex.h"
 #include "wolfram/crypto.h"
 #include "wolfram/plc.h"
@@ -45,14 +46,6 @@
  * cap what a third-party server can make us buffer (and then parse). */
 #define WF_DID_DOC_MAX_BYTES ((size_t)1024 * 1024)
 #define WF_HANDLE_WELL_KNOWN_MAX_BYTES ((size_t)4 * 1024)
-
-static char *wf_strdup(const char *s) {
-    if (!s) return NULL;
-    size_t len = strlen(s) + 1;
-    char *dup = malloc(len);
-    if (dup) memcpy(dup, s, len);
-    return dup;
-}
 
 static char *wf_strndup(const char *s, size_t n) {
     if (!s) return NULL;
@@ -247,7 +240,7 @@ static char *wf_did_service_canonical_id(const char *did, const char *id) {
     size_t did_len, id_len;
     char *out;
     if (!did || !id) return NULL;
-    if (id[0] != '#') return wf_strdup(id);
+    if (id[0] != '#') return wf_str_dup(id);
     did_len = strlen(did);
     id_len = strlen(id);
     out = malloc(did_len + id_len + 1);
@@ -454,7 +447,7 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
     if (!cJSON_IsString(id) || !id->valuestring) {
         return WF_ERR_PARSE;
     }
-    doc->did = wf_strdup(id->valuestring);
+    doc->did = wf_str_dup(id->valuestring);
     if (!doc->did) return WF_ERR_ALLOC;
 
     if (context) {
@@ -485,20 +478,20 @@ static wf_status wf_did_doc_parse_json(wf_did_document *doc, cJSON *root) {
                                        "#atproto_pds") &&
                 wf_did_http_endpoint_valid(endpoint->valuestring) &&
                 !doc->pds_endpoint) {
-                doc->pds_endpoint = wf_strdup(endpoint->valuestring);
+                doc->pds_endpoint = wf_str_dup(endpoint->valuestring);
             } else if (strcmp(type->valuestring, "BskyFeedGenerator") == 0 &&
                        wf_did_item_id_matches(doc->did, service_id->valuestring,
                                               "#bsky_fg") &&
                        wf_did_http_endpoint_valid(endpoint->valuestring) &&
                        !doc->feedgen_endpoint) {
-                doc->feedgen_endpoint = wf_strdup(endpoint->valuestring);
+                doc->feedgen_endpoint = wf_str_dup(endpoint->valuestring);
             } else if (strcmp(type->valuestring, "BskyNotificationService") ==
                            0 &&
                        wf_did_item_id_matches(doc->did, service_id->valuestring,
                                               "#bsky_notif") &&
                        wf_did_http_endpoint_valid(endpoint->valuestring) &&
                        !doc->notif_endpoint) {
-                doc->notif_endpoint = wf_strdup(endpoint->valuestring);
+                doc->notif_endpoint = wf_str_dup(endpoint->valuestring);
             }
             // Continue scanning to capture both if present.
         }
@@ -562,7 +555,7 @@ static wf_status did_web_build_url(const char *did, char **out_url) {
     }
 
     /* Copy the MSID; the host is everything up to the first ':'. */
-    char *host = wf_strdup(msid);
+    char *host = wf_str_dup(msid);
     if (!host) return WF_ERR_ALLOC;
 
     /* Decode %3A -> : in the host (percent-encoded port), matching upstream
@@ -900,7 +893,7 @@ wf_status wf_did_resolve_service_by_id(wf_xrpc_client *client, const char *did,
                                strcmp(type->valuestring, service_type) == 0)) &&
             cJSON_IsString(endpoint)) {
             if (!wf_did_http_endpoint_valid(endpoint->valuestring)) continue;
-            *out_endpoint = wf_strdup(endpoint->valuestring);
+            *out_endpoint = wf_str_dup(endpoint->valuestring);
             result = *out_endpoint ? WF_OK : WF_ERR_ALLOC;
             break;
         }
@@ -1055,7 +1048,7 @@ wf_status wf_handle_parse_dns_txt(const wf_dns_txt_chunk *chunks,
             free(match);
             match = NULL;
             if (length >= 8 && memcmp(record + 4, "did:", 4) == 0) {
-                match = wf_strdup(record + 4);
+                match = wf_str_dup(record + 4);
                 if (!match) {
                     free(record);
                     return WF_ERR_ALLOC;
@@ -1410,7 +1403,7 @@ static void handle_race_launch(handle_race_state *state, wf_xrpc_client *client,
                                const char *lookup_handle, void *(*fn)(void *),
                                int is_dns) {
     handle_race_task *task = malloc(sizeof(*task));
-    char *handle_copy = task ? wf_strdup(lookup_handle) : NULL;
+    char *handle_copy = task ? wf_str_dup(lookup_handle) : NULL;
     if (!task || !handle_copy) {
         free(task);
         free(handle_copy);
@@ -1515,12 +1508,12 @@ wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle,
         for (;;) {
             if (state->dns_done && state->dns_status == WF_OK) {
                 result_status = WF_OK;
-                result_did = wf_strdup(state->dns_did);
+                result_did = wf_str_dup(state->dns_did);
                 break;
             }
             if (state->wk_done && state->wk_status == WF_OK) {
                 result_status = WF_OK;
-                result_did = wf_strdup(state->wk_did);
+                result_did = wf_str_dup(state->wk_did);
                 break;
             }
             if (state->dns_done && state->wk_done) {
@@ -1573,7 +1566,7 @@ static wf_status wf_identity_dup_string_array(const char *const *src,
         return WF_ERR_ALLOC;
     }
     for (size_t i = 0; i < count; i++) {
-        items[i] = wf_strdup(src[i]);
+        items[i] = wf_str_dup(src[i]);
         if (!items[i]) {
             for (size_t j = 0; j < i; j++) {
                 free(items[j]);

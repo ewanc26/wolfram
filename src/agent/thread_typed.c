@@ -5,6 +5,7 @@
  */
 
 #include "wolfram/thread_typed.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 
@@ -18,28 +19,6 @@
 #define WF_AGENT_THREAD_MAX_DEPTH 64
 
 /* ---- local string/reset helpers (static per TU to avoid linkage conflicts) */
-
-static char *wf_agent_thread_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_agent_thread_set_string(char **dst, const char *src) {
-    char *copy = wf_agent_thread_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_agent_thread_profile_reset(wf_agent_profile_view *p) {
     if (!p) {
@@ -116,10 +95,10 @@ static wf_status wf_agent_thread_parse_post(cJSON *obj,
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        st = wf_agent_thread_set_string(&out->uri, uri->valuestring);
+        st = wf_str_set(&out->uri, uri->valuestring);
     }
     if (st == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        st = wf_agent_thread_set_string(&out->cid, cid->valuestring);
+        st = wf_str_set(&out->cid, cid->valuestring);
     }
     if (st == WF_OK && cJSON_IsObject(author)) {
         cJSON *d = cJSON_GetObjectItemCaseSensitive(author, "did");
@@ -127,23 +106,20 @@ static wf_status wf_agent_thread_parse_post(cJSON *obj,
         cJSON *n = cJSON_GetObjectItemCaseSensitive(author, "displayName");
         cJSON *a = cJSON_GetObjectItemCaseSensitive(author, "avatar");
         if (cJSON_IsString(d) && d->valuestring) {
-            st = wf_agent_thread_set_string(&out->author.did, d->valuestring);
+            st = wf_str_set(&out->author.did, d->valuestring);
         }
         if (st == WF_OK && cJSON_IsString(h) && h->valuestring) {
-            st =
-                wf_agent_thread_set_string(&out->author.handle, h->valuestring);
+            st = wf_str_set(&out->author.handle, h->valuestring);
         }
         if (st == WF_OK && cJSON_IsString(n) && n->valuestring) {
-            st = wf_agent_thread_set_string(&out->author.display_name,
-                                            n->valuestring);
+            st = wf_str_set(&out->author.display_name, n->valuestring);
         }
         if (st == WF_OK && cJSON_IsString(a) && a->valuestring) {
-            st =
-                wf_agent_thread_set_string(&out->author.avatar, a->valuestring);
+            st = wf_str_set(&out->author.avatar, a->valuestring);
         }
     }
     if (st == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        st = wf_agent_thread_set_string(&out->indexed_at, indexed->valuestring);
+        st = wf_str_set(&out->indexed_at, indexed->valuestring);
     }
     if (st == WF_OK) {
         cJSON *viewer = cJSON_GetObjectItemCaseSensitive(obj, "viewer");
@@ -151,12 +127,10 @@ static wf_status wf_agent_thread_parse_post(cJSON *obj,
             cJSON *like = cJSON_GetObjectItemCaseSensitive(viewer, "like");
             cJSON *repost = cJSON_GetObjectItemCaseSensitive(viewer, "repost");
             if (cJSON_IsString(like) && like->valuestring) {
-                st = wf_agent_thread_set_string(&out->viewer_like,
-                                                like->valuestring);
+                st = wf_str_set(&out->viewer_like, like->valuestring);
             }
             if (st == WF_OK && cJSON_IsString(repost) && repost->valuestring) {
-                st = wf_agent_thread_set_string(&out->viewer_repost,
-                                                repost->valuestring);
+                st = wf_str_set(&out->viewer_repost, repost->valuestring);
             }
         }
     }
@@ -265,7 +239,7 @@ static wf_status wf_agent_thread_parse_node(cJSON *obj, int depth,
         out->kind = WF_AGENT_THREAD_KIND_NOT_FOUND;
         cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
         if (cJSON_IsString(uri) && uri->valuestring) {
-            st = wf_agent_thread_set_string(&out->uri, uri->valuestring);
+            st = wf_str_set(&out->uri, uri->valuestring);
         }
         if (st != WF_OK) {
             wf_agent_thread_node_reset(out);
@@ -278,7 +252,7 @@ static wf_status wf_agent_thread_parse_node(cJSON *obj, int depth,
         out->kind = WF_AGENT_THREAD_KIND_BLOCKED;
         cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
         if (cJSON_IsString(uri) && uri->valuestring) {
-            st = wf_agent_thread_set_string(&out->uri, uri->valuestring);
+            st = wf_str_set(&out->uri, uri->valuestring);
         }
         if (st != WF_OK) {
             wf_agent_thread_node_reset(out);
@@ -324,7 +298,7 @@ wf_status wf_agent_parse_thread(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            st = wf_agent_thread_set_string(&out->cursor, cursor->valuestring);
+            st = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/lexicon_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -20,28 +21,6 @@
 #include <string.h>
 
 /* ---- local string/reset helpers ---- */
-
-static char *wf_lexicon_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_lexicon_set_string(char **dst, const char *src) {
-    char *copy = wf_lexicon_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_lexicon_resolved_reset(wf_lexicon_resolved *r) {
     if (!r) {
@@ -77,10 +56,10 @@ wf_status wf_lexicon_parse_resolve(const char *json, size_t json_len,
     cJSON *schema = cJSON_GetObjectItemCaseSensitive(root, "schema");
 
     if (cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_lexicon_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_lexicon_set_string(&out->uri, uri->valuestring);
+        status = wf_str_set(&out->uri, uri->valuestring);
     }
     if (status == WF_OK && schema != NULL) {
         out->schema = cJSON_DetachItemFromObject(root, "schema");

@@ -1,27 +1,10 @@
 #include "wolfram/sync.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static char *wf_sync_strdup(const char *value) {
-    size_t len;
-    char *copy;
-
-    if (!value) {
-        return NULL;
-    }
-
-    len = strlen(value);
-    copy = malloc(len + 1);
-    if (!copy) {
-        return NULL;
-    }
-
-    memcpy(copy, value, len + 1);
-    return copy;
-}
 
 static void wf_sync_free_strings(char **items, size_t count) {
     size_t i;
@@ -66,7 +49,7 @@ static wf_status wf_sync_json_string(const cJSON *object, const char *name,
         return WF_ERR_PARSE;
     }
 
-    *out = wf_sync_strdup(item->valuestring);
+    *out = wf_str_dup(item->valuestring);
     return *out ? WF_OK : WF_ERR_ALLOC;
 }
 
@@ -87,7 +70,7 @@ static wf_status wf_sync_json_bool_string(const cJSON *object, const char *name,
         return WF_ERR_PARSE;
     }
 
-    *out = wf_sync_strdup(cJSON_IsTrue(item) ? "true" : "false");
+    *out = wf_str_dup(cJSON_IsTrue(item) ? "true" : "false");
     return *out ? WF_OK : WF_ERR_ALLOC;
 }
 
@@ -127,7 +110,7 @@ static wf_status wf_sync_json_string_array(const cJSON *object,
             wf_sync_free_strings(items, index);
             return WF_ERR_PARSE;
         }
-        items[index] = wf_sync_strdup(item->valuestring);
+        items[index] = wf_str_dup(item->valuestring);
         if (!items[index]) {
             wf_sync_free_strings(items, index);
             return WF_ERR_ALLOC;

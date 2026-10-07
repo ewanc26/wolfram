@@ -43,19 +43,6 @@
 
 #include "_internal.h"
 
-static char *wf_agent_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-
-    size_t len = strlen(s) + 1;
-    char *dup = malloc(len);
-    if (dup) {
-        memcpy(dup, s, len);
-    }
-    return dup;
-}
-
 static char *wf_agent_strndup(const char *s, size_t len) {
     char *dup = malloc(len + 1);
     if (!dup) {
@@ -77,7 +64,6 @@ static void wf_agent_post_result_reset(wf_agent_post_result *result) {
     memset(result, 0, sizeof(*result));
 }
 
-static wf_status wf_agent_set_string(char **dst, const char *src);
 static int wf_agent_is_logged_in(const wf_agent *agent);
 
 static int wf_agent_make_rfc3339_timestamp(char *buf, size_t buf_len) {
@@ -108,17 +94,6 @@ static int wf_agent_authority_matches_session(const wf_agent *agent,
         return 1;
     }
     return 0;
-}
-
-static wf_status wf_agent_set_string(char **dst, const char *src) {
-    char *copy = wf_agent_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
 }
 
 static wf_status wf_agent_add_feature_json(cJSON *features,
@@ -417,9 +392,9 @@ static wf_status wf_agent_create_record_call(wf_agent *agent,
         return WF_ERR_PARSE;
     }
 
-    status = wf_agent_set_string(&out->uri, uri->valuestring);
+    status = wf_str_set(&out->uri, uri->valuestring);
     if (status == WF_OK) {
-        status = wf_agent_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
     if (status != WF_OK) {
         wf_agent_post_result_reset(out);
@@ -913,8 +888,8 @@ wf_status wf_agent_post_thread(wf_agent *agent, const char *const *texts,
             prev = (wf_agent_post_result){0};
             /* Keep a second copy, so `prev` can be replaced without touching
              * the root's strings. */
-            prev.uri = wf_agent_strdup(root.uri);
-            prev.cid = wf_agent_strdup(root.cid);
+            prev.uri = wf_str_dup(root.uri);
+            prev.cid = wf_str_dup(root.cid);
             if ((root.uri && !prev.uri) || (root.cid && !prev.cid))
                 st = WF_ERR_ALLOC;
         } else {

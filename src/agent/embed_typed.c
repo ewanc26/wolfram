@@ -190,29 +190,6 @@ cJSON *wf_embed_record_with_media_build(const wf_embed_record_t *record,
 
 /* ----- getEmbedExternalView (owned typed parser + agent wrapper) ----- */
 
-/* Small string helpers kept static per TU (mirrors actor_typed.c). */
-static char *wf_embed_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_embed_set_string(char **dst, const char *src) {
-    char *copy = wf_embed_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
-
 void wf_embed_external_view_free(wf_embed_external_view *v) {
     if (!v) {
         return;
@@ -261,19 +238,18 @@ wf_status wf_embed_parse_external_view(const char *json, size_t json_len,
                 cJSON_GetObjectItemCaseSensitive(external, "description");
             cJSON *thumb = cJSON_GetObjectItemCaseSensitive(external, "thumb");
             if (cJSON_IsString(uri) && uri->valuestring) {
-                status = wf_embed_set_string(&out->uri, uri->valuestring);
+                status = wf_str_set(&out->uri, uri->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(title) &&
                 title->valuestring) {
-                status = wf_embed_set_string(&out->title, title->valuestring);
+                status = wf_str_set(&out->title, title->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-                status =
-                    wf_embed_set_string(&out->description, desc->valuestring);
+                status = wf_str_set(&out->description, desc->valuestring);
             }
             if (status == WF_OK && cJSON_IsString(thumb) &&
                 thumb->valuestring) {
-                status = wf_embed_set_string(&out->thumb, thumb->valuestring);
+                status = wf_str_set(&out->thumb, thumb->valuestring);
             }
         }
     }
@@ -361,13 +337,13 @@ static wf_status wf_embed_parse_view_image(cJSON *obj,
     cJSON *alt = cJSON_GetObjectItemCaseSensitive(obj, "alt");
 
     if (cJSON_IsString(thumb) && thumb->valuestring) {
-        status = wf_embed_set_string(&img->thumb, thumb->valuestring);
+        status = wf_str_set(&img->thumb, thumb->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(fullsize) && fullsize->valuestring) {
-        status = wf_embed_set_string(&img->fullsize, fullsize->valuestring);
+        status = wf_str_set(&img->fullsize, fullsize->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(alt) && alt->valuestring) {
-        status = wf_embed_set_string(&img->alt, alt->valuestring);
+        status = wf_str_set(&img->alt, alt->valuestring);
     }
     cJSON *ar = cJSON_GetObjectItemCaseSensitive(obj, "aspectRatio");
     if (status == WF_OK && cJSON_IsObject(ar)) {
@@ -495,26 +471,25 @@ wf_status wf_embed_parse_video_view(const char *json, size_t json_len,
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
     cJSON *playlist = cJSON_GetObjectItemCaseSensitive(root, "playlist");
     if (cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_embed_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     } else {
         status = WF_ERR_PARSE;
     }
     if (status == WF_OK && cJSON_IsString(playlist) && playlist->valuestring) {
-        status = wf_embed_set_string(&out->playlist, playlist->valuestring);
+        status = wf_str_set(&out->playlist, playlist->valuestring);
     } else if (status == WF_OK) {
         status = WF_ERR_PARSE;
     }
     if (status == WF_OK) {
         cJSON *thumbnail = cJSON_GetObjectItemCaseSensitive(root, "thumbnail");
         if (cJSON_IsString(thumbnail) && thumbnail->valuestring) {
-            status =
-                wf_embed_set_string(&out->thumbnail, thumbnail->valuestring);
+            status = wf_str_set(&out->thumbnail, thumbnail->valuestring);
         }
     }
     if (status == WF_OK) {
         cJSON *alt = cJSON_GetObjectItemCaseSensitive(root, "alt");
         if (cJSON_IsString(alt) && alt->valuestring) {
-            status = wf_embed_set_string(&out->alt, alt->valuestring);
+            status = wf_str_set(&out->alt, alt->valuestring);
         }
     }
     if (status == WF_OK) {
@@ -533,8 +508,7 @@ wf_status wf_embed_parse_video_view(const char *json, size_t json_len,
         cJSON *presentation =
             cJSON_GetObjectItemCaseSensitive(root, "presentation");
         if (cJSON_IsString(presentation) && presentation->valuestring) {
-            status = wf_embed_set_string(&out->presentation,
-                                         presentation->valuestring);
+            status = wf_str_set(&out->presentation, presentation->valuestring);
         }
     }
 
@@ -597,34 +571,32 @@ wf_status wf_embed_parse_external_embed_view(const char *json, size_t json_len,
         cJSON *title = cJSON_GetObjectItemCaseSensitive(external, "title");
         cJSON *desc = cJSON_GetObjectItemCaseSensitive(external, "description");
         if (cJSON_IsString(uri) && uri->valuestring) {
-            status = wf_embed_set_string(&out->uri, uri->valuestring);
+            status = wf_str_set(&out->uri, uri->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(title) && title->valuestring) {
-            status = wf_embed_set_string(&out->title, title->valuestring);
+            status = wf_str_set(&out->title, title->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-            status = wf_embed_set_string(&out->description, desc->valuestring);
+            status = wf_str_set(&out->description, desc->valuestring);
         }
         if (status == WF_OK) {
             cJSON *thumb = cJSON_GetObjectItemCaseSensitive(external, "thumb");
             if (cJSON_IsString(thumb) && thumb->valuestring) {
-                status = wf_embed_set_string(&out->thumb, thumb->valuestring);
+                status = wf_str_set(&out->thumb, thumb->valuestring);
             }
         }
         if (status == WF_OK) {
             cJSON *created =
                 cJSON_GetObjectItemCaseSensitive(external, "createdAt");
             if (cJSON_IsString(created) && created->valuestring) {
-                status =
-                    wf_embed_set_string(&out->created_at, created->valuestring);
+                status = wf_str_set(&out->created_at, created->valuestring);
             }
         }
         if (status == WF_OK) {
             cJSON *updated =
                 cJSON_GetObjectItemCaseSensitive(external, "updatedAt");
             if (cJSON_IsString(updated) && updated->valuestring) {
-                status =
-                    wf_embed_set_string(&out->updated_at, updated->valuestring);
+                status = wf_str_set(&out->updated_at, updated->valuestring);
             }
         }
         if (status == WF_OK) {
@@ -732,7 +704,7 @@ wf_embed_parse_record_view_inner(cJSON *rec, wf_embed_record_embed_view *out) {
     wf_status status = WF_OK;
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(rec, "uri");
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_embed_set_string(&out->uri, uri->valuestring);
+        status = wf_str_set(&out->uri, uri->valuestring);
     }
 
     wf_embed_rec_view_kind kind = wf_embed_rec_view_kind_of(rec);
@@ -742,12 +714,11 @@ wf_embed_parse_record_view_inner(cJSON *rec, wf_embed_record_embed_view *out) {
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(rec, "cid");
         cJSON *indexed = cJSON_GetObjectItemCaseSensitive(rec, "indexedAt");
         if (cJSON_IsString(cid) && cid->valuestring) {
-            status = wf_embed_set_string(&out->record.cid, cid->valuestring);
+            status = wf_str_set(&out->record.cid, cid->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(indexed) &&
             indexed->valuestring) {
-            status = wf_embed_set_string(&out->record.indexed_at,
-                                         indexed->valuestring);
+            status = wf_str_set(&out->record.indexed_at, indexed->valuestring);
         }
         if (status == WF_OK) {
             cJSON *rc = cJSON_GetObjectItemCaseSensitive(rec, "replyCount");

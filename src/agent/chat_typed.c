@@ -8,6 +8,7 @@
  */
 
 #include "wolfram/chat_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/agent.h"
 #include "wolfram/xrpc.h"
@@ -18,29 +19,6 @@
 #include <string.h>
 
 #include "_internal.h"
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_chat_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_chat_set_string(char **dst, const char *src) {
-    char *copy = wf_chat_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_chat_profile_reset(wf_agent_profile_view *p) {
     if (!p) {
@@ -108,16 +86,16 @@ static wf_status wf_chat_parse_profile(wf_agent_profile_view *p, cJSON *obj) {
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_chat_set_string(&p->did, did->valuestring);
+        status = wf_str_set(&p->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_chat_set_string(&p->handle, handle->valuestring);
+        status = wf_str_set(&p->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_chat_set_string(&p->display_name, name->valuestring);
+        status = wf_str_set(&p->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_chat_set_string(&p->avatar, avatar->valuestring);
+        status = wf_str_set(&p->avatar, avatar->valuestring);
     }
     return status;
 }
@@ -170,10 +148,10 @@ static wf_status wf_chat_parse_convo_view(wf_chat_convo *out, cJSON *obj) {
     cJSON *cursor = cJSON_GetObjectItemCaseSensitive(obj, "cursor");
 
     if (cJSON_IsString(id) && id->valuestring) {
-        status = wf_chat_set_string(&out->id, id->valuestring);
+        status = wf_str_set(&out->id, id->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring) {
-        status = wf_chat_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     }
     if (status == WF_OK) {
         status = wf_chat_parse_members(out, members);
@@ -185,15 +163,14 @@ static wf_status wf_chat_parse_convo_view(wf_chat_convo *out, cJSON *obj) {
     if (status == WF_OK && cJSON_IsObject(last_message)) {
         cJSON *text = cJSON_GetObjectItemCaseSensitive(last_message, "text");
         if (cJSON_IsString(text) && text->valuestring) {
-            status =
-                wf_chat_set_string(&out->last_message_text, text->valuestring);
+            status = wf_str_set(&out->last_message_text, text->valuestring);
         }
     }
     if (status == WF_OK && cJSON_IsString(kind) && kind->valuestring) {
-        status = wf_chat_set_string(&out->type, kind->valuestring);
+        status = wf_str_set(&out->type, kind->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cursor) && cursor->valuestring) {
-        status = wf_chat_set_string(&out->cursor, cursor->valuestring);
+        status = wf_str_set(&out->cursor, cursor->valuestring);
     }
     return status;
 }
@@ -212,26 +189,26 @@ static wf_status wf_chat_parse_message(wf_chat_message *out, cJSON *obj) {
     cJSON *sent_at = cJSON_GetObjectItemCaseSensitive(obj, "sentAt");
 
     if (cJSON_IsString(id) && id->valuestring) {
-        status = wf_chat_set_string(&out->id, id->valuestring);
+        status = wf_str_set(&out->id, id->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring) {
-        status = wf_chat_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(text) && text->valuestring) {
-        status = wf_chat_set_string(&out->text, text->valuestring);
+        status = wf_str_set(&out->text, text->valuestring);
     }
     /* sender is #messageViewSender { did } */
     if (status == WF_OK && cJSON_IsObject(sender)) {
         cJSON *did = cJSON_GetObjectItemCaseSensitive(sender, "did");
         if (cJSON_IsString(did) && did->valuestring) {
-            status = wf_chat_set_string(&out->sender, did->valuestring);
+            status = wf_str_set(&out->sender, did->valuestring);
         }
     } else if (status == WF_OK && cJSON_IsString(sender) &&
                sender->valuestring) {
-        status = wf_chat_set_string(&out->sender, sender->valuestring);
+        status = wf_str_set(&out->sender, sender->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(sent_at) && sent_at->valuestring) {
-        status = wf_chat_set_string(&out->sent_at, sent_at->valuestring);
+        status = wf_str_set(&out->sent_at, sent_at->valuestring);
     }
     return status;
 }
@@ -281,7 +258,7 @@ wf_status wf_agent_parse_convos(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_chat_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -391,7 +368,7 @@ wf_status wf_agent_parse_messages(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_chat_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -441,7 +418,7 @@ wf_chat_notification_pref_parse(wf_chat_notification_preference *out,
     cJSON *push = cJSON_GetObjectItemCaseSensitive(obj, "push");
 
     if (cJSON_IsString(include) && include->valuestring) {
-        status = wf_chat_set_string(&out->include, include->valuestring);
+        status = wf_str_set(&out->include, include->valuestring);
     }
     if (status == WF_OK) {
         if (cJSON_IsBool(push)) {
@@ -557,7 +534,7 @@ wf_status wf_agent_chat_service_did_from_describe(const char *json,
     wf_status status = WF_OK;
     cJSON *chat = cJSON_GetObjectItemCaseSensitive(root, "chat");
     if (cJSON_IsString(chat) && chat->valuestring && chat->valuestring[0]) {
-        *out_did = wf_chat_strdup(chat->valuestring);
+        *out_did = wf_str_dup(chat->valuestring);
         if (!*out_did) {
             status = WF_ERR_ALLOC;
         }
@@ -2106,7 +2083,7 @@ wf_status wf_agent_parse_convo_members(const char *json, size_t json_len,
         out->member_count = count;
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring)
-            status = wf_chat_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
     }
     if (status != WF_OK) {
         for (size_t i = 0; i < count; ++i) wf_chat_profile_reset(&items[i]);
@@ -2244,7 +2221,7 @@ wf_status wf_agent_parse_convo_array(const char *json, size_t json_len,
         out->convo_count = count;
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring)
-            status = wf_chat_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
     }
     if (status != WF_OK) {
         for (size_t i = 0; i < count; ++i) wf_chat_convo_reset(&items[i]);
@@ -2371,13 +2348,13 @@ wf_status wf_agent_parse_log(const char *json, size_t json_len,
         cJSON *tp = cJSON_GetObjectItemCaseSensitive(o, "$type");
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(o, "convoId");
         if (cJSON_IsString(id) && id->valuestring)
-            status = wf_chat_set_string(&items[i].id, id->valuestring);
+            status = wf_str_set(&items[i].id, id->valuestring);
         if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring)
-            status = wf_chat_set_string(&items[i].rev, rev->valuestring);
+            status = wf_str_set(&items[i].rev, rev->valuestring);
         if (status == WF_OK && cJSON_IsString(tp) && tp->valuestring)
-            status = wf_chat_set_string(&items[i].type, tp->valuestring);
+            status = wf_str_set(&items[i].type, tp->valuestring);
         if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring)
-            status = wf_chat_set_string(&items[i].convo_id, cid->valuestring);
+            status = wf_str_set(&items[i].convo_id, cid->valuestring);
         if (status != WF_OK) wf_chat_log_event_reset(&items[i]);
     }
     if (status == WF_OK) {
@@ -2385,7 +2362,7 @@ wf_status wf_agent_parse_log(const char *json, size_t json_len,
         out->event_count = count;
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring)
-            status = wf_chat_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
     }
     if (status != WF_OK) {
         for (size_t i = 0; i < count; ++i) wf_chat_log_event_reset(&items[i]);
@@ -2467,7 +2444,7 @@ wf_status wf_agent_parse_message_batch(const char *json, size_t json_len,
         cJSON *cid = cJSON_GetObjectItemCaseSensitive(o, "convoId");
         cJSON *msg = cJSON_GetObjectItemCaseSensitive(o, "message");
         if (cJSON_IsString(cid) && cid->valuestring)
-            status = wf_chat_set_string(&items[i].convo_id, cid->valuestring);
+            status = wf_str_set(&items[i].convo_id, cid->valuestring);
         if (status == WF_OK && cJSON_IsObject(msg))
             status = wf_chat_parse_message(&items[i].message, msg);
         if (status != WF_OK) wf_chat_message_batch_item_reset(&items[i]);
@@ -2529,9 +2506,9 @@ wf_status wf_agent_parse_convo_ref(const char *json, size_t json_len,
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "convoId");
     cJSON *rev = cJSON_GetObjectItemCaseSensitive(root, "rev");
     if (cJSON_IsString(cid) && cid->valuestring)
-        status = wf_chat_set_string(&out->convo_id, cid->valuestring);
+        status = wf_str_set(&out->convo_id, cid->valuestring);
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring)
-        status = wf_chat_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     if (status != WF_OK) wf_chat_convo_ref_reset(out);
     cJSON_Delete(root);
     return status;
@@ -2978,17 +2955,17 @@ wf_status wf_agent_parse_join_link(const char *json, size_t json_len,
     cJSON *jr = cJSON_GetObjectItemCaseSensitive(jl, "joinRule");
     cJSON *ca = cJSON_GetObjectItemCaseSensitive(jl, "createdAt");
     if (cJSON_IsString(code) && code->valuestring)
-        status = wf_chat_set_string(&out->code, code->valuestring);
+        status = wf_str_set(&out->code, code->valuestring);
     if (status == WF_OK && cJSON_IsString(es) && es->valuestring)
-        status = wf_chat_set_string(&out->enabled_status, es->valuestring);
+        status = wf_str_set(&out->enabled_status, es->valuestring);
     if (status == WF_OK && cJSON_IsBool(ra)) {
         out->require_approval = cJSON_IsTrue(ra);
         out->has_require_approval = 1;
     }
     if (status == WF_OK && cJSON_IsString(jr) && jr->valuestring)
-        status = wf_chat_set_string(&out->join_rule, jr->valuestring);
+        status = wf_str_set(&out->join_rule, jr->valuestring);
     if (status == WF_OK && cJSON_IsString(ca) && ca->valuestring)
-        status = wf_chat_set_string(&out->created_at, ca->valuestring);
+        status = wf_str_set(&out->created_at, ca->valuestring);
 
     if (status != WF_OK) wf_chat_join_link_reset(out);
     cJSON_Delete(root);
@@ -3137,13 +3114,13 @@ wf_status wf_agent_parse_join_link_previews(const char *json, size_t json_len,
         cJSON *jr = cJSON_GetObjectItemCaseSensitive(o, "joinRule");
         cJSON *ra = cJSON_GetObjectItemCaseSensitive(o, "requireApproval");
         if (cJSON_IsString(tp) && tp->valuestring)
-            status = wf_chat_set_string(&items[i].kind, tp->valuestring);
+            status = wf_str_set(&items[i].kind, tp->valuestring);
         if (status == WF_OK && cJSON_IsString(code) && code->valuestring)
-            status = wf_chat_set_string(&items[i].code, code->valuestring);
+            status = wf_str_set(&items[i].code, code->valuestring);
         if (status == WF_OK && cJSON_IsString(name) && name->valuestring)
-            status = wf_chat_set_string(&items[i].name, name->valuestring);
+            status = wf_str_set(&items[i].name, name->valuestring);
         if (status == WF_OK && cJSON_IsString(jr) && jr->valuestring)
-            status = wf_chat_set_string(&items[i].join_rule, jr->valuestring);
+            status = wf_str_set(&items[i].join_rule, jr->valuestring);
         if (status == WF_OK && cJSON_IsBool(ra)) {
             items[i].require_approval = cJSON_IsTrue(ra);
             items[i].has_require_approval = 1;
@@ -3240,12 +3217,11 @@ wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
         cJSON *by = cJSON_GetObjectItemCaseSensitive(o, "requestedBy");
         cJSON *at = cJSON_GetObjectItemCaseSensitive(o, "requestedAt");
         if (cJSON_IsString(cid) && cid->valuestring)
-            status = wf_chat_set_string(&items[i].convo_id, cid->valuestring);
+            status = wf_str_set(&items[i].convo_id, cid->valuestring);
         if (status == WF_OK && cJSON_IsObject(by))
             status = wf_chat_parse_profile(&items[i].requested_by, by);
         if (status == WF_OK && cJSON_IsString(at) && at->valuestring)
-            status =
-                wf_chat_set_string(&items[i].requested_at, at->valuestring);
+            status = wf_str_set(&items[i].requested_at, at->valuestring);
         if (status != WF_OK) wf_chat_join_request_reset(&items[i]);
     }
     if (status == WF_OK) {
@@ -3253,7 +3229,7 @@ wf_status wf_agent_parse_join_requests(const char *json, size_t json_len,
         out->item_count = count;
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring)
-            status = wf_chat_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
     }
     if (status != WF_OK) {
         for (size_t i = 0; i < count; ++i)
@@ -3309,7 +3285,7 @@ wf_status wf_agent_parse_request_join(const char *json, size_t json_len,
     wf_status status = WF_OK;
     cJSON *st = cJSON_GetObjectItemCaseSensitive(root, "status");
     if (cJSON_IsString(st) && st->valuestring)
-        status = wf_chat_set_string(&out->status, st->valuestring);
+        status = wf_str_set(&out->status, st->valuestring);
     cJSON *convo = cJSON_GetObjectItemCaseSensitive(root, "convo");
     if (status == WF_OK && cJSON_IsObject(convo)) {
         out->has_convo = 1;
@@ -3466,13 +3442,13 @@ static wf_status wf_chat_parse_mod_convo_obj(cJSON *obj,
     cJSON *rev = cJSON_GetObjectItemCaseSensitive(obj, "rev");
     cJSON *kind = cJSON_GetObjectItemCaseSensitive(obj, "kind");
     if (cJSON_IsString(id) && id->valuestring)
-        status = wf_chat_set_string(&out->id, id->valuestring);
+        status = wf_str_set(&out->id, id->valuestring);
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring)
-        status = wf_chat_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     if (status == WF_OK && cJSON_IsObject(kind)) {
         cJSON *tp = cJSON_GetObjectItemCaseSensitive(kind, "$type");
         if (cJSON_IsString(tp) && tp->valuestring)
-            status = wf_chat_set_string(&out->type, tp->valuestring);
+            status = wf_str_set(&out->type, tp->valuestring);
     }
     return status;
 }

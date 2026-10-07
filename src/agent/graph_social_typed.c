@@ -12,6 +12,7 @@
  */
 
 #include "wolfram/graph_social_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -21,29 +22,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_graph_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_graph_set_string(char **dst, const char *src) {
-    char *copy = wf_graph_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ------------------------------------------------------------------ */
 /* profileView (reused wf_agent_profile_view)                         */
@@ -68,16 +46,16 @@ static wf_status wf_graph_parse_profile_view(wf_agent_profile_view *p,
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_graph_set_string(&p->did, did->valuestring);
+        status = wf_str_set(&p->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_graph_set_string(&p->handle, handle->valuestring);
+        status = wf_str_set(&p->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_graph_set_string(&p->display_name, name->valuestring);
+        status = wf_str_set(&p->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_graph_set_string(&p->avatar, avatar->valuestring);
+        status = wf_str_set(&p->avatar, avatar->valuestring);
     }
     return status;
 }
@@ -126,33 +104,33 @@ static wf_status wf_graph_parse_list_view(cJSON *obj, wf_graph_list_view *v) {
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_graph_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_graph_set_string(&v->cid, cid->valuestring);
+        status = wf_str_set(&v->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(creator)) {
         status = wf_graph_parse_profile_view(&v->creator, creator);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_graph_set_string(&v->name, name->valuestring);
+        status = wf_str_set(&v->name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(purpose) && purpose->valuestring) {
-        status = wf_graph_set_string(&v->purpose, purpose->valuestring);
+        status = wf_str_set(&v->purpose, purpose->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(description) &&
         description->valuestring) {
-        status = wf_graph_set_string(&v->description, description->valuestring);
+        status = wf_str_set(&v->description, description->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_graph_set_string(&v->avatar, avatar->valuestring);
+        status = wf_str_set(&v->avatar, avatar->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(lic)) {
         v->has_list_item_count = true;
         v->list_item_count = (int64_t)lic->valuedouble;
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_graph_set_string(&v->indexed_at, indexed->valuestring);
+        status = wf_str_set(&v->indexed_at, indexed->valuestring);
     }
 
     if (status == WF_OK) {
@@ -226,7 +204,7 @@ wf_status wf_graph_parse_list_views(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -267,7 +245,7 @@ static wf_status wf_graph_parse_list_item_view(cJSON *obj,
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(obj, "uri");
     cJSON *subject = cJSON_GetObjectItemCaseSensitive(obj, "subject");
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_graph_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(subject)) {
         status = wf_graph_parse_profile_view(&v->subject, subject);
@@ -338,7 +316,7 @@ wf_status wf_graph_parse_list_item_views(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -396,10 +374,10 @@ wf_graph_parse_starter_pack_view(cJSON *obj, wf_graph_starter_pack_view *v) {
     cJSON *record = cJSON_GetObjectItemCaseSensitive(obj, "record");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_graph_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_graph_set_string(&v->cid, cid->valuestring);
+        status = wf_str_set(&v->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(creator)) {
         status = wf_graph_parse_profile_view(&v->creator, creator);
@@ -417,7 +395,7 @@ wf_graph_parse_starter_pack_view(cJSON *obj, wf_graph_starter_pack_view *v) {
         v->joined_all_time_count = (int64_t)jac->valuedouble;
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_graph_set_string(&v->indexed_at, indexed->valuestring);
+        status = wf_str_set(&v->indexed_at, indexed->valuestring);
     }
 
     if (status == WF_OK && cJSON_IsObject(record)) {
@@ -426,14 +404,14 @@ wf_graph_parse_starter_pack_view(cJSON *obj, wf_graph_starter_pack_view *v) {
         cJSON *rdesc = cJSON_GetObjectItemCaseSensitive(record, "description");
         cJSON *rcreated = cJSON_GetObjectItemCaseSensitive(record, "createdAt");
         if (cJSON_IsString(rname) && rname->valuestring) {
-            status = wf_graph_set_string(&v->name, rname->valuestring);
+            status = wf_str_set(&v->name, rname->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(rdesc) && rdesc->valuestring) {
-            status = wf_graph_set_string(&v->description, rdesc->valuestring);
+            status = wf_str_set(&v->description, rdesc->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(rcreated) &&
             rcreated->valuestring) {
-            status = wf_graph_set_string(&v->created_at, rcreated->valuestring);
+            status = wf_str_set(&v->created_at, rcreated->valuestring);
         }
         if (status == WF_OK) {
             v->record = cJSON_DetachItemFromObject(obj, "record");
@@ -510,7 +488,7 @@ wf_graph_parse_starter_pack_views(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->s_cursor, cursor->valuestring);
+            status = wf_str_set(&out->s_cursor, cursor->valuestring);
         }
     }
 
@@ -592,7 +570,7 @@ wf_status wf_graph_parse_search_starter_packs_v2(
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
     if (status == WF_OK) {
@@ -713,7 +691,7 @@ wf_status wf_graph_parse_list_memberships(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -808,7 +786,7 @@ wf_status wf_graph_parse_starter_pack_memberships(
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_graph_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

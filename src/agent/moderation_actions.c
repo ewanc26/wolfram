@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/moderation_actions.h"
+#include "wolfram/util.h"
 #include "wolfram/agent.h"
 #include "_internal.h"
 
@@ -18,29 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_mod_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_mod_set_string(char **dst, const char *src) {
-    char *copy = wf_mod_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_mod_list_view_reset(wf_mod_list_view *v) {
     if (!v) {
@@ -85,10 +63,10 @@ static wf_status wf_mod_parse_subject(wf_moderation_report *out,
     cJSON *uri = cJSON_GetObjectItemCaseSensitive(subject, "uri");
     cJSON *repo = cJSON_GetObjectItemCaseSensitive(subject, "repo");
     if (cJSON_IsString(uri) && uri->valuestring) {
-        return wf_mod_set_string(&out->subject_uri, uri->valuestring);
+        return wf_str_set(&out->subject_uri, uri->valuestring);
     }
     if (cJSON_IsString(repo) && repo->valuestring) {
-        return wf_mod_set_string(&out->subject_uri, repo->valuestring);
+        return wf_str_set(&out->subject_uri, repo->valuestring);
     }
     return WF_OK;
 }
@@ -113,7 +91,7 @@ wf_status wf_agent_parse_report(const char *json, size_t json_len,
         char buf[32];
         int n = snprintf(buf, sizeof(buf), "%lld", (long long)id->valuedouble);
         if (n > 0 && n < (int)sizeof(buf)) {
-            status = wf_mod_set_string(&out->id, buf);
+            status = wf_str_set(&out->id, buf);
         } else {
             status = WF_ERR_ALLOC;
         }
@@ -122,7 +100,7 @@ wf_status wf_agent_parse_report(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *reason = cJSON_GetObjectItemCaseSensitive(root, "reason");
         if (cJSON_IsString(reason) && reason->valuestring) {
-            status = wf_mod_set_string(&out->reason, reason->valuestring);
+            status = wf_str_set(&out->reason, reason->valuestring);
         }
     }
 
@@ -154,23 +132,23 @@ static wf_status wf_mod_parse_list_view(wf_mod_list_view *v, cJSON *obj) {
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_mod_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_mod_set_string(&v->cid, cid->valuestring);
+        status = wf_str_set(&v->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_mod_set_string(&v->name, name->valuestring);
+        status = wf_str_set(&v->name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(purpose) && purpose->valuestring) {
-        status = wf_mod_set_string(&v->purpose, purpose->valuestring);
+        status = wf_str_set(&v->purpose, purpose->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(description) &&
         description->valuestring) {
-        status = wf_mod_set_string(&v->description, description->valuestring);
+        status = wf_str_set(&v->description, description->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_mod_set_string(&v->avatar, avatar->valuestring);
+        status = wf_str_set(&v->avatar, avatar->valuestring);
     }
 
     return status;
@@ -202,7 +180,7 @@ wf_status wf_agent_parse_list_view_result(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_mod_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

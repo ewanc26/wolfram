@@ -8,6 +8,7 @@
  */
 
 #include "wolfram/post_display.h"
+#include "wolfram/util.h"
 
 #include "_internal.h"
 
@@ -22,15 +23,6 @@
  * believing: an aspect ratio of 1e9 would otherwise be a division waiting to
  * happen in a caller's layout. */
 #define WF_DISPLAY_MAX_DIM 16384
-
-static char *wf_pd_strdup(const char *s) {
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
 
 /* Borrowed string member of `obj`, or NULL if absent / not a string. */
 static const char *wf_pd_str(const cJSON *obj, const char *key) {
@@ -55,7 +47,7 @@ static wf_status wf_pd_copy_str(const cJSON *obj, const char *key, char **dst) {
     if (!s || !*s) {
         return WF_OK;
     }
-    *dst = wf_pd_strdup(s);
+    *dst = wf_str_dup(s);
     return *dst ? WF_OK : WF_ERR_ALLOC;
 }
 
@@ -149,7 +141,7 @@ static wf_status wf_pd_facet_feature(const cJSON *features, wf_facet_kind *kind,
         if (!val || !*val) {
             continue;
         }
-        *target = wf_pd_strdup(val);
+        *target = wf_str_dup(val);
         if (!*target) {
             return WF_ERR_ALLOC;
         }
@@ -404,7 +396,7 @@ wf_status wf_agent_post_view_display(const wf_agent_post_view *post,
 
     const cJSON *record = cJSON_IsObject(post->record) ? post->record : NULL;
     const char *text = wf_pd_str(record, "text");
-    out->text = wf_pd_strdup(text ? text : "");
+    out->text = wf_str_dup(text ? text : "");
     wf_status status = out->text ? WF_OK : WF_ERR_ALLOC;
 
     if (status == WF_OK) {
@@ -442,7 +434,7 @@ wf_status wf_agent_feed_item_reposted_by(const wf_agent_feed_item *item,
     if (!name || !*name) {
         return WF_OK;
     }
-    *out_name = wf_pd_strdup(name);
+    *out_name = wf_str_dup(name);
     return *out_name ? WF_OK : WF_ERR_ALLOC;
 }
 

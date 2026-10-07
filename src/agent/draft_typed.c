@@ -10,6 +10,7 @@
  */
 
 #include "wolfram/draft_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/atproto_lex.h"
 #include "agent/_internal.h"
@@ -18,29 +19,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_draft_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_draft_set_string(char **dst, const char *src) {
-    char *copy = wf_draft_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_draft_reset(wf_draft *d) {
     if (!d) {
@@ -90,7 +68,7 @@ static wf_status wf_draft_take_record(wf_draft *d, cJSON *rec) {
 
     cJSON *text = cJSON_GetObjectItemCaseSensitive(rec, "text");
     if (cJSON_IsString(text) && text->valuestring) {
-        status = wf_draft_set_string(&d->text, text->valuestring);
+        status = wf_str_set(&d->text, text->valuestring);
     } else {
         /* defs#draft nests text under posts[0].text */
         cJSON *posts = cJSON_GetObjectItemCaseSensitive(rec, "posts");
@@ -98,7 +76,7 @@ static wf_status wf_draft_take_record(wf_draft *d, cJSON *rec) {
             cJSON *p0 = cJSON_GetArrayItem(posts, 0);
             cJSON *pt = cJSON_GetObjectItemCaseSensitive(p0, "text");
             if (cJSON_IsString(pt) && pt->valuestring) {
-                status = wf_draft_set_string(&d->text, pt->valuestring);
+                status = wf_str_set(&d->text, pt->valuestring);
             }
         }
     }
@@ -115,7 +93,7 @@ static wf_status wf_draft_take_record(wf_draft *d, cJSON *rec) {
                 for (int i = 0; i < n && status == WF_OK; ++i) {
                     cJSON *l = cJSON_GetArrayItem(langs, i);
                     if (cJSON_IsString(l) && l->valuestring) {
-                        char *cp = wf_draft_strdup(l->valuestring);
+                        char *cp = wf_str_dup(l->valuestring);
                         if (!cp) {
                             status = WF_ERR_ALLOC;
                         } else {
@@ -150,18 +128,18 @@ static wf_status wf_draft_parse_one(cJSON *item, wf_draft *out) {
 
     cJSON *uri = wf_draft_get(item, "uri", "id");
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_draft_set_string(&out->uri, uri->valuestring);
+        status = wf_str_set(&out->uri, uri->valuestring);
     }
 
     cJSON *created = cJSON_GetObjectItemCaseSensitive(item, "createdAt");
     if (status == WF_OK && cJSON_IsString(created) && created->valuestring) {
-        status = wf_draft_set_string(&out->created_at, created->valuestring);
+        status = wf_str_set(&out->created_at, created->valuestring);
     }
 
     cJSON *updated = cJSON_GetObjectItemCaseSensitive(item, "updatedAt");
     if (status == WF_OK && cJSON_IsString(updated) && updated->valuestring) {
         out->has_updated_at = true;
-        status = wf_draft_set_string(&out->updated_at, updated->valuestring);
+        status = wf_str_set(&out->updated_at, updated->valuestring);
     }
 
     cJSON *rec = wf_draft_get(item, "value", "draft");
@@ -224,7 +202,7 @@ wf_status wf_draft_parse_list(const char *json, size_t len,
         out->count = count;
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_draft_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -265,7 +243,7 @@ wf_status wf_draft_createDraft_parse(const char *json, size_t len,
     wf_status status = WF_OK;
     cJSON *id = cJSON_GetObjectItemCaseSensitive(root, "id");
     if (cJSON_IsString(id) && id->valuestring) {
-        status = wf_draft_set_string(&out->id, id->valuestring);
+        status = wf_str_set(&out->id, id->valuestring);
     }
     cJSON_Delete(root);
     return status;
@@ -452,7 +430,7 @@ wf_status wf_agent_update_draft(wf_agent *agent, const char *draft_uri,
         wf_agent_draft_updateDraft_typed(agent, draft_uri, draft_json, &res);
     if (status == WF_OK && draft_uri) {
         /* updateDraft returns no body; echo the supplied id as the result. */
-        *out_uri = wf_draft_strdup(draft_uri);
+        *out_uri = wf_str_dup(draft_uri);
         if (!*out_uri) {
             status = WF_ERR_ALLOC;
         }

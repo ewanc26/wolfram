@@ -11,6 +11,7 @@
  */
 
 #include "wolfram/contact_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -19,29 +20,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_contact_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_contact_set_string(char **dst, const char *src) {
-    char *copy = wf_contact_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_contact_match_reset(wf_contact_match *m) {
     if (!m) {
@@ -60,13 +38,13 @@ static wf_status wf_contact_parse_match(wf_contact_match *m, cJSON *obj) {
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_contact_set_string(&m->did, did->valuestring);
+        status = wf_str_set(&m->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_contact_set_string(&m->display_name, name->valuestring);
+        status = wf_str_set(&m->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_contact_set_string(&m->avatar, avatar->valuestring);
+        status = wf_str_set(&m->avatar, avatar->valuestring);
     }
     return status;
 }
@@ -121,7 +99,7 @@ wf_status wf_contact_parse_matches(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_contact_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -256,8 +234,7 @@ wf_status wf_contact_parse_sync_status(const char *json, size_t json_len,
         cJSON *matches =
             cJSON_GetObjectItemCaseSensitive(status_obj, "matchesCount");
         if (cJSON_IsString(synced) && synced->valuestring) {
-            status = wf_contact_set_string(&out->last_synced_at,
-                                           synced->valuestring);
+            status = wf_str_set(&out->last_synced_at, synced->valuestring);
         }
         if (status == WF_OK && cJSON_IsNumber(matches)) {
             out->matches_count = (int64_t)matches->valuedouble;
@@ -438,7 +415,7 @@ wf_status wf_contact_parse_verify_phone(const char *json, size_t json_len,
     cJSON *tok = cJSON_GetObjectItemCaseSensitive(root, "token");
     if (cJSON_IsString(tok) && tok->valuestring) {
         out->has_token = true;
-        status = wf_contact_set_string(&out->token, tok->valuestring);
+        status = wf_str_set(&out->token, tok->valuestring);
     }
 
     if (status != WF_OK) {

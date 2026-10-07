@@ -21,6 +21,7 @@
  */
 
 #include "wolfram/ozone_moderation_ops_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -31,28 +32,6 @@
 #include <string.h>
 
 /* ---- local string/reset helpers (mirror ozone_typed.c) ---- */
-
-static char *wf_ops_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_ops_set_string(char **dst, const char *src) {
-    char *copy = wf_ops_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static wf_status wf_ops_set_string_array(cJSON *arr, char ***out_items,
                                          size_t *out_count) {
@@ -76,7 +55,7 @@ static wf_status wf_ops_set_string_array(cJSON *arr, char ***out_items,
             status = WF_ERR_PARSE;
             break;
         }
-        status = wf_ops_set_string(&items[i], it->valuestring);
+        status = wf_str_set(&items[i], it->valuestring);
     }
     if (status == WF_OK) {
         *out_items = items;
@@ -197,34 +176,34 @@ wf_ozone_ops_parse_report_view_obj(cJSON *obj, wf_ozone_ops_report_view *s) {
         s->event_id = (int64_t)event_id->valuedouble;
     }
     if (cJSON_IsString(status_f) && status_f->valuestring) {
-        status = wf_ops_set_string(&s->status, status_f->valuestring);
+        status = wf_str_set(&s->status, status_f->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(report_type) &&
         report_type->valuestring) {
-        status = wf_ops_set_string(&s->report_type, report_type->valuestring);
+        status = wf_str_set(&s->report_type, report_type->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(reported_by) &&
         reported_by->valuestring) {
-        status = wf_ops_set_string(&s->reported_by, reported_by->valuestring);
+        status = wf_str_set(&s->reported_by, reported_by->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(comment) && comment->valuestring) {
-        status = wf_ops_set_string(&s->comment, comment->valuestring);
+        status = wf_str_set(&s->comment, comment->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created_at) &&
         created_at->valuestring) {
-        status = wf_ops_set_string(&s->created_at, created_at->valuestring);
+        status = wf_str_set(&s->created_at, created_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(updated_at) &&
         updated_at->valuestring) {
-        status = wf_ops_set_string(&s->updated_at, updated_at->valuestring);
+        status = wf_str_set(&s->updated_at, updated_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(queued_at) &&
         queued_at->valuestring) {
-        status = wf_ops_set_string(&s->queued_at, queued_at->valuestring);
+        status = wf_str_set(&s->queued_at, queued_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(action_note) &&
         action_note->valuestring) {
-        status = wf_ops_set_string(&s->action_note, action_note->valuestring);
+        status = wf_str_set(&s->action_note, action_note->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(related)) {
         s->has_related_report_count = true;
@@ -281,7 +260,7 @@ wf_status wf_ozone_ops_parse_report_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -397,17 +376,17 @@ static wf_status wf_ozone_ops_parse_report_activity_view_obj(
         s->is_automated = cJSON_IsTrue(auto_f);
     }
     if (cJSON_IsString(created_by) && created_by->valuestring) {
-        status = wf_ops_set_string(&s->created_by, created_by->valuestring);
+        status = wf_str_set(&s->created_by, created_by->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created_at) &&
         created_at->valuestring) {
-        status = wf_ops_set_string(&s->created_at, created_at->valuestring);
+        status = wf_str_set(&s->created_at, created_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(internal) && internal->valuestring) {
-        status = wf_ops_set_string(&s->internal_note, internal->valuestring);
+        status = wf_str_set(&s->internal_note, internal->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(public_f) && public_f->valuestring) {
-        status = wf_ops_set_string(&s->public_note, public_f->valuestring);
+        status = wf_str_set(&s->public_note, public_f->valuestring);
     }
 
     if (status == WF_OK) {
@@ -451,7 +430,7 @@ wf_status wf_ozone_ops_parse_report_activity_list(
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -538,17 +517,17 @@ static wf_status wf_ozone_ops_parse_report_assignment_view_obj(
         s->id = (int64_t)id->valuedouble;
     }
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_ops_set_string(&s->did, did->valuestring);
+        status = wf_str_set(&s->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(report_id)) {
         s->has_report_id = true;
         s->report_id = (int64_t)report_id->valuedouble;
     }
     if (status == WF_OK && cJSON_IsString(start) && start->valuestring) {
-        status = wf_ops_set_string(&s->start_at, start->valuestring);
+        status = wf_str_set(&s->start_at, start->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(end) && end->valuestring) {
-        status = wf_ops_set_string(&s->end_at, end->valuestring);
+        status = wf_str_set(&s->end_at, end->valuestring);
     }
 
     if (status == WF_OK) {
@@ -591,7 +570,7 @@ wf_status wf_ozone_ops_parse_report_assignment_list(
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -692,7 +671,7 @@ static wf_status wf_ozone_ops_parse_live_stats_obj(cJSON *obj,
         s->avg_handling_time_sec = (int64_t)avg->valuedouble;
     }
     if (cJSON_IsString(last) && last->valuestring) {
-        status = wf_ops_set_string(&s->last_updated, last->valuestring);
+        status = wf_str_set(&s->last_updated, last->valuestring);
     }
 
     if (status == WF_OK) {
@@ -767,10 +746,10 @@ wf_ozone_ops_parse_historical_stats_obj(cJSON *obj,
     cJSON *avg = cJSON_GetObjectItemCaseSensitive(obj, "avgHandlingTimeSec");
 
     if (cJSON_IsString(date) && date->valuestring) {
-        status = wf_ops_set_string(&s->date, date->valuestring);
+        status = wf_str_set(&s->date, date->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(computed) && computed->valuestring) {
-        status = wf_ops_set_string(&s->computed_at, computed->valuestring);
+        status = wf_str_set(&s->computed_at, computed->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(pending)) {
         s->has_pending_count = true;
@@ -840,7 +819,7 @@ wf_status wf_ozone_ops_parse_historical_stats_list(
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -913,7 +892,7 @@ static wf_status wf_ozone_ops_parse_queue_view_obj(cJSON *obj,
         s->id = (int64_t)id->valuedouble;
     }
     if (cJSON_IsString(name) && name->valuestring) {
-        status = wf_ops_set_string(&s->name, name->valuestring);
+        status = wf_str_set(&s->name, name->valuestring);
     }
     if (status == WF_OK && subject_types != NULL) {
         status = wf_ops_set_string_array(subject_types, &s->subject_types,
@@ -921,7 +900,7 @@ static wf_status wf_ozone_ops_parse_queue_view_obj(cJSON *obj,
     }
     if (status == WF_OK && cJSON_IsString(collection) &&
         collection->valuestring) {
-        status = wf_ops_set_string(&s->collection, collection->valuestring);
+        status = wf_str_set(&s->collection, collection->valuestring);
     }
     if (status == WF_OK && report_types != NULL) {
         status = wf_ops_set_string_array(report_types, &s->report_types,
@@ -929,19 +908,19 @@ static wf_status wf_ozone_ops_parse_queue_view_obj(cJSON *obj,
     }
     if (status == WF_OK && cJSON_IsString(description) &&
         description->valuestring) {
-        status = wf_ops_set_string(&s->description, description->valuestring);
+        status = wf_str_set(&s->description, description->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created_by) &&
         created_by->valuestring) {
-        status = wf_ops_set_string(&s->created_by, created_by->valuestring);
+        status = wf_str_set(&s->created_by, created_by->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created_at) &&
         created_at->valuestring) {
-        status = wf_ops_set_string(&s->created_at, created_at->valuestring);
+        status = wf_str_set(&s->created_at, created_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(updated_at) &&
         updated_at->valuestring) {
-        status = wf_ops_set_string(&s->updated_at, updated_at->valuestring);
+        status = wf_str_set(&s->updated_at, updated_at->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(enabled)) {
         s->has_enabled = true;
@@ -949,7 +928,7 @@ static wf_status wf_ozone_ops_parse_queue_view_obj(cJSON *obj,
     }
     if (status == WF_OK && cJSON_IsString(deleted_at) &&
         deleted_at->valuestring) {
-        status = wf_ops_set_string(&s->deleted_at, deleted_at->valuestring);
+        status = wf_str_set(&s->deleted_at, deleted_at->valuestring);
     }
 
     if (status == WF_OK) {
@@ -997,7 +976,7 @@ wf_status wf_ozone_ops_parse_queue_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -1080,13 +1059,13 @@ static wf_status wf_ozone_ops_parse_queue_assignment_view_obj(
         s->id = (int64_t)id->valuedouble;
     }
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_ops_set_string(&s->did, did->valuestring);
+        status = wf_str_set(&s->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(start) && start->valuestring) {
-        status = wf_ops_set_string(&s->start_at, start->valuestring);
+        status = wf_str_set(&s->start_at, start->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(end) && end->valuestring) {
-        status = wf_ops_set_string(&s->end_at, end->valuestring);
+        status = wf_str_set(&s->end_at, end->valuestring);
     }
 
     if (status == WF_OK) {
@@ -1128,7 +1107,7 @@ wf_status wf_ozone_ops_parse_queue_assignment_list(
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -1262,10 +1241,10 @@ static wf_status wf_ozone_ops_parse_sig_detail_obj(cJSON *obj,
     cJSON *value = cJSON_GetObjectItemCaseSensitive(obj, "value");
 
     if (cJSON_IsString(property) && property->valuestring) {
-        status = wf_ops_set_string(&d->property, property->valuestring);
+        status = wf_str_set(&d->property, property->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(value) && value->valuestring) {
-        status = wf_ops_set_string(&d->value, value->valuestring);
+        status = wf_str_set(&d->value, value->valuestring);
     }
 
     if (status == WF_OK) {
@@ -1354,16 +1333,16 @@ static wf_status wf_ozone_ops_parse_account_obj(cJSON *obj,
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_ops_set_string(&a->did, did->valuestring);
+        status = wf_str_set(&a->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_ops_set_string(&a->handle, handle->valuestring);
+        status = wf_str_set(&a->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(email) && email->valuestring) {
-        status = wf_ops_set_string(&a->email, email->valuestring);
+        status = wf_str_set(&a->email, email->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_ops_set_string(&a->indexed_at, indexed->valuestring);
+        status = wf_str_set(&a->indexed_at, indexed->valuestring);
     }
 
     if (status == WF_OK) {
@@ -1404,7 +1383,7 @@ wf_status wf_ozone_ops_parse_account_list(const char *json, size_t json_len,
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {
@@ -1495,7 +1474,7 @@ wf_status wf_ozone_ops_parse_related_account_list(
     if (status == WF_OK) {
         cJSON *cur = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cur) && cur->valuestring) {
-            status = wf_ops_set_string(&out->cursor, cur->valuestring);
+            status = wf_str_set(&out->cursor, cur->valuestring);
         }
     }
     if (status != WF_OK) {

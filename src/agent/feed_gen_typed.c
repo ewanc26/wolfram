@@ -11,6 +11,7 @@
  */
 
 #include "wolfram/feed_gen_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/actor_typed.h"
 #include "agent/_internal.h"
@@ -20,29 +21,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_fg_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_fg_set_string(char **dst, const char *src) {
-    char *copy = wf_fg_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- generator view ---- */
 
@@ -79,21 +57,21 @@ static wf_status wf_feedgen_parse_creator(cJSON *obj,
     cJSON *desc = cJSON_GetObjectItemCaseSensitive(obj, "description");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_fg_set_string(&creator->did, did->valuestring);
+        status = wf_str_set(&creator->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_fg_set_string(&creator->handle, handle->valuestring);
+        status = wf_str_set(&creator->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_fg_set_string(&creator->display_name, name->valuestring);
+        status = wf_str_set(&creator->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-        status = wf_fg_set_string(&creator->description, desc->valuestring);
+        status = wf_str_set(&creator->description, desc->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
         /* wf_agent_profile stores the avatar as `avatar_cid`; a generatorView
          * creator's avatar is a URL here, copied as-is. */
-        status = wf_fg_set_string(&creator->avatar_cid, avatar->valuestring);
+        status = wf_str_set(&creator->avatar_cid, avatar->valuestring);
     }
     if (status != WF_OK) {
         wf_agent_profile_free(creator);
@@ -132,22 +110,22 @@ static wf_status wf_feedgen_parse_generator_view(cJSON *obj,
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_fg_set_string(&g->uri, uri->valuestring);
+        status = wf_str_set(&g->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_fg_set_string(&g->cid, cid->valuestring);
+        status = wf_str_set(&g->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(creator)) {
         status = wf_feedgen_parse_creator(creator, &g->creator);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_fg_set_string(&g->display_name, name->valuestring);
+        status = wf_str_set(&g->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-        status = wf_fg_set_string(&g->description, desc->valuestring);
+        status = wf_str_set(&g->description, desc->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_fg_set_string(&g->avatar, avatar->valuestring);
+        status = wf_str_set(&g->avatar, avatar->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(like)) {
         status = wf_feedgen_parse_int(like, &g->like_count, &g->has_like_count);
@@ -157,10 +135,10 @@ static wf_status wf_feedgen_parse_generator_view(cJSON *obj,
         g->accepts_interactions = cJSON_IsTrue(accept);
     }
     if (status == WF_OK && cJSON_IsString(mode) && mode->valuestring) {
-        status = wf_fg_set_string(&g->content_mode, mode->valuestring);
+        status = wf_str_set(&g->content_mode, mode->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_fg_set_string(&g->indexed_at, indexed->valuestring);
+        status = wf_str_set(&g->indexed_at, indexed->valuestring);
     }
 
     if (status == WF_OK) {
@@ -225,16 +203,16 @@ static wf_status wf_feedgen_parse_author(cJSON *obj, wf_agent_profile_view *a) {
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_fg_set_string(&a->did, did->valuestring);
+        status = wf_str_set(&a->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_fg_set_string(&a->handle, handle->valuestring);
+        status = wf_str_set(&a->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_fg_set_string(&a->display_name, name->valuestring);
+        status = wf_str_set(&a->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_fg_set_string(&a->avatar, avatar->valuestring);
+        status = wf_str_set(&a->avatar, avatar->valuestring);
     }
     if (status != WF_OK) {
         wf_feedgen_profile_view_reset(a);
@@ -264,10 +242,10 @@ static wf_status wf_feedgen_parse_search_post(cJSON *obj,
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_fg_set_string(&p->uri, uri->valuestring);
+        status = wf_str_set(&p->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_fg_set_string(&p->cid, cid->valuestring);
+        status = wf_str_set(&p->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(author)) {
         status = wf_feedgen_parse_author(author, &p->author);
@@ -298,7 +276,7 @@ static wf_status wf_feedgen_parse_search_post(cJSON *obj,
                                       &p->has_bookmark_count);
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_fg_set_string(&p->indexed_at, indexed->valuestring);
+        status = wf_str_set(&p->indexed_at, indexed->valuestring);
     }
 
     if (status == WF_OK) {
@@ -381,7 +359,7 @@ wf_status wf_feedgen_parse_generators(const char *json, size_t json_len,
         out->generator_count = count;
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_fg_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     } else {
         for (size_t i = 0; i < count; ++i) {
@@ -507,7 +485,7 @@ wf_status wf_feedgen_parse_search_posts(const char *json, size_t json_len,
         out->post_count = count;
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_fg_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     } else {
         for (size_t i = 0; i < count; ++i) {

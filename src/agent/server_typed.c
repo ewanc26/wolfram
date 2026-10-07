@@ -12,6 +12,7 @@
  */
 
 #include "wolfram/server_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -23,28 +24,6 @@
 #include <string.h>
 
 /* ---- local string/reset helpers ---- */
-
-static char *wf_server_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_server_set_string(char **dst, const char *src) {
-    char *copy = wf_server_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- session_info (getSession) ---- */
 
@@ -91,14 +70,14 @@ wf_status wf_server_parse_session_info(const char *json, size_t json_len,
     cJSON *did_doc = cJSON_GetObjectItemCaseSensitive(root, "didDoc");
 
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_server_set_string(&out->did, did->valuestring);
+        status = wf_str_set(&out->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_server_set_string(&out->handle, handle->valuestring);
+        status = wf_str_set(&out->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(email) && email->valuestring) {
         out->has_email = true;
-        status = wf_server_set_string(&out->email, email->valuestring);
+        status = wf_str_set(&out->email, email->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(ec)) {
         out->has_email_confirmed = true;
@@ -111,7 +90,7 @@ wf_status wf_server_parse_session_info(const char *json, size_t json_len,
     if (status == WF_OK && cJSON_IsString(status_field) &&
         status_field->valuestring) {
         out->has_status = true;
-        status = wf_server_set_string(&out->status, status_field->valuestring);
+        status = wf_str_set(&out->status, status_field->valuestring);
     }
     if (status == WF_OK && did_doc != NULL) {
         out->did_doc = cJSON_DetachItemFromObject(root, "didDoc");
@@ -187,11 +166,10 @@ wf_status wf_server_parse_account_status(const char *json, size_t json_len,
         out->valid_did = cJSON_IsTrue(valid_did);
     }
     if (cJSON_IsString(repo_commit) && repo_commit->valuestring) {
-        status =
-            wf_server_set_string(&out->repo_commit, repo_commit->valuestring);
+        status = wf_str_set(&out->repo_commit, repo_commit->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(repo_rev) && repo_rev->valuestring) {
-        status = wf_server_set_string(&out->repo_rev, repo_rev->valuestring);
+        status = wf_str_set(&out->repo_rev, repo_rev->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(repo_blocks)) {
         out->has_repo_blocks = true;
@@ -255,7 +233,7 @@ static wf_status wf_server_parse_invite_code(cJSON *obj,
     cJSON *created_at = cJSON_GetObjectItemCaseSensitive(obj, "createdAt");
 
     if (cJSON_IsString(code) && code->valuestring) {
-        status = wf_server_set_string(&c->code, code->valuestring);
+        status = wf_str_set(&c->code, code->valuestring);
     }
     if (status == WF_OK && cJSON_IsNumber(available)) {
         c->has_available = true;
@@ -267,16 +245,15 @@ static wf_status wf_server_parse_invite_code(cJSON *obj,
     }
     if (status == WF_OK && cJSON_IsString(for_account) &&
         for_account->valuestring) {
-        status =
-            wf_server_set_string(&c->for_account, for_account->valuestring);
+        status = wf_str_set(&c->for_account, for_account->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created_by) &&
         created_by->valuestring) {
-        status = wf_server_set_string(&c->created_by, created_by->valuestring);
+        status = wf_str_set(&c->created_by, created_by->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(created_at) &&
         created_at->valuestring) {
-        status = wf_server_set_string(&c->created_at, created_at->valuestring);
+        status = wf_str_set(&c->created_at, created_at->valuestring);
     }
 
     if (status == WF_OK) {
@@ -407,7 +384,7 @@ wf_status wf_server_parse_auth_token(const char *json, size_t json_len,
         token = cJSON_GetObjectItemCaseSensitive(root, "signingKey");
     }
     if (cJSON_IsString(token) && token->valuestring) {
-        status = wf_server_set_string(&out->token, token->valuestring);
+        status = wf_str_set(&out->token, token->valuestring);
     }
     if (status != WF_OK) {
         wf_server_auth_token_reset(out);
@@ -472,20 +449,20 @@ wf_status wf_server_parse_session_tokens(const char *json, size_t json_len,
     cJSON *did_doc = cJSON_GetObjectItemCaseSensitive(root, "didDoc");
 
     if (cJSON_IsString(access) && access->valuestring) {
-        status = wf_server_set_string(&out->access_jwt, access->valuestring);
+        status = wf_str_set(&out->access_jwt, access->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(refresh) && refresh->valuestring) {
-        status = wf_server_set_string(&out->refresh_jwt, refresh->valuestring);
+        status = wf_str_set(&out->refresh_jwt, refresh->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_server_set_string(&out->handle, handle->valuestring);
+        status = wf_str_set(&out->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(did) && did->valuestring) {
-        status = wf_server_set_string(&out->did, did->valuestring);
+        status = wf_str_set(&out->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(email) && email->valuestring) {
         out->has_email = true;
-        status = wf_server_set_string(&out->email, email->valuestring);
+        status = wf_str_set(&out->email, email->valuestring);
     }
     if (status == WF_OK && cJSON_IsBool(ec)) {
         out->has_email_confirmed = true;
@@ -497,7 +474,7 @@ wf_status wf_server_parse_session_tokens(const char *json, size_t json_len,
     }
     if (status == WF_OK && cJSON_IsString(st) && st->valuestring) {
         out->has_status = true;
-        status = wf_server_set_string(&out->status, st->valuestring);
+        status = wf_str_set(&out->status, st->valuestring);
     }
     if (status == WF_OK && did_doc != NULL) {
         out->did_doc = cJSON_DetachItemFromObject(root, "didDoc");

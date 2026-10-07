@@ -8,6 +8,7 @@
  */
 
 #include "wolfram/feedgen_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/agent.h"
 #include "wolfram/feed_typed.h"
@@ -16,29 +17,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_fg_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_fg_set_string(char **dst, const char *src) {
-    char *copy = wf_fg_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_fg_profile_view_reset(wf_agent_profile_view *p) {
     if (!p) {
@@ -105,16 +83,16 @@ static wf_status wf_fg_parse_creator(wf_agent_profile_view *creator,
     cJSON *name = cJSON_GetObjectItemCaseSensitive(obj, "displayName");
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_fg_set_string(&creator->did, did->valuestring);
+        status = wf_str_set(&creator->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_fg_set_string(&creator->handle, handle->valuestring);
+        status = wf_str_set(&creator->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_fg_set_string(&creator->display_name, name->valuestring);
+        status = wf_str_set(&creator->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_fg_set_string(&creator->avatar, avatar->valuestring);
+        status = wf_str_set(&creator->avatar, avatar->valuestring);
     }
     return status;
 }
@@ -140,28 +118,28 @@ static wf_status wf_fg_parse_generator_view(cJSON *obj,
     cJSON *like = cJSON_GetObjectItemCaseSensitive(obj, "likeCount");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_fg_set_string(&g->uri, uri->valuestring);
+        status = wf_str_set(&g->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_fg_set_string(&g->cid, cid->valuestring);
+        status = wf_str_set(&g->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(did) && did->valuestring) {
-        status = wf_fg_set_string(&g->did, did->valuestring);
+        status = wf_str_set(&g->did, did->valuestring);
     }
     if (status == WF_OK) {
         status = wf_fg_parse_creator(&g->creator, creator);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_fg_set_string(&g->display_name, name->valuestring);
+        status = wf_str_set(&g->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(desc) && desc->valuestring) {
-        status = wf_fg_set_string(&g->description, desc->valuestring);
+        status = wf_str_set(&g->description, desc->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_fg_set_string(&g->avatar, avatar->valuestring);
+        status = wf_str_set(&g->avatar, avatar->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_fg_set_string(&g->indexed_at, indexed->valuestring);
+        status = wf_str_set(&g->indexed_at, indexed->valuestring);
     }
     if (status == WF_OK) {
         status = wf_fg_parse_int(like, &g->like_count, &g->has_like_count);
@@ -219,7 +197,7 @@ wf_status wf_agent_parse_generators(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_fg_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

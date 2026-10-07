@@ -9,6 +9,7 @@
  */
 
 #include "wolfram/temp_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/atproto_lex.h"
 #include "agent/_internal.h"
@@ -17,29 +18,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_temp_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_temp_set_string(char **dst, const char *src) {
-    char *copy = wf_temp_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- checkHandleAvailability -------------------------------------------- */
 
@@ -84,7 +62,7 @@ wf_status wf_temp_check_handle_availability_parse(
 
     cJSON *handle = cJSON_GetObjectItemCaseSensitive(root, "handle");
     if (cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_temp_set_string(&out->handle, handle->valuestring);
+        status = wf_str_set(&out->handle, handle->valuestring);
     }
 
     cJSON *result = cJSON_GetObjectItemCaseSensitive(root, "result");
@@ -115,13 +93,13 @@ wf_status wf_temp_check_handle_availability_parse(
                     cJSON *sh = cJSON_GetObjectItemCaseSensitive(s, "handle");
                     cJSON *sm = cJSON_GetObjectItemCaseSensitive(s, "method");
                     if (cJSON_IsString(sh) && sh->valuestring) {
-                        status = wf_temp_set_string(&out->suggestions[i].handle,
-                                                    sh->valuestring);
+                        status = wf_str_set(&out->suggestions[i].handle,
+                                            sh->valuestring);
                     }
                     if (status == WF_OK && cJSON_IsString(sm) &&
                         sm->valuestring) {
-                        status = wf_temp_set_string(&out->suggestions[i].method,
-                                                    sm->valuestring);
+                        status = wf_str_set(&out->suggestions[i].method,
+                                            sm->valuestring);
                     }
                     if (status != WF_OK) {
                         wf_temp_suggestion_reset(&out->suggestions[i]);
@@ -249,7 +227,7 @@ wf_status wf_temp_dereference_scope_parse(const char *json, size_t json_len,
     wf_status status = WF_OK;
     cJSON *scope = cJSON_GetObjectItemCaseSensitive(root, "scope");
     if (cJSON_IsString(scope) && scope->valuestring) {
-        status = wf_temp_set_string(&out->scope, scope->valuestring);
+        status = wf_str_set(&out->scope, scope->valuestring);
     } else {
         status = WF_ERR_PARSE;
     }
@@ -294,7 +272,7 @@ wf_temp_add_reserved_handle_parse(const char *json, size_t json_len,
         out->ok = 1;
         cJSON *handle = cJSON_GetObjectItemCaseSensitive(root, "handle");
         if (cJSON_IsString(handle) && handle->valuestring) {
-            status = wf_temp_set_string(&out->handle, handle->valuestring);
+            status = wf_str_set(&out->handle, handle->valuestring);
         }
     }
 
@@ -447,7 +425,7 @@ wf_status wf_agent_check_signup_queue(wf_agent *agent, int *out_activated,
             int n = snprintf(buf, sizeof(buf), "%lld",
                              (long long)out.place_in_queue);
             if (n > 0 && (size_t)n < sizeof(buf)) {
-                *out_place = wf_temp_strdup(buf);
+                *out_place = wf_str_dup(buf);
                 if (!*out_place) {
                     status = WF_ERR_ALLOC;
                 }

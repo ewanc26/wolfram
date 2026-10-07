@@ -6,6 +6,7 @@
  */
 
 #include "wolfram/bookmark_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/atproto_lex.h"
 #include "wolfram/syntax.h"
@@ -16,29 +17,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_bookmark_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_bookmark_set_string(char **dst, const char *src) {
-    char *copy = wf_bookmark_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_bookmark_reset(wf_bookmark *b) {
     if (!b) {
@@ -111,14 +89,13 @@ wf_status wf_bookmark_parse_list(const char *json, size_t len,
             uri = cJSON_GetObjectItemCaseSensitive(subject, "uri");
         }
         if (cJSON_IsString(uri) && uri->valuestring) {
-            status = wf_bookmark_set_string(&b->uri, uri->valuestring);
+            status = wf_str_set(&b->uri, uri->valuestring);
         }
         if (status == WF_OK) {
             cJSON *created_at =
                 cJSON_GetObjectItemCaseSensitive(obj, "createdAt");
             if (cJSON_IsString(created_at) && created_at->valuestring) {
-                status = wf_bookmark_set_string(&b->created_at,
-                                                created_at->valuestring);
+                status = wf_str_set(&b->created_at, created_at->valuestring);
             }
         }
         if (status == WF_OK) {
@@ -142,7 +119,7 @@ wf_status wf_bookmark_parse_list(const char *json, size_t len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_bookmark_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -192,7 +169,7 @@ static wf_status wf_bookmark_resolve_cid(wf_agent *agent, const char *post_uri,
     }
     cJSON *cid = cJSON_GetObjectItemCaseSensitive(root, "cid");
     if (cJSON_IsString(cid) && cid->valuestring) {
-        *out_cid = wf_bookmark_strdup(cid->valuestring);
+        *out_cid = wf_str_dup(cid->valuestring);
     }
     cJSON_Delete(root);
     wf_response_free(&res);
@@ -239,7 +216,7 @@ wf_status wf_agent_create_bookmark(wf_agent *agent, const char *post_uri,
     wf_response_free(&res);
 
     if (out_uri) {
-        *out_uri = wf_bookmark_strdup(post_uri);
+        *out_uri = wf_str_dup(post_uri);
         if (!*out_uri) {
             return WF_ERR_ALLOC;
         }

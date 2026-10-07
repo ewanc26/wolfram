@@ -1,28 +1,11 @@
 #include "wolfram/server.h"
+#include "wolfram/util.h"
 #include "wolfram/atproto_lex.h"
 
 #include <cJSON.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-static char *wf_server_strdup(const char *value) {
-    size_t len;
-    char *copy;
-
-    if (!value) {
-        return NULL;
-    }
-
-    len = strlen(value);
-    copy = malloc(len + 1);
-    if (!copy) {
-        return NULL;
-    }
-
-    memcpy(copy, value, len + 1);
-    return copy;
-}
 
 static void wf_server_free_strings(char **items, size_t count) {
     size_t i;
@@ -54,7 +37,7 @@ static wf_status wf_server_json_string(const cJSON *object, const char *name,
         return required ? WF_ERR_PARSE : WF_OK;
     }
 
-    *out = wf_server_strdup(item->valuestring);
+    *out = wf_str_dup(item->valuestring);
     return *out ? WF_OK : WF_ERR_ALLOC;
 }
 
@@ -95,7 +78,7 @@ static wf_status wf_server_json_string_array(const cJSON *object,
             wf_server_free_strings(items, index);
             return WF_ERR_PARSE;
         }
-        items[index] = wf_server_strdup(item->valuestring);
+        items[index] = wf_str_dup(item->valuestring);
         if (!items[index]) {
             wf_server_free_strings(items, index);
             return WF_ERR_ALLOC;
@@ -730,7 +713,7 @@ wf_server_create_invite_code(wf_xrpc_client *client,
     }
 
     if (lex_out->code) {
-        out->code = wf_server_strdup(lex_out->code);
+        out->code = wf_str_dup(lex_out->code);
         if (!out->code) {
             status = WF_ERR_ALLOC;
         }
@@ -821,7 +804,7 @@ wf_server_create_invite_codes(wf_xrpc_client *client,
                 *src = lex_out->codes.items[i];
             wf_server_invite_codes_for_account *dst = &out->accounts[i];
             if (src->account) {
-                dst->account = wf_server_strdup(src->account);
+                dst->account = wf_str_dup(src->account);
                 if (!dst->account) {
                     status = WF_ERR_ALLOC;
                 }
@@ -834,7 +817,7 @@ wf_server_create_invite_codes(wf_xrpc_client *client,
                 for (size_t j = 0; status == WF_OK && j < src->codes.count;
                      j++) {
                     if (src->codes.items[j]) {
-                        dst->codes[j] = wf_server_strdup(src->codes.items[j]);
+                        dst->codes[j] = wf_str_dup(src->codes.items[j]);
                         if (!dst->codes[j]) {
                             status = WF_ERR_ALLOC;
                         } else {

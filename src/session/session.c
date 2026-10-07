@@ -11,6 +11,7 @@
  */
 
 #include "wolfram/session.h"
+#include "wolfram/util.h"
 #include "wolfram/xrpc.h"
 #include "wolfram/identity.h"
 
@@ -19,14 +20,6 @@
 #include <string.h>
 
 /* ── helpers ──────────────────────────────────────────────── */
-
-static char *wf_strdup(const char *s) {
-    if (!s) return NULL;
-    size_t len = strlen(s) + 1;
-    char *dup = malloc(len);
-    if (dup) memcpy(dup, s, len);
-    return dup;
-}
 
 static void wf_session_data_free(wf_session_data *data) {
     if (!data) return;
@@ -58,13 +51,13 @@ static wf_status wf_session_data_copy(wf_session_data *dst,
     }
 
     wf_session_data_init(dst);
-    dst->access_jwt = wf_strdup(src->access_jwt);
-    dst->refresh_jwt = wf_strdup(src->refresh_jwt);
-    dst->handle = wf_strdup(src->handle);
-    dst->did = wf_strdup(src->did);
-    dst->email = wf_strdup(src->email);
-    dst->status = wf_strdup(src->status);
-    dst->pds_url = wf_strdup(src->pds_url);
+    dst->access_jwt = wf_str_dup(src->access_jwt);
+    dst->refresh_jwt = wf_str_dup(src->refresh_jwt);
+    dst->handle = wf_str_dup(src->handle);
+    dst->did = wf_str_dup(src->did);
+    dst->email = wf_str_dup(src->email);
+    dst->status = wf_str_dup(src->status);
+    dst->pds_url = wf_str_dup(src->pds_url);
     dst->email_confirmed = src->email_confirmed;
     dst->email_auth_factor = src->email_auth_factor;
     dst->active = src->active;
@@ -100,10 +93,10 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json,
         goto done;
     }
 
-    data->access_jwt = wf_strdup(access->valuestring);
-    data->refresh_jwt = wf_strdup(refresh->valuestring);
-    data->handle = wf_strdup(handle->valuestring);
-    data->did = wf_strdup(did->valuestring);
+    data->access_jwt = wf_str_dup(access->valuestring);
+    data->refresh_jwt = wf_str_dup(refresh->valuestring);
+    data->handle = wf_str_dup(handle->valuestring);
+    data->did = wf_str_dup(did->valuestring);
 
     if (!data->access_jwt || !data->refresh_jwt || !data->handle ||
         !data->did) {
@@ -114,7 +107,7 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json,
     /* Optional fields */
     cJSON *email = cJSON_GetObjectItemCaseSensitive(root, "email");
     if (cJSON_IsString(email)) {
-        data->email = wf_strdup(email->valuestring);
+        data->email = wf_str_dup(email->valuestring);
     }
 
     cJSON *email_confirmed =
@@ -136,7 +129,7 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json,
 
     cJSON *status_obj = cJSON_GetObjectItemCaseSensitive(root, "status");
     if (cJSON_IsString(status_obj)) {
-        data->status = wf_strdup(status_obj->valuestring);
+        data->status = wf_str_dup(status_obj->valuestring);
     }
 
     if ((cJSON_IsString(email) && !data->email) ||
@@ -158,7 +151,7 @@ static wf_status wf_session_data_parse(wf_session_data *data, const char *json,
                                       &doc) == WF_OK &&
                 doc.pds_endpoint) {
                 free(data->pds_url);
-                data->pds_url = wf_strdup(doc.pds_endpoint);
+                data->pds_url = wf_str_dup(doc.pds_endpoint);
                 if (!data->pds_url) status = WF_ERR_ALLOC;
             }
             wf_did_document_free(&doc);
@@ -190,7 +183,7 @@ static wf_status wf_session_data_update_from_get(wf_session_data *data,
         return WF_ERR_PARSE;
     }
 
-    char *new_handle = wf_strdup(handle->valuestring);
+    char *new_handle = wf_str_dup(handle->valuestring);
     char *new_email = NULL;
     char *new_status = NULL;
     if (!new_handle) {
@@ -200,7 +193,7 @@ static wf_status wf_session_data_update_from_get(wf_session_data *data,
 
     cJSON *email = cJSON_GetObjectItemCaseSensitive(root, "email");
     if (cJSON_IsString(email)) {
-        new_email = wf_strdup(email->valuestring);
+        new_email = wf_str_dup(email->valuestring);
     }
 
     cJSON *email_confirmed =
@@ -222,7 +215,7 @@ static wf_status wf_session_data_update_from_get(wf_session_data *data,
 
     cJSON *status_obj = cJSON_GetObjectItemCaseSensitive(root, "status");
     if (cJSON_IsString(status_obj)) {
-        new_status = wf_strdup(status_obj->valuestring);
+        new_status = wf_str_dup(status_obj->valuestring);
     }
 
     if ((cJSON_IsString(email) && !new_email) ||
@@ -463,10 +456,10 @@ wf_status wf_session_refresh(wf_session *session) {
 
     /* Preserve fields that refreshSession might not return */
     if (!new_data.email && session->data.email) {
-        new_data.email = wf_strdup(session->data.email);
+        new_data.email = wf_str_dup(session->data.email);
     }
     if (!new_data.pds_url && session->data.pds_url) {
-        new_data.pds_url = wf_strdup(session->data.pds_url);
+        new_data.pds_url = wf_str_dup(session->data.pds_url);
     }
     if (new_data.email_confirmed == -1) {
         new_data.email_confirmed = session->data.email_confirmed;
@@ -585,11 +578,11 @@ wf_status wf_session_data_from_json(const char *json, size_t json_len,
         (pds && !cJSON_IsString(pds))) {
         status = WF_ERR_PARSE;
     } else {
-        out->access_jwt = wf_strdup(access->valuestring);
-        out->refresh_jwt = wf_strdup(refresh->valuestring);
-        out->handle = wf_strdup(handle->valuestring);
-        out->did = wf_strdup(did->valuestring);
-        if (pds) out->pds_url = wf_strdup(pds->valuestring);
+        out->access_jwt = wf_str_dup(access->valuestring);
+        out->refresh_jwt = wf_str_dup(refresh->valuestring);
+        out->handle = wf_str_dup(handle->valuestring);
+        out->did = wf_str_dup(did->valuestring);
+        if (pds) out->pds_url = wf_str_dup(pds->valuestring);
         if (!out->access_jwt || !out->refresh_jwt || !out->handle ||
             !out->did || (pds && !out->pds_url)) {
             status = WF_ERR_ALLOC;

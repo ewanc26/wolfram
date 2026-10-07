@@ -7,6 +7,7 @@
  */
 
 #include "wolfram/identity_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -16,29 +17,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_identity_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_identity_set_string(char **dst, const char *src) {
-    char *copy = wf_identity_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* Parse a JSON array of strings into an owned `char **` + count. */
 static wf_status wf_identity_parse_string_array(cJSON *arr, char ***out_items,
@@ -55,7 +33,7 @@ static wf_status wf_identity_parse_string_array(cJSON *arr, char ***out_items,
     for (size_t i = 0; i < count && status == WF_OK; ++i) {
         cJSON *el = cJSON_GetArrayItem(arr, (int)i);
         if (cJSON_IsString(el) && el->valuestring) {
-            status = wf_identity_set_string(&items[i], el->valuestring);
+            status = wf_str_set(&items[i], el->valuestring);
         } else {
             status = WF_ERR_PARSE;
         }
@@ -97,7 +75,7 @@ wf_status wf_identity_parse_resolve_handle(const char *json, size_t json_len,
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_identity_set_string(&out->did, did->valuestring);
+        status = wf_str_set(&out->did, did->valuestring);
     } else {
         status = WF_ERR_PARSE;
     }
@@ -146,19 +124,17 @@ wf_identity_read_verification_method(cJSON *obj,
     cJSON *controller = cJSON_GetObjectItemCaseSensitive(obj, "controller");
     cJSON *pk = cJSON_GetObjectItemCaseSensitive(obj, "publicKeyMultibase");
     if (cJSON_IsString(id) && id->valuestring) {
-        status = wf_identity_set_string(&m->id, id->valuestring);
+        status = wf_str_set(&m->id, id->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(type) && type->valuestring) {
-        status = wf_identity_set_string(&m->type, type->valuestring);
+        status = wf_str_set(&m->type, type->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(controller) &&
         controller->valuestring) {
-        status =
-            wf_identity_set_string(&m->controller, controller->valuestring);
+        status = wf_str_set(&m->controller, controller->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(pk) && pk->valuestring) {
-        status =
-            wf_identity_set_string(&m->public_key_multibase, pk->valuestring);
+        status = wf_str_set(&m->public_key_multibase, pk->valuestring);
     }
     return status;
 }
@@ -169,10 +145,10 @@ static wf_status wf_identity_read_service(cJSON *obj, wf_identity_service *s) {
     cJSON *type = cJSON_GetObjectItemCaseSensitive(obj, "type");
     cJSON *endpoint = cJSON_GetObjectItemCaseSensitive(obj, "serviceEndpoint");
     if (cJSON_IsString(id) && id->valuestring) {
-        status = wf_identity_set_string(&s->id, id->valuestring);
+        status = wf_str_set(&s->id, id->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(type) && type->valuestring) {
-        status = wf_identity_set_string(&s->type, type->valuestring);
+        status = wf_str_set(&s->type, type->valuestring);
     }
     if (status == WF_OK && endpoint) {
         char *ep = cJSON_PrintUnformatted(endpoint);
@@ -234,7 +210,7 @@ wf_status wf_identity_parse_resolve_did(const char *json, size_t json_len,
             size_t plen = strlen(prefix);
             const char *handle =
                 (strncmp(raw, prefix, plen) == 0) ? raw + plen : raw;
-            status = wf_identity_set_string(&out->handle, handle);
+            status = wf_str_set(&out->handle, handle);
         }
     }
 
@@ -498,14 +474,14 @@ wf_identity_parse_resolve_identity(const char *json, size_t json_len,
     wf_status status = WF_OK;
     cJSON *did = cJSON_GetObjectItemCaseSensitive(root, "did");
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_identity_set_string(&out->did, did->valuestring);
+        status = wf_str_set(&out->did, did->valuestring);
     } else {
         status = WF_ERR_PARSE;
     }
     if (status == WF_OK) {
         cJSON *handle = cJSON_GetObjectItemCaseSensitive(root, "handle");
         if (cJSON_IsString(handle) && handle->valuestring) {
-            status = wf_identity_set_string(&out->handle, handle->valuestring);
+            status = wf_str_set(&out->handle, handle->valuestring);
         }
     }
     if (status == WF_OK) {

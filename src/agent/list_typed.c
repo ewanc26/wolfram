@@ -7,34 +7,12 @@
  */
 
 #include "wolfram/list_typed.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_list_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_list_set_string(char **dst, const char *src) {
-    char *copy = wf_list_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static void wf_list_profile_view_reset(wf_agent_profile_view *p) {
     if (!p) {
@@ -89,26 +67,26 @@ static wf_status wf_list_parse_view(cJSON *obj, wf_agent_list_view *v) {
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_list_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_list_set_string(&v->cid, cid->valuestring);
+        status = wf_str_set(&v->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_list_set_string(&v->name, name->valuestring);
+        status = wf_str_set(&v->name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(purpose) && purpose->valuestring) {
-        status = wf_list_set_string(&v->purpose, purpose->valuestring);
+        status = wf_str_set(&v->purpose, purpose->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(description) &&
         description->valuestring) {
-        status = wf_list_set_string(&v->description, description->valuestring);
+        status = wf_str_set(&v->description, description->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_list_set_string(&v->avatar, avatar->valuestring);
+        status = wf_str_set(&v->avatar, avatar->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_list_set_string(&v->indexed_at, indexed->valuestring);
+        status = wf_str_set(&v->indexed_at, indexed->valuestring);
     }
 
     return status;
@@ -128,16 +106,16 @@ static wf_status wf_list_parse_profile_view(cJSON *obj,
     cJSON *avatar = cJSON_GetObjectItemCaseSensitive(obj, "avatar");
 
     if (cJSON_IsString(did) && did->valuestring) {
-        status = wf_list_set_string(&p->did, did->valuestring);
+        status = wf_str_set(&p->did, did->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-        status = wf_list_set_string(&p->handle, handle->valuestring);
+        status = wf_str_set(&p->handle, handle->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-        status = wf_list_set_string(&p->display_name, name->valuestring);
+        status = wf_str_set(&p->display_name, name->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-        status = wf_list_set_string(&p->avatar, avatar->valuestring);
+        status = wf_str_set(&p->avatar, avatar->valuestring);
     }
 
     return status;
@@ -187,7 +165,7 @@ wf_status wf_agent_parse_lists(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_list_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 
@@ -265,11 +243,11 @@ wf_status wf_agent_parse_list_items(const char *json, size_t json_len,
         cJSON *subject = cJSON_GetObjectItemCaseSensitive(obj, "subject");
 
         if (cJSON_IsString(uri) && uri->valuestring) {
-            status = wf_list_set_string(&it->uri, uri->valuestring);
+            status = wf_str_set(&it->uri, uri->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(created) &&
             created->valuestring) {
-            status = wf_list_set_string(&it->created_at, created->valuestring);
+            status = wf_str_set(&it->created_at, created->valuestring);
         }
         if (status == WF_OK) {
             status = wf_list_parse_profile_view(subject, &it->subject);
@@ -290,7 +268,7 @@ wf_status wf_agent_parse_list_items(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_list_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
     }
 

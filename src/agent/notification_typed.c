@@ -11,6 +11,7 @@
  */
 
 #include "wolfram/notification_typed.h"
+#include "wolfram/util.h"
 
 #include "agent/_internal.h"
 #include "wolfram/atproto_lex.h"
@@ -19,29 +20,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-/* Local copies of the small string/reset helpers (kept static per TU). */
-static char *wf_notif_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_notif_set_string(char **dst, const char *src) {
-    char *copy = wf_notif_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 /* ---- notification view ---- */
 
@@ -85,10 +63,10 @@ static wf_status wf_notification_parse_view(cJSON *obj,
     cJSON *indexed = cJSON_GetObjectItemCaseSensitive(obj, "indexedAt");
 
     if (cJSON_IsString(uri) && uri->valuestring) {
-        status = wf_notif_set_string(&v->uri, uri->valuestring);
+        status = wf_str_set(&v->uri, uri->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(cid) && cid->valuestring) {
-        status = wf_notif_set_string(&v->cid, cid->valuestring);
+        status = wf_str_set(&v->cid, cid->valuestring);
     }
     if (status == WF_OK && cJSON_IsObject(author)) {
         cJSON *did = cJSON_GetObjectItemCaseSensitive(author, "did");
@@ -96,27 +74,24 @@ static wf_status wf_notification_parse_view(cJSON *obj,
         cJSON *name = cJSON_GetObjectItemCaseSensitive(author, "displayName");
         cJSON *avatar = cJSON_GetObjectItemCaseSensitive(author, "avatar");
         if (cJSON_IsString(did) && did->valuestring) {
-            status = wf_notif_set_string(&v->author.did, did->valuestring);
+            status = wf_str_set(&v->author.did, did->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(handle) && handle->valuestring) {
-            status =
-                wf_notif_set_string(&v->author.handle, handle->valuestring);
+            status = wf_str_set(&v->author.handle, handle->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
-            status =
-                wf_notif_set_string(&v->author.display_name, name->valuestring);
+            status = wf_str_set(&v->author.display_name, name->valuestring);
         }
         if (status == WF_OK && cJSON_IsString(avatar) && avatar->valuestring) {
-            status =
-                wf_notif_set_string(&v->author.avatar, avatar->valuestring);
+            status = wf_str_set(&v->author.avatar, avatar->valuestring);
         }
     }
     if (status == WF_OK && cJSON_IsString(reason) && reason->valuestring) {
-        status = wf_notif_set_string(&v->reason, reason->valuestring);
+        status = wf_str_set(&v->reason, reason->valuestring);
     }
     if (status == WF_OK && rs != NULL) {
         if (cJSON_IsString(rs) && rs->valuestring) {
-            status = wf_notif_set_string(&v->reason_subject, rs->valuestring);
+            status = wf_str_set(&v->reason_subject, rs->valuestring);
         } else if (!cJSON_IsNull(rs)) {
             status = WF_ERR_PARSE;
         }
@@ -129,7 +104,7 @@ static wf_status wf_notification_parse_view(cJSON *obj,
         }
     }
     if (status == WF_OK && cJSON_IsString(indexed) && indexed->valuestring) {
-        status = wf_notif_set_string(&v->indexed_at, indexed->valuestring);
+        status = wf_str_set(&v->indexed_at, indexed->valuestring);
     }
     if (status == WF_OK) {
         cJSON *rec = cJSON_DetachItemFromObject(obj, "record");
@@ -230,11 +205,11 @@ wf_status wf_notification_parse_list(const char *json, size_t json_len,
 
         cJSON *cursor = cJSON_GetObjectItemCaseSensitive(root, "cursor");
         if (cJSON_IsString(cursor) && cursor->valuestring) {
-            status = wf_notif_set_string(&out->cursor, cursor->valuestring);
+            status = wf_str_set(&out->cursor, cursor->valuestring);
         }
         cJSON *seen = cJSON_GetObjectItemCaseSensitive(root, "seenAt");
         if (status == WF_OK && cJSON_IsString(seen) && seen->valuestring) {
-            status = wf_notif_set_string(&out->seen_at, seen->valuestring);
+            status = wf_str_set(&out->seen_at, seen->valuestring);
         }
         cJSON *pri = cJSON_GetObjectItemCaseSensitive(root, "priority");
         if (status == WF_OK && cJSON_IsBool(pri)) {

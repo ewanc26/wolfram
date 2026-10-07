@@ -8,6 +8,7 @@
  */
 
 #include "wolfram/agent.h"
+#include "wolfram/util.h"
 
 #include "wolfram/repo.h"
 #include "wolfram/store.h"
@@ -22,21 +23,6 @@
 
 #include "_internal.h"
 
-/* Local copy of the small string helper (kept static per TU, matching the
- * rest of src/agent/). */
-static char *wf_agent_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-
-    size_t len = strlen(s) + 1;
-    char *dup = malloc(len);
-    if (dup) {
-        memcpy(dup, s, len);
-    }
-    return dup;
-}
-
 /* ── repo sync: set_did / set_signing_key ──────────────────────────── */
 
 #ifdef WOLFRAM_BUILD_STORE
@@ -46,7 +32,7 @@ static wf_status wf_agent_persist_mirror(wf_agent *agent);
 wf_status wf_agent_set_did(wf_agent *agent, const char *did) {
     if (!agent || !did || !wf_syntax_did_is_valid(did))
         return WF_ERR_INVALID_ARG;
-    char *copy = wf_agent_strdup(did);
+    char *copy = wf_str_dup(did);
     if (!copy) return WF_ERR_ALLOC;
     free(agent->mirror_did);
     agent->mirror_did = copy;
@@ -55,7 +41,7 @@ wf_status wf_agent_set_did(wf_agent *agent, const char *did) {
 
 wf_status wf_agent_set_signing_key(wf_agent *agent, const char *key) {
     if (!agent || !key || !key[0]) return WF_ERR_INVALID_ARG;
-    char *copy = wf_agent_strdup(key);
+    char *copy = wf_str_dup(key);
     if (!copy) return WF_ERR_ALLOC;
     free(agent->mirror_signing_key);
     agent->mirror_signing_key = copy;

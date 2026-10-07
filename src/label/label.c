@@ -1,4 +1,5 @@
 #include "wolfram/label.h"
+#include "wolfram/util.h"
 #include "wolfram/syntax.h"
 #include "wolfram/repo/cbor.h"
 #include "../repo/cbor_map_find.h"
@@ -25,13 +26,6 @@ struct wf_label_subscribe_handle {
     uint32_t retry_delay_ms;
     volatile int stopped;
 };
-
-static char *wf_label_strdup(const char *s) {
-    size_t n = strlen(s) + 1;
-    char *copy = malloc(n);
-    if (copy) memcpy(copy, s, n);
-    return copy;
-}
 
 static void wf_label_sleep_ms(wf_label_subscribe_handle *handle, uint32_t ms) {
     while (handle && !handle->stopped && ms > 0) {
@@ -101,25 +95,25 @@ static wf_status wf_label_parse_record(cJSON *node, wf_label *label,
     if (!member || !cJSON_IsString(member) ||
         !wf_syntax_did_is_valid(member->valuestring))
         goto invalid;
-    label->src = wf_label_strdup(member->valuestring);
+    label->src = wf_str_dup(member->valuestring);
     if (!label->src) goto alloc_fail;
 
     member = cJSON_GetObjectItemCaseSensitive(node, "uri");
     if (!member || !cJSON_IsString(member)) goto invalid;
-    label->uri = wf_label_strdup(member->valuestring);
+    label->uri = wf_str_dup(member->valuestring);
     if (!label->uri) goto alloc_fail;
 
     member = cJSON_GetObjectItemCaseSensitive(node, "cid");
     if (member) {
         label->has_cid = 1;
         if (!cJSON_IsString(member)) goto invalid;
-        label->cid = wf_label_strdup(member->valuestring);
+        label->cid = wf_str_dup(member->valuestring);
         if (!label->cid) goto alloc_fail;
     }
 
     member = cJSON_GetObjectItemCaseSensitive(node, "val");
     if (!member || !cJSON_IsString(member)) goto invalid;
-    label->val = wf_label_strdup(member->valuestring);
+    label->val = wf_str_dup(member->valuestring);
     if (!label->val) goto alloc_fail;
 
     member = cJSON_GetObjectItemCaseSensitive(node, "neg");
@@ -137,7 +131,7 @@ static wf_status wf_label_parse_record(cJSON *node, wf_label *label,
     if (!member || !cJSON_IsString(member) ||
         !wf_syntax_datetime_is_valid(member->valuestring))
         goto invalid;
-    label->cts = wf_label_strdup(member->valuestring);
+    label->cts = wf_str_dup(member->valuestring);
     if (!label->cts) goto alloc_fail;
 
     member = cJSON_GetObjectItemCaseSensitive(node, "exp");
@@ -146,7 +140,7 @@ static wf_status wf_label_parse_record(cJSON *node, wf_label *label,
         if (!cJSON_IsString(member) ||
             !wf_syntax_datetime_is_valid(member->valuestring))
             goto invalid;
-        label->exp = wf_label_strdup(member->valuestring);
+        label->exp = wf_str_dup(member->valuestring);
         if (!label->exp) goto alloc_fail;
     }
 
@@ -154,7 +148,7 @@ static wf_status wf_label_parse_record(cJSON *node, wf_label *label,
     if (member) {
         label->has_sig = 1;
         if (!cJSON_IsString(member)) goto invalid;
-        label->sig = wf_label_strdup(member->valuestring);
+        label->sig = wf_str_dup(member->valuestring);
         if (!label->sig) goto alloc_fail;
     }
 
@@ -208,7 +202,7 @@ static wf_status wf_label_parse_name_message(cJSON *root, const char *name_key,
     if (!name_member || !cJSON_IsString(name_member)) return WF_ERR_INVALID_ARG;
 
     out->type = type;
-    out->data.info.name = wf_label_strdup(name_member->valuestring);
+    out->data.info.name = wf_str_dup(name_member->valuestring);
     if (!out->data.info.name) {
         wf_label_info_clear(&out->data.info);
         return WF_ERR_ALLOC;
@@ -219,7 +213,7 @@ static wf_status wf_label_parse_name_message(cJSON *root, const char *name_key,
             wf_label_info_clear(&out->data.info);
             return WF_ERR_INVALID_ARG;
         }
-        out->data.info.message = wf_label_strdup(message_member->valuestring);
+        out->data.info.message = wf_str_dup(message_member->valuestring);
         if (!out->data.info.message) {
             wf_label_info_clear(&out->data.info);
             return WF_ERR_ALLOC;
@@ -783,7 +777,7 @@ wf_status wf_label_subscribe_start(const wf_label_subscribe_options *opts,
                                          : WF_LABEL_DEFAULT_RECONNECT_DELAY_MS;
     handle->retry_delay_ms = handle->initial_retry_delay_ms;
 
-    handle->service_copy = wf_label_strdup(opts->service);
+    handle->service_copy = wf_str_dup(opts->service);
     if (!handle->service_copy) {
         free(handle);
         return WF_ERR_ALLOC;

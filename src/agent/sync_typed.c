@@ -8,6 +8,7 @@
  */
 
 #include "wolfram/sync_typed.h"
+#include "wolfram/util.h"
 
 #include "wolfram/repo.h"
 
@@ -21,28 +22,6 @@
 wf_xrpc_client *wf_agent_xrpc_client(wf_agent *agent);
 
 /* ── local string/byte helpers ──────────────────────────────────── */
-
-static char *wf_sync_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
-
-static wf_status wf_sync_set_string(char **dst, const char *src) {
-    char *copy = wf_sync_strdup(src);
-    if (src && !copy) {
-        return WF_ERR_ALLOC;
-    }
-    free(*dst);
-    *dst = copy;
-    return WF_OK;
-}
 
 static uint8_t *wf_sync_bytes_dup(const unsigned char *src, size_t len) {
     if (len == 0) {
@@ -92,16 +71,16 @@ wf_status wf_sync_repo_status_typed_parse(const char *json, size_t json_len,
         status = WF_ERR_PARSE;
     }
     if (status == WF_OK) {
-        status = wf_sync_set_string(&out->did, did->valuestring);
+        status = wf_str_set(&out->did, did->valuestring);
     }
     if (status == WF_OK) {
         out->active = cJSON_IsTrue(active) ? 1 : 0;
     }
     if (status == WF_OK && cJSON_IsString(status_f) && status_f->valuestring) {
-        status = wf_sync_set_string(&out->status, status_f->valuestring);
+        status = wf_str_set(&out->status, status_f->valuestring);
     }
     if (status == WF_OK && cJSON_IsString(rev) && rev->valuestring) {
-        status = wf_sync_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     }
 
     cJSON_Delete(root);
@@ -146,10 +125,10 @@ wf_status wf_sync_latest_commit_parse(const char *json, size_t json_len,
         status = WF_ERR_PARSE;
     }
     if (status == WF_OK) {
-        status = wf_sync_set_string(&out->cid, cid->valuestring);
+        status = wf_str_set(&out->cid, cid->valuestring);
     }
     if (status == WF_OK) {
-        status = wf_sync_set_string(&out->rev, rev->valuestring);
+        status = wf_str_set(&out->rev, rev->valuestring);
     }
 
     cJSON_Delete(root);
@@ -279,7 +258,7 @@ wf_status wf_sync_record_parse_car(const unsigned char *car_bytes, size_t len,
     }
 
     if (commit.rev[0]) {
-        status = wf_sync_set_string(&out->repo_rev, commit.rev);
+        status = wf_str_set(&out->repo_rev, commit.rev);
         if (status != WF_OK) {
             wf_car_free(&car);
             return status;
@@ -341,7 +320,7 @@ wf_status wf_sync_head_typed_parse(const char *json, size_t json_len,
         status = WF_ERR_PARSE;
     }
     if (status == WF_OK) {
-        status = wf_sync_set_string(&out->root, root_f->valuestring);
+        status = wf_str_set(&out->root, root_f->valuestring);
     }
 
     cJSON_Delete(root);
