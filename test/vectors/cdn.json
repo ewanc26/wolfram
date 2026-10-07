@@ -1,0 +1,93 @@
+{
+ "_comment": "wf_bsky_cdn_url vectors. preset and format are the enum names without WF_CDN_ and WF_CDN_FORMAT_ (lowercase).",
+ "ok": [
+  {
+   "name": "avatar, no format, to thumbnail jpeg",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka",
+   "preset": "avatar_thumbnail",
+   "format": "jpeg",
+   "expect": "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg"
+  },
+  {
+   "name": "avatar jpeg kept as jpeg",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg",
+   "preset": "avatar_thumbnail",
+   "format": "keep",
+   "expect": "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg"
+  },
+  {
+   "name": "no format stays without one when keeping",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka",
+   "preset": "avatar",
+   "format": "keep",
+   "expect": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka"
+  },
+  {
+   "name": "png to jpeg",
+   "url": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@png",
+   "preset": "feed_thumbnail",
+   "format": "jpeg",
+   "expect": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg"
+  },
+  {
+   "name": "jpeg to png",
+   "url": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg",
+   "preset": "banner",
+   "format": "png",
+   "expect": "https://cdn.bsky.app/img/banner/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@png"
+  },
+  {
+   "name": "same preset, format added",
+   "url": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka",
+   "preset": "feed_fullsize",
+   "format": "jpeg",
+   "expect": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg"
+  }
+ ],
+ "refused": [
+  {
+   "name": "another host",
+   "url": "https://example.com/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka"
+  },
+  {
+   "name": "http, not https",
+   "url": "http://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka"
+  },
+  {
+   "name": "unknown preset",
+   "url": "https://cdn.bsky.app/img/avatar_huge/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka"
+  },
+  {
+   "name": "not plain",
+   "url": "https://cdn.bsky.app/img/avatar/signed/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka"
+  },
+  {
+   "name": "query string",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka?x=1"
+  },
+  {
+   "name": "unknown format",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@webp"
+  },
+  {
+   "name": "two format suffixes",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka@jpeg@png"
+  },
+  {
+   "name": "empty tail",
+   "url": "https://cdn.bsky.app/img/avatar/plain/"
+  },
+  {
+   "name": "no preset",
+   "url": "https://cdn.bsky.app/img/plain/x/y"
+  },
+  {
+   "name": "space in path",
+   "url": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka x"
+  },
+  {
+   "name": "userinfo trick",
+   "url": "https://cdn.bsky.app@evil.example/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihwihm6kpd6zuwhhlro75p5qks5qtrcu55jp3gddbfjsieiv7wuka"
+  }
+ ]
+}

@@ -27,6 +27,7 @@
 #include "wolfram/qr.h"
 #include "wolfram/time.h"
 #include "wolfram/failure.h"
+#include "wolfram/cdn.h"
 #include "wolfram/ed25519.h"
 #include "wolfram/update.h"
 #include "wolfram/richtext.h"

@@ -219,7 +219,8 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
               src/transport/xrpc_mac9.c
               src/transport/macos9_tls.c
               src/update/update_core.c
-              src/failure.c)
+              src/failure.c
+              src/cdn.c)
   target_include_directories(
     wolfram-macos9-transport
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -397,6 +398,7 @@ add_library(
   src/util.c
   src/time.c
   src/failure.c
+  src/cdn.c
   src/update/ed25519.c
   src/update/signature.c
   src/qr.c
@@ -1726,6 +1728,13 @@ if(WOLFRAM_BUILD_TESTS)
     test_failure
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME failure COMMAND test_failure)
+  add_executable(test_cdn test/test_cdn.c)
+  target_link_libraries(test_cdn PRIVATE wolfram)
+  target_include_directories(test_cdn PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_cdn
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME cdn COMMAND test_cdn)
   add_executable(test_ed25519 test/test_ed25519.c)
   target_link_libraries(test_ed25519 PRIVATE wolfram)
   target_include_directories(test_ed25519 PRIVATE test ${cjson_SOURCE_DIR})
