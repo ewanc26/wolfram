@@ -1,3 +1,10 @@
+/* stb_image keeps its last failure reason in a thread-local variable. On the 3DS
+ * that variable, touched from a thread made with libctru's threadCreate, corrupts
+ * memory the first time a JPEG is decoded there: Indigo's avatar loader crashed
+ * in the C library's printf a moment after a successful decode, with text from
+ * the decoded data where a FILE pointer should be. Without thread-local storage
+ * the reason is one shared pointer to a string literal; nothing here reads it. */
+#define STBI_NO_THREAD_LOCALS
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "wolfram/image.h"

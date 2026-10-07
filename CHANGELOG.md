@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- Decoding a JPEG on a thread made with libctru's `threadCreate` no longer crashes the 3DS build. stb_image's thread-local failure reason corrupted memory there, so Indigo's avatar loader died a moment after its first successful decode. `wf_image_decode_rgba` now builds stb without thread-local storage. Found by running Indigo in Azahar. ([#153](https://github.com/ewanc26/wolfram/pull/153))
+
 ## [0.28.0] - 2026-10-06
 
 ### Added
