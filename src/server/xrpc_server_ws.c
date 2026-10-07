@@ -410,6 +410,7 @@ static void *wf_ws_serve_thread(void *arg) {
      * descriptor and its stack for the life of the process.
      */
     bool reaped = false;
+    bool counted = false;
     if (s->server) {
         pthread_mutex_lock(&s->server->ws_mutex);
         wf_xrpc_ws_stream **pp = &s->server->ws_streams;
@@ -421,11 +422,26 @@ static void *wf_ws_serve_thread(void *arg) {
             pp = &(*pp)->next;
         }
         reaped = s->reaped;
+        /* Unlisted but still to call into libmicrohttpd: tell stop() to wait,
+         * or it can free the upgrade handle under the call below. A reaped
+         * stream is joined instead. */
+        counted = !reaped;
+        if (counted) {
+            s->server->ws_closing++;
+        }
         pthread_mutex_unlock(&s->server->ws_mutex);
     }
 
     wf_ws_shutdown_gracefully(s->sock);
     MHD_upgrade_action(s->urh, MHD_UPGRADE_ACTION_CLOSE);
+
+    if (counted) {
+        /* The last touch of the server: stop() may free it once this is out. */
+        pthread_mutex_lock(&s->server->ws_mutex);
+        s->server->ws_closing--;
+        pthread_cond_broadcast(&s->server->ws_closing_cond);
+        pthread_mutex_unlock(&s->server->ws_mutex);
+    }
 
     if (!reaped) {
         pthread_detach(pthread_self());
