@@ -64,20 +64,6 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure -j"$(nproc)"
 
-      # relay_server segfaults intermittently on this job (#147) and never on a
-      # developer machine. If ctest failed, run that one test under lldb until
-      # it crashes again, so the log has a backtrace instead of just "SegFault".
-      - name: Backtrace relay_server (#147)
-        if: failure()
-        run: |
-          for i in $(seq 1 40); do
-            out="$(lldb --batch -o run -o 'bt all' -- build/test_relay_server 2>&1)" || true
-            if grep -q 'stop reason = EXC_BAD_ACCESS\|SIGSEGV' <<<"$out"; then
-              echo "reproduced on run $i"; echo "$out" | tail -60; exit 0
-            fi
-          done
-          echo "no crash in 40 runs under lldb"
-
       # The job log is hard to read back with the tools agents use; annotations
       # are not. Name the failing tests there.
       - name: Name the failing tests
@@ -229,6 +215,20 @@ jobs:
       # holding the job until the six-hour limit.
       - name: Test
         run: ctest --test-dir build --output-on-failure --timeout 120 -j"$(sysctl -n hw.ncpu)"
+
+      # relay_server segfaults intermittently on the macOS Homebrew job (#147) and never on a
+      # developer machine. If ctest failed, run that one test under lldb until
+      # it crashes again, so the log has a backtrace instead of just "SegFault".
+      - name: Backtrace relay_server (#147)
+        if: failure()
+        run: |
+          for i in $(seq 1 40); do
+            out="$(lldb --batch -o run -o 'bt all' -- build/test_relay_server 2>&1)" || true
+            if grep -q 'stop reason = EXC_BAD_ACCESS\|SIGSEGV' <<<"$out"; then
+              echo "reproduced on run $i"; echo "$out" | tail -60; exit 0
+            fi
+          done
+          echo "no crash in 40 runs under lldb"
 
       # The job log is hard to read back with the tools agents use; annotations
       # are not. Name the failing tests there.
