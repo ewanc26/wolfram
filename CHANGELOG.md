@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-10-07
+
 ### Fixed
 
 - `wf_agent_login_discovered` falls back to the agent's current host when a handle or DID cannot be resolved to a PDS, instead of failing. An account that does not publish a PDS signs in as it did before discovery. ([#189](https://github.com/ewanc26/wolfram/pull/189))
@@ -406,7 +408,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.38.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.38.1...HEAD
+[0.38.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.38.1
 [0.38.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.38.0
 [0.37.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.37.0
 [0.36.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.36.2
