@@ -12,6 +12,7 @@
 #include "wolfram/graph_write.h"
 #include "wolfram/agent.h"
 #include "wolfram/attach.h"
+#include "wolfram/saved_feeds.h"
 #include "wolfram/syntax.h"
 
 #include "mock_pds.h"
@@ -342,6 +343,44 @@ int main(void) {
         WF_CHECK(wf_agent_upload_image_file(agent, png, NULL, NULL) ==
                  WF_ERR_INVALID_ARG);
         remove(png);
+    }
+
+    /* ---- saved feeds, with names ---- */
+    {
+        wf_saved_feed feeds[4];
+        size_t n = 0;
+        const char *prefs =
+            "{\"preferences\":[{\"$type\":\"app.bsky.actor.defs#"
+            "savedFeedsPrefV2\","
+            "\"items\":[{\"type\":\"feed\",\"value\":\"at://did:plc:x/app.bsky."
+            "feed.generator/hot\"},{\"type\":\"feed\",\"value\":\"at://"
+            "did:plc:x/"
+            "app.bsky.feed.generator/plain\"}]}]}";
+        const char *gens =
+            "{\"feeds\":[{\"uri\":\"at://did:plc:x/app.bsky.feed.generator/"
+            "hot\","
+            "\"cid\":\"bafy\",\"did\":\"did:web:g.test\",\"creator\":{\"did\":"
+            "\"did:plc:x\",\"handle\":\"x.test\"},\"displayName\":\"What's "
+            "Hot\","
+            "\"indexedAt\":\"2026-01-01T00:00:00Z\"}]}";
+
+        WF_CHECK(wf_mock_pds_register(pds, "app.bsky.actor.getPreferences",
+                                      prefs) == WF_OK);
+        WF_CHECK(wf_mock_pds_register(pds, "app.bsky.feed.getFeedGenerators",
+                                      gens) == WF_OK);
+        WF_CHECK(wf_agent_get_saved_feeds(agent, feeds, 4, &n) == WF_OK);
+        WF_CHECK(n == 2);
+        /* The one the server named uses its display name; the other, which it
+         * did not return, keeps its record key. */
+        WF_CHECK(strcmp(feeds[0].name, "What's Hot") == 0);
+        WF_CHECK(strcmp(feeds[1].name, "plain") == 0);
+
+        /* If the name lookup fails the feeds still come back, by record key. */
+        WF_CHECK(wf_mock_pds_register(pds, "app.bsky.feed.getFeedGenerators",
+                                      "nope") == WF_OK);
+        WF_CHECK(wf_agent_get_saved_feeds(agent, feeds, 4, &n) == WF_OK &&
+                 n == 2);
+        WF_CHECK(strcmp(feeds[0].name, "hot") == 0);
     }
 
     /* ---- reply gate ---- */
