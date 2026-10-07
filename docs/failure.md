@@ -21,10 +21,10 @@ When `st` is `WF_ERR_HTTP`, the XRPC error name decides first, then the HTTP sta
 | `WF_FAIL_TIMEOUT` | `timeout` | `WF_ERR_TIMEOUT`; `UpstreamTimeout`; HTTP 408, 504 |
 | `WF_FAIL_TLS` | `tls` | `WF_ERR_TLS`, `WF_ERR_CRYPTO`, `WF_ERR_CONFIG` |
 | `WF_FAIL_NETWORK` | `network` | `WF_ERR_NETWORK`, and the four DID and handle resolution failures |
-| `WF_FAIL_SERVER` | `server` | `WF_ERR_INTERNAL`; `InternalServerError`, `UpstreamFailure`, `NotEnoughResources`; HTTP 5xx |
+| `WF_FAIL_SERVER` | `server` | `WF_ERR_INTERNAL`; `InternalServerError`, `UpstreamFailure`, `NotEnoughResources`; HTTP 5xx; `WF_ERR_HTTP` with no status at all |
 | `WF_FAIL_BAD_RESPONSE` | `bad-response` | `WF_ERR_PARSE` |
 | `WF_FAIL_NOT_READY` | `not-ready` | `WF_ERR_UNSUPPORTED`, `WF_ERR_NOT_IMPLEMENTED` |
-| `WF_FAIL_OTHER` | `other` | everything else, including an `WF_ERR_HTTP` the table does not name (400, 403, 404) |
+| `WF_FAIL_OTHER` | `other` | everything else, including an `WF_ERR_HTTP` with a status the table does not name (400, 403, 404) |
 
 `WF_ERR_CRYPTO` and `WF_ERR_CONFIG` count as TLS because the console transports report a failed handshake or a missing certificate store that way until `WF_ERR_TLS` is verified on them; Indigo already treated them as TLS. Only the libcurl transport reports `WF_ERR_TLS` today (see the status comment in `xrpc.h`), and I have not checked the console or macTLS transports on hardware.
 

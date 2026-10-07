@@ -7,6 +7,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 ### Changed
 
 - `wf_muted_words_match` no longer has its own matching rules: it adapts the account's mutedWord to `wf_mod_match_mute_words`, the official client's matcher, so Cobalt, Indigo and the moderation code apply the same rules. The visible difference is that punctuation at the ends of a word is ignored (`cat` now matches `cat.` and `(cat)`, still not `cat's`) and a single character matches as a substring. It still takes `now`, so the console's clock decides expiry. ([#159](https://github.com/ewanc26/wolfram/pull/159))
+- `wf_failure_classify` reads a `WF_ERR_HTTP` with no HTTP status and no error name as a server failure rather than `other`, so a client that only has the `wf_status` (Indigo's sign-in and feeds) still says the service had a problem. ([#160](https://github.com/ewanc26/wolfram/pull/160))
 
 ## [0.30.0] - 2026-10-07
 

@@ -329,7 +329,8 @@
    "status": "WF_ERR_HTTP",
    "http": 0,
    "xrpc_error": null,
-   "kind": "other"
+   "kind": "server",
+   "note": "no status at all: the service gave no usable answer"
   },
   {
    "status": "WF_ERR_HTTP",
