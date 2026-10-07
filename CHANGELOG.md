@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-07
+
 ### Added
 
 - I've added `wolfram/cdn.h`: `wf_bsky_cdn_url()` rewrites a `cdn.bsky.app` image URL to another preset (`avatar_thumbnail` is 128 px) and to `@jpeg` or `@png`. A URL with no format comes back as WebP, which `wolfram/image.h` cannot decode, and the full-size presets are far larger than a console can draw; Indigo's avatars failed on both counts. Strict C89, with vectors. ([#152](https://github.com/ewanc26/wolfram/pull/152))
@@ -319,7 +321,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.28.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.29.0...HEAD
+[0.29.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.29.0
 [0.28.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.28.0
 [0.27.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.27.0
 [0.26.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.26.0
