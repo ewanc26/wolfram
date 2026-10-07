@@ -71,6 +71,22 @@ wf_status wf_agent_set_tls_rng(wf_agent *agent, wf_tls_rng_fn fn,
                                void *userdata);
 
 /* Session management */
+/*
+ * Sign in without knowing the account's PDS in advance. `identifier` is a
+ * handle or a DID; it is resolved (DNS TXT, then /.well-known/atproto-did for
+ * handles), the DID document's #atproto_pds endpoint is read, the agent is
+ * pointed at that PDS, and only then is the login sent there. So a user types
+ * their handle and password, and never the service they are hosted on.
+ *
+ * The agent's current base URL is used for resolution (any reachable host will
+ * do). `*out_pds` is set to the PDS the login was sent to and is
+ * heap-allocated; the caller frees it. On failure before the login nothing is
+ * changed: the agent keeps its previous base URL. WF_ERR_NOT_FOUND when the DID
+ * document has no PDS endpoint.
+ */
+wf_status wf_agent_login_discovered(wf_agent *agent, const char *identifier,
+                                    const char *password, char **out_pds);
+
 wf_status wf_agent_login(wf_agent *agent, const char *identifier,
                          const char *password);
 wf_status wf_agent_resume(wf_agent *agent, const wf_session_data *data);
