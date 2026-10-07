@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Removed
+
+- I've deleted about 1,800 lines of dead code from `src/agent/agent.c` and `post.c`: six blocks under `#if 0` that said they had moved to `post.c`, `feed.c`, `graph.c` and `notification.c`, and the helpers only they used. Nothing a caller can see changes. ([#175](https://github.com/ewanc26/wolfram/pull/175))
+
 ## [0.34.0] - 2026-10-07
 
 ### Added
