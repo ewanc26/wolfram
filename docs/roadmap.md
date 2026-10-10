@@ -83,8 +83,11 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
     (`wf_agent_get_video_job_status`), and upload limits
     (`wf_agent_get_video_upload_limits`).
  31. Chat typed wrappers (`chat_typed.h`) — `chat.bsky.convo`/`group`/`actor`/
-     `moderation` write+query wrappers with chat-service endpoint resolution.
-     The full chat write surface is now implemented.
+     `moderation` write+query wrappers with service-proxying resolution. The
+     full chat write surface is now implemented. Each call is addressed to the
+     user's PDS and carries `atproto-proxy: <chat DID>#bsky_chat` (the
+     documented route for DMs); the moderation WebSocket is the exception and
+     dials the chat service directly.
  48. Chat moderation event subscription (`chat_typed.h`) — real client-side
      WebSocket subscription for `chat.bsky.moderation.subscribeModEvents`. Decodes
      the atproto framed DAG-CBOR envelope (header map `{op, t}` ++ body map)

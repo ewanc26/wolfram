@@ -2,7 +2,7 @@
 
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
-| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload |
+| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload, client-level `atproto-proxy` service-proxying header |
 | `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
 | `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, one-shot and incremental CID hashing, CAR, MST, commit, diff verify/apply, operation inversion |
@@ -16,7 +16,7 @@
 | `wolfram/validate.h`     | Implemented | Runtime Lexicon schema validation (records and named values), refs/unions/format keywords |
 | `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, **video upload** (`wf_agent_upload_video`/`wf_agent_get_video_job_status`/`wf_agent_get_video_upload_limits`), server + app-password management |
 | `wolfram/blob.h`         | Implemented | Binary blob upload — image/blob POST (`wf_xrpc_upload_blob`) and dedicated **video** upload (`wf_agent_upload_video`, `wf_uploaded_blob_free`) |
-| `wolfram/chat_typed.h`   | Implemented | Chat (DM) — `chat.bsky.convo`/`group`/`actor`/`moderation` write+query wrappers with chat-service endpoint resolution |
+| `wolfram/chat_typed.h`   | Implemented | Chat (DM) — `chat.bsky.convo`/`group`/`actor`/`moderation` write+query wrappers routed to the user's PDS via the `atproto-proxy` header (`wf_xrpc_client_set_proxy`) |
 | `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper — verify and emit labels, build service auth headers. Full typed wrapper coverage across all tools.ozone.* namespaces: moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, and set value wrappers |
 | `wolfram/auth_client.h`  | Implemented | Authenticated XRPC client — DPoP-binding OAuth-authenticated query/procedure/blob-upload (`wf_auth_client_*`) with session refresh and DPoP nonce retry |
 | `wolfram/plc.h`          | Implemented | DID PLC operation build/sign/submit helpers (`wf_plc_*`): create/rotate/tombstone, signing-key and handle operations with ES256 signature + verification |

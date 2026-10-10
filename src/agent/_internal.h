@@ -17,6 +17,11 @@
  * library defaults. */
 void wf_agent_apply_tls(wf_agent *agent, wf_xrpc_client *client);
 
+/* Resolve the chat service's own endpoint URL (the host the moderation
+ * WebSocket dials), independent of the PDS route used for XRPC. Best-effort:
+ * falls back to WF_CHAT_DEFAULT_ENDPOINT. Caller frees the result. */
+char *wf_agent_chat_service_endpoint(wf_agent *agent);
+
 /* Helper: convert int to string */
 static inline int wf_agent_int_to_str(int value, char *buf, size_t buf_len) {
     return snprintf(buf, buf_len, "%d", value) > 0;
