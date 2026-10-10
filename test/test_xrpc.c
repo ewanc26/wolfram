@@ -74,6 +74,52 @@ static wf_status wf_test_error_handler(void *userdata, const char *method,
     return (ctx->status >= 200 && ctx->status < 300) ? WF_OK : WF_ERR_HTTP;
 }
 
+/* Test seam handler: captures the request headers for one call. */
+struct wf_test_header_capture_ctx {
+    wf_http_header headers[8];
+    size_t count;
+    int called;
+};
+
+static wf_status wf_test_header_capture_handler(
+    void *userdata, const char *method, const char *url,
+    const char *content_type, const char *body, size_t body_len,
+    const wf_http_header *headers, size_t header_count, wf_response *out) {
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    struct wf_test_header_capture_ctx *ctx = userdata;
+    for (size_t i = 0; i < ctx->count; i++) {
+        free((void *)ctx->headers[i].name);
+        free((void *)ctx->headers[i].value);
+    }
+    ctx->count = 0;
+    ctx->called++;
+    /* The seam frees its header array when the handler returns, so the values
+     * must be copied out now rather than borrowed. */
+    for (size_t i = 0; i < header_count && ctx->count < 8; i++) {
+        ctx->headers[ctx->count].name =
+            headers[i].name ? strdup(headers[i].name) : NULL;
+        ctx->headers[ctx->count].value =
+            headers[i].value ? strdup(headers[i].value) : NULL;
+        ctx->count++;
+    }
+    out->status = 200;
+    return WF_OK;
+}
+
+static const char *wf_test_find_header(const wf_http_header *headers,
+                                       size_t count, const char *name) {
+    for (size_t i = 0; i < count; i++) {
+        if (headers[i].name && strcmp(headers[i].name, name) == 0) {
+            return headers[i].value;
+        }
+    }
+    return NULL;
+}
+
 int main(void) {
     /* Rejects empty/NULL base URLs. */
     WF_CHECK(wf_xrpc_client_new(NULL) == NULL);
@@ -283,6 +329,68 @@ int main(void) {
          * including on builds that cannot install one. */
         WF_CHECK(wf_xrpc_client_set_tls_rng(c, NULL, NULL) == WF_OK);
 
+        wf_xrpc_client_free(c);
+    }
+
+    /* A client-level atproto-proxy header is sent on every request and can be
+     * cleared again. */
+    {
+        wf_xrpc_client *c = wf_xrpc_client_new("https://bsky.social");
+        WF_CHECK(c != NULL);
+        const char *chat_proxy = "did:web:api.bsky.chat#bsky_chat";
+        WF_CHECK(wf_xrpc_client_set_proxy(c, chat_proxy) == WF_OK);
+        WF_CHECK(wf_xrpc_client_set_proxy(NULL, chat_proxy) ==
+                 WF_ERR_INVALID_ARG);
+
+        struct wf_test_header_capture_ctx ctx = {0};
+        wf_xrpc_set_handler(c, wf_test_header_capture_handler, &ctx);
+        wf_response res = {0};
+        WF_CHECK(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &res) ==
+                 WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(ctx.called == 1);
+        const char *proxy =
+            wf_test_find_header(ctx.headers, ctx.count, "atproto-proxy");
+        WF_CHECK(proxy != NULL && strcmp(proxy, chat_proxy) == 0);
+        WF_CHECK(wf_test_find_header(ctx.headers, ctx.count, "Authorization") ==
+                 NULL);
+
+        /* A bearer token rides alongside the proxy header. */
+        wf_xrpc_client_set_auth(c, "jwt");
+        ctx.called = 0;
+        WF_CHECK(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &res) ==
+                 WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(
+            wf_test_find_header(ctx.headers, ctx.count, "Authorization") &&
+            strcmp(wf_test_find_header(ctx.headers, ctx.count, "Authorization"),
+                   "Bearer jwt") == 0);
+        WF_CHECK(
+            strcmp(wf_test_find_header(ctx.headers, ctx.count, "atproto-proxy"),
+                   chat_proxy) == 0);
+
+        /* A procedure carries both headers plus Content-Type. */
+        ctx.called = 0;
+        WF_CHECK(wf_xrpc_procedure(c, "chat.bsky.convo.sendMessage",
+                                   "{\"convoId\":\"c\"}", &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(
+            strcmp(wf_test_find_header(ctx.headers, ctx.count, "atproto-proxy"),
+                   chat_proxy) == 0);
+        WF_CHECK(
+            strcmp(wf_test_find_header(ctx.headers, ctx.count, "Content-Type"),
+                   "application/json") == 0);
+
+        /* Clearing the proxy removes the header from subsequent requests. */
+        WF_CHECK(wf_xrpc_client_set_proxy(c, NULL) == WF_OK);
+        ctx.called = 0;
+        WF_CHECK(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &res) ==
+                 WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(wf_test_find_header(ctx.headers, ctx.count, "atproto-proxy") ==
+                 NULL);
+
+        wf_xrpc_set_handler(c, NULL, NULL);
         wf_xrpc_client_free(c);
     }
 
