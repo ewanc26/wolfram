@@ -256,6 +256,7 @@ static int wf_buffer_append_size_header(struct wf_buffer *b, const char *name,
 struct wf_xrpc_client {
     char *base_url;
     char *auth_header;
+    char *proxy_header;
     int https_only;
     size_t max_response_bytes;
     wf_xrpc_handler_fn handler;
@@ -1161,8 +1162,9 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     return WF_OK;
 }
 
-/* Build the request headers (auth + optional content-type) for one attempt.
- * These carry header values; wf_xrpc_perform renders them onto the wire. */
+/* Build the request headers (auth + proxy + optional content-type) for one
+ * attempt. These carry header values; wf_xrpc_perform renders them onto the
+ * wire. */
 static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
                                        const char *content_type,
                                        wf_http_header **out_headers,
@@ -1171,7 +1173,11 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
     size_t slots;
     size_t n;
 
-    slots = (is_post && content_type != NULL) ? 2 : 1;
+    slots = 0;
+    if (client->auth_header != NULL) slots++;
+    if (client->proxy_header != NULL) slots++;
+    if (is_post && content_type != NULL) slots++;
+    if (slots == 0) slots = 1;
     arr = (wf_http_header *)calloc(slots, sizeof(*arr));
     if (arr == NULL) return WF_ERR_ALLOC;
 
@@ -1179,6 +1185,11 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
     if (client->auth_header != NULL) {
         arr[n].name = "Authorization";
         arr[n].value = client->auth_header + strlen("Authorization: ");
+        n++;
+    }
+    if (client->proxy_header != NULL) {
+        arr[n].name = "atproto-proxy";
+        arr[n].value = client->proxy_header + strlen("atproto-proxy: ");
         n++;
     }
     if (is_post && content_type != NULL) {
@@ -1288,6 +1299,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     if (client == NULL) return;
     free(client->base_url);
     free(client->auth_header);
+    free(client->proxy_header);
     free(client->last_error);
     free(client);
 }
@@ -1313,6 +1325,21 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
                               WF_XRPC_MAC9_MAX_FIELD * 8);
     free(client->auth_header);
     client->auth_header = header;
+}
+
+wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
+                                   const char *proxy_did) {
+    char *header;
+
+    if (client == NULL) return WF_ERR_INVALID_ARG;
+    header = NULL;
+    if (proxy_did != NULL)
+        header = mac9_concat3("atproto-proxy: ", proxy_did, "",
+                              WF_XRPC_MAC9_MAX_FIELD * 8);
+    if (proxy_did != NULL && header == NULL) return WF_ERR_ALLOC;
+    free(client->proxy_header);
+    client->proxy_header = header;
+    return WF_OK;
 }
 
 wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
@@ -1620,6 +1647,7 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
 
     anon = *client;
     anon.auth_header = NULL;
+    anon.proxy_header = NULL;
     anon.refresh_cb = NULL;
     anon.last_error = NULL;
     anon.https_only = 1;

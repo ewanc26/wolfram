@@ -244,6 +244,14 @@ static const char *auth_header(const capture *c) {
     return NULL;
 }
 
+/* Value of the request's atproto-proxy header, or NULL if absent. */
+static const char *proxy_header(const capture *c) {
+    if (strncmp(c->headers, "atproto-proxy:", 14) == 0) return c->headers + 15;
+    if (strstr(c->headers, "\natproto-proxy:") != NULL)
+        return strstr(c->headers, "\natproto-proxy:") + 16;
+    return NULL;
+}
+
 static void test_request_url_building(void) {
     wf_xrpc_client *c;
     capture cap;
@@ -389,6 +397,59 @@ static void test_auth_header(void) {
         wf_response_free(&r);
     }
 
+    wf_xrpc_client_free(c);
+}
+
+static void test_proxy_header(void) {
+    wf_xrpc_client *c;
+    capture cap;
+    wf_response r;
+    const char *value;
+    const char *chat_proxy = "did:web:api.bsky.chat#bsky_chat";
+
+    c = wf_xrpc_client_new("https://pds.example");
+    assert(c != NULL);
+    memset(&cap, 0, sizeof(cap));
+    cap.status = 200;
+    wf_xrpc_set_handler(c, capture_reply, &cap);
+
+    /* Absent by default. */
+    memset(&r, 0, sizeof(r));
+    assert(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &r) == WF_OK);
+    assert(proxy_header(&cap) == NULL);
+    wf_response_free(&r);
+
+    /* Set, it rides every request alongside the bearer token. */
+    assert(wf_xrpc_client_set_proxy(c, chat_proxy) == WF_OK);
+    wf_xrpc_client_set_auth(c, "token-abc");
+    memset(&r, 0, sizeof(r));
+    assert(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &r) == WF_OK);
+    value = proxy_header(&cap);
+    assert(value != NULL && strcmp(value, chat_proxy) == 0);
+    assert(auth_header(&cap) != NULL);
+    wf_response_free(&r);
+
+    /* The value is copied: changing the caller's buffer cannot rewrite it. */
+    {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "first");
+        assert(wf_xrpc_client_set_proxy(c, buf) == WF_OK);
+        snprintf(buf, sizeof(buf), "second");
+        memset(&r, 0, sizeof(r));
+        assert(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &r) == WF_OK);
+        value = proxy_header(&cap);
+        assert(value != NULL && strcmp(value, "first") == 0);
+        wf_response_free(&r);
+    }
+
+    /* Clearing removes it again. */
+    assert(wf_xrpc_client_set_proxy(c, NULL) == WF_OK);
+    memset(&r, 0, sizeof(r));
+    assert(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &r) == WF_OK);
+    assert(proxy_header(&cap) == NULL);
+    wf_response_free(&r);
+
+    assert(wf_xrpc_client_set_proxy(NULL, chat_proxy) == WF_ERR_INVALID_ARG);
     wf_xrpc_client_free(c);
 }
 
@@ -749,6 +810,7 @@ int main(void) {
 
     test_request_url_building();
     test_auth_header();
+    test_proxy_header();
     test_base_url_getter();
 
     test_refresh_and_retry();

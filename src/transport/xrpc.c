@@ -42,8 +42,9 @@
 #endif
 
 struct wf_xrpc_client {
-    char *base_url;    /* e.g. "https://eurosky.social", no trailing slash */
-    char *auth_header; /* "Authorization: Bearer <jwt>", or NULL */
+    char *base_url;     /* e.g. "https://eurosky.social", no trailing slash */
+    char *auth_header;  /* "Authorization: Bearer <jwt>", or NULL */
+    char *proxy_header; /* "atproto-proxy: <did>#<service>", or NULL */
     char *ca_bundle; /* path to custom CA bundle, or NULL for system default */
     wf_xrpc_handler_fn handler; /* NULL in production; test seam */
     void *handler_userdata;
@@ -69,6 +70,7 @@ struct wf_xrpc_client {
 struct wf_client_config {
     char *base_url;
     char *auth_header;
+    char *proxy_header;
     char *ca_bundle;
     wf_xrpc_handler_fn handler;
     void *handler_userdata;
@@ -105,6 +107,7 @@ static void wf_config_free(struct wf_client_config *cfg) {
     if (!cfg) return;
     free(cfg->base_url);
     free(cfg->auth_header);
+    free(cfg->proxy_header);
     free(cfg->ca_bundle);
     free(cfg->user_agent);
     free(cfg);
@@ -121,6 +124,8 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     pthread_mutex_lock(&client->mutex);
     cfg->base_url = client->base_url ? strdup(client->base_url) : NULL;
     cfg->auth_header = client->auth_header ? strdup(client->auth_header) : NULL;
+    cfg->proxy_header =
+        client->proxy_header ? strdup(client->proxy_header) : NULL;
     cfg->ca_bundle = client->ca_bundle ? strdup(client->ca_bundle) : NULL;
     cfg->handler = client->handler;
     cfg->handler_userdata = client->handler_userdata;
@@ -133,6 +138,7 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     cfg->total_timeout_ms = client->total_timeout_ms;
     int copy_failed = (!cfg->base_url && client->base_url) ||
                       (!cfg->auth_header && client->auth_header) ||
+                      (!cfg->proxy_header && client->proxy_header) ||
                       (!cfg->ca_bundle && client->ca_bundle) ||
                       (!cfg->user_agent && client->user_agent);
     pthread_mutex_unlock(&client->mutex);
@@ -371,6 +377,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     pthread_mutex_destroy(&client->mutex);
     free(client->base_url);
     free(client->auth_header);
+    free(client->proxy_header);
     free(client->ca_bundle);
     free(client->user_agent);
     free(client->last_error);
@@ -421,6 +428,29 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
                  access_jwt);
     }
     pthread_mutex_unlock(&client->mutex);
+}
+
+wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
+                                   const char *proxy_did) {
+    if (!client) return WF_ERR_INVALID_ARG;
+
+    if (!proxy_did) {
+        pthread_mutex_lock(&client->mutex);
+        free(client->proxy_header);
+        client->proxy_header = NULL;
+        pthread_mutex_unlock(&client->mutex);
+        return WF_OK;
+    }
+
+    size_t needed = strlen("atproto-proxy: ") + strlen(proxy_did) + 1;
+    char *header = malloc(needed);
+    if (!header) return WF_ERR_ALLOC;
+    snprintf(header, needed, "atproto-proxy: %s", proxy_did);
+    pthread_mutex_lock(&client->mutex);
+    free(client->proxy_header);
+    client->proxy_header = header;
+    pthread_mutex_unlock(&client->mutex);
+    return WF_OK;
 }
 
 void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
@@ -780,6 +810,9 @@ static wf_status wf_xrpc_build_headers(const struct wf_client_config *cfg,
 
     if (cfg->auth_header) {
         headers = curl_slist_append(headers, cfg->auth_header);
+    }
+    if (cfg->proxy_header) {
+        headers = curl_slist_append(headers, cfg->proxy_header);
     }
     if (is_post) {
         size_t header_len = strlen("Content-Type: ") + strlen(content_type) + 1;
@@ -1416,6 +1449,8 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
      * never touches the client's own (shared) auth state. */
     free(cfg->auth_header);
     cfg->auth_header = NULL;
+    free(cfg->proxy_header);
+    cfg->proxy_header = NULL;
     cfg->https_only = 1;
     /* An untrusted URL must not be able to walk a redirect chain for ever, so
      * cap it tighter than the client's default. */

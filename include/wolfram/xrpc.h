@@ -107,6 +107,24 @@ void wf_xrpc_client_free(wf_xrpc_client *client);
  */
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 
+/**
+ * Direct every request from this client at a service through the account's
+ * PDS by sending the atproto service-proxying header.
+ *
+ * `proxy_did` is the service identifier of the form "<did>#<service>", e.g.
+ * "did:web:api.bsky.chat#bsky_chat" for the chat service. When set, every
+ * request carries `atproto-proxy: <proxy_did>`; the PDS named by the
+ * client's base URL forwards the (authenticated) request to that service.
+ * This is the documented way to reach the centralized chat (chat.bsky.*)
+ * and Ozone moderation (tools.ozone.*) APIs. Pass NULL to clear it.
+ *
+ * The value is copied. The header is sent on XRPC queries and procedures
+ * but never on wf_http_get_public, which does not carry client credentials.
+ * Returns WF_ERR_ALLOC on allocation failure (the previous value is kept).
+ */
+wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
+                                   const char *proxy_did);
+
 /** Default cap on a buffered HTTP response body (256 MiB). */
 #define WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES ((size_t)256 * 1024 * 1024)
 
