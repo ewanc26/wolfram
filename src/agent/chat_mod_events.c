@@ -529,13 +529,11 @@ wf_status wf_agent_chat_subscribe_mod_events_typed(
     wf_chat_mod_events_error_cb on_error, void *userdata) {
     if (!agent || !on_event) return WF_ERR_INVALID_ARG;
 
-    /* Resolve the chat-service endpoint exactly as the other chat wrappers do,
-     * then reuse its base URL for the WebSocket subscription. */
-    if (wf_agent_chat_service_resolve(agent) != WF_OK) return WF_ERR_NOT_FOUND;
-    wf_xrpc_client *cc = agent->chat_client;
-    if (!cc) return WF_ERR_NOT_FOUND;
-    char *base = wf_xrpc_get_base_url(cc);
-    if (!base) return WF_ERR_ALLOC;
+    /* Resolve the chat service's own endpoint (not the PDS route the XRPC
+     * wrappers use): a WebSocket upgrade cannot carry the atproto-proxy
+     * header, so the moderation stream dials the service directly. */
+    char *base = wf_agent_chat_service_endpoint(agent);
+    if (!base) return WF_ERR_NOT_FOUND;
 
     /* subscribeModEvents is a "private endpoint"; carry the agent's current
      * bearer token onto the WS upgrade the same way an authenticated XRPC

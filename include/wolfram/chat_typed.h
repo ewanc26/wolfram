@@ -8,12 +8,17 @@
  * chat.bsky.actor.defs#profileViewBasic). Free the lists with the matching
  * `*_free` function.
  *
- * NOTE ON SERVICE ENDPOINT: chat.bsky.convo endpoints are served by a separate
- * Bluesky chat service, NOT the user's main PDS. The agent wrappers below
- * lazily resolve the chat service URL (via wf_agent_chat_service_resolve) and
- * issue every call through a dedicated `agent->chat_client`, so callers do not
- * need to configure anything manually. When the server does not advertise a
- * chat service, the wrappers fall back to WF_CHAT_DEFAULT_ENDPOINT.
+ * NOTE ON SERVICE ENDPOINT: chat.bsky.convo endpoints require service
+ * proxying. Each call is addressed to the user's own PDS and carries the
+ * `atproto-proxy: <did>#bsky_chat` header, which the PDS honours by
+ * forwarding the (authenticated) request to the Bluesky chat service. The
+ * agent wrappers below lazily set this up (via wf_agent_chat_service_resolve)
+ * and issue every call through a dedicated `agent->chat_client`, so callers
+ * do not need to configure anything manually. When the server does not
+ * advertise a chat DID, the wrappers proxy through the canonical chat
+ * service DID "did:web:api.bsky.chat#bsky_chat". The moderation WebSocket
+ * (wf_agent_chat_subscribe_mod_events_typed) is the exception: an upgrade
+ * cannot carry the proxy header, so it connects to the chat service directly.
  *
  * Conventions mirror feed_typed.c / notification.c:
  *   - `wf_status` error codes (WF_ERR_INVALID_ARG, WF_ERR_PARSE, WF_ERR_ALLOC,
@@ -146,27 +151,31 @@ wf_status wf_agent_chat_send_message(wf_agent *agent, const char *convo_id,
                                      const char *text, const char *facets_json,
                                      wf_chat_message *out);
 
-/* Resolve (lazily) the Bluesky chat service endpoint and assign it to
+/* Resolve (lazily) the proxied chat route and assign it to
  * `agent->chat_client`.
  *
  * Strategy:
  *   1. If `agent->chat_client` is already set, return WF_OK immediately.
- *   2. Query `com.atproto.server.describeServer` on the user's PDS.
- *   3. If the response advertises a `chat` DID, resolve that DID to its chat
- *      service endpoint (type `BskyChatService` / `AtprotoChatProxy`).
- *   4. Otherwise (no `chat` field, or resolution fails) fall back to
- *      WF_CHAT_DEFAULT_ENDPOINT.
+ *   2. Point `chat_client` at the user's PDS (the same base URL as the data
+ *      plane) and attach the `atproto-proxy` header so the PDS forwards each
+ *      chat.bsky.* request to the chat service.
+ *   3. The proxying identifier is "<chat DID>#bsky_chat" where the chat DID
+ *      comes from `com.atproto.server.describeServer`; when the server
+ *      advertises none, fall back to the canonical chat service DID
+ *      "did:web:api.bsky.chat#bsky_chat".
+ *   4. The same CA bundle and handshake RNG as the data plane are applied via
+ *      wf_agent_apply_tls.
  *
  * Returns WF_OK with `agent->chat_client` ready on success, or a `wf_status`
- * error if the underlying XRPC call fails irrecoverably. */
+ * error if the client cannot be constructed. */
 wf_status wf_agent_chat_service_resolve(wf_agent *agent);
 
 /* Extract the chat service DID from a `com.atproto.server.describeServer`
  * response body. On WF_OK, `*out_did` is either:
  *   - heap-allocated DID string (caller frees with free()) when the server
  *     advertised a `chat` service, or
- *   - NULL when no `chat` field was present (caller should fall back to the
- *     default endpoint).
+ *   - NULL when no `chat` field was present (the caller proxies through the
+ *     canonical chat service DID instead).
  * Returns WF_ERR_INVALID_ARG on NULL inputs and WF_ERR_PARSE on malformed JSON.
  * Pure/offline: performs no network I/O. */
 wf_status wf_agent_chat_service_did_from_describe(const char *json,
