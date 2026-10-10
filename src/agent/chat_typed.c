@@ -544,6 +544,60 @@ wf_status wf_agent_chat_service_did_from_describe(const char *json,
     return status;
 }
 
+/* The chat service identifier within a proxying DID. chat.bsky.* is reached
+ * by addressing the account's PDS and setting
+ * `atproto-proxy: <did>#bsky_chat`, per the atproto service-proxying rules. */
+#define WF_CHAT_SERVICE_ID "bsky_chat"
+
+/* Canonical chat service DID, used when describeServer advertises no chat
+ * proxying target. The proxying identifier is this DID plus "#bsky_chat". */
+#define WF_CHAT_SERVICE_DID_FALLBACK "did:web:api.bsky.chat"
+
+/* Build the atproto-proxy identifier "<did>#bsky_chat" for a chat service DID,
+ * falling back to the canonical chat service when `chat_did` is NULL/empty.
+ * Returns a heap string (caller frees) or NULL on allocation failure. */
+static char *wf_chat_proxy_service_id(const char *chat_did) {
+    const char *did =
+        (chat_did && chat_did[0]) ? chat_did : WF_CHAT_SERVICE_DID_FALLBACK;
+    size_t need = strlen(did) + 1 + strlen(WF_CHAT_SERVICE_ID) + 1;
+    char *out = malloc(need);
+    if (!out) {
+        return NULL;
+    }
+    snprintf(out, need, "%s#%s", did, WF_CHAT_SERVICE_ID);
+    return out;
+}
+
+/* Resolve the chat service's own endpoint URL (the host the moderation
+ * WebSocket connects to). This is distinct from the PDS route used for XRPC:
+ * a WebSocket upgrade cannot carry the atproto-proxy header, so it dials the
+ * service directly. Best-effort: falls back to WF_CHAT_DEFAULT_ENDPOINT when
+ * describeServer yields no usable service document. Caller frees the result. */
+char *wf_agent_chat_service_endpoint(wf_agent *agent) {
+    char *endpoint = NULL;
+
+    if (agent && agent->client) {
+        wf_response res = {0};
+        if (wf_xrpc_query_params(agent->client,
+                                 "com.atproto.server.describeServer", NULL, 0,
+                                 &res) == WF_OK) {
+            char *chat_did = NULL;
+            if (wf_agent_chat_service_did_from_describe(res.body, res.body_len,
+                                                        &chat_did) == WF_OK &&
+                chat_did) {
+                wf_chat_resolve_did_endpoint(agent->client, chat_did,
+                                             &endpoint);
+                free(chat_did);
+            }
+            wf_response_free(&res);
+        }
+    }
+    if (!endpoint) {
+        endpoint = wf_str_dup(wf_chat_default_endpoint());
+    }
+    return endpoint;
+}
+
 wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
     if (!agent || !agent->client) {
         return WF_ERR_INVALID_ARG;
@@ -552,8 +606,12 @@ wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
         return WF_OK;
     }
 
-    const char *endpoint = wf_chat_default_endpoint();
-
+    /* chat.bsky.* is a proxied service: each call must be addressed to the
+     * account's PDS, which forwards it to the chat service when the request
+     * carries the atproto-proxy header. Discover the chat service DID from
+     * describeServer to build "<did>#bsky_chat", falling back to the canonical
+     * chat service when the server advertises none. */
+    char *proxy = NULL;
     wf_response res = {0};
     wf_status status = wf_xrpc_query_params(
         agent->client, "com.atproto.server.describeServer", NULL, 0, &res);
@@ -562,25 +620,40 @@ wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
         if (wf_agent_chat_service_did_from_describe(res.body, res.body_len,
                                                     &chat_did) == WF_OK &&
             chat_did) {
-            char *resolved = NULL;
-            wf_status rstatus = wf_chat_resolve_did_endpoint(
-                agent->client, chat_did, &resolved);
-            if (rstatus == WF_OK && resolved) {
-                endpoint = resolved;
-            }
-            free(resolved);
+            proxy = wf_chat_proxy_service_id(chat_did);
+            free(chat_did);
         }
-        free(chat_did);
         wf_response_free(&res);
     }
-
-    agent->chat_client = wf_xrpc_client_new(endpoint);
-    if (!agent->chat_client) {
+    if (!proxy) {
+        proxy = wf_chat_proxy_service_id(NULL);
+    }
+    if (!proxy) {
         return WF_ERR_ALLOC;
     }
-    /* The chat service is a separate host reached over the same transport, so
-     * it needs the same CA bundle and handshake RNG as the data plane. */
+
+    char *pds_base = wf_xrpc_get_base_url(agent->client);
+    if (!pds_base) {
+        free(proxy);
+        return WF_ERR_ALLOC;
+    }
+
+    agent->chat_client = wf_xrpc_client_new(pds_base);
+    free(pds_base);
+    if (!agent->chat_client) {
+        free(proxy);
+        return WF_ERR_ALLOC;
+    }
+    /* The proxied calls still ride the same transport as the data plane, so
+     * they need the same CA bundle and handshake RNG. */
     wf_agent_apply_tls(agent, agent->chat_client);
+    if (wf_xrpc_client_set_proxy(agent->chat_client, proxy) != WF_OK) {
+        wf_xrpc_client_free(agent->chat_client);
+        agent->chat_client = NULL;
+        free(proxy);
+        return WF_ERR_ALLOC;
+    }
+    free(proxy);
     return WF_OK;
 }
 
