@@ -129,6 +129,45 @@ static void test_json_procedure_headers(void) {
     wf_xrpc_client_free(client);
 }
 
+static void test_proxy_header(void) {
+    static const char response[] =
+        "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}";
+    wf_response out = {0};
+    wf_xrpc_client *client = wf_xrpc_client_new("https://bsky.social");
+    assert(client);
+    wf_xrpc_client_set_auth(client, "token");
+    assert(wf_xrpc_client_set_proxy(
+               client, "did:web:api.bsky.chat#bsky_chat") == WF_OK);
+    fake_response(response);
+
+    assert(wf_xrpc_query(client, "chat.bsky.convo.getConvo", NULL, &out) ==
+           WF_OK);
+    assert(occurrences(request_bytes,
+                       "atproto-proxy: did:web:api.bsky.chat#bsky_chat\r\n") ==
+           1);
+    assert(occurrences(request_bytes, "Authorization: Bearer token\r\n") == 1);
+    wf_response_free(&out);
+
+    /* Clearing the proxy removes the header from later requests. */
+    assert(wf_xrpc_client_set_proxy(client, NULL) == WF_OK);
+    fake_response(response);
+    assert(wf_xrpc_query(client, "chat.bsky.convo.getConvo", NULL, &out) ==
+           WF_OK);
+    assert(occurrences(request_bytes, "atproto-proxy:") == 0);
+    wf_response_free(&out);
+
+    /* A public fetch never carries the proxy header, even when one is set. */
+    assert(wf_xrpc_client_set_proxy(
+               client, "did:web:api.bsky.chat#bsky_chat") == WF_OK);
+    fake_response(response);
+    assert(wf_http_get_public(client, "https://example.test/img", 0, &out) ==
+           WF_OK);
+    assert(occurrences(request_bytes, "atproto-proxy:") == 0);
+    wf_response_free(&out);
+
+    wf_xrpc_client_free(client);
+}
+
 static void test_chunked_response(void) {
     static const char response[] =
         "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
@@ -159,6 +198,7 @@ static void test_short_content_length_fails(void) {
 int main(void) {
     test_authenticated_query();
     test_json_procedure_headers();
+    test_proxy_header();
     test_chunked_response();
     test_short_content_length_fails();
     puts("Wii XRPC host transport tests passed");

@@ -22,6 +22,7 @@
 struct wf_xrpc_client {
     char *base_url;
     char *auth_header;
+    char *proxy_header;
     wf_xrpc_handler_fn handler;
     void *handler_userdata;
     wf_xrpc_refresh_fn refresh_cb;
@@ -513,17 +514,23 @@ static int wf_xrpc_response_is_expired(const wf_response *out) {
     return 0;
 }
 
-/* Build the request headers (auth + optional content-type) for one attempt. */
+/* Build the request headers (auth + proxy + optional content-type) for one
+ * attempt. */
 static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
                                        const char *content_type,
                                        wf_http_header **out_headers,
                                        size_t *out_count) {
-    wf_http_header *arr = calloc(is_post ? 2 : 1, sizeof(*arr));
+    wf_http_header *arr = calloc(is_post ? 3 : 2, sizeof(*arr));
     if (!arr) return WF_ERR_ALLOC;
     size_t n = 0;
     if (client->auth_header) {
         arr[n].name = "Authorization";
         arr[n].value = client->auth_header + strlen("Authorization: ");
+        n++;
+    }
+    if (client->proxy_header) {
+        arr[n].name = "atproto-proxy";
+        arr[n].value = client->proxy_header + strlen("atproto-proxy: ");
         n++;
     }
     if (is_post && content_type) {
@@ -611,6 +618,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     if (!client) return;
     free(client->base_url);
     free(client->auth_header);
+    free(client->proxy_header);
     free(client->last_error);
     free(client);
 }
@@ -637,6 +645,23 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
         snprintf(client->auth_header, needed, "Authorization: Bearer %s",
                  access_jwt);
     }
+}
+
+wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
+                                   const char *proxy_did) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    if (!proxy_did) {
+        free(client->proxy_header);
+        client->proxy_header = NULL;
+        return WF_OK;
+    }
+    size_t needed = strlen("atproto-proxy: ") + strlen(proxy_did) + 1;
+    char *header = malloc(needed);
+    if (!header) return WF_ERR_ALLOC;
+    snprintf(header, needed, "atproto-proxy: %s", proxy_did);
+    free(client->proxy_header);
+    client->proxy_header = header;
+    return WF_OK;
 }
 
 wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
@@ -892,6 +917,7 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
     }
     struct wf_xrpc_client anon = *client;
     anon.auth_header = NULL;
+    anon.proxy_header = NULL;
     anon.refresh_cb = NULL;
     anon.last_error = NULL;
     return wf_xrpc_perform(&anon, "GET", url, NULL, NULL, 0, NULL, 0, out);
