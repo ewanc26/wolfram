@@ -4,6 +4,14 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_xrpc_client_set_proxy` adds an `atproto-proxy` header to an XRPC client, so a client can address one service through another host (the atproto service-proxying rule). Public fetch calls never carry it. ([#196](https://github.com/ewanc26/wolfram/pull/196))
+
+### Changed
+
+- Chat (DM) calls are addressed to the account's PDS with `atproto-proxy: <chat did>#bsky_chat` rather than dialling the chat service's own host, which the public chat service does not accept. The chat service DID comes from `describeServer`, falling back to `did:web:api.bsky.chat`. The moderation WebSocket, which cannot carry the header on its upgrade, still dials the chat service directly. ([#196](https://github.com/ewanc26/wolfram/pull/196))
+
 ## [0.39.0] - 2026-10-08
 
 ### Added
