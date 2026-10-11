@@ -169,7 +169,7 @@ set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 FetchContent_Declare(
   base64url
   GIT_REPOSITORY https://github.com/jons/base64url.git
-  GIT_TAG master
+  GIT_TAG bef728355ec576a678c5525b51697ccbd07b881d
   # The upstream project is Autotools-only. Point MakeAvailable at an absent
   # subdirectory so it populates the sources without trying to add a CMake
   # subproject; wolfram compiles librb64u.c directly below.
