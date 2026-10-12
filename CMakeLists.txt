@@ -166,10 +166,15 @@ set(SANITIZE OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(libcbor)
 set_target_properties(cbor PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# base64url is pinned to an immutable commit because upstream tags nothing
+# (only refs/heads/master). To update: review the upstream commit you want,
+# change GIT_TAG below to its full SHA-1, and verify a clean configure/build
+# and the base64url tests still pass. librb64u.c is compiled directly by
+# wolfram; the other vendored deps are documented in docs/roadmap.md.
 FetchContent_Declare(
   base64url
   GIT_REPOSITORY https://github.com/jons/base64url.git
-  GIT_TAG master
+  GIT_TAG bef728355ec576a678c5525b51697ccbd07b881d
   # The upstream project is Autotools-only. Point MakeAvailable at an absent
   # subdirectory so it populates the sources without trying to add a CMake
   # subproject; wolfram compiles librb64u.c directly below.
