@@ -706,6 +706,7 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
 
 - [cJSON](https://github.com/DaveGamble/cJSON) — vendored via CMake FetchContent.
 - [libcbor](https://github.com/PJK/libcbor) — vendored via CMake FetchContent for RFC 8949 parsing and serialization primitives.
+- [base64url](https://github.com/jons/base64url) — vendored via CMake FetchContent for base64url encode/decode of PLC operation signatures. Upstream tags no releases, so it is pinned to the immutable commit `bef728355ec576a678c5525b51697ccbd07b881d` in `CMakeLists.txt`; update that SHA (and verify a clean build and the `base64url_strict` test) to move it, as with the other FetchContent deps above.
 - OpenSSL (libcrypto) — for SHA-256 hashing.
 - [libsecp256k1](https://github.com/bitcoin-core/secp256k1) — for secp256k1 signing on desktop. Console targets use mbedTLS's built-in secp256k1 support instead.
 
