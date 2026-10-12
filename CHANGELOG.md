@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-10-12
+
 ### Added
 
 - `wf_xrpc_client_set_proxy` adds an `atproto-proxy` header to an XRPC client, so a client can address one service through another host (the atproto service-proxying rule). Public fetch calls never carry it. ([#196](https://github.com/ewanc26/wolfram/pull/196))
@@ -429,7 +431,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.39.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.39.1...HEAD
+[0.39.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.39.1
 [0.39.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.39.0
 [0.38.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.38.2
 [0.38.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.38.1
