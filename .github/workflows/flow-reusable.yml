@@ -116,3 +116,21 @@ jobs:
           path: .flow-canon
       - name: Compare with the canonical copy
         run: bash .flow-canon/tools/flow-drift.sh .flow-canon .
+
+  macos9-c89:
+    name: macos9-c89
+    # The Classic Mac OS 9 transport's C90 flags, checked on every caller. The
+    # check reads the canonical copy, so it runs the same on every repo.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch canonical flow
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .flow-canon
+      - name: Install clang and gcc
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang gcc
+      - name: Compile the Mac OS 9 transport sources under C90
+        working-directory: .flow-canon
+        run: bash tools/macos9-c89-check.sh
