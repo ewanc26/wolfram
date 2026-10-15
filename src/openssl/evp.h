@@ -7,5 +7,8 @@
 #if defined(WOLFRAM_WII) || defined(WOLFRAM_WIIU) || defined(WOLFRAM_3DS)
 #include "../platform/openssl_compat.h"
 #else
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wgnu-include-next"
+#endif
 #include_next <openssl/evp.h>
 #endif
