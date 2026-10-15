@@ -281,13 +281,21 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
             break;
         }
 
-        wf_http_header headers[2];
+        wf_http_header headers[3];
         size_t header_count = 0;
         if (authorization) {
             headers[header_count++] =
                 (wf_http_header){"Authorization", authorization};
         }
         headers[header_count++] = (wf_http_header){"DPoP", proof_jwt};
+        /* A proxied service (chat.bsky.*) is reached through the PDS named by
+         * this client's base URL. The raw HTTP calls below do not read the
+         * client's proxy setting, so it is sent here. Uploads are left out
+         * because their path already applies it, so it would go out twice. */
+        if (!is_upload && wf_xrpc_client_get_proxy(auth_client->client)) {
+            headers[header_count++] = (wf_http_header){
+                "atproto-proxy", wf_xrpc_client_get_proxy(auth_client->client)};
+        }
 
         if (is_upload) {
             status = wf_xrpc_upload_blob_with_headers(
