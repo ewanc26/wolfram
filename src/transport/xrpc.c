@@ -453,6 +453,13 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
     return WF_OK;
 }
 
+const char *wf_xrpc_client_get_proxy(const wf_xrpc_client *client) {
+    static const char prefix[] = "atproto-proxy: ";
+
+    if (!client || !client->proxy_header) return NULL;
+    return client->proxy_header + sizeof prefix - 1;
+}
+
 void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
                                            size_t max_bytes) {
     if (!client) return;
