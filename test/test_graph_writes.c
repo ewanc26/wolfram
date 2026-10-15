@@ -399,7 +399,21 @@ int main(void) {
         WF_CHECK(cJSON_IsString(type) &&
                  strcmp(type->valuestring, "app.bsky.feed.threadgate") == 0);
         WF_CHECK(cJSON_IsArray(allow) && cJSON_GetArraySize(allow) == 0);
+        /* The gate is written under the post's own record key (issue 203), so
+         * the AppView links it to the post; a fresh TID would not be linked. */
+        WF_CHECK(strcmp(last_nsid, "com.atproto.repo.putRecord") == 0);
+        {
+            cJSON *rkey =
+                root ? cJSON_GetObjectItemCaseSensitive(root, "rkey") : NULL;
+            WF_CHECK(cJSON_IsString(rkey) &&
+                     strcmp(rkey->valuestring, "3k") == 0);
+        }
         cJSON_Delete(root);
+
+        /* A post in some other repo cannot be gated from this account. */
+        WF_CHECK(wf_agent_set_reply_gate(
+                     agent, "at://did:plc:someoneelse/app.bsky.feed.post/3k",
+                     WF_REPLY_GATE_NOBODY) == WF_ERR_INVALID_ARG);
 
         WF_CHECK(wf_agent_set_reply_gate(
                      agent, uri, WF_REPLY_GATE_FOLLOWED_MENTIONED) == WF_OK);

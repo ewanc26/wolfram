@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- `wf_agent_create_threadgate` and `wf_agent_create_postgate` wrote the gate under a fresh TID, so the AppView never linked it to its post and the reply controls were not applied. Each gate now takes the post's record key and is written with `putRecord`, as the Bluesky client does. A post in another repo is refused with `WF_ERR_INVALID_ARG`, since the gate is written to the signed-in repo. `wf_agent_set_reply_gate` gets the same fix. ([#203](https://github.com/ewanc26/wolfram/issues/203))
+
 ## [0.39.1] - 2026-10-12
 
 ### Added
