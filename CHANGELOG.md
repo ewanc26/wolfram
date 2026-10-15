@@ -10,6 +10,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Changed
 
+- The base64url dependency is pinned to upstream commit `bef728355ec576a678c5525b51697ccbd07b881d` instead of the moving `master` branch, so clean builds fetch the same source every time. ([#199](https://github.com/ewanc26/wolfram/pull/199))
+
 - Chat (DM) calls are addressed to the account's PDS with `atproto-proxy: <chat did>#bsky_chat` rather than dialling the chat service's own host, which the public chat service does not accept. The chat service DID comes from `describeServer`, falling back to `did:web:api.bsky.chat`. The moderation WebSocket, which cannot carry the header on its upgrade, still dials the chat service directly. ([#196](https://github.com/ewanc26/wolfram/pull/196))
 
 ## [0.39.0] - 2026-10-08
