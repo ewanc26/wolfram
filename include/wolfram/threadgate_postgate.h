@@ -16,6 +16,11 @@ extern "C" {
  * hidden_replies — array of AT-URI strings to hide, or NULL.
  * hidden_count   — number of hidden-reply entries.
  * out        — receives the created record's URI and CID.
+ *
+ * The record is written under the post's own record key, so it is at
+ * at://<did>/app.bsky.feed.threadgate/<post rkey>, which is where the AppView
+ * looks for it. post_uri must be a post in the signed-in repo; any other
+ * repo, or a malformed URI, is WF_ERR_INVALID_ARG.
  */
 wf_status wf_agent_create_threadgate(wf_agent *agent, const char *post_uri,
                                      const char *allow_json,
