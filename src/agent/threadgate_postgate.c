@@ -31,17 +31,35 @@ static int wf_tpg_make_rfc3339_timestamp(char *buf, size_t buf_len) {
     return strftime(buf, buf_len, "%Y-%m-%dT%H:%M:%SZ", &tm_utc) != 0;
 }
 
-static wf_status wf_tpg_print_and_create(wf_agent *agent,
-                                         const char *collection, cJSON *record,
-                                         wf_agent_post_result *out) {
+/* The AppView links a threadgate or postgate to its post by sharing the
+ * post's record key, so the gate is written under the post's rkey with
+ * putRecord. A server-assigned key would leave the gate unlinked. */
+static wf_status wf_tpg_put_on_post_key(wf_agent *agent,
+                                        const char *collection,
+                                        const char *post_uri, cJSON *record,
+                                        wf_agent_post_result *out) {
     if (!record) return WF_ERR_INVALID_ARG;
 
+    wf_syntax_aturi parsed = {0};
+    if (!wf_syntax_aturi_parse(post_uri, &parsed)) {
+        cJSON_Delete(record);
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_status status = WF_OK;
     char *json = cJSON_PrintUnformatted(record);
     cJSON_Delete(record);
-    if (!json) return WF_ERR_ALLOC;
+    if (!json) {
+        status = WF_ERR_ALLOC;
+        goto done;
+    }
 
-    wf_status status = wf_agent_create_record(agent, collection, json, out);
+    status = wf_agent_put_record(agent, collection, parsed.record_key, json,
+                                 out);
     free(json);
+
+done:
+    wf_syntax_aturi_free(&parsed);
     return status;
 }
 
@@ -99,13 +117,6 @@ wf_status wf_agent_create_threadgate(wf_agent *agent, const char *post_uri,
         return WF_ERR_INVALID_ARG;
     }
 
-    {
-        wf_syntax_aturi parsed = {0};
-        if (!wf_syntax_aturi_parse(post_uri, &parsed))
-            return WF_ERR_INVALID_ARG;
-        wf_syntax_aturi_free(&parsed);
-    }
-
     cJSON *record = cJSON_CreateObject();
     if (!record) return WF_ERR_ALLOC;
 
@@ -130,8 +141,8 @@ wf_status wf_agent_create_threadgate(wf_agent *agent, const char *post_uri,
         return status;
     }
 
-    return wf_tpg_print_and_create(agent, WF_AGENT_THREADGATE_COLLECTION,
-                                   record, out);
+    return wf_tpg_put_on_post_key(agent, WF_AGENT_THREADGATE_COLLECTION,
+                                  post_uri, record, out);
 }
 
 wf_status wf_agent_create_postgate(wf_agent *agent, const char *post_uri,
@@ -146,13 +157,6 @@ wf_status wf_agent_create_postgate(wf_agent *agent, const char *post_uri,
     if (!wf_tpg_make_rfc3339_timestamp(created_at, sizeof(created_at)) ||
         !wf_syntax_datetime_is_valid(created_at)) {
         return WF_ERR_INVALID_ARG;
-    }
-
-    {
-        wf_syntax_aturi parsed = {0};
-        if (!wf_syntax_aturi_parse(post_uri, &parsed))
-            return WF_ERR_INVALID_ARG;
-        wf_syntax_aturi_free(&parsed);
     }
 
     cJSON *record = cJSON_CreateObject();
@@ -180,8 +184,8 @@ wf_status wf_agent_create_postgate(wf_agent *agent, const char *post_uri,
         return status;
     }
 
-    return wf_tpg_print_and_create(agent, WF_AGENT_POSTGATE_COLLECTION, record,
-                                   out);
+    return wf_tpg_put_on_post_key(agent, WF_AGENT_POSTGATE_COLLECTION,
+                                  post_uri, record, out);
 }
 
 wf_status wf_agent_delete_record_by_uri(wf_agent *agent,

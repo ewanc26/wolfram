@@ -400,6 +400,9 @@ int main(void) {
                  strcmp(type->valuestring, "app.bsky.feed.threadgate") == 0);
         WF_CHECK(cJSON_IsArray(allow) && cJSON_GetArraySize(allow) == 0);
         cJSON_Delete(root);
+        /* The gate is keyed by the post's rkey, so the AppView links it. */
+        WF_CHECK(strcmp(last_nsid, "com.atproto.repo.putRecord") == 0);
+        WF_CHECK(json_field_eq(last_body, NULL, "rkey", "3k"));
 
         WF_CHECK(wf_agent_set_reply_gate(
                      agent, uri, WF_REPLY_GATE_FOLLOWED_MENTIONED) == WF_OK);

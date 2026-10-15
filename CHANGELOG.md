@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- `wf_agent_create_threadgate`, `wf_agent_set_reply_gate` and `wf_agent_create_postgate` write the gate under the post's record key with `putRecord`, not `createRecord` with a server-assigned key. The AppView links a gate to its post by that key, so a gate written the old way did not apply its reply controls.
+
 ## [0.39.1] - 2026-10-12
 
 ### Added
