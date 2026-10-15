@@ -43,7 +43,7 @@ expect fail "code change without a changelog entry" python3 "$chk" pr "$base" "$
 expect pass "escape hatch with a reason" env PR_BODY=$'Changelog: none — internal rename, no behaviour change' python3 "$chk" pr "$base" "$h"
 expect fail "escape hatch without a reason" env PR_BODY='Changelog: none' python3 "$chk" pr "$base" "$h"
 
-br with-entry; echo b >>src/a.c; sed -i 's/^- Something new. (#1)$/- Something new. (#1)\n- A fix. (#2)/' CHANGELOG.md; h=$(commit "fix: code and entry")
+br with-entry; echo b >>src/a.c; python3 -c "import pathlib;p=pathlib.Path('CHANGELOG.md');p.write_text(p.read_text().replace('- Something new. (#1)\n','- Something new. (#1)\n- A fix. (#2)\n',1))"; h=$(commit "fix: code and entry")
 expect pass "code change with an Unreleased entry" python3 "$chk" pr "$base" "$h"
 
 br wrong-section; echo b >>src/a.c; sed -i 's/^First\.$/First, edited./' CHANGELOG.md; h=$(commit "fix: edit old section")
