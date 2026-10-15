@@ -10,6 +10,10 @@ on:
         description: Ref of ewanc26/wolfram to take the scripts and canonical files from.
         type: string
         default: main
+      macos9_c89:
+        description: Run the Classic Mac OS 9 C90 check of Wolfram's transport sources. Repos that ship no Mac OS 9 code can turn it off.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -119,6 +123,7 @@ jobs:
 
   macos9-c89:
     name: macos9-c89
+    if: inputs.macos9_c89
     # The Classic Mac OS 9 transport's C90 flags, checked on every caller. The
     # check reads the canonical copy, so it runs the same on every repo.
     runs-on: ubuntu-latest
