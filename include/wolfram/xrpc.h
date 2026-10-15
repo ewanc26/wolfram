@@ -125,6 +125,12 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
                                    const char *proxy_did);
 
+/* The "<did>#<service>" identifier set by wf_xrpc_client_set_proxy, or NULL
+ * when none is set. Borrowed: valid until the next set or free. Lets a caller
+ * that sends its own requests through this client's base URL apply the same
+ * atproto-proxy header. */
+const char *wf_xrpc_client_get_proxy(const wf_xrpc_client *client);
+
 /** Default cap on a buffered HTTP response body (256 MiB). */
 #define WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES ((size_t)256 * 1024 * 1024)
 

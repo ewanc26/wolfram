@@ -556,7 +556,7 @@ wf_status wf_agent_chat_service_did_from_describe(const char *json,
 /* Build the atproto-proxy identifier "<did>#bsky_chat" for a chat service DID,
  * falling back to the canonical chat service when `chat_did` is NULL/empty.
  * Returns a heap string (caller frees) or NULL on allocation failure. */
-static char *wf_chat_proxy_service_id(const char *chat_did) {
+char *wf_chat_proxy_identifier(const char *chat_did) {
     const char *did =
         (chat_did && chat_did[0]) ? chat_did : WF_CHAT_SERVICE_DID_FALLBACK;
     size_t need = strlen(did) + 1 + strlen(WF_CHAT_SERVICE_ID) + 1;
@@ -566,6 +566,12 @@ static char *wf_chat_proxy_service_id(const char *chat_did) {
     }
     snprintf(out, need, "%s#%s", did, WF_CHAT_SERVICE_ID);
     return out;
+}
+
+bool wf_chat_nsid_needs_proxy(const char *nsid) {
+    static const char prefix[] = "chat.bsky.";
+    return nsid && strncmp(nsid, prefix, sizeof prefix - 1) == 0 &&
+           nsid[sizeof prefix - 1] != '\0';
 }
 
 /* Resolve the chat service's own endpoint URL (the host the moderation
@@ -620,13 +626,13 @@ wf_status wf_agent_chat_service_resolve(wf_agent *agent) {
         if (wf_agent_chat_service_did_from_describe(res.body, res.body_len,
                                                     &chat_did) == WF_OK &&
             chat_did) {
-            proxy = wf_chat_proxy_service_id(chat_did);
+            proxy = wf_chat_proxy_identifier(chat_did);
             free(chat_did);
         }
         wf_response_free(&res);
     }
     if (!proxy) {
-        proxy = wf_chat_proxy_service_id(NULL);
+        proxy = wf_chat_proxy_identifier(NULL);
     }
     if (!proxy) {
         return WF_ERR_ALLOC;

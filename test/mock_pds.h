@@ -45,6 +45,13 @@ wf_status wf_mock_pds_start(wf_mock_pds **out, int *out_port);
 wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
                                const char *json);
 
+/**
+ * The atproto-proxy header of the most recent request, or NULL when that
+ * request carried none (or none has been served). Borrowed until the next
+ * request or free.
+ */
+const char *wf_mock_pds_get_last_proxy(wf_mock_pds *pds);
+
 /** Stop the HTTP daemon without discarding registered responses or the
  *  struct. Safe to call more than once. */
 wf_status wf_mock_pds_stop(wf_mock_pds *pds);

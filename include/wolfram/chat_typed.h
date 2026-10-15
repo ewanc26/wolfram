@@ -44,6 +44,17 @@ extern "C" {
  * Mirrors the rsky reference hardcode (rsky-common/src/lib.rs:204). */
 #define WF_CHAT_DEFAULT_ENDPOINT "https://api.bsky.chat"
 
+/* The atproto-proxy identifier for the chat service, "<did>#bsky_chat". A NULL
+ * or empty `chat_did` falls back to the canonical chat service DID. Returns a
+ * heap string the caller frees, or NULL on allocation failure. Pass the result
+ * to wf_xrpc_client_set_proxy to reach a chat.bsky.* method through a PDS. */
+char *wf_chat_proxy_identifier(const char *chat_did);
+
+/* True for an NSID under chat.bsky.* (a proxied service). Such a call is sent
+ * to the account's PDS with the atproto-proxy header above, which the PDS uses
+ * to forward it to the chat service. Any other NSID is not proxied. */
+bool wf_chat_nsid_needs_proxy(const char *nsid);
+
 /* A single conversation (chat.bsky.convo.defs#convoView, bounded). */
 typedef struct wf_chat_convo {
     char *id;   /* convo id (required) */

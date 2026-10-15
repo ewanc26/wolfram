@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- The hosted OAuth node sends `atproto-proxy: <chat did>#bsky_chat` on `chat.bsky.*` calls, so a console paired through the node can reach DMs. The auth client never sent that header before, so the node's requests were addressed to the PDS without the service identifier. `wf_chat_proxy_identifier`, `wf_chat_nsid_needs_proxy` and `wf_xrpc_client_get_proxy` are new public helpers; the proxy header is sent only on `chat.bsky.*` and not on uploads, which already carry it. ([#197](https://github.com/ewanc26/wolfram/issues/197))
+
 ## [0.39.1] - 2026-10-12
 
 ### Added
