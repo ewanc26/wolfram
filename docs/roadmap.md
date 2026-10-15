@@ -617,6 +617,13 @@ tested). For what's still ahead, see [Next planned work](#next-planned-work).
   secrets are provisioned, every push to main becomes a live smoke test of
   that deployment, not just an offline build. Still SKIPs cleanly (and CI
   still passes) on a fork or before the secrets are set.
+- Sync v1.1 (issue #29), evaluated: ordered CAR export and partial sync by
+  collection are not yet stable upstream. The repository spec still calls its
+  block-ordering scheme work in progress and not deployed widely (as of
+  February 2026), and the sync spec describes partial, sub-tree export only as
+  something the export mechanism is "likely" to support. Nothing is changed
+  here. Revisit when the repository spec drops the work-in-progress note, or
+  when a major PDS implementation ships ordered export.
 - Continue evaluating upstream C libraries for server-side infrastructure
   (event loop, config parsing).
 - Generated typed-wrapper coverage tracks every query/procedure NSID in
