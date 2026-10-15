@@ -93,7 +93,7 @@ def drift(root, allow_untagged, grace_minutes=30, now=None):
     if ex:
         print(f"changelog: v{excused} excused from needing its tag by the PR body: {ex.group(2).strip()}")
     for v in versions:
-        if v in tags or v == allow_untagged or v == excused:
+        if v in tags or v == allow_untagged or v == excused or v in re.findall('^Changelog-baseline: *([0-9]+[.][0-9]+[.][0-9]+) *[-—]', text, re.M):
             continue
         # Between a release PR merging and the release workflow creating the
         # tag there is a short gap. Allow it, but only for a bounded time: a
