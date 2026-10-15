@@ -2254,6 +2254,13 @@ if(WOLFRAM_BUILD_TESTS)
                                 ${cjson_SOURCE_DIR})
     add_test(NAME graph_writes COMMAND test_graph_writes)
 
+    # Real-socket check of the atproto-proxy header on an authenticated call.
+    add_executable(test_auth_proxy test/test_auth_proxy.c test/mock_pds.c)
+    target_link_libraries(test_auth_proxy PRIVATE wolfram ${MICROHTTPD_LIBRARY})
+    target_include_directories(
+      test_auth_proxy PRIVATE test ${MICROHTTPD_INCLUDE_DIR} ${cjson_SOURCE_DIR})
+    add_test(NAME auth_proxy COMMAND test_auth_proxy)
+
     add_executable(test_video_typed_httpd test/test_video_typed_httpd.c
                                           test/mock_pds.c)
     target_link_libraries(test_video_typed_httpd PRIVATE wolfram

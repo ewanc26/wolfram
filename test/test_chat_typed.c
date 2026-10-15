@@ -797,7 +797,50 @@ static void test_new_typed_wrappers_null_arg(void) {
                  (wf_agent *)1, "cur", NULL, NULL, NULL) == WF_ERR_INVALID_ARG);
 }
 
+/* chat.bsky.* is a proxied service: the proxy identifier is "<did>#bsky_chat",
+ * falling back to the canonical chat DID, and only chat.bsky.* NSIDs need it.
+ * The accessor reads back what set_proxy stored, and clears on NULL. */
+static void test_chat_proxy_helpers(void) {
+    char *id = wf_chat_proxy_identifier(NULL);
+    char *id_empty = wf_chat_proxy_identifier("");
+    char *id_plc = wf_chat_proxy_identifier("did:plc:chatsvc");
+
+    WF_CHECK(id && strcmp(id, "did:web:api.bsky.chat#bsky_chat") == 0);
+    WF_CHECK(id_empty && strcmp(id_empty, id) == 0);
+    WF_CHECK(id_plc && strcmp(id_plc, "did:plc:chatsvc#bsky_chat") == 0);
+    free(id);
+    free(id_empty);
+    free(id_plc);
+
+    WF_CHECK(wf_chat_nsid_needs_proxy("chat.bsky.convo.listConvos"));
+    WF_CHECK(wf_chat_nsid_needs_proxy("chat.bsky.convo.sendMessage"));
+    WF_CHECK(!wf_chat_nsid_needs_proxy("app.bsky.feed.getTimeline"));
+    WF_CHECK(!wf_chat_nsid_needs_proxy("com.atproto.repo.createRecord"));
+    WF_CHECK(!wf_chat_nsid_needs_proxy("chat.bsky."));
+    WF_CHECK(!wf_chat_nsid_needs_proxy("chat.bsky"));
+    WF_CHECK(!wf_chat_nsid_needs_proxy("xchat.bsky.convo.listConvos"));
+    WF_CHECK(!wf_chat_nsid_needs_proxy(NULL));
+
+    {
+        wf_xrpc_client *c = wf_xrpc_client_new("https://pds.example.com");
+
+        WF_CHECK(c != NULL);
+        if (c) {
+            WF_CHECK(wf_xrpc_client_get_proxy(c) == NULL);
+            WF_CHECK(wf_xrpc_client_set_proxy(
+                         c, "did:web:api.bsky.chat#bsky_chat") == WF_OK);
+            WF_CHECK(strcmp(wf_xrpc_client_get_proxy(c),
+                            "did:web:api.bsky.chat#bsky_chat") == 0);
+            WF_CHECK(wf_xrpc_client_set_proxy(c, NULL) == WF_OK);
+            WF_CHECK(wf_xrpc_client_get_proxy(c) == NULL);
+            wf_xrpc_client_free(c);
+        }
+    }
+    WF_CHECK(wf_xrpc_client_get_proxy(NULL) == NULL);
+}
+
 int main(void) {
+    test_chat_proxy_helpers();
     test_parse_convos();
     test_parse_convo();
     test_parse_messages();

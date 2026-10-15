@@ -1327,6 +1327,13 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt) {
     client->auth_header = header;
 }
 
+const char *wf_xrpc_client_get_proxy(const wf_xrpc_client *client) {
+    static const char prefix[] = "atproto-proxy: ";
+
+    if (!client || !client->proxy_header) return NULL;
+    return client->proxy_header + sizeof prefix - 1;
+}
+
 wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
                                    const char *proxy_did) {
     char *header;
