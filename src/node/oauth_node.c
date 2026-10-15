@@ -1,6 +1,7 @@
 #include "wolfram/oauth_node.h"
 #include "wolfram/oauth.h"
 #include "wolfram/auth_client.h"
+#include "wolfram/chat_typed.h"
 
 #include <openssl/rand.h>
 #include <cJSON.h>
@@ -156,15 +157,6 @@ static void html(wf_xrpc_response *resp, int status, const char *body) {
     resp->http_status = status;
     wf_xrpc_response_set_content_type(resp, "text/html; charset=utf-8");
     wf_xrpc_response_set_body(resp, body, strlen(body));
-}
-
-static void redirect(wf_xrpc_response *resp, const char *location) {
-    static const char body[] =
-        "<!doctype html><meta charset=utf-8><title>Continue</title>"
-        "<p>Continue to the account sign-in page.</p>";
-    resp->http_status = 302;
-    wf_xrpc_response_add_header(resp, "Location", location);
-    html(resp, 302, body);
 }
 
 static char *escape_html(const char *s) {
@@ -529,16 +521,6 @@ static wf_status pair_page_handler(void *ctx, const wf_xrpc_request *req,
     return WF_OK;
 }
 
-static wf_status metadata_handler(void *ctx, const wf_xrpc_request *req,
-                                  wf_xrpc_response *resp) {
-    (void)req;
-    wf_oauth_node *node = ctx;
-    wf_xrpc_response_set_content_type(resp, "application/json");
-    wf_xrpc_response_set_body(resp, node->metadata_json,
-                              strlen(node->metadata_json));
-    return WF_OK;
-}
-
 static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
                                   wf_xrpc_response *resp) {
     wf_oauth_node *node = ctx;
@@ -711,6 +693,25 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
         wf_xrpc_response_set_error(resp, 502, "UpstreamUnavailable",
                                    "Could not create the PDS client.");
         return WF_OK;
+    }
+
+    /* chat.bsky.* is reached by addressing the PDS with the chat service's
+     * atproto-proxy identifier, so the PDS forwards the call. Without it the
+     * PDS does not know where the call goes. Set on this per-request transport
+     * only: the header never reaches any other method. */
+    if (wf_chat_nsid_needs_proxy(req->nsid)) {
+        char *proxy = wf_chat_proxy_identifier(NULL);
+        wf_status pst =
+            proxy ? wf_xrpc_client_set_proxy(transport, proxy) : WF_ERR_ALLOC;
+
+        free(proxy);
+        if (pst != WF_OK) {
+            wf_xrpc_client_free(transport);
+            pthread_mutex_unlock(&node->lock);
+            wf_xrpc_response_set_error(resp, 502, "UpstreamUnavailable",
+                                       "Could not set the chat proxy.");
+            return WF_OK;
+        }
     }
 
     wf_oauth_client_auth client_auth = {.client_id = node->client_id,

@@ -21,6 +21,9 @@ typedef struct {
     int refresh_fail;
     int nonce_on_401;
     char observed_token[128];
+    /* The atproto-proxy header on the last protected-resource call, if any. */
+    int saw_proxy;
+    char observed_proxy[128];
 } fake_state;
 
 static wf_status fake_handler(void *ud, const char *method, const char *url,
@@ -104,11 +107,18 @@ static wf_status fake_handler(void *ud, const char *method, const char *url,
 
     /* The protected XRPC resource itself. */
     st->resource_calls++;
+    st->saw_proxy = 0;
+    st->observed_proxy[0] = '\0';
     for (size_t i = 0; i < header_count; i++) {
         if (headers[i].name && strcmp(headers[i].name, "Authorization") == 0 &&
             headers[i].value && strncmp(headers[i].value, "Bearer ", 7) == 0) {
             snprintf(st->observed_token, sizeof(st->observed_token), "%s",
                      headers[i].value + 7);
+        }
+        if (headers[i].name && strcmp(headers[i].name, "atproto-proxy") == 0) {
+            st->saw_proxy = 1;
+            snprintf(st->observed_proxy, sizeof(st->observed_proxy), "%s",
+                     headers[i].value ? headers[i].value : "");
         }
     }
     if (st->resource_calls == 1) {
@@ -290,7 +300,42 @@ static void test_ensure_valid(void) {
     }
 }
 
+/* A proxied service call (chat.bsky.*) carries the client's atproto-proxy
+ * identifier on the request that reaches the PDS, so the PDS can forward it.
+ * Without a proxy set, no such header is sent. */
+static void test_proxy_header_on_chat_query(void) {
+    {
+        fake_state st = {0};
+        scenario sc;
+        wf_response out = {0};
+
+        scenario_init(&sc, &st);
+        WF_CHECK(wf_xrpc_client_set_proxy(
+                     sc.client, "did:web:api.bsky.chat#bsky_chat") == WF_OK);
+        WF_CHECK(wf_auth_client_query(sc.ac, "chat.bsky.convo.listConvos", NULL,
+                                      &out) == WF_OK);
+        WF_CHECK(st.saw_proxy == 1);
+        WF_CHECK(strcmp(st.observed_proxy, "did:web:api.bsky.chat#bsky_chat") ==
+                 0);
+        wf_response_free(&out);
+        scenario_free(&sc);
+    }
+    {
+        fake_state st = {0};
+        scenario sc;
+        wf_response out = {0};
+
+        scenario_init(&sc, &st);
+        WF_CHECK(wf_auth_client_query(sc.ac, "chat.bsky.convo.listConvos", NULL,
+                                      &out) == WF_OK);
+        WF_CHECK(st.saw_proxy == 0);
+        wf_response_free(&out);
+        scenario_free(&sc);
+    }
+}
+
 int main(void) {
+    test_proxy_header_on_chat_query();
     test_refresh_on_401();
     test_dpop_nonce_retry();
     test_refresh_failure_propagates();
