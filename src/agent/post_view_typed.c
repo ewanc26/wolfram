@@ -227,6 +227,7 @@ void wf_post_embed_free(wf_post_embed *embed) {
     free(embed->external_thumb);
     free(embed->video_thumb);
     free(embed->video_alt);
+    free(embed->video_playlist);
     free(embed->quote_author_display_name);
     free(embed->quote_author_handle);
     free(embed->quote_text);
@@ -308,6 +309,9 @@ static wf_status pv_read_video(const cJSON *video_view, wf_post_embed *out) {
         pv_dup(&out->video_thumb, pv_string(video_view, "thumbnail"));
     if (st == WF_OK) {
         st = pv_dup(&out->video_alt, pv_string(video_view, "alt"));
+    }
+    if (st == WF_OK) {
+        st = pv_dup(&out->video_playlist, pv_string(video_view, "playlist"));
     }
     return st;
 }
