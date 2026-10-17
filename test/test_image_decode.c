@@ -69,6 +69,18 @@ static const unsigned char kBigHeader[] = {
     0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0xb1, 0x0d, 0xb6, 0x93, 0x00,
     0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
 
+/* Writes the width and height of a PNG's IHDR chunk, big-endian. */
+static void set_ihdr_dims(unsigned char *png, unsigned w, unsigned h) {
+    png[16] = (unsigned char)(w >> 24);
+    png[17] = (unsigned char)(w >> 16);
+    png[18] = (unsigned char)(w >> 8);
+    png[19] = (unsigned char)w;
+    png[20] = (unsigned char)(h >> 24);
+    png[21] = (unsigned char)(h >> 16);
+    png[22] = (unsigned char)(h >> 8);
+    png[23] = (unsigned char)h;
+}
+
 int main(void) {
     /* Exact fit: nothing to scale, every pixel is the source colour. */
     wf_image_rgba img = {0};
@@ -148,6 +160,35 @@ int main(void) {
     WF_CHECK(wf_image_dimensions(kBigHeader, sizeof(kBigHeader), &w, &h) ==
              WF_OK);
     WF_CHECK(w == 4096 && h == 4096);
+
+    /* The source cap is inclusive. The fixture's IHDR is rewritten to 2048 and
+     * 2049 on each axis: 2048 passes the cap and then fails to decode, because
+     * the rest of the file is truncated; 2049 is refused before any decode. */
+    {
+        unsigned char edge[sizeof(kBigHeader)];
+        wf_image_rgba img;
+        memset(&img, 0, sizeof img);
+
+        memcpy(edge, kBigHeader, sizeof(kBigHeader));
+        set_ihdr_dims(edge, 2048, 2048);
+        WF_CHECK(wf_image_dimensions(edge, sizeof(edge), &w, &h) == WF_OK);
+        WF_CHECK(w == 2048 && h == 2048);
+        s = wf_image_decode_rgba(edge, sizeof(edge), 0, &img);
+        WF_CHECK(s != WF_ERR_UNSUPPORTED);
+        wf_image_rgba_free(&img);
+
+        memcpy(edge, kBigHeader, sizeof(kBigHeader));
+        set_ihdr_dims(edge, 2049, 16);
+        s = wf_image_decode_rgba(edge, sizeof(edge), 0, &img);
+        WF_CHECK(s == WF_ERR_UNSUPPORTED);
+        WF_CHECK(img.pixels == NULL);
+
+        memcpy(edge, kBigHeader, sizeof(kBigHeader));
+        set_ihdr_dims(edge, 16, 2049);
+        s = wf_image_decode_rgba(edge, sizeof(edge), 0, &img);
+        WF_CHECK(s == WF_ERR_UNSUPPORTED);
+        WF_CHECK(img.pixels == NULL);
+    }
 
     WF_TEST_SUMMARY();
 }
