@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_embed_video_playlist_duration` returns a video's length in seconds from its HLS playlist body. The video view carries no duration, so a client fetches the view's `playlist` URI and passes the m3u8 in; the parser sums the `#EXTINF` durations of a finished playlist and does no I/O. A live or empty playlist returns `WF_ERR_NOT_FOUND`.
+
 ## [0.41.0] - 2026-10-20
 
 ### Changed
