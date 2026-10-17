@@ -524,6 +524,81 @@ void wf_embed_view_video_free(wf_embed_view_video *v) {
     wf_embed_view_video_reset(v);
 }
 
+/* ----- HLS playlist duration ----- */
+
+static int wf_hls_starts_with(const char *p, const char *end, const char *tag) {
+    size_t n = strlen(tag);
+    return (size_t)(end - p) >= n && memcmp(p, tag, n) == 0;
+}
+
+/* Parse the body of an #EXTINF line, "<duration>,[title]", from p to end. */
+static wf_status wf_hls_parse_extinf(const char *p, const char *end,
+                                     double *out) {
+    char buf[64];
+    size_t n = 0;
+    char *stop = NULL;
+    double d = 0.0;
+
+    while (p < end && *p != ',') {
+        if (n + 1 >= sizeof(buf)) return WF_ERR_PARSE;
+        buf[n++] = *p++;
+    }
+    if (p == end) return WF_ERR_PARSE; /* the comma is required */
+    buf[n] = '\0';
+    while (n > 0 && (buf[n - 1] == ' ' || buf[n - 1] == '\t')) {
+        buf[--n] = '\0';
+    }
+    if (n == 0) return WF_ERR_PARSE;
+
+    d = strtod(buf, &stop);
+    if (stop == buf || *stop != '\0') return WF_ERR_PARSE;
+    /* Rejects NaN, negatives and implausible lengths in one comparison. */
+    if (!(d >= 0.0) || d > 1e9) return WF_ERR_PARSE;
+    *out = d;
+    return WF_OK;
+}
+
+wf_status wf_embed_video_playlist_duration(const char *m3u8, size_t m3u8_len,
+                                           double *seconds_out) {
+    const char *p = NULL;
+    const char *end = NULL;
+    double total = 0.0;
+    size_t segments = 0;
+    int ended = 0;
+
+    if (!m3u8 || !seconds_out) return WF_ERR_INVALID_ARG;
+    *seconds_out = 0.0;
+
+    p = m3u8;
+    end = m3u8 + m3u8_len;
+    if (!wf_hls_starts_with(p, end, "#EXTM3U")) return WF_ERR_PARSE;
+
+    while (p < end) {
+        const char *eol = p;
+        const char *line_end = NULL;
+        wf_status status = WF_OK;
+        double d = 0.0;
+
+        while (eol < end && *eol != '\n') eol++;
+        line_end = eol;
+        if (line_end > p && line_end[-1] == '\r') line_end--;
+
+        if (wf_hls_starts_with(p, line_end, "#EXTINF:")) {
+            status = wf_hls_parse_extinf(p + 8, line_end, &d);
+            if (status != WF_OK) return status;
+            total += d;
+            segments++;
+        } else if (wf_hls_starts_with(p, line_end, "#EXT-X-ENDLIST")) {
+            ended = 1;
+        }
+        p = eol < end ? eol + 1 : end;
+    }
+
+    if (segments == 0 || !ended) return WF_ERR_NOT_FOUND;
+    *seconds_out = total;
+    return WF_OK;
+}
+
 /* ----- External (card) view ----- */
 
 static void wf_embed_view_external_reset(wf_embed_view_external *v) {
