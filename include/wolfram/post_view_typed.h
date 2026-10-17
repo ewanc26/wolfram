@@ -102,12 +102,15 @@ typedef struct wf_post_embed {
     char *external_description;
     char *external_thumb; /* NULL when absent */
     /* video#view, direct or as media: the poster frame and alt text (each NULL
-     * when absent) and the aspectRatio (0 when absent). The playlist is not
-     * kept: no client here plays video. */
+     * when absent) and the aspectRatio (0 when absent). video_playlist is the
+     * HLS playlist URI (NULL when absent); fetch it and pass the body to
+     * wf_embed_video_playlist_duration for the duration. No client here plays
+     * video. */
     char *video_thumb;
     char *video_alt;
     int video_width;
     int video_height;
+    char *video_playlist;
     /* A quoted post, only for record#view / recordWithMedia#view whose record
      * is a viewRecord (not found / blocked / detached leave this unset). */
     int has_quote;
