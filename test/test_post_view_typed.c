@@ -106,6 +106,8 @@ static void test_embed(void) {
     WF_CHECK(e.video_thumb && strcmp(e.video_thumb, "https://v/t.jpg") == 0);
     WF_CHECK(e.video_alt && strcmp(e.video_alt, "a cat") == 0);
     WF_CHECK(e.video_width == 16 && e.video_height == 9);
+    WF_CHECK(e.video_playlist &&
+             strcmp(e.video_playlist, "https://v/p.m3u8") == 0);
     WF_CHECK(e.image_count == 0 && !e.has_external);
     wf_post_embed_free(&e);
     cJSON_Delete(j);
@@ -114,7 +116,8 @@ static void test_embed(void) {
                     "\"aspectRatio\":{\"width\":16}}");
     WF_CHECK(wf_post_embed_from_json(j, &e) == WF_OK);
     WF_CHECK(e.video_thumb == NULL && e.video_alt == NULL &&
-             e.video_width == 0 && e.video_height == 0);
+             e.video_width == 0 && e.video_height == 0 &&
+             e.video_playlist == NULL);
     wf_post_embed_free(&e);
     cJSON_Delete(j);
 
