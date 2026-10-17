@@ -121,6 +121,23 @@ cJSON_Delete(embed);       /* you own the built embed */
 wf_uploaded_blob_free(&blob);  /* free the upload result */
 ```
 
+## Playlist duration
+
+The `app.bsky.embed.video#view` carries no duration. Its `playlist` URI is an
+HLS (m3u8) playlist, and the length is the sum of its `#EXTINF` lines.
+`wf_embed_video_playlist_duration` (`embed_typed.h`) computes it from a playlist
+body that the caller has already fetched; the parser does no network I/O.
+
+```c
+double seconds = 0.0;
+wf_status s = wf_embed_video_playlist_duration(body, body_len, &seconds);
+```
+
+It returns `WF_OK` for a finished playlist (one ending in `#EXT-X-ENDLIST`).
+`WF_ERR_NOT_FOUND` means there is no final duration: a live playlist, or one
+with no segments. `WF_ERR_PARSE` means the body is not an m3u8 or an `#EXTINF`
+duration is malformed.
+
 ## Notes
 
 - `wf_agent_upload_video` and the generic `wf_agent_upload_blob_ex` both fill a
