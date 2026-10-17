@@ -43,6 +43,15 @@ static const char kLiveEmpty[] = "#EXTM3U\n"
 /* A finished playlist that lists no segments. */
 static const char kEndedEmpty[] = "#EXTM3U\n#EXT-X-ENDLIST\n";
 
+/* A master playlist: it lists variant playlists, not segments, so it has no
+ * duration of its own. The caller must fetch a variant and call again. */
+static const char kMaster[] =
+    "#EXTM3U\n"
+    "#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\n"
+    "360p/index.m3u8\n"
+    "#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720\n"
+    "720p/index.m3u8\n";
+
 /* Not an m3u8 at all: an HTML error page. */
 static const char kNotM3u8[] = "<html><body>Not Found</body></html>\n";
 
@@ -95,6 +104,7 @@ int main(void) {
     CHECK_BODY(kLive, WF_ERR_NOT_FOUND, 0.0);
     CHECK_BODY(kLiveEmpty, WF_ERR_NOT_FOUND, 0.0);
     CHECK_BODY(kEndedEmpty, WF_ERR_NOT_FOUND, 0.0);
+    CHECK_BODY(kMaster, WF_ERR_NOT_FOUND, 0.0);
 
     /* Malformed input. */
     CHECK_BODY(kNotM3u8, WF_ERR_PARSE, 0.0);

@@ -135,8 +135,10 @@ wf_status s = wf_embed_video_playlist_duration(body, body_len, &seconds);
 
 It returns `WF_OK` for a finished playlist (one ending in `#EXT-X-ENDLIST`).
 `WF_ERR_NOT_FOUND` means there is no final duration: a live playlist, or one
-with no segments. `WF_ERR_PARSE` means the body is not an m3u8 or an `#EXTINF`
-duration is malformed.
+with no segments. A master playlist (one whose lines are `#EXT-X-STREAM-INF`
+variants) has no segments, so it also returns `WF_ERR_NOT_FOUND`: fetch one of
+its variant playlists and call again. `WF_ERR_PARSE` means the body is not an
+m3u8 or an `#EXTINF` duration is malformed.
 
 ## Notes
 
