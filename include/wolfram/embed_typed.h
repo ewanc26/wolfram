@@ -174,6 +174,17 @@ wf_status wf_embed_parse_video_view(const char *json, size_t json_len,
                                     wf_embed_view_video *out);
 void wf_embed_view_video_free(wf_embed_view_video *v);
 
+/* Duration, in seconds, of a video from its HLS playlist (the view's
+ * `playlist` URI, an m3u8). The view itself carries no duration. The function
+ * does no I/O: fetch the playlist body and pass it in. It sums the #EXTINF
+ * durations of a finished (VOD) playlist, which must end with #EXT-X-ENDLIST.
+ * Returns WF_ERR_INVALID_ARG on NULL, WF_ERR_PARSE when the body is not an
+ * m3u8 (no #EXTM3U header) or an #EXTINF duration is malformed, and
+ * WF_ERR_NOT_FOUND when there is no final duration: no segments, or no
+ * #EXT-X-ENDLIST (a live playlist). *seconds_out is 0 unless WF_OK. */
+wf_status wf_embed_video_playlist_duration(const char *m3u8, size_t m3u8_len,
+                                           double *seconds_out);
+
 /* An external#view card (root has an "external" object). Open sub-objects are
  * kept as owned detached cJSON. */
 typedef struct wf_embed_view_external {
