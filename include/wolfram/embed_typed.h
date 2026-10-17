@@ -180,7 +180,8 @@ void wf_embed_view_video_free(wf_embed_view_video *v);
  * durations of a finished (VOD) playlist, which must end with #EXT-X-ENDLIST.
  * Returns WF_ERR_INVALID_ARG on NULL, WF_ERR_PARSE when the body is not an
  * m3u8 (no #EXTM3U header) or an #EXTINF duration is malformed, and
- * WF_ERR_NOT_FOUND when there is no final duration: no segments, or no
+ * WF_ERR_NOT_FOUND when there is no final duration: no segments (a master
+ * playlist lists variant playlists instead; fetch one and call again), or no
  * #EXT-X-ENDLIST (a live playlist). *seconds_out is 0 unless WF_OK. */
 wf_status wf_embed_video_playlist_duration(const char *m3u8, size_t m3u8_len,
                                            double *seconds_out);
