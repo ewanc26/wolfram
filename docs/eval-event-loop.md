@@ -37,10 +37,10 @@ reimplements the MHD API surface with a thread-per-connection model.
 | Limitation | Impact | Severity |
 |-----------|--------|----------|
 | Thread-per-connection (shim) | Each connection costs a pthread (~8KB stack) | Low for PDS workloads |
-| No keep-alive (shim) | Every response closes the TCP connection | Low (reverse proxy handles this) |
+| No keep-alive (shim) | Every response closes the TCP connection (measured: no reused connections in any run) | Low (reverse proxy handles this; see [xrpc-shim-benchmark.md](xrpc-shim-benchmark.md)) |
 | No HTTP pipelining (shim) | Sequential request processing per connection | Negligible for AT Protocol |
-| Linear route lookup | O(n) scan under mutex per request | Low (route table is small, <100 entries) |
-| Hardcoded listen backlog (16) | SYN drops under burst | Low (reverse proxy absorbs bursts) |
+| Linear route lookup | O(n) scan under mutex per request (measured at 121 routes: no change in throughput) | Low (route table is small, <100 entries) |
+| Listen backlog (shim) | 128 since the benchmark; was 16. Loopback did not drop connections at 16; a real-network burst is not measured | Low (reverse proxy absorbs bursts) |
 | Sequential WS teardown | Blocking join of all workers at stop | Low (only at shutdown) |
 | 2-second WS write timeout | Slow consumers get disconnected | By design (prevents head-of-line blocking) |
 
