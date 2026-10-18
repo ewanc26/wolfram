@@ -42,6 +42,9 @@
 #define SHIM_HEADER_MAX 16384 /* request line + headers */
 #define SHIM_BODY_CHUNK 8192  /* handed to the handler per call */
 #define SHIM_MAX_KV 64        /* headers + query args per request */
+/* Pending-connection queue for listen(). Was 16; the value is a queue depth,
+ * not a rate limit. See docs/xrpc-shim-benchmark.md for what was measured. */
+#define SHIM_LISTEN_BACKLOG 128
 
 /* ------------------------------------------------------------------ */
 /* Key/value store — headers and query arguments                       */
@@ -912,7 +915,7 @@ struct MHD_Daemon *MHD_start_daemon(unsigned int flags, uint16_t port,
     addr.sin_port = htons(port);
     if (bind(d->listen_fd, (struct sockaddr *)&addr, sizeof(addr)) != 0)
         goto fail;
-    if (listen(d->listen_fd, 16) != 0) goto fail;
+    if (listen(d->listen_fd, SHIM_LISTEN_BACKLOG) != 0) goto fail;
 
     /* Port 0 means "any free port", and the caller needs to be told which one
      * it got — MHD_get_daemon_info(BIND_PORT) is how the tests find it. */
