@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-10-20
+
 ### Changed
 
 - The libmicrohttpd shim (used by the Wii U, Wii and 3DS builds) raises its listen backlog from 16 to 128, so a burst of connections waits in the kernel queue rather than being refused. Loopback runs did not drop connections at 16, so the effect on a real network is not measured; [docs/xrpc-shim-benchmark.md](docs/xrpc-shim-benchmark.md) records what was measured. ([#214](https://github.com/ewanc26/wolfram/issues/214))
@@ -442,7 +444,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.40.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.41.0...HEAD
+[0.41.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.41.0
 [0.40.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.40.0
 [0.39.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.39.1
 [0.39.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.39.0
