@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-10-21
+
 ### Added
 
 - `wf_embed_video_playlist_duration` returns a video's length in seconds from its HLS playlist body. ([#217](https://github.com/ewanc26/wolfram/pull/217)) The video view carries no duration, so a client fetches the view's `playlist` URI and passes the m3u8 in; the parser sums the `#EXTINF` durations of a finished playlist and does no I/O. A live or empty playlist returns `WF_ERR_NOT_FOUND`.
@@ -449,7 +451,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.41.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.42.0...HEAD
+[0.42.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.42.0
 [0.41.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.41.0
 [0.40.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.40.0
 [0.39.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.39.1
