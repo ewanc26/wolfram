@@ -215,7 +215,8 @@ FetchContent_MakeAvailable(base64url)
 FetchContent_Declare(
   node_headers
   URL https://nodejs.org/dist/v22.21.1/node-v22.21.1-headers.tar.gz
-  URL_HASH SHA256=17fe8018b051e9ce255868c301e4b305194185479c0b1831f8625fa96057c9e5)
+  URL_HASH SHA256=17fe8018b051e9ce255868c301e4b305194185479c0b1831f8625fa96057c9e5
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 
 # Lexicon generator tool — C++ replacement for the removed tools/wf_lexgen.py. A
 # development-time codegen tool, so it is always built (not gated on
