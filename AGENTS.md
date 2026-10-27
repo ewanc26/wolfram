@@ -72,3 +72,9 @@ Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md f
 - Change the manifest or version rules by changing `test/vectors/update/*.json` and `docs/update.md` in the same PR. Consumers, including Platinum's TypeScript port, run those vectors.
 - Never describe a SHA-256 from the same release as authentication. `signature` is reserved and unverified; do not add a public key to the repo, the owner supplies it.
 
+## Language bindings
+
+- Companion language bindings (`cpp/`, `dotnet/`, `node/`) are wrappers over libwolfram, never reimplementations; the contract for all of them is `docs/bindings-cpp-csharp.md`.
+- The Node addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`) exposes the update contract to Node. Errors surface as thrown `Error`s whose `code` is the `wf_status` name; it never writes user-facing prose, and it stays synchronous on the JS thread.
+- A binding may assert nothing about a status it maps: run the shared vectors it consumes through the binding itself in CI, so a status that changes meaning breaks the binding's tests, not just the C suite's.
+
