@@ -6,6 +6,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- The Node addon also exposes the OAuth pairing parsers (`buildPairBegin`, `parsePairBegin`, `parsePairPoll` over `oauth_pairing.h`), so a Node consumer drops its port of the pairing contract the way it can already drop the update contract; the begin/poll loop stays with the consumer, and `node/test/oauth_pairing.test.mjs` runs the shared pairing vectors through the addon. ([#221](https://github.com/ewanc26/wolfram/pull/221))
+
 - A Node addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`) that compiles libwolfram's update contract (`wf_update_compare_versions`, `wf_update_version_valid`, SHA-256, `wf_update_parse_manifest`, `wf_update_verify_signature`) into a loadable `build/wolfram_core.node`, so a Node consumer runs Wolfram's C instead of carrying a port of it. Every error throws with a `code` holding the `wf_status` name, and `node --test node/test/` drives the update and Ed25519 vectors through the addon itself. Companion-language conventions are in [docs/bindings-cpp-csharp.md](docs/bindings-cpp-csharp.md). ([#219](https://github.com/ewanc26/wolfram/issues/219))
 
 ## [0.42.0] - 2026-10-21
