@@ -75,6 +75,6 @@ Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md f
 ## Language bindings
 
 - Companion language bindings (`cpp/`, `dotnet/`, `node/`) are wrappers over libwolfram, never reimplementations; the contract for all of them is `docs/bindings-cpp-csharp.md`.
-- The Node addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`) exposes the update contract to Node. Errors surface as thrown `Error`s whose `code` is the `wf_status` name; it never writes user-facing prose, and it stays synchronous on the JS thread.
+- The Node addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`) exposes the update contract and the OAuth pairing parsers (`buildPairBegin`, `parsePairBegin`, `parsePairPoll`; the begin/poll loop stays with the consumer) to Node. Errors surface as thrown `Error`s whose `code` is the `wf_status` name; it never writes user-facing prose, and it stays synchronous on the JS thread. Every contract it exposes runs its shared vectors through the binding in `node/test/` and in CI, the pairing ones included.
 - A binding may assert nothing about a status it maps: run the shared vectors it consumes through the binding itself in CI, so a status that changes meaning breaks the binding's tests, not just the C suite's.
 
