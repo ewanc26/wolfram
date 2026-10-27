@@ -330,6 +330,60 @@ jobs:
           LD_LIBRARY_PATH: ${{ github.workspace }}/build:${{ github.workspace }}/build/_deps/cjson-build:${{ github.workspace }}/build/_deps/libcbor-build/src
         run: dotnet test dotnet/Wolfram.Interop.Tests/Wolfram.Interop.Tests.csproj
 
+  # The Node addon (node/wolfram_core.c) loads libwolfram's static archive into
+  # Node's process, so CI must build it with the static-archive + PIC
+  # configuration WOLFRAM_BUILD_NODE pins, and drive the update contract's
+  # shared vectors through the addon itself. Gated the same way the C# interop
+  # job is: node comes from the runner image via setup-node, and if that fails
+  # the check step skips the job rather than failing the unrelated gate.
+  node:
+    name: Node.js addon (gated on node)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: |
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libssl-dev && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
+
+      - name: Set up Node.js
+        id: node
+        continue-on-error: true
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22.x'
+
+      - name: Check node availability
+        id: check
+        run: |
+          if command -v node >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "node not found — skipping Node addon job"
+          fi
+
+      - name: Build the addon
+        if: steps.check.outputs.available == 'true'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DWOLFRAM_BUILD_NODE=ON
+          cmake --build build -j"$(nproc)" --target wolfram_core
+
+      - name: Test the addon against the update vectors
+        if: steps.check.outputs.available == 'true'
+        run: node --test node/test/
+
   # The Classic Mac OS 9 transport is a C89/CodeWarrior target, which no other
   # job here checks: the main builds compile it as part of nothing (it is a
   # separate, opt-in target) and would happily accept C99 constructs that
@@ -505,6 +559,7 @@ jobs:
       - no-secp256k1
       - full
       - dotnet
+      - node
       - macos9-transport
       - format
       - flow-scripts
