@@ -2364,7 +2364,8 @@ if(WOLFRAM_BUILD_NODE)
   endif()
 
   add_library(wolfram_core MODULE node/wolfram_core.c)
-  target_include_directories(wolfram_core PRIVATE ${node_include_dir})
+  target_include_directories(wolfram_core PRIVATE ${node_include_dir}
+                             ${cjson_SOURCE_DIR})
   target_compile_definitions(wolfram_core PRIVATE NODE_GYP_MODULE_NAME=wolfram_core)
   # The module is a loadable object, not an executable: the archive members it
   # references are pulled in at link time, and unresolved Node symbols are fine
@@ -2395,6 +2396,11 @@ if(WOLFRAM_BUILD_NODE)
                COMMAND ${Node_EXECUTABLE} --test node/test/oauth_pairing.test.mjs
                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
       set_tests_properties(node_oauth_pairing PROPERTIES
+                           ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
+      add_test(NAME node_post_display
+               COMMAND ${Node_EXECUTABLE} --test node/test/post_display.test.mjs
+               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+      set_tests_properties(node_post_display PROPERTIES
                            ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
     else()
       message(STATUS "node not found -- node/test skipped; build the addon and run 'node --test node/test/' to drive the vectors")

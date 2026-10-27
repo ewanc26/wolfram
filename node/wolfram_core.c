@@ -11,6 +11,9 @@
  *   oauth_pairing.h: buildPairBegin, parsePairBegin, parsePairPoll -- the
  *              parsers only; the begin/poll loop stays in the consumer, whose
  *              transport is its own
+ *   post_display.h: postDisplay(recordText?, embedText?) -- the display model
+ *              of a post from its raw record/embed JSON; fetching (network)
+ *              stays in the consumer
  *
  * Errors are wolfram's statuses surfaced, not messages: every throw carries
  * an Error whose `code` is the wf_status name (WF_ERR_PARSE and so on), so
@@ -33,7 +36,10 @@
  */
 
 #include "wolfram/oauth_pairing.h"
+#include "wolfram/post_display.h"
 #include "wolfram/update.h"
+
+#include <cJSON.h>
 
 #include <node_api.h>
 
@@ -615,6 +621,235 @@ static napi_value parse_pair_poll(napi_env env, napi_callback_info info) {
     return result;
 }
 
+/* ---- post_display -------------------------------------------------------- */
+
+/* A nullable C string to JS: NULL becomes JS null, "absent" for a member the
+ * consumer can distinguish from empty. */
+static bool set_utf8_or_null(napi_env env, napi_value obj, const char *key,
+                             const char *value) {
+    napi_value s;
+
+    if (value == NULL) {
+        if (napi_get_null(env, &s) != napi_ok) return false;
+        return napi_set_named_property(env, obj, key, s) == napi_ok;
+    }
+    if (napi_create_string_utf8(env, value, NAPI_AUTO_LENGTH, &s) != napi_ok)
+        return false;
+    return napi_set_named_property(env, obj, key, s) == napi_ok;
+}
+
+/* Wolfram's own post_display contract takes an already-parsed tree; the addon
+ * takes JSON text, so a text that does not parse never reaches Wolfram's C and
+ * is surfaced here as WF_ERR_PARSE. */
+typedef struct wf_json_arg {
+    cJSON *tree; /* NULL when the JS argument was absent */
+} wf_json_arg;
+
+/* Reads one JSON-text argument of postDisplay: arguments beyond the supplied
+ * ones, and an explicit JS undefined or null, mean "absent". Wolfram's own
+ * post_display contract takes an already-parsed tree; the addon takes JSON
+ * text, so a text that does not parse never reaches Wolfram's C and is
+ * surfaced here as WF_ERR_PARSE. */
+static bool take_json(napi_env env, napi_value argv[], size_t i, size_t argc,
+                      wf_json_arg *out, bool *threw) {
+    wf_bytes b = {NULL, 0, false};
+    napi_valuetype type;
+
+    out->tree = NULL;
+    if (argc <= i) return true; /* absent member */
+    napi_typeof(env, argv[i], &type);
+    if (type == napi_undefined || type == napi_null) return true;
+    b = take_bytes(env, argv[i], threw);
+    if (*threw) return false;
+    out->tree = cJSON_ParseWithLength((const char *)b.data, b.len);
+    release_bytes(b);
+    if (out->tree == NULL) {
+        throw_status(env, WF_ERR_PARSE, "postDisplay");
+        *threw = true;
+        return false;
+    }
+    return true;
+}
+
+static bool set_int(napi_env env, napi_value obj, const char *key, double v) {
+    napi_value n;
+
+    if (napi_create_double(env, v, &n) != napi_ok) return false;
+    return napi_set_named_property(env, obj, key, n) == napi_ok;
+}
+
+static const char *facet_kind_name(wf_facet_kind kind) {
+    switch (kind) {
+        case WF_FACET_LINK:
+            return "link";
+        case WF_FACET_MENTION:
+            return "mention";
+        default:
+            return "tag";
+    }
+}
+
+static const char *embed_kind_name(wf_post_embed_kind kind) {
+    switch (kind) {
+        case WF_EMBED_NONE:
+            return "none";
+        case WF_EMBED_IMAGES:
+            return "images";
+        case WF_EMBED_VIDEO:
+            return "video";
+        case WF_EMBED_EXTERNAL:
+            return "external";
+        case WF_EMBED_RECORD:
+            return "record";
+        case WF_EMBED_RECORD_WITH_MEDIA:
+            return "recordWithMedia";
+        default:
+            return "unknown";
+    }
+}
+
+/* Fills one facet/images member object; private to this surface, no throw. */
+static bool make_facet(napi_env env, const wf_display_facet *f,
+                       napi_value *out) {
+    napi_value o, kind;
+
+    if (napi_create_object(env, &o) != napi_ok) return false;
+    if (napi_create_string_utf8(env, facet_kind_name(f->kind), NAPI_AUTO_LENGTH,
+                                &kind) != napi_ok ||
+        napi_set_named_property(env, o, "kind", kind) != napi_ok)
+        return false;
+    if (set_int(env, o, "byteStart", (double)f->byte_start) == false ||
+        set_int(env, o, "byteEnd", (double)f->byte_end) == false)
+        return false;
+    if (!set_utf8_or_null(env, o, "target", f->target)) return false;
+    *out = o;
+    return true;
+}
+
+static bool make_image(napi_env env, const wf_display_image *im,
+                       napi_value *out) {
+    napi_value o;
+
+    if (napi_create_object(env, &o) != napi_ok) return false;
+    if (!set_utf8_or_null(env, o, "thumb", im->thumb) ||
+        !set_utf8_or_null(env, o, "alt", im->alt))
+        return false;
+    if (set_int(env, o, "width", im->width) == false ||
+        set_int(env, o, "height", im->height) == false)
+        return false;
+    *out = o;
+    return true;
+}
+
+/* Assembles the whole display object. Returns false only on a pure napi
+ * failure (the exception is already pending); shapes that Wolfram's C leaves
+ * empty are empty here, never errors. */
+static bool make_display(napi_env env, const wf_post_display *d,
+                         napi_value *out) {
+    napi_value o, arr, item, sub;
+    size_t i;
+
+    if (napi_create_object(env, &o) != napi_ok) return false;
+    if (!set_utf8_or_null(env, o, "text", d->text)) return false;
+    if (!set_utf8_or_null(env, o, "createdAt", d->created_at)) return false;
+
+    if (napi_create_array_with_length(env, d->facet_count, &arr) != napi_ok)
+        return false;
+    for (i = 0; i < d->facet_count; ++i) {
+        if (!make_facet(env, &d->facets[i], &item) ||
+            napi_set_element(env, arr, (uint32_t)i, item) != napi_ok)
+            return false;
+    }
+    if (napi_set_named_property(env, o, "facets", arr) != napi_ok) return false;
+
+    if (napi_create_array_with_length(env, d->image_count, &arr) != napi_ok)
+        return false;
+    for (i = 0; i < d->image_count; ++i) {
+        if (!make_image(env, &d->images[i], &item) ||
+            napi_set_element(env, arr, (uint32_t)i, item) != napi_ok)
+            return false;
+    }
+    if (napi_set_named_property(env, o, "images", arr) != napi_ok) return false;
+
+    if (napi_create_string_utf8(env, embed_kind_name(d->embed_kind),
+                                NAPI_AUTO_LENGTH, &sub) != napi_ok ||
+        napi_set_named_property(env, o, "embedKind", sub) != napi_ok)
+        return false;
+    if (!set_bool(env, o, "isReply", d->is_reply != 0)) return false;
+
+    if (napi_create_object(env, &sub) != napi_ok) return false;
+    if (!set_utf8_or_null(env, sub, "title", d->external_title) ||
+        !set_utf8_or_null(env, sub, "uri", d->external_uri) ||
+        !set_utf8_or_null(env, sub, "description", d->external_description) ||
+        !set_utf8_or_null(env, sub, "thumb", d->external_thumb))
+        return false;
+    if (napi_set_named_property(env, o, "external", sub) != napi_ok)
+        return false;
+
+    if (napi_create_object(env, &sub) != napi_ok) return false;
+    if (!set_utf8_or_null(env, sub, "thumb", d->video_thumb) ||
+        !set_utf8_or_null(env, sub, "alt", d->video_alt))
+        return false;
+    if (set_int(env, sub, "width", d->video_width) == false ||
+        set_int(env, sub, "height", d->video_height) == false)
+        return false;
+    if (napi_set_named_property(env, o, "video", sub) != napi_ok) return false;
+
+    if (napi_create_object(env, &sub) != napi_ok) return false;
+    if (!set_utf8_or_null(env, sub, "uri", d->quote_uri) ||
+        !set_utf8_or_null(env, sub, "authorHandle", d->quote_author_handle) ||
+        !set_utf8_or_null(env, sub, "text", d->quote_text))
+        return false;
+    if (napi_set_named_property(env, o, "quote", sub) != napi_ok) return false;
+
+    *out = o;
+    return true;
+}
+
+/* postDisplay(recordText?, embedText?) fills the display model of
+ * post_display.h from raw record/embed JSON text. Both arguments are absent
+ * or a Buffer/string of JSON; the embed argument may be omitted. Returns the
+ * display object (text, createdAt, validated facets, images, embedKind,
+ * isReply, external, video, quote). Hostile data yields empty members per the
+ * C contract, never a throw; only unparseable intake text throws
+ * WF_ERR_PARSE, and only INT_ARG/ALLOC failures surface as statuses. */
+static napi_value post_display(napi_env env, napi_callback_info info) {
+    size_t argc = 2;
+    napi_value argv[2], result = NULL;
+    wf_json_arg rec = {NULL}, emb = {NULL};
+    bool threw = false;
+    wf_agent_post_view post;
+    wf_post_display d;
+    wf_status st;
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc > 2) {
+        napi_throw_type_error(env, NULL,
+                              "postDisplay(record, embed?) takes JSON text");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    if (take_json(env, argv, 0, argc, &rec, &threw) &&
+        take_json(env, argv, 1, argc, &emb, &threw)) {
+        memset(&post, 0, sizeof(post));
+        post.record = rec.tree;
+        post.embed = emb.tree;
+        memset(&d, 0, sizeof(d));
+        st = wf_agent_post_view_display(&post, &d);
+        if (st != WF_OK) {
+            throw_status(env, st, "wf_agent_post_view_display");
+        } else if (!make_display(env, &d, &result)) {
+            /* A pure napi failure; the exception is already pending. */
+        }
+        if (st == WF_OK) wf_post_display_free(&d);
+    }
+    cJSON_Delete(rec.tree);
+    cJSON_Delete(emb.tree);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
 /* ---- module ------------------------------------------------------------ */
 
 static napi_value init(napi_env env, napi_value exports) {
@@ -633,6 +868,8 @@ static napi_value init(napi_env env, napi_value exports) {
         {"parsePairBegin", NULL, parse_pair_begin, NULL, NULL, NULL,
          napi_default, NULL},
         {"parsePairPoll", NULL, parse_pair_poll, NULL, NULL, NULL, napi_default,
+         NULL},
+        {"postDisplay", NULL, post_display, NULL, NULL, NULL, napi_default,
          NULL},
     };
     size_t count = sizeof(props) / sizeof(props[0]);
