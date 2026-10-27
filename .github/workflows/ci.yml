@@ -380,9 +380,11 @@ jobs:
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DWOLFRAM_BUILD_NODE=ON
           cmake --build build -j"$(nproc)" --target wolfram_core
 
-      - name: Test the addon against the update vectors
+      - name: Test the addon against the shared vectors
         if: steps.check.outputs.available == 'true'
-        run: node --test node/test/update.test.mjs
+        run: |
+          node --test node/test/update.test.mjs
+          node --test node/test/oauth_pairing.test.mjs
 
   # The Classic Mac OS 9 transport is a C89/CodeWarrior target, which no other
   # job here checks: the main builds compile it as part of nothing (it is a
