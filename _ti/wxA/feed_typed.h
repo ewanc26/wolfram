@@ -1,0 +1,195 @@
+/*
+ * feed_typed.h — owned typed parser for app.bsky.feed timeline/author-feed
+ * responses.
+ *
+ * Parses the raw JSON body returned by `app.bsky.feed.getTimeline` (and the
+ * structurally identical `app.bsky.feed.getAuthorFeed`) into owned C structs.
+ * `record`, `embed`, `reason`, and `reply` are kept as owned `cJSON` subtrees
+ * (detached from the parsed document) so the parser stays bounded regardless
+ * of arbitrary record/embed shapes. Free the whole list with
+ * `wf_agent_feed_list_free`.
+ *
+ * This mirrors the conventions in `agent.h` / `notification.c`:
+ *   - `wf_status` error codes (WF_ERR_INVALID_ARG, WF_ERR_PARSE, WF_ERR_ALLOC,
+ *     WF_OK)
+ *   - static strdup/set_string/reset helpers local to the translation unit
+ *   - ownership via `cJSON_DetachItemFromObject`
+ */
+
+#ifndef WOLFRAM_FEED_TYPED_H
+#define WOLFRAM_FEED_TYPED_H
+
+#include "wolfram/agent.h"
+#include <cJSON.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Viewer relationship state for a post (app.bsky.feed.defs#viewerState). */
+typedef struct wf_agent_feed_viewer_state {
+    char *repost; /* at-uri of the viewer's repost, or NULL */
+    char *like;   /* at-uri of the viewer's like, or NULL */
+    int bookmarked;
+    int thread_muted;
+    int reply_disabled;
+    int embedding_disabled;
+    int pinned;
+    int has_bookmarked; /* whether the *_disabled-style flags were set */
+    int has_thread_muted;
+    int has_reply_disabled;
+    int has_embedding_disabled;
+    int has_pinned;
+} wf_agent_feed_viewer_state;
+
+/* A single post in a feed (app.bsky.feed.defs#postView). */
+typedef struct wf_agent_post_view {
+    char *uri;
+    char *cid;
+    wf_agent_profile_view author;
+    cJSON *record; /* owned record subtree; NULL when absent */
+    cJSON *embed;  /* owned embed subtree; NULL when absent */
+    int reply_count;
+    int repost_count;
+    int like_count;
+    int quote_count;
+    int bookmark_count;
+    int has_reply_count;
+    int has_repost_count;
+    int has_like_count;
+    int has_quote_count;
+    int has_bookmark_count;
+    char *indexed_at;
+    wf_agent_feed_viewer_state viewer;
+} wf_agent_post_view;
+
+/* A feed item (app.bsky.feed.defs#feedViewPost). */
+typedef struct wf_agent_feed_item {
+    wf_agent_post_view post;
+    cJSON *reason;      /* owned reason subtree (reasonRepost/reasonPin) */
+    cJSON *reply;       /* owned replyRef subtree; NULL when absent */
+    char *feed_context; /* optional context from feed generator */
+    char *req_id;       /* optional per-request identifier */
+} wf_agent_feed_item;
+
+/* The parsed timeline/author-feed list. */
+typedef struct wf_agent_feed_list {
+    wf_agent_feed_item *items;
+    size_t item_count;
+    char *cursor;
+} wf_agent_feed_list;
+
+/* A parsed list of post views (app.bsky.feed.getPosts). Unlike the feed list
+ * this holds a bare array of `postView` (key "posts") rather than
+ * feedViewPost, so it uses its own list type. */
+typedef struct wf_agent_post_list {
+    wf_agent_post_view *posts;
+    size_t post_count;
+} wf_agent_post_list;
+
+/* A single skeleton feed post (app.bsky.feed.getFeedSkeleton -> feed[]). */
+typedef struct wf_agent_skeleton_post {
+    char *post;    /* post AT-URI */
+    cJSON *reason; /* owned reason subtree; NULL when absent */
+} wf_agent_skeleton_post;
+
+/* A parsed feed-generator skeleton (app.bsky.feed.getFeedSkeleton). */
+typedef struct wf_agent_skeleton_list {
+    wf_agent_skeleton_post *posts;
+    size_t post_count;
+    char *cursor;
+    char *req_id;
+} wf_agent_skeleton_list;
+
+/* A feed declared by a generator (describeFeedGenerator -> feeds[]). */
+typedef struct wf_agent_feed_gen_feed {
+    char *uri;
+} wf_agent_feed_gen_feed;
+
+/* A parsed describeFeedGenerator response. */
+typedef struct wf_agent_feed_gen_describe {
+    char *did;
+    wf_agent_feed_gen_feed *feeds;
+    size_t feed_count;
+    cJSON *links; /* owned links subtree; NULL when absent */
+} wf_agent_feed_gen_describe;
+
+/* Parse a raw getTimeline/getAuthorFeed JSON body into owned structs.
+ * Returns WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON
+ * or a missing `feed` array, WF_ERR_ALLOC on allocation failure, WF_OK on
+ * success. On any error `out` is left fully reset (no partial leaks). */
+wf_status wf_agent_parse_feed(const char *json, size_t json_len,
+                              wf_agent_feed_list *out);
+
+/* Like wf_agent_parse_feed but reads the item array from `key` instead of
+ * "feed" (e.g. "posts" for app.bsky.feed.getQuotes). Same ownership/error
+ * rules. */
+wf_status wf_agent_parse_feed_key(const char *json, size_t json_len,
+                                  const char *key, wf_agent_feed_list *out);
+
+/* Free a parsed feed list and every owned subtree it holds. */
+void wf_agent_feed_list_free(wf_agent_feed_list *list);
+
+/* Typed high-level wrappers — issue the corresponding agent call and parse the
+ * JSON body into `out`. On success `out` is owned by the caller and must be
+ * freed with `wf_agent_feed_list_free`; on error it is left reset. */
+wf_status wf_agent_get_timeline_typed(wf_agent *agent, int limit,
+                                      const char *cursor,
+                                      wf_agent_feed_list *out);
+wf_status wf_agent_get_author_feed_typed(wf_agent *agent, const char *actor,
+                                         int limit, const char *cursor,
+                                         const char *filter,
+                                         wf_agent_feed_list *out);
+wf_status wf_agent_get_quotes_typed(wf_agent *agent, const char *uri, int limit,
+                                    const char *cursor,
+                                    wf_agent_feed_list *out);
+
+/* Parse a getPosts JSON body (bare array of postView under "posts") into owned
+ * structs. Same ownership/error rules as wf_agent_parse_feed. */
+wf_status wf_agent_parse_posts(const char *json, size_t json_len,
+                               wf_agent_post_list *out);
+
+/* Free a parsed post list and every owned subtree it holds. */
+void wf_agent_post_list_free(wf_agent_post_list *list);
+
+/* Parse a getFeedSkeleton JSON body into owned structs. Returns
+ * WF_ERR_INVALID_ARG on NULL inputs, WF_ERR_PARSE on malformed JSON or a
+ * missing `feed` array, WF_ERR_ALLOC on allocation failure. */
+wf_status wf_agent_parse_feed_skeleton(const char *json, size_t json_len,
+                                       wf_agent_skeleton_list *out);
+
+/* Free a parsed skeleton list and every owned subtree it holds. */
+void wf_agent_skeleton_list_free(wf_agent_skeleton_list *list);
+
+/* Parse a describeFeedGenerator JSON body into owned structs. */
+wf_status
+wf_agent_parse_describe_feed_generator(const char *json, size_t json_len,
+                                       wf_agent_feed_gen_describe *out);
+
+/* Free a parsed describeFeedGenerator response and every owned subtree. */
+void wf_agent_feed_gen_describe_free(wf_agent_feed_gen_describe *out);
+
+/* Typed convenience wrappers for the remaining core feed read endpoints. On
+ * success `out` is owned by the caller (free with the matching `_free`); on
+ * error it is left reset. */
+/* app.bsky.feed.searchPosts. `*next_cursor` is a malloc'd string the caller
+ * frees, or NULL when there is no further page. */
+wf_status wf_agent_search_posts_typed(wf_agent *agent, const char *query,
+                                      int limit, const char *cursor,
+                                      wf_agent_post_list *out,
+                                      char **next_cursor);
+wf_status wf_agent_get_posts_typed(wf_agent *agent, const char *const *uris,
+                                   size_t uri_count, wf_agent_post_list *out);
+wf_status wf_agent_get_feed_skeleton_typed(wf_agent *agent,
+                                           const char *feed_uri, int limit,
+                                           const char *cursor,
+                                           wf_agent_skeleton_list *out);
+wf_status
+wf_agent_describe_feed_generator_typed(wf_agent *agent,
+                                       wf_agent_feed_gen_describe *out);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* WOLFRAM_FEED_TYPED_H */

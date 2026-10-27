@@ -1,0 +1,791 @@
+/*
+ * xrpc_server.h — minimal XRPC server on libmicrohttpd.
+ *
+ * Provides an embedded HTTP server that dispatches incoming `/xrpc/<nsid>`
+ * requests to registered handler callbacks. Queries (GET) and procedures
+ * (POST) are dispatched separately. An optional auth callback is called
+ * before each handler.
+ *
+ * This module is built only when WOLFRAM_BUILD_SERVER=ON and requires
+ * libmicrohttpd.
+ *
+ * Ownership:
+ *   - wf_xrpc_server is owned by the caller; free with wf_xrpc_server_free.
+ *   - wf_xrpc_response body is freed by the server after sending.
+ *   - Handler callbacks must not retain pointers into wf_xrpc_request after
+ *     returning.
+ */
+
+#ifndef WOLFRAM_XRPC_SERVER_H
+#define WOLFRAM_XRPC_SERVER_H
+
+#include "wolfram/xrpc.h"
+#include <cJSON.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <time.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* ------------------------------------------------------------------ */
+/* Opaque server handle                                                */
+/* ------------------------------------------------------------------ */
+typedef struct wf_xrpc_server wf_xrpc_server;
+
+/* ------------------------------------------------------------------ */
+/* Request context — valid only during the handler callback           */
+/* ------------------------------------------------------------------ */
+/** Kind of principal an auth middleware resolved for a request. */
+typedef enum {
+    WF_XRPC_PRINCIPAL_NONE = 0,
+    WF_XRPC_PRINCIPAL_SERVICE, /* app.bsky service JWT (iss = service DID) */
+    WF_XRPC_PRINCIPAL_USER,    /* OAuth/OIDC access token (sub = user DID) */
+    WF_XRPC_PRINCIPAL_ANY,     /* service or user; used by per-route auth
+                                  policies to express "no restriction" */
+} wf_xrpc_principal_kind;
+
+/** One forwarded request header pair (name begins with "x-atproto-"). Both
+ *  strings are owned by the request and valid only during the handler. */
+typedef struct wf_xrpc_request_header {
+    char *name;
+    char *value;
+} wf_xrpc_request_header;
+
+typedef struct wf_xrpc_request {
+    const char *nsid;        /* Parsed XRPC NSID from URL path */
+    const char *path;        /* Exact request path (for non-XRPC routes). */
+    const char *method;      /* "GET" or "POST" */
+    const char *auth_header; /* Raw Authorization header (may be NULL) */
+    const char *dpop_header; /* Raw DPoP proof header (may be NULL) */
+    /* Raw Cookie header, exactly as sent (may be NULL). Unparsed: MHD has no
+     * cookie-jar concept and this mirrors that — a handler that wants one
+     * cookie among several parses the `name=value; name2=value2` string
+     * itself. Exists for HTTP routes a browser navigates to directly (an
+     * OAuth authorize page, say), which have no Authorization header to
+     * carry a session and nothing else in this struct can stand in for one.
+     * Valid only during the handler. */
+    const char *cookie_header;
+    cJSON *params; /* Query params (GET) or body JSON (POST); may be NULL */
+    /* Raw request body (POST). For binary procedures such as blob uploads the
+     * body is the raw bytes, not JSON; handlers that need it read body /
+     * body_len directly. Valid only during the handler callback. */
+    const unsigned char *body;
+    size_t body_len;
+    /* Parsed Content-Length for a POST body. `has_content_length` is false
+     * for chunked requests or when the header was absent. Streaming handlers
+     * use this to reject a part before creating any backing file. */
+    bool has_content_length;
+    uint64_t content_length;
+    /* Request Content-Type header (may be NULL). Valid only during the handler.
+     */
+    const char *content_type;
+    /* Request Host header (may be NULL). Valid only during the handler. */
+    const char *host_header;
+    /* Raw, unparsed query string (without the leading '?'), or NULL when the
+     * URL carries no query. Useful to forward a request verbatim (e.g. from
+     * a proxying fallback handler). Valid only during the handler. */
+    const char *raw_query;
+    /* Request `atproto-proxy` header value ("<did>#<service_id>"), or NULL.
+     * Valid only during the handler. */
+    const char *atproto_proxy;
+    /* Content-negotiation / AppView-forwarding request headers, exactly as
+     * sent (may each be NULL). Handlers reverse-proxying to an AppView or
+     * other upstream forward these to preserve the client's preferences and
+     * requested labelers, matching the reference PDS's pipethrough. Valid
+     * only during the handler. */
+    const char *accept_language;         /* Accept-Language */
+    const char *accept_encoding;         /* Accept-Encoding */
+    const char *atproto_accept_labelers; /* atproto-accept-labelers */
+    const char *x_bsky_topics;           /* X-Bsky-Topics */
+    /* Case-insensitive snapshot of every request header whose name begins
+     * with "x-atproto-" (e.g. x-atproto-session-id, x-atproto-bsky-topics),
+     * in arrival order. The reference PDS forwards all such headers verbatim
+     * its pipethrough (getAtprotoPassthroughHeaders), so an AppView proxy
+     * forwards the same set. `atproto_headers` is NULL when none were sent
+     * (and `atproto_headers_count` is 0); otherwise it is an array of
+     * `atproto_headers_count` pairs. Values are owned by the request and
+     * valid only during the handler. */
+    wf_xrpc_request_header *atproto_headers;
+    size_t atproto_headers_count;
+    /* Client address (numeric IPv4/IPv6, no port), or "unknown" if it could
+     * not be determined. Valid only during the handler. NULL for requests
+     * built outside the HTTP dispatch path (e.g. some internal/test call
+     * sites) — check for NULL before use. */
+    const char *client_ip;
+    void *handler_ctx; /* User context from route registration */
+    /* The following two fields are populated by an auth middleware (e.g.
+     * wf_xrpc_server_set_auth_middleware) and are valid only for the duration
+     * of the handler callback. `authed_subject` is server-owned and freed after
+     * the handler returns; NULL when no principal was authenticated. */
+    char *authed_subject; /* resolved DID (iss for service tokens,
+                             sub for user tokens) */
+    wf_xrpc_principal_kind authed_principal_kind; /* kind of `authed_subject` */
+} wf_xrpc_request;
+
+typedef struct wf_xrpc_response_header wf_xrpc_response_header;
+
+/* ------------------------------------------------------------------ */
+/* Response — fill in the handler callback, server sends it           */
+/* ------------------------------------------------------------------ */
+typedef struct wf_xrpc_response {
+    int http_status; /* HTTP status code (default 200) */
+    char *body;      /* Heap-allocated body (server frees it) */
+    size_t body_len;
+    /* Optional response Content-Type. When non-NULL the server emits this
+     * header instead of the default "application/json" (used to serve raw
+     * blobs). Owned by the handler; the server frees it after sending. */
+    char *content_type;
+    wf_xrpc_response_header *headers; /* private owned response-header list */
+} wf_xrpc_response;
+
+/** Zero-initialiser for a response struct. */
+#define WF_XRPC_RESPONSE_INIT                                                  \
+    { 200, NULL, 0, NULL, NULL }
+
+/** Set the response body (copies the string). */
+void wf_xrpc_response_set_body(wf_xrpc_response *resp, const char *body,
+                               size_t body_len);
+
+/** Set an XRPC error response: {"error":"...","message":"..."} */
+void wf_xrpc_response_set_error(wf_xrpc_response *resp, int http_status,
+                                const char *error, const char *message);
+
+/** Set a generic error body with the given HTTP status. */
+void wf_xrpc_response_set_error_body(wf_xrpc_response *resp, int http_status,
+                                     const char *body, size_t body_len);
+
+/** Set the response Content-Type (copies the string). Pass NULL to clear. */
+void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
+                                       const char *content_type);
+
+/** Add a response header (copies name and value). */
+wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
+                                      const char *value);
+
+/* ------------------------------------------------------------------ */
+/* Handler callbacks                                                   */
+/* ------------------------------------------------------------------ */
+
+/** Query handler (GET /xrpc/<nsid>). Return WF_OK to send resp. */
+typedef wf_status (*wf_xrpc_query_handler)(void *ctx,
+                                           const wf_xrpc_request *req,
+                                           wf_xrpc_response *resp);
+
+/** Procedure handler (POST /xrpc/<nsid>). Return WF_OK to send resp. */
+typedef wf_status (*wf_xrpc_procedure_handler)(void *ctx,
+                                               const wf_xrpc_request *req,
+                                               wf_xrpc_response *resp);
+
+/** Public capability marker for consumers supporting both server API levels. */
+#define WF_XRPC_SERVER_HAS_STREAMING_PROCEDURES 1
+
+/**
+ * Lifecycle for a bounded-memory streaming procedure.
+ *
+ * `begin` runs after authentication and before any request-body bytes are
+ * delivered. It may allocate a per-request state through `out_stream_ctx`.
+ * `write` is then called for each body chunk, followed by `finish` exactly
+ * once when the request completes. `cleanup` is always called once for a
+ * non-NULL stream context, including when the peer disconnects early; its
+ * `completed` argument is true only after `finish` returned.
+ *
+ * A callback may set an XRPC error response and return WF_OK. Once a response
+ * body has been set, later chunks are drained without invoking `write`, and
+ * `finish` is skipped. Callbacks must not retain pointers from `req`.
+ */
+typedef struct wf_xrpc_streaming_procedure_handler {
+    wf_status (*begin)(void *ctx, const wf_xrpc_request *req,
+                       void **out_stream_ctx, wf_xrpc_response *resp);
+    wf_status (*write)(void *ctx, void *stream_ctx, const unsigned char *data,
+                       size_t data_len, wf_xrpc_response *resp);
+    wf_status (*finish)(void *ctx, void *stream_ctx, wf_xrpc_response *resp);
+    void (*cleanup)(void *ctx, void *stream_ctx, bool completed);
+} wf_xrpc_streaming_procedure_handler;
+
+/** Handler for an exact-path GET or POST route outside /xrpc. */
+typedef wf_status (*wf_http_route_handler)(void *ctx,
+                                           const wf_xrpc_request *req,
+                                           wf_xrpc_response *resp);
+
+/**
+ * Fallback handler for XRPC NSIDs with no registered route.
+ *
+ * Installed via wf_xrpc_server_set_fallback. Invoked instead of the
+ * built-in 501 MethodNotImplemented response when neither a query nor a
+ * procedure route matches the request NSID (a wrong-method request on a
+ * registered NSID keeps the 400 error). Typical use: an AppView/service
+ * proxy that forwards unmatched app.bsky.* / chat.bsky.* routes upstream
+ * (the reference PDS `pipethrough` behaviour). The fallback runs before
+ * the server auth callback, so it must verify any bearer token itself.
+ */
+typedef wf_status (*wf_xrpc_fallback_handler)(void *ctx,
+                                              const wf_xrpc_request *req,
+                                              wf_xrpc_response *resp);
+
+/* ------------------------------------------------------------------ */
+/* SSE (Server-Sent Events) streaming                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opaque handle for an open Server-Sent Events stream.
+ *
+ * Created by the server when an SSE route is invoked. Pass it to
+ * wf_xrpc_server_sse_send / wf_xrpc_server_sse_close from a worker thread
+ * (NOT from inside the SSE handler itself) to push frames and then close the
+ * stream. The server owns the handle and frees it once the connection ends.
+ */
+typedef struct wf_xrpc_sse_stream wf_xrpc_sse_stream;
+
+/**
+ * SSE handler (GET /xrpc/<nsid> registered as SSE).
+ *
+ * The handler should return quickly. To stream, spawn a worker thread that
+ * calls wf_xrpc_server_sse_send / wf_xrpc_server_sse_close; the connection is
+ * left open (suspended) until the stream is closed. A handler that sends one
+ * frame and immediately closes produces a single-shot SSE response.
+ */
+typedef wf_status (*wf_xrpc_sse_handler)(void *ctx, const wf_xrpc_request *req,
+                                         wf_xrpc_sse_stream *stream);
+
+/* ------------------------------------------------------------------ */
+/* WebSocket (RFC 6455) subscription endpoints                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Opaque handle for an open WebSocket connection (server → client push).
+ *
+ * Created by the server after a successful RFC 6455 upgrade. Pass it to
+ * wf_xrpc_server_ws_send / wf_xrpc_server_ws_close from a worker thread
+ * (NOT from inside the WS handler itself) to push binary frames and then
+ * close the connection. The server owns the handle and frees it once the
+ * connection ends (after the upgrade worker thread returns).
+ *
+ * Thread-safety: wf_xrpc_server_ws_send / wf_xrpc_server_ws_close are
+ * serialised against each other and against the server's control-frame
+ * reader by an internal mutex, so they may be called from any thread that
+ * holds the stream (typically a worker the handler spawned). All server →
+ * client frames are sent UNMASKED per RFC 6455; client frames are masked
+ * and only control frames (close / ping) are processed (ping is answered
+ * with pong). Inbound data frames are drained and ignored.
+ */
+typedef struct wf_xrpc_ws_stream wf_xrpc_ws_stream;
+
+/**
+ * WebSocket handler (GET /xrpc/<nsid> registered as a WS subscription).
+ *
+ * Invoked after the RFC 6455 handshake completes (101 Switching Protocols),
+ * from the connection's upgrade worker thread. The handler should return
+ * promptly. Before spawning a worker, retain the stream with
+ * wf_xrpc_server_ws_retain; the worker must release it after its final
+ * send/close. The connection is kept open until wf_xrpc_server_ws_close is
+ * called or the client closes it. A handler that sends one frame and closes
+ * produces a single-shot stream.
+ */
+typedef wf_status (*wf_xrpc_ws_handler)(void *ctx, const wf_xrpc_request *req,
+                                        wf_xrpc_ws_stream *stream);
+
+/* ------------------------------------------------------------------ */
+/* Auth callback (optional)                                            */
+/* ------------------------------------------------------------------ */
+
+/** If set, called before each handler. Return WF_OK to proceed;
+ *  anything else sends 401. The callback may populate `req->authed_subject`
+ *  (a heap string it owns) and `req->authed_principal_kind` so the handler can
+ *  read the authenticated principal. The server takes ownership of
+ *  `authed_subject` and frees it after the handler returns. */
+typedef wf_status (*wf_xrpc_auth_cb)(wf_xrpc_request *req, void *ctx);
+
+/* ------------------------------------------------------------------ */
+/* Request observer (optional)                                         */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Compile-time feature flag, so a consumer can build against a Wolfram with
+ * or without the observer rather than requiring a lockstep upgrade.
+ */
+#define WF_XRPC_HAS_REQUEST_OBSERVER 1
+
+/**
+ * Called once per request, after the status is decided and before the
+ * response is queued. `nsid` is the XRPC method, or NULL for a plain HTTP
+ * route; `path` is always the request path.
+ *
+ * This is the only point that sees every request together with its outcome —
+ * an auth callback runs too early to know the status and never runs at all
+ * for HTTP routes or for a request the rate limiter refused. It is called on
+ * a worker thread while the connection is being served, so it must not block:
+ * incrementing a counter is the intended use, writing to a socket is not.
+ */
+typedef void (*wf_xrpc_request_observer)(void *ctx, const char *nsid,
+                                         const char *path, const char *method,
+                                         unsigned int status);
+
+/* ------------------------------------------------------------------ */
+/* Server lifecycle                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Start an XRPC server on the given address:port.
+ *
+ * @param address   Listen address ("0.0.0.0", "127.0.0.1", "::1", etc.)
+ * @param port      TCP port (0 = ephemeral, query with wf_xrpc_server_port)
+ * @param thread_count  Number of worker threads (0 = default).
+ * @return Server handle, or NULL on failure.
+ */
+wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
+                                     unsigned int thread_count);
+
+/** Stop accepting new requests. Safe to call more than once. */
+void wf_xrpc_server_stop(wf_xrpc_server *server);
+
+/** Free the server and all registered data. Safe to call with NULL. */
+void wf_xrpc_server_free(wf_xrpc_server *server);
+
+/**
+ * Register a heap allocation the server owns and releases (via `free_fn`) in
+ * wf_xrpc_server_free. Used by PDS repo/blob resolver registration so the
+ * per-request resolver bundle is freed with the server. `free_fn` must release
+ * `ptr`; `ptr` may be NULL (treated as a no-op, returns WF_ERR_INVALID_ARG).
+ * Returns WF_ERR_ALLOC if the bookkeeping node cannot be allocated; on failure
+ * the caller retains ownership of `ptr`.
+ */
+wf_status wf_xrpc_server_own_ctx(wf_xrpc_server *server, void *ptr,
+                                 void (*free_fn)(void *));
+
+/** Return the bound TCP port (0 if not started). */
+uint16_t wf_xrpc_server_port(const wf_xrpc_server *server);
+
+/**
+ * Register a fixed public GET response outside the /xrpc namespace (for
+ * example a /.well-known document). The server copies all strings.
+ */
+wf_status wf_xrpc_server_register_static_get(wf_xrpc_server *server,
+                                             const char *path,
+                                             const char *content_type,
+                                             const void *body, size_t body_len);
+
+/**
+ * Register a dynamic public route outside /xrpc. `method` must be GET or POST.
+ * POST bodies are exposed through req->body and req->body_len; JSON bodies are
+ * additionally decoded into req->params. These routes deliberately bypass the
+ * XRPC auth callback so protocol-specific handlers can authenticate themselves.
+ */
+wf_status wf_xrpc_server_register_http_route(wf_xrpc_server *server,
+                                             const char *method,
+                                             const char *path,
+                                             wf_http_route_handler handler,
+                                             void *ctx);
+
+/**
+ * As wf_xrpc_server_register_http_route, but `prefix` matches any request path
+ * that starts with it, letting one handler serve a family of paths — for
+ * example the per-account did:web documents a PDS hosts under a path segment.
+ * The handler reads the full path from req->path.
+ *
+ * Exact routes are matched first, so a prefix can never shadow one; among
+ * prefixes the longest match wins.
+ */
+wf_status wf_xrpc_server_register_http_prefix(wf_xrpc_server *server,
+                                              const char *method,
+                                              const char *prefix,
+                                              wf_http_route_handler handler,
+                                              void *ctx);
+
+/* ------------------------------------------------------------------ */
+/* Route registration                                                  */
+/* ------------------------------------------------------------------ */
+
+wf_status wf_xrpc_server_register_query(wf_xrpc_server *server,
+                                        const char *nsid,
+                                        wf_xrpc_query_handler handler,
+                                        void *ctx);
+
+wf_status wf_xrpc_server_register_procedure(wf_xrpc_server *server,
+                                            const char *nsid,
+                                            wf_xrpc_procedure_handler handler,
+                                            void *ctx);
+
+/**
+ * Register a POST procedure whose request body is delivered incrementally.
+ *
+ * Unlike `wf_xrpc_server_register_procedure`, the body is never accumulated
+ * in memory and `req->body` is always NULL. Query-string parameters remain
+ * available through `req->params`, which is required by binary procedures
+ * such as `app.bsky.video.uploadPart`.
+ */
+wf_status wf_xrpc_server_register_streaming_procedure(
+    wf_xrpc_server *server, const char *nsid,
+    const wf_xrpc_streaming_procedure_handler *handler, void *ctx);
+
+/* Register an SSE (Server-Sent Events) endpoint (GET). The connection is kept
+ * open and frames are pushed with wf_xrpc_server_sse_send until closed with
+ * wf_xrpc_server_sse_close. A handler that sends a single frame and closes
+ * produces a single-shot SSE response. */
+wf_status wf_xrpc_server_register_sse(wf_xrpc_server *server, const char *nsid,
+                                      wf_xrpc_sse_handler handler, void *ctx);
+
+/**
+ * Push a single SSE frame to an open stream.
+ *
+ * Formats `data: <payload>\n\n` (optionally preceded by `event: <event>\n`
+ * when `event` is non-NULL and non-empty). Newlines in `data` are expanded
+ * into multiple `data:` lines per the SSE spec. The frame is buffered and the
+ * suspended connection is resumed so libmicrohttpd flushes it to the client.
+ *
+ * Must be called from a context other than the SSE handler invocation
+ * (typically a dedicated worker thread). Returns WF_ERR_INVALID_ARG if the
+ * stream is already closed.
+ */
+wf_status wf_xrpc_server_sse_send(wf_xrpc_sse_stream *stream, const char *event,
+                                  const char *data);
+
+/**
+ * Push a pre-formatted raw frame to an open stream. The caller is responsible
+ * for SSE framing (`data: ...\n\n`). The connection is resumed after queuing.
+ */
+wf_status wf_xrpc_server_sse_send_raw(wf_xrpc_sse_stream *stream,
+                                      const char *frame, size_t len);
+
+/**
+ * Close an SSE stream. Any buffered frames are flushed, then the connection is
+ * ended (HTTP chunk terminated / connection closed) and the stream handle is
+ * released by libmicrohttpd. Subsequent sends return WF_ERR_INVALID_ARG.
+ */
+wf_status wf_xrpc_server_sse_close(wf_xrpc_sse_stream *stream);
+
+/**
+ * Register a WebSocket (RFC 6455) subscription endpoint (GET). On a valid
+ * upgrade request the server completes the handshake (101 Switching
+ * Protocols) and invokes `handler` with a live `wf_xrpc_ws_stream`; the
+ * handler pushes binary frames with wf_xrpc_server_ws_send and ends the
+ * stream with wf_xrpc_server_ws_close. An invalid or non-upgrade request
+ * receives a 400 error. Enough WebSocket machinery is provided for
+ * server → client subscription streaming: binary and close frames, and
+ * answering client ping with pong.
+ */
+wf_status wf_xrpc_server_register_ws(wf_xrpc_server *server, const char *nsid,
+                                     wf_xrpc_ws_handler handler, void *ctx);
+
+/**
+ * Send a single binary (opcode 0x2) WebSocket frame to the client.
+ *
+ * Must be called from a context other than the WS handler invocation
+ * (typically a dedicated worker thread holding a retained reference). Returns
+ * WF_ERR_INVALID_ARG if the stream is already closed, WF_ERR_TIMEOUT if the
+ * peer's receive window stayed full for the whole write timeout (a slow
+ * consumer that never drains, as opposed to a broken connection — the
+ * caller can use this to tell the two apart, e.g. subscribeRepos sending
+ * `ConsumerTooSlow` before closing rather than a bare disconnect), or
+ * WF_ERR_NETWORK for any other transport failure. Server → client frames are
+ * sent UNMASKED.
+ */
+wf_status wf_xrpc_server_ws_send(wf_xrpc_ws_stream *stream, const void *data,
+                                 size_t len);
+
+/**
+ * Retain a WebSocket stream for use by a worker thread. A successful retain
+ * must be paired with wf_xrpc_server_ws_release. Returns WF_ERR_INVALID_ARG
+ * when the stream is already closing.
+ */
+/**
+ * Send a WebSocket ping on an open stream.
+ *
+ * A long-lived stream that is merely idle looks dead to every intermediary in
+ * the path: nginx's proxy_read_timeout defaults to 60s and CDNs impose their
+ * own, so a quiet firehose gets torn down and the subscriber reconnect-loops.
+ * Pinging periodically keeps the connection alive without requiring every
+ * operator to tune every proxy. Safe to call from a worker thread.
+ */
+wf_status wf_xrpc_server_ws_ping(wf_xrpc_ws_stream *stream);
+
+wf_status wf_xrpc_server_ws_retain(wf_xrpc_ws_stream *stream);
+
+/** Release a worker reference acquired by wf_xrpc_server_ws_retain. */
+void wf_xrpc_server_ws_release(wf_xrpc_ws_stream *stream);
+
+/** Return non-zero when the stream is closing or has been closed. */
+int wf_xrpc_server_ws_is_closed(wf_xrpc_ws_stream *stream);
+
+/**
+ * Send a close (opcode 0x8) frame carrying `code` and tear down the
+ * connection. The upgrade worker thread then ends the stream and the
+ * socket is closed via libmicrohttpd. Subsequent sends return
+ * WF_ERR_INVALID_ARG.
+ */
+wf_status wf_xrpc_server_ws_close(wf_xrpc_ws_stream *stream, uint16_t code);
+
+/* ------------------------------------------------------------------ */
+/* Auth callback (optional)                                            */
+/* ------------------------------------------------------------------ */
+/* Auth middleware                                                      */
+/* ------------------------------------------------------------------ */
+
+void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
+                                      wf_xrpc_auth_cb cb, void *ctx);
+
+/** Install (or clear, with NULL) the per-request observer. `ctx` is not
+ *  owned by the server. */
+void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
+                                         wf_xrpc_request_observer cb,
+                                         void *ctx);
+
+/**
+ * Install (or replace, with NULL) the fallback handler invoked for XRPC
+ * NSIDs with no registered query/procedure route. See
+ * wf_xrpc_fallback_handler for semantics. `ctx` is passed back to the
+ * handler as-is and is NOT owned by the server.
+ */
+void wf_xrpc_server_set_fallback(wf_xrpc_server *server,
+                                 wf_xrpc_fallback_handler handler, void *ctx);
+
+/**
+ * Trust `header_name` (e.g. "CF-Connecting-IP") for the client IP used in
+ * rate limiting and request logging, instead of the raw TCP peer address.
+ *
+ * Only enable this when the deployment topology guarantees the header
+ * cannot be forged by the client -- i.e. every request reaching this
+ * process has already passed through a proxy that overwrites or strips any
+ * client-supplied copy of the header and sets it itself (a Cloudflare
+ * Tunnel with no direct public port exposure is one such topology; a
+ * plain reverse proxy that blindly forwards an inbound header is NOT).
+ * Passing NULL (the default) disables this and always uses the socket
+ * peer address.
+ *
+ * Returns WF_ERR_ALLOC on allocation failure, WF_ERR_INVALID_ARG if
+ * `server` is NULL, WF_OK otherwise.
+ */
+wf_status wf_xrpc_server_set_trusted_client_ip_header(wf_xrpc_server *server,
+                                                      const char *header_name);
+
+/** Default cap on a buffered POST request body (64 MiB). */
+#define WF_XRPC_SERVER_DEFAULT_MAX_BODY_BYTES ((size_t)64 * 1024 * 1024)
+
+/**
+ * Cap the size of a POST body the server will buffer for a procedure or HTTP
+ * route. A request whose body grows past the cap is answered with 413
+ * PayloadTooLarge and its buffer is discarded, so an unauthenticated client
+ * cannot exhaust memory by streaming an endless body. 0 restores the default
+ * (WF_XRPC_SERVER_DEFAULT_MAX_BODY_BYTES); raise it if a route accepts larger
+ * blob uploads. Streaming procedure routes do not buffer the body and are not
+ * subject to this cap. Returns WF_ERR_INVALID_ARG if `server` is NULL.
+ */
+wf_status wf_xrpc_server_set_max_body_bytes(wf_xrpc_server *server,
+                                            size_t max_bytes);
+
+/**
+ * Like wf_xrpc_server_set_auth_callback, but also records an owned middleware
+ * context (`mw_ctx`) that the server frees via `mw_free` in
+ * wf_xrpc_server_free. Installing a different auth callback (via
+ * wf_xrpc_server_set_auth_callback) releases any previously recorded middleware
+ * context. Used by wf_xrpc_server_set_auth_middleware; not generally needed by
+ * callers.
+ */
+void wf_xrpc_server_set_auth_callback_owned(wf_xrpc_server *server,
+                                            wf_xrpc_auth_cb cb, void *ctx,
+                                            void *mw_ctx,
+                                            void (*mw_free)(void *));
+
+/* ------------------------------------------------------------------ */
+/* Rate limiter (optional, per-server-mount or per-route)              */
+/* ------------------------------------------------------------------ */
+
+/** Opaque token-bucket rate limiter handle. */
+typedef struct wf_rate_limiter wf_rate_limiter;
+
+/**
+ * Create a memory-backed token-bucket rate limiter.
+ *
+ * @param points            Maximum tokens the bucket can hold (burst).
+ * @param duration_seconds  Time window in seconds for token refill.
+ *                          Tokens refill at `points / duration_seconds` per
+ * second.
+ * @param bucket_count      Number of buckets (keys tracked simultaneously).
+ *                          0 uses a default (256). Each bucket is a linked-list
+ *                          node; higher values reduce hash collisions.
+ * @return  Handle, or NULL on allocation failure.
+ */
+wf_rate_limiter *wf_rate_limiter_new(unsigned int points,
+                                     unsigned int duration_seconds,
+                                     unsigned int bucket_count);
+
+/** Free a rate limiter. Safe to call with NULL. */
+void wf_rate_limiter_free(wf_rate_limiter *rl);
+
+/**
+ * Try to consume `cost` tokens for the given `key`.
+ *
+ * @param rl    Rate limiter handle.
+ * @param key   NUL-terminated key string (e.g. client IP, auth token).
+ * @param cost  Number of tokens to consume (1 for a normal request).
+ * @param out_retry_after  If non-NULL and rate limited, set to the number of
+ *              seconds the caller should wait before retrying.
+ * @return WF_OK if tokens were consumed, WF_ERR_RATE_LIMIT if the bucket is
+ *         empty, WF_ERR_INVALID_ARG on bad inputs.
+ */
+wf_status wf_rate_limiter_consume(wf_rate_limiter *rl, const char *key,
+                                  unsigned int cost,
+                                  unsigned int *out_retry_after);
+
+/**
+ * Bucket status a caller can use to set RateLimit-Limit/Remaining/Reset/
+ * Policy response headers, matching the reference PDS's rate-limiter-http.ts
+ * (setStatusHeaders). `reset_at` is an absolute Unix timestamp — the
+ * reference reports an absolute time here, not a relative seconds-until
+ * value, despite the header's name.
+ */
+typedef struct wf_rate_limit_status {
+    unsigned int limit;     /* configured bucket capacity (points) */
+    unsigned int remaining; /* tokens left after this consume */
+    unsigned int reset_at;  /* absolute Unix timestamp */
+    unsigned int
+        duration_seconds; /* the bucket's window, for the Policy header */
+} wf_rate_limit_status;
+
+/**
+ * Like wf_rate_limiter_consume, but also reports full bucket status
+ * (limit/remaining/reset) — for a caller that wants to set the RateLimit-*
+ * response headers a client can use to self-throttle before it actually
+ * gets a 429. `out_status` may be NULL if the caller only cares about the
+ * WF_OK/WF_ERR_RATE_LIMIT result.
+ */
+wf_status wf_rate_limiter_consume_status(wf_rate_limiter *rl, const char *key,
+                                         unsigned int cost,
+                                         wf_rate_limit_status *out_status);
+
+/* Attach a rate limiter to a server. When set, every request is charged
+ * 1 token against the client's IP address before the auth callback.
+ * Passing NULL removes the rate limiter. */
+void wf_xrpc_server_set_rate_limiter(wf_xrpc_server *server,
+                                     wf_rate_limiter *rl);
+
+/**
+ * Attach a rate limiter the server owns. Unlike wf_xrpc_server_set_rate_limiter
+ * (which borrows the handle), the server frees it in wf_xrpc_server_free.
+ * Passing NULL is a no-op. Primarily used by wf_xrpc_server_new_with_config.
+ */
+void wf_xrpc_server_set_rate_limiter_owned(wf_xrpc_server *server,
+                                           wf_rate_limiter *rl);
+
+/* Attach a per-route rate limiter. Requests to this exact method/nsid
+ * will be charged `rl` tokens (defaults to IP-based limiter if none set).
+ * Passing NULL removes that route's rate limiter.
+ *
+ * The route is identified by the exact method ("GET" or "POST") and the
+ * full URL path as it appears in the request (e.g. "/xrpc/io.example.ping").
+ */
+void wf_xrpc_server_set_route_rate_limiter(wf_xrpc_server *server,
+                                           const char *method, const char *url,
+                                           wf_rate_limiter *rl);
+
+/* ------------------------------------------------------------------ */
+/* CORS configuration                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Enable/disable CORS and set the allowed origin returned in
+ * `Access-Control-Allow-Origin`.
+ *
+ * When `enabled` is false, no CORS headers are emitted. When true, the
+ * origin is taken from `origin` (which may be "*", a single origin, or NULL
+ * to fall back to "*"). The server takes a copy of `origin`.
+ */
+void wf_xrpc_server_set_cors(wf_xrpc_server *server, bool enabled,
+                             const char *origin);
+
+/* ------------------------------------------------------------------ */
+/* JSON configuration loader                                            */
+/* ------------------------------------------------------------------ */
+
+/** Method discriminator for a configured route entry. */
+typedef enum {
+    WF_XRPC_CONFIG_METHOD_QUERY = 0,
+    WF_XRPC_CONFIG_METHOD_PROCEDURE = 1,
+} wf_xrpc_server_config_method;
+
+/** A single configured route entry: NSID + method. */
+typedef struct wf_xrpc_server_config_route {
+    char *nsid; /* owned; e.g. "io.example.ping" */
+    int method; /* wf_xrpc_server_config_method */
+} wf_xrpc_server_config_route;
+
+/**
+ * Owned XRPC server configuration, parsed from JSON.
+ *
+ * Ownership: produced by wf_xrpc_server_config_parse and freed with
+ * wf_xrpc_server_config_free. All string members are owned copies.
+ *
+ * Defaults (applied when the corresponding field is absent or invalid):
+ *   - host            "0.0.0.0"
+ *   - port            8080
+ *   - cors_enabled    true
+ *   - cors_origin     "*"
+ *   - rate_limit      disabled (max_tokens == 0 || refill_per_second == 0)
+ *   - routes          empty
+ *
+ * The JSON schema is:
+ * {
+ *   "host": "0.0.0.0",
+ *   "port": 8080,
+ *   "cors": { "enabled": true, "allowed_origin": "*" },
+ *   "rate_limit": { "max_tokens": 100, "refill_per_second": 10 },
+ *   "routes": [ { "nsid": "io.example.ping", "method": "query" } ]
+ * }
+ *
+ * Unknown/extra fields are ignored. Malformed JSON returns WF_ERR_CONFIG.
+ */
+typedef struct wf_xrpc_server_config {
+    char *host;        /* owned; default "0.0.0.0" */
+    uint16_t port;     /* default 8080 */
+    bool cors_enabled; /* default true */
+    char *cors_origin; /* owned; default "*" */
+    struct {
+        unsigned int max_tokens;        /* burst capacity; 0 disables */
+        unsigned int refill_per_second; /* tokens refilled per second */
+    } rate_limit;
+    wf_xrpc_server_config_route *routes; /* owned array; route_count entries */
+    size_t route_count;
+} wf_xrpc_server_config;
+
+/**
+ * Parse an XRPC server config from a JSON buffer of `len` bytes.
+ *
+ * @param json  NUL-terminated-or-not JSON text (len bytes parsed exactly).
+ * @param len   Number of bytes in `json`.
+ * @param out   On WF_OK, set to a newly allocated config (free with
+ *              wf_xrpc_server_config_free). Set to NULL on error.
+ * @return WF_OK on success, WF_ERR_CONFIG on malformed JSON,
+ *         WF_ERR_ALLOC on allocation failure, WF_ERR_INVALID_ARG on NULL
+ *         inputs. On any error *out is NULL and nothing is leaked.
+ */
+wf_status wf_xrpc_server_config_parse(const char *json, size_t len,
+                                      wf_xrpc_server_config **out);
+
+/** Free a config produced by wf_xrpc_server_config_parse. NULL-safe. */
+void wf_xrpc_server_config_free(wf_xrpc_server_config *cfg);
+
+/**
+ * Create and start an XRPC server from a parsed config.
+ *
+ * Applies the configured host/port, CORS settings, and (if enabled) a global
+ * per-IP token-bucket rate limiter derived from `rate_limit`. Each configured
+ * route is registered with a built-in echo handler (it replies 200 with the
+ * NSID/method and a copy of the request params/body) so the server is
+ * immediately usable for smoke testing. Callers that need real handlers should
+ * additionally register them with wf_xrpc_server_register_query/procedure.
+ *
+ * @param cfg  Parsed config (must not be NULL).
+ * @param out  On WF_OK, set to a started server (free with
+ *             wf_xrpc_server_free). NULL on error.
+ * @return WF_OK, WF_ERR_INVALID_ARG, or WF_ERR_INTERNAL on start failure.
+ */
+wf_status wf_xrpc_server_new_with_config(const wf_xrpc_server_config *cfg,
+                                         wf_xrpc_server **out);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* WOLFRAM_XRPC_SERVER_H */

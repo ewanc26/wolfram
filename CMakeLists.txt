@@ -2357,7 +2357,9 @@ if(WOLFRAM_BUILD_NODE)
     set(node_include_dir ${WOLFRAM_NODE_HEADERS_DIR})
   else()
     FetchContent_MakeAvailable(node_headers)
-    set(node_include_dir ${node_headers_SOURCE_DIR}/include)
+    # The tarball lays out include/node/, so <node_api.h> resolves from the
+    # node member.
+    set(node_include_dir ${node_headers_SOURCE_DIR}/include/node)
   endif()
 
   add_library(wolfram_core MODULE node/wolfram_core.c)
