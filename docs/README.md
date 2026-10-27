@@ -34,7 +34,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [notification.md](notification.md) | `notification.h` | Notification listing and preferences. |
 | [unspecced.md](unspecced.md) | `unspecced_typed.h` | `app.bsky.unspecced` typed parsers (trends, suggested users, thread v2, etc.). |
 | [cli.md](cli.md) | `cli` | The `wolfram` command-line client reference. |
-| [bindings-cpp-csharp.md](bindings-cpp-csharp.md) | `cpp/`, `dotnet/` | C++ RAII (`wolfram-cpp`) and C# (`Wolfram.Interop`) binding guidance. |
+| [bindings-cpp-csharp.md](bindings-cpp-csharp.md) | `cpp/`, `dotnet/`, `node/` | C++ RAII (`wolfram-cpp`), C# (`Wolfram.Interop`) and Node (`wolfram_core.c`) binding guidance. |
 | [modules.md](modules.md) | all | Full module/status table. |
 | [design.md](design.md) | — | Design, rationale, and the name. |
 | [flow.md](flow.md) | — | Branches, PRs, checks, merging and releases, shared by the whole stack. |

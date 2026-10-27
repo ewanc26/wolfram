@@ -85,6 +85,33 @@ if(WOLFRAM_BUILD_OAUTH_NODE)
   set(WOLFRAM_BUILD_SERVER ON CACHE BOOL "" FORCE)
 endif()
 
+option(WOLFRAM_BUILD_NODE "Build the Node.js addon (wolfram_core.node)" OFF)
+
+# The Node addon loads into Node's process; like the OAuth node it is a hosted
+# feature and deliberately never enters an embedded build.
+if(WOLFRAM_BUILD_NODE AND WOLFRAM_BUILD_EMBEDDED)
+  message(FATAL_ERROR "WOLFRAM_BUILD_NODE is only supported on hosted builds")
+endif()
+
+# Building the Node addon pins two configure settings here, before any target
+# or FetchContent dependency below reads them:
+#
+#  - CMAKE_POSITION_INDEPENDENT_CODE: a Node module is a loadable object and
+#    the libwolfram archive members linked into it are compiled into it, so
+#    they must be PIC.
+#  - BUILD_SHARED_LIBS: the module links libwolfram's static archive so only
+#    the members the update contract references are pulled into it, and it
+#    carries no @rpath dependency on a libwolfram.dylib of the host build.
+#    libcbor's own option() below defaults BUILD_SHARED_LIBS to ON when the
+#    variable is unset, which would make libwolfram itself shared.
+if(WOLFRAM_BUILD_NODE)
+  if(BUILD_SHARED_LIBS)
+    message(FATAL_ERROR "WOLFRAM_BUILD_NODE links the static archive; reconfigure with -DBUILD_SHARED_LIBS=OFF")
+  endif()
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build a shared libwolfram" FORCE)
+endif()
+
 # Derived: true for any non-POSIX target (embedded or Windows)
 if(WOLFRAM_BUILD_EMBEDDED OR WOLFRAM_BUILD_WINDOWS)
   set(WOLFRAM_BUILD_NON_POSIX ON)
@@ -180,6 +207,15 @@ FetchContent_Declare(
   # subproject; wolfram compiles librb64u.c directly below.
   SOURCE_SUBDIR cmake-not-used)
 FetchContent_MakeAvailable(base64url)
+
+# Node's headers for the addon target below. Pinned by tarball SHA-256 for the
+# same reason every dependency here is: CI must reproduce the build without
+# trusting a moving dist directory. Consumers building against their own Node
+# headers set WOLFRAM_NODE_HEADERS_DIR instead and this fetch never runs.
+FetchContent_Declare(
+  node_headers
+  URL https://nodejs.org/dist/v22.21.1/node-v22.21.1-headers.tar.gz
+  URL_HASH SHA256=17fe8018b051e9ce255868c301e4b305194185479c0b1831f8625fa96057c9e5)
 
 # Lexicon generator tool — C++ replacement for the removed tools/wf_lexgen.py. A
 # development-time codegen tool, so it is always built (not gated on
@@ -2307,4 +2343,53 @@ endif()
 
 if(WOLFRAM_BUILD_CPP)
   add_subdirectory(cpp)
+endif()
+
+# ---- Node.js addon (wolfram_core) ----------------------------------------
+# node/wolfram_core.c compiles libwolfram's update contract into a loadable
+# Node module: a wrapper over libwolfram per docs/bindings-cpp-csharp.md, so a
+# Node consumer executes the C instead of carrying a TypeScript port of it.
+# The update sources are strict C89 and cJSON is the only additional member
+# manifest.c needs, so the pull-in stays small; WOLFRAM_BUILD_NODE pins PIC
+# and the static archive above.
+if(WOLFRAM_BUILD_NODE)
+  if(WOLFRAM_NODE_HEADERS_DIR)
+    set(node_include_dir ${WOLFRAM_NODE_HEADERS_DIR})
+  else()
+    FetchContent_MakeAvailable(node_headers)
+    set(node_include_dir ${node_headers_SOURCE_DIR}/include)
+  endif()
+
+  add_library(wolfram_core MODULE node/wolfram_core.c)
+  target_include_directories(wolfram_core PRIVATE ${node_include_dir})
+  target_compile_definitions(wolfram_core PRIVATE NODE_GYP_MODULE_NAME=wolfram_core)
+  # The module is a loadable object, not an executable: the archive members it
+  # references are pulled in at link time, and unresolved Node symbols are fine
+  # (the host process provides them when the module loads). Dead-stripping
+  # keeps dylibs the pulled-in members never reference out of the module, so
+  # the addon carries only what the update contract needs.
+  target_link_libraries(wolfram_core PRIVATE wolfram)
+  if(APPLE)
+    target_link_options(wolfram_core PRIVATE
+                        -Wl,-undefined,dynamic_lookup
+                        -Wl,-dead_strip_dylibs)
+  endif()
+  set_target_properties(wolfram_core PROPERTIES
+                        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+                        OUTPUT_NAME wolfram_core
+                        PREFIX ""
+                        SUFFIX ".node")
+  # The update contract's vectors, driven through the addon itself.
+  if(WOLFRAM_BUILD_TESTS)
+    find_program(Node_EXECUTABLE NAMES node)
+    if(Node_EXECUTABLE)
+      add_test(NAME node_update_commands
+               COMMAND ${Node_EXECUTABLE} --test node/test/
+               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+      set_tests_properties(node_update_commands PROPERTIES
+                           ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
+    else()
+      message(STATUS "node not found -- node/test skipped; build the addon and run 'node --test node/test/' to drive the vectors")
+    endif()
+  endif()
 endif()

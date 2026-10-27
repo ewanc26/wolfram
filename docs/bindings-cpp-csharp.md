@@ -1,4 +1,4 @@
-# Companion language bindings (C++ and C#)
+# Companion language bindings (C++, C# and Node)
 
 wolfram's core SDK **must remain pure C23**. The C23 core (`libwolfram`) is the
 single source of truth: it owns transport, crypto, DAG-CBOR, DNS, and the
@@ -88,10 +88,43 @@ transport, DAG-CBOR, or server logic is reimplemented; every call forwards to
   response file to regenerate/expand the raw tier from `include/wolfram/*.h`
   (the hand-written `Raw.cs` currently covers the wrapped functions).
 
+## Node — `node/wolfram_core.c` (N-API addon)
+
+Implemented as a loadable N-API module built into `build/wolfram_core.node`
+(configure `-DWOLFRAM_BUILD_NODE=ON`; the `test_update_commands` ctest entry
+and `node --test node/test/` drive the update contract's shared vectors
+through the addon). Every exported function calls a `libwolfram` function —
+the addon never re-implements an update rule; it is bridging plumbing only.
+
+- **Surface** — the update contract only, the piece a Node consumer cannot
+  otherwise reach without carrying a port of it: `compareVersions`,
+  `versionValid`, `sha256Hex`, `parseManifest`, `verifySignature`. Errors are
+  wolfram's statuses surfaced: every throw carries a `code` holding the
+  `wf_status` name (`WF_ERR_PARSE`, `WF_ERR_VALIDATION`, `WF_ERR_INVALID_ARG`);
+  the consumer maps them into its own error kinds. The addon never writes
+  user-facing prose.
+- **Ownership** — every call is synchronous and runs on the JS thread, and
+  nothing shares state across calls; a `wf_update_policy`'s borrowed strings
+  are freed before the call returns. Hex decoding is the library's
+  (`wf_sha256_from_hex`); only the encode direction (digests to lowercase
+  hex) is binding plumbing.
+- **Build mode** — `WOLFRAM_BUILD_NODE` pins `CMAKE_POSITION_INDEPENDENT_CODE`
+  and `BUILD_SHARED_LIBS=OFF` for the whole configure: the module links
+  `libwolfram`'s static archive, so only the members the update contract
+  references are compiled into the loadable, which stays free of curl/OpenSSL
+  runtime dependencies. Node headers come from `WOLFRAM_NODE_HEADERS_DIR` or
+  the pinned headers FetchContent (tarball hash-locked). Consumers link the
+  built `build/wolfram_core.node` however they stage their own tree; it is a
+  git artifact of the build, not a published package.
+
 ## Layout
 
 - `cpp/wolfram-cpp/` — header-only C++ RAII wrapper (links `libwolfram`).
 - `dotnet/Wolfram.Interop/` — raw P/Invoke tier + hand-written managed layer
   (links `libwolfram`).
 
-Both consume the same built `libwolfram`; neither ships crypto/transport code.
+- `node/wolfram_core.c` — N-API addon (links libwolfram's static archive into
+  `build/wolfram_core.node`).
+
+All three consume the same built `libwolfram`; none ships crypto/transport
+code of its own.
