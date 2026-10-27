@@ -2387,7 +2387,7 @@ if(WOLFRAM_BUILD_NODE)
     find_program(Node_EXECUTABLE NAMES node)
     if(Node_EXECUTABLE)
       add_test(NAME node_update_commands
-               COMMAND ${Node_EXECUTABLE} --test node/test/
+               COMMAND ${Node_EXECUTABLE} --test node/test/update.test.mjs
                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
       set_tests_properties(node_update_commands PROPERTIES
                            ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")

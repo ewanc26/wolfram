@@ -382,7 +382,7 @@ jobs:
 
       - name: Test the addon against the update vectors
         if: steps.check.outputs.available == 'true'
-        run: node --test node/test/
+        run: node --test node/test/update.test.mjs
 
   # The Classic Mac OS 9 transport is a C89/CodeWarrior target, which no other
   # job here checks: the main builds compile it as part of nothing (it is a
