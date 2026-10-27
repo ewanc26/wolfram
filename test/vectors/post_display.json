@@ -1,0 +1,2000 @@
+{
+ "description": "Test vectors for the post_display contract (include/wolfram/post_display.h): wf_agent_post_view_display filled from a record JSON text and an optional embed JSON text. 'expect' is the filled wf_post_display as the Node addon's postDisplay returns it (camelCase; embedKind spelled out; facet kind link/mention/tag), or 'parse_error' when the addon must refuse the JSON text before Wolfram's C ever sees it (the C takes parsed trees, so only the binding can fail this way) or malformed text that exercises exactly that.",
+ "display": [
+  {
+   "name": "plain text, createdAt and reply",
+   "record_text": "{\"text\":\"hello\",\"createdAt\":\"2026-01-02T03:04:05Z\",\"reply\":{\"root\":{},\"parent\":{}}}",
+   "expect": {
+    "text": "hello",
+    "createdAt": "2026-01-02T03:04:05Z",
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": true,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "no record and no embed",
+   "record_text": null,
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "record is an array",
+   "record_text": "[]",
+   "embed_text": "[1]",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "record fields of the wrong types",
+   "record_text": "{\"text\":5,\"createdAt\":[],\"facets\":\"x\",\"reply\":3}",
+   "embed_text": "[1]",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "facet entries of odd shapes",
+   "record_text": "{\"facets\":[1,null,\"a\",[],{}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "facet with odd index and features",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":5,\"features\":7}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "facets without text",
+   "record_text": "{\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":1},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "record is json null",
+   "record_text": "null",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "facets sort by byte start",
+   "record_text": "{\"text\":\"hi @bob see x.com #tag\",\"facets\":[{\"index\":{\"byteStart\":18,\"byteEnd\":22},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"tag\"}]},{\"index\":{\"byteStart\":3,\"byteEnd\":7},\"features\":[{\"$type\":\"app.bsky.richtext.facet#mention\",\"did\":\"did:plc:b\"}]},{\"index\":{\"byteStart\":12,\"byteEnd\":17},\"features\":[{\"$type\":\"app.bsky.richtext.facet#link\",\"uri\":\"https://x.com\"}]}]}",
+   "expect": {
+    "text": "hi @bob see x.com #tag",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "mention",
+      "byteStart": 3,
+      "byteEnd": 7,
+      "target": "did:plc:b"
+     },
+     {
+      "kind": "link",
+      "byteStart": 12,
+      "byteEnd": 17,
+      "target": "https://x.com"
+     },
+     {
+      "kind": "tag",
+      "byteStart": 18,
+      "byteEnd": 22,
+      "target": "tag"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "emoji before the facet shifts byte offsets",
+   "record_text": "{\"text\":\"😀 hi\",\"facets\":[{\"index\":{\"byteStart\":5,\"byteEnd\":7},\"features\":[{\"$type\":\"app.bsky.richtext.facet#link\",\"uri\":\"https://a.b\"}]}]}",
+   "expect": {
+    "text": "😀 hi",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "link",
+      "byteStart": 5,
+      "byteEnd": 7,
+      "target": "https://a.b"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "CJK facet on boundaries is kept",
+   "record_text": "{\"text\":\"日本語\",\"facets\":[{\"index\":{\"byteStart\":3,\"byteEnd\":6},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"a\"}]}]}",
+   "expect": {
+    "text": "日本語",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "tag",
+      "byteStart": 3,
+      "byteEnd": 6,
+      "target": "a"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "CJK facet ending mid-codepoint is dropped",
+   "record_text": "{\"text\":\"日本語\",\"facets\":[{\"index\":{\"byteStart\":3,\"byteEnd\":5},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"a\"}]}]}",
+   "expect": {
+    "text": "日本語",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "CJK facet starting mid-codepoint is dropped",
+   "record_text": "{\"text\":\"日本語\",\"facets\":[{\"index\":{\"byteStart\":1,\"byteEnd\":6},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"a\"}]}]}",
+   "expect": {
+    "text": "日本語",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "CJK facet ending past the text is dropped",
+   "record_text": "{\"text\":\"日本語\",\"facets\":[{\"index\":{\"byteStart\":4,\"byteEnd\":9},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"a\"}]}]}",
+   "expect": {
+    "text": "日本語",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "CJK facet ending inside the third char is dropped",
+   "record_text": "{\"text\":\"日本語\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":4},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"a\"}]}]}",
+   "expect": {
+    "text": "日本語",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "facet reaching exactly the end is kept",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":3},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "tag",
+      "byteStart": 0,
+      "byteEnd": 3,
+      "target": "t"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "out-of-bounds facet is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":4},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "empty facet is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":2,\"byteEnd\":2},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "inverted facet is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":2,\"byteEnd\":1},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "fractional byte offsets are dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0.5,\"byteEnd\":2},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "string byte offsets are dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":\"0\",\"byteEnd\":2},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "huge byte end is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":1e30},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "missing byteEnd is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "missing index is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"t\"}]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "facet with no features is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":2}}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "empty features array is dropped",
+   "record_text": "{\"text\":\"abc\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":2},\"features\":[]}]}",
+   "expect": {
+    "text": "abc",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "later overlapping facet is dropped, abutting kept",
+   "record_text": "{\"text\":\"0123456789\",\"facets\":[{\"index\":{\"byteStart\":4,\"byteEnd\":8},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"c\"}]},{\"index\":{\"byteStart\":0,\"byteEnd\":4},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"a\"}]},{\"index\":{\"byteStart\":2,\"byteEnd\":5},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"b\"}]},{\"index\":{\"byteStart\":8,\"byteEnd\":10},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"d\"}]}]}",
+   "expect": {
+    "text": "0123456789",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "tag",
+      "byteStart": 0,
+      "byteEnd": 4,
+      "target": "a"
+     },
+     {
+      "kind": "tag",
+      "byteStart": 4,
+      "byteEnd": 8,
+      "target": "c"
+     },
+     {
+      "kind": "tag",
+      "byteStart": 8,
+      "byteEnd": 10,
+      "target": "d"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "identical ranges keep one",
+   "record_text": "{\"text\":\"abcd\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":2},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"x\"}]},{\"index\":{\"byteStart\":0,\"byteEnd\":2},\"features\":[{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"y\"}]}]}",
+   "expect": {
+    "text": "abcd",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "tag",
+      "byteStart": 0,
+      "byteEnd": 2,
+      "target": "x"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "unknown feature types are skipped, first known wins",
+   "record_text": "{\"text\":\"abcdef\",\"facets\":[{\"index\":{\"byteStart\":0,\"byteEnd\":2},\"features\":[{\"$type\":\"x.y#z\",\"uri\":\"no\"},{\"$type\":\"app.bsky.richtext.facet#link\",\"uri\":\"https://yes\"},{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"later\"}]},{\"index\":{\"byteStart\":2,\"byteEnd\":4},\"features\":[{\"$type\":\"x.y#z\"}]},{\"index\":{\"byteStart\":4,\"byteEnd\":6},\"features\":[{\"$type\":\"app.bsky.richtext.facet#link\"}]},{\"index\":{\"byteStart\":4,\"byteEnd\":6},\"features\":[5,null,{\"$type\":\"app.bsky.richtext.facet#tag\",\"tag\":\"ok\"}]}]}",
+   "expect": {
+    "text": "abcdef",
+    "createdAt": null,
+    "facets": [
+     {
+      "kind": "link",
+      "byteStart": 0,
+      "byteEnd": 2,
+      "target": "https://yes"
+     },
+     {
+      "kind": "tag",
+      "byteStart": 4,
+      "byteEnd": 6,
+      "target": "ok"
+     }
+    ],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "images embed counts every image",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.images#view\",\"images\":[{},{},{}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     }
+    ],
+    "embedKind": "images",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "video embed with nothing to show",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.video#view\"}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "video",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "external embed",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.external#view\",\"external\":{\"uri\":\"https://e.x/p\",\"title\":\"T\",\"description\":\"d\"}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "external",
+    "isReply": false,
+    "external": {
+     "title": "T",
+     "uri": "https://e.x/p",
+     "description": "d",
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "record embed quotes a viewable record",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.record#view\",\"record\":{\"$type\":\"app.bsky.embed.record#viewRecord\",\"uri\":\"at://did:plc:q/app.bsky.feed.post/1\",\"author\":{\"handle\":\"q.test\"},\"value\":{\"text\":\"quoted\"}}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "record",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": "at://did:plc:q/app.bsky.feed.post/1",
+     "authorHandle": "q.test",
+     "text": "quoted"
+    }
+   }
+  },
+  {
+   "name": "quoted record not found",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.record#view\",\"record\":{\"$type\":\"app.bsky.embed.record#viewNotFound\",\"uri\":\"at://x\"}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "record",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "quoted author blocked",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.record#view\",\"record\":{\"$type\":\"app.bsky.embed.record#viewBlocked\",\"uri\":\"at://x\"}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "record",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "quoted record is an array",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.record#view\",\"record\":[]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "record",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "record embed with no record",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.record#view\"}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "record",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "viewRecord with partial fields",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.record#view\",\"record\":{\"$type\":\"app.bsky.embed.record#viewRecord\",\"uri\":\"at://x\",\"author\":5,\"value\":{\"text\":7}}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "record",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": "at://x",
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "recordWithMedia with images",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.recordWithMedia#view\",\"record\":{\"record\":{\"$type\":\"app.bsky.embed.record#viewRecord\",\"uri\":\"at://did:plc:q/app.bsky.feed.post/1\",\"author\":{\"handle\":\"q.test\"},\"value\":{\"text\":\"quoted\"}}},\"media\":{\"$type\":\"app.bsky.embed.images#view\",\"images\":[{},{},{}]}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     }
+    ],
+    "embedKind": "recordWithMedia",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": "at://did:plc:q/app.bsky.feed.post/1",
+     "authorHandle": "q.test",
+     "text": "quoted"
+    }
+   }
+  },
+  {
+   "name": "recordWithMedia with external",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.recordWithMedia#view\",\"record\":{\"record\":{\"$type\":\"app.bsky.embed.record#viewRecord\",\"uri\":\"at://did:plc:q/app.bsky.feed.post/1\",\"author\":{\"handle\":\"q.test\"},\"value\":{\"text\":\"quoted\"}}},\"media\":{\"$type\":\"app.bsky.embed.external#view\",\"external\":{\"uri\":\"https://e.x/p\",\"title\":\"T\",\"description\":\"d\"}}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "recordWithMedia",
+    "isReply": false,
+    "external": {
+     "title": "T",
+     "uri": "https://e.x/p",
+     "description": "d",
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": "at://did:plc:q/app.bsky.feed.post/1",
+     "authorHandle": "q.test",
+     "text": "quoted"
+    }
+   }
+  },
+  {
+   "name": "recordWithMedia with video",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.recordWithMedia#view\",\"record\":{\"record\":{\"$type\":\"app.bsky.embed.record#viewRecord\",\"uri\":\"at://did:plc:q/app.bsky.feed.post/1\",\"author\":{\"handle\":\"q.test\"},\"value\":{\"text\":\"quoted\"}}},\"media\":{\"$type\":\"app.bsky.embed.video#view\"}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "recordWithMedia",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": "at://did:plc:q/app.bsky.feed.post/1",
+     "authorHandle": "q.test",
+     "text": "quoted"
+    }
+   }
+  },
+  {
+   "name": "bare recordWithMedia",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.recordWithMedia#view\"}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "recordWithMedia",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "unknown embed shape: future type",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.future#view\"}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "unknown",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "unknown embed shape: empty",
+   "record_text": "{}",
+   "embed_text": "{}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "unknown",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "unknown embed shape: $type not a string",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":5}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "unknown",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "unknown embed shape: not a view",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.images\"}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "unknown",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "unknown embed shape: images key only",
+   "record_text": "{}",
+   "embed_text": "{\"images\":[{}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "unknown",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "images embed with a non-array images member",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.images#view\",\"images\":{}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "images",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "embed that is not an object",
+   "record_text": "{}",
+   "embed_text": "\"x\"",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "none",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "images keep order and sane ratios",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.images#view\",\"images\":[{\"thumb\":\"https://cdn/a.jpg\",\"alt\":\"a cat\",\"aspectRatio\":{\"width\":4,\"height\":3}},{\"thumb\":\"https://cdn/b.jpg\"},{},{\"thumb\":\"\",\"aspectRatio\":{\"width\":0,\"height\":0}}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": "a cat",
+      "width": 4,
+      "height": 3
+     },
+     {
+      "thumb": "https://cdn/b.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     }
+    ],
+    "embedKind": "images",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "empty alt and empty thumb are not text",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.images#view\",\"images\":[{\"thumb\":\"https://cdn/a.jpg\",\"alt\":\"\"}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     }
+    ],
+    "embedKind": "images",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "nonsense aspect ratios are dropped whole",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.images#view\",\"images\":[{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":0,\"height\":3}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":3,\"height\":0}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":-4,\"height\":3}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":1.5,\"height\":3}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":1e12,\"height\":3}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":\"4\",\"height\":3}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":4}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":[]},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":5},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{}},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":null},{\"thumb\":\"https://cdn/a.jpg\",\"aspectRatio\":{\"width\":4,\"height\":\"3\"}}]}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": "https://cdn/a.jpg",
+      "alt": null,
+      "width": 0,
+      "height": 0
+     }
+    ],
+    "embedKind": "images",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "media half carries images the same way",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.recordWithMedia#view\",\"record\":{\"record\":{\"$type\":\"app.bsky.embed.record#viewRecord\",\"uri\":\"at://did:plc:q/app.bsky.feed.post/1\",\"author\":{\"handle\":\"q.test\"},\"value\":{\"text\":\"quoted\"}}},\"media\":{\"$type\":\"app.bsky.embed.images#view\",\"images\":[{},{},{}]}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     },
+     {
+      "thumb": null,
+      "alt": null,
+      "width": 0,
+      "height": 0
+     }
+    ],
+    "embedKind": "recordWithMedia",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": "at://did:plc:q/app.bsky.feed.post/1",
+     "authorHandle": "q.test",
+     "text": "quoted"
+    }
+   }
+  },
+  {
+   "name": "external with description and thumb",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.external#view\",\"external\":{\"uri\":\"https://e.x/p\",\"title\":\"T\",\"description\":\"d\",\"thumb\":\"https://cdn/t.jpg\"}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "external",
+    "isReply": false,
+    "external": {
+     "title": "T",
+     "uri": "https://e.x/p",
+     "description": "d",
+     "thumb": "https://cdn/t.jpg"
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "bare external view",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.external#view\"}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "external",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "external view with an empty external",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.external#view\",\"external\":{}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "external",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "empty description and odd thumb are not text",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.external#view\",\"external\":{\"uri\":\"https://e.x/p\",\"description\":\"\",\"thumb\":7}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "external",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": "https://e.x/p",
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "video with poster and ratio",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.video#view\",\"cid\":\"c\",\"playlist\":\"https://v/p.m3u8\",\"thumbnail\":\"https://v/t.jpg\",\"alt\":\"a cat\",\"aspectRatio\":{\"width\":1280,\"height\":720}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "video",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": "https://v/t.jpg",
+     "alt": "a cat",
+     "width": 1280,
+     "height": 720
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "video with half a ratio",
+   "record_text": "{}",
+   "embed_text": "{\"$type\":\"app.bsky.embed.video#view\",\"aspectRatio\":{\"width\":1280}}",
+   "expect": {
+    "text": "",
+    "createdAt": null,
+    "facets": [],
+    "images": [],
+    "embedKind": "video",
+    "isReply": false,
+    "external": {
+     "title": null,
+     "uri": null,
+     "description": null,
+     "thumb": null
+    },
+    "video": {
+     "thumb": null,
+     "alt": null,
+     "width": 0,
+     "height": 0
+    },
+    "quote": {
+     "uri": null,
+     "authorHandle": null,
+     "text": null
+    }
+   }
+  },
+  {
+   "name": "record is not json",
+   "record_text": "not json",
+   "expect": "parse_error"
+  },
+  {
+   "name": "embed is not json",
+   "record_text": "{}",
+   "embed_text": "not json",
+   "expect": "parse_error"
+  }
+ ]
+}
