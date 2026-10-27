@@ -385,6 +385,7 @@ jobs:
         run: |
           node --test node/test/update.test.mjs
           node --test node/test/oauth_pairing.test.mjs
+          node --test node/test/post_display.test.mjs
 
   # The Classic Mac OS 9 transport is a C89/CodeWarrior target, which no other
   # job here checks: the main builds compile it as part of nothing (it is a
