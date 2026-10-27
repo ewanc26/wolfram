@@ -3,14 +3,14 @@
  * module, so a Node consumer executes Wolfram's C instead of carrying a port
  * of it (see docs/bindings-cpp-csharp.md: wrappers only, never re-implement).
  *
- * The surface is the smallest one a Node consumer needs to drop the port of
- * the update contract (Platinum's bridge is the first):
+ * The surface is the smallest one a Node consumer needs to drop its ports of
+ * Wolfram's contracts (Platinum's bridge is the first):
  *
- *   compareVersions(a, b)                 -> -1 | 0 | 1
- *   versionValid(v)                       -> boolean
- *   sha256Hex(data)                       -> 64 lowercase hex characters
- *   parseManifest(body, policy?)          -> manifest object
- *   verifySignature(manifest, sig, pkHex) -> true
+ *   update.h:  compareVersions, versionValid, sha256Hex, parseManifest,
+ *              verifySignature
+ *   oauth_pairing.h: buildPairBegin, parsePairBegin, parsePairPoll -- the
+ *              parsers only; the begin/poll loop stays in the consumer, whose
+ *              transport is its own
  *
  * Errors are wolfram's statuses surfaced, not messages: every throw carries
  * an Error whose `code` is the wf_status name (WF_ERR_PARSE and so on), so
@@ -18,10 +18,11 @@
  * formats prose.
  *
  * Every exported function is synchronous and runs on the JS thread, and
- * nothing shares state across calls: the policy pointers and the manifest
- * struct live inside one call, so no consumer-visible lifecycle exists. A
- * worker-thread form would be a separate, explicit API, not a silent flip of
- * this one.
+ * nothing shares state across calls: the policy pointers, the manifest struct
+ * and the pairing poll struct -- which holds the bearer token for one call and
+ * is wiped before this file returns -- all live inside one call, so no
+ * consumer-visible lifecycle exists. A worker-thread form would be a separate,
+ * explicit API, not a silent flip of this one.
  *
  * Building: cmake -DWOLFRAM_BUILD_NODE=ON with WOLFRAM_NODE_HEADERS_DIR
  * pointing at node's include/node directory; with no directory set, the
@@ -31,6 +32,7 @@
  * be PIC, and libwolfram's own link mode must not change for this target.
  */
 
+#include "wolfram/oauth_pairing.h"
 #include "wolfram/update.h"
 
 #include <node_api.h>
@@ -455,6 +457,164 @@ static napi_value verify_signature(napi_env env, napi_callback_info info) {
     return result;
 }
 
+/* ---- oauth pairing ------------------------------------------------------ */
+
+/* Builds the begin body. The output buffer is sized here, from the input:
+ * cJSON's own printing doubles `"` and `\` and passes every other byte of a
+ * control-character-free handle through untouched, so twice the UTF-8 length
+ * plus slack cannot be exceeded. The consumer keeps no length limit beyond
+ * allocation, as its port had. */
+static napi_value build_pair_begin(napi_env env, napi_callback_info info) {
+    size_t argc = 1, handle_len = 0;
+    napi_value argv[1], result = NULL;
+    char *handle = NULL, *body = NULL;
+    bool threw = false;
+    size_t cap;
+    wf_status st;
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL,
+                              "buildPairBegin(handle) takes one string");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    handle = take_utf8(env, argv[0], &handle_len, &threw);
+    if (!threw) {
+        /* A JS string may carry NUL that strlen would swallow; the C contract
+         * rejects a control character in the handle, and NUL is one, so it is
+         * surfaced here rather than silently truncated. */
+        if (memchr(handle, '\0', handle_len) != NULL) {
+            napi_throw_type_error(env, "WF_ERR_INVALID_ARG",
+                                  "handle contains a NUL");
+        } else {
+            cap = handle_len * 2 + 24;
+            body = malloc(cap);
+            if (body == NULL) {
+                napi_throw_error(env, "WF_ERR_ALLOC", "out of memory");
+            } else {
+                st = wf_oauth_pair_build_begin(handle, body, cap);
+                if (st != WF_OK) {
+                    throw_status(env, st, "wf_oauth_pair_build_begin");
+                } else {
+                    napi_value s;
+                    if (napi_create_string_utf8(env, body, NAPI_AUTO_LENGTH,
+                                                &s) == napi_ok) {
+                        result = s;
+                    }
+                }
+            }
+        }
+    }
+    free(handle);
+    free(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+static napi_value parse_pair_begin(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value argv[1], obj = NULL, result = NULL, num;
+    wf_bytes body = {NULL, 0, false};
+    bool threw = false;
+    wf_status st;
+    wf_oauth_pair_begin begin;
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(
+            env, NULL, "parsePairBegin(body) takes a Buffer or a string");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    body = take_bytes(env, argv[0], &threw);
+    if (!threw) {
+        st = wf_oauth_pair_parse_begin((const char *)body.data, body.len,
+                                       &begin);
+        if (st != WF_OK) {
+            throw_status(env, st, "wf_oauth_pair_parse_begin");
+        } else if (napi_create_object(env, &obj) == napi_ok &&
+                   set_utf8(env, obj, "pairCode", begin.pair_code) &&
+                   set_utf8(env, obj, "pairUrl", begin.pair_url) &&
+                   napi_create_int64(env, begin.expires_at, &num) == napi_ok &&
+                   napi_set_named_property(env, obj, "expiresAt", num) ==
+                       napi_ok) {
+            result = obj;
+        }
+        memset(&begin, 0, sizeof(begin));
+    }
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* The poll struct holds the bearer token; it is wiped on every path out of
+ * parse_pair_poll, after these strings have been copied into JS. */
+static bool set_poll(napi_env env, napi_value obj,
+                     const wf_oauth_pair_poll *poll) {
+    const char *state;
+    napi_value s;
+
+    switch (poll->state) {
+        case WF_OAUTH_POLL_PENDING:
+            state = "pending";
+            break;
+        case WF_OAUTH_POLL_COMPLETE:
+            state = "complete";
+            break;
+        default:
+            state = "error";
+            break;
+    }
+    if (napi_create_string_utf8(env, state, NAPI_AUTO_LENGTH, &s) != napi_ok ||
+        napi_set_named_property(env, obj, "state", s) != napi_ok) {
+        return false;
+    }
+    if (poll->state == WF_OAUTH_POLL_COMPLETE)
+        return set_utf8(env, obj, "token", poll->token) &&
+               set_utf8(env, obj, "handle", poll->handle) &&
+               set_utf8(env, obj, "did", poll->did) &&
+               set_utf8(env, obj, "service", poll->service);
+    if (poll->state == WF_OAUTH_POLL_ERROR)
+        return set_utf8(env, obj, "message", poll->message);
+    return true;
+}
+
+static napi_value parse_pair_poll(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value argv[1], obj = NULL, result = NULL;
+    wf_bytes body = {NULL, 0, false};
+    bool threw = false;
+    wf_status st;
+    wf_oauth_pair_poll poll;
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL,
+                              "parsePairPoll(body) takes a Buffer or a string");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    memset(&poll, 0, sizeof(poll));
+    body = take_bytes(env, argv[0], &threw);
+    if (!threw) {
+        st = wf_oauth_pair_parse_poll((const char *)body.data, body.len, &poll);
+        if (st != WF_OK) {
+            throw_status(env, st, "wf_oauth_pair_parse_poll");
+        } else if (napi_create_object(env, &obj) == napi_ok &&
+                   set_poll(env, obj, &poll)) {
+            result = obj;
+        }
+        wf_oauth_pair_poll_wipe(&poll);
+    }
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
 /* ---- module ------------------------------------------------------------ */
 
 static napi_value init(napi_env env, napi_value exports) {
@@ -468,6 +628,12 @@ static napi_value init(napi_env env, napi_value exports) {
          NULL},
         {"verifySignature", NULL, verify_signature, NULL, NULL, NULL,
          napi_default, NULL},
+        {"buildPairBegin", NULL, build_pair_begin, NULL, NULL, NULL,
+         napi_default, NULL},
+        {"parsePairBegin", NULL, parse_pair_begin, NULL, NULL, NULL,
+         napi_default, NULL},
+        {"parsePairPoll", NULL, parse_pair_poll, NULL, NULL, NULL, napi_default,
+         NULL},
     };
     size_t count = sizeof(props) / sizeof(props[0]);
 
