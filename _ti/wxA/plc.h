@@ -1,0 +1,253 @@
+/**
+ * plc.h — DID PLC operation build / sign / submit helpers.
+ *
+ * Implements the write side of the did:plc directory protocol: assembling a
+ * `plc_operation` JSON document, signing it (over its DAG-CBOR SHA-256, the
+ * canonical form the PLC registry expects), and submitting it via the
+ * com.atproto.identity XRPC procedures. All network I/O goes through the
+ * wf_xrpc_* transport; all hashing uses OpenSSL SHA-256; all signing uses the
+ * existing wf_sign / wf_verify primitives in crypto.h.
+ *
+ * A signed PLC operation has the shape:
+ *
+ *   {
+ *     "type": "plc_operation",
+ *     "rotationKeys": ["did:key:..."],
+ *     "verificationMethods": { "atproto": "did:key:..." },
+ *     "services": { "atproto_pds": "https://..." },
+ *     "alsoKnownAs": ["at://handle.example"],
+ *     "prev": "<CID string>" | null,
+ *     "sig": { "<signer did:key>": "<base64url sig>" }
+ *   }
+ *
+ * The signature is computed over the SHA-256 of the operation's canonical
+ * DAG-CBOR encoding with the `sig` field omitted, matching the reference
+ * atproto implementation (rsky/indigo).
+ *
+ * Every heap-allocated output has a matching `_free` documented next to it.
+ * Output strings are owned by the caller.
+ */
+
+#ifndef WOLFRAM_PLC_H
+#define WOLFRAM_PLC_H
+
+#include "wolfram/crypto.h"
+#include "wolfram/repo/cid.h"
+#include "wolfram/xrpc.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/** A set of updates applied to build a new PLC operation. */
+typedef struct wf_plc_operation_update {
+    /** Rotation keys (array of did:key strings). NULL/0 -> empty array. */
+    const char *const *rotation_keys;
+    size_t rotation_keys_count;
+    /**
+     * verificationMethods map as a JSON object string, e.g.
+     * "{\"atproto\":\"did:key:...\"}". NULL -> empty object.
+     */
+    const char *verification_methods_json;
+    /**
+     * services map as a JSON object string, e.g.
+     * "{\"atproto_pds\":\"https://...\"}". NULL -> empty object.
+     */
+    const char *services_json;
+    /** alsoKnownAs entries (array of "at://..." strings). NULL/0 -> empty. */
+    const char *const *also_known_as;
+    size_t also_known_as_count;
+    /**
+     * Previous operation CID string, or NULL for a genesis operation.
+     * For non-genesis updates this must be the CID of the current operation
+     * as published in the PLC directory.
+     */
+    const char *prev;
+} wf_plc_operation_update;
+
+/* Canonical CID-first attestation payload.  The payload is the exact
+ * DAG-CBOR block hashed into cid; callers own it after WF_OK. */
+typedef struct wf_attestation_payload {
+    unsigned char *cbor;
+    size_t cbor_len;
+    wf_cid cid;
+} wf_attestation_payload;
+
+wf_status wf_attestation_payload_build(const char *record_json,
+                                       const char *metadata_json,
+                                       const char *repository_did,
+                                       wf_attestation_payload *out);
+void wf_attestation_payload_free(wf_attestation_payload *payload);
+
+/**
+ * Assemble an unsigned `plc_operation` JSON from the given update.
+ *
+ * On WF_OK, *out_json is a heap-allocated, NUL-terminated JSON string and
+ * must be released with wf_plc_operation_free.
+ */
+wf_status wf_plc_operation_build(const wf_plc_operation_update *update,
+                                 char **out_json);
+
+/** Free a JSON string owned by wf_plc_operation_build / wf_plc_operation_sign.
+ */
+void wf_plc_operation_free(char *json);
+
+/**
+ * Sign an unsigned operation JSON with `key`.
+ *
+ * The signer's did:key is derived from `key` (the key must be populated) and
+ * used both as the signing identity and as the `sig` map key. The signature
+ * is the base64url (no padding) encoding of the 64-byte compact ECDSA
+ * signature over the operation's canonical DAG-CBOR SHA-256.
+ *
+ * On WF_OK, *out_signed_json is a heap-allocated, NUL-terminated JSON string
+ * (the input with a `sig` map attached) and must be released with
+ * wf_plc_operation_free.
+ */
+wf_status wf_plc_operation_sign(const char *op_json, const wf_signing_key *key,
+                                char **out_signed_json);
+
+/**
+ * Verify a signed operation's signature.
+ *
+ * Recomputes the canonical DAG-CBOR SHA-256 (with `sig` omitted) and verifies
+ * it against the public key named by the (first) `sig` map key using
+ * wf_verify. On WF_OK, *out_signer_didkey is the heap-allocated did:key whose
+ * signature was verified and must be released with free().
+ */
+wf_status wf_plc_operation_verify(const char *signed_json,
+                                  char **out_signer_didkey);
+
+/**
+ * High-level: resolve the DID document, build the operation diff from the
+ * provided update, sign it, and return the signed operation JSON.
+ *
+ * `update->prev` must contain the CID of the account's current published
+ * operation (obtained from the PLC directory); pass NULL only for a genesis
+ * operation. The DID is resolved via wf_did_resolve to confirm it is a
+ * resolvable did:plc before building.
+ *
+ * On WF_OK, *out_signed_json must be released with wf_plc_operation_free.
+ */
+wf_status wf_plc_sign_operation(wf_xrpc_client *client, const char *did,
+                                const wf_plc_operation_update *update,
+                                const wf_signing_key *key,
+                                char **out_signed_json);
+
+/**
+ * Submit a signed operation to com.atproto.identity.submitPlcOperation.
+ * `signed_op_json` must be the full signed operation JSON.
+ */
+wf_status wf_plc_submit_operation(wf_xrpc_client *client,
+                                  const char *signed_op_json);
+
+/**
+ * Request a PLC operation signature token from
+ * com.atproto.identity.requestPlcOperationSignature. The `did` receives an
+ * email with a code used as the `token` field of a signPlcOperation call.
+ */
+wf_status wf_plc_request_signature(wf_xrpc_client *client, const char *did);
+
+/**
+ * Transport-level wrapper over com.atproto.identity.updateHandle. Updates the
+ * authenticated account's handle and (for did:plc accounts) the PLC document.
+ * Requires auth to be set on `client`.
+ */
+wf_status wf_plc_update_handle(wf_xrpc_client *client, const char *handle);
+
+/**
+ * Compute the PLC DID for a signed genesis operation.
+ *
+ * The DID is `did:plc:<base32(sha256(canonical-cbor(signed_operation)))[:24]>`,
+ * derived from the canonical DAG-CBOR encoding of the full signed operation,
+ * including the `sig` field. This matches the @did-plc/lib reference
+ * implementation behaviour. The input JSON is parsed internally; the caller
+ * frees the output with wf_plc_operation_free if a non-WF_OK code is
+ * returned, but the resulting DID string is plain ASCII and may be free()d
+ * normally. On WF_OK both outputs are owned by the caller.
+ */
+wf_status wf_plc_operation_compute_did(const char *signed_op_json,
+                                       char **out_did);
+
+/**
+ * Submit a signed PLC operation directly to the PLC directory via raw HTTPS.
+ * This is used during initial account creation, bypassing the
+ * com.atproto.identity.submitPlcOperation XRPC procedure.
+ *
+ * @param plc_directory_url Base URL of the PLC directory (e.g.,
+ * "https://plc.directory")
+ * @param did The DID to submit the operation for (e.g., "did:plc:abc123")
+ * @param signed_op_json The signed operation as a JSON string
+ */
+wf_status wf_plc_submit_operation_raw(const char *plc_directory_url,
+                                      const char *did,
+                                      const char *signed_op_json);
+
+/**
+ * Fetch the account's currently published PLC operation from the directory
+ * (GET {plc_directory_url}/{did}/log/last) and compute its CID -- the value
+ * a caller must set as `prev` when building the account's next operation.
+ * Every PLC operation is a full snapshot, not a diff, so *out_op_json is
+ * also returned: a caller building an update must copy forward whichever of
+ * rotationKeys/verificationMethods/services/alsoKnownAs it does not intend
+ * to change.
+ *
+ * `client` is caller-owned (not freed here) so a test can supply one with
+ * wf_xrpc_set_handler installed, and so a real caller can reuse a client
+ * with whatever TLS/proxy config it already has rather than getting a
+ * bare default one under the hood.
+ *
+ * On WF_OK, *out_cid and *out_op_json are heap-allocated and owned by the
+ * caller; free both with plain free().
+ */
+wf_status wf_plc_get_last_op(wf_xrpc_client *client,
+                             const char *plc_directory_url, const char *did,
+                             char **out_cid, char **out_op_json);
+
+/**
+ * Fetch an account's full PLC operation history from the directory
+ * (GET {plc_directory_url}/{did}/log/audit): every operation ever published
+ * for the DID, oldest first, each entry already carrying its own `cid`,
+ * `nullified` flag, and `createdAt` alongside the operation body -- unlike
+ * wf_plc_get_last_op, no CID needs to be derived here. Returned as the raw
+ * JSON array; there is no generated lexicon type for this directory-only
+ * endpoint (it is not an XRPC/lexicon method, just the PLC directory's own
+ * HTTP API), so callers that want structure parse the array themselves.
+ *
+ * `client` is caller-owned; see wf_plc_get_last_op.
+ *
+ * On WF_OK, *out_json is heap-allocated and owned by the caller; free with
+ * plain free().
+ */
+wf_status wf_plc_get_audit_log(wf_xrpc_client *client,
+                               const char *plc_directory_url, const char *did,
+                               char **out_json);
+
+/**
+ * Build, sign, and return a PLC operation that changes only `alsoKnownAs` to
+ * ["at://" + new_handle], preserving every other field (rotationKeys,
+ * verificationMethods, services) from the account's currently published
+ * operation. Internally calls wf_plc_get_last_op to fetch that operation and
+ * its CID (used as `prev`), so the caller does not need to track either.
+ *
+ * The submitted result is NOT verified against the caller-supplied
+ * `rotation_key` before signing; the caller is responsible for using the
+ * account's actual current PLC rotation key, since publishing a genesis-vs-
+ * update mismatch or a stale `prev` will be rejected by the directory, not
+ * caught here.
+ *
+ * `client` is caller-owned; see wf_plc_get_last_op.
+ *
+ * On WF_OK, *out_signed_json is caller-owned; free with wf_plc_operation_free.
+ */
+wf_status wf_plc_build_handle_update(wf_xrpc_client *client,
+                                     const char *plc_directory_url,
+                                     const char *did, const char *new_handle,
+                                     const wf_signing_key *rotation_key,
+                                     char **out_signed_json);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* WOLFRAM_PLC_H */

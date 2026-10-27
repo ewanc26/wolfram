@@ -1,0 +1,194 @@
+#ifndef WOLFRAM_LABEL_H
+#define WOLFRAM_LABEL_H
+
+#include "wolfram/websocket.h"
+#include "wolfram/xrpc.h"
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define WF_LABEL_SUBSCRIBE_NSID "com.atproto.label.subscribeLabels"
+
+/* A single label record from the subscribeLabels stream. */
+typedef struct wf_label {
+    int64_t seq;
+    int64_t ver;
+    int has_ver;
+    char *src;
+    char *uri;
+    char *cid;
+    int has_cid;
+    char *val;
+    int neg;
+    int has_neg;
+    char *cts;
+    char *exp;
+    int has_exp;
+    char *sig;
+    int has_sig;
+} wf_label;
+
+typedef struct wf_label_batch {
+    int64_t seq;
+    wf_label *items;
+    size_t count;
+} wf_label_batch;
+
+typedef struct wf_label_info {
+    char *name;
+    char *message;
+    int has_message;
+} wf_label_info;
+
+typedef enum wf_label_message_type {
+    WF_LABEL_MESSAGE_NONE = 0,
+    WF_LABEL_MESSAGE_LABELS,
+    WF_LABEL_MESSAGE_INFO,
+    /* Server-sent error frame (op -1), e.g. FutureCursor / ConsumerTooSlow.
+     * Carried in `data.info`: `name` holds the error code, `message` the
+     * optional human-readable detail. */
+    WF_LABEL_MESSAGE_ERROR,
+} wf_label_message_type;
+
+typedef struct wf_label_message {
+    wf_label_message_type type;
+    union {
+        wf_label_batch labels;
+        wf_label_info info;
+    } data;
+} wf_label_message;
+
+typedef void (*wf_label_cb)(const wf_label *label, void *userdata);
+typedef void (*wf_label_info_cb)(const wf_label_info *info, void *userdata);
+typedef void (*wf_label_error_cb)(wf_status status, const char *message,
+                                  void *userdata);
+
+typedef struct wf_label_subscribe_options {
+    const char *service; /* absolute ws(s) or http(s) service URL */
+    int64_t cursor;      /* last seen sequence number; 0 omits the query */
+    int has_cursor;
+    uint32_t reconnect_delay_ms; /* 0 selects the default 3000ms backoff */
+    wf_label_cb on_label;
+    wf_label_cb on_neg;
+    wf_label_info_cb on_info;
+    wf_label_error_cb on_error;
+    void *userdata;
+    /* Optional client used to resolve the labeler's `src` DID document when
+     * `verify_signatures` is set. Owned by the caller; may be NULL. */
+    wf_xrpc_client *verify_client;
+    /* When non-zero, each ingested label's signature is verified against the
+     * labeler's signing key (resolved from its DID document). Failures are
+     * reported through `on_error` but the label is still dispatched — the
+     * verification is non-fatal and the caller decides how to react. Default
+     * 0 (off) so existing behavior is preserved. */
+    int verify_signatures;
+} wf_label_subscribe_options;
+
+typedef struct wf_label_subscribe_handle wf_label_subscribe_handle;
+
+/** Build the subscribeLabels WebSocket URL. Caller owns `*out_url`. */
+wf_status wf_label_build_url(const char *service, int64_t cursor,
+                             char **out_url);
+
+/** Parse one subscribeLabels frame. Caller owns any allocations in `*out`. */
+wf_status wf_label_message_parse(const char *json, size_t json_len,
+                                 wf_label_message *out);
+
+/**
+ * Parse one binary subscribeLabels frame: the AT Protocol event-stream
+ * encoding, a DAG-CBOR header map ({op, t}) followed by a DAG-CBOR body map.
+ * `#labels` and `#info` messages are decoded into `*out` exactly as
+ * wf_label_message_parse does for JSON; a label's `sig` bytes are re-encoded
+ * as base64url so wf_label_verify_signature applies unchanged. An error frame
+ * (op -1, body `{error, message?}`) decodes into WF_LABEL_MESSAGE_ERROR.
+ * Hostile declared sizes and deep nesting are rejected before any allocation.
+ * Returns WF_ERR_PARSE for malformed frames.
+ */
+wf_status wf_label_frame_parse_cbor(const unsigned char *frame, size_t len,
+                                    wf_label_message *out);
+
+/** Free a parsed subscribeLabels frame. */
+void wf_label_message_free(wf_label_message *message);
+
+/**
+ * Subscribe to labels from a labeler service. The call blocks until stopped,
+ * a fatal initial connection error occurs, or the service closes cleanly.
+ */
+wf_status wf_label_subscribe_start(const wf_label_subscribe_options *opts,
+                                   wf_label_subscribe_handle **out);
+
+/** Request that an active subscription loop stop as soon as possible. */
+void wf_label_subscribe_stop(wf_label_subscribe_handle *handle);
+
+/* ── queryLabels / getLabels (request/response) ─────────────────────────── */
+
+/* Find labels relevant to the provided AT-URI patterns.
+ *
+ * `uris`/`uri_count` is the required list of AT-URI patterns to match
+ * (boolean OR; each may be a prefix ending in '*' or a full URI). `sources`/
+ * `source_count` is an optional list of labeler DIDs to filter on. `limit`
+ * is optional (>0 selects it; the server default of 50 applies otherwise).
+ *
+ * Delegates to the generated lexicon wrapper
+ * `wf_lex_com_atproto_label_query_labels_main_call`. On WF_OK `out` is
+ * populated and must be released with wf_response_free. NULL client/uris or
+ * a zero `uri_count` returns WF_ERR_INVALID_ARG. */
+wf_status wf_label_query_labels(wf_xrpc_client *client, const char *const *uris,
+                                size_t uri_count, const char *const *sources,
+                                size_t source_count, int limit,
+                                wf_response *out);
+
+/* Fetch labels applied to a single URI (com.atproto.label.getLabels).
+ *
+ * `uri` is required; `sources`/`source_count` is an optional list of labeler
+ * DIDs to filter on. There is no generated lexicon wrapper for this endpoint,
+ * so it is issued as a direct authenticated XRPC GET via wf_xrpc_query_params.
+ * On WF_OK `out` is populated and must be released with wf_response_free. NULL
+ * client/uri or a NULL `out` returns WF_ERR_INVALID_ARG. */
+wf_status wf_label_get_labels(wf_xrpc_client *client, const char *uri,
+                              const char *const *sources, size_t source_count,
+                              wf_response *out);
+
+/* ── signature verification ───────────────────────────────────────────── */
+
+/**
+ * Verify a label's cryptographic signature per the com.atproto.label spec.
+ *
+ * The reference constructs the label from its schema fields (excluding `sig`,
+ * including `ver`, never `$type`), DRISL-canonical DAG-CBOR encodes it, SHA-256
+ * hashes those bytes, and signs the digest with the labeler's signing key
+ * (the DID document `#atproto` verification method — the same key used for
+ * repository commits). This function reproduces that construction, resolves
+ * the labeler's `src` DID via `client`, and verifies `sig` (base64url-decoded
+ * from the parsed label) against the resolved key.
+ *
+ * Returns WF_OK when the signature is valid. Returns WF_ERR_INVALID_ARG when
+ * the label lacks `sig` or a required field; WF_ERR_NOT_FOUND when the labeler
+ * publishes no signing key; WF_ERR_PARSE when the signature does not verify;
+ * or a network/transport error if DID resolution fails. The function never
+ * fabricates success — an unverifiable label is reported as a failure.
+ *
+ * The caller decides how to treat a failed verification; this function is
+ * purely advisory. Requires a network-capable `client`.
+ */
+wf_status wf_label_verify_signature(wf_xrpc_client *client,
+                                    const wf_label *label);
+
+/**
+ * Verify a label's signature against an already-known labeler signing key
+ * (`did:key:z...` form, e.g. resolved out-of-band or from a cached DID
+ * document). Does not perform any network resolution. Same return semantics
+ * as wf_label_verify_signature. Useful for offline/batch verification and for
+ * tests where the labeler key is supplied directly.
+ */
+wf_status wf_label_verify_signature_with_key(const char *signing_key_didkey,
+                                             const wf_label *label);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* WOLFRAM_LABEL_H */
