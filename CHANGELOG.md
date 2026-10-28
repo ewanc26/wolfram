@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-10-28
+
 ### Added
 
 - The Node addon exposes `postDisplay(recordText?, embedText?)` over `post_display.h`, filling a post's display model (text, createdAt, validated facets, images, embed kind, reply flag, external, video, quote) from raw record/embed JSON text, with `test/vectors/post_display.json` emitted from the C and run through the addon in `node/test/post_display.test.mjs`. `wf_agent_fetch_public` stays out: it is a network call, and the addon is synchronous. ([#222](https://github.com/ewanc26/wolfram/pull/222))
@@ -459,7 +461,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.42.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.43.0...HEAD
+[0.43.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.0
 [0.42.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.42.0
 [0.41.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.41.0
 [0.40.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.40.0
