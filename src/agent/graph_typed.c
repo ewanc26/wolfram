@@ -174,7 +174,11 @@ wf_status wf_agent_get_follows_typed(wf_agent *agent, const char *actor,
         return status;
     }
 
-    status = wf_agent_parse_actors(res.body, res.body_len, out);
+    /* getFollows answers {"subject":..., "follows":[...]}; the other actor
+     * endpoints use "actors", which is why this is not wf_agent_parse_actors.
+     */
+    status =
+        wf_agent_parse_profile_views(res.body, res.body_len, "follows", out);
     wf_response_free(&res);
     return status;
 }
@@ -197,7 +201,9 @@ wf_status wf_agent_get_followers_typed(wf_agent *agent, const char *actor,
         return status;
     }
 
-    status = wf_agent_parse_actors(res.body, res.body_len, out);
+    /* getFollowers answers {"subject":..., "followers":[...]}. */
+    status =
+        wf_agent_parse_profile_views(res.body, res.body_len, "followers", out);
     wf_response_free(&res);
     return status;
 }

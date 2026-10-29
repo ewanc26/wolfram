@@ -7,7 +7,10 @@
 
 #include "wolfram/graph_social_typed.h"
 #include "wolfram/actor_typed.h"
+#include "wolfram/agent.h"
+#include "wolfram/graph_typed.h"
 #include "wolfram/list_typed.h"
+#include "wolfram/xrpc.h"
 #include "test.h"
 
 #include <cJSON.h>
@@ -19,6 +22,80 @@
 #ifndef WF_TEST_FIXTURE_DIR
 #define WF_TEST_FIXTURE_DIR "test/fixtures"
 #endif
+
+/* The follows and followers wrappers must read the key their endpoints send
+ * ("follows" / "followers"), not the "actors" key the search endpoints use.
+ * Drives them through the transport seam, so a wrong key fails here. */
+static const char *g_actor_list_body = NULL;
+
+static wf_status actor_list_handler(void *userdata, const char *method,
+                                    const char *url, const char *content_type,
+                                    const char *body, size_t body_len,
+                                    const wf_http_header *headers,
+                                    size_t header_count, wf_response *out) {
+    size_t len;
+    (void)userdata;
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    (void)headers;
+    (void)header_count;
+
+    len = strlen(g_actor_list_body);
+    out->body = malloc(len + 1);
+    if (!out->body) {
+        return WF_ERR_ALLOC;
+    }
+    memcpy(out->body, g_actor_list_body, len + 1);
+    out->body_len = len;
+    out->status = 200;
+    return WF_OK;
+}
+
+static void test_follows_keys(void) {
+    wf_agent *agent = wf_agent_new("https://example.com");
+    wf_xrpc_client *client;
+    wf_agent_actor_list list;
+
+    WF_CHECK(agent != NULL);
+    if (!agent) return;
+    client = wf_agent_get_xrpc_client(agent);
+    WF_CHECK(client != NULL);
+    if (!client) {
+        wf_agent_free(agent);
+        return;
+    }
+
+    g_actor_list_body = "{\"subject\":{\"did\":\"did:plc:bob\"},"
+                        "\"follows\":[{\"did\":\"did:plc:alice\","
+                        "\"handle\":\"alice.test\",\"displayName\":\"Alice\"}],"
+                        "\"cursor\":\"f1\"}";
+    wf_xrpc_set_handler(client, actor_list_handler, NULL);
+    memset(&list, 0, sizeof list);
+    WF_CHECK(wf_agent_get_follows_typed(agent, "bob.test", 20, NULL, &list) ==
+             WF_OK);
+    WF_CHECK(list.actor_count == 1);
+    WF_CHECK(list.actors[0].did &&
+             strcmp(list.actors[0].did, "did:plc:alice") == 0);
+    WF_CHECK(list.cursor && strcmp(list.cursor, "f1") == 0);
+    wf_agent_actor_list_free(&list);
+
+    g_actor_list_body = "{\"subject\":{\"did\":\"did:plc:bob\"},"
+                        "\"followers\":[{\"did\":\"did:plc:carol\","
+                        "\"handle\":\"carol.test\"}]}";
+    memset(&list, 0, sizeof list);
+    WF_CHECK(wf_agent_get_followers_typed(agent, "bob.test", 20, NULL, &list) ==
+             WF_OK);
+    WF_CHECK(list.actor_count == 1);
+    WF_CHECK(list.actors[0].did &&
+             strcmp(list.actors[0].did, "did:plc:carol") == 0);
+    wf_agent_actor_list_free(&list);
+
+    wf_xrpc_set_handler(client, NULL, NULL);
+    wf_agent_free(agent);
+}
 
 /* Render a cJSON tree to a freshly-allocated NUL-terminated string. */
 static char *json_string(cJSON *root, size_t *len_out) {
@@ -551,6 +628,8 @@ int main(void) {
         wf_graph_list_membership_list_free(&lml);
         wf_graph_starter_pack_membership_list_free(&spml);
     }
+
+    test_follows_keys();
 
     wf_agent_free(agent);
     WF_TEST_SUMMARY();
