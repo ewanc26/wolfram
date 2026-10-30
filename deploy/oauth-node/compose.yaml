@@ -1,0 +1,42 @@
+# Deploy the hosted OAuth node on this host.
+#
+#   docker compose -f deploy/oauth-node/compose.yaml up -d --build
+#
+# The node is published on loopback only. cloudflared is the only public
+# path; see deploy/oauth-node/README.md.
+
+services:
+  oauth-node:
+    build:
+      context: ../..
+      dockerfile: deploy/oauth-node/Dockerfile
+    image: wolfram-oauth-node:local
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    ulimits:
+      core: 0
+    command:
+      - --public-base-url
+      - https://oauth.croft.click
+      - --listen
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --client-name
+      - Platinum Bridge
+      - --scope
+      - atproto repo:* blob:*/*
+    ports:
+      - "127.0.0.1:8788:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/oauth-client-metadata.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

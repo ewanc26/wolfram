@@ -4,13 +4,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 static volatile sig_atomic_t stop_requested;
 
 static void on_signal(int sig) {
     (void)sig;
     stop_requested = 1;
+}
+
+/* Sessions, refresh tokens and DPoP keys live only in this process. A core
+ * dump would copy that memory to disk, so refuse to run if the kernel will not
+ * let us disable them. Linux additionally marks the process non-dumpable,
+ * which also blocks ptrace and /proc/<pid>/mem by unprivileged processes. */
+static int disable_credential_dumps(void) {
+    struct rlimit limit = {0, 0};
+    if (setrlimit(RLIMIT_CORE, &limit) != 0) {
+        fprintf(stderr, "wolfram-oauth-node: cannot disable core dumps\n");
+        return 0;
+    }
+#ifdef __linux__
+    if (prctl(PR_SET_DUMPABLE, 0) != 0) {
+        fprintf(stderr,
+                "wolfram-oauth-node: cannot mark process non-dumpable\n");
+        return 0;
+    }
+#endif
+    umask(0077);
+    return 1;
 }
 
 static void usage(const char *argv0) {
@@ -54,6 +80,15 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
+
+    if (!disable_credential_dumps()) return 1;
+
+    /* The node must not write request URLs, handles or DIDs to a log that is
+     * retained on disk. It prints only its own listening/startup line. */
+    if (setenv("WOLFRAM_LOG_LEVEL", "off", 1) != 0) {
+        fprintf(stderr, "wolfram-oauth-node: cannot disable library logging\n");
+        return 1;
+    }
 
     wf_oauth_node_config config = {.public_base_url = public_url,
                                    .client_name = client_name,
