@@ -1,4 +1,5 @@
 #include "internal.h"
+#include "wolfram/log.h"
 
 #include <curl/curl.h>
 
@@ -597,9 +598,11 @@ wf_status wf_oauth_discover(wf_xrpc_client *transport, const char *resource,
     memset(resource_out, 0, sizeof(*resource_out));
     memset(server_out, 0, sizeof(*server_out));
     status = wf_oauth_resource_metadata_get(transport, resource, resource_out);
+    WF_LOG_DEBUG("oauth", "discover resource = %d", (int)status);
     if (status != WF_OK) return status;
     status = wf_oauth_server_metadata_get(
         transport, resource_out->authorization_servers.items[0], server_out);
+    WF_LOG_DEBUG("oauth", "discover server = %d", (int)status);
     if (status == WF_OK && server_out->protected_resources.count > 0 &&
         !wf_oauth_string_list_has(&server_out->protected_resources,
                                   resource_out->resource)) {
