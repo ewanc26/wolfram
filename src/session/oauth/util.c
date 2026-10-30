@@ -62,8 +62,11 @@ wf_status wf_oauth_json_array(const cJSON *object, const char *name,
     size_t index = 0;
     memset(out, 0, sizeof(*out));
     if (!array) return required ? WF_ERR_PARSE : WF_OK;
-    if (!cJSON_IsArray(array) || cJSON_GetArraySize(array) == 0)
-        return WF_ERR_PARSE;
+    if (!cJSON_IsArray(array)) return WF_ERR_PARSE;
+    /* An optional array may be present and empty: a PDS commonly publishes
+     * "scopes_supported":[] and no protected_resources. A required array
+     * still needs at least one entry. */
+    if (cJSON_GetArraySize(array) == 0) return required ? WF_ERR_PARSE : WF_OK;
     out->count = (size_t)cJSON_GetArraySize(array);
     out->items = calloc(out->count, sizeof(*out->items));
     if (!out->items) return WF_ERR_ALLOC;

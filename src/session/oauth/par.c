@@ -1,7 +1,9 @@
 #include "internal.h"
+#include "wolfram/log.h"
 
 #include <curl/curl.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -306,6 +308,9 @@ wf_status wf_oauth_par_with_auth(wf_xrpc_client *t, const char *endpoint,
     if (s == WF_OK) s = wf_oauth_post(t, endpoint, key, form, &res);
     if (s == WF_OK)
         s = wf_oauth_par_response_parse(res.body, res.body_len, out);
+    if (s != WF_OK)
+        WF_LOG_DEBUG("oauth", "PAR failed: status %d, HTTP %ld", (int)s,
+                     res.status);
     wf_response_free(&res);
     free(assertion);
     free(form);
