@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-10-30
+
 ### Added
 
 - `wf_chat_convo` carries a group conversation's name, member counts and join link from its `kind`, and `wolfram/chat_group.h` turns them into what a client draws: `wf_chat_convo_is_group`, `wf_chat_join_link_url`, `wf_chat_join_link_is_enabled` and the `WF_CHAT_JOIN_RULE_*` values. `wf_agent_chat_resolve_member_list` resolves a typed list of handles and DIDs into the member DIDs a group call needs, dropping duplicates and the signed-in account, so every client no longer carries its own splitter and resolver. ([cobalt#107](https://github.com/ewanc26/cobalt/issues/107))
@@ -477,7 +479,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.43.2...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.44.0...HEAD
+[0.44.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.0
 [0.43.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.2
 [0.43.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.1
 [0.43.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.0
