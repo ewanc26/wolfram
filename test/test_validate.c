@@ -484,9 +484,8 @@ static void test_cid_format_validation(void) {
                  "{\"uri\":\"at://did:plc:test/app.bsky.feed.post/"
                  "3jkl0pp8sic\",\"cid\":\"%s\"}",
                  cid);
-        wf_validate_result res =
-            wf_validate_value(reg, "com.atproto.repo.strongRef", "main", rec,
-                              strlen(rec));
+        wf_validate_result res = wf_validate_value(
+            reg, "com.atproto.repo.strongRef", "main", rec, strlen(rec));
         if (res.success != cases[i].valid)
             fprintf(stderr, "  cid case %zu (%s): expected %s, got %s\n", i,
                     cases[i].note, cases[i].valid ? "valid" : "invalid",
