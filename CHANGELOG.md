@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- Every source and header ends with a newline. Nine public headers did not, and Clang 16 and older reports that as `-Wnewline-eof`, which `-Wpedantic` promotes, so a consumer built with `-Wpedantic -Werror` failed inside Wolfram's headers. ([#226](https://github.com/ewanc26/wolfram/pull/226))
+
 ## [0.43.1] - 2026-10-30
 
 ### Fixed
