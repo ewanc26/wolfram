@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.44.1] - 2026-10-30
+
 ### Added
 
 - The flow now has a reusable release check: `.github/workflows/release-check-reusable.yml` calls `tools/release-check.py` to validate a tag, a non-empty changelog section, that the tagged commit is on `main`, and that named check runs succeeded. Consumers pin the workflow and checker to the same Wolfram tag instead of carrying their own equivalent. ([#100](https://github.com/ewanc26/wolfram/issues/100))
@@ -14,7 +16,6 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 - Handle resolution waits for both the DNS and well-known lookups before returning. Both threads borrow the caller's client, so the old early return let a caller destroy it while the losing lookup still used it. ([#231](https://github.com/ewanc26/wolfram/pull/231))
 - An optional OAuth metadata array may be empty: a PDS publishing `scopes_supported: []` is accepted, while a required array still needs at least one entry. ([#231](https://github.com/ewanc26/wolfram/pull/231))
-
 
 ## [0.44.0] - 2026-10-30
 
@@ -491,7 +492,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.44.1...HEAD
+[0.44.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.1
 [0.44.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.0
 [0.43.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.2
 [0.43.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.1
