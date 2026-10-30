@@ -564,6 +564,7 @@ jobs:
       - run: python3 -c "import yaml" 2>/dev/null || pip install --quiet pyyaml
       - run: tools/repo-sync-selftest.sh
       - run: tools/changelog-selftest.sh
+      - run: python3 tools/release-check-selftest.py
 
   # One name for branch protection to require. It fails when any gating job
   # failed or was cancelled, so a new job is covered by adding it to `needs`

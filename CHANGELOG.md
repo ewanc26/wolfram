@@ -6,6 +6,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- The flow now has a reusable release check: `.github/workflows/release-check-reusable.yml` calls `tools/release-check.py` to validate a tag, a non-empty changelog section, that the tagged commit is on `main`, and that named check runs succeeded. Consumers pin the workflow and checker to the same Wolfram tag instead of carrying their own equivalent. ([#100](https://github.com/ewanc26/wolfram/issues/100))
+
 - The hosted OAuth node serves its privacy notice at `/` and `/privacy`, and ships a Docker Compose deployment with a read-only root filesystem, no capabilities, a memory-backed `/tmp` and no state volume. The node disables core dumps, marks itself non-dumpable on Linux and turns the library logger off, so credentials cannot be written to disk or logged. ([#231](https://github.com/ewanc26/wolfram/pull/231))
 
 ### Fixed

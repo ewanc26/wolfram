@@ -1,0 +1,65 @@
+# Reusable release gate. A consumer calls this from a tag workflow, pinned to a
+# Wolfram tag, instead of carrying its own tag/version/changelog/check-run code.
+# See docs/flow.md for a caller.
+name: release-check-reusable
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag being published, e.g. v1.2.3.
+        required: true
+        type: string
+      version:
+        description: Version from the repository's own metadata. Defaults to the tag without its v.
+        required: false
+        type: string
+        default: ""
+      changelog:
+        description: Path to the repository's Keep a Changelog file.
+        required: false
+        type: string
+        default: CHANGELOG.md
+      required_checks:
+        description: Comma-separated check-run names that must exist and have succeeded on the tagged commit.
+        required: false
+        type: string
+        default: ""
+      wait_seconds:
+        description: How long to wait for pending required checks.
+        required: false
+        type: number
+        default: 0
+      canon_ref:
+        description: Wolfram tag holding tools/release-check.py. Pin it with the caller.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+
+jobs:
+  verify:
+    name: release-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fetch the pinned checker
+        uses: actions/checkout@v7
+        with:
+          repository: ewanc26/wolfram
+          ref: ${{ inputs.canon_ref }}
+          path: .release-canon
+      - name: Check the tag, changelog, main and required checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          args=(--tag "${{ inputs.tag }}" --changelog "${{ inputs.changelog }}" --wait-seconds "${{ inputs.wait_seconds }}")
+          if [ -n "${{ inputs.version }}" ]; then args+=(--version "${{ inputs.version }}"); fi
+          if [ -n "${{ inputs.required_checks }}" ]; then args+=(--required-checks "${{ inputs.required_checks }}"); fi
+          python3 .release-canon/tools/release-check.py "${args[@]}"
