@@ -11,6 +11,7 @@
 #include "wolfram/util.h"
 
 #include "wolfram/agent.h"
+#include "wolfram/syntax.h"
 #include "wolfram/xrpc.h"
 #include <cJSON.h>
 
@@ -56,6 +57,9 @@ static void wf_chat_convo_reset(wf_chat_convo *c) {
     free(c->members);
     free(c->last_message_text);
     free(c->cursor);
+    free(c->group_name);
+    free(c->join_link_code);
+    free(c->join_link_status);
     memset(c, 0, sizeof(*c));
 }
 
@@ -168,6 +172,55 @@ static wf_status wf_chat_parse_convo_view(wf_chat_convo *out, cJSON *obj) {
     }
     if (status == WF_OK && cJSON_IsString(kind) && kind->valuestring) {
         status = wf_str_set(&out->type, kind->valuestring);
+    }
+    /* A group convo has `kind` as an object. The important part for a client is
+     * its name, member counts and current join link; the message-visible
+     * member list above is still only the bounded important-members slice. */
+    if (status == WF_OK && cJSON_IsObject(kind)) {
+        cJSON *kind_type = cJSON_GetObjectItemCaseSensitive(kind, "$type");
+        cJSON *name = cJSON_GetObjectItemCaseSensitive(kind, "name");
+        cJSON *member_count =
+            cJSON_GetObjectItemCaseSensitive(kind, "memberCount");
+        cJSON *member_limit =
+            cJSON_GetObjectItemCaseSensitive(kind, "memberLimit");
+        cJSON *join_request_count =
+            cJSON_GetObjectItemCaseSensitive(kind, "joinRequestCount");
+        cJSON *join_link = cJSON_GetObjectItemCaseSensitive(kind, "joinLink");
+
+        if (cJSON_IsString(kind_type) && kind_type->valuestring) {
+            status = wf_str_set(&out->type, kind_type->valuestring);
+        }
+        if (status == WF_OK && cJSON_IsString(name) && name->valuestring) {
+            status = wf_str_set(&out->group_name, name->valuestring);
+        }
+        if (status == WF_OK) {
+            status = wf_chat_parse_int(member_count, &out->group_member_count,
+                                       &out->has_group_member_count);
+        }
+        if (status == WF_OK) {
+            status = wf_chat_parse_int(member_limit, &out->group_member_limit,
+                                       &out->has_group_member_limit);
+        }
+        if (status == WF_OK) {
+            status =
+                wf_chat_parse_int(join_request_count, &out->join_request_count,
+                                  &out->has_join_request_count);
+        }
+        if (status == WF_OK && cJSON_IsObject(join_link)) {
+            cJSON *code = cJSON_GetObjectItemCaseSensitive(join_link, "code");
+            cJSON *enabled =
+                cJSON_GetObjectItemCaseSensitive(join_link, "enabledStatus");
+
+            out->has_join_link = 1;
+            if (cJSON_IsString(code) && code->valuestring) {
+                status = wf_str_set(&out->join_link_code, code->valuestring);
+            }
+            if (status == WF_OK && cJSON_IsString(enabled) &&
+                enabled->valuestring) {
+                status =
+                    wf_str_set(&out->join_link_status, enabled->valuestring);
+            }
+        }
     }
     if (status == WF_OK && cJSON_IsString(cursor) && cursor->valuestring) {
         status = wf_str_set(&out->cursor, cursor->valuestring);
@@ -1641,6 +1694,134 @@ wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
     wf_agent_sync_chat_auth(agent);
     return wf_xrpc_query_params(cc, "chat.bsky.group.listMutualGroups", params,
                                 pc, out);
+}
+
+/* ── group member lists ─────────────────────────────────────────────────── */
+
+static bool wf_chat_member_list_has(const wf_chat_member_list *list,
+                                    const char *did) {
+    for (size_t i = 0; i < list->count; ++i) {
+        if (strcmp(list->dids[i], did) == 0) return true;
+    }
+    return false;
+}
+
+static wf_status wf_chat_member_list_push(wf_chat_member_list *list,
+                                          const char *did) {
+    char *copy = wf_str_dup(did);
+    char **grown;
+
+    if (!copy) return WF_ERR_ALLOC;
+    grown = (char **)realloc(list->dids, (list->count + 1) * sizeof(*grown));
+    if (!grown) {
+        free(copy);
+        return WF_ERR_ALLOC;
+    }
+    list->dids = grown;
+    list->dids[list->count++] = copy;
+    return WF_OK;
+}
+
+void wf_chat_member_list_free(wf_chat_member_list *list) {
+    if (!list) return;
+    for (size_t i = 0; i < list->count; ++i) free(list->dids[i]);
+    free(list->dids);
+    free(list->invalid);
+    memset(list, 0, sizeof(*list));
+}
+
+static void wf_chat_member_list_drop(wf_chat_member_list *list) {
+    for (size_t i = 0; i < list->count; ++i) free(list->dids[i]);
+    free(list->dids);
+    list->dids = NULL;
+    list->count = 0;
+}
+
+/* Record the entry that failed, without hiding an allocation failure. */
+static void wf_chat_member_list_reject(wf_chat_member_list *list,
+                                       const char *entry, wf_status *status) {
+    wf_status s = wf_str_set(&list->invalid, entry);
+    if (s != WF_OK) *status = s;
+}
+
+wf_status wf_agent_chat_resolve_member_list(wf_agent *agent, const char *list,
+                                            const char *skip_did,
+                                            wf_chat_member_list *out) {
+    char *copy;
+    char *token;
+    wf_status status = WF_OK;
+
+    if (!out) return WF_ERR_INVALID_ARG;
+    memset(out, 0, sizeof(*out));
+    if (!list || !list[0]) return WF_ERR_INVALID_ARG;
+
+    copy = wf_str_dup(list);
+    if (!copy) return WF_ERR_ALLOC;
+
+    token = copy;
+    while (token && *token && status == WF_OK) {
+        char *next = strpbrk(token, ",;\n");
+        char *start;
+        char *end;
+        bool is_did;
+
+        if (next) *next++ = '\0';
+        start = token;
+        while (*start == ' ' || *start == '\t' || *start == '\r') ++start;
+        end = start + strlen(start);
+        while (end > start &&
+               (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r')) {
+            *--end = '\0';
+        }
+        if (*start == '@') ++start;
+        if (!*start) {
+            token = next;
+            continue;
+        }
+
+        is_did = strncmp(start, "did:", 4) == 0;
+        if (is_did ? !wf_syntax_did_is_valid(start)
+                   : !wf_syntax_handle_is_valid(start)) {
+            status = WF_ERR_INVALID_ARG;
+            wf_chat_member_list_reject(out, start, &status);
+        } else if (is_did) {
+            if ((skip_did && strcmp(start, skip_did) == 0) ||
+                wf_chat_member_list_has(out, start)) {
+                token = next;
+                continue;
+            }
+            status = wf_chat_member_list_push(out, start);
+        } else if (!agent) {
+            /* A handle needs a resolveHandle request; without an agent there
+             * is nothing to send it with. */
+            status = WF_ERR_INVALID_ARG;
+            wf_chat_member_list_reject(out, start, &status);
+        } else {
+            char *resolved = NULL;
+            wf_status s = wf_agent_resolve_handle(agent, start, &resolved);
+
+            if (s != WF_OK) {
+                wf_chat_member_list_reject(out, start, &s);
+                status = s;
+            } else if (!resolved || !resolved[0]) {
+                status = WF_ERR_PARSE;
+                wf_chat_member_list_reject(out, start, &status);
+            } else if ((skip_did && strcmp(resolved, skip_did) == 0) ||
+                       wf_chat_member_list_has(out, resolved)) {
+                /* the viewer or an earlier entry: drop it */
+            } else {
+                status = wf_chat_member_list_push(out, resolved);
+            }
+            free(resolved);
+        }
+        token = next;
+    }
+
+    free(copy);
+
+    if (status == WF_OK && out->count == 0) status = WF_ERR_INVALID_ARG;
+    if (status != WF_OK) wf_chat_member_list_drop(out);
+    return status;
 }
 
 /* ════════════════════════════════════════════════════════════════════════

@@ -2,6 +2,7 @@
  * test_chat_typed.c — tests for chat.bsky.convo typed parsers + wrappers.
  */
 
+#include "wolfram/chat_group.h"
 #include "wolfram/chat_typed.h"
 #include "test.h"
 
@@ -114,9 +115,126 @@ static void test_parse_convo(void) {
     WF_CHECK(c.last_message_text &&
              strcmp(c.last_message_text, "hello there") == 0);
     WF_CHECK(c.type && strcmp(c.type, "direct") == 0);
+    WF_CHECK(c.group_name == NULL);
+    WF_CHECK(!c.has_join_link);
+    WF_CHECK(!wf_chat_convo_is_group(&c));
 
     wf_chat_convo_free(&c);
     free(json);
+}
+
+static void test_parse_group_convo(void) {
+    size_t len = 0;
+    char *json = load_fixture("chat_group_convo.json", &len);
+    WF_CHECK(json != NULL);
+
+    wf_chat_convo c = {0};
+    wf_status s = wf_agent_parse_convo(json, len, &c);
+    WF_CHECK(s == WF_OK);
+    WF_CHECK(c.id && strcmp(c.id, "convo-group") == 0);
+    WF_CHECK(c.type && strcmp(c.type, "chat.bsky.convo.defs#groupConvo") == 0);
+    WF_CHECK(c.group_name && strcmp(c.group_name, "Weekend Crew") == 0);
+    WF_CHECK(c.has_group_member_count && c.group_member_count == 12);
+    WF_CHECK(c.has_group_member_limit && c.group_member_limit == 50);
+    WF_CHECK(c.has_join_request_count && c.join_request_count == 2);
+    WF_CHECK(c.member_count == 2);
+    WF_CHECK(c.has_join_link);
+    WF_CHECK(c.join_link_code && strcmp(c.join_link_code, "weekend-crew") == 0);
+    WF_CHECK(c.join_link_status && strcmp(c.join_link_status, "enabled") == 0);
+
+    wf_chat_convo_free(&c);
+    WF_CHECK(c.group_name == NULL && c.join_link_code == NULL);
+    free(json);
+}
+
+static void test_chat_group_helpers(void) {
+    size_t len = 0;
+    char *json = load_fixture("chat_group_convo.json", &len);
+    wf_chat_convo c = {0};
+    char url[64];
+
+    WF_CHECK(json != NULL);
+    WF_CHECK(wf_agent_parse_convo(json, len, &c) == WF_OK);
+
+    /* The kind says group, not the number of members: create-group answers
+     * carry only the important members. */
+    WF_CHECK(wf_chat_convo_is_group(&c));
+    WF_CHECK(!wf_chat_convo_is_group(NULL));
+
+    /* The union tag alone is enough when the server sent no kind fields. */
+    {
+        wf_chat_convo tagged = {0};
+        tagged.type = (char *)"chat.bsky.convo.defs#groupConvo";
+        WF_CHECK(wf_chat_convo_is_group(&tagged));
+        tagged.type = (char *)"chat.bsky.convo.defs#directConvo";
+        WF_CHECK(!wf_chat_convo_is_group(&tagged));
+    }
+
+    WF_CHECK(wf_chat_join_link_url("weekend-crew", url, sizeof url));
+    WF_CHECK(strcmp(url, "https://bsky.app/chat/weekend-crew") == 0);
+    WF_CHECK(!wf_chat_join_link_url("", url, sizeof url));
+    WF_CHECK(url[0] == '\0');
+    WF_CHECK(!wf_chat_join_link_url(NULL, url, sizeof url));
+    WF_CHECK(!wf_chat_join_link_url("weekend-crew", url, 8));
+    WF_CHECK(url[0] == '\0');
+
+    WF_CHECK(wf_chat_join_link_is_enabled("enabled"));
+    WF_CHECK(!wf_chat_join_link_is_enabled("disabled"));
+    WF_CHECK(!wf_chat_join_link_is_enabled("invalid"));
+    WF_CHECK(!wf_chat_join_link_is_enabled(NULL));
+    WF_CHECK(strcmp(WF_CHAT_JOIN_RULE_ANYONE, "anyone") == 0);
+    WF_CHECK(strcmp(WF_CHAT_JOIN_RULE_FOLLOWED_BY_OWNER, "followedByOwner") ==
+             0);
+
+    wf_chat_convo_free(&c);
+    free(json);
+}
+
+static void test_member_list(void) {
+    wf_chat_member_list list;
+
+    /* Without an agent only DIDs can be accepted; the viewer and duplicates
+     * are dropped, and separators/whitespace do not matter. */
+    WF_CHECK(wf_agent_chat_resolve_member_list(
+                 NULL,
+                 " did:plc:alice, did:plc:bob;did:plc:alice\n did:plc:carol ",
+                 "did:plc:alice", &list) == WF_OK);
+    WF_CHECK(list.count == 2);
+    WF_CHECK(strcmp(list.dids[0], "did:plc:bob") == 0);
+    WF_CHECK(strcmp(list.dids[1], "did:plc:carol") == 0);
+    WF_CHECK(list.invalid == NULL);
+    wf_chat_member_list_free(&list);
+    WF_CHECK(list.dids == NULL && list.count == 0 && list.invalid == NULL);
+
+    /* A handle is resolved by the SDK, so it cannot be used without an
+     * agent; the entry is named back for the caller's message. */
+    WF_CHECK(wf_agent_chat_resolve_member_list(NULL, "@alice.test", NULL,
+                                               &list) == WF_ERR_INVALID_ARG);
+    WF_CHECK(list.count == 0);
+    WF_CHECK(list.invalid && strcmp(list.invalid, "alice.test") == 0);
+    wf_chat_member_list_free(&list);
+
+    /* An entry that is neither a handle nor a DID stops the whole list. */
+    WF_CHECK(
+        wf_agent_chat_resolve_member_list(NULL, "did:plc:alice, not a handle",
+                                          NULL, &list) == WF_ERR_INVALID_ARG);
+    WF_CHECK(list.count == 0);
+    WF_CHECK(list.invalid && strcmp(list.invalid, "not a handle") == 0);
+    wf_chat_member_list_free(&list);
+
+    /* Filtering out the viewer leaves nothing to add, but no bad entry. */
+    WF_CHECK(wf_agent_chat_resolve_member_list(NULL, "did:plc:alice",
+                                               "did:plc:alice",
+                                               &list) == WF_ERR_INVALID_ARG);
+    WF_CHECK(list.count == 0 && list.invalid == NULL);
+    wf_chat_member_list_free(&list);
+
+    WF_CHECK(wf_agent_chat_resolve_member_list(NULL, NULL, NULL, &list) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_resolve_member_list(NULL, "", NULL, &list) ==
+             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_agent_chat_resolve_member_list(NULL, "did:plc:alice", NULL,
+                                               NULL) == WF_ERR_INVALID_ARG);
 }
 
 static void test_parse_messages(void) {
@@ -843,6 +961,9 @@ int main(void) {
     test_chat_proxy_helpers();
     test_parse_convos();
     test_parse_convo();
+    test_parse_group_convo();
+    test_chat_group_helpers();
+    test_member_list();
     test_parse_messages();
     test_parse_send_message();
     test_parse_send_message_invalid();

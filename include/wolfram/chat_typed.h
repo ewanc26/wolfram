@@ -66,6 +66,23 @@ typedef struct wf_chat_convo {
     int unread_count;        /* required unreadCount */
     int has_unread_count;
     char *cursor; /* optional; NULL when absent */
+
+    /* Group-only fields, read from `kind` when it is a groupConvo object. They
+     * stay NULL/absent for a direct convo; wf_chat_convo_is_group in
+     * chat_group.h is the supported way to tell the two apart. */
+    char *group_name;
+    int group_member_count;
+    int has_group_member_count;
+    int group_member_limit;
+    int has_group_member_limit;
+    int join_request_count;
+    int has_join_request_count;
+
+    /* The group's current join link, when `kind.joinLink` is present. The
+     * status is the server's "enabled"/"disabled" string. */
+    int has_join_link;
+    char *join_link_code;
+    char *join_link_status;
 } wf_chat_convo;
 
 /* A single message (chat.bsky.convo.defs#messageView, bounded). */
@@ -331,6 +348,36 @@ wf_status wf_agent_chat_list_mutual_groups(wf_agent *agent,
                                            const char *convo_id, int limit,
                                            const char *cursor,
                                            wf_response *out);
+
+/* ── group member lists ───────────────────────────────────────────────────
+ * A member list typed by a person is a string of handles (an optional '@',
+ * and the dot is required) or DIDs, separated by commas, semicolons or line
+ * breaks. Splitting, validating, resolving, de-duplicating and dropping the
+ * signed-in account is the same work in every client, so it lives here. */
+
+typedef struct wf_chat_member_list {
+    char **dids; /* owned DIDs, in the order they were accepted */
+    size_t count;
+    /* Owned copy of the first entry that stopped the list (an invalid handle
+     * or DID, or a handle that did not resolve), or NULL when the list was
+     * simply empty. The caller may show it; there is no protocol text here. */
+    char *invalid;
+} wf_chat_member_list;
+
+/* Resolve a member list into DIDs. `skip_did` (the signed-in account, or NULL)
+ * and duplicates are dropped. On WF_OK `out` holds at least one DID. On error
+ * the accepted entries are dropped; `out->invalid` is kept for the caller and
+ * must still be freed.
+ *
+ * WF_ERR_INVALID_ARG: no list, an entry that is not a handle or DID, an empty
+ * result, or a handle given with `agent` NULL. WF_ERR_HTTP: a handle that did
+ * not resolve. Any other resolve failure is passed through. WF_ERR_ALLOC on
+ * allocation failure. `out` is zeroed before anything else, so it is always
+ * safe to pass it to wf_chat_member_list_free, even for a NULL list. */
+wf_status wf_agent_chat_resolve_member_list(wf_agent *agent, const char *list,
+                                            const char *skip_did,
+                                            wf_chat_member_list *out);
+void wf_chat_member_list_free(wf_chat_member_list *l);
 
 /* ════════════════════════════════════════════════════════════════════════
  * chat.bsky.actor.*
