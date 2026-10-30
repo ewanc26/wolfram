@@ -1326,12 +1326,14 @@ static wf_status wf_handle_resolve_well_known(wf_xrpc_client *client,
  * the libcurl path underneath wf_handle_resolve_well_known hold state a
  * cancelled thread could leave in an inconsistent state) -- so instead of
  * cancelling the loser, this launches both as detached threads sharing a
- * refcounted result struct, returns as soon as either succeeds, and lets
- * the loser finish in the background and clean up its own share of the
- * struct when it does. Neither wf_handle_resolve_dns_txt (a fresh
- * ares_channel_t per call) nor wf_handle_resolve_well_known (client
- * requests are already safe for concurrent use -- see wf_client_snapshot
- * in xrpc.c) has any state that two concurrent calls would contend over.
+ * refcounted result struct and lets the winner's result be chosen once both
+ * have finished. The caller's client is borrowed by both threads, including
+ * the loser, so the function cannot return while either still runs: the
+ * caller is free to destroy the client as soon as it returns. Neither
+ * wf_handle_resolve_dns_txt (a fresh ares_channel_t per call) nor
+ * wf_handle_resolve_well_known (client requests are already safe for
+ * concurrent use -- see wf_client_snapshot in xrpc.c) has any state that two
+ * concurrent calls would contend over.
  */
 typedef struct {
     pthread_mutex_t lock;
@@ -1508,27 +1510,24 @@ wf_status wf_handle_resolve(wf_xrpc_client *client, const char *handle,
                            0);
 
         pthread_mutex_lock(&state->lock);
-        for (;;) {
-            if (state->dns_done && state->dns_status == WF_OK) {
-                result_status = WF_OK;
-                result_did = wf_str_dup(state->dns_did);
-                break;
-            }
-            if (state->wk_done && state->wk_status == WF_OK) {
-                result_status = WF_OK;
-                result_did = wf_str_dup(state->wk_did);
-                break;
-            }
-            if (state->dns_done && state->wk_done) {
-                /* Both finished and neither succeeded: report whichever
-                 * failure is more specific than "not found", preferring
-                 * DNS's, matching the reference's fallback order. */
-                result_status = state->dns_status != WF_ERR_NOT_FOUND
-                                    ? state->dns_status
-                                    : state->wk_status;
-                break;
-            }
+        /* Wait for both threads, not just the winner: both borrow `client`,
+         * and the loser may still be using it after the winner is known. */
+        while (!(state->dns_done && state->wk_done)) {
             pthread_cond_wait(&state->cond, &state->lock);
+        }
+        if (state->dns_status == WF_OK) {
+            result_status = WF_OK;
+            result_did = wf_str_dup(state->dns_did);
+        } else if (state->wk_status == WF_OK) {
+            result_status = WF_OK;
+            result_did = wf_str_dup(state->wk_did);
+        } else {
+            /* Neither succeeded: report whichever failure is more specific
+             * than "not found", preferring DNS's, matching the reference's
+             * fallback order. */
+            result_status = state->dns_status != WF_ERR_NOT_FOUND
+                                ? state->dns_status
+                                : state->wk_status;
         }
         pthread_mutex_unlock(&state->lock);
         handle_race_state_release(state);
