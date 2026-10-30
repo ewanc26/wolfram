@@ -26,6 +26,7 @@
 #include <wolfram/graph_typed.h>
 #include <wolfram/identity.h>
 #include <wolfram/identity_typed.h>
+#include <wolfram/image.h>
 #include <wolfram/jetstream.h>
 #include <wolfram/jetstream_replay.h>
 #include <wolfram/label.h>
@@ -45,6 +46,7 @@
 #include <wolfram/oauth/par.h>
 #include <wolfram/oauth/state.h>
 #include <wolfram/oauth/verify.h>
+#include <wolfram/oauth_node.h>
 #include <wolfram/ozone_moderation_ops_typed.h>
 #include <wolfram/ozone_typed.h>
 #include <wolfram/platform.h>
@@ -329,6 +331,7 @@ using wf_identity_sign_plc_operation_result_handle =
 using wf_identity_signed_operation_handle =
     unique_handle<wf_identity_signed_operation,
                   wf_identity_signed_operation_free>;
+using wf_image_rgba_handle = unique_handle<wf_image_rgba, wf_image_rgba_free>;
 using wf_jetstream_handle = unique_handle<wf_jetstream, wf_jetstream_free>;
 using wf_jetstream_event_handle =
     unique_handle<wf_jetstream_event, wf_jetstream_event_free>;
@@ -1287,6 +1290,7 @@ using wf_oauth_dpop_key_handle =
     unique_handle<wf_oauth_dpop_key, wf_oauth_dpop_key_free>;
 using wf_oauth_dpop_replay_cache_handle =
     unique_handle<wf_oauth_dpop_replay_cache, wf_oauth_dpop_replay_cache_free>;
+using wf_oauth_node_handle = unique_handle<wf_oauth_node, wf_oauth_node_free>;
 using wf_oauth_par_response_handle =
     unique_handle<wf_oauth_par_response, wf_oauth_par_response_free>;
 using wf_oauth_resource_metadata_handle =
