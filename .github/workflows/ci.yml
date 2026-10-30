@@ -529,6 +529,22 @@ jobs:
             exit 1
           fi
 
+      # The host build compiles Wolfram's public headers with -Wpedantic
+      # -Werror, and Clang 16 and older reports a missing final newline as
+      # -Wnewline-eof. Indigo's macOS job found nine headers and thirteen
+      # sources without one; this keeps a new one from landing.
+      - name: Every tracked C source and header ends with a newline
+        run: |
+          bad=0
+          while IFS= read -r f; do
+            [ -f "$f" ] || continue
+            if [ -n "$(tail -c 1 "$f")" ]; then
+              echo "::error file=$f::no newline at end of file"
+              bad=1
+            fi
+          done < <(git ls-files '*.c' '*.h' '*.cpp' '*.hpp' '*.cc')
+          exit "$bad"
+
       - name: Check CMake formatting (informational)
         continue-on-error: true
         run: |
