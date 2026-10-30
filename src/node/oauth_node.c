@@ -1,7 +1,10 @@
 #include "wolfram/oauth_node.h"
 #include "wolfram/oauth.h"
+#include "oauth_node_privacy.h"
 #include "wolfram/auth_client.h"
 #include "wolfram/chat_typed.h"
+#include "wolfram/crypto.h"
+#include "wolfram/identity.h"
 
 #include <openssl/rand.h>
 #include <cJSON.h>
@@ -75,8 +78,9 @@ static int random_bytes(unsigned char *buf, size_t len) {
 
 static int random_code(char *out, size_t cap) {
     static const char alphabet[] = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-    unsigned char raw[12];
-    if (!out || cap < 17 || !random_bytes(raw, sizeof raw)) return 0;
+    unsigned char raw[20];
+    if (!out || cap < sizeof raw + 1 || !random_bytes(raw, sizeof raw))
+        return 0;
     for (size_t i = 0; i < sizeof raw; ++i) out[i] = alphabet[raw[i] & 31U];
     out[sizeof raw] = '\0';
     return 1;
@@ -110,8 +114,10 @@ static void pair_free(node_pair *p) {
 
 static node_pair *pair_find(wf_oauth_node *node, const char *code) {
     for (size_t i = 0; i < NODE_MAX_PAIRS; ++i) {
-        if (node->pairs[i].used && strcmp(node->pairs[i].pair_code, code) == 0)
-            return &node->pairs[i];
+        node_pair *pair = &node->pairs[i];
+        if (pair->used && pair->pair_code[0] &&
+            strcmp(pair->pair_code, code) == 0)
+            return pair;
     }
     return NULL;
 }
@@ -120,8 +126,7 @@ static node_pair *pair_alloc(wf_oauth_node *node) {
     int64_t now = now_seconds();
     for (size_t i = 0; i < NODE_MAX_PAIRS; ++i) {
         node_pair *p = &node->pairs[i];
-        if (p->used && !p->complete && p->expires_at < now &&
-            !p->callback_consuming)
+        if (p->used && p->expires_at < now && !p->callback_consuming)
             pair_free(p);
         if (!p->used) {
             memset(p, 0, sizeof *p);
@@ -157,6 +162,16 @@ static void html(wf_xrpc_response *resp, int status, const char *body) {
     resp->http_status = status;
     wf_xrpc_response_set_content_type(resp, "text/html; charset=utf-8");
     wf_xrpc_response_set_body(resp, body, strlen(body));
+}
+
+static char *privacy_page_join(void) {
+    size_t head = sizeof kOAuthNodePrivacyHtmlHead - 1;
+    size_t tail = sizeof kOAuthNodePrivacyHtmlTail - 1;
+    char *page = malloc(head + tail + 1);
+    if (!page) return NULL;
+    memcpy(page, kOAuthNodePrivacyHtmlHead, head);
+    memcpy(page + head, kOAuthNodePrivacyHtmlTail, tail + 1);
+    return page;
 }
 
 static char *escape_html(const char *s) {
@@ -231,7 +246,16 @@ static wf_status resolve_handle(wf_oauth_node *node, const char *handle,
     wf_status st = slingshot_query(node, "com.atproto.identity.resolveHandle",
                                    &p, 1, &res);
     if (st != WF_OK) {
+        /* Slingshot is an optional convenience. Fall back to standard atproto
+         * resolution: DNS TXT, then the handle's .well-known document. That is
+         * what every other client does, and it keeps the node usable when the
+         * resolver is unreachable or retired. */
+        wf_xrpc_client *client;
         wf_response_free(&res);
+        client = wf_xrpc_client_new("https://bsky.social");
+        if (!client) return WF_ERR_ALLOC;
+        st = wf_handle_resolve(client, handle, did_out);
+        wf_xrpc_client_free(client);
         return st;
     }
     cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
@@ -254,7 +278,16 @@ static wf_status resolve_pds(wf_oauth_node *node, const char *did,
     wf_status st = slingshot_query(
         node, "blue.microcosm.identity.resolveMiniDoc", &p, 1, &res);
     if (st != WF_OK) {
+        /* As in resolve_handle: read the DID document directly. plc.directory
+         * answers for did:plc, and a did:web account's own host answers for
+         * itself. */
+        wf_xrpc_client *client;
         wf_response_free(&res);
+        client = wf_xrpc_client_new("https://bsky.social");
+        if (!client) return WF_ERR_ALLOC;
+        st = wf_did_resolve_service_by_id(client, did, "#atproto_pds",
+                                          "AtprotoPersonalDataServer", pds_out);
+        wf_xrpc_client_free(client);
         return st;
     }
     cJSON *root = cJSON_ParseWithLength(res.body, res.body_len);
@@ -291,12 +324,22 @@ static wf_status start_pair(wf_oauth_node *node, node_pair *pair,
     }
 
     st = wf_oauth_discover(transport, pds, &resource, &pair->server);
+    if (st != WF_OK) {
+        /* Not every PDS publishes protected-resource metadata. In that case
+         * the PDS is its own authorization server, which is the common
+         * atproto deployment (including bsky.social). */
+        fprintf(stderr,
+                "oauth-node: protected-resource discovery failed (%d); "
+                "trying the PDS as its own authorization server\n",
+                (int)st);
+        st = wf_oauth_server_metadata_get(transport, pds, &pair->server);
+    }
     if (st == WF_OK) {
-        wf_oauth_client_auth auth = {.client_id = node->client_id,
-                                     .authorization_server_issuer =
-                                         pair->server.issuer,
-                                     .signing_key = NULL,
-                                     .key_id = NULL};
+        /* Public client: no client assertion, so no signing key and no
+         * authorization-server issuer. Supplying the issuer here makes
+         * wf_oauth_client_auth_validate reject the request as malformed. */
+        wf_oauth_client_auth auth = {
+            .client_id = node->client_id, .signing_key = NULL, .key_id = NULL};
         wf_oauth_authorization_begin_options options = {
             .redirect_uri = node->redirect_uri,
             .scope = node->scope,
@@ -307,6 +350,10 @@ static wf_status start_pair(wf_oauth_node *node, node_pair *pair,
         wf_oauth_authorization_begin_result begun = {0};
         st = wf_oauth_authorization_begin(
             transport, &pair->server, &node->client, &auth, &options, &begun);
+        if (st != WF_OK) {
+            fprintf(stderr, "oauth-node: authorization begin failed (%d)\n",
+                    (int)st);
+        }
         if (st == WF_OK) {
             pair->handle = dupstr(handle);
             pair->did = did;
@@ -464,7 +511,8 @@ static wf_status pair_page_handler(void *ctx, const wf_xrpc_request *req,
              "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
              "4rem auto;padding:0 1.25rem'>"
              "<h1>Account connected</h1><p>You can return to the console "
-             "now.</p></body>");
+             "now.</p><p style='color:#666'><a href='/privacy'>Privacy "
+             "notice</a></p></body>");
         return WF_OK;
     }
     if (failed || !handle || !auth_url) {
@@ -512,7 +560,8 @@ static wf_status pair_page_handler(void *ctx, const wf_xrpc_request *req,
              "1rem;border-radius:.7rem;background:#111;color:#fff;text-"
              "decoration:none'>"
              "Continue to PDS sign-in</a></p><p style='color:#666'>After "
-             "authorising the client, you will be returned here.</p></body>",
+             "authorising the client, you will be returned here. Read the "
+             "<a href='/privacy'>privacy notice</a>.</p></body>",
              safe_handle, safe_url);
     free(safe_handle);
     free(safe_url);
@@ -640,7 +689,8 @@ static wf_status callback_handler(void *ctx, const wf_xrpc_request *req,
              "style='font-family:system-ui,sans-serif;max-width:42rem;margin:"
              "4rem auto;padding:0 1.25rem'>"
              "<h1>Account connected</h1><p>You can return to the console "
-             "now.</p></body>");
+             "now.</p><p style='color:#666'><a href='/privacy'>Privacy "
+             "notice</a></p></body>");
     } else {
         html(resp, 400,
              "<!doctype html><meta charset=utf-8><meta name=viewport "
@@ -674,9 +724,10 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
     pthread_mutex_lock(&node->lock);
     node_pair *pair = NULL;
     for (size_t i = 0; i < NODE_MAX_PAIRS; ++i) {
-        if (node->pairs[i].used && node->pairs[i].complete &&
-            bearer_is(auth, node->pairs[i].session_token)) {
-            pair = &node->pairs[i];
+        node_pair *candidate = &node->pairs[i];
+        if (candidate->used && candidate->complete &&
+            bearer_is(auth, candidate->session_token)) {
+            pair = candidate;
             break;
         }
     }
@@ -687,7 +738,11 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
         return WF_OK;
     }
 
-    wf_xrpc_client *transport = wf_xrpc_client_new(pair->pds_url);
+    wf_oauth_session_state *session = &pair->session;
+    wf_oauth_server_metadata *server = &pair->server;
+    const char *pds_url = pair->pds_url;
+
+    wf_xrpc_client *transport = wf_xrpc_client_new(pds_url);
     if (!transport) {
         pthread_mutex_unlock(&node->lock);
         wf_xrpc_response_set_error(resp, 502, "UpstreamUnavailable",
@@ -716,11 +771,11 @@ static wf_status proxy_handler(void *ctx, const wf_xrpc_request *req,
 
     wf_oauth_client_auth client_auth = {.client_id = node->client_id,
                                         .authorization_server_issuer =
-                                            pair->server.issuer,
+                                            server->issuer,
                                         .signing_key = NULL,
                                         .key_id = NULL};
-    wf_auth_client *auth_client = wf_auth_client_new(
-        transport, &pair->session, &pair->server, &client_auth);
+    wf_auth_client *auth_client =
+        wf_auth_client_new(transport, session, server, &client_auth);
     if (!auth_client) {
         wf_xrpc_client_free(transport);
         pthread_mutex_unlock(&node->lock);
@@ -778,6 +833,7 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
 
     if (!node->public_base_url || !node->client_name || !node->scope ||
         !node->slingshot_url) {
+        fprintf(stderr, "oauth-node-init: string allocation failed\n");
         wf_oauth_node_free(node);
         return NULL;
     }
@@ -838,6 +894,7 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
     }
 
     if (pthread_mutex_init(&node->lock, NULL) != 0) {
+        fprintf(stderr, "oauth-node-init: mutex init failed\n");
         wf_oauth_node_free(node);
         return NULL;
     }
@@ -845,6 +902,8 @@ wf_oauth_node *wf_oauth_node_new(const wf_oauth_node_config *cfg) {
     if (wf_oauth_client_metadata_parse(
             node->metadata_json, strlen(node->metadata_json), node->client_id,
             &node->client) != WF_OK) {
+        fprintf(stderr, "oauth-node-init: client metadata rejected: %s\n",
+                node->metadata_json);
         wf_oauth_node_free(node);
         return NULL;
     }
@@ -858,9 +917,24 @@ wf_status wf_oauth_node_start(wf_oauth_node *node, const char *listen_address,
     node->server = wf_xrpc_server_start(listen_address, port, thread_count);
     if (!node->server) return WF_ERR_INTERNAL;
 
+    char *privacy = privacy_page_join();
+    if (!privacy) {
+        wf_xrpc_server_free(node->server);
+        node->server = NULL;
+        return WF_ERR_ALLOC;
+    }
     wf_status st = wf_xrpc_server_register_static_get(
         node->server, "/oauth-client-metadata.json", "application/json",
         node->metadata_json, strlen(node->metadata_json));
+    if (st == WF_OK)
+        st = wf_xrpc_server_register_static_get(node->server, "/privacy",
+                                                "text/html; charset=utf-8",
+                                                privacy, strlen(privacy));
+    if (st == WF_OK)
+        st = wf_xrpc_server_register_static_get(node->server, "/",
+                                                "text/html; charset=utf-8",
+                                                privacy, strlen(privacy));
+    free(privacy);
     if (st == WF_OK)
         st = wf_xrpc_server_register_http_prefix(node->server, "GET", "/pair/",
                                                  pair_page_handler, node);

@@ -16,6 +16,7 @@ typedef enum {
     WF_LOG_LEVEL_INFO = 1,
     WF_LOG_LEVEL_WARN = 2,
     WF_LOG_LEVEL_ERROR = 3,
+    WF_LOG_LEVEL_OFF = 4,
 } wf_log_level;
 
 static inline int wf_log_level_from_env(void) {
@@ -29,16 +30,21 @@ static inline int wf_log_level_from_env(void) {
         return WF_LOG_LEVEL_WARN;
     if (strcmp(level, "error") == 0 || strcmp(level, "ERROR") == 0)
         return WF_LOG_LEVEL_ERROR;
+    if (strcmp(level, "off") == 0 || strcmp(level, "OFF") == 0 ||
+        strcmp(level, "none") == 0 || strcmp(level, "NONE") == 0)
+        return WF_LOG_LEVEL_OFF;
     char *end = NULL;
     long v = strtol(level, &end, 10);
-    if (end && *end == '\0' && v >= 0 && v <= 3) return (int)v;
+    if (end && *end == '\0' && v >= 0 && v <= 4) return (int)v;
     return WF_LOG_LEVEL_WARN;
 }
 
 static inline void wf_log(int level, const char *module, const char *fmt, ...) {
     static int current_level = -1;
     if (current_level < 0) current_level = wf_log_level_from_env();
-    if (level < current_level) return;
+    if (current_level == WF_LOG_LEVEL_OFF || level < current_level ||
+        level < 0 || level >= WF_LOG_LEVEL_OFF)
+        return;
     static const char *names[] = {"DEBUG", "INFO", "WARN", "ERROR"};
     va_list ap;
     time_t now = time(NULL);
