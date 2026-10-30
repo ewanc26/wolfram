@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- The reusable release check takes a `sha` input, defaulting to the commit that triggered the run, and checks that commit's changelog, ancestry and check runs. A repository that repairs a release by dispatch runs from `main` while its tag points at an earlier commit, so without it the shared check would validate the wrong tree. ([#100](https://github.com/ewanc26/wolfram/issues/100))
+
 ## [0.44.1] - 2026-10-30
 
 ### Added
