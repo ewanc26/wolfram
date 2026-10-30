@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.43.2] - 2026-10-30
+
 ### Fixed
 
 - Every source and header ends with a newline. Nine public headers did not, and Clang 16 and older reports that as `-Wnewline-eof`, which `-Wpedantic` promotes, so a consumer built with `-Wpedantic -Werror` failed inside Wolfram's headers. ([#226](https://github.com/ewanc26/wolfram/pull/226))
@@ -471,7 +473,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.43.1...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.43.2...HEAD
+[0.43.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.2
 [0.43.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.1
 [0.43.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.43.0
 [0.42.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.42.0
