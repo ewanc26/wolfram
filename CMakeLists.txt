@@ -445,6 +445,7 @@ add_library(
   src/time.c
   src/failure.c
   src/cdn.c
+  src/chat_group.c
   src/drag.c
   src/attach.c
   src/agent/attach_upload.c

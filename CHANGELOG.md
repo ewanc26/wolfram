@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_chat_convo` carries a group conversation's name, member counts and join link from its `kind`, and `wolfram/chat_group.h` turns them into what a client draws: `wf_chat_convo_is_group`, `wf_chat_join_link_url`, `wf_chat_join_link_is_enabled` and the `WF_CHAT_JOIN_RULE_*` values. `wf_agent_chat_resolve_member_list` resolves a typed list of handles and DIDs into the member DIDs a group call needs, dropping duplicates and the signed-in account, so every client no longer carries its own splitter and resolver. ([cobalt#107](https://github.com/ewanc26/cobalt/issues/107))
+
 ## [0.43.2] - 2026-10-30
 
 ### Fixed

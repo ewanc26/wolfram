@@ -1,0 +1,29 @@
+{
+  "convo": {
+    "id": "convo-group",
+    "rev": "rev-group",
+    "members": [
+      { "did": "did:plc:alice", "handle": "alice.bsky.social", "displayName": "Alice" },
+      { "did": "did:plc:bob", "handle": "bob.bsky.social", "displayName": "Bob" }
+    ],
+    "muted": false,
+    "unreadCount": 1,
+    "kind": {
+      "$type": "chat.bsky.convo.defs#groupConvo",
+      "name": "Weekend Crew",
+      "memberCount": 12,
+      "memberLimit": 50,
+      "joinRequestCount": 2,
+      "joinLink": {
+        "code": "weekend-crew",
+        "enabledStatus": "enabled",
+        "requireApproval": false,
+        "joinRule": "anyone",
+        "createdAt": "2026-06-11T00:00:00Z"
+      },
+      "createdAt": "2026-06-11T00:00:00Z",
+      "lockStatus": "unlocked",
+      "lockStatusModerationOverride": false
+    }
+  }
+}
