@@ -78,6 +78,12 @@ the repository's own metadata when it has one, so a mismatch is caught here too.
 The caller still extracts that version because no two repositories keep it in
 the same file.
 
+The checked commit is `sha`, and it defaults to the commit that triggered the
+run. A repository that can repair a release by dispatch runs from `main`, while
+the tag being repaired points at an earlier commit; such a caller resolves the
+tag's commit first and passes it as `sha`, so the checks look at what is
+actually being released rather than at `main`'s head.
+
 ## PR body
 
 The template has three sections that must not be left empty: what changed, what was verified, and which docs moved. "Verified" means what was actually run, and on what: host, emulator or hardware. If I did not run it on a Wii U, the PR does not say I did.
