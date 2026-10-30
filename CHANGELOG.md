@@ -4,6 +4,16 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- The hosted OAuth node serves its privacy notice at `/` and `/privacy`, and ships a Docker Compose deployment with a read-only root filesystem, no capabilities, a memory-backed `/tmp` and no state volume. The node disables core dumps, marks itself non-dumpable on Linux and turns the library logger off, so credentials cannot be written to disk or logged. ([#231](https://github.com/ewanc26/wolfram/pull/231))
+
+### Fixed
+
+- Handle resolution waits for both the DNS and well-known lookups before returning. Both threads borrow the caller's client, so the old early return let a caller destroy it while the losing lookup still used it. ([#231](https://github.com/ewanc26/wolfram/pull/231))
+- An optional OAuth metadata array may be empty: a PDS publishing `scopes_supported: []` is accepted, while a required array still needs at least one entry. ([#231](https://github.com/ewanc26/wolfram/pull/231))
+
+
 ## [0.44.0] - 2026-10-30
 
 ### Added
