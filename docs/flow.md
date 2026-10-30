@@ -46,6 +46,38 @@ jobs:
 
 Then copy `.github/PULL_REQUEST_TEMPLATE.md` and the `<!-- flow:begin -->` block of `AGENTS.md` from Wolfram, byte for byte. To change the flow, change it here first, then copy it out; the drift check in the other repos fails until they have.
 
+## Reusable release check
+
+A repository that publishes tags can call Wolfram's release gate instead of
+carrying its own tag, changelog and check-run code. Pin the workflow and its
+checker to the same Wolfram tag:
+
+```yaml
+name: release-check
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+  checks: read
+jobs:
+  verify:
+    uses: ewanc26/wolfram/.github/workflows/release-check-reusable.yml@vX.Y.Z
+    with:
+      tag: ${{ github.ref_name }}
+      canon_ref: vX.Y.Z
+      required_checks: CI gate
+```
+
+The check refuses a tag that is not `vMAJOR.MINOR.PATCH`, a changelog with no
+non-empty section for that version, a commit that is not on `origin/main`, and
+any named check that did not succeed on the tagged commit. `required_checks` is
+a comma-separated list; `wait_seconds` waits for checks that are still running.
+When `version` is omitted it is the tag without its `v`; pass the version from
+the repository's own metadata when it has one, so a mismatch is caught here too.
+The caller still extracts that version because no two repositories keep it in
+the same file.
+
 ## PR body
 
 The template has three sections that must not be left empty: what changed, what was verified, and which docs moved. "Verified" means what was actually run, and on what: host, emulator or hardware. If I did not run it on a Wii U, the PR does not say I did.
