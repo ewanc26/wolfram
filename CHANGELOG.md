@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- `wf_agent_get_follows` and `wf_agent_get_followers` read the `follows` and `followers` arrays the endpoints actually send, falling back to `actors`. Every caller saw an empty list with no error, so Cobalt, Indigo and Platinum showed blank follower and following screens. ([#224](https://github.com/ewanc26/wolfram/pull/224))
+
 ## [0.43.0] - 2026-10-28
 
 ### Added
