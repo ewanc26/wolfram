@@ -42,8 +42,7 @@ This block is byte-identical in every repo of the stack and is drift-checked by 
 
 ## Recent history
 
-Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md from zincfox; Sync CONTRIBUTING.md from zincfox; test(xrpc-server): cover AppView-forwarding request headers
-
+test(xrpc-server): cover AppView-forwarding request headers
 ## Classic Mac OS 9
 
 - The Mac OS 9 transport uses Open Transport through the external macTLS async stream API.

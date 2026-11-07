@@ -16,4 +16,4 @@ Primarily C AT Protocol SDK: client-side, wire-level implementation (XRPC, OAuth
 
 ## Recent direction
 
-Recent commits: Sync AGENTS.md from zincfox; Sync AGENTS.md from zincfox; Sync CONTRIBUTING.md from zincfox; Sync CONTRIBUTING.md from zincfox; test(xrpc-server): cover AppView-forwarding request headers
+Recent commits: test(xrpc-server): cover AppView-forwarding request headers
