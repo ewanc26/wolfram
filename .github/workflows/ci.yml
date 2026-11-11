@@ -15,7 +15,10 @@ jobs:
 
   oauth-node:
     name: Hosted OAuth node
-    runs-on: ubuntu-latest
+    # Pinned to 24.04: ubuntu-latest moved to Ubuntu 26.04 (resolute) whose
+    # runner image cannot resolve security.ubuntu.com, so every apt install
+    # step fails (2026-11-11). 24.04 also keeps clang-format-18 available.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Install OAuth node dependencies
@@ -42,7 +45,7 @@ jobs:
   # Default build: core C23 library + CLI + unit tests. No optional modules.
   default:
     name: default build + ctest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -87,7 +90,7 @@ jobs:
   # buildable instead of exercising only hosts that installed every option.
   no-secp256k1:
     name: build without optional libsecp256k1
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -127,7 +130,7 @@ jobs:
   # Also exercises the C++ lexicon generator test suite (CTest lexgen).
   full:
     name: full-features build + ctest + lexgen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -276,7 +279,7 @@ jobs:
   # at the built .so.
   dotnet:
     name: C# interop (gated on dotnet)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -338,7 +341,7 @@ jobs:
   # the check step skips the job rather than failing the unrelated gate.
   node:
     name: Node.js addon (gated on node)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -401,7 +404,7 @@ jobs:
   # CodeWarrior build.
   macos9-transport:
     name: Mac OS 9 transport (C89)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -473,7 +476,7 @@ jobs:
   # new/modified lines are required to conform — see .clang-format.
   format:
     name: clang-format (changed lines)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -558,7 +561,7 @@ jobs:
   # The self-test feeds each rule a violation and requires it to be refused.
   flow-scripts:
     name: flow scripts self-test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - run: tools/flow-selftest.sh
@@ -575,7 +578,7 @@ jobs:
   # without blocking merges; it is deliberately not in the CI gate's needs.
   lexicon-drift:
     name: lexicon drift (advisory)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
@@ -600,7 +603,7 @@ jobs:
       - format
       - flow-scripts
       - macos
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Require every gating job to have passed
         env:
@@ -618,7 +621,7 @@ jobs:
   # than gating merges on an unreviewed score.
   desloppify-scan:
     name: desloppify (mechanical scan, informational)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7

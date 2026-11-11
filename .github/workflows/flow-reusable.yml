@@ -21,7 +21,10 @@ permissions:
 jobs:
   conventions:
     name: conventions
-    runs-on: ubuntu-latest
+    # Pinned to 24.04: ubuntu-latest moved to Ubuntu 26.04 (resolute) whose
+    # runner image cannot resolve security.ubuntu.com, so every apt install
+    # step fails (2026-11-11). 24.04 also keeps clang-format-18 available.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,7 +46,7 @@ jobs:
 
   style:
     name: style
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Fetch canonical flow
@@ -57,7 +60,7 @@ jobs:
 
   changelog:
     name: changelog
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
@@ -83,7 +86,7 @@ jobs:
 
   repo-config:
     name: labels and metadata
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Fetch canonical flow
@@ -109,7 +112,7 @@ jobs:
     name: drift
     # Wolfram is the canonical copy; there is nothing to drift from.
     if: github.repository != 'ewanc26/wolfram'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - name: Fetch canonical flow
@@ -126,7 +129,7 @@ jobs:
     if: inputs.macos9_c89
     # The Classic Mac OS 9 transport's C90 flags, checked on every caller. The
     # check reads the canonical copy, so it runs the same on every repo.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Fetch canonical flow
         uses: actions/checkout@v7
