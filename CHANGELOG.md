@@ -12,7 +12,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Changed
 
-- CI installs dependencies through `tools/apt-install.sh`, which skips packages the runner image already provides (the toolchain, clang-18/clang-format-18, libssl-dev, ...) and retries apt for the rest, and the ubuntu jobs are pinned to `ubuntu-24.04`: `ubuntu-latest` moved to Ubuntu 26.04 whose runner DNS cannot reach the Ubuntu archives, so every apt step failed on 2026-11-11.
+- CI installs dependencies through `tools/apt-install.sh`, which skips packages the runner image already provides (the toolchain, clang-18/clang-format-18, libssl-dev, ...) and retries apt for the rest, and the ubuntu jobs are pinned to `ubuntu-24.04`: `ubuntu-latest` moved to Ubuntu 26.04 whose runner DNS cannot reach the Ubuntu archives, so every apt step failed on 2026-11-11. ([#251](https://github.com/ewanc26/wolfram/pull/251))
 
 ## [0.44.2] - 2026-10-30
 
