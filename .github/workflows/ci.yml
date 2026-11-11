@@ -497,6 +497,127 @@ jobs:
       - name: Diff vendored lexicons/ against upstream
         run: tools/lexicon-drift.sh
 
+  # Console cross-builds: every devkitPro toolchain file in .devdeps/ gets a
+  # CI build so a broken console build cannot reach main unnoticed. Cross-
+  # compile only — nothing here runs on hardware; the log says so and hardware
+  # validation stays with the owner (see ewanc26/metalbear#34 for the Pi 1).
+  # devkitPro is bootstrapped with its documented apt installer, so the job
+  # runs on the stock runner like the others. The Wii needs mbedTLS built as a
+  # local portlib first (tools/build_wii_mbedtls.sh); the Wii U and 3DS get
+  # theirs from dkp-pacman. tools/embedded-check.sh is enforced here too.
+  console-cross:
+    name: cross-build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: wii
+            toolchain: wii.cmake
+            option: WOLFRAM_BUILD_WII=ON
+            prebuild: tools/build_wii_mbedtls.sh
+          - target: wiiu
+            toolchain: wiiu.cmake
+            option: WOLFRAM_BUILD_WIIU=ON
+          - target: 3ds
+            toolchain: 3ds.cmake
+            option: WOLFRAM_BUILD_3DS=ON
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install devkitPro and cross toolchains
+        run: |
+          ok=0
+          for attempt in 1 2 3; do
+            export DEBIAN_FRONTEND=noninteractive
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
+            wget ca-certificates sudo git make perl && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
+          wget -qO- https://apt.devkitpro.org/install-devkitpro-pacman.sh | sudo bash
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --noconfirm --needed \
+            devkitPPC devkitARM libogc libctru wut \
+            ppc-zlib ppc-pkg-config wii-pkg-config wiiu-pkg-config \
+            wiiu-curl wiiu-mbedtls 3ds-curl 3ds-mbedtls 3ds-zlib
+
+      - name: Cross-compile only — no hardware run
+        run: echo "console-cross/${{ matrix.target }} is a cross-compile; no binary is executed on hardware"
+
+      - name: Prebuild target-specific portlib
+        if: matrix.prebuild != ''
+        run: ${{ matrix.prebuild }}
+
+      - name: Configure and build
+        env:
+          DEVKITPRO: /opt/devkitpro
+        run: |
+          cmake -S . -B build-${{ matrix.target }} \
+            -DCMAKE_TOOLCHAIN_FILE=.devdeps/${{ matrix.toolchain }} \
+            -D${{ matrix.option }}
+          cmake --build build-${{ matrix.target }} -j"$(nproc)"
+
+      - name: Enforce console source list
+        if: matrix.target == 'wii'
+        run: tools/embedded-check.sh
+
+  # The Raspberry Pi 1 ARMv6 toolchain, which needs no devkitPro: the armhf
+  # cross-compiler plus the toolchain file's pinned -march=armv6zk flags make
+  # the compile Pi 1-safe. Without a Pi rootfs only the library archive is
+  # built (no executables are linked, so no target sysroot is needed); the
+  # log says so. The windows.cmake MinGW target is deliberately not here yet:
+  # WOLFRAM_BUILD_WINDOWS sets NON_POSIX (so CURL/OpenSSL are never found) but
+  # the library link block still requires CURL::libcurl, and there is no
+  # winsock transport — tracked in a follow-up issue.
+  host-cross:
+    name: cross-build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: rpi1
+            toolchain: rpi1.cmake
+            option: ""
+            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev libssl-dev
+            build_target: wolfram
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install cross toolchain
+        run: |
+          ok=0
+          for attempt in 1 2 3; do
+            sudo timeout 300 apt-get update &&
+            sudo timeout 900 apt-get install -y --no-install-recommends \
+            cmake make ${{ matrix.packages }} && ok=1 && break
+            echo "apt failed on attempt $attempt; retrying"; sleep 15
+          done
+            [ "$ok" = 1 ] || exit 1
+
+      - name: Cross-compile only — no hardware run
+        run: echo "host-cross/${{ matrix.target }} is a cross-compile; no binary is executed on hardware"
+
+      - name: Configure and build
+        env:
+          # No Pi rootfs on the runner: point the toolchain at the host root
+          # so configure-time find_package calls resolve, and build only the
+          # library archive (no executables are linked, so no target libs are
+          # needed).
+          RPI1_ROOTFS: /
+        run: |
+          opts=""
+          [ -n "${{ matrix.option }}" ] && opts="-D${{ matrix.option }}"
+          cmake -S . -B build-${{ matrix.target }} \
+            -DCMAKE_TOOLCHAIN_FILE=.devdeps/${{ matrix.toolchain }} $opts
+          if [ -n "${{ matrix.build_target }}" ]; then
+            cmake --build build-${{ matrix.target }} -j"$(nproc)" --target ${{ matrix.build_target }}
+          else
+            cmake --build build-${{ matrix.target }} -j"$(nproc)"
+          fi
+
   # One name for branch protection to require. It fails when any gating job
   # failed or was cancelled, so a new job is covered by adding it to `needs`
   # here instead of editing repository settings. The desloppify scan and the
@@ -512,6 +633,8 @@ jobs:
       - dotnet
       - node
       - macos9-transport
+      - console-cross
+      - host-cross
       - format
       - flow-scripts
       - macos
