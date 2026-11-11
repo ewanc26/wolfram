@@ -138,7 +138,9 @@ jobs:
           ref: ${{ inputs.canon_ref }}
           path: .flow-canon
       - name: Install clang and gcc
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang gcc
+        # Both ship on the ubuntu-24.04 runner image, so this normally skips
+        # apt entirely; apt is only the fallback when they are missing.
+        run: sudo bash .flow-canon/tools/apt-install.sh clang gcc
       - name: Compile the Mac OS 9 transport sources under C90
         working-directory: .flow-canon
         run: bash tools/macos9-c89-check.sh
