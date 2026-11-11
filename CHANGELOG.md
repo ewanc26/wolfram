@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-11-11
+
 ### Added
 
 - The Node addon (`node/wolfram_core.c`) now exposes the offline typed contracts of `chat_group.h` (`chatConvoIsGroup`, `chatJoinLinkUrl`, `chatJoinLinkIsEnabled`), `ageassurance_typed.h` (`ageassuranceParseBegin`/`Config`/`State`) and `notification_v2_typed.h` (`notifV2PreferencesParse`/`Build`, `notifV2ParsePutActivitySubscription`, `notifV2ParseListActivitySubscriptions`), each running its new shared vectors (`test/vectors/chat_group.json`, `ageassurance.json`, `notification_v2.json`) through the binding in `node/test/` and CI. ([#242](https://github.com/ewanc26/wolfram/issues/242))
@@ -508,7 +510,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.44.2...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.45.0...HEAD
+[0.45.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.45.0
 [0.44.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.2
 [0.44.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.1
 [0.44.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.0
