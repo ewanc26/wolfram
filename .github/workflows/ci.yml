@@ -528,16 +528,28 @@ jobs:
       - name: Install devkitPro and cross toolchains
         run: |
           ok=0
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4 5; do
             export DEBIAN_FRONTEND=noninteractive
             sudo timeout 300 apt-get update &&
             sudo timeout 900 apt-get install -y --no-install-recommends \
             wget ca-certificates sudo git make perl && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
+            echo "apt failed on attempt $attempt; retrying"; sleep 20
           done
             [ "$ok" = 1 ] || exit 1
-          wget -qO- https://apt.devkitpro.org/install-devkitpro-pacman.sh | sudo bash
-          sudo dkp-pacman -Syu --noconfirm
+          for attempt in 1 2 3 4 5; do
+            wget -qO /tmp/dkp-install.sh \
+              https://apt.devkitpro.org/install-devkitpro-pacman.sh && break
+            echo "installer download failed on attempt $attempt; retrying"
+            sleep 20
+          done
+          sudo bash /tmp/dkp-install.sh
+          command -v dkp-pacman >/dev/null || {
+            echo "dkp-pacman not on PATH after install"; exit 1; }
+          for attempt in 1 2 3; do
+            sudo dkp-pacman -Syu --noconfirm && break
+            echo "dkp-pacman -Syu failed on attempt $attempt; retrying"
+            sleep 20
+          done
           sudo dkp-pacman -S --noconfirm --needed \
             devkitPPC devkitARM libogc libctru wut \
             ppc-zlib ppc-pkg-config wii-pkg-config wiiu-pkg-config \
