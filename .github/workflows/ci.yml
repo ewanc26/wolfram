@@ -564,6 +564,11 @@ jobs:
   host-cross:
     name: cross-build ${{ matrix.target }}
     runs-on: ubuntu-24.04
+    # Bare ubuntu:24.04 container, not the runner image: the image's amd64
+    # libc6-dev headers shadow the armhf cross headers when RPI1_ROOTFS=/
+    # (gnu/stubs-32.h missing), so cross-compile in a clean rootfs — the
+    # recipe verified locally by the PR author.
+    container: ubuntu:24.04
     strategy:
       fail-fast: false
       matrix:
@@ -577,7 +582,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install cross toolchain
-        run: sudo bash tools/apt-install.sh cmake make ${{ matrix.packages }}
+        run: bash tools/apt-install.sh cmake make ${{ matrix.packages }}
 
       - name: Cross-compile only — no hardware run
         run: echo "host-cross/${{ matrix.target }} is a cross-compile; no binary is executed on hardware"
