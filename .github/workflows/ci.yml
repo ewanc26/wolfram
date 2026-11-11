@@ -576,18 +576,10 @@ jobs:
           - target: rpi1
             toolchain: rpi1.cmake
             option: ""
-            packages: cmake make git ca-certificates gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev:armhf libssl-dev:armhf
+            packages: cmake make git ca-certificates gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev libssl-dev
             build_target: wolfram
     steps:
       - uses: actions/checkout@v7
-
-      - name: Enable armhf multiarch (cross dev packages)
-        # noble's main archive carries no armhf indexes; they live on
-        # ports.ubuntu.com. Verified in a clean ubuntu:24.04 container.
-        run: |
-          dpkg --add-architecture armhf
-          sed -i 's/^Architectures: amd64$/Architectures: amd64 armhf/' /etc/apt/sources.list.d/ubuntu.sources
-          printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates noble-security\nComponents: main universe\nArchitectures: armhf\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' > /etc/apt/sources.list.d/armhf-ports.sources
 
       - name: Install cross toolchain
         run: bash tools/apt-install.sh ${{ matrix.packages }}
@@ -596,17 +588,27 @@ jobs:
         run: echo "host-cross/${{ matrix.target }} is a cross-compile; no binary is executed on hardware"
 
       - name: Configure and build
-        env:
-          # No Pi rootfs on the runner: point the toolchain at the host root
-          # so configure-time find_package calls resolve, and build only the
-          # library archive (no executables are linked, so no target libs are
-          # needed).
-          RPI1_ROOTFS: /
         run: |
           opts=""
           [ -n "${{ matrix.option }}" ] && opts="-D${{ matrix.option }}"
+          # Archive-only cross-build: no Pi rootfs on the runner, so no
+          # --sysroot (the cross-gcc already uses its own armhf sysroot and
+          # host amd64 headers never leak in). Build the static archive only
+          # (nothing is linked); point configure-time find_package at the
+          # host's arch-independent dev packages via explicit -D hints.
+          case $(uname -m) in
+            x86_64)  M=x86_64-linux-gnu ;;
+            aarch64) M=aarch64-linux-gnu ;;
+            *) echo "unsupported host arch $(uname -m)"; exit 1 ;;
+          esac
           cmake -S . -B build-${{ matrix.target }} \
-            -DCMAKE_TOOLCHAIN_FILE=.devdeps/${{ matrix.toolchain }} $opts
+            -DCMAKE_TOOLCHAIN_FILE=.devdeps/${{ matrix.toolchain }} \
+            -DBUILD_SHARED_LIBS=OFF $opts \
+            -DCURL_INCLUDE_DIR=/usr/include/$M \
+            -DCURL_LIBRARY=/usr/lib/$M/libcurl.so \
+            -DOPENSSL_INCLUDE_DIR=/usr/include \
+            -DOPENSSL_SSL_LIBRARY=/usr/lib/$M/libssl.so \
+            -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/$M/libcrypto.so
           if [ -n "${{ matrix.build_target }}" ]; then
             cmake --build build-${{ matrix.target }} -j"$(nproc)" --target ${{ matrix.build_target }}
           else

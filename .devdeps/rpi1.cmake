@@ -84,12 +84,18 @@ else()
         "sysroot by default.")
 endif()
 
-# Don't search host paths for libraries/headers
-set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+# Restrict find_* to the target sysroot when one is set. Without
+# RPI1_ROOTFS the cross-gcc already uses its own armhf sysroot (host amd64
+# headers never leak in), and the default find modes let configure see the
+# host's arch-independent dev packages (libcurl, OpenSSL), which matters
+# for archive-only CI cross-builds where nothing is linked.
+if(DEFINED ENV{RPI1_ROOTFS})
+  set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
+  set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+  set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+  set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+endif()
 
 # 256MB (Pi 1B rev1) / 512MB (rev2+) total RAM, no swap by default on most
 # minimal images — LTO's memory use during the final link is a host-side
