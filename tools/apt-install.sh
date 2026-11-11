@@ -64,8 +64,10 @@ fix_mirror || true
 ok=0
 for attempt in 1 2 3 4 5; do
   fix_mirror || true
-  if timeout 300 apt-get update &&
-     timeout 900 apt-get install -y --no-install-recommends "${missing[@]}"; then
+  # A partial apt-get update (one 404'd index among many) must not fail the
+  # attempt when the packages themselves are fetchable.
+  timeout 300 apt-get update || echo "apt-install: apt-get update had errors; continuing" >&2
+  if timeout 900 apt-get install -y --no-install-recommends "${missing[@]}"; then
     ok=1
     break
   fi
