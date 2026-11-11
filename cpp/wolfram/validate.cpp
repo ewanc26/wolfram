@@ -1,5 +1,6 @@
 #include "wolfram/validate.h"
 #include "wolfram/syntax.h"
+#include "wolfram/util.h"
 
 #include <cJSON.h>
 #include <curl/curl.h>
@@ -29,6 +30,7 @@ extern "C" {
 struct wf_lexicon_doc {
     char *id;
     cJSON *root;
+    char *raw; /* the document's original JSON text, owned */
     wf_lexicon_doc *next;
 };
 
@@ -1593,6 +1595,7 @@ void wf_lexicon_registry_free(wf_lexicon_registry *registry) {
         next = doc->next;
         std::free(doc->id);
         cJSON_Delete(doc->root);
+        std::free(doc->raw);
         std::free(doc);
         doc = next;
     }
@@ -1630,15 +1633,25 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
     if (existing) {
         cJSON *old_root = existing->root;
         char *old_id = existing->id;
+        char *old_raw = existing->raw;
+        char *new_raw = wf_dup_span(json, json_len);
+        if (!new_raw) {
+            cJSON_Delete(root);
+            return WF_ERR_ALLOC;
+        }
         existing->root = root;
         existing->id = wf_strdup(id_item->valuestring);
         if (!existing->id) {
             existing->root = old_root;
             existing->id = old_id;
+            existing->raw = old_raw;
+            std::free(new_raw);
             cJSON_Delete(root);
             return WF_ERR_ALLOC;
         }
+        existing->raw = new_raw;
         std::free(old_id);
+        std::free(old_raw);
         cJSON_Delete(old_root);
         return WF_OK;
     }
@@ -1650,7 +1663,10 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
     }
     doc->id = wf_strdup(id_item->valuestring);
     doc->root = root;
-    if (!doc->id) {
+    doc->raw = wf_dup_span(json, json_len);
+    if (!doc->id || !doc->raw) {
+        std::free(doc->id);
+        std::free(doc->raw);
         cJSON_Delete(root);
         std::free(doc);
         return WF_ERR_ALLOC;
@@ -1658,6 +1674,65 @@ wf_status wf_lexicon_registry_load(wf_lexicon_registry *registry,
     doc->next = registry->docs;
     registry->docs = doc;
     return WF_OK;
+}
+
+wf_status wf_lexicon_registry_document(const wf_lexicon_registry *registry,
+                                       const char *lexicon_id,
+                                       const char **json, size_t *json_len) {
+    const wf_lexicon_doc *doc;
+
+    if (!registry || !lexicon_id || !json || !json_len) {
+        return WF_ERR_INVALID_ARG;
+    }
+    doc = wf_registry_find_doc(registry, lexicon_id);
+    if (!doc || !doc->raw) {
+        return WF_ERR_NOT_FOUND;
+    }
+    *json = doc->raw;
+    *json_len = std::strlen(doc->raw);
+    return WF_OK;
+}
+
+wf_status wf_lexicon_resolve(const char *nsid, const char *corpus_dir,
+                             char **out_json, size_t *out_len) {
+    const char *dir = corpus_dir;
+    wf_lexicon_registry *registry;
+    const char *raw = NULL;
+    size_t raw_len = 0;
+    wf_status status;
+
+    if (!nsid || !out_json || !out_len) return WF_ERR_INVALID_ARG;
+    *out_json = NULL;
+    *out_len = 0;
+
+#ifndef WF_ATPROTO_LEXICONS
+#define WF_ATPROTO_LEXICONS NULL
+#endif
+    if (!dir || !*dir) {
+        const char *env = std::getenv("WF_ATPROTO_LEXICONS");
+        dir = (env && *env) ? env : WF_ATPROTO_LEXICONS;
+    }
+    if (!dir || !*dir) return WF_ERR_INVALID_ARG;
+
+    registry = wf_lexicon_registry_new();
+    if (!registry) return WF_ERR_ALLOC;
+    status = wf_lexicon_registry_load_dir(registry, dir);
+    if (status != WF_OK) {
+        wf_lexicon_registry_free(registry);
+        return WF_ERR_INVALID_ARG; /* corpus root missing or empty */
+    }
+    status = wf_lexicon_registry_document(registry, nsid, &raw, &raw_len);
+    if (status == WF_OK) {
+        char *copy = wf_dup_span(raw, raw_len);
+        if (!copy) {
+            status = WF_ERR_ALLOC;
+        } else {
+            *out_json = copy;
+            *out_len = raw_len;
+        }
+    }
+    wf_lexicon_registry_free(registry);
+    return status;
 }
 
 wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,

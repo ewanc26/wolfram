@@ -1679,6 +1679,15 @@ if(WOLFRAM_BUILD_TESTS)
     add_test(NAME idn COMMAND test_idn)
   endif()
 
+  add_executable(test_lexicon_resolve test/test_lexicon_resolve.c)
+  target_link_libraries(test_lexicon_resolve PRIVATE wolfram)
+  target_include_directories(test_lexicon_resolve PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_lexicon_resolve
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors"
+            WF_ATPROTO_LEXICONS="${CMAKE_CURRENT_SOURCE_DIR}/lexicons")
+  add_test(NAME lexicon_resolve COMMAND test_lexicon_resolve)
+
   add_executable(test_validate_corpus test/test_validate_corpus.c)
   target_link_libraries(test_validate_corpus PRIVATE wolfram)
   target_include_directories(test_validate_corpus PRIVATE test)

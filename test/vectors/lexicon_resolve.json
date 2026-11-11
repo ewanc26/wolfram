@@ -1,0 +1,12 @@
+{
+ "_comment": "wf_lexicon_resolve / wf_lexicon_registry_document vectors. corpus_nsids must resolve to their vendored document; unknown_nsid must return WF_ERR_NOT_FOUND; mini_lexicon is the in-memory registry document used for the lookup/replace cases.",
+ "mini_lexicon": "{\"lexicon\":1,\"id\":\"com.example.mini\",\"defs\":{\"main\":{\"type\":\"record\",\"record\":{\"type\":\"object\",\"required\":[\"text\"],\"properties\":{\"text\":{\"type\":\"string\"}}}}}}",
+ "mini_lexicon_replacement": "{\"lexicon\":1,\"id\":\"com.example.mini\",\"revision\":2,\"defs\":{}}",
+ "corpus_nsids": [
+  "app.bsky.feed.post",
+  "com.atproto.lexicon.schema",
+  "app.bsky.feed.generator"
+ ],
+ "unknown_nsid": "com.example.does-not-exist",
+ "bad_corpus_dir": "/nonexistent-wolfram-corpus-dir"
+}
