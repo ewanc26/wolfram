@@ -96,13 +96,22 @@ and `node --test node/test/` drive the update contract's shared vectors
 through the addon). Every exported function calls a `libwolfram` function —
 the addon never re-implements an update rule; it is bridging plumbing only.
 
-- **Surface** — the update contract only, the piece a Node consumer cannot
-  otherwise reach without carrying a port of it: `compareVersions`,
-  `versionValid`, `sha256Hex`, `parseManifest`, `verifySignature`. Errors are
-  wolfram's statuses surfaced: every throw carries a `code` holding the
-  `wf_status` name (`WF_ERR_PARSE`, `WF_ERR_VALIDATION`, `WF_ERR_INVALID_ARG`);
-  the consumer maps them into its own error kinds. The addon never writes
-  user-facing prose.
+- **Surface** — the update contract plus the offline typed contracts a Node
+  consumer cannot otherwise reach without carrying a port of them:
+  `compareVersions`, `versionValid`, `sha256Hex`, `parseManifest`,
+  `verifySignature` (update.h); `buildPairBegin`, `parsePairBegin`,
+  `parsePairPoll` (oauth_pairing.h, parsers only — the begin/poll loop stays
+  in the consumer); `postDisplay` (post_display.h); `chatConvoIsGroup`,
+  `chatJoinLinkUrl`, `chatJoinLinkIsEnabled` (chat_group.h);
+  `ageassuranceParseBegin`, `ageassuranceParseConfig`,
+  `ageassuranceParseState` (ageassurance_typed.h); `notifV2PreferencesParse`,
+  `notifV2PreferencesBuild`, `notifV2ParsePutActivitySubscription`,
+  `notifV2ParseListActivitySubscriptions` (notification_v2_typed.h). Every
+  contract runs its shared vectors (`test/vectors/*.json`) through the addon
+  in `node/test/` and CI. Errors are wolfram's statuses surfaced: every throw
+  carries a `code` holding the `wf_status` name (`WF_ERR_PARSE`,
+  `WF_ERR_VALIDATION`, `WF_ERR_INVALID_ARG`); the consumer maps them into its
+  own error kinds. The addon never writes user-facing prose.
 - **Ownership** — every call is synchronous and runs on the JS thread, and
   nothing shares state across calls; a `wf_update_policy`'s borrowed strings
   are freed before the call returns. Hex decoding is the library's

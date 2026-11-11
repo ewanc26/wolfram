@@ -2412,6 +2412,21 @@ if(WOLFRAM_BUILD_NODE)
                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
       set_tests_properties(node_post_display PROPERTIES
                            ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
+      add_test(NAME node_chat_group
+               COMMAND ${Node_EXECUTABLE} --test node/test/chat_group.test.mjs
+               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+      set_tests_properties(node_chat_group PROPERTIES
+                           ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
+      add_test(NAME node_ageassurance
+               COMMAND ${Node_EXECUTABLE} --test node/test/ageassurance.test.mjs
+               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+      set_tests_properties(node_ageassurance PROPERTIES
+                           ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
+      add_test(NAME node_notification_v2
+               COMMAND ${Node_EXECUTABLE} --test node/test/notification_v2.test.mjs
+               WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+      set_tests_properties(node_notification_v2 PROPERTIES
+                           ENVIRONMENT "WOLFRAM_NODE_ADDON=${CMAKE_BINARY_DIR}/wolfram_core.node")
     else()
       message(STATUS "node not found -- node/test skipped; build the addon and run 'node --test node/test/' to drive the vectors")
     endif()

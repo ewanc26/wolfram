@@ -1,0 +1,59 @@
+{
+ "description": "chat_group.h contracts driven through the Node addon: chatConvoIsGroup over getConvo bodies (wf_agent_parse_convo + wf_chat_convo_is_group), chatJoinLinkUrl (wf_chat_join_link_url), chatJoinLinkIsEnabled (wf_chat_join_link_is_enabled). C-side coverage of the same helpers lives in test/test_chat_typed.c (test_chat_group_helpers); errors are asserted by `code`, never by text.",
+ "is_group": [
+  {
+   "name": "group convo fixture",
+   "convo_text": "{\n  \"convo\": {\n    \"id\": \"convo-group\",\n    \"rev\": \"rev-group\",\n    \"members\": [\n      { \"did\": \"did:plc:alice\", \"handle\": \"alice.bsky.social\", \"displayName\": \"Alice\" },\n      { \"did\": \"did:plc:bob\", \"handle\": \"bob.bsky.social\", \"displayName\": \"Bob\" }\n    ],\n    \"muted\": false,\n    \"unreadCount\": 1,\n    \"kind\": {\n      \"$type\": \"chat.bsky.convo.defs#groupConvo\",\n      \"name\": \"Weekend Crew\",\n      \"memberCount\": 12,\n      \"memberLimit\": 50,\n      \"joinRequestCount\": 2,\n      \"joinLink\": {\n        \"code\": \"weekend-crew\",\n        \"enabledStatus\": \"enabled\",\n        \"requireApproval\": false,\n        \"joinRule\": \"anyone\",\n        \"createdAt\": \"2026-06-11T00:00:00Z\"\n      },\n      \"createdAt\": \"2026-06-11T00:00:00Z\",\n      \"lockStatus\": \"unlocked\",\n      \"lockStatusModerationOverride\": false\n    }\n  }\n}\n",
+   "expect": true
+  },
+  {
+   "name": "direct convo fixture",
+   "convo_text": "{\n  \"convo\": {\n    \"id\": \"convo-1\",\n    \"rev\": \"rev-abc\",\n    \"members\": [\n      { \"did\": \"did:plc:alice\", \"handle\": \"alice.bsky.social\", \"displayName\": \"Alice\" },\n      { \"did\": \"did:plc:bob\", \"handle\": \"bob.bsky.social\", \"displayName\": \"Bob\" }\n    ],\n    \"lastMessage\": { \"id\": \"m1\", \"rev\": \"r1\", \"text\": \"hello there\", \"sender\": { \"did\": \"did:plc:alice\" }, \"sentAt\": \"2024-01-01T00:00:00Z\" },\n    \"muted\": false,\n    \"unreadCount\": 2,\n    \"kind\": \"direct\"\n  },\n  \"messages\": [\n    { \"id\": \"m1\", \"rev\": \"r1\", \"text\": \"first\", \"sender\": { \"did\": \"did:plc:alice\" }, \"sentAt\": \"2024-01-01T00:00:00Z\" },\n    { \"id\": \"m2\", \"rev\": \"r2\", \"text\": \"second\", \"sender\": { \"did\": \"did:plc:bob\" }, \"sentAt\": \"2024-01-01T00:01:00Z\" }\n  ]\n}\n",
+   "expect": false
+  },
+  {
+   "name": "group by union tag only, no kind fields",
+   "convo_text": "{\"convo\":{\"id\":\"c9\",\"rev\":\"r\",\"members\":[{\"did\":\"did:plc:a\",\"handle\":\"a.bsky.social\"}],\"unreadCount\":0,\"kind\":{\"$type\":\"chat.bsky.convo.defs#groupConvo\"}}}",
+   "expect": true
+  },
+  {
+   "name": "direct by union tag only",
+   "convo_text": "{\"convo\":{\"id\":\"c8\",\"rev\":\"r\",\"members\":[{\"did\":\"did:plc:a\",\"handle\":\"a.bsky.social\"}],\"unreadCount\":0,\"kind\":{\"$type\":\"chat.bsky.convo.defs#directConvo\"}}}",
+   "expect": false
+  },
+  {
+   "name": "unparseable text",
+   "convo_text": "{oops",
+   "error": "WF_ERR_PARSE"
+  }
+ ],
+ "join_link_url": [
+  {
+   "name": "code",
+   "code": "weekend-crew",
+   "expect": "https://bsky.app/chat/weekend-crew"
+  },
+  {
+   "name": "empty code yields empty string",
+   "code": "",
+   "expect": ""
+  }
+ ],
+ "join_link_enabled": [
+  {
+   "name": "enabled",
+   "status": "enabled",
+   "expect": true
+  },
+  {
+   "name": "disabled",
+   "status": "disabled",
+   "expect": false
+  },
+  {
+   "name": "null",
+   "status": null,
+   "expect": false
+  }
+ ]
+}
