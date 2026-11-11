@@ -14,6 +14,15 @@
  *   post_display.h: postDisplay(recordText?, embedText?) -- the display model
  *              of a post from its raw record/embed JSON; fetching (network)
  *              stays in the consumer
+ *   chat_group.h: chatConvoIsGroup(convoText), chatJoinLinkUrl(code),
+ *              chatJoinLinkIsEnabled(status) -- group-conversation helpers
+ *              over a parsed getConvo body
+ *   ageassurance_typed.h: ageassuranceParseBegin/Config/State(jsonText) --
+ *              the app.bsky.ageassurance response parsers
+ *   notification_v2_typed.h: notifV2PreferencesParse(jsonText),
+ *              notifV2PreferencesBuild(prefs), notifV2ParsePutActivity-
+ *              Subscription(jsonText), notifV2ParseListActivitySubscriptions
+ *              (jsonText) -- the app.bsky.notification v2 parsers/builder
  *
  * Errors are wolfram's statuses surfaced, not messages: every throw carries
  * an Error whose `code` is the wf_status name (WF_ERR_PARSE and so on), so
@@ -35,6 +44,10 @@
  * be PIC, and libwolfram's own link mode must not change for this target.
  */
 
+#include "wolfram/ageassurance_typed.h"
+#include "wolfram/chat_group.h"
+#include "wolfram/chat_typed.h"
+#include "wolfram/notification_v2_typed.h"
 #include "wolfram/oauth_pairing.h"
 #include "wolfram/post_display.h"
 #include "wolfram/update.h"
@@ -850,6 +863,718 @@ static napi_value post_display(napi_env env, napi_callback_info info) {
     return result;
 }
 
+/* ---- cJSON -> JS value --------------------------------------------------- */
+
+/* Converts a cJSON subtree (an owned detached `extra`/`regions` member) into
+ * the matching JS value, so consumers never handle Wolfram's JSON tree. */
+static bool cjson_to_js(napi_env env, const cJSON *node, napi_value *out) {
+    if (node == NULL || cJSON_IsNull(node)) {
+        return napi_get_null(env, out) == napi_ok;
+    }
+    if (cJSON_IsTrue(node)) return napi_get_boolean(env, true, out) == napi_ok;
+    if (cJSON_IsFalse(node))
+        return napi_get_boolean(env, false, out) == napi_ok;
+    if (cJSON_IsNumber(node)) {
+        return napi_create_double(env, node->valuedouble, out) == napi_ok;
+    }
+    if (cJSON_IsString(node)) {
+        return napi_create_string_utf8(
+                   env, node->valuestring != NULL ? node->valuestring : "",
+                   NAPI_AUTO_LENGTH, out) == napi_ok;
+    }
+    if (cJSON_IsArray(node)) {
+        napi_value arr;
+        cJSON *item;
+        uint32_t i = 0;
+        if (napi_create_array_with_length(env, (size_t)cJSON_GetArraySize(node),
+                                          &arr) != napi_ok)
+            return false;
+        cJSON_ArrayForEach(item, node) {
+            napi_value v;
+            if (!cjson_to_js(env, item, &v) ||
+                napi_set_element(env, arr, i++, v) != napi_ok)
+                return false;
+        }
+        *out = arr;
+        return true;
+    }
+    if (cJSON_IsObject(node)) {
+        napi_value obj;
+        cJSON *item;
+        if (napi_create_object(env, &obj) != napi_ok) return false;
+        cJSON_ArrayForEach(item, node) {
+            napi_value v;
+            if (!cjson_to_js(env, item, &v) ||
+                napi_set_named_property(
+                    env, obj, item->string != NULL ? item->string : "", v) !=
+                    napi_ok)
+                return false;
+        }
+        *out = obj;
+        return true;
+    }
+    return napi_get_undefined(env, out) == napi_ok;
+}
+
+/* ---- chat_group ---------------------------------------------------------- */
+
+/* chatConvoIsGroup(convoText) parses a getConvo body with
+ * wf_agent_parse_convo and answers wf_chat_convo_is_group. Unparseable or
+ * non-convo text throws the parser's status. */
+static napi_value chat_convo_is_group(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value argv[1], result = NULL;
+    wf_bytes body = {NULL, 0, false};
+    bool threw = false;
+    wf_chat_convo convo;
+    wf_status st;
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL,
+                              "chatConvoIsGroup(convoText) takes JSON text");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    body = take_bytes(env, argv[0], &threw);
+    if (!threw) {
+        memset(&convo, 0, sizeof(convo));
+        st = wf_agent_parse_convo((const char *)body.data, body.len, &convo);
+        if (st != WF_OK) {
+            throw_status(env, st, "wf_agent_parse_convo");
+        } else {
+            napi_value b;
+            if (napi_get_boolean(env, wf_chat_convo_is_group(&convo) != 0,
+                                 &b) == napi_ok)
+                result = b;
+        }
+        wf_chat_convo_free(&convo);
+    }
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* chatJoinLinkUrl(code) is wf_chat_join_link_url with a fixed buffer: the
+ * https://bsky.app/chat/<code> address, or "" when the C rejects the code
+ * (empty, or too long to fit). */
+static napi_value chat_join_link_url(napi_env env, napi_callback_info info) {
+    size_t argc = 1;
+    napi_value argv[1], result = NULL;
+    char *code = NULL;
+    size_t code_len = 0;
+    bool threw = false;
+    char url[512];
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL,
+                              "chatJoinLinkUrl(code) takes a string");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    code = take_utf8(env, argv[0], &code_len, &threw);
+    if (!threw) {
+        if (wf_chat_join_link_url(code, url, sizeof(url)) &&
+            napi_create_string_utf8(env, url, NAPI_AUTO_LENGTH, &result) !=
+                napi_ok) {
+            result = NULL; /* pure napi failure, exception pending */
+        } else if (result == NULL) {
+            if (napi_create_string_utf8(env, "", 0, &result) != napi_ok)
+                result = NULL;
+        }
+    }
+    free(code);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* chatJoinLinkIsEnabled(status) is wf_chat_join_link_is_enabled; a JS null
+ * argument maps to the C NULL. */
+static napi_value chat_join_link_is_enabled(napi_env env,
+                                            napi_callback_info info) {
+    size_t argc = 1;
+    napi_value argv[1], result = NULL;
+    napi_valuetype type;
+    char *status = NULL;
+    bool threw = false;
+    napi_handle_scope scope;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL,
+                              "chatJoinLinkIsEnabled(status) takes a string "
+                              "or null");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    napi_typeof(env, argv[0], &type);
+    if (type == napi_string) {
+        status = take_utf8(env, argv[0], NULL, &threw);
+    } else if (type != napi_null && type != napi_undefined) {
+        napi_throw_type_error(env, NULL, "expected a string or null");
+        threw = true;
+    }
+    if (!threw) {
+        napi_value b;
+        if (napi_get_boolean(env, wf_chat_join_link_is_enabled(status) != 0,
+                             &b) == napi_ok)
+            result = b;
+    }
+    free(status);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* ---- ageassurance_typed ---------------------------------------------------
+ */
+
+/* Shared intake: exactly one JSON-text argument, returned as bytes. */
+static bool take_one_json(napi_env env, napi_callback_info info,
+                          const char *signature, wf_bytes *body, bool *threw,
+                          napi_handle_scope *scope) {
+    size_t argc = 1;
+    napi_value argv[1];
+
+    *threw = false;
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL, signature);
+        return false;
+    }
+    if (napi_open_handle_scope(env, scope) != napi_ok) return false;
+    *body = take_bytes(env, argv[0], threw);
+    return !*threw;
+}
+
+static bool set_ageassurance_state(napi_env env, napi_value obj,
+                                   const wf_ageassurance_begin *s) {
+    return set_utf8_or_null(env, obj, "lastInitiatedAt",
+                            s->last_initiated_at) &&
+           set_utf8_or_null(env, obj, "status", s->status) &&
+           set_utf8_or_null(env, obj, "access", s->access);
+}
+
+/* ageassuranceParseBegin(jsonText) parses an app.bsky.ageassurance.begin body
+ * into { lastInitiatedAt, status, access }. */
+static napi_value ageassurance_parse_begin(napi_env env,
+                                           napi_callback_info info) {
+    wf_bytes body = {NULL, 0, false};
+    bool threw;
+    napi_handle_scope scope;
+    napi_value result = NULL, obj;
+    wf_ageassurance_begin out;
+    wf_status st;
+
+    if (!take_one_json(env, info,
+                       "ageassuranceParseBegin(jsonText) takes "
+                       "JSON text",
+                       &body, &threw, &scope))
+        return NULL;
+    memset(&out, 0, sizeof(out));
+    st = wf_ageassurance_parse_begin((const char *)body.data, body.len, &out);
+    if (st != WF_OK) {
+        throw_status(env, st, "wf_ageassurance_parse_begin");
+    } else if (napi_create_object(env, &obj) == napi_ok &&
+               set_ageassurance_state(env, obj, &out)) {
+        result = obj;
+    }
+    wf_ageassurance_begin_free(&out);
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* ageassuranceParseConfig(jsonText) parses a getConfig body into
+ * { regions }, where regions is the owned array as a plain JS value. */
+static napi_value ageassurance_parse_config(napi_env env,
+                                            napi_callback_info info) {
+    wf_bytes body = {NULL, 0, false};
+    bool threw;
+    napi_handle_scope scope;
+    napi_value result = NULL, obj, regions;
+    wf_ageassurance_config out;
+    wf_status st;
+
+    if (!take_one_json(env, info,
+                       "ageassuranceParseConfig(jsonText) takes "
+                       "JSON text",
+                       &body, &threw, &scope))
+        return NULL;
+    memset(&out, 0, sizeof(out));
+    st = wf_ageassurance_parse_config((const char *)body.data, body.len, &out);
+    if (st != WF_OK) {
+        throw_status(env, st, "wf_ageassurance_parse_config");
+    } else if (napi_create_object(env, &obj) == napi_ok &&
+               cjson_to_js(env, out.regions, &regions) &&
+               napi_set_named_property(env, obj, "regions", regions) ==
+                   napi_ok) {
+        result = obj;
+    }
+    wf_ageassurance_config_free(&out);
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* ageassuranceParseState(jsonText) parses a getState body into
+ * { state: {...}, metadata: { accountCreatedAt } }. */
+static napi_value ageassurance_parse_state(napi_env env,
+                                           napi_callback_info info) {
+    wf_bytes body = {NULL, 0, false};
+    bool threw;
+    napi_handle_scope scope;
+    napi_value result = NULL, obj, state_obj, metadata_obj;
+    wf_ageassurance_state out;
+    wf_status st;
+
+    if (!take_one_json(env, info,
+                       "ageassuranceParseState(jsonText) takes "
+                       "JSON text",
+                       &body, &threw, &scope))
+        return NULL;
+    memset(&out, 0, sizeof(out));
+    st = wf_ageassurance_parse_state((const char *)body.data, body.len, &out);
+    if (st != WF_OK) {
+        throw_status(env, st, "wf_ageassurance_parse_state");
+    } else if (napi_create_object(env, &obj) == napi_ok &&
+               napi_create_object(env, &state_obj) == napi_ok &&
+               set_ageassurance_state(env, state_obj, &out.state) &&
+               napi_set_named_property(env, obj, "state", state_obj) ==
+                   napi_ok &&
+               napi_create_object(env, &metadata_obj) == napi_ok &&
+               set_utf8_or_null(env, metadata_obj, "accountCreatedAt",
+                                out.metadata.account_created_at) &&
+               napi_set_named_property(env, obj, "metadata", metadata_obj) ==
+                   napi_ok) {
+        result = obj;
+    }
+    wf_ageassurance_state_free(&out);
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* ---- notification_v2_typed ------------------------------------------------
+ */
+
+static const char *include_name(wf_notif_v2_include include) {
+    switch (include) {
+        case WF_NOTIF_V2_INCLUDE_ALL:
+            return "all";
+        case WF_NOTIF_V2_INCLUDE_FOLLOWS:
+            return "follows";
+        case WF_NOTIF_V2_INCLUDE_ACCEPTED:
+            return "accepted";
+        default:
+            return NULL;
+    }
+}
+
+/* Emits one preference slot; absent slots (has == 0) are omitted entirely and
+ * unset scalars (has_* == 0) are omitted within the slot. */
+static bool set_filterable_pref(napi_env env, napi_value obj, const char *key,
+                                int has, const wf_notif_v2_filterable_pref *p) {
+    napi_value sub;
+    if (!has) return true;
+    if (napi_create_object(env, &sub) != napi_ok) return false;
+    if (p->has_include &&
+        !set_utf8(env, sub, "include", include_name(p->include)))
+        return false;
+    if (p->has_list && !set_bool(env, sub, "list", p->list != 0)) return false;
+    if (p->has_push && !set_bool(env, sub, "push", p->push != 0)) return false;
+    return napi_set_named_property(env, obj, key, sub) == napi_ok;
+}
+
+static bool set_plain_pref(napi_env env, napi_value obj, const char *key,
+                           int has, const wf_notif_v2_pref *p) {
+    napi_value sub;
+    if (!has) return true;
+    if (napi_create_object(env, &sub) != napi_ok) return false;
+    if (p->has_list && !set_bool(env, sub, "list", p->list != 0)) return false;
+    if (p->has_push && !set_bool(env, sub, "push", p->push != 0)) return false;
+    return napi_set_named_property(env, obj, key, sub) == napi_ok;
+}
+
+static bool set_chat_pref(napi_env env, napi_value obj, const char *key,
+                          int has, const wf_notif_v2_chat_pref *p) {
+    napi_value sub;
+    if (!has) return true;
+    if (napi_create_object(env, &sub) != napi_ok) return false;
+    if (p->has_include &&
+        !set_utf8(env, sub, "include", include_name(p->include)))
+        return false;
+    if (p->has_push && !set_bool(env, sub, "push", p->push != 0)) return false;
+    return napi_set_named_property(env, obj, key, sub) == napi_ok;
+}
+
+/* Serializes a parsed wf_notification_v2_preferences into the camelCase JS
+ * object shape shared with notifV2PreferencesBuild. */
+static bool make_prefs(napi_env env, const wf_notification_v2_preferences *p,
+                       napi_value *out) {
+    napi_value o;
+    if (napi_create_object(env, &o) != napi_ok) return false;
+    if (!set_chat_pref(env, o, "chat", p->has_chat, &p->chat) ||
+        !set_filterable_pref(env, o, "follow", p->has_follow, &p->follow) ||
+        !set_filterable_pref(env, o, "like", p->has_like, &p->like) ||
+        !set_filterable_pref(env, o, "likeViaRepost", p->has_like_via_repost,
+                             &p->like_via_repost) ||
+        !set_filterable_pref(env, o, "mention", p->has_mention, &p->mention) ||
+        !set_filterable_pref(env, o, "quote", p->has_quote, &p->quote) ||
+        !set_filterable_pref(env, o, "reply", p->has_reply, &p->reply) ||
+        !set_filterable_pref(env, o, "repost", p->has_repost, &p->repost) ||
+        !set_filterable_pref(env, o, "repostViaRepost",
+                             p->has_repost_via_repost, &p->repost_via_repost) ||
+        !set_plain_pref(env, o, "starterpackJoined", p->has_starterpack_joined,
+                        &p->starterpack_joined) ||
+        !set_plain_pref(env, o, "subscribedPost", p->has_subscribed_post,
+                        &p->subscribed_post) ||
+        !set_plain_pref(env, o, "unverified", p->has_unverified,
+                        &p->unverified) ||
+        !set_plain_pref(env, o, "verified", p->has_verified, &p->verified))
+        return false;
+    *out = o;
+    return true;
+}
+
+/* notifV2PreferencesParse(jsonText) parses a #preferences object or a
+ * putPreferencesV2 output body via wf_notification_v2_preferences_parse. */
+static napi_value notif_v2_preferences_parse(napi_env env,
+                                             napi_callback_info info) {
+    wf_bytes body = {NULL, 0, false};
+    bool threw;
+    napi_handle_scope scope;
+    napi_value result = NULL;
+    wf_notification_v2_preferences prefs;
+    wf_status st;
+
+    if (!take_one_json(env, info,
+                       "notifV2PreferencesParse(jsonText) takes "
+                       "JSON text",
+                       &body, &threw, &scope))
+        return NULL;
+    memset(&prefs, 0, sizeof(prefs));
+    st = wf_notification_v2_preferences_parse((const char *)body.data, body.len,
+                                              &prefs);
+    if (st != WF_OK) {
+        throw_status(env, st, "wf_notification_v2_preferences_parse");
+    } else if (!make_prefs(env, &prefs, &result)) {
+        /* pure napi failure, exception pending */
+    }
+    wf_notification_v2_preferences_free(&prefs);
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* Reads one optional boolean member of a JS slot object into the has/value
+ * pair. */
+static bool read_bool_member(napi_env env, napi_value slot, const char *key,
+                             int *has, int *value, bool *threw) {
+    napi_value v;
+    napi_valuetype type;
+    if (napi_get_named_property(env, slot, key, &v) != napi_ok) return false;
+    napi_typeof(env, v, &type);
+    if (type == napi_undefined || type == napi_null) return true;
+    if (type != napi_boolean) {
+        napi_throw_type_error(env, NULL, "preference members must be booleans");
+        *threw = true;
+        return false;
+    }
+    *has = 1;
+    {
+        bool b;
+        if (napi_get_value_bool(env, v, &b) != napi_ok) return false;
+        *value = b ? 1 : 0;
+    }
+    return true;
+}
+
+/* Reads one optional include member; an out-of-range string is the same
+ * WF_ERR_INVALID_ARG the C builder raises. */
+static bool read_include_member(napi_env env, napi_value slot, int *has,
+                                wf_notif_v2_include *include, bool *threw) {
+    napi_value v;
+    napi_valuetype type;
+    size_t len = 0;
+    char buf[16];
+    if (napi_get_named_property(env, slot, "include", &v) != napi_ok)
+        return false;
+    napi_typeof(env, v, &type);
+    if (type == napi_undefined || type == napi_null) return true;
+    if (type != napi_string) {
+        napi_throw_type_error(env, NULL, "include must be a string");
+        *threw = true;
+        return false;
+    }
+    if (napi_get_value_string_utf8(env, v, buf, sizeof(buf), &len) != napi_ok)
+        return false;
+    *has = 1;
+    if (strcmp(buf, "all") == 0)
+        *include = WF_NOTIF_V2_INCLUDE_ALL;
+    else if (strcmp(buf, "follows") == 0)
+        *include = WF_NOTIF_V2_INCLUDE_FOLLOWS;
+    else if (strcmp(buf, "accepted") == 0)
+        *include = WF_NOTIF_V2_INCLUDE_ACCEPTED;
+    else {
+        throw_status(env, WF_ERR_INVALID_ARG, "include");
+        *threw = true;
+        return false;
+    }
+    return true;
+}
+
+/* Reads one slot object; absent/null means has == 0. */
+static bool read_slot(napi_env env, napi_value obj, const char *key, int *has,
+                      napi_value *slot_out, bool *threw) {
+    napi_valuetype type;
+    *has = 0;
+    if (napi_get_named_property(env, obj, key, slot_out) != napi_ok)
+        return false;
+    napi_typeof(env, *slot_out, &type);
+    if (type == napi_undefined || type == napi_null) return true;
+    if (type != napi_object) {
+        napi_throw_type_error(env, NULL, "preference slots must be objects");
+        *threw = true;
+        return false;
+    }
+    *has = 1;
+    return true;
+}
+
+static bool read_filterable_slot(napi_env env, napi_value obj, const char *key,
+                                 int *has, wf_notif_v2_filterable_pref *p,
+                                 bool *threw) {
+    napi_value slot;
+    memset(p, 0, sizeof(*p));
+    if (!read_slot(env, obj, key, has, &slot, threw) || !*has) return !*threw;
+    if (!read_include_member(env, slot, &p->has_include, &p->include, threw) ||
+        !read_bool_member(env, slot, "list", &p->has_list, &p->list, threw) ||
+        !read_bool_member(env, slot, "push", &p->has_push, &p->push, threw))
+        return false;
+    return true;
+}
+
+static bool read_plain_slot(napi_env env, napi_value obj, const char *key,
+                            int *has, wf_notif_v2_pref *p, bool *threw) {
+    napi_value slot;
+    memset(p, 0, sizeof(*p));
+    if (!read_slot(env, obj, key, has, &slot, threw) || !*has) return !*threw;
+    if (!read_bool_member(env, slot, "list", &p->has_list, &p->list, threw) ||
+        !read_bool_member(env, slot, "push", &p->has_push, &p->push, threw))
+        return false;
+    return true;
+}
+
+static bool read_chat_slot(napi_env env, napi_value obj, int *has,
+                           wf_notif_v2_chat_pref *p, bool *threw) {
+    napi_value slot;
+    memset(p, 0, sizeof(*p));
+    if (!read_slot(env, obj, "chat", has, &slot, threw) || !*has)
+        return !*threw;
+    if (!read_include_member(env, slot, &p->has_include, &p->include, threw) ||
+        !read_bool_member(env, slot, "push", &p->has_push, &p->push, threw))
+        return false;
+    return true;
+}
+
+/* notifV2PreferencesBuild(prefs) maps the camelCase JS object (the same shape
+ * notifV2PreferencesParse returns) onto the typed struct and serializes it
+ * with wf_notification_v2_preferences_build, returning the input JSON text. */
+static napi_value notif_v2_preferences_build(napi_env env,
+                                             napi_callback_info info) {
+    size_t argc = 1;
+    napi_value argv[1], result = NULL;
+    bool threw = false;
+    wf_notification_v2_preferences prefs;
+    napi_handle_scope scope;
+    char *json = NULL;
+    wf_status st;
+
+    if (napi_get_cb_info(env, info, &argc, argv, NULL, NULL) != napi_ok ||
+        argc != 1) {
+        napi_throw_type_error(env, NULL,
+                              "notifV2PreferencesBuild(prefs) takes an object");
+        return NULL;
+    }
+    if (napi_open_handle_scope(env, &scope) != napi_ok) return NULL;
+    memset(&prefs, 0, sizeof(prefs));
+    {
+        napi_valuetype type;
+        napi_typeof(env, argv[0], &type);
+        if (type != napi_object) {
+            napi_throw_type_error(env, NULL, "prefs must be an object");
+            threw = true;
+        }
+    }
+    if (!threw &&
+        (!read_chat_slot(env, argv[0], &prefs.has_chat, &prefs.chat, &threw) ||
+         !read_filterable_slot(env, argv[0], "follow", &prefs.has_follow,
+                               &prefs.follow, &threw) ||
+         !read_filterable_slot(env, argv[0], "like", &prefs.has_like,
+                               &prefs.like, &threw) ||
+         !read_filterable_slot(env, argv[0], "likeViaRepost",
+                               &prefs.has_like_via_repost,
+                               &prefs.like_via_repost, &threw) ||
+         !read_filterable_slot(env, argv[0], "mention", &prefs.has_mention,
+                               &prefs.mention, &threw) ||
+         !read_filterable_slot(env, argv[0], "quote", &prefs.has_quote,
+                               &prefs.quote, &threw) ||
+         !read_filterable_slot(env, argv[0], "reply", &prefs.has_reply,
+                               &prefs.reply, &threw) ||
+         !read_filterable_slot(env, argv[0], "repost", &prefs.has_repost,
+                               &prefs.repost, &threw) ||
+         !read_filterable_slot(env, argv[0], "repostViaRepost",
+                               &prefs.has_repost_via_repost,
+                               &prefs.repost_via_repost, &threw) ||
+         !read_plain_slot(env, argv[0], "starterpackJoined",
+                          &prefs.has_starterpack_joined,
+                          &prefs.starterpack_joined, &threw) ||
+         !read_plain_slot(env, argv[0], "subscribedPost",
+                          &prefs.has_subscribed_post, &prefs.subscribed_post,
+                          &threw) ||
+         !read_plain_slot(env, argv[0], "unverified", &prefs.has_unverified,
+                          &prefs.unverified, &threw) ||
+         !read_plain_slot(env, argv[0], "verified", &prefs.has_verified,
+                          &prefs.verified, &threw)))
+        threw = true;
+    if (!threw) {
+        st = wf_notification_v2_preferences_build(&prefs, &json);
+        if (st != WF_OK) {
+            throw_status(env, st, "wf_notification_v2_preferences_build");
+        } else if (napi_create_string_utf8(env, json, NAPI_AUTO_LENGTH,
+                                           &result) != napi_ok) {
+            result = NULL;
+        }
+        free(json);
+    }
+    wf_notification_v2_preferences_free(&prefs);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* notifV2ParsePutActivitySubscription(jsonText) parses a
+ * putActivitySubscription body into { subject, activitySubscription?, extra? }.
+ */
+static napi_value
+notif_v2_parse_put_activity_subscription(napi_env env,
+                                         napi_callback_info info) {
+    wf_bytes body = {NULL, 0, false};
+    bool threw;
+    napi_handle_scope scope;
+    napi_value result = NULL, obj, sub, extra;
+    wf_notif_v2_activity_subscription_result out;
+    wf_status st;
+
+    if (!take_one_json(env, info,
+                       "notifV2ParsePutActivitySubscription(jsonText) "
+                       "takes JSON text",
+                       &body, &threw, &scope))
+        return NULL;
+    memset(&out, 0, sizeof(out));
+    st = wf_notif_v2_parse_put_activity_subscription((const char *)body.data,
+                                                     body.len, &out);
+    if (st != WF_OK) {
+        throw_status(env, st, "wf_notif_v2_parse_put_activity_subscription");
+    } else if (napi_create_object(env, &obj) == napi_ok &&
+               set_utf8_or_null(env, obj, "subject", out.subject)) {
+        result = obj;
+        if (out.has_activity_subscription) {
+            if (napi_create_object(env, &sub) == napi_ok) {
+                bool ok = true;
+                if (out.activity_subscription.has_post)
+                    ok = set_bool(env, sub, "post",
+                                  out.activity_subscription.post != 0);
+                if (ok && out.activity_subscription.has_reply)
+                    ok = set_bool(env, sub, "reply",
+                                  out.activity_subscription.reply != 0);
+                if (ok && out.activity_subscription.extra != NULL)
+                    ok = cjson_to_js(env, out.activity_subscription.extra,
+                                     &extra) &&
+                         napi_set_named_property(env, sub, "extra", extra) ==
+                             napi_ok;
+                if (ok && napi_set_named_property(
+                              env, obj, "activitySubscription", sub) != napi_ok)
+                    ok = false;
+                if (!ok) result = NULL;
+            } else {
+                result = NULL;
+            }
+        }
+        if (result != NULL && out.extra != NULL) {
+            if (!(cjson_to_js(env, out.extra, &extra) &&
+                  napi_set_named_property(env, obj, "extra", extra) == napi_ok))
+                result = NULL;
+        }
+    }
+    wf_notif_v2_activity_subscription_result_free(&out);
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
+/* notifV2ParseListActivitySubscriptions(jsonText) parses a
+ * listActivitySubscriptions body into { cursor, subscriptions: [...] }. */
+static napi_value
+notif_v2_parse_list_activity_subscriptions(napi_env env,
+                                           napi_callback_info info) {
+    wf_bytes body = {NULL, 0, false};
+    bool threw;
+    napi_handle_scope scope;
+    napi_value result = NULL, obj, arr, item;
+    wf_notif_v2_subscription_view_list out;
+    wf_status st;
+    size_t i;
+
+    if (!take_one_json(env, info,
+                       "notifV2ParseListActivitySubscriptions("
+                       "jsonText) takes JSON text",
+                       &body, &threw, &scope))
+        return NULL;
+    memset(&out, 0, sizeof(out));
+    st = wf_notif_v2_parse_list_activity_subscriptions((const char *)body.data,
+                                                       body.len, &out);
+    if (st != WF_OK) {
+        throw_status(env, st, "wf_notif_v2_parse_list_activity_subscriptions");
+    } else if (napi_create_object(env, &obj) == napi_ok &&
+               set_utf8_or_null(env, obj, "cursor", out.cursor) &&
+               napi_create_array_with_length(env, out.count, &arr) == napi_ok) {
+        bool ok =
+            napi_set_named_property(env, obj, "subscriptions", arr) == napi_ok;
+        for (i = 0; ok && i < out.count; ++i) {
+            const wf_notif_v2_subscription_view *v = &out.items[i];
+            if (napi_create_object(env, &item) != napi_ok ||
+                !set_utf8_or_null(env, item, "did", v->did) ||
+                !set_utf8_or_null(env, item, "handle", v->handle) ||
+                !set_utf8_or_null(env, item, "displayName", v->display_name) ||
+                !set_utf8_or_null(env, item, "avatar", v->avatar)) {
+                ok = false;
+                break;
+            }
+            if (v->extra != NULL) {
+                napi_value extra;
+                if (!cjson_to_js(env, v->extra, &extra) ||
+                    napi_set_named_property(env, item, "extra", extra) !=
+                        napi_ok) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (napi_set_element(env, arr, (uint32_t)i, item) != napi_ok) {
+                ok = false;
+                break;
+            }
+        }
+        if (ok) result = obj;
+    }
+    wf_notif_v2_subscription_view_list_free(&out);
+    release_bytes(body);
+    napi_close_handle_scope(env, scope);
+    return result;
+}
+
 /* ---- module ------------------------------------------------------------ */
 
 static napi_value init(napi_env env, napi_value exports) {
@@ -871,6 +1596,28 @@ static napi_value init(napi_env env, napi_value exports) {
          NULL},
         {"postDisplay", NULL, post_display, NULL, NULL, NULL, napi_default,
          NULL},
+        {"chatConvoIsGroup", NULL, chat_convo_is_group, NULL, NULL, NULL,
+         napi_default, NULL},
+        {"chatJoinLinkUrl", NULL, chat_join_link_url, NULL, NULL, NULL,
+         napi_default, NULL},
+        {"chatJoinLinkIsEnabled", NULL, chat_join_link_is_enabled, NULL, NULL,
+         NULL, napi_default, NULL},
+        {"ageassuranceParseBegin", NULL, ageassurance_parse_begin, NULL, NULL,
+         NULL, napi_default, NULL},
+        {"ageassuranceParseConfig", NULL, ageassurance_parse_config, NULL, NULL,
+         NULL, napi_default, NULL},
+        {"ageassuranceParseState", NULL, ageassurance_parse_state, NULL, NULL,
+         NULL, napi_default, NULL},
+        {"notifV2PreferencesParse", NULL, notif_v2_preferences_parse, NULL,
+         NULL, NULL, napi_default, NULL},
+        {"notifV2PreferencesBuild", NULL, notif_v2_preferences_build, NULL,
+         NULL, NULL, napi_default, NULL},
+        {"notifV2ParsePutActivitySubscription", NULL,
+         notif_v2_parse_put_activity_subscription, NULL, NULL, NULL,
+         napi_default, NULL},
+        {"notifV2ParseListActivitySubscriptions", NULL,
+         notif_v2_parse_list_activity_subscriptions, NULL, NULL, NULL,
+         napi_default, NULL},
     };
     size_t count = sizeof(props) / sizeof(props[0]);
 
