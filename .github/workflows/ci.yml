@@ -501,7 +501,7 @@ jobs:
   # CI build so a broken console build cannot reach main unnoticed. Cross-
   # compile only — nothing here runs on hardware; the log says so and hardware
   # validation stays with the owner (see ewanc26/metalbear#34 for the Pi 1).
-  # The jobs run in devkitPro's prebuilt ghcr images (devkitppc covers Wii and
+  # The jobs run in devkitPro's prebuilt Docker Hub images (devkitppc covers Wii and
   # Wii U, devkitarm covers the 3DS; both ship cmake and the portlibs), because
   # apt.devkitpro.org is not reachable from the runners. The Wii needs mbedTLS
   # built as a local portlib first (tools/build_wii_mbedtls.sh); the Wii U and
@@ -516,16 +516,16 @@ jobs:
       matrix:
         include:
           - target: wii
-            container: ghcr.io/devkitpro/devkitppc:latest
+            container: docker.io/devkitpro/devkitppc:latest
             toolchain: wii.cmake
             option: WOLFRAM_BUILD_WII=ON
             prebuild: tools/build_wii_mbedtls.sh
           - target: wiiu
-            container: ghcr.io/devkitpro/devkitppc:latest
+            container: docker.io/devkitpro/devkitppc:latest
             toolchain: wiiu.cmake
             option: WOLFRAM_BUILD_WIIU=ON
           - target: 3ds
-            container: ghcr.io/devkitpro/devkitarm:latest
+            container: docker.io/devkitpro/devkitarm:latest
             toolchain: 3ds.cmake
             option: WOLFRAM_BUILD_3DS=ON
     env:
