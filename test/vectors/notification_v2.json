@@ -1,0 +1,352 @@
+{
+ "description": "notification_v2_typed.h contracts driven through the Node addon: notifV2PreferencesParse / notifV2PreferencesBuild over the 13-slot putPreferencesV2 preferences object, notifV2ParsePutActivitySubscription and notifV2ParseListActivitySubscriptions over their response bodies. C-side coverage: test/test_notification_v2_prefs.c and test/test_notification_v2_typed.c; errors are asserted by `code`.",
+ "preferences_parse": [
+  {
+   "name": "full 13-slot preferences object",
+   "json_text": "{\"chat\": {\"include\": \"all\", \"push\": false}, \"follow\": {\"include\": \"follows\", \"list\": true, \"push\": true}, \"like\": {\"include\": \"all\", \"list\": true, \"push\": false}, \"likeViaRepost\": {\"include\": \"all\", \"list\": false, \"push\": false}, \"mention\": {\"include\": \"follows\", \"list\": true, \"push\": true}, \"quote\": {\"include\": \"all\", \"list\": false, \"push\": true}, \"reply\": {\"include\": \"all\", \"list\": true, \"push\": false}, \"repost\": {\"include\": \"follows\", \"list\": false, \"push\": false}, \"repostViaRepost\": {\"include\": \"all\", \"list\": true, \"push\": true}, \"starterpackJoined\": {\"list\": true, \"push\": false}, \"subscribedPost\": {\"list\": false, \"push\": true}, \"unverified\": {\"list\": true, \"push\": false}, \"verified\": {\"list\": false, \"push\": true}}",
+   "expect": {
+    "chat": {
+     "include": "all",
+     "push": false
+    },
+    "follow": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "like": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "likeViaRepost": {
+     "include": "all",
+     "list": false,
+     "push": false
+    },
+    "mention": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "quote": {
+     "include": "all",
+     "list": false,
+     "push": true
+    },
+    "reply": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "repost": {
+     "include": "follows",
+     "list": false,
+     "push": false
+    },
+    "repostViaRepost": {
+     "include": "all",
+     "list": true,
+     "push": true
+    },
+    "starterpackJoined": {
+     "list": true,
+     "push": false
+    },
+    "subscribedPost": {
+     "list": false,
+     "push": true
+    },
+    "unverified": {
+     "list": true,
+     "push": false
+    },
+    "verified": {
+     "list": false,
+     "push": true
+    }
+   }
+  },
+  {
+   "name": "wrapped putPreferencesV2 output body",
+   "json_text": "{\"preferences\": {\"chat\": {\"include\": \"all\", \"push\": false}, \"follow\": {\"include\": \"follows\", \"list\": true, \"push\": true}, \"like\": {\"include\": \"all\", \"list\": true, \"push\": false}, \"likeViaRepost\": {\"include\": \"all\", \"list\": false, \"push\": false}, \"mention\": {\"include\": \"follows\", \"list\": true, \"push\": true}, \"quote\": {\"include\": \"all\", \"list\": false, \"push\": true}, \"reply\": {\"include\": \"all\", \"list\": true, \"push\": false}, \"repost\": {\"include\": \"follows\", \"list\": false, \"push\": false}, \"repostViaRepost\": {\"include\": \"all\", \"list\": true, \"push\": true}, \"starterpackJoined\": {\"list\": true, \"push\": false}, \"subscribedPost\": {\"list\": false, \"push\": true}, \"unverified\": {\"list\": true, \"push\": false}, \"verified\": {\"list\": false, \"push\": true}}}",
+   "expect": {
+    "chat": {
+     "include": "all",
+     "push": false
+    },
+    "follow": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "like": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "likeViaRepost": {
+     "include": "all",
+     "list": false,
+     "push": false
+    },
+    "mention": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "quote": {
+     "include": "all",
+     "list": false,
+     "push": true
+    },
+    "reply": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "repost": {
+     "include": "follows",
+     "list": false,
+     "push": false
+    },
+    "repostViaRepost": {
+     "include": "all",
+     "list": true,
+     "push": true
+    },
+    "starterpackJoined": {
+     "list": true,
+     "push": false
+    },
+    "subscribedPost": {
+     "list": false,
+     "push": true
+    },
+    "unverified": {
+     "list": true,
+     "push": false
+    },
+    "verified": {
+     "list": false,
+     "push": true
+    }
+   }
+  },
+  {
+   "name": "partial preferences rejected (all slots required)",
+   "json_text": "{\"like\":{\"include\":\"all\",\"list\":true,\"push\":false}}",
+   "error": "WF_ERR_PARSE"
+  },
+  {
+   "name": "malformed",
+   "json_text": "{nope",
+   "error": "WF_ERR_PARSE"
+  }
+ ],
+ "preferences_build": [
+  {
+   "name": "full object round-trips",
+   "input": {
+    "chat": {
+     "include": "all",
+     "push": false
+    },
+    "follow": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "like": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "likeViaRepost": {
+     "include": "all",
+     "list": false,
+     "push": false
+    },
+    "mention": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "quote": {
+     "include": "all",
+     "list": false,
+     "push": true
+    },
+    "reply": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "repost": {
+     "include": "follows",
+     "list": false,
+     "push": false
+    },
+    "repostViaRepost": {
+     "include": "all",
+     "list": true,
+     "push": true
+    },
+    "starterpackJoined": {
+     "list": true,
+     "push": false
+    },
+    "subscribedPost": {
+     "list": false,
+     "push": true
+    },
+    "unverified": {
+     "list": true,
+     "push": false
+    },
+    "verified": {
+     "list": false,
+     "push": true
+    }
+   },
+   "expect": {
+    "chat": {
+     "include": "all",
+     "push": false
+    },
+    "follow": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "like": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "likeViaRepost": {
+     "include": "all",
+     "list": false,
+     "push": false
+    },
+    "mention": {
+     "include": "follows",
+     "list": true,
+     "push": true
+    },
+    "quote": {
+     "include": "all",
+     "list": false,
+     "push": true
+    },
+    "reply": {
+     "include": "all",
+     "list": true,
+     "push": false
+    },
+    "repost": {
+     "include": "follows",
+     "list": false,
+     "push": false
+    },
+    "repostViaRepost": {
+     "include": "all",
+     "list": true,
+     "push": true
+    },
+    "starterpackJoined": {
+     "list": true,
+     "push": false
+    },
+    "subscribedPost": {
+     "list": false,
+     "push": true
+    },
+    "unverified": {
+     "list": true,
+     "push": false
+    },
+    "verified": {
+     "list": false,
+     "push": true
+    }
+   }
+  },
+  {
+   "name": "subset emits only set slots",
+   "input": {
+    "like": {
+     "include": "all",
+     "push": true
+    },
+    "verified": {
+     "list": false
+    }
+   },
+   "expect": {
+    "like": {
+     "include": "all",
+     "push": true
+    },
+    "verified": {
+     "list": false
+    }
+   }
+  },
+  {
+   "name": "out-of-range include",
+   "input": {
+    "like": {
+     "include": "bogus"
+    }
+   },
+   "error": "WF_ERR_INVALID_ARG"
+  }
+ ],
+ "put_activity_subscription": [
+  {
+   "name": "subject with subscription",
+   "json_text": "{\"subject\":\"did:plc:alice00000000000000000000\",\"activitySubscription\":{\"post\":true,\"reply\":false}}",
+   "expect": {
+    "subject": "did:plc:alice00000000000000000000",
+    "activitySubscription": {
+     "post": true,
+     "reply": false
+    },
+    "extra": {}
+   }
+  },
+  {
+   "name": "malformed",
+   "json_text": "{bad",
+   "error": "WF_ERR_PARSE"
+  }
+ ],
+ "list_activity_subscriptions": [
+  {
+   "name": "cursor with two profile views",
+   "json_text": "{\"cursor\":\"next-cursor-xyz\",\"subscriptions\":[{\"did\":\"did:plc:bob0000000000000000000000\",\"handle\":\"bob.bsky.social\",\"displayName\":\"Bob\",\"avatar\":\"https://cdn.bsky.app/img/bob.jpg\",\"indexedAt\":\"2026-07-01T00:00:00.000Z\"},{\"did\":\"did:plc:carol0000000000000000000\",\"handle\":\"carol.bsky.social\"}]}",
+   "expect": {
+    "cursor": "next-cursor-xyz",
+    "subscriptions": [
+     {
+      "did": "did:plc:bob0000000000000000000000",
+      "handle": "bob.bsky.social",
+      "displayName": "Bob",
+      "avatar": "https://cdn.bsky.app/img/bob.jpg",
+      "extra": {
+       "indexedAt": "2026-07-01T00:00:00.000Z"
+      }
+     },
+     {
+      "did": "did:plc:carol0000000000000000000",
+      "handle": "carol.bsky.social",
+      "displayName": null,
+      "avatar": null,
+      "extra": {}
+     }
+    ]
+   }
+  }
+ ]
+}

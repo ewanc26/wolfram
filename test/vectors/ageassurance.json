@@ -1,0 +1,86 @@
+{
+ "description": "ageassurance_typed.h parsers driven through the Node addon: ageassuranceParseBegin / ageassuranceParseConfig / ageassuranceParseState over app.bsky.ageassurance response bodies. C-side coverage: test/test_ageassurance_typed.c; errors are asserted by `code`.",
+ "begin": [
+  {
+   "name": "assured with lastInitiatedAt",
+   "json_text": "{\"lastInitiatedAt\":\"2026-07-08T10:00:00.000Z\",\"status\":\"assured\",\"access\":\"full\"}",
+   "expect": {
+    "lastInitiatedAt": "2026-07-08T10:00:00.000Z",
+    "status": "assured",
+    "access": "full"
+   }
+  },
+  {
+   "name": "optional lastInitiatedAt absent",
+   "json_text": "{\"status\":\"unknown\",\"access\":\"unknown\"}",
+   "expect": {
+    "lastInitiatedAt": null,
+    "status": "unknown",
+    "access": "unknown"
+   }
+  },
+  {
+   "name": "malformed",
+   "json_text": "{not json",
+   "error": "WF_ERR_PARSE"
+  }
+ ],
+ "config": [
+  {
+   "name": "two regions",
+   "json_text": "{\"regions\":[{\"countryCode\":\"US\",\"minAccessAge\":13,\"rules\":[{\"access\":\"safe\"}]},{\"countryCode\":\"GB\",\"regionCode\":\"ENG\",\"minAccessAge\":16,\"additionalVerificationMethods\":[\"device\"],\"rules\":[{\"access\":\"full\"}]}]}",
+   "expect": {
+    "regions": [
+     {
+      "countryCode": "US",
+      "minAccessAge": 13,
+      "rules": [
+       {
+        "access": "safe"
+       }
+      ]
+     },
+     {
+      "countryCode": "GB",
+      "regionCode": "ENG",
+      "minAccessAge": 16,
+      "additionalVerificationMethods": [
+       "device"
+      ],
+      "rules": [
+       {
+        "access": "full"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "array is not a config object",
+   "json_text": "[]",
+   "error": "WF_ERR_PARSE"
+  }
+ ],
+ "state": [
+  {
+   "name": "pending with metadata",
+   "json_text": "{\"state\":{\"status\":\"pending\",\"access\":\"none\"},\"metadata\":{\"accountCreatedAt\":\"2024-01-02T03:04:05.000Z\"}}",
+   "expect": {
+    "state": {
+     "lastInitiatedAt": null,
+     "status": "pending",
+     "access": "none"
+    },
+    "metadata": {
+     "accountCreatedAt": "2024-01-02T03:04:05.000Z"
+    }
+   }
+  },
+  {
+   "name": "state not an object",
+   "json_text": "{\"state\":1}",
+   "error": "WF_ERR_PARSE"
+  }
+ ]
+}
