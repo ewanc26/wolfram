@@ -23,15 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install OAuth node dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential cmake pkg-config libcurl4-openssl-dev \
-            libcjson-dev libmbedtls-dev libmicrohttpd-dev libssl-dev && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libcjson-dev libmbedtls-dev libmicrohttpd-dev libssl-dev
       - name: Configure
         run: |
           cmake -S . -B build-oauth \
@@ -51,19 +43,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libsecp256k1-dev && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libssl-dev libsecp256k1-dev
 
       - name: Clean build directory
         run: rm -rf build
@@ -96,18 +76,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libssl-dev && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libssl-dev
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
@@ -136,24 +105,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libsecp256k1-dev \
-            libsodium-dev \
-            libsqlite3-dev \
-            libmicrohttpd-dev \
-            libzstd-dev \
-            libc-ares-dev && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libssl-dev libsecp256k1-dev libsodium-dev libsqlite3-dev libmicrohttpd-dev libzstd-dev libc-ares-dev
 
       - name: Clean build directory
         run: rm -rf build
@@ -285,19 +237,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libsecp256k1-dev && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libssl-dev libsecp256k1-dev
 
       - name: Set up .NET SDK
         id: dotnet
@@ -347,18 +287,7 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libssl-dev && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libssl-dev
 
       - name: Set up Node.js
         id: node
@@ -414,19 +343,7 @@ jobs:
       # depend on optional native crypto.
       - name: Install system dependencies
         run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            pkg-config \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            clang && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+          sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libssl-dev clang
 
       - name: Fetch macTLS
         run: git clone --depth 1 https://github.com/mplsllc/macTLS.git /tmp/macTLS
@@ -483,14 +400,9 @@ jobs:
           fetch-depth: 0
 
       - name: Install clang-format
-        run: |
-          ok=0
-          for attempt in 1 2 3; do
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends clang-format-18 && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 15
-          done
-            [ "$ok" = 1 ] || exit 1
+        # clang-format-18 ships on the ubuntu-24.04 runner image, so this
+        # normally skips apt entirely; apt is only the fallback.
+        run: sudo bash tools/apt-install.sh clang-format-18
 
       - name: Determine diff base
         id: base
