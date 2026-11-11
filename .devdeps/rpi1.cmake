@@ -62,7 +62,11 @@ endif()
 # wolfram's atomic DID-cache refcounts (identity.c) to inline instructions.
 # Plain armv6 lacks them, so 64-bit atomics would instead need libatomic
 # calls the link step may not pull in by default.
-set(RPI1_CPU_FLAGS "-march=armv6zk -mfpu=vfp -mfloat-abi=hard -mtune=arm1176jzf-s")
+# -marm is required: ARMv6Z has no Thumb-2, so Ubuntu's armhf cross-gcc
+# defaults to Thumb-1, and Thumb-1 does not implement the hard-float VFP
+# ABI ("sorry, unimplemented: Thumb-1 'hard-float' VFP ABI"). ARM mode
+# supports VFPv2 hard-float on ARM1176JZF-S.
+set(RPI1_CPU_FLAGS "-march=armv6zk -mfpu=vfp -mfloat-abi=hard -marm -mtune=arm1176jzf-s")
 set(CMAKE_C_FLAGS_INIT "${RPI1_CPU_FLAGS} -ffunction-sections -fdata-sections")
 set(CMAKE_CXX_FLAGS_INIT "${CMAKE_C_FLAGS_INIT}")
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-Wl,--gc-sections")
