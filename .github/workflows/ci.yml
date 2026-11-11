@@ -582,7 +582,9 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Enable armhf multiarch (cross dev packages)
-        run: dpkg --add-architecture armhf
+        run: |
+          dpkg --add-architecture armhf
+          sed -i 's/^Architectures: amd64$/Architectures: amd64 armhf/' /etc/apt/sources.list.d/ubuntu.sources
 
       - name: Install cross toolchain
         run: bash tools/apt-install.sh cmake make ${{ matrix.packages }}
