@@ -501,70 +501,48 @@ jobs:
   # CI build so a broken console build cannot reach main unnoticed. Cross-
   # compile only — nothing here runs on hardware; the log says so and hardware
   # validation stays with the owner (see ewanc26/metalbear#34 for the Pi 1).
-  # devkitPro is bootstrapped with its documented apt installer, so the job
-  # runs on the stock runner like the others. The Wii needs mbedTLS built as a
-  # local portlib first (tools/build_wii_mbedtls.sh); the Wii U and 3DS get
-  # theirs from dkp-pacman. tools/embedded-check.sh is enforced here too.
+  # The jobs run in devkitPro's prebuilt ghcr images (devkitppc covers Wii and
+  # Wii U, devkitarm covers the 3DS; both ship cmake and the portlibs), because
+  # apt.devkitpro.org is not reachable from the runners. The Wii needs mbedTLS
+  # built as a local portlib first (tools/build_wii_mbedtls.sh); the Wii U and
+  # 3DS get theirs from the image's portlibs. tools/embedded-check.sh is
+  # enforced here too.
   console-cross:
     name: cross-build ${{ matrix.target }}
     runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: wii
+            container: ghcr.io/devkitpro/devkitppc:latest
             toolchain: wii.cmake
             option: WOLFRAM_BUILD_WII=ON
             prebuild: tools/build_wii_mbedtls.sh
           - target: wiiu
+            container: ghcr.io/devkitpro/devkitppc:latest
             toolchain: wiiu.cmake
             option: WOLFRAM_BUILD_WIIU=ON
           - target: 3ds
+            container: ghcr.io/devkitpro/devkitarm:latest
             toolchain: 3ds.cmake
             option: WOLFRAM_BUILD_3DS=ON
+    env:
+      DEVKITPRO: /opt/devkitpro
     steps:
       - uses: actions/checkout@v7
-
-      - name: Install devkitPro and cross toolchains
-        run: |
-          ok=0
-          for attempt in 1 2 3 4 5; do
-            export DEBIAN_FRONTEND=noninteractive
-            sudo timeout 300 apt-get update &&
-            sudo timeout 900 apt-get install -y --no-install-recommends \
-            wget ca-certificates sudo git make perl && ok=1 && break
-            echo "apt failed on attempt $attempt; retrying"; sleep 20
-          done
-            [ "$ok" = 1 ] || exit 1
-          for attempt in 1 2 3 4 5; do
-            wget -qO /tmp/dkp-install.sh \
-              https://apt.devkitpro.org/install-devkitpro-pacman.sh && break
-            echo "installer download failed on attempt $attempt; retrying"
-            sleep 20
-          done
-          sudo bash /tmp/dkp-install.sh
-          command -v dkp-pacman >/dev/null || {
-            echo "dkp-pacman not on PATH after install"; exit 1; }
-          for attempt in 1 2 3; do
-            sudo dkp-pacman -Syu --noconfirm && break
-            echo "dkp-pacman -Syu failed on attempt $attempt; retrying"
-            sleep 20
-          done
-          sudo dkp-pacman -S --noconfirm --needed \
-            devkitPPC devkitARM libogc libctru wut \
-            ppc-zlib ppc-pkg-config wii-pkg-config wiiu-pkg-config \
-            wiiu-curl wiiu-mbedtls 3ds-curl 3ds-mbedtls 3ds-zlib
 
       - name: Cross-compile only — no hardware run
         run: echo "console-cross/${{ matrix.target }} is a cross-compile; no binary is executed on hardware"
 
       - name: Prebuild target-specific portlib
         if: matrix.prebuild != ''
-        run: ${{ matrix.prebuild }}
+        run: |
+          apt-get update -qq && apt-get install -y -qq perl
+          ${{ matrix.prebuild }}
 
       - name: Configure and build
-        env:
-          DEVKITPRO: /opt/devkitpro
         run: |
           cmake -S . -B build-${{ matrix.target }} \
             -DCMAKE_TOOLCHAIN_FILE=.devdeps/${{ matrix.toolchain }} \
