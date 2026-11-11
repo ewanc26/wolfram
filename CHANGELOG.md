@@ -6,6 +6,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- Vendored 16 newer `tools.ozone.*` lexicon documents (all of `tools.ozone.inbox.*` plus `moderation.getAccountPreferences`, `safelink.syncSource`, `server.getCapabilities` and `team.listOnlineMembers`) from upstream atproto and regenerated `atproto_lex.{h,c}`: the corpus now covers 419 lexicons and 334 query/procedure endpoints, with generated wrappers and output decoders for the new JSON bodies. ([#240](https://github.com/ewanc26/wolfram/issues/240))
 - Vendored lexicon lookup by NSID: `wf_lexicon_registry_document` returns a loaded document's raw JSON from a registry, and `wf_lexicon_resolve(nsid, corpus_dir, ...)` resolves an NSID against the vendored `lexicons/` tree (env `WF_ATPROTO_LEXICONS` or the compile-time define), returning an owned copy; unknown NSIDs return `WF_ERR_NOT_FOUND`, an unusable corpus `WF_ERR_INVALID_ARG`. Host-only directory loading; console targets load documents from embedded strings and read them back via the registry. Tests cover lookup, replacement and the corpus vectors. ([#238](https://github.com/ewanc26/wolfram/issues/238))
 
 ## [0.44.2] - 2026-10-30

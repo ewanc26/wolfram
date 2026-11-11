@@ -1771,6 +1771,69 @@ typedef struct wf_lex_blob {
     "tools.ozone.hosting.getAccountHistory"
 #define WF_LEX_TOOLS_OZONE_HOSTING_GET_ACCOUNT_HISTORY_KIND "query"
 
+/** Appeal a moderation action affecting the user's account or content. */
+#define WF_LEX_TOOLS_OZONE_INBOX_APPEAL_ACTIONED_SUBJECT_NSID                  \
+    "tools.ozone.inbox.appealActionedSubject"
+#define WF_LEX_TOOLS_OZONE_INBOX_APPEAL_ACTIONED_SUBJECT_KIND "procedure"
+
+#define WF_LEX_TOOLS_OZONE_INBOX_DEFS_NSID "tools.ozone.inbox.defs"
+#define WF_LEX_TOOLS_OZONE_INBOX_DEFS_KIND "definition"
+
+/** Get the authenticated account's current standing with this moderation
+ * service. */
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_ACCOUNT_STATUS_NSID                       \
+    "tools.ozone.inbox.getAccountStatus"
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_ACCOUNT_STATUS_KIND "query"
+
+/** Get a subject belonging to the authenticated account, including its
+ * moderation action history from this moderation service. */
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_ACTIONED_SUBJECT_NSID                     \
+    "tools.ozone.inbox.getActionedSubject"
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_ACTIONED_SUBJECT_KIND "query"
+
+/** Get moderation push notification preferences for report outcomes, account
+ * actions, and labeling. Returns all three categories, defaulting to enabled
+ * for an account without saved preferences. */
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_NOTIFICATION_PREFERENCES_NSID             \
+    "tools.ozone.inbox.getNotificationPreferences"
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_NOTIFICATION_PREFERENCES_KIND "query"
+
+/** Get a moderation report submitted by the authenticated account to this
+ * moderation service. */
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_REPORT_NSID "tools.ozone.inbox.getReport"
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_REPORT_KIND "query"
+
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_UNREAD_COUNT_NSID                         \
+    "tools.ozone.inbox.getUnreadCount"
+#define WF_LEX_TOOLS_OZONE_INBOX_GET_UNREAD_COUNT_KIND "query"
+
+/** List subjects belonging to the authenticated account that have moderation
+ * actions from this moderation service. */
+#define WF_LEX_TOOLS_OZONE_INBOX_LIST_ACTIONED_SUBJECTS_NSID                   \
+    "tools.ozone.inbox.listActionedSubjects"
+#define WF_LEX_TOOLS_OZONE_INBOX_LIST_ACTIONED_SUBJECTS_KIND "query"
+
+#define WF_LEX_TOOLS_OZONE_INBOX_LIST_NOTIFICATIONS_NSID                       \
+    "tools.ozone.inbox.listNotifications"
+#define WF_LEX_TOOLS_OZONE_INBOX_LIST_NOTIFICATIONS_KIND "query"
+
+/** List moderation reports submitted by the authenticated account to this
+ * moderation service. */
+#define WF_LEX_TOOLS_OZONE_INBOX_LIST_REPORTS_NSID                             \
+    "tools.ozone.inbox.listReports"
+#define WF_LEX_TOOLS_OZONE_INBOX_LIST_REPORTS_KIND "query"
+
+/** Update the authenticated account's moderation push notification preferences.
+ * Only provided categories are updated; omitted categories retain their values.
+ * At least one category must be provided. Returns all three preferences. These
+ * preferences do not hide in-app inbox activity. */
+#define WF_LEX_TOOLS_OZONE_INBOX_PUT_NOTIFICATION_PREFERENCES_NSID             \
+    "tools.ozone.inbox.putNotificationPreferences"
+#define WF_LEX_TOOLS_OZONE_INBOX_PUT_NOTIFICATION_PREFERENCES_KIND "procedure"
+
+#define WF_LEX_TOOLS_OZONE_INBOX_UPDATE_SEEN_NSID "tools.ozone.inbox.updateSeen"
+#define WF_LEX_TOOLS_OZONE_INBOX_UPDATE_SEEN_KIND "procedure"
+
 /** Cancel all pending scheduled moderation actions for specified subjects */
 #define WF_LEX_TOOLS_OZONE_MODERATION_CANCEL_SCHEDULED_ACTIONS_NSID            \
     "tools.ozone.moderation.cancelScheduledActions"
@@ -1783,6 +1846,11 @@ typedef struct wf_lex_blob {
 #define WF_LEX_TOOLS_OZONE_MODERATION_EMIT_EVENT_NSID                          \
     "tools.ozone.moderation.emitEvent"
 #define WF_LEX_TOOLS_OZONE_MODERATION_EMIT_EVENT_KIND "procedure"
+
+/** Get private preferences for an account. Requires moderator or admin auth. */
+#define WF_LEX_TOOLS_OZONE_MODERATION_GET_ACCOUNT_PREFERENCES_NSID             \
+    "tools.ozone.moderation.getAccountPreferences"
+#define WF_LEX_TOOLS_OZONE_MODERATION_GET_ACCOUNT_PREFERENCES_KIND "query"
 
 /** Get timeline of all available events of an account. This includes moderation
  * events, account history and did history. */
@@ -2003,10 +2071,20 @@ typedef struct wf_lex_blob {
     "tools.ozone.safelink.removeRule"
 #define WF_LEX_TOOLS_OZONE_SAFELINK_REMOVE_RULE_KIND "procedure"
 
+/** Replace stored rules for one source from a complete snapshot. Existing rules
+ * owned by another source remain unchanged. */
+#define WF_LEX_TOOLS_OZONE_SAFELINK_SYNC_SOURCE_NSID                           \
+    "tools.ozone.safelink.syncSource"
+#define WF_LEX_TOOLS_OZONE_SAFELINK_SYNC_SOURCE_KIND "procedure"
+
 /** Update an existing URL safety rule */
 #define WF_LEX_TOOLS_OZONE_SAFELINK_UPDATE_RULE_NSID                           \
     "tools.ozone.safelink.updateRule"
 #define WF_LEX_TOOLS_OZONE_SAFELINK_UPDATE_RULE_KIND "procedure"
+
+#define WF_LEX_TOOLS_OZONE_SERVER_GET_CAPABILITIES_NSID                        \
+    "tools.ozone.server.getCapabilities"
+#define WF_LEX_TOOLS_OZONE_SERVER_GET_CAPABILITIES_KIND "query"
 
 /** Get details about ozone's server configuration. */
 #define WF_LEX_TOOLS_OZONE_SERVER_GET_CONFIG_NSID "tools.ozone.server.getConfig"
@@ -2094,6 +2172,11 @@ typedef struct wf_lex_blob {
 /** List all members with access to the ozone service. */
 #define WF_LEX_TOOLS_OZONE_TEAM_LIST_MEMBERS_NSID "tools.ozone.team.listMembers"
 #define WF_LEX_TOOLS_OZONE_TEAM_LIST_MEMBERS_KIND "query"
+
+/** List recent active team members, ordered by latest activity. */
+#define WF_LEX_TOOLS_OZONE_TEAM_LIST_ONLINE_MEMBERS_NSID                       \
+    "tools.ozone.team.listOnlineMembers"
+#define WF_LEX_TOOLS_OZONE_TEAM_LIST_ONLINE_MEMBERS_KIND "query"
 
 /** Update a member in the ozone service. Requires admin role. */
 #define WF_LEX_TOOLS_OZONE_TEAM_UPDATE_MEMBER_NSID                             \
@@ -3865,6 +3948,106 @@ typedef struct wf_lex_tools_ozone_hosting_get_account_history_main_params
     wf_lex_tools_ozone_hosting_get_account_history_main_params;
 typedef struct wf_lex_tools_ozone_hosting_get_account_history_password_updated
     wf_lex_tools_ozone_hosting_get_account_history_password_updated;
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_action_ref
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_action_ref;
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_label_ref
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_label_ref;
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input;
+typedef struct
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_action_union
+        wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_action_union;
+typedef struct
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_subject_union
+        wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_takedown_ref
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_takedown_ref;
+typedef struct wf_lex_tools_ozone_inbox_defs_account_preview
+    wf_lex_tools_ozone_inbox_defs_account_preview;
+typedef struct wf_lex_tools_ozone_inbox_defs_action_view
+    wf_lex_tools_ozone_inbox_defs_action_view;
+typedef struct wf_lex_tools_ozone_inbox_defs_appeal_view
+    wf_lex_tools_ozone_inbox_defs_appeal_view;
+typedef struct wf_lex_tools_ozone_inbox_defs_enforcement_view
+    wf_lex_tools_ozone_inbox_defs_enforcement_view;
+typedef struct wf_lex_tools_ozone_inbox_defs_notification
+    wf_lex_tools_ozone_inbox_defs_notification;
+typedef struct wf_lex_tools_ozone_inbox_defs_notification_preferences
+    wf_lex_tools_ozone_inbox_defs_notification_preferences;
+typedef struct wf_lex_tools_ozone_inbox_defs_notification_target_union
+    wf_lex_tools_ozone_inbox_defs_notification_target_union;
+typedef struct wf_lex_tools_ozone_inbox_defs_policy_view
+    wf_lex_tools_ozone_inbox_defs_policy_view;
+typedef struct wf_lex_tools_ozone_inbox_defs_report_ref
+    wf_lex_tools_ozone_inbox_defs_report_ref;
+typedef struct wf_lex_tools_ozone_inbox_defs_report_ref_subject_union
+    wf_lex_tools_ozone_inbox_defs_report_ref_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_defs_reports_summary
+    wf_lex_tools_ozone_inbox_defs_reports_summary;
+typedef struct wf_lex_tools_ozone_inbox_defs_standing_ref
+    wf_lex_tools_ozone_inbox_defs_standing_ref;
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_ref
+    wf_lex_tools_ozone_inbox_defs_subject_ref;
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_ref_subject_union
+    wf_lex_tools_ozone_inbox_defs_subject_ref_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view
+    wf_lex_tools_ozone_inbox_defs_subject_view;
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view_detail
+    wf_lex_tools_ozone_inbox_defs_subject_view_detail;
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view_detail_subject_union
+    wf_lex_tools_ozone_inbox_defs_subject_view_detail_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view_subject_union
+    wf_lex_tools_ozone_inbox_defs_subject_view_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_get_account_status_main_output
+    wf_lex_tools_ozone_inbox_get_account_status_main_output;
+typedef struct wf_lex_tools_ozone_inbox_get_account_status_main_params
+    wf_lex_tools_ozone_inbox_get_account_status_main_params;
+typedef struct wf_lex_tools_ozone_inbox_get_actioned_subject_main_params
+    wf_lex_tools_ozone_inbox_get_actioned_subject_main_params;
+typedef struct wf_lex_tools_ozone_inbox_get_notification_preferences_main_output
+    wf_lex_tools_ozone_inbox_get_notification_preferences_main_output;
+typedef struct wf_lex_tools_ozone_inbox_get_notification_preferences_main_params
+    wf_lex_tools_ozone_inbox_get_notification_preferences_main_params;
+typedef struct wf_lex_tools_ozone_inbox_get_report_main_output
+    wf_lex_tools_ozone_inbox_get_report_main_output;
+typedef struct wf_lex_tools_ozone_inbox_get_report_main_params
+    wf_lex_tools_ozone_inbox_get_report_main_params;
+typedef struct wf_lex_tools_ozone_inbox_get_report_report_view
+    wf_lex_tools_ozone_inbox_get_report_report_view;
+typedef struct wf_lex_tools_ozone_inbox_get_report_report_view_subject_union
+    wf_lex_tools_ozone_inbox_get_report_report_view_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_get_report_resolution_view
+    wf_lex_tools_ozone_inbox_get_report_resolution_view;
+typedef struct wf_lex_tools_ozone_inbox_get_unread_count_main_output
+    wf_lex_tools_ozone_inbox_get_unread_count_main_output;
+typedef struct wf_lex_tools_ozone_inbox_get_unread_count_main_params
+    wf_lex_tools_ozone_inbox_get_unread_count_main_params;
+typedef struct wf_lex_tools_ozone_inbox_get_unread_count_unread_counts
+    wf_lex_tools_ozone_inbox_get_unread_count_unread_counts;
+typedef struct wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output
+    wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output;
+typedef struct wf_lex_tools_ozone_inbox_list_actioned_subjects_main_params
+    wf_lex_tools_ozone_inbox_list_actioned_subjects_main_params;
+typedef struct wf_lex_tools_ozone_inbox_list_notifications_main_output
+    wf_lex_tools_ozone_inbox_list_notifications_main_output;
+typedef struct wf_lex_tools_ozone_inbox_list_notifications_main_params
+    wf_lex_tools_ozone_inbox_list_notifications_main_params;
+typedef struct wf_lex_tools_ozone_inbox_list_reports_main_output
+    wf_lex_tools_ozone_inbox_list_reports_main_output;
+typedef struct wf_lex_tools_ozone_inbox_list_reports_main_params
+    wf_lex_tools_ozone_inbox_list_reports_main_params;
+typedef struct wf_lex_tools_ozone_inbox_list_reports_report_view
+    wf_lex_tools_ozone_inbox_list_reports_report_view;
+typedef struct wf_lex_tools_ozone_inbox_list_reports_report_view_subject_union
+    wf_lex_tools_ozone_inbox_list_reports_report_view_subject_union;
+typedef struct wf_lex_tools_ozone_inbox_put_notification_preferences_main_input
+    wf_lex_tools_ozone_inbox_put_notification_preferences_main_input;
+typedef struct wf_lex_tools_ozone_inbox_put_notification_preferences_main_output
+    wf_lex_tools_ozone_inbox_put_notification_preferences_main_output;
+typedef struct wf_lex_tools_ozone_inbox_update_seen_main_input
+    wf_lex_tools_ozone_inbox_update_seen_main_input;
+typedef struct wf_lex_tools_ozone_inbox_update_seen_main_output
+    wf_lex_tools_ozone_inbox_update_seen_main_output;
 typedef struct
     wf_lex_tools_ozone_moderation_cancel_scheduled_actions_cancellation_results
         wf_lex_tools_ozone_moderation_cancel_scheduled_actions_cancellation_results;
@@ -4001,6 +4184,13 @@ typedef struct wf_lex_tools_ozone_moderation_emit_event_main_input_subject_union
     wf_lex_tools_ozone_moderation_emit_event_main_input_subject_union;
 typedef struct wf_lex_tools_ozone_moderation_emit_event_report_action
     wf_lex_tools_ozone_moderation_emit_event_report_action;
+typedef struct wf_lex_tools_ozone_moderation_get_account_preferences_main_output
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_output;
+typedef struct
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_output_preferences_item_union
+        wf_lex_tools_ozone_moderation_get_account_preferences_main_output_preferences_item_union;
+typedef struct wf_lex_tools_ozone_moderation_get_account_preferences_main_params
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_params;
 typedef struct wf_lex_tools_ozone_moderation_get_account_timeline_main_output
     wf_lex_tools_ozone_moderation_get_account_timeline_main_output;
 typedef struct wf_lex_tools_ozone_moderation_get_account_timeline_main_params
@@ -4198,8 +4388,18 @@ typedef struct wf_lex_tools_ozone_safelink_query_rules_main_output
     wf_lex_tools_ozone_safelink_query_rules_main_output;
 typedef struct wf_lex_tools_ozone_safelink_remove_rule_main_input
     wf_lex_tools_ozone_safelink_remove_rule_main_input;
+typedef struct wf_lex_tools_ozone_safelink_sync_source_main_input
+    wf_lex_tools_ozone_safelink_sync_source_main_input;
+typedef struct wf_lex_tools_ozone_safelink_sync_source_main_output
+    wf_lex_tools_ozone_safelink_sync_source_main_output;
+typedef struct wf_lex_tools_ozone_safelink_sync_source_source_rule
+    wf_lex_tools_ozone_safelink_sync_source_source_rule;
 typedef struct wf_lex_tools_ozone_safelink_update_rule_main_input
     wf_lex_tools_ozone_safelink_update_rule_main_input;
+typedef struct wf_lex_tools_ozone_server_get_capabilities_main_output
+    wf_lex_tools_ozone_server_get_capabilities_main_output;
+typedef struct wf_lex_tools_ozone_server_get_capabilities_notification_config
+    wf_lex_tools_ozone_server_get_capabilities_notification_config;
 typedef struct wf_lex_tools_ozone_server_get_config_main_output
     wf_lex_tools_ozone_server_get_config_main_output;
 typedef struct wf_lex_tools_ozone_server_get_config_service_config
@@ -4266,6 +4466,12 @@ typedef struct wf_lex_tools_ozone_team_list_members_main_output
     wf_lex_tools_ozone_team_list_members_main_output;
 typedef struct wf_lex_tools_ozone_team_list_members_main_params
     wf_lex_tools_ozone_team_list_members_main_params;
+typedef struct wf_lex_tools_ozone_team_list_online_members_main_output
+    wf_lex_tools_ozone_team_list_online_members_main_output;
+typedef struct wf_lex_tools_ozone_team_list_online_members_main_params
+    wf_lex_tools_ozone_team_list_online_members_main_params;
+typedef struct wf_lex_tools_ozone_team_list_online_members_online_member
+    wf_lex_tools_ozone_team_list_online_members_online_member;
 typedef struct wf_lex_tools_ozone_team_update_member_main_input
     wf_lex_tools_ozone_team_update_member_main_input;
 typedef struct wf_lex_tools_ozone_verification_defs_verification_view
@@ -5433,6 +5639,125 @@ typedef struct
     } value;
 } wf_lex_tools_ozone_hosting_get_account_history_event_details_union;
 
+typedef struct
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_action_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_tools_ozone_inbox_appeal_actioned_subject_action_ref
+            *action_ref;
+        const wf_lex_tools_ozone_inbox_appeal_actioned_subject_label_ref
+            *label_ref;
+        const wf_lex_tools_ozone_inbox_appeal_actioned_subject_takedown_ref
+            *takedown_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_action_union;
+
+typedef struct
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_subject_union;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_notification_target_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_tools_ozone_inbox_defs_report_ref *report_ref;
+        const wf_lex_tools_ozone_inbox_defs_subject_ref *subject_ref;
+        const wf_lex_tools_ozone_inbox_defs_standing_ref *standing_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_defs_notification_target_union;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_report_ref_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_defs_report_ref_subject_union;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_ref_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_defs_subject_ref_subject_union;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view_detail_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_defs_subject_view_detail_subject_union;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_defs_subject_view_subject_union;
+
+typedef struct wf_lex_tools_ozone_inbox_get_report_report_view_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+        const wf_lex_chat_bsky_convo_defs_message_ref *message_ref;
+        const wf_lex_chat_bsky_convo_defs_convo_ref *convo_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_get_report_report_view_subject_union;
+
+typedef struct wf_lex_tools_ozone_inbox_list_reports_report_view_subject_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_com_atproto_admin_defs_repo_ref *repo_ref;
+        const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
+        const wf_lex_chat_bsky_convo_defs_message_ref *message_ref;
+        const wf_lex_chat_bsky_convo_defs_convo_ref *convo_ref;
+    } value;
+} wf_lex_tools_ozone_inbox_list_reports_report_view_subject_union;
+
 typedef struct wf_lex_tools_ozone_moderation_defs_blob_view_details_union {
     int kind;
     /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
@@ -5695,6 +6020,38 @@ typedef struct
         const wf_lex_com_atproto_repo_strong_ref_main *strong_ref;
     } value;
 } wf_lex_tools_ozone_moderation_emit_event_main_input_subject_union;
+
+typedef struct
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_output_preferences_item_union {
+    int kind;
+    /* Retained raw JSON (mirrors wf_lex_json) for re-encoding
+     * and open-union/unknown $type fallback. */
+    const char *data;
+    size_t length;
+    union {
+        const wf_lex_app_bsky_actor_defs_adult_content_pref *adult_content_pref;
+        const wf_lex_app_bsky_actor_defs_content_label_pref *content_label_pref;
+        const wf_lex_app_bsky_actor_defs_saved_feeds_pref *saved_feeds_pref;
+        const wf_lex_app_bsky_actor_defs_saved_feeds_pref_v2
+            *saved_feeds_pref_v2;
+        const wf_lex_app_bsky_actor_defs_personal_details_pref
+            *personal_details_pref;
+        const wf_lex_app_bsky_actor_defs_declared_age_pref *declared_age_pref;
+        const wf_lex_app_bsky_actor_defs_feed_view_pref *feed_view_pref;
+        const wf_lex_app_bsky_actor_defs_thread_view_pref *thread_view_pref;
+        const wf_lex_app_bsky_actor_defs_interests_pref *interests_pref;
+        const wf_lex_app_bsky_actor_defs_muted_words_pref *muted_words_pref;
+        const wf_lex_app_bsky_actor_defs_hidden_posts_pref *hidden_posts_pref;
+        const wf_lex_app_bsky_actor_defs_bsky_app_state_pref
+            *bsky_app_state_pref;
+        const wf_lex_app_bsky_actor_defs_labelers_pref *labelers_pref;
+        const wf_lex_app_bsky_actor_defs_post_interaction_settings_pref
+            *post_interaction_settings_pref;
+        const wf_lex_app_bsky_actor_defs_verification_prefs *verification_prefs;
+        const wf_lex_app_bsky_actor_defs_live_event_preferences
+            *live_event_preferences;
+    } value;
+} wf_lex_tools_ozone_moderation_get_account_preferences_main_output_preferences_item_union;
 
 typedef struct
     wf_lex_tools_ozone_moderation_get_records_main_output_records_item_union {
@@ -12884,6 +13241,487 @@ typedef struct wf_lex_tools_ozone_hosting_get_account_history_handle_updated {
     const char *handle;
 } wf_lex_tools_ozone_hosting_get_account_history_handle_updated;
 
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input {
+    /** Moderation action being appealed. */
+    bool has_action;
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_action_union
+        action;
+    /** Subject being appealed. */
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_subject_union
+        subject;
+    /** Optional explanation supplied by the user. */
+    bool has_reason;
+    const char *reason;
+    bool has_mod_tool;
+    const wf_lex_com_atproto_moderation_create_report_mod_tool *mod_tool;
+} wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input;
+
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_action_ref {
+    /** ID of the moderation action being appealed, available via actions in mod
+     * inbox. */
+    int64_t id;
+} wf_lex_tools_ozone_inbox_appeal_actioned_subject_action_ref;
+
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_label_ref {
+    /** Label being appealed. */
+    const char *val;
+} wf_lex_tools_ozone_inbox_appeal_actioned_subject_label_ref;
+
+typedef struct wf_lex_tools_ozone_inbox_appeal_actioned_subject_takedown_ref {
+    unsigned char _unused;
+} wf_lex_tools_ozone_inbox_appeal_actioned_subject_takedown_ref;
+
+/** A subject belonging to the viewer that has moderation actions against it. */
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view {
+    /** DID of the moderation service that took the actions. */
+    const char *src;
+    wf_lex_tools_ozone_inbox_defs_subject_view_subject_union subject;
+    const wf_lex_tools_ozone_inbox_defs_enforcement_view *enforcement;
+    bool has_appeal;
+    const wf_lex_tools_ozone_inbox_defs_appeal_view *appeal;
+    bool has_available_actions;
+    WF_LEX_ARRAY(const char *) available_actions;
+    bool has_latest_action;
+    const wf_lex_tools_ozone_inbox_defs_action_view *latest_action;
+    bool has_action_count;
+    int64_t action_count;
+    const char *created_at;
+    const char *updated_at;
+    bool is_read;
+} wf_lex_tools_ozone_inbox_defs_subject_view;
+
+/** The current enforcement state of a subject. */
+typedef struct wf_lex_tools_ozone_inbox_defs_enforcement_view {
+    const char *state;
+    bool has_scope;
+    const char *scope;
+    bool has_expires_at;
+    const char *expires_at;
+    /** Active label values on the subject, excluding negated and expired
+     * labels. */
+    bool has_labels;
+    WF_LEX_ARRAY(const char *) labels;
+} wf_lex_tools_ozone_inbox_defs_enforcement_view;
+
+/** The state of the viewer's appeal against the actions on a subject. */
+typedef struct wf_lex_tools_ozone_inbox_defs_appeal_view {
+    const char *state;
+    bool has_appealed_at;
+    const char *appealed_at;
+    /** When the appeal's report was closed. */
+    bool has_resolved_at;
+    const char *resolved_at;
+    /** Decision on a resolved appeal. */
+    bool has_outcome;
+    const char *outcome;
+    bool has_appealable_until;
+    const char *appealable_until;
+} wf_lex_tools_ozone_inbox_defs_appeal_view;
+
+/** A single moderation action taken against a subject. */
+typedef struct wf_lex_tools_ozone_inbox_defs_action_view {
+    /** Action ID (moderation event ID). */
+    int64_t id;
+    /** Public action type. */
+    const char *type;
+    bool has_scope;
+    const char *scope;
+    const char *created_at;
+    bool has_reversed_at;
+    const char *reversed_at;
+    bool has_expires_at;
+    const char *expires_at;
+    /** Label values, for labelApplied/labelRemoved. */
+    bool has_labels;
+    WF_LEX_ARRAY(const char *) labels;
+    /** Policies applied by a takedown action. */
+    bool has_policies;
+    WF_LEX_ARRAY(const wf_lex_tools_ozone_inbox_defs_policy_view *) policies;
+} wf_lex_tools_ozone_inbox_defs_action_view;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_policy_view {
+    const char *key;
+    const char *display_name;
+    const char *link;
+} wf_lex_tools_ozone_inbox_defs_policy_view;
+
+/** A subject with a page of its action history and an aggregate report summary.
+ * Follow cursor to retrieve older actions; enforcement and appeal describe the
+ * current subject state on every page. */
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_view_detail {
+    const char *src;
+    bool is_read;
+    wf_lex_tools_ozone_inbox_defs_subject_view_detail_subject_union subject;
+    /** Raw record JSON for the subject, when the subject is a record and the
+     * record is available. */
+    bool has_record;
+    wf_lex_json record;
+    /** Best-effort current profile information for an account subject. */
+    bool has_account;
+    const wf_lex_tools_ozone_inbox_defs_account_preview *account;
+    const wf_lex_tools_ozone_inbox_defs_enforcement_view *enforcement;
+    bool has_appeal;
+    const wf_lex_tools_ozone_inbox_defs_appeal_view *appeal;
+    bool has_available_actions;
+    WF_LEX_ARRAY(const char *) available_actions;
+    /** A page of action history, most recent first. Reversal timestamps include
+     * changes outside this page. */
+    WF_LEX_ARRAY(const wf_lex_tools_ozone_inbox_defs_action_view *) actions;
+    /** Cursor for the next page of action history. Omitted when no older
+     * actions remain. */
+    bool has_cursor;
+    const char *cursor;
+    /** Omitted when the subject has never been reported, e.g. proactive
+     * enforcement. */
+    bool has_reports;
+    const wf_lex_tools_ozone_inbox_defs_reports_summary *reports;
+    const char *created_at;
+    const char *updated_at;
+} wf_lex_tools_ozone_inbox_defs_subject_view_detail;
+
+/** Current account information, when available; this is not a snapshot of the
+ * account at the time of the action. */
+typedef struct wf_lex_tools_ozone_inbox_defs_account_preview {
+    bool has_handle;
+    const char *handle;
+    /** Raw app.bsky.actor.profile record, when available. */
+    bool has_profile;
+    wf_lex_json profile;
+} wf_lex_tools_ozone_inbox_defs_account_preview;
+
+/** Aggregate view of reports filed against this subject. Deliberately carries
+ * no report IDs, no count, and no reporter identities. */
+typedef struct wf_lex_tools_ozone_inbox_defs_reports_summary {
+    /** Distinct reason types reported, deduplicated and unordered. Excludes
+     * reasonAppeal. */
+    WF_LEX_ARRAY(const char *) reason_types;
+    /** Day of the earliest report, truncated to midnight UTC. Render as a date;
+     * the time component is not meaningful. */
+    const char *first_reported_on;
+    /** Day of the most recent report, truncated to midnight UTC. Render as a
+     * date; the time component is not meaningful. */
+    const char *last_reported_on;
+} wf_lex_tools_ozone_inbox_defs_reports_summary;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_notification {
+    int64_t id;
+    const char *reason;
+    wf_lex_tools_ozone_inbox_defs_notification_target_union target;
+    bool is_read;
+    const char *created_at;
+} wf_lex_tools_ozone_inbox_defs_notification;
+
+/** Push notification preferences by moderation notification category. These
+ * preferences do not hide in-app inbox activity. Each category defaults to
+ * enabled. */
+typedef struct wf_lex_tools_ozone_inbox_defs_notification_preferences {
+    /** Notify about outcomes of reports filed by the account (reportResolved
+     * and reportReopened). */
+    bool reports;
+    /** Notify about moderation actions against the account or its content,
+     * action reversals, appeal outcomes, and standing changes. Label
+     * application and removal are controlled by labels. */
+    bool account;
+    /** Notify when labels are applied to or removed from the account or its
+     * content (labelApplied and labelRemoved actions). */
+    bool labels;
+} wf_lex_tools_ozone_inbox_defs_notification_preferences;
+
+/** Reference to a report by its report table ID, as used by getReport and
+ * Ozone's report detail page. */
+typedef struct wf_lex_tools_ozone_inbox_defs_report_ref {
+    int64_t report_id;
+    bool has_subject;
+    wf_lex_tools_ozone_inbox_defs_report_ref_subject_union subject;
+    bool has_status;
+    const char *status;
+} wf_lex_tools_ozone_inbox_defs_report_ref;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_subject_ref {
+    /** Decision captured when an appealResolved notification was created.
+     * Omitted when the outcome is unknown. */
+    bool has_appeal_outcome;
+    const char *appeal_outcome;
+    wf_lex_tools_ozone_inbox_defs_subject_ref_subject_union subject;
+    bool has_action_type;
+    const char *action_type;
+    bool has_action_id;
+    int64_t action_id;
+} wf_lex_tools_ozone_inbox_defs_subject_ref;
+
+typedef struct wf_lex_tools_ozone_inbox_defs_standing_ref {
+    const char *standing;
+    bool has_previous_standing;
+    const char *previous_standing;
+} wf_lex_tools_ozone_inbox_defs_standing_ref;
+
+typedef struct wf_lex_tools_ozone_inbox_get_account_status_main_params {
+    /** Account to preview. Only Ozone staff can read another account; this does
+     * not change its read state. */
+    bool has_did;
+    const char *did;
+} wf_lex_tools_ozone_inbox_get_account_status_main_params;
+
+typedef struct wf_lex_tools_ozone_inbox_get_account_status_main_output {
+    /** DID of the moderation service returning this status. */
+    const char *src;
+    const char *standing;
+    /** Whether the account currently has any active strikes. */
+    bool has_has_active_strikes;
+    bool has_active_strikes;
+    /** Current account takedown or suspension, independent of strike standing.
+     */
+    bool has_enforcement;
+    const wf_lex_tools_ozone_inbox_defs_enforcement_view *enforcement;
+    /** Newest account-status update or strike timestamp used to derive this
+     * standing, or the Unix epoch when neither exists. This is not a
+     * standing-transition timestamp; expiry can change standing without
+     * changing this value. */
+    const char *updated_at;
+    /** Time at which the current suspension expires. Present only for a
+     * temporary suspension. */
+    bool has_expires_at;
+    const char *expires_at;
+} wf_lex_tools_ozone_inbox_get_account_status_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_get_actioned_subject_main_params {
+    /** Account to preview. Defaults to the authenticated account; another
+     * account requires an active moderator, triage, or admin credential. */
+    bool has_did;
+    const char *did;
+    /** DID or AT-URI of the subject to retrieve. */
+    const char *subject;
+    /** Maximum number of actions to return. */
+    bool has_limit;
+    int64_t limit;
+    /** Opaque cursor for the next page of this subject's action history. */
+    bool has_cursor;
+    const char *cursor;
+} wf_lex_tools_ozone_inbox_get_actioned_subject_main_params;
+
+typedef struct
+    wf_lex_tools_ozone_inbox_get_notification_preferences_main_params {
+    /** Account to preview. Only Ozone staff can read another account; this does
+     * not change its read state. */
+    bool has_did;
+    const char *did;
+} wf_lex_tools_ozone_inbox_get_notification_preferences_main_params;
+
+typedef struct
+    wf_lex_tools_ozone_inbox_get_notification_preferences_main_output {
+    const wf_lex_tools_ozone_inbox_defs_notification_preferences *preferences;
+} wf_lex_tools_ozone_inbox_get_notification_preferences_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_get_report_main_params {
+    /** Reporter to preview. Defaults to the authenticated account; another
+     * account requires an active moderator, triage, or admin credential. */
+    bool has_did;
+    const char *did;
+    /** Report ID (report table ID), as returned by listReports. */
+    int64_t id;
+} wf_lex_tools_ozone_inbox_get_report_main_params;
+
+typedef struct wf_lex_tools_ozone_inbox_get_report_main_output {
+    const wf_lex_tools_ozone_inbox_get_report_report_view *report;
+    /** Present only when the report is resolved. */
+    bool has_resolution;
+    const wf_lex_tools_ozone_inbox_get_report_resolution_view *resolution;
+} wf_lex_tools_ozone_inbox_get_report_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_get_report_report_view {
+    /** DID of the moderation service that received the report. */
+    const char *src;
+    /** Report ID (report table ID), used by Ozone's report detail page. */
+    int64_t id;
+    /** The exact fully-qualified reason NSID submitted with and stored on the
+     * report. */
+    const char *reason_type;
+    bool has_reason;
+    const char *reason;
+    wf_lex_tools_ozone_inbox_get_report_report_view_subject_union subject;
+    /** Raw record JSON for the subject, when the subject is a record and the
+     * record is available. */
+    bool has_record;
+    wf_lex_json record;
+    const char *status;
+    const char *created_at;
+    const char *updated_at;
+} wf_lex_tools_ozone_inbox_get_report_report_view;
+
+typedef struct wf_lex_tools_ozone_inbox_get_report_resolution_view {
+    const char *outcome;
+    /** Public action associated with this report's resolution. See the public
+     * action vocabulary table. */
+    bool has_action_taken;
+    const char *action_taken;
+    bool has_scope;
+    const char *scope;
+    const char *resolved_at;
+} wf_lex_tools_ozone_inbox_get_report_resolution_view;
+
+typedef struct wf_lex_tools_ozone_inbox_get_unread_count_main_params {
+    bool has_section;
+    const char *section;
+    /** Account to preview. Only Ozone staff can read another account; this does
+     * not change its read state. */
+    bool has_did;
+    const char *did;
+} wf_lex_tools_ozone_inbox_get_unread_count_main_params;
+
+typedef struct wf_lex_tools_ozone_inbox_get_unread_count_main_output {
+    const wf_lex_tools_ozone_inbox_get_unread_count_unread_counts
+        *unread_counts;
+} wf_lex_tools_ozone_inbox_get_unread_count_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_get_unread_count_unread_counts {
+    int64_t total;
+    bool has_reports;
+    int64_t reports;
+    bool has_subjects;
+    int64_t subjects;
+    bool has_account_status;
+    int64_t account_status;
+} wf_lex_tools_ozone_inbox_get_unread_count_unread_counts;
+
+typedef struct wf_lex_tools_ozone_inbox_list_actioned_subjects_main_params {
+    /** Account to preview. Defaults to the authenticated account; another
+     * account requires an active moderator, triage, or admin credential. */
+    bool has_did;
+    const char *did;
+    /** Filter subject activity. pending includes subjects whose latest appeal
+     * report is not closed; resolved includes subjects whose latest appeal
+     * report is closed. unread includes subjects whose public updatedAt is
+     * after the subjects section's seenAt watermark. */
+    bool has_filter;
+    const char *filter;
+    bool has_sort_field;
+    const char *sort_field;
+    bool has_sort_direction;
+    const char *sort_direction;
+    bool has_limit;
+    int64_t limit;
+    /** An opaque cursor for pagination. */
+    bool has_cursor;
+    const char *cursor;
+} wf_lex_tools_ozone_inbox_list_actioned_subjects_main_params;
+
+typedef struct wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output {
+    bool has_cursor;
+    const char *cursor;
+    WF_LEX_ARRAY(const wf_lex_tools_ozone_inbox_defs_subject_view *) subjects;
+} wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_list_notifications_main_params {
+    bool has_section;
+    const char *section;
+    bool has_reasons;
+    WF_LEX_ARRAY(const char *) reasons;
+    bool has_unread_only;
+    bool unread_only;
+    bool has_limit;
+    int64_t limit;
+    bool has_cursor;
+    const char *cursor;
+    /** Account to preview. Only Ozone staff can read another account; this does
+     * not change its read state. */
+    bool has_did;
+    const char *did;
+} wf_lex_tools_ozone_inbox_list_notifications_main_params;
+
+typedef struct wf_lex_tools_ozone_inbox_list_notifications_main_output {
+    bool has_cursor;
+    const char *cursor;
+    WF_LEX_ARRAY(const wf_lex_tools_ozone_inbox_defs_notification *)
+    notifications;
+} wf_lex_tools_ozone_inbox_list_notifications_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_list_reports_main_params {
+    /** Account to preview. Defaults to the authenticated account; another
+     * account requires an active moderator, triage, or admin credential. */
+    bool has_did;
+    const char *did;
+    /** Filter report activity. unread includes reports whose updatedAt is after
+     * the reports section's seenAt watermark. */
+    bool has_filter;
+    const char *filter;
+    bool has_sort_field;
+    const char *sort_field;
+    bool has_sort_direction;
+    const char *sort_direction;
+    bool has_limit;
+    int64_t limit;
+    /** An opaque cursor for pagination. */
+    bool has_cursor;
+    const char *cursor;
+} wf_lex_tools_ozone_inbox_list_reports_main_params;
+
+typedef struct wf_lex_tools_ozone_inbox_list_reports_main_output {
+    bool has_cursor;
+    const char *cursor;
+    WF_LEX_ARRAY(const wf_lex_tools_ozone_inbox_list_reports_report_view *)
+    reports;
+} wf_lex_tools_ozone_inbox_list_reports_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_list_reports_report_view {
+    /** DID of the moderation service that received the report. */
+    const char *src;
+    /** Report ID (report table ID), used by getReport and Ozone's report detail
+     * page. */
+    int64_t id;
+    bool is_read;
+    /** The exact fully-qualified reason NSID submitted with and stored on the
+     * report. */
+    const char *reason_type;
+    bool has_reason;
+    const char *reason;
+    /** Public action associated with this report's transition to resolved. See
+     * the public action vocabulary table. */
+    bool has_last_action_taken;
+    const char *last_action_taken;
+    bool has_scope;
+    const char *scope;
+    wf_lex_tools_ozone_inbox_list_reports_report_view_subject_union subject;
+    const char *status;
+    const char *created_at;
+    const char *updated_at;
+} wf_lex_tools_ozone_inbox_list_reports_report_view;
+
+typedef struct
+    wf_lex_tools_ozone_inbox_put_notification_preferences_main_input {
+    /** Notify about outcomes of reports filed by the account. */
+    bool has_reports;
+    bool reports;
+    /** Notify about moderation actions against the account or its content,
+     * excluding labeling. */
+    bool has_account;
+    bool account;
+    /** Notify about labels applied to or removed from the account or its
+     * content. */
+    bool has_labels;
+    bool labels;
+} wf_lex_tools_ozone_inbox_put_notification_preferences_main_input;
+
+typedef struct
+    wf_lex_tools_ozone_inbox_put_notification_preferences_main_output {
+    const wf_lex_tools_ozone_inbox_defs_notification_preferences *preferences;
+} wf_lex_tools_ozone_inbox_put_notification_preferences_main_output;
+
+typedef struct wf_lex_tools_ozone_inbox_update_seen_main_input {
+    WF_LEX_ARRAY(const char *) sections;
+    /** Mark each requested section read up to this instant. Defaults to server
+     * time and is clamped to server time when in the future. Newer existing
+     * watermarks are preserved independently for each section. */
+    bool has_seen_at;
+    const char *seen_at;
+} wf_lex_tools_ozone_inbox_update_seen_main_input;
+
+typedef struct wf_lex_tools_ozone_inbox_update_seen_main_output {
+    /** The earliest resulting watermark across the requested sections, in UTC.
+     * Every requested section is read through this instant; individual sections
+     * may already have newer watermarks. */
+    const char *seen_at;
+} wf_lex_tools_ozone_inbox_update_seen_main_output;
+
 typedef struct
     wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input {
     /** Array of DID subjects to cancel scheduled actions for */
@@ -13660,6 +14498,18 @@ typedef struct wf_lex_tools_ozone_moderation_emit_event_report_action {
     bool has_note;
     const char *note;
 } wf_lex_tools_ozone_moderation_emit_event_report_action;
+
+typedef struct
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_params {
+    const char *did;
+} wf_lex_tools_ozone_moderation_get_account_preferences_main_params;
+
+typedef struct
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_output {
+    WF_LEX_ARRAY(
+        wf_lex_tools_ozone_moderation_get_account_preferences_main_output_preferences_item_union)
+    preferences;
+} wf_lex_tools_ozone_moderation_get_account_preferences_main_output;
 
 typedef struct wf_lex_tools_ozone_moderation_get_account_timeline_main_params {
     const char *did;
@@ -14930,6 +15780,27 @@ typedef struct wf_lex_tools_ozone_safelink_remove_rule_main_input {
     const char *created_by;
 } wf_lex_tools_ozone_safelink_remove_rule_main_input;
 
+typedef struct wf_lex_tools_ozone_safelink_sync_source_main_input {
+    /** Source whose rules are being synchronized */
+    const char *source;
+    WF_LEX_ARRAY(const wf_lex_tools_ozone_safelink_sync_source_source_rule *)
+    rules;
+} wf_lex_tools_ozone_safelink_sync_source_main_input;
+
+typedef struct wf_lex_tools_ozone_safelink_sync_source_main_output {
+    int64_t added;
+    int64_t updated;
+    int64_t removed;
+    int64_t events;
+} wf_lex_tools_ozone_safelink_sync_source_main_output;
+
+typedef struct wf_lex_tools_ozone_safelink_sync_source_source_rule {
+    const char *url;
+    const char *pattern;
+    const char *action;
+    const char *reason;
+} wf_lex_tools_ozone_safelink_sync_source_source_rule;
+
 typedef struct wf_lex_tools_ozone_safelink_update_rule_main_input {
     /** The URL or domain to update the rule for */
     const char *url;
@@ -14944,6 +15815,16 @@ typedef struct wf_lex_tools_ozone_safelink_update_rule_main_input {
     bool has_created_by;
     const char *created_by;
 } wf_lex_tools_ozone_safelink_update_rule_main_input;
+
+typedef struct wf_lex_tools_ozone_server_get_capabilities_main_output {
+    bool has_notifications;
+    const wf_lex_tools_ozone_server_get_capabilities_notification_config
+        *notifications;
+} wf_lex_tools_ozone_server_get_capabilities_main_output;
+
+typedef struct wf_lex_tools_ozone_server_get_capabilities_notification_config {
+    WF_LEX_ARRAY(const char *) channels;
+} wf_lex_tools_ozone_server_get_capabilities_notification_config;
 
 typedef struct wf_lex_tools_ozone_server_get_config_main_output {
     bool has_appview;
@@ -15200,6 +16081,22 @@ typedef struct wf_lex_tools_ozone_team_list_members_main_output {
     WF_LEX_ARRAY(const wf_lex_tools_ozone_team_defs_member *) members;
 } wf_lex_tools_ozone_team_list_members_main_output;
 
+typedef struct wf_lex_tools_ozone_team_list_online_members_main_params {
+    bool has_limit;
+    int64_t limit;
+} wf_lex_tools_ozone_team_list_online_members_main_params;
+
+typedef struct wf_lex_tools_ozone_team_list_online_members_main_output {
+    WF_LEX_ARRAY(
+        const wf_lex_tools_ozone_team_list_online_members_online_member *)
+    members;
+} wf_lex_tools_ozone_team_list_online_members_main_output;
+
+typedef struct wf_lex_tools_ozone_team_list_online_members_online_member {
+    const char *did;
+    const char *last_active;
+} wf_lex_tools_ozone_team_list_online_members_online_member;
+
 typedef struct wf_lex_tools_ozone_team_update_member_main_input {
     const char *did;
     bool has_disabled;
@@ -15398,6 +16295,12 @@ typedef wf_lex_tools_ozone_communication_defs_template_view
 
 typedef wf_lex_tools_ozone_communication_defs_template_view
     wf_lex_tools_ozone_communication_update_template_main_output;
+
+typedef wf_lex_tools_ozone_inbox_defs_subject_view
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_output;
+
+typedef wf_lex_tools_ozone_inbox_defs_subject_view_detail
+    wf_lex_tools_ozone_inbox_get_actioned_subject_main_output;
 
 typedef wf_lex_tools_ozone_moderation_cancel_scheduled_actions_cancellation_results
     wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_output;
@@ -19554,6 +20457,201 @@ wf_status wf_lex_tools_ozone_hosting_get_account_history_main_call_auth(
     wf_response *out);
 
 wf_status
+wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input_encode_json(
+    const wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input *value,
+    char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_json_free(
+    char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status
+wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_output **out_value);
+void wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_output_free(
+    wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input *input,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_appeal_actioned_subject_main_input *input,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_get_account_status_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_get_account_status_main_output **out_value);
+void wf_lex_tools_ozone_inbox_get_account_status_main_output_free(
+    wf_lex_tools_ozone_inbox_get_account_status_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_get_account_status_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_get_account_status_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_get_account_status_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_get_account_status_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_get_actioned_subject_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_get_actioned_subject_main_output **out_value);
+void wf_lex_tools_ozone_inbox_get_actioned_subject_main_output_free(
+    wf_lex_tools_ozone_inbox_get_actioned_subject_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_get_actioned_subject_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_get_actioned_subject_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_get_actioned_subject_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_get_actioned_subject_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status
+wf_lex_tools_ozone_inbox_get_notification_preferences_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_get_notification_preferences_main_output *
+        *out_value);
+void wf_lex_tools_ozone_inbox_get_notification_preferences_main_output_free(
+    wf_lex_tools_ozone_inbox_get_notification_preferences_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_get_notification_preferences_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_get_notification_preferences_main_params
+        *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_get_notification_preferences_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_get_notification_preferences_main_params
+        *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_get_report_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_get_report_main_output **out_value);
+void wf_lex_tools_ozone_inbox_get_report_main_output_free(
+    wf_lex_tools_ozone_inbox_get_report_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_get_report_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_get_report_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_get_report_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_get_report_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_get_unread_count_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_get_unread_count_main_output **out_value);
+void wf_lex_tools_ozone_inbox_get_unread_count_main_output_free(
+    wf_lex_tools_ozone_inbox_get_unread_count_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_get_unread_count_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_get_unread_count_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_get_unread_count_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_get_unread_count_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status
+wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output **out_value);
+void wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output_free(
+    wf_lex_tools_ozone_inbox_list_actioned_subjects_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_list_actioned_subjects_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_list_actioned_subjects_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_list_actioned_subjects_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_list_actioned_subjects_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_list_notifications_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_list_notifications_main_output **out_value);
+void wf_lex_tools_ozone_inbox_list_notifications_main_output_free(
+    wf_lex_tools_ozone_inbox_list_notifications_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_list_notifications_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_list_notifications_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_list_notifications_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_list_notifications_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_list_reports_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_list_reports_main_output **out_value);
+void wf_lex_tools_ozone_inbox_list_reports_main_output_free(
+    wf_lex_tools_ozone_inbox_list_reports_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_list_reports_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_list_reports_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_list_reports_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_list_reports_main_params *params,
+    wf_response *out);
+
+wf_status
+wf_lex_tools_ozone_inbox_put_notification_preferences_main_input_encode_json(
+    const wf_lex_tools_ozone_inbox_put_notification_preferences_main_input
+        *value,
+    char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_tools_ozone_inbox_put_notification_preferences_main_json_free(
+    char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status
+wf_lex_tools_ozone_inbox_put_notification_preferences_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_put_notification_preferences_main_output *
+        *out_value);
+void wf_lex_tools_ozone_inbox_put_notification_preferences_main_output_free(
+    wf_lex_tools_ozone_inbox_put_notification_preferences_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_put_notification_preferences_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_put_notification_preferences_main_input
+        *input,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_put_notification_preferences_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_put_notification_preferences_main_input
+        *input,
+    wf_response *out);
+
+wf_status wf_lex_tools_ozone_inbox_update_seen_main_input_encode_json(
+    const wf_lex_tools_ozone_inbox_update_seen_main_input *value,
+    char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_tools_ozone_inbox_update_seen_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_inbox_update_seen_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_inbox_update_seen_main_output **out_value);
+void wf_lex_tools_ozone_inbox_update_seen_main_output_free(
+    wf_lex_tools_ozone_inbox_update_seen_main_output *value);
+wf_status wf_lex_tools_ozone_inbox_update_seen_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_inbox_update_seen_main_input *input,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_inbox_update_seen_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_inbox_update_seen_main_input *input,
+    wf_response *out);
+
+wf_status
 wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input_encode_json(
     const wf_lex_tools_ozone_moderation_cancel_scheduled_actions_main_input
         *value,
@@ -19598,6 +20696,25 @@ wf_status wf_lex_tools_ozone_moderation_emit_event_main_call(
 wf_status wf_lex_tools_ozone_moderation_emit_event_main_call_auth(
     wf_auth_client *client,
     const wf_lex_tools_ozone_moderation_emit_event_main_input *input,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status
+wf_lex_tools_ozone_moderation_get_account_preferences_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_output *
+        *out_value);
+void wf_lex_tools_ozone_moderation_get_account_preferences_main_output_free(
+    wf_lex_tools_ozone_moderation_get_account_preferences_main_output *value);
+wf_status wf_lex_tools_ozone_moderation_get_account_preferences_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_moderation_get_account_preferences_main_params
+        *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_moderation_get_account_preferences_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_moderation_get_account_preferences_main_params
+        *params,
     wf_response *out);
 
 /** Decode an owning output value; free it with the matching function. */
@@ -20281,6 +21398,26 @@ wf_status wf_lex_tools_ozone_safelink_remove_rule_main_call_auth(
     const wf_lex_tools_ozone_safelink_remove_rule_main_input *input,
     wf_response *out);
 
+wf_status wf_lex_tools_ozone_safelink_sync_source_main_input_encode_json(
+    const wf_lex_tools_ozone_safelink_sync_source_main_input *value,
+    char **out_json);
+/** Free JSON returned by the matching encoder. */
+void wf_lex_tools_ozone_safelink_sync_source_main_json_free(char *json);
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_safelink_sync_source_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_safelink_sync_source_main_output **out_value);
+void wf_lex_tools_ozone_safelink_sync_source_main_output_free(
+    wf_lex_tools_ozone_safelink_sync_source_main_output *value);
+wf_status wf_lex_tools_ozone_safelink_sync_source_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_safelink_sync_source_main_input *input,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_safelink_sync_source_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_safelink_sync_source_main_input *input,
+    wf_response *out);
+
 wf_status wf_lex_tools_ozone_safelink_update_rule_main_input_encode_json(
     const wf_lex_tools_ozone_safelink_update_rule_main_input *value,
     char **out_json);
@@ -20300,6 +21437,18 @@ wf_status wf_lex_tools_ozone_safelink_update_rule_main_call_auth(
     wf_auth_client *client,
     const wf_lex_tools_ozone_safelink_update_rule_main_input *input,
     wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_server_get_capabilities_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_server_get_capabilities_main_output **out_value);
+void wf_lex_tools_ozone_server_get_capabilities_main_output_free(
+    wf_lex_tools_ozone_server_get_capabilities_main_output *value);
+wf_status
+wf_lex_tools_ozone_server_get_capabilities_main_call(wf_xrpc_client *client,
+                                                     wf_response *out);
+wf_status wf_lex_tools_ozone_server_get_capabilities_main_call_auth(
+    wf_auth_client *client, wf_response *out);
 
 /** Decode an owning output value; free it with the matching function. */
 wf_status wf_lex_tools_ozone_server_get_config_main_output_decode_json(
@@ -20558,6 +21707,21 @@ wf_status wf_lex_tools_ozone_team_list_members_main_call(
 wf_status wf_lex_tools_ozone_team_list_members_main_call_auth(
     wf_auth_client *client,
     const wf_lex_tools_ozone_team_list_members_main_params *params,
+    wf_response *out);
+
+/** Decode an owning output value; free it with the matching function. */
+wf_status wf_lex_tools_ozone_team_list_online_members_main_output_decode_json(
+    const char *json, size_t length,
+    wf_lex_tools_ozone_team_list_online_members_main_output **out_value);
+void wf_lex_tools_ozone_team_list_online_members_main_output_free(
+    wf_lex_tools_ozone_team_list_online_members_main_output *value);
+wf_status wf_lex_tools_ozone_team_list_online_members_main_call(
+    wf_xrpc_client *client,
+    const wf_lex_tools_ozone_team_list_online_members_main_params *params,
+    wf_response *out);
+wf_status wf_lex_tools_ozone_team_list_online_members_main_call_auth(
+    wf_auth_client *client,
+    const wf_lex_tools_ozone_team_list_online_members_main_params *params,
     wf_response *out);
 
 wf_status wf_lex_tools_ozone_team_update_member_main_input_encode_json(

@@ -465,9 +465,9 @@ static void test_generated_client_covers_bundled_endpoint_lexicons() {
         }
         cJSON_Delete(document);
     }
-    assert_true(endpoint_count == 319, "endpoint count is " +
+    assert_true(endpoint_count == 334, "endpoint count is " +
                                            std::to_string(endpoint_count) +
-                                           ", expected 319");
+                                           ", expected 334");
     assert_true(binary_procedure_count == 4,
                 "binary procedure count is " +
                     std::to_string(binary_procedure_count) + ", expected 4");
@@ -571,6 +571,8 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
         };
 
         int expected_decoders = 0;
+        int inline_object_outputs = 0;
+        int ref_object_outputs = 0;
         for (const auto &kv : docs_by_nsid) {
             const std::string &nsid = kv.first;
             cJSON *defs = cJSON_GetObjectItemCaseSensitive(kv.second, "defs");
@@ -592,6 +594,7 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
                 bool object_shaped = false;
                 if (stype == "object") {
                     object_shaped = true;
+                    ++inline_object_outputs;
                 } else if (stype == "ref") {
                     cJSON *ref_item =
                         cJSON_GetObjectItemCaseSensitive(schema, "ref");
@@ -599,8 +602,10 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
                         ref_item->valuestring) {
                         cJSON *target =
                             resolve_ref(nsid, ref_item->valuestring);
-                        if (target && schema_kind(target) == "object")
+                        if (target && schema_kind(target) == "object") {
                             object_shaped = true;
+                            ++ref_object_outputs;
+                        }
                     }
                 }
                 if (!object_shaped) continue;
@@ -612,11 +617,12 @@ static void test_output_decoders_cover_object_shaped_endpoints() {
                                 "output free " + symbol);
             }
         }
-        assert_true(expected_decoders == 265,
-                    "object-shaped output count is " +
-                        std::to_string(expected_decoders) +
-                        ", expected 260 (231 inline-object + 29 ref-to-object "
-                        "outputs)");
+        assert_true(
+            expected_decoders == 280,
+            "object-shaped output count is " +
+                std::to_string(expected_decoders) + ", expected 280 (" +
+                std::to_string(inline_object_outputs) + " inline-object + " +
+                std::to_string(ref_object_outputs) + " ref-to-object outputs)");
         std::cout << "    object-shaped outputs covered by a decoder: "
                   << expected_decoders << " endpoints\n";
     } catch (...) {

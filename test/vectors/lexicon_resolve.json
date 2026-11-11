@@ -5,7 +5,9 @@
  "corpus_nsids": [
   "app.bsky.feed.post",
   "com.atproto.lexicon.schema",
-  "app.bsky.feed.generator"
+  "app.bsky.feed.generator",
+  "tools.ozone.inbox.listNotifications",
+  "tools.ozone.server.getCapabilities"
  ],
  "unknown_nsid": "com.example.does-not-exist",
  "bad_corpus_dir": "/nonexistent-wolfram-corpus-dir"
