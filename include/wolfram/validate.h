@@ -47,6 +47,27 @@ wf_status wf_lexicon_registry_load_dir(wf_lexicon_registry *registry,
 int wf_lexicon_registry_contains(const wf_lexicon_registry *registry,
                                  const char *lexicon_id);
 
+/* The raw vendored lexicon document for `lexicon_id`, as loaded: WF_OK and the
+ * registry-owned `json`/`json_len` out-params (valid until the registry is
+ * freed or the document is reloaded), WF_ERR_NOT_FOUND when the NSID is not in
+ * the registry, WF_ERR_INVALID_ARG on NULL inputs. Pure lookup — safe on any
+ * target the registry itself is built on. */
+wf_status wf_lexicon_registry_document(const wf_lexicon_registry *registry,
+                                       const char *lexicon_id,
+                                       const char **json, size_t *json_len);
+
+/* Resolve `nsid` against the vendored lexicon corpus (the `lexicons/` tree).
+ * `corpus_dir` is the corpus root; NULL means $WF_ATPROTO_LEXICONS, falling
+ * back to the compile-time WF_ATPROTO_LEXICONS define. On success `out_json`
+ * is an owned copy of the document (free with free()) and `out_len` its
+ * length. Unknown NSIDs return WF_ERR_NOT_FOUND; an unusable corpus directory
+ * returns WF_ERR_INVALID_ARG, so the two are distinguishable; NULL arguments
+ * are WF_ERR_INVALID_ARG. Host-only: directory loading needs POSIX, so console
+ * targets load documents from embedded strings via wf_lexicon_registry_load
+ * and read them back with wf_lexicon_registry_document. */
+wf_status wf_lexicon_resolve(const char *nsid, const char *corpus_dir,
+                             char **out_json, size_t *out_len);
+
 /* Validate a JSON value against a lexicon record definition */
 wf_validate_result wf_validate_record(const wf_lexicon_registry *registry,
                                       const char *lexicon_id,

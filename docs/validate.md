@@ -49,6 +49,36 @@ wf_lexicon_registry_load(registry, facet_lex, len);
 free(facet_lex);
 ```
 
+## Looking a lexicon up by NSID
+
+`wf_lexicon_registry_document` returns a loaded document's raw JSON text
+(registry-owned), and `wf_lexicon_resolve` resolves an NSID straight against
+the vendored `lexicons/` tree without building a registry yourself:
+
+```c
+/* From a registry you already loaded: */
+const char *json = NULL;
+size_t json_len = 0;
+wf_status st = wf_lexicon_registry_document(registry, "app.bsky.feed.post",
+                                            &json, &json_len);
+/* st == WF_OK: json/json_len point at the document until the registry is freed.
+   st == WF_ERR_NOT_FOUND: no such lexicon is loaded. */
+
+/* Straight from the vendored corpus (host only — it reads a directory).
+   corpus_dir NULL means $WF_ATPROTO_LEXICONS, then the compile-time
+   WF_ATPROTO_LEXICONS define. */
+char *doc = NULL;
+size_t doc_len = 0;
+st = wf_lexicon_resolve("app.bsky.feed.post", NULL, &doc, &doc_len);
+if (st == WF_OK) { /* doc is an owned copy; free(doc) when done */ }
+/* WF_ERR_NOT_FOUND: unknown NSID. WF_ERR_INVALID_ARG: bad arguments or an
+   unusable corpus directory. */
+```
+
+Console targets cannot read a directory, so they embed the documents they need
+as strings, load them with `wf_lexicon_registry_load`, and read them back with
+`wf_lexicon_registry_document`.
+
 ## Validating a record (`wf_validate_record`)
 
 `wf_validate_record` validates a JSON object as an instance of the `main`
