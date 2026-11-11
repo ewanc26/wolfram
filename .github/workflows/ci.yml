@@ -576,10 +576,13 @@ jobs:
           - target: rpi1
             toolchain: rpi1.cmake
             option: ""
-            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev libssl-dev
+            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev:armhf libssl-dev:armhf
             build_target: wolfram
     steps:
       - uses: actions/checkout@v7
+
+      - name: Enable armhf multiarch (cross dev packages)
+        run: dpkg --add-architecture armhf
 
       - name: Install cross toolchain
         run: bash tools/apt-install.sh cmake make ${{ matrix.packages }}
