@@ -566,10 +566,23 @@ jobs:
       - run: tools/changelog-selftest.sh
       - run: python3 tools/release-check-selftest.py
 
+  # Vendored-lexicon drift against upstream bluesky-social/atproto at the ref
+  # pinned in tools/lexicon-drift.sh. Advisory only: it reports added/removed/
+  # changed NSIDs and is continue-on-error, so drift is visible within a day
+  # without blocking merges; it is deliberately not in the CI gate's needs.
+  lexicon-drift:
+    name: lexicon drift (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - name: Diff vendored lexicons/ against upstream
+        run: tools/lexicon-drift.sh
+
   # One name for branch protection to require. It fails when any gating job
   # failed or was cancelled, so a new job is covered by adding it to `needs`
-  # here instead of editing repository settings. The desloppify scan is
-  # informational and deliberately not listed.
+  # here instead of editing repository settings. The desloppify scan and the
+  # lexicon drift report are informational and deliberately not listed.
   ci-gate:
     name: CI gate
     if: always()
