@@ -47,7 +47,10 @@ permissions:
 jobs:
   verify:
     name: release-check
-    runs-on: ubuntu-latest
+    # Pinned to 24.04: ubuntu-latest moved to Ubuntu 26.04 (resolute) whose
+    # runner image cannot resolve security.ubuntu.com, so every apt install
+    # step fails (2026-11-11). 24.04 also keeps clang-format-18 available.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
         with:
