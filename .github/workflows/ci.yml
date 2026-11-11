@@ -576,18 +576,21 @@ jobs:
           - target: rpi1
             toolchain: rpi1.cmake
             option: ""
-            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev:armhf libssl-dev:armhf
+            packages: cmake make git ca-certificates gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev:armhf libssl-dev:armhf
             build_target: wolfram
     steps:
       - uses: actions/checkout@v7
 
       - name: Enable armhf multiarch (cross dev packages)
+        # noble's main archive carries no armhf indexes; they live on
+        # ports.ubuntu.com. Verified in a clean ubuntu:24.04 container.
         run: |
           dpkg --add-architecture armhf
           sed -i 's/^Architectures: amd64$/Architectures: amd64 armhf/' /etc/apt/sources.list.d/ubuntu.sources
+          printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates noble-security\nComponents: main universe\nArchitectures: armhf\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' > /etc/apt/sources.list.d/armhf-ports.sources
 
       - name: Install cross toolchain
-        run: bash tools/apt-install.sh cmake make ${{ matrix.packages }}
+        run: bash tools/apt-install.sh ${{ matrix.packages }}
 
       - name: Cross-compile only — no hardware run
         run: echo "host-cross/${{ matrix.target }} is a cross-compile; no binary is executed on hardware"
