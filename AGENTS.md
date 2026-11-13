@@ -77,3 +77,15 @@ test(xrpc-server): cover AppView-forwarding request headers
 - The Node addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`) exposes the update contract, the OAuth pairing parsers (`buildPairBegin`, `parsePairBegin`, `parsePairPoll`; the begin/poll loop stays with the consumer), `postDisplay` over `post_display.h` (the display model of a post from its raw record/embed JSON; fetching, which is network, stays with the consumer), and the offline typed contracts `chatConvoIsGroup`/`chatJoinLinkUrl`/`chatJoinLinkIsEnabled` (`chat_group.h`), `ageassuranceParseBegin`/`ageassuranceParseConfig`/`ageassuranceParseState` (`ageassurance_typed.h`) and `notifV2PreferencesParse`/`notifV2PreferencesBuild`/`notifV2ParsePutActivitySubscription`/`notifV2ParseListActivitySubscriptions` (`notification_v2_typed.h`) to Node. Errors surface as thrown `Error`s whose `code` is the `wf_status` name; it never writes user-facing prose, and it stays synchronous on the JS thread. Every contract it exposes runs its shared vectors through the binding in `node/test/` and in CI, the pairing and display ones included.
 - A binding may assert nothing about a status it maps: run the shared vectors it consumes through the binding itself in CI, so a status that changes meaning breaks the binding's tests, not just the C suite's.
 
+
+<!-- allowed-agents -->
+## Allowed agents
+
+Only **Claude** (Anthropic) and **Mistral** (Mistral AI) may be used as coding agents in this repository. This rule supersedes any earlier agent-attribution guidance in this file.
+
+- Agent-assisted commits must credit only one of those agents:
+  - `Co-Authored-By: Claude <noreply@anthropic.com>`
+  - `Co-Authored-By: Mistral Vibe <vibe@mistral.ai>`
+- Allowed agent footers are `🤖 Generated with [Claude Code](https://claude.com/claude-code)` and `🤖 Generated with [Mistral Vibe](https://mistral.ai)`.
+- Do not add `Co-Authored-By:` trailers, `Generated with` footers, author names, or committer identities for any other agent or AI tool.
+- Do not credit another agent in commit metadata.
