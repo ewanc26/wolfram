@@ -9,12 +9,6 @@
   <a href="https://github.com/sponsors/ewanc26"><img src="https://img.shields.io/github/sponsors/ewanc26?logo=githubsponsors&logoColor=white&label=sponsors" alt="Sponsor"></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml"><img src="https://github.com/ewanc26/wolfram/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/ewanc26/wolfram?label=licence" alt="Licence"></a>
-  <a href="https://github.com/sponsors/ewanc26"><img src="https://img.shields.io/github/sponsors/ewanc26?logo=githubsponsors&logoColor=white&label=sponsors" alt="Sponsor"></a>
-</p>
-
 # Wolfram
 
 A C/C++ SDK for the AT Protocol: a client-side, wire-level implementation, not a
@@ -291,6 +285,7 @@ If you find this project useful, consider supporting its development:
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sponsors/ewanc26)
 
 ## Licence
+
 [GNU AGPL-3.0](LICENSE). Running a modified Wolfram as part of a public network
 service obliges you to offer its users the corresponding source.
 
