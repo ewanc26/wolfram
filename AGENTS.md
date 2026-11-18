@@ -15,8 +15,8 @@ Primarily C AT Protocol SDK: client-side, wire-level implementation (XRPC, OAuth
 - Preserve existing architecture, naming, formatting, and error-handling conventions.
 - Use project scripts for validation; never claim checks you did not run.
 - Keep changes scoped and update tests or documentation when behavior changes.
+- Use feature branches and pull requests.
 - Treat generated files, credentials, deployment configuration, and release metadata as sensitive.
-
 <!-- flow:begin -->
 ## Unified flow (canonical: ewanc26/wolfram, docs/flow.md)
 
