@@ -28,14 +28,12 @@ This block is byte-identical in every repo of the stack and is drift-checked by 
 - Agent commits end with the `Co-Authored-By:` and `Claude-Session:` trailers the session supplies. PR descriptions use `.github/PULL_REQUEST_TEMPLATE.md` (What this changes, Verification, Docs) and end with the session link.
 - Nothing goes straight to main. Branch, open a PR, wait for green CI, merge the PR with a rebase merge (never squash, never a merge commit). Required checks: `CI gate` and `flow / conventions`.
 - A rebase merge lands every commit on main as written, so each commit stands alone: a conventional subject, builds, passes tests. Write review fixes as real conventional commits (`fix(scope): ...`), never "address review".
-- Never force-push, so a PR branch 
-is never rebased locally, and never merge main into a PR branch (a merge commit breaks the rebase merge; the flow check fails it). If a PR is behind or conflicted and GitHub can still rebase-merge it cleanly, merge it once CI is green on the current head. Otherwise cut a fresh branch from main, cherry-pick the commits, open a new PR linking the old one, and close the old one with a comment.
+- Never force-push, so a PR branch is never rebased locally, and never merge main into a PR branch (a merge commit breaks the rebase merge; the flow check fails it). If a PR is behind or conflicted and GitHub can still rebase-merge it cleanly, merge it once CI is green on the current head. Otherwise cut a fresh branch from main, cherry-pick the commits, open a new PR linking the old one, and close the old one with a comment.
 - Never merge red. Never force-push. Never skip, disable or delete a test to get green: read the job log, reproduce, fix the root cause, wait, repeat. A red main is fixed before anything else.
 - Keep `CHANGELOG.md` current in every PR: a change outside docs/, .github/, test/, tests/ and *.md adds or edits a line under `## [Unreleased]` (Added, Changed, Fixed, Removed, Security), in the owner's voice, linking its PR or issue. A change no user can see says `Changelog: none — <reason>` in the PR body instead. `flow / changelog` enforces both, and that every tag has a section. Never hand-edit a released section; `tools/release.sh prepare` moves Unreleased.
 - Update AGENTS.md, README and docs/ in the same PR as the change. AGENTS.md is imperative and exact; README and docs are user-facing prose.
 - File issues through the forms in `.github/ISSUE_TEMPLATE/` (bug, enhancement, documentation, refactor, test, chore, parity gap, duplication, needs-owner); blank issues are off and security reports go through the private advisory link in `config.yml`. The forms are canonical in wolfram and drift-checked; only the area options differ per repo, and `python3 tools/repo_sync.py forms apply` writes them.
-- Label every issue: exactly one kind (bug, enhancement, documentation, refactor, test, chore, question) and at least one `area: <x>`. The taxonomy is `.github/labels.yml` (canonical in wolfram, drift-checked as `flow / labels and metadata`); add a label there, never ad hoc. Repository description, homepage, topics and features are `.github/repo-metadata.yml`; the owner applies it with `tools/appl
-y-repo-metadata.sh`, because agents cannot write repository metadata.
+- Label every issue: exactly one kind (bug, enhancement, documentation, refactor, test, chore, question) and at least one `area: <x>`. The taxonomy is `.github/labels.yml` (canonical in wolfram, drift-checked as `flow / labels and metadata`); add a label there, never ad hoc. Repository description, homepage, topics and features are `.github/repo-metadata.yml`; the owner applies it with `tools/apply-repo-metadata.sh`, because agents cannot write repository metadata.
 - State exactly what was verified and where (host, emulator, hardware). Never claim hardware you did not use.
 - Releases go through the repo's own release script only, and only after every consumer in the stack has been verified against the change.
 - Anything only the owner can supply (credentials, hardware results, money, irreversible actions): file an issue labelled `needs-owner` and move on.
@@ -55,8 +53,7 @@ test(xrpc-server): cover AppView-forwarding request headers
 - Do not silently introduce a local OAuth/DPoP dependency into the Mac OS 9 transport. Platinum authenticates through its bridge.
 - The transport is strict C89 for CodeWarrior, and CMake enforces it (`C_STANDARD 90`, `C_EXTENSIONS OFF`, `-Wdeclaration-after-statement -Wstrict-prototypes -Wvla`). Keep it that way: no `//` comments, no mid-block declarations, no `snprintf`, `strdup`, `%zu`, VLAs, or C99/POSIX libc.
 - Do not reintroduce a cJSON dependency into this target. cJSON is C99 and cannot compile under those settings; the bounded JSON scanner in `xrpc_mac9.c` replaces it.
-- Transport-level limits are policies, not conveniences: `https_only` and the response-size cap are checked before any I/O and before the `wf_xrpc_set_handler()` te
-st seam, so neither can be switched off by a handler.
+- Transport-level limits are policies, not conveniences: `https_only` and the response-size cap are checked before any I/O and before the `wf_xrpc_set_handler()` test seam, so neither can be switched off by a handler.
 - The public macTLS surface lives in `include/wolfram/macos9_tls.h`; keep `<wolfram/xrpc.h>` free of Mac-specific types.
 - Test the transport offline via `wf_xrpc_set_handler()` and the stubs in `test/macos9_mactls_stub.c`. The suite asserts no macTLS entry point is ever called, so a test cannot pass by reaching the network.
 
@@ -73,8 +70,7 @@ st seam, so neither can be switched off by a handler.
 - Manifest parsing, version comparison and SHA-256 verification live in `include/wolfram/update.h` and are specified in `docs/update.md`. Clients call them; do not re-implement in a consumer.
 - `src/update/update_core.c` is strict C89 with no `stdint.h` and is part of the Mac OS 9 target; CI compiles it with `-std=c89 -pedantic-errors`. Keep it that way. `manifest.c` needs cJSON and stays out of that target.
 - Change the manifest or version rules by changing `test/vectors/update/*.json` and `docs/update.md` in the same PR. Consumers, including Platinum's TypeScript port, run those vectors.
-- Never describe a SHA-256 from
- the same release as authentication. `signature` is reserved and unverified; do not add a public key to the repo, the owner supplies it.
+- Never describe a SHA-256 from the same release as authentication. `signature` is reserved and unverified; do not add a public key to the repo, the owner supplies it.
 
 ## Language bindings
 
@@ -91,7 +87,6 @@ Only **Claude** (Anthropic) and **Mistral** (Mistral AI) may be used as coding a
 - Agent-assisted commits must credit only one of those agents:
   - `Co-Authored-By: Claude <noreply@anthropic.com>`
   - `Co-Authored-By: Mistral Vibe <vibe@mistral.ai>`
-- All
-owed agent footers are `🤖 Generated with [Claude Code](https://claude.com/claude-code)` and `🤖 Generated with [Mistral Vibe](https://mistral.ai)`.
+- Allowed agent footers are `🤖 Generated with [Claude Code](https://claude.com/claude-code)` and `🤖 Generated with [Mistral Vibe](https://mistral.ai)`.
 - Do not add `Co-Authored-By:` trailers, `Generated with` footers, author names, or committer identities for any other agent or AI tool.
 - Do not credit another agent in commit metadata.
