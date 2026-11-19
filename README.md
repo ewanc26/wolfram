@@ -28,8 +28,7 @@ C is the default language; C++ is used for complex or sensitive components where
 ## Core Features
 
 - XRPC client with bearer authentication, DPoP-bound OAuth, and binary blob upload
-- Current AT Protocol lexicon snapshot: 419 documents and 334 query/procedure definitions; JSON calls are generated and binary procedures use the dedic
-ated upload/import APIs
+- Current AT Protocol lexicon snapshot: 419 documents and 334 query/procedure definitions; JSON calls are generated and binary procedures use the dedicated upload/import APIs
 - Streaming subscriptions: `subscribeRepos` (firehose), `subscribeLabels`, and `subscribeRepos` with cursor reconnect/backoff
 - Identity: DID resolution (`did:plc`, `did:web`), handle DNS TXT resolution, PLC operations
 - Repo: DAG-CBOR encoding/decoding, CAR import/export, MST, signed v3 commits, record CRUD, diff verify/apply
@@ -61,7 +60,6 @@ Topic guides:
 - [CLI reference](docs/cli.md) — the `wolfram` command-line client
 
 ## Quick start
-
 
 ```sh
 cmake -S . -B build && cmake --build build && ctest --test-dir build
@@ -109,8 +107,7 @@ attached. It takes two steps and a pull request:
 ```sh
 tools/release.sh prepare --consumers-verified minor   # 0.26.0 -> 0.27.0 on release/v0.27.0
 tools/release.sh prepare --dry-run minor              # run the checks, print the notes, change nothing
-# open a PR from release/v0.27.0, rebase-merge it once CI is green,
- then:
+# open a PR from release/v0.27.0, rebase-merge it once CI is green, then:
 tools/release.sh publish 0.27.0
 ```
 
@@ -164,8 +161,7 @@ Requires [devkitPro](https://devkitpro.org/) with devkitPPC and the wut SDK
 installed. The toolchain file is at `.devdeps/wiiu.cmake`.
 
 The Wii U is the one console target that can also build the XRPC **server**,
-using the bundled libmicrohttpd shim (`src/
-server/mhd_shim.c`) in place of a
+using the bundled libmicrohttpd shim (`src/server/mhd_shim.c`) in place of a
 library that has no console port. devkitPro packages no SQLite, so point the
 build at the [amalgamation](https://sqlite.org/download.html):
 
@@ -213,8 +209,7 @@ handful of OpenSSL entry points that survive (`SHA256`, base64). P-256 signing,
 verification and did:key derivation all work, and the console and desktop
 backends interoperate in both directions: a signature made by one verifies
 under the other. This is emulator-verified on 3DS, and the DER
-`ECDSA-Sig-Value` parser 
-agrees with the OpenSSL backend on every input tested,
+`ECDSA-Sig-Value` parser agrees with the OpenSSL backend on every input tested,
 including the malformed ones — `wf_crypto_ecdsa_der_to_raw` holds the same DER
 minimality rule OpenSSL does so the two cannot drift.
 
@@ -267,8 +262,7 @@ under `.devdeps/`.
 
 The Wii platform implements libogc networking, LWP mutexes, monotonic timing,
 mbedTLS HTTPS with CA validation, P-256/did:key crypto, and secp256k1
-(did:key) crypto via mbedTLS. It requires a unique externally prov
-isioned
+(did:key) crypto via mbedTLS. It requires a unique externally provisioned
 entropy seed through `wf_wii_set_entropy_seed`. Wii WebSocket support remains
 an honest stub. The 3DS platform now has real libctru primitives (LightLock
 mutex, osGetTime clock, httpc transport) and mbedtls-based P-256/did:key
@@ -308,8 +302,7 @@ service obliges you to offer its users the corresponding source.
 
 ## Classic Mac OS 9 transport
 
-Wolfram includes a standalone Classic Mac OS 9 XRPC transport for consumers such as Platin
-um. It uses Open Transport for TCP and the external [macTLS](https://github.com/mplsllc/macTLS) async stream for TLS 1.3 with TLS 1.2 fallback. The transport does not use libcurl, OpenSSL, pthreads, or modern POSIX networking APIs.
+Wolfram includes a standalone Classic Mac OS 9 XRPC transport for consumers such as Platinum. It uses Open Transport for TCP and the external [macTLS](https://github.com/mplsllc/macTLS) async stream for TLS 1.3 with TLS 1.2 fallback. The transport does not use libcurl, OpenSSL, pthreads, or modern POSIX networking APIs.
 
 Build the transport with:
 
