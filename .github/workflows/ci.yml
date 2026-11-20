@@ -20,7 +20,7 @@ jobs:
     # step fails (2026-11-11). 24.04 also keeps clang-format-18 available.
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install OAuth node dependencies
         run: |
           sudo bash tools/apt-install.sh gcc g++ make cmake pkg-config libcurl4-openssl-dev libcjson-dev libmbedtls-dev libmicrohttpd-dev libssl-dev
