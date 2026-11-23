@@ -5,7 +5,7 @@
 | `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload, client-level `atproto-proxy` service-proxying header |
 | `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
-| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, one-shot and incremental CID hashing, CAR, MST, commit, diff verify/apply, operation inversion |
+| `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, one-shot and incremental CID hashing, CAR, MST, commit, diff verify/apply, operation inversion, block pager over a consumer-supplied block store (host builds; #276) |
 | `wolfram/crypto.h`        | Implemented | secp256k1 + P-256 keygen, sign, verify          |
 | `wolfram/oauth.h`         | Implemented | OAuth discovery, PKCE/DPoP, PAR/token calls, callback validation, and persistent state |
 | `wolfram/server.h`         | Implemented | Server account management — describeServer, createAccount, app passwords, deleteAccount, password reset |

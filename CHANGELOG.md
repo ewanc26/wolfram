@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `include/wolfram/repo/block_pager.h`: a bounded LRU pager in front of a consumer-supplied block store — resident under block-count and byte ceilings, fetched by `wf_cid`, writing through on put — so a consumer whose blocks are already durable (MetalBear's SQLite block store is the first customer) can let memory track the working set instead of the repo. Host builds link it; embedded builds do not yet. ([#276](https://github.com/ewanc26/wolfram/issues/276))
+
 ## [0.45.0] - 2026-11-11
 
 ### Added
