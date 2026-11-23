@@ -30,6 +30,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | [saved-feeds.md](saved-feeds.md) | `saved_feeds.h` | The account's saved custom feeds with display names, read tolerantly from the raw preferences. |
 | [profile-tabs.md](profile-tabs.md) | `profile_tab.h` | Profile tab names, filters, cycle order and one call to fetch a page of a tab. |
 | [failure.md](failure.md) | `failure.h` | One failure kind (bad credentials, network, timeout, TLS, rate limit, server, bad response) from a `wf_status`, an HTTP status and an XRPC error name. |
+| [rate-limit.md](rate-limit.md) | `rate_limit.h`, `retry.h` | Parse RateLimit-* response headers into a queryable budget, and compute a bounded, jittered retry delay that honours the server's Reset window. |
 | [update.md](update.md) | `update.h` | Release manifest parsing, semver comparison and SHA-256 download verification for client self-update. |
 | [notification.md](notification.md) | `notification.h` | Notification listing and preferences. |
 | [unspecced.md](unspecced.md) | `unspecced_typed.h` | `app.bsky.unspecced` typed parsers (trends, suggested users, thread v2, etc.). |

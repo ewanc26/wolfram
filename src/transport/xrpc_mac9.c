@@ -265,6 +265,7 @@ struct wf_xrpc_client {
     void *refresh_userdata;
     int refreshing;
     char *last_error; /* XRPC error message from the last non-2xx response */
+    wf_rate_limit last_rate_limit; /* latest RateLimit-* budget seen */
 };
 
 /* ── URL helpers ────────────────────────────────────────────────────── */
@@ -1275,6 +1276,12 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
         break;
     }
 
+    if (out != NULL &&
+        (status == WF_OK || status == WF_ERR_HTTP || status == WF_ERR_AUTH)) {
+        client->last_rate_limit = out->rate_limit;
+    } else {
+        memset(&client->last_rate_limit, 0, sizeof(client->last_rate_limit));
+    }
     free(url);
     return status;
 }
@@ -1306,6 +1313,14 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
 
 const char *wf_xrpc_last_error(const wf_xrpc_client *client) {
     return client != NULL ? client->last_error : NULL;
+}
+
+wf_rate_limit wf_xrpc_client_get_rate_limit(const wf_xrpc_client *client) {
+    wf_rate_limit empty;
+
+    memset(&empty, 0, sizeof(empty));
+    if (client == NULL) return empty;
+    return client->last_rate_limit;
 }
 
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,

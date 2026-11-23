@@ -27,6 +27,8 @@
 #include "wolfram/qr.h"
 #include "wolfram/time.h"
 #include "wolfram/failure.h"
+#include "wolfram/rate_limit.h"
+#include "wolfram/retry.h"
 #include "wolfram/cdn.h"
 #include "wolfram/drag.h"
 #include "wolfram/ed25519.h"

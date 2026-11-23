@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wolfram/rate_limit.h` reads the RateLimit-Limit, Remaining, Reset and Policy headers off XRPC responses into a budget `wf_xrpc_client_get_rate_limit` returns, so a client can pace a burst instead of learning the limit from a 429. Malformed or missing headers stay unknown rather than guessing, and the existing `wf_failure_classify` still reports exhaustion as `WF_FAIL_RATE_LIMIT`. `wolfram/retry.h` adds a bounded retry policy with a caller-set attempt cap, exponential backoff, deterministic jitter and a floor at the server's Reset window; the library never sleeps, the caller does. ([#275](https://github.com/ewanc26/wolfram/issues/275))
+
 ## [0.45.0] - 2026-11-11
 
 ### Added
