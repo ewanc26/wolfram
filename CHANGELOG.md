@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-11-23
+
 ### Added
 
 - `wolfram/rate_limit.h` reads the RateLimit-Limit, Remaining, Reset and Policy headers off XRPC responses into a budget `wf_xrpc_client_get_rate_limit` returns, so a client can pace a burst instead of learning the limit from a 429. Malformed or missing headers stay unknown rather than guessing, and the existing `wf_failure_classify` still reports exhaustion as `WF_FAIL_RATE_LIMIT`. `wolfram/retry.h` adds a bounded retry policy with a caller-set attempt cap, exponential backoff, deterministic jitter and a floor at the server's Reset window; the library never sleeps, the caller does. ([#275](https://github.com/ewanc26/wolfram/issues/275))
@@ -514,7 +516,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.45.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.46.0
 [0.45.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.45.0
 [0.44.2]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.2
 [0.44.1]: https://github.com/ewanc26/wolfram/releases/tag/v0.44.1
