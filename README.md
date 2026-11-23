@@ -290,6 +290,8 @@ If you find this project useful, consider supporting its development:
 [GNU AGPL-3.0](LICENSE). Running a modified Wolfram as part of a public network
 service obliges you to offer its users the corresponding source.
 
+Copyright (C) 2026 Ewan Croft (ewanc26).
+
 ## Star History
 
 <a href="https://www.star-history.com/?repos=ewanc26%2Fwolfram&type=date&legend=bottom-right">
