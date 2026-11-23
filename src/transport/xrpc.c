@@ -59,7 +59,8 @@ struct wf_xrpc_client {
     int https_only;        /* nonzero: refuse non-https URLs and redirects */
     long max_redirects;    /* < 0 = WF_XRPC_DEFAULT_MAX_REDIRECTS */
     long total_timeout_ms; /* 0 = no overall deadline */
-    pthread_mutex_t mutex; /* guards all mutable fields above */
+    wf_rate_limit last_rate_limit;   /* latest RateLimit-* budget seen */
+    pthread_mutex_t mutex;           /* guards all mutable fields above */
     struct wf_xrpc_pending *pending; /* linked list of in-flight async ops */
 };
 
@@ -81,6 +82,7 @@ struct wf_client_config {
     int https_only;
     long max_redirects;
     long total_timeout_ms;
+    wf_xrpc_client *owner; /* borrowed; NULL in a synthetic config */
 };
 
 /* Redirect cap for wf_http_get_public (CDN image URLs rarely hop at all). */
@@ -136,6 +138,7 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     cfg->https_only = client->https_only;
     cfg->max_redirects = client->max_redirects;
     cfg->total_timeout_ms = client->total_timeout_ms;
+    cfg->owner = client;
     int copy_failed = (!cfg->base_url && client->base_url) ||
                       (!cfg->auth_header && client->auth_header) ||
                       (!cfg->proxy_header && client->proxy_header) ||
@@ -147,6 +150,19 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
         return NULL;
     }
     return cfg;
+}
+
+/* Store the budget from one completed attempt, or clear it when the attempt
+ * had no response. Called without the client lock held. */
+static void wf_xrpc_store_rate_limit(wf_xrpc_client *client,
+                                     const wf_rate_limit *budget) {
+    if (!client) return;
+    pthread_mutex_lock(&client->mutex);
+    if (budget)
+        client->last_rate_limit = *budget;
+    else
+        memset(&client->last_rate_limit, 0, sizeof(client->last_rate_limit));
+    pthread_mutex_unlock(&client->mutex);
 }
 
 /* ── Async pending handle ───────────────────────────────────────────── */
@@ -242,6 +258,7 @@ struct wf_header_capture {
     char *dpop_nonce;
     char *set_cookie;
     char *location;
+    wf_rate_limit rate_limit;
 };
 
 /*
@@ -273,16 +290,54 @@ static void wf_capture_header(const char *ptr, size_t len, const char *name,
     *slot = value;
 }
 
+/* Parse a RateLimit-* header from curl's raw line. Names are short and values
+ * are tiny; anything that does not fit the bound is ignored as malformed
+ * rather than truncated. */
+static void wf_capture_rate_limit_header(const char *ptr, size_t len,
+                                         wf_rate_limit *out) {
+    size_t i;
+    size_t name_end;
+    size_t start;
+    size_t end;
+    char name[32];
+    char value[1024];
+
+    if (ptr == NULL || out == NULL) return;
+    for (i = 0; i < len && ptr[i] != ':'; i++) {
+    }
+    if (i == 0 || i == len || i >= sizeof(name)) return;
+    name_end = i;
+    for (i = 0; i < name_end; i++) name[i] = ptr[i];
+    name[name_end] = '\0';
+
+    start = name_end + 1;
+    while (start < len && (ptr[start] == ' ' || ptr[start] == '\t')) start++;
+    end = len;
+    while (end > start && (ptr[end - 1] == '\r' || ptr[end - 1] == '\n' ||
+                           ptr[end - 1] == ' ' || ptr[end - 1] == '\t'))
+        end--;
+    if (end - start >= sizeof(value)) return;
+    memcpy(value, ptr + start, end - start);
+    value[end - start] = '\0';
+    (void)wf_rate_limit_parse_header(out, name, value);
+}
+
 static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb,
                                 void *userdata) {
     struct wf_header_capture *capture = userdata;
     size_t len = size * nmemb;
+    /* A redirect adds another response; its headers must not survive into the
+     * final response's budget. */
+    if (len >= 5 && memcmp(ptr, "HTTP/", 5) == 0) {
+        memset(&capture->rate_limit, 0, sizeof(capture->rate_limit));
+    }
     wf_capture_header(ptr, len, "DPoP-Nonce:", sizeof("DPoP-Nonce:") - 1,
                       &capture->dpop_nonce);
     wf_capture_header(ptr, len, "Set-Cookie:", sizeof("Set-Cookie:") - 1,
                       &capture->set_cookie);
     wf_capture_header(ptr, len, "Location:", sizeof("Location:") - 1,
                       &capture->location);
+    wf_capture_rate_limit_header(ptr, len, &capture->rate_limit);
     return len;
 }
 
@@ -398,6 +453,18 @@ const char *wf_xrpc_last_error(const wf_xrpc_client *client) {
      * request on the same client. */
     free((void *)copy);
     return err;
+}
+
+wf_rate_limit wf_xrpc_client_get_rate_limit(const wf_xrpc_client *client) {
+    wf_rate_limit copy = {0};
+    wf_xrpc_client *mutable_client;
+
+    if (!client) return copy;
+    mutable_client = (wf_xrpc_client *)client;
+    pthread_mutex_lock(&mutable_client->mutex);
+    copy = client->last_rate_limit;
+    pthread_mutex_unlock(&mutable_client->mutex);
+    return copy;
 }
 
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
@@ -675,6 +742,11 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
                          (const char *)body, body_len, harr, hcount, out);
         wf_http_headers_free(harr, hcount);
         curl_slist_free_all(headers);
+        wf_xrpc_store_rate_limit(
+            cfg->owner,
+            (status == WF_OK || status == WF_ERR_HTTP || status == WF_ERR_AUTH)
+                ? &out->rate_limit
+                : NULL);
         return status;
     }
 
@@ -770,6 +842,7 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
         capture.set_cookie = NULL;
         out->location = capture.location;
         capture.location = NULL;
+        out->rate_limit = capture.rate_limit;
 
         WF_LOG_DEBUG("xrpc", "HTTP response %ld for %s", http_status, url);
 
@@ -784,6 +857,10 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     if (status != WF_OK && status != WF_ERR_HTTP && buf.data) {
         free(buf.data);
     }
+    wf_xrpc_store_rate_limit(cfg->owner,
+                             (status == WF_OK || status == WF_ERR_HTTP)
+                                 ? &capture.rate_limit
+                                 : NULL);
     free(capture.dpop_nonce);
     free(capture.set_cookie);
     free(capture.location);
@@ -1204,6 +1281,7 @@ void wf_response_free(wf_response *res) {
     res->dpop_nonce = NULL;
     res->set_cookie = NULL;
     res->location = NULL;
+    memset(&res->rate_limit, 0, sizeof(res->rate_limit));
     res->status = 0;
 }
 
@@ -1562,6 +1640,12 @@ static wf_status wf_xrpc_async_submit(wf_xrpc_client *client, const char *nsid,
 
     struct wf_client_config *cfg = wf_client_snapshot(client);
     if (!cfg) return WF_ERR_ALLOC;
+
+    /* This worker can outlive a client that is freed while the pending handle
+     * still exists, so it must not write the parsed budget back through a
+     * borrowed client pointer. The response still carries it; only the
+     * client-level readback is limited to synchronous requests. */
+    cfg->owner = NULL;
 
     char *nsid_copy = strdup(nsid);
     char *query_copy = query_string ? strdup(query_string) : NULL;
