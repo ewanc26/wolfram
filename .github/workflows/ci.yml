@@ -557,10 +557,13 @@ jobs:
   # cross-compiler plus the toolchain file's pinned -march=armv6zk flags make
   # the compile Pi 1-safe. Without a Pi rootfs only the library archive is
   # built (no executables are linked, so no target sysroot is needed); the
-  # log says so. The windows.cmake MinGW target is deliberately not here yet:
-  # WOLFRAM_BUILD_WINDOWS sets NON_POSIX (so CURL/OpenSSL are never found) but
-  # the library link block still requires CURL::libcurl, and there is no
-  # winsock transport — tracked in a follow-up issue.
+  # log says so.
+  #
+  # The windows.cmake MinGW-w64 target builds here too, from nothing but the
+  # mingw-w64 package: it is the console subset of the library, with mbedTLS
+  # fetched by CMake. Unlike the Pi leg it builds everything, which links
+  # test/windows_smoke.c against the archive, so a Windows backend that goes
+  # missing fails this job at link time. The program is not run here.
   host-cross:
     name: cross-build ${{ matrix.target }}
     runs-on: ubuntu-24.04
@@ -578,6 +581,13 @@ jobs:
             option: ""
             packages: cmake make git ca-certificates gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf libcurl4-openssl-dev libssl-dev
             build_target: wolfram
+            host_tls_hints: true
+          - target: windows
+            toolchain: windows.cmake
+            option: WOLFRAM_BUILD_WINDOWS=ON
+            packages: cmake make git ca-certificates mingw-w64
+            build_target: ""
+            host_tls_hints: false
     steps:
       - uses: actions/checkout@v7
 
@@ -591,24 +601,28 @@ jobs:
         run: |
           opts=""
           [ -n "${{ matrix.option }}" ] && opts="-D${{ matrix.option }}"
-          # Archive-only cross-build: no Pi rootfs on the runner, so no
-          # --sysroot (the cross-gcc already uses its own armhf sysroot and
-          # host amd64 headers never leak in). Build the static archive only
-          # (nothing is linked); point configure-time find_package at the
-          # host's arch-independent dev packages via explicit -D hints.
-          case $(uname -m) in
-            x86_64)  M=x86_64-linux-gnu ;;
-            aarch64) M=aarch64-linux-gnu ;;
-            *) echo "unsupported host arch $(uname -m)"; exit 1 ;;
-          esac
+          # Pi 1: an archive-only cross-build. There is no Pi rootfs on the
+          # runner, so no --sysroot (the cross-gcc already uses its own armhf
+          # sysroot and host amd64 headers never leak in). Build the static
+          # archive only (nothing is linked); point configure-time find_package
+          # at the host's arch-independent dev packages via explicit -D hints.
+          # Windows finds no curl or OpenSSL at all, so it takes no hints.
+          hints=""
+          if [ "${{ matrix.host_tls_hints }}" = "true" ]; then
+            case $(uname -m) in
+              x86_64)  M=x86_64-linux-gnu ;;
+              aarch64) M=aarch64-linux-gnu ;;
+              *) echo "unsupported host arch $(uname -m)"; exit 1 ;;
+            esac
+            hints="-DCURL_INCLUDE_DIR=/usr/include/$M \
+              -DCURL_LIBRARY=/usr/lib/$M/libcurl.so \
+              -DOPENSSL_INCLUDE_DIR=/usr/include \
+              -DOPENSSL_SSL_LIBRARY=/usr/lib/$M/libssl.so \
+              -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/$M/libcrypto.so"
+          fi
           cmake -S . -B build-${{ matrix.target }} \
             -DCMAKE_TOOLCHAIN_FILE=.devdeps/${{ matrix.toolchain }} \
-            -DBUILD_SHARED_LIBS=OFF $opts \
-            -DCURL_INCLUDE_DIR=/usr/include/$M \
-            -DCURL_LIBRARY=/usr/lib/$M/libcurl.so \
-            -DOPENSSL_INCLUDE_DIR=/usr/include \
-            -DOPENSSL_SSL_LIBRARY=/usr/lib/$M/libssl.so \
-            -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/$M/libcrypto.so
+            -DBUILD_SHARED_LIBS=OFF $opts $hints
           if [ -n "${{ matrix.build_target }}" ]; then
             cmake --build build-${{ matrix.target }} -j"$(nproc)" --target ${{ matrix.build_target }}
           else
