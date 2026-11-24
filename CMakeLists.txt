@@ -322,6 +322,8 @@ add_library(
   src/repo/sync.c
   src/repo/cbor_build.c
   src/repo/cbor_map_find.c
+  # Host-only block pager (#276): a console client has no page store yet
+  $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/repo/block_pager.c>
   ${base64url_SOURCE_DIR}/librb64u.c
   # Session
   src/session/session.c
@@ -1463,6 +1465,11 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_car_malformed PRIVATE wolfram)
   target_include_directories(test_car_malformed PRIVATE test)
   add_test(NAME car_malformed COMMAND test_car_malformed)
+
+  add_executable(test_block_pager test/test_block_pager.c)
+  target_link_libraries(test_block_pager PRIVATE wolfram)
+  target_include_directories(test_block_pager PRIVATE test)
+  add_test(NAME block_pager COMMAND test_block_pager)
 
   add_executable(test_dagcbor_interop test/test_dagcbor_interop.c)
   target_link_libraries(test_dagcbor_interop PRIVATE wolfram)
