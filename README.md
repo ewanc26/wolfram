@@ -234,17 +234,23 @@ be.
 
 ### Windows
 
-A cross-compilation target for Windows (MinGW-w64) is supported.
+Windows cross-compiles from Linux or macOS with MinGW-w64, and needs nothing
+else installed: CMake fetches mbedTLS along with the other dependencies.
 
 ```sh
 cmake -S . -B build-windows \
   -DCMAKE_TOOLCHAIN_FILE=.devdeps/windows.cmake \
-  -DWOLFRAM_BUILD_WINDOWS=ON \
-  -DCMAKE_BUILD_TYPE=Debug
+  -DWOLFRAM_BUILD_WINDOWS=ON
 cmake --build build-windows
 ```
 
-Requires MinGW-w64. The toolchain file is at `.devdeps/windows.cmake`.
+This builds the console subset of the library as a static archive, with the
+console crypto on mbedTLS, and it has no network transport yet: XRPC and
+WebSocket calls return `WF_ERR_NETWORK` unless the consumer supplies its own
+HTTP through `wf_xrpc_set_handler()`. It is cross-compiled in CI and its smoke
+program passes under Wine; I have not run it on Windows itself.
+[docs/windows.md](docs/windows.md) has what is in, what is out and where the
+transport plugs in. The toolchain file is at `.devdeps/windows.cmake`.
 
 ### Linux (ARM64)
 
@@ -268,7 +274,9 @@ mbedTLS HTTPS with CA validation, P-256/did:key crypto, and secp256k1
 entropy seed through `wf_wii_set_entropy_seed`. Wii WebSocket support remains
 an honest stub. The 3DS platform now has real libctru primitives (LightLock
 mutex, osGetTime clock, httpc transport) and mbedtls-based P-256/did:key
-crypto. The Windows target is fully implemented against the Win32 API.
+crypto. The Windows platform layer (mutexes, clock, random source) is written
+against the Win32 API; the Windows build has no network transport yet, see
+[docs/windows.md](docs/windows.md).
 
 The Wii and 3DS builds are client-only: server modules, OAuth flows, and the
 desktop dependencies (libcurl, OpenSSL, pthreads) are excluded. The Wii U can

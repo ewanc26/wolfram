@@ -49,7 +49,9 @@ wf_status wf_json_canonicalize(const char *in, size_t len, char **out);
  *                 formats are ignored.
  *   minimum/maximum/exclusiveMinimum/exclusiveMaximum/multipleOf : numeric.
  *   minLength/maxLength : string byte-length bounds.
- *   pattern     : POSIX ERE match (invalid pattern is a schema error).
+ *   pattern     : POSIX ERE match (invalid pattern is a schema error). The
+ *                 Windows build has no POSIX regex, so there a schema that
+ *                 uses pattern on a string fails validation.
  *   minItems/maxItems/uniqueItems : array constraints.
  *   additionalProperties : false rejects extra keys; a schema validates them.
  *   anyOf/oneOf/not : subschema combinators.

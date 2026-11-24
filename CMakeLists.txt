@@ -52,6 +52,12 @@ set(WOLFRAM_MACTLS_ROOT "" CACHE PATH
     "macTLS source root containing os9/ostls_async.h")
 
 # Windows cross-compilation (MinGW-w64). Uses Win32 APIs instead of POSIX.
+#
+# MinGW-w64 ships no libcurl, OpenSSL or POSIX regex for the target, so this
+# builds the same subset of the library as the consoles do (it joins
+# WOLFRAM_BUILD_EMBEDDED below): no OAuth client, server, CLI, tests or
+# examples, with the consoles' mbedTLS-backed crypto. It has no network
+# transport yet; see src/transport/windows_tls.c and docs/windows.md.
 option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)"
        OFF)
 
@@ -71,8 +77,15 @@ option(WOLFRAM_BUILD_OAUTH_NODE "Build the hosted Wolfram OAuth pairing node" OF
 # The OAuth node is a hosted web service. It deliberately never enters an
 # embedded build, where the OAuth client itself is not part of Wolfram.
 # Enabling it also enables the existing HTTP/XRPC server module.
-# Derived: true for any embedded/console target
-if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_WIIU OR WOLFRAM_BUILD_3DS)
+# Derived: true for any target that builds the console subset of the library.
+# That is every console, and for now Windows too: like them it has no libcurl
+# or OpenSSL to build the hosted modules against. Windows leaves this list when
+# it gains hosted backends of its own; WOLFRAM_BUILD_NON_POSIX below is the
+# axis that stays true for it.
+if(WOLFRAM_BUILD_WII
+   OR WOLFRAM_BUILD_WIIU
+   OR WOLFRAM_BUILD_3DS
+   OR WOLFRAM_BUILD_WINDOWS)
   set(WOLFRAM_BUILD_EMBEDDED ON)
 else()
   set(WOLFRAM_BUILD_EMBEDDED OFF)
@@ -112,6 +125,21 @@ if(WOLFRAM_BUILD_NODE)
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build a shared libwolfram" FORCE)
 endif()
 
+# The Windows build is a static archive only, for the same reason the console
+# builds are: the console subset keeps sources whose hosted halves it leaves
+# out (the generated lexicon wrappers call the OAuth-aware auth client, for
+# one), so the archive carries references nothing in the subset defines. A
+# program linked with --gc-sections drops the functions it never calls along
+# with those references, which is how every console client links. A DLL
+# exports everything, discards nothing, and cannot be linked. libcbor's own
+# option() below would otherwise default BUILD_SHARED_LIBS to ON.
+if(WOLFRAM_BUILD_WINDOWS)
+  if(BUILD_SHARED_LIBS)
+    message(FATAL_ERROR "WOLFRAM_BUILD_WINDOWS builds a static archive only; reconfigure with -DBUILD_SHARED_LIBS=OFF")
+  endif()
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build a shared libwolfram" FORCE)
+endif()
+
 # Derived: true for any non-POSIX target (embedded or Windows)
 if(WOLFRAM_BUILD_EMBEDDED OR WOLFRAM_BUILD_WINDOWS)
   set(WOLFRAM_BUILD_NON_POSIX ON)
@@ -120,10 +148,12 @@ else()
 endif()
 
 # Transport selection is a separate axis from platform, because "embedded" is
-# not one thing. Only the Wii uses the hand-rolled socket+mbedTLS transport
-# (xrpc_wii.c / websocket_wii.c). That transport pulls in
-# src/transport/wii_tls.c, which is written against libogc's net_* API and so
-# only builds for the Wii.
+# not one thing. The Wii and Windows use the hand-rolled socket transport
+# (xrpc_wii.c / websocket_wii.c), which speaks HTTP and WebSocket over the
+# connection interface in src/transport/wii_tls.h. Each of the two supplies its
+# own implementation of that interface: wii_tls.c is written against libogc's
+# net_* API and so only builds for the Wii, and windows_tls.c is the Windows
+# one, which does not open connections yet.
 #
 # The Wii U and the 3DS are the other case: devkitPro packages libcurl for both
 # (dkp-pacman -S wiiu-curl / 3ds-curl), so they use the same curl-based
@@ -132,9 +162,9 @@ endif()
 # static archive, but a hard link failure for any executable that actually used
 # XRPC.
 #
-# Crypto stays keyed off the embedded axis regardless: no console ships OpenSSL,
-# so they all use the mbedTLS-backed crypto_wii.c.
-if(WOLFRAM_BUILD_WII)
+# Crypto stays keyed off the embedded axis regardless: no console ships OpenSSL
+# and neither does MinGW-w64, so they all use the mbedTLS-backed crypto_wii.c.
+if(WOLFRAM_BUILD_WII OR WOLFRAM_BUILD_WINDOWS)
   set(WOLFRAM_USE_SOCKET_TRANSPORT ON)
 else()
   set(WOLFRAM_USE_SOCKET_TRANSPORT OFF)
@@ -178,6 +208,14 @@ endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.10 CACHE STRING "" FORCE)
 
 include(FetchContent)
+if(WOLFRAM_BUILD_WINDOWS)
+  # cJSON builds itself and its tests with its own -Werror warning set, and
+  # MinGW-w64's isnan()/isinf() macros narrow their double argument to float
+  # internally, which trips -Wfloat-conversion in cJSON.c. The warning is about
+  # the C runtime's header, not cJSON's arithmetic, so build cJSON with the
+  # ordinary flags here.
+  set(ENABLE_CUSTOM_COMPILER_FLAGS OFF CACHE BOOL "" FORCE)
+endif()
 FetchContent_Declare(
   cjson GIT_REPOSITORY https://github.com/DaveGamble/cJSON.git GIT_TAG v1.7.18)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -657,10 +695,76 @@ elseif(WOLFRAM_BUILD_3DS)
            ${PORTLIBS}/lib/libmbedcrypto.a ${PORTLIBS}/lib/libz.a)
   message(STATUS "Building for Nintendo 3DS (WOLFRAM_BUILD_3DS=ON), libctru + curl + mbedtls linked")
 elseif(WOLFRAM_BUILD_WINDOWS)
-  target_sources(wolfram PRIVATE src/platform/windows_platform.c)
-  target_compile_definitions(wolfram PUBLIC WOLFRAM_WINDOWS)
-  target_link_libraries(wolfram PUBLIC ws2_32 bcrypt)
-  message(STATUS "Building for Windows (WOLFRAM_BUILD_WINDOWS=ON)")
+  # windows_tls.c implements the connection interface the socket transport is
+  # written against (src/transport/wii_tls.h). It does not open connections
+  # yet, so every network call fails cleanly; it exists so that libwolfram.a
+  # has no undefined wii_tls_* symbols, which is the failure the transport
+  # comment near the top of this file describes. windows_random.c supplies
+  # wii_tls_random(), the mbedTLS f_rng crypto_wii.c needs, from the system RNG.
+  target_sources(wolfram PRIVATE src/platform/windows_platform.c
+                                 src/transport/windows_tls.c
+                                 src/crypto/windows_random.c
+                                 src/platform/openssl_compat.c)
+  # MinGW-w64's <time.h> only declares gmtime_r() and localtime_r() when asked
+  # to. PUBLIC because <wolfram/log.h> calls localtime_r() inline.
+  target_compile_definitions(wolfram PUBLIC WOLFRAM_WINDOWS
+                                            _POSIX_THREAD_SAFE_FUNCTIONS=200112L)
+  target_include_directories(wolfram PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+  # Every function in its own section, so a linker run with --gc-sections can
+  # drop the ones a program never calls, and with them the references to
+  # modules this subset does not build (see the BUILD_SHARED_LIBS note above).
+  # .devdeps/windows.cmake sets the same flags; they are repeated here so the
+  # build does not depend on which toolchain file or CFLAGS configured it.
+  target_compile_options(wolfram PRIVATE -ffunction-sections -fdata-sections)
+
+  # mbedTLS backs crypto_wii.c and openssl_compat.c, exactly as on the consoles.
+  # The consoles take it from devkitPro's portlibs; MinGW-w64 packages none, so
+  # it is fetched and built here, which keeps the Windows build to one cmake
+  # invocation with no prebuild step. Pinned to an immutable commit like the
+  # other fetched dependencies: this is the mbedtls-2.28.10 tag, the last
+  # release of the 2.28 line crypto_wii.c is written against. To update, change
+  # WOLFRAM_MBEDTLS_COMMIT to the commit the new tag points at.
+  #
+  # SOURCE_SUBDIR points at an absent directory so MakeAvailable only populates
+  # the sources (the same device base64url uses above). add_subdirectory() then
+  # adds them with EXCLUDE_FROM_ALL, so only mbedcrypto, the one library wolfram
+  # links, is ever built; libmbedtls and libmbedx509 are not.
+  set(WOLFRAM_MBEDTLS_COMMIT 2fc8413bfcb51354c8e679141b17b3f1a5942561)
+  FetchContent_Declare(
+    mbedtls
+    GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+    GIT_TAG ${WOLFRAM_MBEDTLS_COMMIT}
+    SOURCE_SUBDIR cmake-not-used)
+  FetchContent_MakeAvailable(mbedtls)
+  set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+  set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+  # mbedTLS turns its own warnings into errors by default. Its sources are not
+  # wolfram's to fix, and a newer compiler must not be able to break this build
+  # by finding a new warning in them.
+  set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
+  add_subdirectory(${mbedtls_SOURCE_DIR} ${mbedtls_BINARY_DIR} EXCLUDE_FROM_ALL)
+
+  # ws2_32 for WSAStartup (windows_platform.c), bcrypt for BCryptGenRandom
+  # (windows_random.c). Threads is winpthreads, which MinGW-w64 ships: the
+  # console subset uses pthreads and nanosleep() (identity.c, the subscription
+  # loops) and the consoles get both from their libc.
+  find_package(Threads REQUIRED)
+  target_link_libraries(wolfram PUBLIC mbedcrypto Threads::Threads ws2_32
+                                       bcrypt)
+  message(
+    STATUS
+      "Building for Windows (WOLFRAM_BUILD_WINDOWS=ON), console subset, mbedTLS linked"
+  )
+
+  # A static archive hides undefined symbols until a program links against it,
+  # and tests are off for every target on the embedded axis. So this one
+  # program is always built for Windows: it calls into each Windows-specific
+  # backend above, which turns a missing one into a link failure in this build
+  # instead of in a consumer. It is offline and safe to run; see the file.
+  add_executable(wolfram_windows_smoke test/windows_smoke.c)
+  target_include_directories(wolfram_windows_smoke PRIVATE test)
+  target_link_libraries(wolfram_windows_smoke PRIVATE wolfram)
+  target_link_options(wolfram_windows_smoke PRIVATE -Wl,--gc-sections)
 else()
   target_sources(wolfram PRIVATE src/platform/posix_platform.c)
 endif()

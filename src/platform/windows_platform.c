@@ -9,8 +9,10 @@
 
 #include "wolfram/platform.h"
 
-#include <windows.h>
+/* <winsock2.h> must come before <windows.h>, which otherwise pulls in the
+ * conflicting Winsock 1 declarations. */
 #include <winsock2.h>
+#include <windows.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,18 +56,26 @@ void wf_platform_mutex_free(wf_platform_mutex *m) {
 
 /* ── Time ───────────────────────────────────────────────────────────── */
 
-uint64_t wf_platform_time_micros(void) {
-    /* QueryPerformanceCounter provides sub-microsecond resolution. */
-    static LARGE_INTEGER freq = {0};
-    static int have_freq = 0;
-    LARGE_INTEGER now;
+/* FILETIME counts 100 ns ticks since 1601-01-01; UNIX time starts this many
+ * ticks later. */
+#define WF_FILETIME_TICKS_PER_MICRO 10u
+#define WF_FILETIME_UNIX_EPOCH_TICKS 116444736000000000ull
 
-    if (!have_freq) {
-        QueryPerformanceFrequency(&freq);
-        have_freq = 1;
-    }
-    QueryPerformanceCounter(&now);
-    return (uint64_t)now.QuadPart * 1000000u / (uint64_t)freq.QuadPart;
+uint64_t wf_platform_time_micros(void) {
+    /* UNIX time, not the performance counter. The counter starts at boot, and
+     * this value becomes the timestamp half of a TID (wii_tid.c): a TID minted
+     * from time-since-boot sorts decades before every record already in a
+     * repository. Callers that need the clock never to step backwards enforce
+     * that themselves, as wf_tid_now() does. */
+    FILETIME ft;
+    ULARGE_INTEGER ticks;
+
+    GetSystemTimePreciseAsFileTime(&ft);
+    ticks.LowPart = ft.dwLowDateTime;
+    ticks.HighPart = ft.dwHighDateTime;
+    if (ticks.QuadPart < WF_FILETIME_UNIX_EPOCH_TICKS) return 0;
+    return (ticks.QuadPart - WF_FILETIME_UNIX_EPOCH_TICKS) /
+           WF_FILETIME_TICKS_PER_MICRO;
 }
 
 #endif /* _WIN32 */

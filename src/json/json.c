@@ -7,7 +7,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <math.h>
+/* MinGW-w64 has no POSIX <regex.h>; see the "pattern" keyword below. */
+#if !defined(WOLFRAM_WINDOWS)
 #include <regex.h>
+#endif
 
 wf_status wf_json_canonicalize(const char *in, size_t len, char **out) {
     if (!in || !out) {
@@ -385,6 +388,13 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
         }
         cJSON *pat = cJSON_GetObjectItem(schema, "pattern");
         if (pat && cJSON_IsString(pat)) {
+#if defined(WOLFRAM_WINDOWS)
+            /* No POSIX regex to evaluate the pattern with. A string that
+             * cannot be checked must not pass as valid, so fail closed. */
+            wf_json_fail(out_error, path,
+                         "pattern is not supported on this platform");
+            return false;
+#else
             regex_t re;
             if (regcomp(&re, pat->valuestring, REG_EXTENDED | REG_NOSUB) != 0) {
                 regfree(&re);
@@ -397,6 +407,7 @@ static bool wf_json_validate_rec(const cJSON *schema, const cJSON *doc,
                 wf_json_fail(out_error, path, "string does not match pattern");
                 return false;
             }
+#endif
         }
     }
 

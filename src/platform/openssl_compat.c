@@ -1,6 +1,7 @@
 /**
- * openssl_compat.c — Minimal OpenSSL API implementations for the console
- *                     targets (Wii / Wii U / 3DS), which ship no OpenSSL.
+ * openssl_compat.c — Minimal OpenSSL API implementations for the targets that
+ *                     build without OpenSSL: the consoles (Wii / Wii U / 3DS)
+ *                     and the MinGW-w64 Windows build.
  *
  * SHA-256 is a straightforward FIPS 180-4 implementation.
  * The incremental EVP_MD_CTX digest API used by repo/cid is backed by
@@ -257,11 +258,13 @@ int EVP_DecodeBlock(unsigned char *out, const unsigned char *in, int len) {
 
 /* ── Random bytes ──────────────────────────────────────────────────── */
 
-#if defined(WOLFRAM_WII) || defined(WOLFRAM_WIIU) || defined(WOLFRAM_3DS)
+#if defined(WOLFRAM_WII) || defined(WOLFRAM_WIIU) || defined(WOLFRAM_3DS) ||   \
+    defined(WOLFRAM_WINDOWS)
 /* wii_tls.c (Wii) / wiiu_random.c (Wii U) / 3ds_random.c (3DS) each maintain a
  * mbedtls_ctr_drbg_context that already backs TLS and P-256 signing (see
  * wii_tls_init / wiiu_drbg_init / threeds_drbg_init) -- reuse that DRBG instead
- * of maintaining a second one here. */
+ * of maintaining a second one here. On Windows the same symbol comes from
+ * windows_random.c, which draws from the system RNG directly. */
 extern int wii_tls_random(void *p, unsigned char *out, size_t len);
 
 int RAND_bytes(unsigned char *buf, int len) {

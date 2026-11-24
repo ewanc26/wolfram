@@ -9,9 +9,11 @@
 #   macOS:  brew install mingw-w64
 #   Linux:  apt install mingw-w64
 #
-# Cross-compiles from Linux/macOS to produce a Windows .exe/.dll.
-# For native Windows builds, use the standard MSVC or MinGW toolchain
-# directly — no toolchain file needed.
+# Cross-compiles from Linux/macOS to a static libwolfram.a and Windows
+# executables that link it. The build is static only, and it is the console
+# subset of the library; docs/windows.md has the details. The section flags
+# below are load-bearing: the subset leaves references to modules that are not
+# built, and --gc-sections is what drops them at link time.
 
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
