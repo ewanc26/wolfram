@@ -31,19 +31,17 @@ typedef struct mem_store {
     int put_calls;
 } mem_store;
 
-static wf_status store_get(void *ctx, const wf_cid *cid,
-                           unsigned char **data, size_t *data_len) {
+static wf_status store_get(void *ctx, const wf_cid *cid, unsigned char **data,
+                           size_t *data_len) {
     mem_store *s = (mem_store *)ctx;
     mem_rec *r;
     unsigned char *copy;
 
     s->get_calls++;
     for (r = s->head; r != NULL; r = r->next) {
-        if (!cid_equal(&r->cid, cid))
-            continue;
+        if (!cid_equal(&r->cid, cid)) continue;
         copy = malloc(r->len != 0 ? r->len : (size_t)1);
-        if (copy == NULL)
-            return WF_ERR_ALLOC;
+        if (copy == NULL) return WF_ERR_ALLOC;
         memcpy(copy, r->data, r->len);
         *data = copy;
         *data_len = r->len;
@@ -60,10 +58,8 @@ static wf_status store_put(void *ctx, const wf_cid *cid,
 
     s->put_calls++;
     copy = malloc(data_len != 0 ? data_len : (size_t)1);
-    if (copy == NULL)
-        return WF_ERR_ALLOC;
-    if (data_len != 0)
-        memcpy(copy, data, data_len);
+    if (copy == NULL) return WF_ERR_ALLOC;
+    if (data_len != 0) memcpy(copy, data, data_len);
 
     for (r = s->head; r != NULL; r = r->next) {
         if (cid_equal(&r->cid, cid)) {
@@ -101,16 +97,14 @@ static void store_free(mem_store *s) {
 static void fill_pattern(unsigned char *buf, size_t len, int seed) {
     size_t i;
 
-    for (i = 0; i < len; i++)
-        buf[i] = (unsigned char)(seed + (int)i);
+    for (i = 0; i < len; i++) buf[i] = (unsigned char)(seed + (int)i);
 }
 
 static wf_status make_cid(wf_cid *cid, int seed, size_t len) {
     unsigned char *buf = malloc(len != 0 ? len : (size_t)1);
     wf_status st;
 
-    if (buf == NULL)
-        return WF_ERR_ALLOC;
+    if (buf == NULL) return WF_ERR_ALLOC;
     fill_pattern(buf, len, seed);
     st = wf_cid_of_bytes(buf, len, cid);
     free(buf);
@@ -169,10 +163,8 @@ static void test_bogus_arguments_rejected(void) {
 
     WF_CHECK(wf_block_pager_get(NULL, &cid, &got, &got_len) ==
              WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_block_pager_get(p, NULL, &got, &got_len) ==
-             WF_ERR_INVALID_ARG);
-    WF_CHECK(wf_block_pager_get(p, &cid, NULL, &got_len) ==
-             WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_block_pager_get(p, NULL, &got, &got_len) == WF_ERR_INVALID_ARG);
+    WF_CHECK(wf_block_pager_get(p, &cid, NULL, &got_len) == WF_ERR_INVALID_ARG);
     WF_CHECK(wf_block_pager_get(p, &cid, &got, NULL) == WF_ERR_INVALID_ARG);
 
     WF_CHECK(wf_block_pager_put(NULL, &cid, buf, sizeof(buf)) ==
@@ -215,8 +207,7 @@ static void test_put_get_roundtrip_serves_from_cache(void) {
     for (seed = 100, i = 0; i < N; i++, seed++) {
         WF_CHECK(make_cid(&cids[i], seed, LEN) == WF_OK);
         fill_pattern(buf, sizeof(buf), seed);
-        WF_CHECK(wf_block_pager_put(p, &cids[i], buf, sizeof(buf)) ==
-                 WF_OK);
+        WF_CHECK(wf_block_pager_put(p, &cids[i], buf, sizeof(buf)) == WF_OK);
     }
     WF_CHECK(s.put_calls == N);
     WF_CHECK(s.get_calls == 0);
@@ -252,8 +243,7 @@ static void test_miss_goes_to_the_store(void) {
     WF_CHECK(p != NULL);
 
     WF_CHECK(make_cid(&cid, 55, 32) == WF_OK);
-    WF_CHECK(wf_block_pager_get(p, &cid, &got, &got_len) ==
-             WF_ERR_NOT_FOUND);
+    WF_CHECK(wf_block_pager_get(p, &cid, &got, &got_len) == WF_ERR_NOT_FOUND);
     WF_CHECK(s.get_calls == 1);
     WF_CHECK(wf_block_pager_count(p) == 0);
 
@@ -355,8 +345,7 @@ static void test_byte_ceiling_holds(void) {
     store_free(&s);
 }
 
-static void test_block_bigger_than_the_ceiling_is_persisted_not_retained(
-    void) {
+static void test_block_bigger_than_the_ceiling_is_persisted_not_retained(void) {
     mem_store s;
     struct wf_block_store bs;
     wf_block_pager *p;
@@ -528,8 +517,7 @@ static void test_evict_all_empties_the_pager_not_the_store(void) {
     for (seed = 200, i = 0; i < N; i++, seed++) {
         WF_CHECK(make_cid(&cids[i], seed, LEN) == WF_OK);
         fill_pattern(buf, sizeof(buf), seed);
-        WF_CHECK(wf_block_pager_put(p, &cids[i], buf, sizeof(buf)) ==
-                 WF_OK);
+        WF_CHECK(wf_block_pager_put(p, &cids[i], buf, sizeof(buf)) == WF_OK);
     }
     WF_CHECK(wf_block_pager_count(p) == N);
 

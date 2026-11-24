@@ -59,8 +59,7 @@ static size_t cid_bucket(const wf_block_pager *p, const wf_cid *cid) {
 static wf_pager_node *find_node(const wf_block_pager *p, const wf_cid *cid) {
     wf_pager_node *n = p->buckets[cid_bucket(p, cid)];
 
-    while (n != NULL && !cid_equal(&n->cid, cid))
-        n = n->chain_next;
+    while (n != NULL && !cid_equal(&n->cid, cid)) n = n->chain_next;
     return n;
 }
 
@@ -69,8 +68,7 @@ static wf_pager_node *node_new(const wf_cid *cid, unsigned char *data,
                                size_t len) {
     wf_pager_node *n = malloc(sizeof(*n));
 
-    if (n == NULL)
-        return NULL;
+    if (n == NULL) return NULL;
     n->cid = *cid;
     n->data = data;
     n->len = len;
@@ -114,10 +112,8 @@ static void lru_push_mru(wf_block_pager *p, wf_pager_node *n) {
 static void drop_node(wf_block_pager *p, wf_pager_node *n) {
     wf_pager_node **pp = &p->buckets[cid_bucket(p, &n->cid)];
 
-    while (*pp != NULL && *pp != n)
-        pp = &(*pp)->chain_next;
-    if (*pp == n)
-        *pp = n->chain_next;
+    while (*pp != NULL && *pp != n) pp = &(*pp)->chain_next;
+    if (*pp == n) *pp = n->chain_next;
 
     lru_unlink(p, n);
     p->count--;
@@ -154,14 +150,11 @@ wf_block_pager *wf_block_pager_new(const struct wf_block_store *store,
     size_t expect;
     size_t buckets;
 
-    if (store == NULL || store->get == NULL || store->put == NULL)
-        return NULL;
-    if (max_blocks == 0 && max_bytes == 0)
-        return NULL;
+    if (store == NULL || store->get == NULL || store->put == NULL) return NULL;
+    if (max_blocks == 0 && max_bytes == 0) return NULL;
 
     p = calloc((size_t)1, sizeof(*p));
-    if (p == NULL)
-        return NULL;
+    if (p == NULL) return NULL;
     p->store = store;
     p->max_blocks = max_blocks;
     p->max_bytes = max_bytes;
@@ -208,10 +201,8 @@ wf_status wf_block_pager_get(wf_block_pager *p, const wf_cid *cid,
     }
 
     st = p->store->get(p->store->ctx, cid, &buf, &buf_len);
-    if (st != WF_OK)
-        return st;
-    if (buf == NULL)
-        return WF_ERR_STATE; /* a store must lend a heap buffer */
+    if (st != WF_OK) return st;
+    if (buf == NULL) return WF_ERR_STATE; /* a store must lend a heap buffer */
 
     drop_scratch(p); /* any earlier lent-out scratch is now invalid */
 
@@ -245,8 +236,7 @@ wf_status wf_block_pager_put(wf_block_pager *p, const wf_cid *cid,
     /* Durability outranks residency: persist before anything else. */
     {
         wf_status st = p->store->put(p->store->ctx, cid, data, len);
-        if (st != WF_OK)
-            return st;
+        if (st != WF_OK) return st;
     }
 
     drop_scratch(p);
@@ -256,16 +246,13 @@ wf_status wf_block_pager_put(wf_block_pager *p, const wf_cid *cid,
      * stay resident either. */
     if (p->max_bytes != 0 && len > p->max_bytes) {
         n = find_node(p, cid);
-        if (n != NULL)
-            drop_node(p, n);
+        if (n != NULL) drop_node(p, n);
         return WF_OK;
     }
 
     copy = malloc(len != 0 ? len : (size_t)1);
-    if (copy == NULL)
-        return WF_ERR_ALLOC; /* stored, not cached */
-    if (len != 0)
-        memcpy(copy, data, len);
+    if (copy == NULL) return WF_ERR_ALLOC; /* stored, not cached */
+    if (len != 0) memcpy(copy, data, len);
 
     n = find_node(p, cid);
     if (n != NULL) {
@@ -302,8 +289,7 @@ size_t wf_block_pager_bytes(const wf_block_pager *p) {
 size_t wf_block_pager_evict_all(wf_block_pager *p) {
     size_t dropped = 0;
 
-    if (p == NULL)
-        return 0;
+    if (p == NULL) return 0;
     while (p->lru != NULL) {
         drop_node(p, p->lru);
         dropped++;
@@ -313,8 +299,7 @@ size_t wf_block_pager_evict_all(wf_block_pager *p) {
 }
 
 void wf_block_pager_free(wf_block_pager *p) {
-    if (p == NULL)
-        return;
+    if (p == NULL) return;
     (void)wf_block_pager_evict_all(p); /* also drops the scratch slot */
     free(p->buckets);
     free(p);
