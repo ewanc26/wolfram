@@ -5,7 +5,7 @@ if(POLICY CMP0156)
 endif()
 project(
   wolfram
-  VERSION 0.45.0
+  VERSION 0.46.0
   DESCRIPTION "A C/C++ SDK for the AT Protocol"
   LANGUAGES C CXX)
 
@@ -262,6 +262,8 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
               src/transport/macos9_tls.c
               src/update/update_core.c
               src/failure.c
+              src/rate_limit.c
+              src/retry.c
               src/cdn.c
               src/drag.c)
   target_include_directories(
@@ -446,6 +448,8 @@ add_library(
   src/util.c
   src/time.c
   src/failure.c
+  src/rate_limit.c
+  src/retry.c
   src/cdn.c
   src/chat_group.c
   src/drag.c
@@ -1370,6 +1374,11 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_xrpc PRIVATE wolfram)
   target_include_directories(test_xrpc PRIVATE test)
   add_test(NAME xrpc COMMAND test_xrpc)
+
+  add_executable(test_rate_limit test/test_rate_limit.c)
+  target_link_libraries(test_rate_limit PRIVATE wolfram)
+  target_include_directories(test_rate_limit PRIVATE test)
+  add_test(NAME rate_limit COMMAND test_rate_limit)
 
   if(NOT WIN32 AND NOT WOLFRAM_BUILD_EMBEDDED)
     # Loopback HTTP server + POSIX sockets: the fetch policy and shared-client

@@ -44,6 +44,13 @@ This block is byte-identical in every repo of the stack and is drift-checked by 
 ## Recent history
 
 test(xrpc-server): cover AppView-forwarding request headers
+
+## Rate limits and retries
+
+- `rate_limit.h` owns parsing of the RateLimit-* response headers. Do not re-parse them in a client or a transport; add the field there and the vectors in `test/test_rate_limit.c`.
+- `retry.h` owns the bounded retry decision and delay. Keep it pure: no sleeps, threads, clocks or allocation. The caller supplies the attempt count, Reset window and jitter seed.
+- The libcurl transport parses the headers and updates the client readback. Async workers must not write that readback, because their client may already be freed; async callers read `wf_response.rate_limit` from the pending result.
+
 ## Classic Mac OS 9
 
 - The Mac OS 9 transport uses Open Transport through the external macTLS async stream API.

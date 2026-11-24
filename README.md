@@ -28,6 +28,7 @@ C is the default language; C++ is used for complex or sensitive components where
 ## Core Features
 
 - XRPC client with bearer authentication, DPoP-bound OAuth, and binary blob upload
+- RateLimit response headers parsed into a queryable budget, plus a bounded, jittered retry policy the caller drives itself
 - Current AT Protocol lexicon snapshot: 419 documents and 334 query/procedure definitions; JSON calls are generated and binary procedures use the dedicated upload/import APIs
 - Streaming subscriptions: `subscribeRepos` (firehose), `subscribeLabels`, and `subscribeRepos` with cursor reconnect/backoff
 - Identity: DID resolution (`did:plc`, `did:web`), handle DNS TXT resolution, PLC operations
@@ -56,6 +57,7 @@ Topic guides:
 - [Design & rationale](docs/design.md) — overview, the name, and why C not Rust
 - [Getting started](docs/getting-started.md) — install, build, persistence, Lexicon generation, examples
 - [Modules](docs/modules.md) — full module/status table
+- [Rate limits and retries](docs/rate-limit.md) — parsing RateLimit headers and pacing retries
 - [Roadmap](docs/roadmap.md) — what's built and what's next
 - [CLI reference](docs/cli.md) — the `wolfram` command-line client
 
@@ -289,6 +291,8 @@ If you find this project useful, consider supporting its development:
 
 [GNU AGPL-3.0](LICENSE). Running a modified Wolfram as part of a public network
 service obliges you to offer its users the corresponding source.
+
+Copyright (C) 2026 Ewan Croft (ewanc26).
 
 ## Star History
 

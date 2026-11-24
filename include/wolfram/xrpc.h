@@ -16,6 +16,8 @@
 
 #include <stddef.h>
 
+#include "wolfram/rate_limit.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -76,6 +78,9 @@ typedef struct wf_response {
      * telling a 3xx apart from another 3xx that went somewhere else is
      * exactly the situation a caller reads this field to resolve. */
     char *location;
+    /* Parsed RateLimit-* response headers (see rate_limit.h). Zeroed when the
+     * response carried none, or when this transport does not parse them. */
+    wf_rate_limit rate_limit;
 } wf_response;
 
 typedef struct wf_http_header {
@@ -350,6 +355,18 @@ wf_status wf_xrpc_error(const wf_response *resp, char **out_error,
  * it longer.
  */
 const char *wf_xrpc_last_error(const wf_xrpc_client *client);
+
+/**
+ * Latest RateLimit-* budget this client saw, copied under its lock. A zeroed
+ * value means the last request carried no usable RateLimit headers, failed
+ * before a response arrived, or this transport does not parse them (the
+ * libcurl transport does; the Wii and Mac OS 9 transports report unknown).
+ * Check `present` before reading any field. The response itself also carries
+ * the budget it parsed, so a caller can keep a per-response value instead.
+ * Async requests do not update this readback: their worker can outlive the
+ * client, so read the budget from the pending response instead.
+ */
+wf_rate_limit wf_xrpc_client_get_rate_limit(const wf_xrpc_client *client);
 
 /**
  * Perform a generic HTTP GET with extra headers.

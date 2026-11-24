@@ -2,7 +2,9 @@
 
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
-| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload, client-level `atproto-proxy` service-proxying header |
+| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload, client-level `atproto-proxy` service-proxying header, and RateLimit-* response budgets |
+| `wolfram/rate_limit.h`    | Implemented | Allocation-free parsing of RateLimit-Limit/Remaining/Reset/Policy into a budget with unknown-safe fields |
+| `wolfram/retry.h`         | Implemented | Pure bounded retry decisions and deterministic jittered backoff, with the server's Reset window as a floor |
 | `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
 | `wolfram/identity.h`      | Implemented | did:plc, did:web, portable c-ares/POSIX DNS TXT, well-known fallback |
 | `wolfram/repo.h`          | Implemented | DAG-CBOR parse/serialize, one-shot and incremental CID hashing, CAR, MST, commit, diff verify/apply, operation inversion, block pager over a consumer-supplied block store (host builds; #276) |
