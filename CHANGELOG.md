@@ -8,6 +8,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 - `include/wolfram/repo/block_pager.h`: a bounded LRU pager in front of a consumer-supplied block store — resident under block-count and byte ceilings, fetched by `wf_cid`, writing through on put — so a consumer whose blocks are already durable (MetalBear's SQLite block store is the first customer) can let memory track the working set instead of the repo. Host builds link it; embedded builds do not yet. ([#276](https://github.com/ewanc26/wolfram/issues/276))
 
+### Fixed
+
+- Signatures from the console crypto backend (`src/crypto/crypto_wii.c`: Wii, Wii U, 3DS and now Windows) are low-S. `wf_sign` returned whichever of the two valid forms mbedTLS produced, so about half of all signatures were ones `wf_verify`, the OpenSSL backend and the network reject. ([#248](https://github.com/ewanc26/wolfram/issues/248))
+
 ## [0.46.0] - 2026-11-23
 
 ### Added

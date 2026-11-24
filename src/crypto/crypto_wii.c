@@ -949,6 +949,22 @@ wf_status wf_signing_key_public_didkey(const wf_signing_key *key,
     return WF_ERR_INVALID_ARG;
 }
 
+/* An ECDSA signature has a twin: (r, s) and (r, n - s) both verify. atproto
+ * accepts only the one whose s is in the lower half of the curve order, and
+ * wf_verify() above enforces that. mbedtls_ecdsa_sign() returns either twin
+ * with equal probability, so fold a high s down before the signature leaves
+ * here. Returns 0 on success or an mbedTLS error. */
+static int wii_normalize_low_s(const mbedtls_ecp_group *grp, mbedtls_mpi *s) {
+    mbedtls_mpi half;
+    mbedtls_mpi_init(&half);
+    int rc = mbedtls_mpi_copy(&half, &grp->N);
+    if (rc == 0) rc = mbedtls_mpi_shift_r(&half, 1);
+    if (rc == 0 && mbedtls_mpi_cmp_mpi(s, &half) > 0)
+        rc = mbedtls_mpi_sub_mpi(s, &grp->N, s);
+    mbedtls_mpi_free(&half);
+    return rc;
+}
+
 wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
                   size_t msg_len, unsigned char *sig_out, size_t sig_out_cap) {
     unsigned char hash[32];
@@ -966,6 +982,7 @@ wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
         SHA256(msg, msg_len, hash);
         int rc = mbedtls_ecdsa_sign(&grp, &r, &s, &d, hash, 32, wii_tls_random,
                                     NULL);
+        if (rc == 0) rc = wii_normalize_low_s(&grp, &s);
         if (rc == 0) {
             mbedtls_mpi_write_binary(&r, sig_out, 32);
             mbedtls_mpi_write_binary(&s, sig_out + 32, 32);
@@ -988,6 +1005,7 @@ wf_status wf_sign(const wf_signing_key *key, const unsigned char *msg,
         SHA256(msg, msg_len, hash);
         int rc = mbedtls_ecdsa_sign(&grp, &r, &s, &d, hash, 32, wii_tls_random,
                                     NULL);
+        if (rc == 0) rc = wii_normalize_low_s(&grp, &s);
         if (rc == 0) {
             mbedtls_mpi_write_binary(&r, sig_out, 32);
             mbedtls_mpi_write_binary(&s, sig_out + 32, 32);
