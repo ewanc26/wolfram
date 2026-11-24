@@ -1,4 +1,5 @@
 #include "wolfram/jetstream.h"
+#include "wolfram/platform.h"
 #include "wolfram/util.h"
 
 #include <cJSON.h>
@@ -164,9 +165,15 @@ static wf_jetstream_event_kind wf_jetstream_kind_from_string(const char *kind) {
 }
 
 static uint64_t wf_now_ms(void) {
+#if defined(WOLFRAM_WINDOWS)
+    /* msvcrt, the C runtime MinGW-w64 links by default, has no
+     * timespec_get(). The platform clock is UNIX time there too. */
+    return wf_platform_time_micros() / 1000u;
+#else
     struct timespec now;
     if (timespec_get(&now, TIME_UTC) != TIME_UTC) return 0;
     return (uint64_t)now.tv_sec * 1000u + (uint64_t)now.tv_nsec / 1000000u;
+#endif
 }
 
 static void wf_jetstream_release_options(wf_jetstream *stream) {

@@ -1,4 +1,5 @@
 #include "wolfram/sync_subscribe.h"
+#include "wolfram/platform.h"
 #include "wolfram/util.h"
 #include "wolfram/websocket.h"
 #include "wolfram/crypto.h"
@@ -27,9 +28,15 @@ struct wf_subscribe_handle {
 #define WF_SUBSCRIBE_DEFAULT_PING_INTERVAL_MS 30000
 
 static uint64_t wf_now_ms(void) {
+#if defined(WOLFRAM_WINDOWS)
+    /* msvcrt, the C runtime MinGW-w64 links by default, has no
+     * timespec_get(). The platform clock is UNIX time there too. */
+    return wf_platform_time_micros() / 1000u;
+#else
     struct timespec ts;
     if (timespec_get(&ts, TIME_UTC) != TIME_UTC) return 0;
     return (uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u;
+#endif
 }
 
 static cbor_item_t *map_find(cbor_item_t *map, const char *key) {

@@ -85,6 +85,14 @@ test(xrpc-server): cover AppView-forwarding request headers
 - The Node addon (`node/wolfram_core.c`, built with `-DWOLFRAM_BUILD_NODE=ON`) exposes the update contract, the OAuth pairing parsers (`buildPairBegin`, `parsePairBegin`, `parsePairPoll`; the begin/poll loop stays with the consumer), `postDisplay` over `post_display.h` (the display model of a post from its raw record/embed JSON; fetching, which is network, stays with the consumer), and the offline typed contracts `chatConvoIsGroup`/`chatJoinLinkUrl`/`chatJoinLinkIsEnabled` (`chat_group.h`), `ageassuranceParseBegin`/`ageassuranceParseConfig`/`ageassuranceParseState` (`ageassurance_typed.h`) and `notifV2PreferencesParse`/`notifV2PreferencesBuild`/`notifV2ParsePutActivitySubscription`/`notifV2ParseListActivitySubscriptions` (`notification_v2_typed.h`) to Node. Errors surface as thrown `Error`s whose `code` is the `wf_status` name; it never writes user-facing prose, and it stays synchronous on the JS thread. Every contract it exposes runs its shared vectors through the binding in `node/test/` and in CI, the pairing and display ones included.
 - A binding may assert nothing about a status it maps: run the shared vectors it consumes through the binding itself in CI, so a status that changes meaning breaks the binding's tests, not just the C suite's.
 
+## Windows
+
+- `WOLFRAM_BUILD_WINDOWS` is on the embedded axis: it builds the console subset with `crypto_wii.c` on mbedTLS, static only. `docs/windows.md` is the specification of what is in and out; change it in the same PR as the build.
+- The Windows build has no network transport. `src/transport/windows_tls.c` implements `wii_tls.h` by opening no connections, on purpose. Do not describe Windows as networked, complete or "fully implemented" anywhere until a real backend replaces it.
+- Do not make the Windows build find curl, OpenSSL or anything else through pkg-config or `find_package`: on a cross-build those find the build machine's libraries. Dependencies are fetched and pinned by commit in `CMakeLists.txt`, mbedTLS included.
+- Keep `test/windows_smoke.c` linking against every Windows-specific source. The archive cannot show a missing symbol and the test suite is off on the embedded axis, so that program is the only thing in CI that can. Add a call there when adding a Windows backend.
+- CI cross-compiles Windows and runs nothing. Say "cross-compiled" or "under Wine" when that is what was done; do not claim a Windows run that did not happen.
+- A signature that leaves `crypto_wii.c` must be low-S, because `wf_verify` and the network reject the other form. `wii_normalize_low_s` does it; keep new signing paths going through it.
 
 <!-- allowed-agents -->
 ## Allowed agents

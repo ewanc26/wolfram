@@ -1,7 +1,8 @@
 /**
- * openssl_compat.h — Minimal OpenSSL API compatibility layer for Wii.
+ * openssl_compat.h — Minimal OpenSSL API compatibility layer for the targets
+ * that build without OpenSSL (the consoles and the MinGW-w64 Windows build).
  *
- * When WOLFRAM_WII is defined, this header is included via -I priority
+ * On those targets this header is included via the src/openssl/ shims
  * in place of the real OpenSSL headers. It provides the type declarations
  * and function signatures that the wolfram source files need, backed by
  * pure-C or mbedTLS implementations in openssl_compat.c.
