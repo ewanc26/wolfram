@@ -1,0 +1,66 @@
+{
+  "source": "Field guide appendices F and G (2026-11-26). Entries marked derived are mechanical changes to a published value. The credential private key is published test material, converted from multibase to hex.",
+  "credential_signatures": [
+    {
+      "name": "space host",
+      "credential": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJhdHByb3RvLXNwYWNlLWNyZWRlbnRpYWwrand0Iiwia2lkIjoiI2F0cHJvdG8ifQ.eyJpc3MiOiJkaWQ6cGxjOmVqamwyem56cXAzY2kyNWRxYXNscGtrMiIsInN1YiI6ImF0OnNwYWNlL2RpZDpwbGM6ZWpqbDJ6bnpxcDNjaTI1ZHFhc2xwa2syL2NvbS5leGFtcGxlLmZhbWlseVVwZGF0ZXMvb3VyLWZhbWlseSIsImNuZiI6eyJraWQiOiJkaWQ6a2V5OnpEbmFleUpyWGdnZmdmc01MeDkxd1FEb0hxazVyTW1HdEU0bmtYR0czeDVYenMxcm4ifSwiaWF0IjoxNzk0ODQzMDAxLCJleHAiOjE3OTQ4NDM2MDEsImp0aSI6IjZkM2RhYmYwODYzOWRjZjk4ZWU5ZmUyOGNmNDMxNGEzIn0.y0z7AVzg7lviXYsXY18vARsPONTG76VWoxoJJMWQaXUcaaPmi-ELKxFgo3kjlFWH6frlUd38sRbm45zxJGhjLg",
+      "audience": "did:plc:ejjl2znzqp3ci25dqaslpkk2",
+      "cnf_kid": "did:key:zDnaeyJrXggfgfsMLx91wQDoHqk5rMmGtE4nkXGG3x5Xzs1rn",
+      "signature": "LwMAnDlLz8tSqIYx4l95CnFiycN4FY8e+DhgHy55waJFVxtZtTmf55bC1bl3UA6CTPPEDvqOQRvYk2FNWG1hyg=="
+    },
+    {
+      "name": "repo host B",
+      "credential": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJhdHByb3RvLXNwYWNlLWNyZWRlbnRpYWwrand0Iiwia2lkIjoiI2F0cHJvdG8ifQ.eyJpc3MiOiJkaWQ6cGxjOmVqamwyem56cXAzY2kyNWRxYXNscGtrMiIsInN1YiI6ImF0OnNwYWNlL2RpZDpwbGM6ZWpqbDJ6bnpxcDNjaTI1ZHFhc2xwa2syL2NvbS5leGFtcGxlLmZhbWlseVVwZGF0ZXMvb3VyLWZhbWlseSIsImNuZiI6eyJraWQiOiJkaWQ6a2V5OnpEbmFleUpyWGdnZmdmc01MeDkxd1FEb0hxazVyTW1HdEU0bmtYR0czeDVYenMxcm4ifSwiaWF0IjoxNzk0ODQzMDAxLCJleHAiOjE3OTQ4NDM2MDEsImp0aSI6IjZkM2RhYmYwODYzOWRjZjk4ZWU5ZmUyOGNmNDMxNGEzIn0.y0z7AVzg7lviXYsXY18vARsPONTG76VWoxoJJMWQaXUcaaPmi-ELKxFgo3kjlFWH6frlUd38sRbm45zxJGhjLg",
+      "audience": "did:plc:p4256dosynj6j6tkypz2q2l3",
+      "cnf_kid": "did:key:zDnaeyJrXggfgfsMLx91wQDoHqk5rMmGtE4nkXGG3x5Xzs1rn",
+      "signature": "aJSLd/+RWTwSPbsM8ZKMIWXqkzDTt67Lnbi0AaFcax8M0owwTdDkpiRPA+I84/7BkhcI7Ls/5YbZmRHgd0CZTg=="
+    },
+    {
+      "name": "repo host A",
+      "credential": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJhdHByb3RvLXNwYWNlLWNyZWRlbnRpYWwrand0Iiwia2lkIjoiI2F0cHJvdG8ifQ.eyJpc3MiOiJkaWQ6cGxjOmVqamwyem56cXAzY2kyNWRxYXNscGtrMiIsInN1YiI6ImF0OnNwYWNlL2RpZDpwbGM6ZWpqbDJ6bnpxcDNjaTI1ZHFhc2xwa2syL2NvbS5leGFtcGxlLmZhbWlseVVwZGF0ZXMvb3VyLWZhbWlseSIsImNuZiI6eyJraWQiOiJkaWQ6a2V5OnpEbmFleUpyWGdnZmdmc01MeDkxd1FEb0hxazVyTW1HdEU0bmtYR0czeDVYenMxcm4ifSwiaWF0IjoxNzk0ODQzMDAxLCJleHAiOjE3OTQ4NDM2MDEsImp0aSI6IjZkM2RhYmYwODYzOWRjZjk4ZWU5ZmUyOGNmNDMxNGEzIn0.y0z7AVzg7lviXYsXY18vARsPONTG76VWoxoJJMWQaXUcaaPmi-ELKxFgo3kjlFWH6frlUd38sRbm45zxJGhjLg",
+      "audience": "did:plc:53ni6w7okqrxvjxezmopejoo",
+      "cnf_kid": "did:key:zDnaeyJrXggfgfsMLx91wQDoHqk5rMmGtE4nkXGG3x5Xzs1rn",
+      "signature": "Q/Ya6HSYi45IB5C1Of0GGLVVUAflbUmE033JyiRxNZgn0nf0rEC5IJe30snJsRUSa85igHDoeBdLhJutfXLV6A=="
+    },
+    {
+      "name": "Erin to the space host",
+      "credential": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJhdHByb3RvLXNwYWNlLWNyZWRlbnRpYWwrand0Iiwia2lkIjoiI2F0cHJvdG8ifQ.eyJpc3MiOiJkaWQ6cGxjOmVqamwyem56cXAzY2kyNWRxYXNscGtrMiIsInN1YiI6ImF0OnNwYWNlL2RpZDpwbGM6ZWpqbDJ6bnpxcDNjaTI1ZHFhc2xwa2syL2NvbS5leGFtcGxlLmZhbWlseVVwZGF0ZXMvb3VyLWZhbWlseSIsImNuZiI6eyJraWQiOiJkaWQ6a2V5OnpEbmFlckVTTUdMdzhOUlhrd2ZHa1F2cFE5dTJSMjZSTVhDaHpqa1VicDlNMUs3aXcifSwiaWF0IjoxNzk0ODQzNDIxLCJleHAiOjE3OTQ4NDQwMjEsImp0aSI6ImE5ZWRlNjVmYjE4MWRkNDY3YTJiYjdlZjUzZGUzZGQ1In0.IzuuIf8ia3f1pWb1eHFMcT2ib5lUP5fEPXHTQsoyM5sldjGn5s8TuQJMHBKw6jzEWXPGkQaA0dhrAKam-Uv3sw",
+      "audience": "did:plc:ejjl2znzqp3ci25dqaslpkk2",
+      "cnf_kid": "did:key:zDnaerESMGLw8NRXkwfGkQvpQ9u2R26RMXChzjkUbp9M1K7iw",
+      "signature": "QVs7ToEXTf7SUsuiF0mE9umJtzgctST1uId3TajXZyEqG7/mccBw3Ys04UEJuH2ofMCzsSKTxpicDm91/x3uFA=="
+    },
+    {
+      "name": "derived: the space host signature with s replaced by n-s (the other S form)",
+      "credential": "eyJhbGciOiJFUzI1NksiLCJ0eXAiOiJhdHByb3RvLXNwYWNlLWNyZWRlbnRpYWwrand0Iiwia2lkIjoiI2F0cHJvdG8ifQ.eyJpc3MiOiJkaWQ6cGxjOmVqamwyem56cXAzY2kyNWRxYXNscGtrMiIsInN1YiI6ImF0OnNwYWNlL2RpZDpwbGM6ZWpqbDJ6bnpxcDNjaTI1ZHFhc2xwa2syL2NvbS5leGFtcGxlLmZhbWlseVVwZGF0ZXMvb3VyLWZhbWlseSIsImNuZiI6eyJraWQiOiJkaWQ6a2V5OnpEbmFleUpyWGdnZmdmc01MeDkxd1FEb0hxazVyTW1HdEU0bmtYR0czeDVYenMxcm4ifSwiaWF0IjoxNzk0ODQzMDAxLCJleHAiOjE3OTQ4NDM2MDEsImp0aSI6IjZkM2RhYmYwODYzOWRjZjk4ZWU5ZmUyOGNmNDMxNGEzIn0.y0z7AVzg7lviXYsXY18vARsPONTG76VWoxoJJMWQaXUcaaPmi-ELKxFgo3kjlFWH6frlUd38sRbm45zxJGhjLg",
+      "audience": "did:plc:ejjl2znzqp3ci25dqaslpkk2",
+      "cnf_kid": "did:key:zDnaeyJrXggfgfsMLx91wQDoHqk5rMmGtE4nkXGG3x5Xzs1rn",
+      "signature": "LwMAnDlLz8tSqIYx4l95CnFiycN4FY8e+DhgHy55waK6qOSlSsZgGWk9KkaIr/F9b/M2nqyJXWkbJml1o/XDhw=="
+    }
+  ],
+  "mac": {
+    "key_share": "did:key:zDnaenqFhbY4sffBMz5ZatBohkr8LNNAe1pWTmG6C88rMc477",
+    "secret": "96523627ef6c8bc21ab2ba80b70ed2e4e119317353195d4a2934bb2acd3f2f10",
+    "commit": {
+      "json": {
+        "ver": 1,
+        "repo": "did:plc:p4256dosynj6j6tkypz2q2l3",
+        "space": "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family",
+        "rev": "3n2gtxdkr232p",
+        "data": {
+          "$bytes": "eVD7vKgDQrLKfOvN3VZJHYX0HGz158ocKa5oRd3kaYw"
+        }
+      },
+      "accept_signature": "mac=(\"atproto-space-commit\";sf);keyid=\"did:key:zDnaenqFhbY4sffBMz5ZatBohkr8LNNAe1pWTmG6C88rMc477\";tag=\"atproto-space-commit\"",
+      "header": "ver=1, repo=\"did:plc:p4256dosynj6j6tkypz2q2l3\", space=\"at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family\", rev=\"3n2gtxdkr232p\", data=:eVD7vKgDQrLKfOvN3VZJHYX0HGz158ocKa5oRd3kaYw=:",
+      "signature": "mac=:qcuN1a76R+6Aq9Drm6C0aSYroDZp08eeMcArYT+vd/M=:"
+    },
+    "record": {
+      "uri": "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/did:plc:p4256dosynj6j6tkypz2q2l3/community.lexicon.calendar.rsvp/3n2gtxdkr222p",
+      "cid": "bafyreiblr6f6oy3zi426nksahddwp4tgsfgedtqk27fyxqtav66kjvwkgu",
+      "accept_signature": "mac=(\"atproto-space-record\";sf);keyid=\"did:key:zDnaenqFhbY4sffBMz5ZatBohkr8LNNAe1pWTmG6C88rMc477\";tag=\"atproto-space-record\"",
+      "header": "uri=\"at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/did:plc:p4256dosynj6j6tkypz2q2l3/community.lexicon.calendar.rsvp/3n2gtxdkr222p\", cid=\"bafyreiblr6f6oy3zi426nksahddwp4tgsfgedtqk27fyxqtav66kjvwkgu\"",
+      "signature": "mac=:bR41y+7bxRG0QywwNj6jb+fsh70sdOMUi0tmN9OsRRw=:"
+    }
+  },
+  "credential_key_hex": "8592b976b1717b811ef91c3235ccc964e38b9d0e134aa4f980b8376577ce3e0b"
+}

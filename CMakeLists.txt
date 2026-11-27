@@ -540,8 +540,10 @@ if(WOLFRAM_BUILD_SPACES)
     PROPERTIES COMPILE_DEFINITIONS
                "BLAKE3_NO_SSE2;BLAKE3_NO_SSE41;BLAKE3_NO_AVX2;BLAKE3_NO_AVX512;BLAKE3_USE_NEON=0")
   target_sources(wolfram PRIVATE ${WOLFRAM_BLAKE3_SOURCES}
+                                 src/spaces/httpsig.c
                                  src/spaces/kem.c
-                                 src/spaces/lthash.c)
+                                 src/spaces/lthash.c
+                                 src/spaces/sf.c)
   target_include_directories(wolfram PRIVATE ${blake3_SOURCE_DIR}/c)
 endif()
 
@@ -1910,7 +1912,7 @@ if(WOLFRAM_BUILD_TESTS)
   add_test(NAME space_uri COMMAND test_space_uri)
 
   if(WOLFRAM_BUILD_SPACES)
-    foreach(wf_space_test lthash kem)
+    foreach(wf_space_test lthash kem httpsig)
       add_executable(test_space_${wf_space_test}
                      test/test_space_${wf_space_test}.c)
       target_link_libraries(test_space_${wf_space_test} PRIVATE wolfram)
