@@ -18,6 +18,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 - Signatures from the console crypto backend (`src/crypto/crypto_wii.c`: Wii, Wii U, 3DS and now Windows) are low-S. `wf_sign` returned whichever of the two valid forms mbedTLS produced, so about half of all signatures were ones `wf_verify`, the OpenSSL backend and the network reject. ([#248](https://github.com/ewanc26/wolfram/issues/248))
 
+### Fixed
+
+- `wf_xrpc_server_port` returned 0 for a server started on an ephemeral port when libmicrohttpd was built without `getsockname` support, as Homebrew's 1.0.11 arm64 bottle is. The port is now read from the listening socket in that case. ([#285](https://github.com/ewanc26/wolfram/pull/285))
+
 ## [0.46.0] - 2026-11-23
 
 ### Added
