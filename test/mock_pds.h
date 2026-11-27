@@ -52,6 +52,9 @@ wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
  */
 const char *wf_mock_pds_get_last_proxy(wf_mock_pds *pds);
 
+/* The atproto-accept-labelers header of the most recent request, or NULL. */
+const char *wf_mock_pds_get_last_labelers(wf_mock_pds *pds);
+
 /** Stop the HTTP daemon without discarding registered responses or the
  *  struct. Safe to call more than once. */
 wf_status wf_mock_pds_stop(wf_mock_pds *pds);

@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_xrpc_client_set_accept_labelers` sends `atproto-accept-labelers` on every XRPC request, on all three transports (curl, the Wii socket transport and Mac OS 9). Without it the AppView attaches only its default labels, so a client could never see labels from a labeler the account subscribes to. A value with a control character is refused, so it cannot inject a header. `wf_http_get_public` never sends it. ([cobalt#275](https://github.com/ewanc26/cobalt/issues/275))
+
 ## [0.47.0] - 2026-11-27
 
 ### Added

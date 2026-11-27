@@ -19,10 +19,13 @@
 #include <strings.h>
 #include <ctype.h>
 
+#include "accept_labelers.h"
+
 struct wf_xrpc_client {
     char *base_url;
     char *auth_header;
     char *proxy_header;
+    char *labelers_header;
     wf_xrpc_handler_fn handler;
     void *handler_userdata;
     wf_xrpc_refresh_fn refresh_cb;
@@ -521,7 +524,7 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
                                        const char *content_type,
                                        wf_http_header **out_headers,
                                        size_t *out_count) {
-    wf_http_header *arr = calloc(is_post ? 3 : 2, sizeof(*arr));
+    wf_http_header *arr = calloc(is_post ? 4 : 3, sizeof(*arr));
     if (!arr) return WF_ERR_ALLOC;
     size_t n = 0;
     if (client->auth_header) {
@@ -532,6 +535,12 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
     if (client->proxy_header) {
         arr[n].name = "atproto-proxy";
         arr[n].value = client->proxy_header + strlen("atproto-proxy: ");
+        n++;
+    }
+    if (client->labelers_header) {
+        arr[n].name = "atproto-accept-labelers";
+        arr[n].value =
+            client->labelers_header + strlen("atproto-accept-labelers: ");
         n++;
     }
     if (is_post && content_type) {
@@ -626,6 +635,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     free(client->base_url);
     free(client->auth_header);
     free(client->proxy_header);
+    free(client->labelers_header);
     free(client->last_error);
     free(client);
 }
@@ -681,6 +691,30 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
     free(client->proxy_header);
     client->proxy_header = header;
     return WF_OK;
+}
+
+wf_status wf_xrpc_client_set_accept_labelers(wf_xrpc_client *client,
+                                             const char *labelers) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    char *header = NULL;
+    if (labelers && labelers[0]) {
+        if (!wf_accept_labelers_valid(labelers)) return WF_ERR_INVALID_ARG;
+        size_t needed =
+            strlen("atproto-accept-labelers: ") + strlen(labelers) + 1;
+        header = malloc(needed);
+        if (!header) return WF_ERR_ALLOC;
+        snprintf(header, needed, "atproto-accept-labelers: %s", labelers);
+    }
+    free(client->labelers_header);
+    client->labelers_header = header;
+    return WF_OK;
+}
+
+const char *wf_xrpc_client_get_accept_labelers(const wf_xrpc_client *client) {
+    static const char prefix[] = "atproto-accept-labelers: ";
+
+    if (!client || !client->labelers_header) return NULL;
+    return client->labelers_header + sizeof prefix - 1;
 }
 
 wf_status wf_xrpc_client_set_base_url(wf_xrpc_client *client,
@@ -937,6 +971,7 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
     struct wf_xrpc_client anon = *client;
     anon.auth_header = NULL;
     anon.proxy_header = NULL;
+    anon.labelers_header = NULL;
     anon.refresh_cb = NULL;
     anon.last_error = NULL;
     return wf_xrpc_perform(&anon, "GET", url, NULL, NULL, 0, NULL, 0, out);
