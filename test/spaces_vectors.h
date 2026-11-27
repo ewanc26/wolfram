@@ -13,7 +13,7 @@
 #endif
 
 /* Parse test/vectors/spaces/<name>; NULL if it cannot be read. */
-static cJSON *vec_load(const char *name) {
+static inline cJSON *vec_load(const char *name) {
     char path[1024];
     FILE *f;
     long n;
@@ -39,9 +39,27 @@ static cJSON *vec_load(const char *name) {
 }
 
 /* The string member `key`, or NULL when absent. */
-static const char *vec_str(const cJSON *obj, const char *key) {
+static inline const char *vec_str(const cJSON *obj, const char *key) {
     const cJSON *v = cJSON_GetObjectItemCaseSensitive(obj, key);
     return cJSON_IsString(v) ? v->valuestring : NULL;
+}
+
+/* True when `data` (len bytes) equals the hex string `hex`. */
+static inline int vec_hex_eq(const unsigned char *data, size_t len,
+                             const char *hex) {
+    size_t i;
+    char two[3];
+
+    if (!hex) {
+        return 0;
+    }
+    for (i = 0; i < len; i++) {
+        snprintf(two, sizeof(two), "%02x", data[i]);
+        if (hex[2 * i] != two[0] || hex[2 * i + 1] != two[1]) {
+            return 0;
+        }
+    }
+    return hex[2 * len] == '\0';
 }
 
 #endif /* WOLFRAM_TEST_SPACES_VECTORS_H */

@@ -117,7 +117,8 @@ jobs:
             -DWOLFRAM_BUILD_SERVER=ON \
             -DWOLFRAM_BUILD_STORE=ON \
             -DWOLFRAM_BUILD_STORE_CRYPTO=ON \
-            -DWOLFRAM_BUILD_CPP=ON
+            -DWOLFRAM_BUILD_CPP=ON \
+            -DWOLFRAM_BUILD_SPACES=ON
 
       - name: Build
         run: cmake --build build -j"$(nproc)"
@@ -181,7 +182,8 @@ jobs:
             -DWOLFRAM_BUILD_SERVER=ON \
             -DWOLFRAM_BUILD_STORE=ON \
             -DWOLFRAM_BUILD_STORE_CRYPTO=ON \
-            -DWOLFRAM_BUILD_CPP=ON
+            -DWOLFRAM_BUILD_CPP=ON \
+            -DWOLFRAM_BUILD_SPACES=ON
 
       - name: Build
         run: cmake --build build -j"$(sysctl -n hw.ncpu)"

@@ -39,6 +39,28 @@ if (wf_space_uri_parse(text, &uri) == WF_OK) {
 }
 ```
 
+## Building the rest
+
+Only the URI module is always built. Everything else needs a hosted build with
+`-DWOLFRAM_BUILD_SPACES=ON`, which also fetches BLAKE3.
+
+## Set hash
+
+`wolfram/spaces/lthash.h` keeps the 2048-byte LtHash state of a space repo.
+A syncer applies each record operation to its own state and compares the digest
+with the commit's `data`; a mismatch means the copy has drifted.
+
+```c
+wf_space_lthash hash;
+unsigned char digest[WF_SPACE_DIGEST_BYTES];
+
+wf_space_lthash_init(&hash);
+wf_space_lthash_apply(&hash, collection, rkey, prev_cid, cid);
+wf_space_lthash_digest(&hash, digest);
+```
+
+The digest alone proves nothing: check the commit it is compared with first.
+
 ## Not here yet
 
 Record and sync requests, STAR archives, OAuth `space:` scopes, the space host

@@ -1,0 +1,48 @@
+{
+  "source": "Field guide appendices E and G.2 (2026-11-26); @atproto/space lthash.test.ts at 355b733",
+  "empty_digest": "e5a00aa9991ac8a5ee3109844d84a55583bd20572ad3ffcd42792f3c36b183ad",
+  "raw": {
+    "elements": [
+      "one",
+      "two"
+    ],
+    "digest": "ae05cb6d224379d9710c290c8529945c5b0e0fde9ead30b9699057ce701c63e7"
+  },
+  "steps": [
+    {
+      "ops": [
+        {
+          "collection": "com.example.familyUpdates.post",
+          "rkey": "3n2gsrrwmc22p",
+          "cid": "bafyreiexyeo5zjfppsf2qvf7wmkwy7lf6e2k5pnzr4ll2oxibmvizimpmu"
+        }
+      ],
+      "digest": "d7518a74549fe8ea5f12c851f2ac0e0c17384e09ecb6d59c57fb1595495da3bc"
+    },
+    {
+      "ops": [
+        {
+          "collection": "community.lexicon.calendar.rsvp",
+          "rkey": "3n2gtkszes22p",
+          "cid": "bafyreiautip3hgihuw4ypueftfdiv3iyliieamu5mdv4d4duqhhyetxs7a"
+        }
+      ],
+      "digest": "fd2038f115a28174723838a85530e0008e0bff1841a1d2bde0fec2bacc727bd4"
+    },
+    {
+      "ops": [
+        {
+          "collection": "community.lexicon.calendar.rsvp",
+          "rkey": "3n2gtxdkr222p",
+          "cid": "bafyreiblr6f6oy3zi426nksahddwp4tgsfgedtqk27fyxqtav66kjvwkgu"
+        },
+        {
+          "collection": "community.lexicon.calendar.rsvp",
+          "rkey": "3n2gtkszes22p",
+          "prev": "bafyreiautip3hgihuw4ypueftfdiv3iyliieamu5mdv4d4duqhhyetxs7a"
+        }
+      ],
+      "digest": "7950fbbca80342b2ca7cebcddd56491d85f41c6cf5e7ca1c29ae6845dde4698c"
+    }
+  ]
+}
