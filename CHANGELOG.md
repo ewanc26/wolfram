@@ -6,6 +6,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- Experimental support for AT Protocol Spaces, starting with `wolfram/spaces/uri.h`: it parses and builds `at:space/` references and record URIs, on console targets too. In those URIs the first DID is the space authority rather than the author, so `wf_syntax_aturi_parse` keeps handling public `at://` URIs only. See `docs/spaces.md`. ([#35](https://github.com/ewanc26/wolfram/issues/35))
+
+### Added
+
 - The Windows cross-build now configures and builds, and is in CI: `-DCMAKE_TOOLCHAIN_FILE=.devdeps/windows.cmake -DWOLFRAM_BUILD_WINDOWS=ON` configures and builds with nothing installed but MinGW-w64, as a required `cross-build windows` job. It is the console subset of the library as a static archive, with P-256 and secp256k1 on mbedTLS (fetched and pinned by CMake) randomness from `BCryptGenRandom`, and a platform clock that returns UNIX time, which TIDs are built from. It has no network transport yet: XRPC and WebSocket calls return `WF_ERR_NETWORK` unless the consumer supplies HTTP through `wf_xrpc_set_handler()`, and `-DBUILD_SHARED_LIBS=ON` is refused. `docs/windows.md` lists what is in and out; `test/windows_smoke.c` is linked on every build so a missing Windows backend fails at link time. ([#248](https://github.com/ewanc26/wolfram/issues/248))
 - `include/wolfram/repo/block_pager.h`: a bounded LRU pager in front of a consumer-supplied block store — resident under block-count and byte ceilings, fetched by `wf_cid`, writing through on put — so a consumer whose blocks are already durable (MetalBear's SQLite block store is the first customer) can let memory track the working set instead of the repo. Host builds link it; embedded builds do not yet. ([#276](https://github.com/ewanc26/wolfram/issues/276))
 

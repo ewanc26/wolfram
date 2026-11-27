@@ -51,6 +51,13 @@ test(xrpc-server): cover AppView-forwarding request headers
 - `retry.h` owns the bounded retry decision and delay. Keep it pure: no sleeps, threads, clocks or allocation. The caller supplies the attempt count, Reset window and jitter seed.
 - The libcurl transport parses the headers and updates the client readback. Async workers must not write that readback, because their client may already be freed; async callers read `wf_response.rate_limit` from the pending result.
 
+## Spaces (experimental)
+
+- Everything under `include/wolfram/spaces/` and `src/spaces/` is experimental. Say so in every new header; `docs/spaces.md` records the upstream revisions it follows. Move the revisions and the code together.
+- `src/spaces/uri.c` is console-buildable and listed in `tools/embedded-sources.txt`. Keep it free of OpenSSL, cJSON and POSIX.
+- Vectors in `test/vectors/spaces/` come from the field guide or the reference `@atproto/space` package. Never regenerate an expected value from Wolfram's own output.
+- `wf_syntax_aturi_parse` is for public `at://` URIs. Do not teach it `at:space/`: the first DID means something else there.
+
 ## Classic Mac OS 9
 
 - The Mac OS 9 transport uses Open Transport through the external macTLS async stream API.
