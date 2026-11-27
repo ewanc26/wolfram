@@ -353,6 +353,8 @@ add_library(
   $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
   # base58btc shared by both crypto backends (pure C)
   src/crypto/base58.c
+  # Private-key multibase codec (goat/atcrypto form, pure C)
+  src/crypto/key_multibase.c
   # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
   src/repo/cbor.c
   src/repo/cid.c
@@ -1589,6 +1591,14 @@ if(WOLFRAM_BUILD_TESTS)
     target_compile_definitions(test_crypto PRIVATE HAVE_LIBSECP256K1)
   endif()
   add_test(NAME crypto COMMAND test_crypto)
+
+  add_executable(test_key_multibase test/test_key_multibase.c)
+  target_link_libraries(test_key_multibase PRIVATE wolfram)
+  target_include_directories(test_key_multibase PRIVATE test)
+  if(SECP256K1_FOUND)
+    target_compile_definitions(test_key_multibase PRIVATE HAVE_LIBSECP256K1)
+  endif()
+  add_test(NAME key_multibase COMMAND test_key_multibase)
 
   add_executable(test_crypto_interop test/test_crypto_interop.c)
   target_link_libraries(test_crypto_interop PRIVATE wolfram)

@@ -45,6 +45,50 @@ wf_status wf_signing_key_from_hex(wf_key_type type, const char *hex,
                                   wf_signing_key *out);
 
 /**
+ * Encode a private signing key as a multibase string: 'z' + base58btc of the
+ * multicodec varint (secp256k1-priv 0x1301, p256-priv 0x1306) followed by the
+ * raw 32-byte scalar. This is the "Secret Key" form `goat key generate`
+ * prints and indigo's atcrypto ParsePrivateMultibase reads.
+ *
+ * The string IS the private key. Never log it. On WF_OK *out_secret is
+ * heap-allocated; release it with wf_signing_key_secret_free, which wipes it
+ * first. A zero scalar or one not below the curve order is WF_ERR_INVALID_ARG.
+ * Pure C: builds on every target, with or without libsecp256k1.
+ */
+wf_status wf_signing_key_to_multibase(const wf_signing_key *key,
+                                      char **out_secret);
+
+/**
+ * Parse a private-key multibase string (see wf_signing_key_to_multibase).
+ *
+ * Rejects, as WF_ERR_PARSE and without filling `out`: a missing 'z', a
+ * character outside the base58btc alphabet, a decoded length other than 34
+ * bytes, an unknown multicodec prefix, a zero scalar and a scalar not below
+ * the curve order.
+ *
+ * base58btc carries no checksum, so most single-character typos in the
+ * scalar still decode to a different, valid key. A recovery flow that knows
+ * which public key it expects should compare against it; see
+ * wf_plc_recovery_key_decode in plc_recovery.h, which does.
+ *
+ * On error `out` is zeroed. The caller wipes `out` with wf_secure_zero when
+ * done with it.
+ */
+wf_status wf_signing_key_from_multibase(const char *secret,
+                                        wf_signing_key *out);
+
+/** Wipe and free a secret string from wf_signing_key_to_multibase. NULL-safe.
+ */
+void wf_signing_key_secret_free(char *secret);
+
+/**
+ * Overwrite `len` bytes at `ptr` with zeros through a volatile pointer, so
+ * the store is not optimised away. Use it on wf_signing_key values and other
+ * secret buffers before they go out of scope. NULL-safe.
+ */
+void wf_secure_zero(void *ptr, size_t len);
+
+/**
  * Derive the `did:key:z...` multibase-encoded public key for a signing key.
  *
  * The returned string uses the same multicodec prefixes the SDK's verifier
