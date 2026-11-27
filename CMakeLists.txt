@@ -543,7 +543,8 @@ if(WOLFRAM_BUILD_SPACES)
                                  src/spaces/httpsig.c
                                  src/spaces/kem.c
                                  src/spaces/lthash.c
-                                 src/spaces/sf.c)
+                                 src/spaces/sf.c
+                                 src/spaces/token.c)
   target_include_directories(wolfram PRIVATE ${blake3_SOURCE_DIR}/c)
 endif()
 
@@ -1912,7 +1913,7 @@ if(WOLFRAM_BUILD_TESTS)
   add_test(NAME space_uri COMMAND test_space_uri)
 
   if(WOLFRAM_BUILD_SPACES)
-    foreach(wf_space_test lthash kem httpsig)
+    foreach(wf_space_test lthash kem httpsig token)
       add_executable(test_space_${wf_space_test}
                      test/test_space_${wf_space_test}.c)
       target_link_libraries(test_space_${wf_space_test} PRIVATE wolfram)
@@ -1921,6 +1922,10 @@ if(WOLFRAM_BUILD_TESTS)
       target_compile_definitions(
         test_space_${wf_space_test}
         PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+      if(SECP256K1_FOUND)
+        target_compile_definitions(test_space_${wf_space_test}
+                                   PRIVATE HAVE_LIBSECP256K1)
+      endif()
       add_test(NAME space_${wf_space_test}
                COMMAND test_space_${wf_space_test})
     endforeach()

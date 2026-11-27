@@ -102,6 +102,23 @@ A repo host does the reverse: `wf_space_credential_verify`, then
 - The transport does not yet hand back arbitrary response headers, so a
   syncer needs its own HTTP layer to read the MAC headers for now.
 
+## Tokens
+
+`wolfram/spaces/token.h` parses, verifies and mints the delegation token, the
+client attestation and the space credential. Checking a token takes three
+calls, in any order, all of which must pass:
+
+```c
+wf_space_token_parse(WF_SPACE_TOKEN_CREDENTIAL, jwt, &token); /* structure */
+wf_space_token_verify_signature(&token, issuer_atproto_key);
+wf_space_token_check_claims(&token, now, NULL, space);
+```
+
+Resolving the issuer's key, remembering a single-use `jti` and honouring
+`notifyCredentialsRevoked` are the caller's work. A delegation token and a
+client attestation are addressed to `<authority>#atproto_pds`
+(`wf_space_host_audience`). ES256K needs a build with libsecp256k1.
+
 ## Not here yet
 
 Record and sync requests, STAR archives, OAuth `space:` scopes, the space host
