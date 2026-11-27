@@ -42,7 +42,9 @@ if (wf_space_uri_parse(text, &uri) == WF_OK) {
 ## Building the rest
 
 Only the URI module is always built. Everything else needs a hosted build with
-`-DWOLFRAM_BUILD_SPACES=ON`, which also fetches BLAKE3.
+`-DWOLFRAM_BUILD_SPACES=ON`, which also fetches BLAKE3. The option defines
+`WOLFRAM_HAS_SPACES` for code that links Wolfram. Console and Windows builds
+can recognise space URIs but cannot read or write spaces.
 
 ## Set hash
 
@@ -121,7 +123,8 @@ client attestation are addressed to `<authority>#atproto_pds`
 
 ## Not here yet
 
-Record and sync requests, STAR archives, OAuth `space:` scopes, the space host
-methods and the vendored lexicons' generated wrappers are not implemented.
+Record and sync requests, STAR archives, OAuth `space:` scopes and the space
+host methods are not implemented. The Spaces lexicons are not vendored, so
+there are no generated wrappers or validation for them.
 Spaces are not exposed through the C++, .NET or Node bindings, and nothing here
 is part of the Mac OS 9 target.

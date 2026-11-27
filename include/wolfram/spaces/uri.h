@@ -12,8 +12,9 @@
  *
  * In a public `at://` URI the first DID is the author. In a space URI the first
  * DID is the space authority and the author comes later, so code that wants
- * "the DID" must know which kind it holds. This module is pure C and builds on
- * every target, console clients included.
+ * "the DID" must know which kind it holds. This module is pure C and builds
+ * into the library on every target, consoles included (the separate Mac OS 9
+ * transport library does not carry it).
  */
 
 #ifndef WOLFRAM_SPACES_URI_H
