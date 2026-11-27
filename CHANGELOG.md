@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Fixed
+
+- The XRPC server leaked the raw query string of every request that reached a handler or the fallback, and the fallback's copy of the `x-atproto-*` request headers. Both are freed once the response is sent. ([#284](https://github.com/ewanc26/wolfram/issues/284))
+
 ## [0.48.0] - 2026-11-27
 
 ### Added

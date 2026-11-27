@@ -1623,6 +1623,8 @@ process:
             }
             wf_server_content_length(conn, &freq);
             server->fallback(server->fallback_ctx, &freq, &resp);
+            free((void *)freq.raw_query);
+            wf_server_request_headers_free(&freq);
         } else {
             wf_xrpc_response_set_error(&resp, 501, "MethodNotImplemented",
                                        "No handler registered for this NSID");
@@ -1844,6 +1846,7 @@ cleanup:
         free(raw_pb);
     }
     wf_server_request_headers_free(&req);
+    free((void *)req.raw_query);
     free(req.authed_subject); /* server-owned; NULL when no principal */
     return ret;
 }
