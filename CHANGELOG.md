@@ -4,6 +4,12 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [Unreleased]
+
+### Fixed
+
+- An OAuth session (`wf_auth_client`) now sends `atproto-accept-labelers` too. 0.48.0 sent it from the plain XRPC client only, so the labels of a subscribed labeler still never reached a client signed in with OAuth. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+
 ## [0.48.0] - 2026-11-27
 
 ### Added
