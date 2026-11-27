@@ -489,6 +489,15 @@ wf_status wf_mod_label_defs_from_labeler(const char *labeler_did,
  */
 wf_status wf_mod_global_label_defs(wf_mod_label_def **out, size_t *out_count);
 
+/**
+ * As wf_mod_labels_from_json, from an already-parsed array (or an object with
+ * a `labels` array), such as wf_agent_post_view.labels. Items without a `val`
+ * are skipped. `root` is not modified or taken.
+ */
+struct cJSON;
+wf_status wf_mod_labels_from_cjson(wf_mod_label **out, size_t *out_count,
+                                   const struct cJSON *root);
+
 /** Free an array of label defs produced by wf_mod_label_defs_from_labeler. */
 void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count);
 
