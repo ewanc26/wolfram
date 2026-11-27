@@ -61,6 +61,14 @@ wf_space_lthash_digest(&hash, digest);
 
 The digest alone proves nothing: check the commit it is compared with first.
 
+## Shared secret
+
+`wolfram/spaces/kem.h` derives the secret a response is MACed with. The syncer
+encapsulates against the author's `#atproto_kem` key and sends the returned key
+share as the `keyid` of its MAC request; the repo host decapsulates it. Derive
+a new one for every request, including each retry and each page, and wipe the
+secret when the response has been checked.
+
 ## Not here yet
 
 Record and sync requests, STAR archives, OAuth `space:` scopes, the space host

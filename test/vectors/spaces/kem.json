@@ -1,0 +1,18 @@
+{
+  "source": "Field guide appendices F and G.5 (2026-11-26); HPKE case from @atproto/space kem.test.ts at 355b733 (keys of the RFC 9180 export-only P-256 entry, expected secret computed with Go crypto/hpke for info atproto-mac). Private keys are published test material, converted from multibase to hex.",
+  "cases": [
+    {
+      "name": "guide: Ruth decapsulates the syncer key share",
+      "private_key_hex": "f3583d7076490ab8e4d81c3d8f2cc12357e9a676f315a1454ad329abf371d3b6",
+      "public_key": "did:key:zDnaefddyQ4HYrC15kpiBjhAmUcmm6wVqDqNSFWatYRUiHaxy",
+      "key_share": "did:key:zDnaenqFhbY4sffBMz5ZatBohkr8LNNAe1pWTmG6C88rMc477",
+      "secret": "96523627ef6c8bc21ab2ba80b70ed2e4e119317353195d4a2934bb2acd3f2f10"
+    },
+    {
+      "name": "HPKE export-only P-256 keys",
+      "private_key_hex": "62c3868357a464f8461d03aa0182c7cebcde841036aea7230ddc7339f1088346",
+      "key_share": "did:key:zDnaexCXCyeFWXGnCUesVu6KucACKmUDm6i3M5fghGuy1jnch",
+      "secret": "2060e0558d1b34c10086bc137f849bb79ba59fcdc30544418e35c9cd301f0d0d"
+    }
+  ]
+}
