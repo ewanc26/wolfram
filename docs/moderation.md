@@ -84,6 +84,11 @@ wf_mod_global_label_defs(&globals, &global_count);
 wf_mod_label_defs_free(globals, global_count);
 ```
 
+Set `wf_mod_opts.user_did` to the signed-in account. Without it the engine
+treats the viewer as logged out: `!no-unauthenticated`, which authors set to
+keep away from logged-out viewers, then hides their posts from everyone, and
+the viewer's own posts are not recognised as theirs.
+
 Labels from a labeler the account does not subscribe to are still ignored.
 Official clients always subscribe to Bluesky's moderation labeler; add
 `WF_MOD_BSKY_LABELER_DID` to `wf_mod_prefs.labelers` to match them.
