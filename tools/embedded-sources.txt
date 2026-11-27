@@ -13,3 +13,4 @@ src/crypto/base64url_strict.c
 src/agent/muted_words.c
 src/qr.c
 src/spaces/uri.c
+src/agent/moderation.c

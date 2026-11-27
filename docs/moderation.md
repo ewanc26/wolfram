@@ -67,6 +67,27 @@ wf_mod_label_defs_free(defs, def_count);
 You typically repeat this for every labeler the user subscribes to (from
 `prefs.labelers`) and collect all definitions into one array for `wf_mod_opts`.
 
+## Global label definitions
+
+`!hide`, `!warn`, `porn`, `sexual`, `nudity`, `graphic-media` and `gore` are
+defined by the protocol rather than by any labeler, so no labeler service
+record carries them. `wf_mod_global_label_defs` builds them with upstream's
+behaviours and defaults; put them in `wf_mod_opts.label_defs` alongside any
+labeler's own definitions, or the engine has nothing to match those values
+against and ignores them:
+
+```c
+wf_mod_label_def *globals = NULL;
+size_t global_count = 0;
+wf_mod_global_label_defs(&globals, &global_count);
+/* ... */
+wf_mod_label_defs_free(globals, global_count);
+```
+
+Labels from a labeler the account does not subscribe to are still ignored.
+Official clients always subscribe to Bluesky's moderation labeler; add
+`WF_MOD_BSKY_LABELER_DID` to `wf_mod_prefs.labelers` to match them.
+
 ## Parsing labels
 
 A `labels` array (each item with `src`, `uri`, `val`, `cts`) parses into
