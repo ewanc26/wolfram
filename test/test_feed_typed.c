@@ -3,6 +3,7 @@
  */
 
 #include "wolfram/feed_typed.h"
+#include "wolfram/moderation.h"
 #include "test.h"
 
 #include <cJSON.h>
@@ -324,6 +325,43 @@ int main(void) {
         WF_CHECK(wf_agent_describe_feed_generator_typed(a, NULL) ==
                  WF_ERR_INVALID_ARG);
         wf_agent_free(a);
+    }
+
+    /* Post and author labels are kept, and read by the moderation parser;
+     * a non-array `labels` is dropped rather than kept as something else. */
+    {
+        const char *lj =
+            "{\"feed\":[{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed."
+            "post/1\",\"cid\":\"c\",\"author\":{\"did\":\"did:plc:a\","
+            "\"handle\":\"a.test\",\"labels\":[{\"src\":\"did:plc:l\","
+            "\"uri\":\"did:plc:a\",\"val\":\"!warn\"}]},\"record\":{},"
+            "\"labels\":[{\"src\":\"did:plc:l\",\"uri\":\"at://x\","
+            "\"val\":\"porn\"},{\"src\":\"did:plc:l\"}],"
+            "\"indexedAt\":\"2026-01-01T00:00:00Z\"}},"
+            "{\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/2\","
+            "\"cid\":\"c\",\"author\":{\"did\":\"did:plc:a\","
+            "\"handle\":\"a.test\"},\"record\":{},\"labels\":\"bad\","
+            "\"indexedAt\":\"2026-01-01T00:00:00Z\"}}]}";
+        wf_agent_feed_list ll = {0};
+        WF_CHECK(wf_agent_parse_feed(lj, strlen(lj), &ll) == WF_OK);
+        WF_CHECK(ll.item_count == 2);
+        if (ll.item_count == 2) {
+            wf_mod_label *labs = NULL;
+            size_t n = 0;
+            WF_CHECK(wf_mod_labels_from_cjson(
+                         &labs, &n, ll.items[0].post.labels) == WF_OK);
+            WF_CHECK(n == 1 && strcmp(labs[0].val, "porn") == 0);
+            wf_mod_labels_free(labs, n);
+            WF_CHECK(wf_mod_labels_from_cjson(
+                         &labs, &n, ll.items[0].post.author_labels) == WF_OK);
+            WF_CHECK(n == 1 && strcmp(labs[0].val, "!warn") == 0);
+            wf_mod_labels_free(labs, n);
+            WF_CHECK(ll.items[1].post.labels == NULL);
+            WF_CHECK(ll.items[1].post.author_labels == NULL);
+            WF_CHECK(wf_mod_labels_from_cjson(&labs, &n, NULL) ==
+                     WF_ERR_INVALID_ARG);
+        }
+        wf_agent_feed_list_free(&ll);
     }
 
     WF_TEST_SUMMARY();

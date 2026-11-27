@@ -46,6 +46,8 @@ static void wf_feed_post_view_reset(wf_agent_post_view *p) {
     if (p->embed) {
         cJSON_Delete(p->embed);
     }
+    cJSON_Delete(p->labels);
+    cJSON_Delete(p->author_labels);
     free(p->indexed_at);
     wf_feed_viewer_state_reset(&p->viewer);
     memset(p, 0, sizeof(*p));
@@ -223,6 +225,21 @@ static wf_status wf_feed_parse_post_view(wf_agent_post_view *p, cJSON *obj) {
         cJSON *embed = cJSON_DetachItemFromObject(obj, "embed");
         if (embed) {
             p->embed = embed;
+        }
+        cJSON *labels = cJSON_DetachItemFromObject(obj, "labels");
+        if (cJSON_IsArray(labels)) {
+            p->labels = labels;
+        } else {
+            cJSON_Delete(labels);
+        }
+        cJSON *author_labels =
+            cJSON_IsObject(author)
+                ? cJSON_DetachItemFromObject(author, "labels")
+                : NULL;
+        if (cJSON_IsArray(author_labels)) {
+            p->author_labels = author_labels;
+        } else {
+            cJSON_Delete(author_labels);
         }
     }
 

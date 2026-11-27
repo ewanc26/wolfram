@@ -1934,15 +1934,25 @@ wf_status wf_mod_labels_from_json(wf_mod_label **out, size_t *out_count,
 
     cJSON *root = cJSON_Parse(json);
     if (!root) return WF_ERR_INVALID_ARG;
+    wf_status st = wf_mod_labels_from_cjson(out, out_count, root);
+    cJSON_Delete(root);
+    return st;
+}
+
+wf_status wf_mod_labels_from_cjson(wf_mod_label **out, size_t *out_count,
+                                   const cJSON *root) {
+    if (!out || !out_count || !root) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    *out_count = 0;
 
     wf_status st = WF_OK;
-    cJSON *arr_json = root;
-    cJSON *labels_field = cJSON_GetObjectItemCaseSensitive(root, "labels");
+    const cJSON *arr_json = root;
+    const cJSON *labels_field =
+        cJSON_GetObjectItemCaseSensitive(root, "labels");
     if (cJSON_IsArray(labels_field)) {
         arr_json = labels_field;
     }
     if (!cJSON_IsArray(arr_json)) {
-        cJSON_Delete(root);
         return WF_ERR_INVALID_ARG;
     }
 
@@ -1991,7 +2001,6 @@ wf_status wf_mod_labels_from_json(wf_mod_label **out, size_t *out_count,
     }
 
 done:
-    cJSON_Delete(root);
     if (st != WF_OK) {
         if (arr) {
             for (size_t i = 0; i < *out_count; i++) {

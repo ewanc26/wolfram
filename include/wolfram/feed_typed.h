@@ -61,6 +61,10 @@ typedef struct wf_agent_post_view {
     int has_bookmark_count;
     char *indexed_at;
     wf_agent_feed_viewer_state viewer;
+    /* Owned `labels` arrays from the post and from its author, NULL when the
+     * view carried none. Read them with wf_mod_labels_from_cjson. */
+    cJSON *labels;
+    cJSON *author_labels;
 } wf_agent_post_view;
 
 /* A feed item (app.bsky.feed.defs#feedViewPost). */
