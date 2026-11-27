@@ -4,6 +4,8 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-11-27
+
 ### Added
 
 - `wf_xrpc_client_set_accept_labelers` sends `atproto-accept-labelers` on every XRPC request, on all three transports (curl, the Wii socket transport and Mac OS 9). Without it the AppView attaches only its default labels, so a client could never see labels from a labeler the account subscribes to. A value with a control character is refused, so it cannot inject a header. `wf_http_get_public` never sends it. ([cobalt#275](https://github.com/ewanc26/cobalt/issues/275))
@@ -543,7 +545,8 @@ Released before this changelog existed. The notes, generated from the commit sub
 
 Released before this changelog existed. The notes, generated from the commit subjects of the time, are on the [release page](https://github.com/ewanc26/wolfram/releases/tag/v0.1.0).
 
-[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/ewanc26/wolfram/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.48.0
 [0.47.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.47.0
 [0.46.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.46.0
 [0.45.0]: https://github.com/ewanc26/wolfram/releases/tag/v0.45.0
