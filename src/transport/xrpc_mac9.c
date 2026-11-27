@@ -1157,6 +1157,7 @@ static wf_status wf_xrpc_perform(wf_xrpc_client *client, const char *method,
     out->body_len = resp.len;
     out->dpop_nonce = nonce;
     out->location = location;
+    out->header_block = NULL;
 
     if (status < 200 || status >= 300) {
         wf_xrpc_set_last_error(client, out);
@@ -1440,11 +1441,19 @@ char *wf_xrpc_get_base_url(wf_xrpc_client *client) {
     return mac9_strdup(client->base_url);
 }
 
+wf_status wf_xrpc_client_set_capture_headers(wf_xrpc_client *client,
+                                             int capture) {
+    if (client == NULL) return WF_ERR_INVALID_ARG;
+    return capture ? WF_ERR_UNSUPPORTED : WF_OK;
+}
+
 void wf_response_free(wf_response *res) {
     if (res == NULL) return;
     free(res->body);
     free(res->dpop_nonce);
     free(res->location);
+    free(res->header_block);
+    res->header_block = NULL;
     res->body = NULL;
     res->body_len = 0;
     res->dpop_nonce = NULL;

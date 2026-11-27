@@ -61,6 +61,7 @@ struct wf_xrpc_client {
     int https_only;        /* nonzero: refuse non-https URLs and redirects */
     long max_redirects;    /* < 0 = WF_XRPC_DEFAULT_MAX_REDIRECTS */
     long total_timeout_ms; /* 0 = no overall deadline */
+    int capture_headers;   /* nonzero: keep response headers */
     wf_rate_limit last_rate_limit;   /* latest RateLimit-* budget seen */
     pthread_mutex_t mutex;           /* guards all mutable fields above */
     struct wf_xrpc_pending *pending; /* linked list of in-flight async ops */
@@ -85,6 +86,7 @@ struct wf_client_config {
     int https_only;
     long max_redirects;
     long total_timeout_ms;
+    int capture_headers;
     wf_xrpc_client *owner; /* borrowed; NULL in a synthetic config */
 };
 
@@ -139,6 +141,7 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     cfg->handler_userdata = client->handler_userdata;
     cfg->tls_rng = client->tls_rng;
     cfg->tls_rng_userdata = client->tls_rng_userdata;
+    cfg->capture_headers = client->capture_headers;
     cfg->max_response_bytes = client->max_response_bytes;
     cfg->user_agent = client->user_agent ? strdup(client->user_agent) : NULL;
     cfg->https_only = client->https_only;
@@ -252,6 +255,19 @@ wf_status wf_xrpc_client_set_tls_rng(wf_xrpc_client *client, wf_tls_rng_fn fn,
     return WF_OK;
 }
 
+/* True when the caller sends its own Authorization header. The client's is
+ * then left off: a request must carry one, and a DPoP proof or a space
+ * credential signature is made over the caller's. */
+static bool wf_has_authorization(const wf_http_header *headers, size_t count) {
+    for (size_t i = 0; headers && i < count; i++) {
+        if (headers[i].name &&
+            strcasecmp(headers[i].name, "Authorization") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* curl write callback: append incoming bytes to a growable buffer. */
 struct wf_buffer {
     char *data;
@@ -266,6 +282,10 @@ struct wf_header_capture {
     char *set_cookie;
     char *location;
     wf_rate_limit rate_limit;
+    int keep_all;        /* the client asked for every header */
+    int in_headers;      /* between a status line and its blank line */
+    int dropped;         /* a header could not be kept, so none are */
+    wf_response headers; /* only header_block is used */
 };
 
 /*
@@ -329,6 +349,39 @@ static void wf_capture_rate_limit_header(const char *ptr, size_t len,
     (void)wf_rate_limit_parse_header(out, name, value);
 }
 
+/* Keep one raw header line. If any line cannot be kept the whole set is
+ * dropped: a partial set could hide a repeated field. */
+static void wf_capture_any_header(const char *ptr, size_t len,
+                                  struct wf_header_capture *capture) {
+    const char *colon;
+    char *line;
+
+    while (len > 0 && (ptr[len - 1] == '\r' || ptr[len - 1] == '\n')) len--;
+    if (len == 0) {
+        capture->in_headers = 0; /* anything later is a trailer */
+        return;
+    }
+    if (capture->dropped) return;
+    line = malloc(len + 1);
+    if (line) {
+        memcpy(line, ptr, len);
+        line[len] = '\0';
+    }
+    colon = line && !memchr(ptr, '\0', len) ? strchr(line, ':') : NULL;
+    if (colon) {
+        line[colon - line] = '\0';
+        if (wf_response_add_header(&capture->headers, line, colon + 1) ==
+            WF_OK) {
+            free(line);
+            return;
+        }
+    }
+    free(line);
+    capture->dropped = 1;
+    free(capture->headers.header_block);
+    capture->headers.header_block = NULL;
+}
+
 static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb,
                                 void *userdata) {
     struct wf_header_capture *capture = userdata;
@@ -337,6 +390,12 @@ static size_t wf_curl_header_cb(char *ptr, size_t size, size_t nmemb,
      * final response's budget. */
     if (len >= 5 && memcmp(ptr, "HTTP/", 5) == 0) {
         memset(&capture->rate_limit, 0, sizeof(capture->rate_limit));
+        free(capture->headers.header_block);
+        capture->headers.header_block = NULL;
+        capture->dropped = 0;
+        capture->in_headers = 1;
+    } else if (capture->keep_all && capture->in_headers) {
+        wf_capture_any_header(ptr, len, capture);
     }
     wf_capture_header(ptr, len, "DPoP-Nonce:", sizeof("DPoP-Nonce:") - 1,
                       &capture->dpop_nonce);
@@ -473,6 +532,15 @@ wf_rate_limit wf_xrpc_client_get_rate_limit(const wf_xrpc_client *client) {
     copy = client->last_rate_limit;
     pthread_mutex_unlock(&mutable_client->mutex);
     return copy;
+}
+
+wf_status wf_xrpc_client_set_capture_headers(wf_xrpc_client *client,
+                                             int capture) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    pthread_mutex_lock(&client->mutex);
+    client->capture_headers = capture != 0;
+    pthread_mutex_unlock(&client->mutex);
+    return WF_OK;
 }
 
 void wf_xrpc_set_handler(wf_xrpc_client *client, wf_xrpc_handler_fn fn,
@@ -793,6 +861,7 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     struct wf_buffer buf = {0};
     buf.max = cfg->max_response_bytes;
     struct wf_header_capture capture = {0};
+    capture.keep_all = cfg->capture_headers;
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, wf_curl_write_cb);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buf);
@@ -877,6 +946,8 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
         out->location = capture.location;
         capture.location = NULL;
         out->rate_limit = capture.rate_limit;
+        out->header_block = capture.headers.header_block;
+        capture.headers.header_block = NULL;
 
         WF_LOG_DEBUG("xrpc", "HTTP response %ld for %s", http_status, url);
 
@@ -898,6 +969,7 @@ static wf_status wf_xrpc_perform_cfg(const struct wf_client_config *cfg,
     free(capture.dpop_nonce);
     free(capture.set_cookie);
     free(capture.location);
+    free(capture.headers.header_block);
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return status;
@@ -1257,7 +1329,7 @@ static wf_status wf_xrpc_upload_blob_query_with_headers(
     else
         snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, nsid);
 
-    if (cfg->auth_header) {
+    if (cfg->auth_header && !wf_has_authorization(headers, header_count)) {
         list = curl_slist_append(list, cfg->auth_header);
         if (!list) status = WF_ERR_ALLOC;
     }
@@ -1313,6 +1385,8 @@ void wf_response_free(wf_response *res) {
     free(res->dpop_nonce);
     free(res->set_cookie);
     free(res->location);
+    free(res->header_block);
+    res->header_block = NULL;
     res->body = NULL;
     res->body_len = 0;
     res->dpop_nonce = NULL;
@@ -1406,14 +1480,7 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
      * Basic auth overriding a cached Bearer token), skip the client's own
      * auth_header to avoid sending two Authorization headers, which would
      * cause the server to use whichever MHD returns first. */
-    bool has_explicit_auth = false;
-    for (i = 0; i < extra_count; i++) {
-        if (extra[i].name && strcmp(extra[i].name, "Authorization") == 0) {
-            has_explicit_auth = true;
-            break;
-        }
-    }
-    if (cfg->auth_header && !has_explicit_auth) {
+    if (cfg->auth_header && !wf_has_authorization(extra, extra_count)) {
         headers = curl_slist_append(headers, cfg->auth_header);
         if (!headers) {
             curl_slist_free_all(headers);
@@ -1493,7 +1560,7 @@ static wf_status wf_http_get_impl(wf_xrpc_client *client, const char *url,
     if (!cfg) return WF_ERR_ALLOC;
     if (max_bytes) cfg->max_response_bytes = max_bytes;
 
-    if (cfg->auth_header) {
+    if (cfg->auth_header && !wf_has_authorization(extra, extra_count)) {
         headers = curl_slist_append(headers, cfg->auth_header);
     }
 

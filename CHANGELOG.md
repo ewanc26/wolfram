@@ -4,6 +4,14 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- A client can keep response headers: turn on `wf_xrpc_client_set_capture_headers` and read them with `wf_response_header`, which joins a repeated field the way HTTP message signatures expect. Off by default; the Wii, Windows and Mac OS 9 socket transports report it unsupported. `wf_response` gains a field, so rebuild code compiled against the previous header. ([#35](https://github.com/ewanc26/wolfram/issues/35))
+
+### Fixed
+
+- A request that carries its own `Authorization` header no longer also sends the client's session: `wf_http_get_with_headers` and the blob upload with headers sent both, and `wf_http_post` only left the session off for that exact capitalisation. ([#35](https://github.com/ewanc26/wolfram/issues/35))
+
 ## [0.48.0] - 2026-11-27
 
 ### Added
