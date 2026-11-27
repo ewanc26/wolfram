@@ -621,36 +621,25 @@ cleanup:
     return status;
 }
 
-wf_status wf_plc_operation_verify(const char *signed_json,
-                                  char **out_signer_didkey) {
-    cJSON *root = NULL;
+/* Verify the signature on `root` (a parsed signed operation) against each
+ * string in `keys`, in order. On WF_OK *out_signer_didkey is the matching
+ * key. WF_ERR_INVALID_ARG when no key verifies. */
+static wf_status wf_plc_verify_root(const cJSON *root, const cJSON *keys,
+                                    char **out_signer_didkey) {
     const cJSON *sig_item = NULL;
-    const char *didkey = NULL;
-    const char *sig_b64 = NULL;
-    const cJSON *rotation_keys = NULL;
     unsigned char *cbor = NULL;
     size_t cbor_len = 0;
     unsigned char *sig = NULL;
     size_t sig_len = 0;
     wf_status status = WF_OK;
 
-    if (!signed_json || !out_signer_didkey) return WF_ERR_INVALID_ARG;
     *out_signer_didkey = NULL;
 
-    root = cJSON_Parse(signed_json);
-    if (!root || !cJSON_IsObject(root)) {
-        status = WF_ERR_PARSE;
-        goto cleanup;
-    }
-
     sig_item = cJSON_GetObjectItemCaseSensitive(root, "sig");
-    if (!sig_item || !cJSON_IsString(sig_item) || !sig_item->valuestring[0]) {
-        status = WF_ERR_PARSE;
-        goto cleanup;
-    }
-    sig_b64 = sig_item->valuestring;
+    if (!sig_item || !cJSON_IsString(sig_item) || !sig_item->valuestring[0])
+        return WF_ERR_PARSE;
 
-    sig = wf_plc_base64url_decode(sig_b64, &sig_len);
+    sig = wf_plc_base64url_decode(sig_item->valuestring, &sig_len);
     if (!sig || sig_len != 64) {
         status = WF_ERR_PARSE;
         goto cleanup;
@@ -659,25 +648,19 @@ wf_status wf_plc_operation_verify(const char *signed_json,
     status = wf_plc_canonical_cbor(root, "sig", &cbor, &cbor_len);
     if (status != WF_OK) goto cleanup;
 
-    /* wf_verify hashes the message internally (SHA256), so pass the raw
-     * CBOR bytes — not a pre-computed hash — to avoid double-hashing. */
-    rotation_keys = cJSON_GetObjectItemCaseSensitive(root, "rotationKeys");
-    if (!rotation_keys || !cJSON_IsArray(rotation_keys)) {
+    if (!keys || !cJSON_IsArray(keys)) {
         status = WF_ERR_PARSE;
         goto cleanup;
     }
 
-    for (int i = 0; i < (int)cJSON_GetArraySize(rotation_keys); i++) {
-        const cJSON *rk = cJSON_GetArrayItem(rotation_keys, i);
+    /* wf_verify hashes the message internally (SHA256), so pass the raw
+     * CBOR bytes — not a pre-computed hash — to avoid double-hashing. */
+    const cJSON *rk = NULL;
+    cJSON_ArrayForEach(rk, keys) {
         if (!cJSON_IsString(rk) || !rk->valuestring[0]) continue;
-        didkey = rk->valuestring;
-        if (wf_verify(didkey, cbor, cbor_len, sig, sig_len) == WF_OK) {
-            *out_signer_didkey = wf_str_dup(didkey);
-            if (!*out_signer_didkey) {
-                status = WF_ERR_ALLOC;
-                goto cleanup;
-            }
-            status = WF_OK;
+        if (wf_verify(rk->valuestring, cbor, cbor_len, sig, sig_len) == WF_OK) {
+            *out_signer_didkey = wf_str_dup(rk->valuestring);
+            status = *out_signer_didkey ? WF_OK : WF_ERR_ALLOC;
             goto cleanup;
         }
     }
@@ -687,7 +670,43 @@ wf_status wf_plc_operation_verify(const char *signed_json,
 cleanup:
     free(cbor);
     free(sig);
+    return status;
+}
+
+wf_status wf_plc_operation_verify(const char *signed_json,
+                                  char **out_signer_didkey) {
+    if (!signed_json || !out_signer_didkey) return WF_ERR_INVALID_ARG;
+    *out_signer_didkey = NULL;
+
+    cJSON *root = cJSON_Parse(signed_json);
+    if (!root || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return WF_ERR_PARSE;
+    }
+    wf_status status = wf_plc_verify_root(
+        root, cJSON_GetObjectItemCaseSensitive(root, "rotationKeys"),
+        out_signer_didkey);
     cJSON_Delete(root);
+    return status;
+}
+
+wf_status wf_plc_operation_verify_with_keys(const char *signed_json,
+                                            const char *prev_op_json,
+                                            char **out_signer_didkey) {
+    if (!signed_json || !prev_op_json || !out_signer_didkey)
+        return WF_ERR_INVALID_ARG;
+    *out_signer_didkey = NULL;
+
+    cJSON *root = cJSON_Parse(signed_json);
+    cJSON *prev = cJSON_Parse(prev_op_json);
+    wf_status status = WF_ERR_PARSE;
+    if (root && cJSON_IsObject(root) && prev && cJSON_IsObject(prev)) {
+        status = wf_plc_verify_root(
+            root, cJSON_GetObjectItemCaseSensitive(prev, "rotationKeys"),
+            out_signer_didkey);
+    }
+    cJSON_Delete(root);
+    cJSON_Delete(prev);
     return status;
 }
 

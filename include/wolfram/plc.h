@@ -119,6 +119,23 @@ wf_status wf_plc_operation_verify(const char *signed_json,
                                   char **out_signer_didkey);
 
 /**
+ * Verify a signed update against the keys that are allowed to sign it: the
+ * `rotationKeys` of the operation it follows (`prev_op_json`), tried in
+ * order. wf_plc_operation_verify tries the signed operation's own keys,
+ * which is right for a genesis operation and wrong for an update: an update
+ * that adds its own signer would otherwise vouch for itself.
+ *
+ * Checks the signature only; it does not compare `prev` to the previous
+ * operation's CID (see wf_plc_rotation_key_update_validate in
+ * plc_recovery.h). On WF_OK *out_signer_didkey is the heap-allocated did:key
+ * that verified; free() it. WF_ERR_INVALID_ARG when no key verifies,
+ * WF_ERR_PARSE on malformed input.
+ */
+wf_status wf_plc_operation_verify_with_keys(const char *signed_json,
+                                            const char *prev_op_json,
+                                            char **out_signer_didkey);
+
+/**
  * High-level: resolve the DID document, build the operation diff from the
  * provided update, sign it, and return the signed operation JSON.
  *
