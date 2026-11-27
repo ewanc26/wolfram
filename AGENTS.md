@@ -51,6 +51,13 @@ test(xrpc-server): cover AppView-forwarding request headers
 - `retry.h` owns the bounded retry decision and delay. Keep it pure: no sleeps, threads, clocks or allocation. The caller supplies the attempt count, Reset window and jitter seed.
 - The libcurl transport parses the headers and updates the client readback. Async workers must not write that readback, because their client may already be freed; async callers read `wf_response.rate_limit` from the pending result.
 
+## Response headers
+
+- Header capture is opt-in per client; keep it off by default, so code that releases a response field by field does not start leaking.
+- A transport that fills a `wf_response` without zeroing it first must set `header_block`, and its `wf_response_free` must release it.
+- `src/response_headers.c` is strict C89 and links into every transport, Mac OS 9 included. Do not store headers anywhere else.
+- If any header of a response cannot be kept, keep none: a partial set can hide a repeated field from a signature check.
+
 ## Spaces (experimental)
 
 - Everything under `include/wolfram/spaces/` and `src/spaces/` is experimental. Say so in every new header; `docs/spaces.md` records the upstream revisions it follows. Move the revisions and the code together.
