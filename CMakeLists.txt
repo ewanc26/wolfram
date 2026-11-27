@@ -1540,7 +1540,11 @@ if(WOLFRAM_BUILD_TESTS)
 
     add_executable(test_response_headers test/test_response_headers.c)
     target_link_libraries(test_response_headers PRIVATE wolfram Threads::Threads)
-    target_include_directories(test_response_headers PRIVATE test)
+    target_include_directories(test_response_headers
+                               PRIVATE test ${cjson_SOURCE_DIR})
+    target_compile_definitions(
+      test_response_headers
+      PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
     add_test(NAME response_headers COMMAND test_response_headers)
   endif()
 
