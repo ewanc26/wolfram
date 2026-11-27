@@ -255,6 +255,19 @@ wf_status wf_xrpc_client_set_tls_rng(wf_xrpc_client *client, wf_tls_rng_fn fn,
     return WF_OK;
 }
 
+/* True when the caller sends its own Authorization header. The client's is
+ * then left off: a request must carry one, and a DPoP proof or a space
+ * credential signature is made over the caller's. */
+static bool wf_has_authorization(const wf_http_header *headers, size_t count) {
+    for (size_t i = 0; headers && i < count; i++) {
+        if (headers[i].name &&
+            strcasecmp(headers[i].name, "Authorization") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* curl write callback: append incoming bytes to a growable buffer. */
 struct wf_buffer {
     char *data;
@@ -1316,7 +1329,7 @@ static wf_status wf_xrpc_upload_blob_query_with_headers(
     else
         snprintf(url, url_cap, "%s/xrpc/%s", cfg->base_url, nsid);
 
-    if (cfg->auth_header) {
+    if (cfg->auth_header && !wf_has_authorization(headers, header_count)) {
         list = curl_slist_append(list, cfg->auth_header);
         if (!list) status = WF_ERR_ALLOC;
     }
@@ -1467,14 +1480,7 @@ wf_status wf_http_post(wf_xrpc_client *client, const char *url,
      * Basic auth overriding a cached Bearer token), skip the client's own
      * auth_header to avoid sending two Authorization headers, which would
      * cause the server to use whichever MHD returns first. */
-    bool has_explicit_auth = false;
-    for (i = 0; i < extra_count; i++) {
-        if (extra[i].name && strcmp(extra[i].name, "Authorization") == 0) {
-            has_explicit_auth = true;
-            break;
-        }
-    }
-    if (cfg->auth_header && !has_explicit_auth) {
+    if (cfg->auth_header && !wf_has_authorization(extra, extra_count)) {
         headers = curl_slist_append(headers, cfg->auth_header);
         if (!headers) {
             curl_slist_free_all(headers);
@@ -1554,7 +1560,7 @@ static wf_status wf_http_get_impl(wf_xrpc_client *client, const char *url,
     if (!cfg) return WF_ERR_ALLOC;
     if (max_bytes) cfg->max_response_bytes = max_bytes;
 
-    if (cfg->auth_header) {
+    if (cfg->auth_header && !wf_has_authorization(extra, extra_count)) {
         headers = curl_slist_append(headers, cfg->auth_header);
     }
 
