@@ -395,6 +395,8 @@ add_library(
   src/agent/label_subscribe_typed.c
   # Syntax validation
   cpp/wolfram/syntax.cpp
+  # AT Protocol Spaces URIs (experimental, console-buildable)
+  src/spaces/uri.c
   # TID generation clock
   $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/platform/wii_tid.c,src/tid.c>
   # Lexicon validation (C++ with RAII for cJSON)
@@ -1869,6 +1871,14 @@ if(WOLFRAM_BUILD_TESTS)
     test_feed_typed
     PRIVATE WF_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/fixtures")
   add_test(NAME feed_typed COMMAND test_feed_typed)
+
+  add_executable(test_space_uri test/test_space_uri.c)
+  target_link_libraries(test_space_uri PRIVATE wolfram)
+  target_include_directories(test_space_uri PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_space_uri
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  add_test(NAME space_uri COMMAND test_space_uri)
 
   add_executable(test_oauth_pairing test/test_oauth_pairing.c)
   target_link_libraries(test_oauth_pairing PRIVATE wolfram)

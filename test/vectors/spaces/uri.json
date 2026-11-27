@@ -1,0 +1,53 @@
+{
+  "source": "AT Protocol Spaces field guide (2026-11-26), chapters 3 and appendix F",
+  "valid": [
+    {
+      "uri": "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family",
+      "authority": "did:plc:ejjl2znzqp3ci25dqaslpkk2",
+      "type": "com.example.familyUpdates",
+      "skey": "our-family"
+    },
+    {
+      "uri": "at:space/did:web:erin.example/com.example.bookmarks/self",
+      "authority": "did:web:erin.example",
+      "type": "com.example.bookmarks",
+      "skey": "self"
+    },
+    {
+      "uri": "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/A.b_c:d~e-1",
+      "authority": "did:plc:ejjl2znzqp3ci25dqaslpkk2",
+      "type": "com.example.familyUpdates",
+      "skey": "A.b_c:d~e-1"
+    },
+    {
+      "uri": "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/did:plc:ashwgt3d5ntfxmlcfyizpu2g/community.lexicon.calendar.rsvp/3n2gtdo55s22p",
+      "authority": "did:plc:ejjl2znzqp3ci25dqaslpkk2",
+      "type": "com.example.familyUpdates",
+      "skey": "our-family",
+      "author": "did:plc:ashwgt3d5ntfxmlcfyizpu2g",
+      "collection": "community.lexicon.calendar.rsvp",
+      "rkey": "3n2gtdo55s22p"
+    }
+  ],
+  "invalid": [
+    "",
+    "at:space/",
+    "at://did:plc:ejjl2znzqp3ci25dqaslpkk2/app.bsky.feed.post/3n2gtdo55s22p",
+    "at://space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family",
+    "AT:SPACE/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2//our-family",
+    "at:space/marcus.example.com/com.example.familyUpdates/our-family",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/notAnNsid/our-family",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/.",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/..",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/a%20b",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family#frag",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family?x=1",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/did:plc:ashwgt3d5ntfxmlcfyizpu2g",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/did:plc:ashwgt3d5ntfxmlcfyizpu2g/community.lexicon.calendar.rsvp",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/not-a-did/community.lexicon.calendar.rsvp/3n2gtdo55s22p",
+    "at:space/did:plc:ejjl2znzqp3ci25dqaslpkk2/com.example.familyUpdates/our-family/did:plc:ashwgt3d5ntfxmlcfyizpu2g/community.lexicon.calendar.rsvp/3n2gtdo55s22p/extra"
+  ]
+}

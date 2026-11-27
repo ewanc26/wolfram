@@ -48,6 +48,7 @@ Per-module usage guides (runnable C snippets):
 
 - [`docs/agent.md`](docs/agent.md) — high-level `wf_agent_*` API
 - [`docs/sync.md`](docs/sync.md) — repo CAR, firehose, commit verification
+- [`docs/spaces.md`](docs/spaces.md) — AT Protocol Spaces (experimental)
 - [`docs/validate.md`](docs/validate.md) — `wf_validate_value` / `wf_validate_record`
 - [`docs/moderation.md`](docs/moderation.md) — `wf_mod_*` decision engine
 - [`docs/oauth.md`](docs/oauth.md) — OAuth/DPoP, PKCE, PAR, callback flow
