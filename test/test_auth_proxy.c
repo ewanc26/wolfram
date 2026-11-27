@@ -90,6 +90,36 @@ int main(void) {
             wf_response_free(&out);
         }
         WF_CHECK(wf_mock_pds_get_last_proxy(pds) == NULL);
+
+        /* atproto-accept-labelers reaches the wire the same way, and a value
+         * that could split the header is refused with the old one kept. */
+        const char *labelers =
+            "did:plc:ar7c4by46qjdydhdevvrndac;redact, did:plc:other";
+        WF_CHECK(wf_xrpc_client_set_accept_labelers(client, labelers) == WF_OK);
+        WF_CHECK(wf_xrpc_client_set_accept_labelers(
+                     client, "did:plc:x\r\nX-Evil: 1") == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_client_get_accept_labelers(client) &&
+                 strcmp(wf_xrpc_client_get_accept_labelers(client), labelers) ==
+                     0);
+        {
+            wf_response out = {0};
+            WF_CHECK(wf_auth_client_query(ac, "app.bsky.feed.getTimeline", NULL,
+                                          &out) == WF_OK);
+            wf_response_free(&out);
+        }
+        {
+            const char *seen = wf_mock_pds_get_last_labelers(pds);
+            WF_CHECK(seen != NULL && strcmp(seen, labelers) == 0);
+        }
+        WF_CHECK(wf_xrpc_client_set_accept_labelers(client, NULL) == WF_OK);
+        WF_CHECK(wf_xrpc_client_get_accept_labelers(client) == NULL);
+        {
+            wf_response out = {0};
+            WF_CHECK(wf_auth_client_query(ac, "app.bsky.feed.getTimeline", NULL,
+                                          &out) == WF_OK);
+            wf_response_free(&out);
+        }
+        WF_CHECK(wf_mock_pds_get_last_labelers(pds) == NULL);
     }
 
     wf_auth_client_free(ac);

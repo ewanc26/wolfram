@@ -41,6 +41,8 @@ struct wf_mock_pds {
     char *last_body;
     /* The atproto-proxy header of the most recent request, or NULL. */
     char *last_proxy;
+    /* The atproto-accept-labelers header of the most recent request. */
+    char *last_labelers;
 };
 
 static const char *const MOCK_NOT_FOUND_BODY =
@@ -119,12 +121,16 @@ mock_handler(void *cls, struct MHD_Connection *connection, const char *url,
     free(pds->last_method);
     free(pds->last_body);
     free(pds->last_proxy);
+    free(pds->last_labelers);
     pds->last_nsid = strdup(nsid);
     pds->last_method = strdup(method);
     {
         const char *px = MHD_lookup_connection_value(
             connection, MHD_HEADER_KIND, "atproto-proxy");
         pds->last_proxy = px ? strdup(px) : NULL;
+        const char *al = MHD_lookup_connection_value(
+            connection, MHD_HEADER_KIND, "atproto-accept-labelers");
+        pds->last_labelers = al ? strdup(al) : NULL;
     }
     if (*con_cls != NULL) {
         struct wf_mock_pds_upload *st = (struct wf_mock_pds_upload *)*con_cls;
@@ -248,11 +254,16 @@ void wf_mock_pds_free(wf_mock_pds *pds) {
     free(pds->last_method);
     free(pds->last_body);
     free(pds->last_proxy);
+    free(pds->last_labelers);
     free(pds);
 }
 
 const char *wf_mock_pds_get_last_proxy(wf_mock_pds *pds) {
     return pds ? pds->last_proxy : NULL;
+}
+
+const char *wf_mock_pds_get_last_labelers(wf_mock_pds *pds) {
+    return pds ? pds->last_labelers : NULL;
 }
 
 wf_status wf_mock_pds_get_last_request(wf_mock_pds *pds, const char **nsid,

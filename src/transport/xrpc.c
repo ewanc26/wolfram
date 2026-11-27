@@ -7,6 +7,7 @@
  */
 
 #include "wolfram/xrpc.h"
+#include "accept_labelers.h"
 
 #include <cJSON.h>
 #include <curl/curl.h>
@@ -45,6 +46,7 @@ struct wf_xrpc_client {
     char *base_url;     /* e.g. "https://eurosky.social", no trailing slash */
     char *auth_header;  /* "Authorization: Bearer <jwt>", or NULL */
     char *proxy_header; /* "atproto-proxy: <did>#<service>", or NULL */
+    char *labelers_header; /* "atproto-accept-labelers: ...", or NULL */
     char *ca_bundle; /* path to custom CA bundle, or NULL for system default */
     wf_xrpc_handler_fn handler; /* NULL in production; test seam */
     void *handler_userdata;
@@ -72,6 +74,7 @@ struct wf_client_config {
     char *base_url;
     char *auth_header;
     char *proxy_header;
+    char *labelers_header;
     char *ca_bundle;
     wf_xrpc_handler_fn handler;
     void *handler_userdata;
@@ -110,6 +113,7 @@ static void wf_config_free(struct wf_client_config *cfg) {
     free(cfg->base_url);
     free(cfg->auth_header);
     free(cfg->proxy_header);
+    free(cfg->labelers_header);
     free(cfg->ca_bundle);
     free(cfg->user_agent);
     free(cfg);
@@ -128,6 +132,8 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     cfg->auth_header = client->auth_header ? strdup(client->auth_header) : NULL;
     cfg->proxy_header =
         client->proxy_header ? strdup(client->proxy_header) : NULL;
+    cfg->labelers_header =
+        client->labelers_header ? strdup(client->labelers_header) : NULL;
     cfg->ca_bundle = client->ca_bundle ? strdup(client->ca_bundle) : NULL;
     cfg->handler = client->handler;
     cfg->handler_userdata = client->handler_userdata;
@@ -142,6 +148,7 @@ static struct wf_client_config *wf_client_snapshot(wf_xrpc_client *client) {
     int copy_failed = (!cfg->base_url && client->base_url) ||
                       (!cfg->auth_header && client->auth_header) ||
                       (!cfg->proxy_header && client->proxy_header) ||
+                      (!cfg->labelers_header && client->labelers_header) ||
                       (!cfg->ca_bundle && client->ca_bundle) ||
                       (!cfg->user_agent && client->user_agent);
     pthread_mutex_unlock(&client->mutex);
@@ -433,6 +440,7 @@ void wf_xrpc_client_free(wf_xrpc_client *client) {
     free(client->base_url);
     free(client->auth_header);
     free(client->proxy_header);
+    free(client->labelers_header);
     free(client->ca_bundle);
     free(client->user_agent);
     free(client->last_error);
@@ -525,6 +533,32 @@ const char *wf_xrpc_client_get_proxy(const wf_xrpc_client *client) {
 
     if (!client || !client->proxy_header) return NULL;
     return client->proxy_header + sizeof prefix - 1;
+}
+
+wf_status wf_xrpc_client_set_accept_labelers(wf_xrpc_client *client,
+                                             const char *labelers) {
+    if (!client) return WF_ERR_INVALID_ARG;
+    char *header = NULL;
+    if (labelers && labelers[0]) {
+        if (!wf_accept_labelers_valid(labelers)) return WF_ERR_INVALID_ARG;
+        size_t needed =
+            strlen("atproto-accept-labelers: ") + strlen(labelers) + 1;
+        header = malloc(needed);
+        if (!header) return WF_ERR_ALLOC;
+        snprintf(header, needed, "atproto-accept-labelers: %s", labelers);
+    }
+    pthread_mutex_lock(&client->mutex);
+    free(client->labelers_header);
+    client->labelers_header = header;
+    pthread_mutex_unlock(&client->mutex);
+    return WF_OK;
+}
+
+const char *wf_xrpc_client_get_accept_labelers(const wf_xrpc_client *client) {
+    static const char prefix[] = "atproto-accept-labelers: ";
+
+    if (!client || !client->labelers_header) return NULL;
+    return client->labelers_header + sizeof prefix - 1;
 }
 
 void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
@@ -897,6 +931,9 @@ static wf_status wf_xrpc_build_headers(const struct wf_client_config *cfg,
     }
     if (cfg->proxy_header) {
         headers = curl_slist_append(headers, cfg->proxy_header);
+    }
+    if (cfg->labelers_header) {
+        headers = curl_slist_append(headers, cfg->labelers_header);
     }
     if (is_post) {
         size_t header_len = strlen("Content-Type: ") + strlen(content_type) + 1;
@@ -1536,6 +1573,8 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
     cfg->auth_header = NULL;
     free(cfg->proxy_header);
     cfg->proxy_header = NULL;
+    free(cfg->labelers_header);
+    cfg->labelers_header = NULL;
     cfg->https_only = 1;
     /* An untrusted URL must not be able to walk a redirect chain for ever, so
      * cap it tighter than the client's default. */

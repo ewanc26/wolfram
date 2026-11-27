@@ -136,6 +136,26 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
  * atproto-proxy header. */
 const char *wf_xrpc_client_get_proxy(const wf_xrpc_client *client);
 
+/**
+ * Name the labelers whose labels the AppView should attach to the views this
+ * client fetches, by sending `atproto-accept-labelers`. Without it the
+ * AppView applies only its own defaults, so labels from a labeler the
+ * account subscribes to never arrive.
+ *
+ * `labelers` is the header value: a comma-separated list of labeler DIDs,
+ * each optionally followed by ";redact" (for one whose takedowns the client
+ * honours as removals). NULL or "" clears it. A value with a control
+ * character is refused with WF_ERR_INVALID_ARG and the previous value kept,
+ * so it cannot inject a header. Copied; sent on XRPC queries and procedures,
+ * never on wf_http_get_public. WF_ERR_ALLOC keeps the previous value too.
+ */
+wf_status wf_xrpc_client_set_accept_labelers(wf_xrpc_client *client,
+                                             const char *labelers);
+
+/* The value set by wf_xrpc_client_set_accept_labelers, or NULL. Borrowed:
+ * valid until the next set or free. */
+const char *wf_xrpc_client_get_accept_labelers(const wf_xrpc_client *client);
+
 /** Default cap on a buffered HTTP response body (256 MiB). */
 #define WF_XRPC_DEFAULT_MAX_RESPONSE_BYTES ((size_t)256 * 1024 * 1024)
 

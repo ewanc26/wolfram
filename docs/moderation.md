@@ -84,6 +84,15 @@ wf_mod_global_label_defs(&globals, &global_count);
 wf_mod_label_defs_free(globals, global_count);
 ```
 
+The AppView only attaches labels from the labelers a request names. Send the
+account's subscriptions, with Bluesky's moderation labeler, on the client the
+agent uses:
+
+```c
+wf_xrpc_client_set_accept_labelers(wf_agent_get_xrpc_client(agent),
+    "did:plc:ar7c4by46qjdydhdevvrndac;redact, did:plc:other");
+```
+
 Set `wf_mod_opts.user_did` to the signed-in account. Without it the engine
 treats the viewer as logged out: `!no-unauthenticated`, which authors set to
 keep away from logged-out viewers, then hides their posts from everyone, and
