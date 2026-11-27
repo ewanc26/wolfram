@@ -351,6 +351,8 @@ add_library(
   src/identity/identity.c
   # Crypto
   $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
+  # base58btc shared by both crypto backends (pure C)
+  src/crypto/base58.c
   # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
   src/repo/cbor.c
   src/repo/cid.c
