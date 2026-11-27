@@ -597,27 +597,22 @@ wf_status wf_agent_chat_service_did_from_describe(const char *json,
     return status;
 }
 
-/* The chat service identifier within a proxying DID. chat.bsky.* is reached
- * by addressing the account's PDS and setting
- * `atproto-proxy: <did>#bsky_chat`, per the atproto service-proxying rules. */
-#define WF_CHAT_SERVICE_ID "bsky_chat"
-
 /* Canonical chat service DID, used when describeServer advertises no chat
- * proxying target. The proxying identifier is this DID plus "#bsky_chat". */
+ * proxying target. The proxying identifier is this DID plus "#bsky_chat"
+ * (WF_PROXY_SERVICE_CHAT), per the atproto service-proxying rules. */
 #define WF_CHAT_SERVICE_DID_FALLBACK "did:web:api.bsky.chat"
 
 /* Build the atproto-proxy identifier "<did>#bsky_chat" for a chat service DID,
  * falling back to the canonical chat service when `chat_did` is NULL/empty.
- * Returns a heap string (caller frees) or NULL on allocation failure. */
+ * Returns a heap string (caller frees), or NULL on allocation failure or when
+ * `chat_did` cannot form a valid identifier. */
 char *wf_chat_proxy_identifier(const char *chat_did) {
     const char *did =
         (chat_did && chat_did[0]) ? chat_did : WF_CHAT_SERVICE_DID_FALLBACK;
-    size_t need = strlen(did) + 1 + strlen(WF_CHAT_SERVICE_ID) + 1;
-    char *out = malloc(need);
-    if (!out) {
+    char *out = NULL;
+    if (wf_xrpc_proxy_identifier(did, WF_PROXY_SERVICE_CHAT, &out) != WF_OK) {
         return NULL;
     }
-    snprintf(out, need, "%s#%s", did, WF_CHAT_SERVICE_ID);
     return out;
 }
 

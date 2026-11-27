@@ -8,6 +8,7 @@
 
 #include "wolfram/xrpc.h"
 #include "accept_labelers.h"
+#include "proxy_id.h"
 
 #include <cJSON.h>
 #include <curl/curl.h>
@@ -516,6 +517,7 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
         pthread_mutex_unlock(&client->mutex);
         return WF_OK;
     }
+    if (!wf_proxy_id_valid(proxy_did)) return WF_ERR_INVALID_ARG;
 
     size_t needed = strlen("atproto-proxy: ") + strlen(proxy_did) + 1;
     char *header = malloc(needed);

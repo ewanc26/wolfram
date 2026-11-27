@@ -20,6 +20,7 @@
 #include <ctype.h>
 
 #include "accept_labelers.h"
+#include "proxy_id.h"
 
 struct wf_xrpc_client {
     char *base_url;
@@ -684,6 +685,7 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
         client->proxy_header = NULL;
         return WF_OK;
     }
+    if (!wf_proxy_id_valid(proxy_did)) return WF_ERR_INVALID_ARG;
     size_t needed = strlen("atproto-proxy: ") + strlen(proxy_did) + 1;
     char *header = malloc(needed);
     if (!header) return WF_ERR_ALLOC;

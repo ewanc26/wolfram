@@ -332,6 +332,46 @@ int main(void) {
         wf_xrpc_client_free(c);
     }
 
+    /* wf_xrpc_proxy_identifier builds "<did>#<service>" and refuses anything
+     * that is not one. */
+    {
+        char *id = NULL;
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:api.bsky.chat",
+                                          WF_PROXY_SERVICE_CHAT, &id) == WF_OK);
+        WF_CHECK(id && strcmp(id, "did:web:api.bsky.chat#bsky_chat") == 0);
+        free(id);
+        id = NULL;
+        /* A DID-document style "#id" is accepted. */
+        WF_CHECK(wf_xrpc_proxy_identifier("did:plc:ar7c4by46qjdydhdevvrndac",
+                                          "#atproto_labeler", &id) == WF_OK);
+        WF_CHECK(id && strcmp(id, "did:plc:ar7c4by46qjdydhdevvrndac"
+                                  "#atproto_labeler") == 0);
+        free(id);
+        id = (char *)"sentinel";
+        WF_CHECK(wf_xrpc_proxy_identifier("web:x", "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(id == NULL);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "#", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:", "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x#a", "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "svc\r\nX: 1", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "a b", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier(NULL, "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "svc", NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier_valid("did:web:x#svc") == 1);
+        WF_CHECK(wf_xrpc_proxy_identifier_valid("did:web:x#") == 0);
+        WF_CHECK(wf_xrpc_proxy_identifier_valid(NULL) == 0);
+    }
+
     /* A client-level atproto-proxy header is sent on every request and can be
      * cleared again. */
     {
@@ -341,6 +381,14 @@ int main(void) {
         WF_CHECK(wf_xrpc_client_set_proxy(c, chat_proxy) == WF_OK);
         WF_CHECK(wf_xrpc_client_set_proxy(NULL, chat_proxy) ==
                  WF_ERR_INVALID_ARG);
+        /* Not "<did>#<service>", or able to split the header: refused, and
+         * the previous value kept. */
+        WF_CHECK(wf_xrpc_client_set_proxy(c, "did:web:x#svc\r\nX-Evil: 1") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_client_set_proxy(c, "bsky_chat") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_client_set_proxy(c, "") == WF_ERR_INVALID_ARG);
+        WF_CHECK(strcmp(wf_xrpc_client_get_proxy(c), chat_proxy) == 0);
 
         struct wf_test_header_capture_ctx ctx = {0};
         wf_xrpc_set_handler(c, wf_test_header_capture_handler, &ctx);

@@ -32,6 +32,7 @@
 
 #include "wolfram/xrpc.h"
 #include "accept_labelers.h"
+#include "proxy_id.h"
 #include "wolfram/macos9_tls.h"
 
 #include <stdlib.h>
@@ -1364,6 +1365,8 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
     char *header;
 
     if (client == NULL) return WF_ERR_INVALID_ARG;
+    if (proxy_did != NULL && !wf_proxy_id_valid(proxy_did))
+        return WF_ERR_INVALID_ARG;
     header = NULL;
     if (proxy_did != NULL)
         header = mac9_concat3("atproto-proxy: ", proxy_did, "",

@@ -303,6 +303,7 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
               src/transport/macos9_tls.c
               src/update/update_core.c
               src/failure.c
+              src/transport/proxy_id.c
               src/rate_limit.c
               src/retry.c
               src/cdn.c
@@ -492,6 +493,7 @@ add_library(
   src/time.c
   src/failure.c
   src/rate_limit.c
+  src/transport/proxy_id.c
   src/retry.c
   src/cdn.c
   src/chat_group.c

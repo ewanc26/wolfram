@@ -112,6 +112,27 @@ void wf_xrpc_client_free(wf_xrpc_client *client);
  */
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 
+/** Service id of the Bluesky chat service in its DID document. */
+#define WF_PROXY_SERVICE_CHAT "bsky_chat"
+/** Service id of a labeler (moderation service) in its DID document. */
+#define WF_PROXY_SERVICE_LABELER "atproto_labeler"
+
+/**
+ * Build the value of an atproto-proxy header, "<did>#<service id>", e.g.
+ * wf_xrpc_proxy_identifier("did:web:api.bsky.chat", WF_PROXY_SERVICE_CHAT)
+ * for DMs, or a labeler's DID with WF_PROXY_SERVICE_LABELER for its views.
+ * A leading '#' on `service_id` is accepted. *out is caller-owned (free()).
+ *
+ * WF_ERR_INVALID_ARG unless the result is a well-formed reference: a "did:"
+ * prefix, exactly one '#', both sides non-empty, and no control characters
+ * or spaces (which could otherwise inject a header). *out is NULL on error.
+ */
+wf_status wf_xrpc_proxy_identifier(const char *did, const char *service_id,
+                                   char **out);
+
+/** 1 when `value` would be accepted as an atproto-proxy value, else 0. */
+int wf_xrpc_proxy_identifier_valid(const char *value);
+
 /**
  * Direct every request from this client at a service through the account's
  * PDS by sending the atproto service-proxying header.
@@ -125,7 +146,10 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
  *
  * The value is copied. The header is sent on XRPC queries and procedures
  * but never on wf_http_get_public, which does not carry client credentials.
- * Returns WF_ERR_ALLOC on allocation failure (the previous value is kept).
+ * A value that is not "<did>#<service id>" (see wf_xrpc_proxy_identifier),
+ * including one with a control character, is refused with
+ * WF_ERR_INVALID_ARG. Returns WF_ERR_ALLOC on allocation failure. The
+ * previous value is kept on either error.
  */
 wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
                                    const char *proxy_did);

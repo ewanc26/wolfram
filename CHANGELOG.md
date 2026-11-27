@@ -6,9 +6,17 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_xrpc_proxy_identifier` builds the `<did>#<service id>` value of an `atproto-proxy` header, with `WF_PROXY_SERVICE_CHAT` (`bsky_chat`) and `WF_PROXY_SERVICE_LABELER` (`atproto_labeler`) for the two services clients reach that way. It builds on every target, consoles and Mac OS 9 included. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+
 ### Fixed
 
 - An OAuth session (`wf_auth_client`) now sends `atproto-accept-labelers` too. 0.48.0 sent it from the plain XRPC client only, so the labels of a subscribed labeler still never reached a client signed in with OAuth. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+
+### Security
+
+- `wf_xrpc_client_set_proxy` refuses a value that is not `<did>#<service id>`, on all three transports. It used to put any string on the wire, so one holding CR/LF could inject a request header. ([#271](https://github.com/ewanc26/wolfram/issues/271))
 
 ## [0.48.0] - 2026-11-27
 
