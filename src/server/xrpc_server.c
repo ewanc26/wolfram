@@ -10,6 +10,7 @@
  */
 
 #include "xrpc_server_internal.h"
+#include "mhd_port.h"
 
 #include <cJSON.h>
 #include <microhttpd.h>
@@ -1957,10 +1958,9 @@ wf_xrpc_server *wf_xrpc_server_start(const char *address, uint16_t port,
     }
 
     /* Query the bound port (in case port == 0) */
-    const union MHD_DaemonInfo *info =
-        MHD_get_daemon_info(server->daemon, MHD_DAEMON_INFO_BIND_PORT);
-    if (info) {
-        server->port = info->port;
+    uint16_t bound = wf_mhd_bound_port(server->daemon);
+    if (bound != 0) {
+        server->port = bound;
     }
 
     return server;

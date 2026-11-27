@@ -15,6 +15,8 @@
 
 #include <microhttpd.h>
 
+#include "../src/server/mhd_port.h"
+
 struct wf_mock_pds_entry {
     char *nsid;
     char *json;
@@ -166,15 +168,12 @@ wf_status wf_mock_pds_start(wf_mock_pds **out, int *out_port) {
         return WF_ERR_NETWORK;
     }
 
-    const union MHD_DaemonInfo *info =
-        MHD_get_daemon_info(pds->daemon, MHD_DAEMON_INFO_BIND_PORT);
-    if (info == NULL) {
+    pds->port = (int)wf_mhd_bound_port(pds->daemon);
+    if (pds->port == 0) {
         MHD_stop_daemon(pds->daemon);
         free(pds);
         return WF_ERR_NETWORK;
     }
-
-    pds->port = (int)info->port;
     *out = pds;
     *out_port = pds->port;
     return WF_OK;
