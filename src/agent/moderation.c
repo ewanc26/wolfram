@@ -1832,6 +1832,92 @@ done:
     return st;
 }
 
+/* ------------------------------------------------------------------ */
+/* Global label definitions                                             */
+/* ------------------------------------------------------------------ */
+
+/* Blurs every surface of whatever the label is on: the shape `!hide`,
+ * `!warn` and `!no-unauthenticated` share upstream. */
+static void global_blur_all(wf_mod_label_def *def, int display_name_on_acct) {
+    wf_mod_behavior *a = &def->behaviors[WF_MOD_TARGET_ACCOUNT];
+    wf_mod_behavior *p = &def->behaviors[WF_MOD_TARGET_PROFILE];
+    wf_mod_behavior *c = &def->behaviors[WF_MOD_TARGET_CONTENT];
+    a->profile_list = WF_MOD_ACTION_BLUR;
+    a->profile_view = WF_MOD_ACTION_BLUR;
+    a->avatar = WF_MOD_ACTION_BLUR;
+    a->banner = WF_MOD_ACTION_BLUR;
+    if (display_name_on_acct) a->display_name = WF_MOD_ACTION_BLUR;
+    a->content_list = WF_MOD_ACTION_BLUR;
+    a->content_view = WF_MOD_ACTION_BLUR;
+    p->avatar = WF_MOD_ACTION_BLUR;
+    p->banner = WF_MOD_ACTION_BLUR;
+    p->display_name = WF_MOD_ACTION_BLUR;
+    c->content_list = WF_MOD_ACTION_BLUR;
+    c->content_view = WF_MOD_ACTION_BLUR;
+}
+
+/* Blurs media only: the shape of the self-applicable adult/graphic labels. */
+static void global_blur_media(wf_mod_label_def *def) {
+    def->behaviors[WF_MOD_TARGET_ACCOUNT].avatar = WF_MOD_ACTION_BLUR;
+    def->behaviors[WF_MOD_TARGET_ACCOUNT].banner = WF_MOD_ACTION_BLUR;
+    def->behaviors[WF_MOD_TARGET_PROFILE].avatar = WF_MOD_ACTION_BLUR;
+    def->behaviors[WF_MOD_TARGET_PROFILE].banner = WF_MOD_ACTION_BLUR;
+    def->behaviors[WF_MOD_TARGET_CONTENT].content_media = WF_MOD_ACTION_BLUR;
+}
+
+wf_status wf_mod_global_label_defs(wf_mod_label_def **out, size_t *out_count) {
+    static const struct {
+        const char *id;
+        int configurable;
+        wf_mod_label_pref def_setting;
+        uint32_t flags;
+        int blur_all;             /* 0: media only */
+        int display_name_on_acct; /* !warn leaves the account name alone */
+    } spec[] = {
+        {"!hide", 0, WF_MOD_PREF_HIDE,
+         WF_MOD_FLAG_NO_OVERRIDE | WF_MOD_FLAG_NO_SELF, 1, 1},
+        {"!warn", 0, WF_MOD_PREF_WARN, WF_MOD_FLAG_NO_SELF, 1, 0},
+        {"!no-unauthenticated", 0, WF_MOD_PREF_HIDE,
+         WF_MOD_FLAG_NO_OVERRIDE | WF_MOD_FLAG_UNAUTHED, 1, 1},
+        {"porn", 1, WF_MOD_PREF_HIDE, WF_MOD_FLAG_ADULT, 0, 0},
+        {"sexual", 1, WF_MOD_PREF_WARN, WF_MOD_FLAG_ADULT, 0, 0},
+        {"nudity", 1, WF_MOD_PREF_IGNORE, WF_MOD_FLAG_NONE, 0, 0},
+        {"graphic-media", 1, WF_MOD_PREF_WARN, WF_MOD_FLAG_ADULT, 0, 0},
+        {"gore", 1, WF_MOD_PREF_WARN, WF_MOD_FLAG_ADULT, 0, 0},
+    };
+    const size_t n = sizeof(spec) / sizeof(spec[0]);
+
+    if (!out || !out_count) return WF_ERR_INVALID_ARG;
+    *out = NULL;
+    *out_count = 0;
+
+    wf_mod_label_def *defs = calloc(n, sizeof(*defs));
+    if (!defs) return WF_ERR_ALLOC;
+
+    for (size_t i = 0; i < n; i++) {
+        wf_mod_label_def *def = &defs[i];
+        def->identifier = wf_str_dup(spec[i].id);
+        if (!def->identifier) {
+            wf_mod_label_defs_free(defs, i);
+            return WF_ERR_ALLOC;
+        }
+        def->defined_by = NULL;
+        def->configurable = spec[i].configurable;
+        def->default_setting = spec[i].def_setting;
+        def->flags = spec[i].flags;
+        for (int t = 0; t < 3; t++) def->behaviors[t] = WF_MOD_NOOP_BEHAVIOR;
+        if (spec[i].blur_all) {
+            global_blur_all(def, spec[i].display_name_on_acct);
+        } else {
+            global_blur_media(def);
+        }
+    }
+
+    *out = defs;
+    *out_count = n;
+    return WF_OK;
+}
+
 void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count) {
     if (!defs) return;
     for (size_t i = 0; i < count; i++) {

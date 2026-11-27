@@ -564,6 +564,75 @@ static int test_behavior_get(void) {
     return 0;
 }
 
+static int decide_one(const wf_mod_opts *opts, const char *val, wf_mod_ui *ui) {
+    wf_mod_label label =
+        make_label(WF_MOD_BSKY_LABELER_DID,
+                   "at://did:plc:other/app.bsky.feed.post/123", val);
+    wf_mod_subject_post subject = {0};
+    subject.uri = "at://did:plc:other/app.bsky.feed.post/123";
+    subject.author.did = "did:plc:other";
+    subject.text = "hello";
+    subject.labels = &label;
+    subject.label_count = 1;
+
+    wf_mod_decision d;
+    if (wf_mod_decide_post(&d, &subject, opts) != WF_OK) return 1;
+    wf_status st = wf_mod_decision_ui(&d, WF_MOD_CTX_CONTENT_MEDIA, ui);
+    wf_mod_decision_free(&d);
+    return st == WF_OK ? 0 : 1;
+}
+
+static int test_global_label_defs(void) {
+    wf_mod_label_def *defs = NULL;
+    size_t n = 0;
+    MOD_CHECK(wf_mod_global_label_defs(NULL, &n) == WF_ERR_INVALID_ARG);
+    MOD_CHECK(wf_mod_global_label_defs(&defs, &n) == WF_OK);
+    MOD_CHECK(n == 8);
+
+    wf_mod_labeler_pref lp = {0};
+    lp.did = (char *)WF_MOD_BSKY_LABELER_DID;
+
+    wf_mod_opts opts = {0};
+    opts.user_did = "did:plc:me";
+    opts.label_defs = defs;
+    opts.label_def_count = n;
+    opts.prefs.labelers = &lp;
+    opts.prefs.labeler_count = 1;
+
+    const wf_mod_label_def *hide = wf_mod_find_label_def(&opts, "!hide", NULL);
+    MOD_CHECK(hide && hide->defined_by == NULL && !hide->configurable);
+    MOD_CHECK(hide->flags & WF_MOD_FLAG_NO_OVERRIDE);
+    MOD_CHECK(hide->behaviors[WF_MOD_TARGET_CONTENT].content_list ==
+              WF_MOD_ACTION_BLUR);
+    const wf_mod_label_def *warn = wf_mod_find_label_def(&opts, "!warn", NULL);
+    MOD_CHECK(warn && !(warn->flags & WF_MOD_FLAG_NO_OVERRIDE));
+    MOD_CHECK(warn->behaviors[WF_MOD_TARGET_ACCOUNT].display_name ==
+              WF_MOD_ACTION_NONE);
+
+    /* Adult content off: porn blurs media and cannot be overridden. */
+    wf_mod_ui ui;
+    MOD_CHECK(decide_one(&opts, "porn", &ui) == 0);
+    MOD_CHECK(ui.blur_count == 1 && ui.no_override);
+    wf_mod_ui_free(&ui);
+
+    /* nudity defaults to ignore. */
+    MOD_CHECK(decide_one(&opts, "nudity", &ui) == 0);
+    MOD_CHECK(ui.blur_count == 0);
+    wf_mod_ui_free(&ui);
+
+    /* Adult content on: graphic-media warns, and can be revealed. */
+    opts.prefs.adult_content_enabled = 1;
+    MOD_CHECK(decide_one(&opts, "graphic-media", &ui) == 0);
+    MOD_CHECK(ui.blur_count == 1 && !ui.no_override);
+    wf_mod_ui_free(&ui);
+
+    /* A value nobody defines still has no definition. */
+    MOD_CHECK(wf_mod_find_label_def(&opts, "made-up", NULL) == NULL);
+
+    wf_mod_label_defs_free(defs, n);
+    return 0;
+}
+
 /* ------------------------------------------------------------------ */
 /* Main                                                                */
 /* ------------------------------------------------------------------ */
@@ -591,6 +660,7 @@ int main(void) {
     RUN(test_decide_post_hidden);
     RUN(test_decide_negation);
     RUN(test_behavior_get);
+    RUN(test_global_label_defs);
 
     if (failed == 0) {
         printf("All moderation tests passed\n");

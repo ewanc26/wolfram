@@ -471,6 +471,24 @@ wf_status wf_mod_label_defs_from_labeler(const char *labeler_did,
                                          wf_mod_label_def **out,
                                          size_t *out_count);
 
+/** DID of Bluesky's own moderation labeler, which official clients always
+ * subscribe to. A client that wants upstream-equivalent defaults adds it to
+ * `wf_mod_prefs.labelers` even when the account's preferences omit it. */
+#define WF_MOD_BSKY_LABELER_DID "did:plc:ar7c4by46qjdydhdevvrndac"
+
+/**
+ * Build the protocol's global label definitions (`defined_by` NULL), the
+ * ones no labeler declares because every client knows them: `!hide`,
+ * `!warn`, `!no-unauthenticated`, `porn`, `sexual`, `nudity`,
+ * `graphic-media` and its legacy alias `gore`. Behaviours, flags and
+ * defaults mirror atproto's `packages/api/src/moderation/const/labels.ts`.
+ *
+ * Without these in `wf_mod_opts.label_defs`, wf_mod_add_label finds no
+ * definition for the commonest labels and ignores them. On success, `*out`
+ * is a caller-owned array; free it with wf_mod_label_defs_free.
+ */
+wf_status wf_mod_global_label_defs(wf_mod_label_def **out, size_t *out_count);
+
 /** Free an array of label defs produced by wf_mod_label_defs_from_labeler. */
 void wf_mod_label_defs_free(wf_mod_label_def *defs, size_t count);
 
