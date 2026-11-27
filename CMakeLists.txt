@@ -71,6 +71,9 @@ option(WOLFRAM_BUILD_WINDOWS "Build for Windows (MinGW-w64 cross-compilation)"
 # executables (test_xrpc_server*, test_sync_publish_e2e/_server, test_pds_repo)
 # while `ctest` still reported 100% passed, because it never saw them.
 option(WOLFRAM_BUILD_TESTS "Build unit tests" ON)
+option(WOLFRAM_BUILD_SPACES
+       "Build the experimental AT Protocol Spaces protocol code (hosted only)"
+       OFF)
 
 option(WOLFRAM_BUILD_OAUTH_NODE "Build the hosted Wolfram OAuth pairing node" OFF)
 
@@ -515,6 +518,31 @@ add_library(
   # Image dimension probing via vendored stb_image (header-only, third_party/)
   src/image.c
   $<$<BOOL:${WOLFRAM_BUILD_OAUTH_NODE}>:src/node/oauth_node.c>)
+
+if(WOLFRAM_BUILD_SPACES)
+  if(WOLFRAM_BUILD_EMBEDDED OR WOLFRAM_BUILD_WINDOWS)
+    message(FATAL_ERROR "WOLFRAM_BUILD_SPACES is only supported on hosted builds")
+  endif()
+  # BLAKE3 for the LtHash set hash, pinned to the commit of tag 1.8.8. Only the
+  # portable C implementation is built, so every host compiles the same code.
+  FetchContent_Declare(
+    blake3
+    GIT_REPOSITORY https://github.com/BLAKE3-team/BLAKE3.git
+    GIT_TAG 282d06646f0f47d90091e3413d0be2ba5bee3b1e
+    SOURCE_SUBDIR cmake-not-used)
+  FetchContent_MakeAvailable(blake3)
+  set(WOLFRAM_BLAKE3_SOURCES
+      ${blake3_SOURCE_DIR}/c/blake3.c
+      ${blake3_SOURCE_DIR}/c/blake3_dispatch.c
+      ${blake3_SOURCE_DIR}/c/blake3_portable.c)
+  set_source_files_properties(
+    ${WOLFRAM_BLAKE3_SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS
+               "BLAKE3_NO_SSE2;BLAKE3_NO_SSE41;BLAKE3_NO_AVX2;BLAKE3_NO_AVX512;BLAKE3_USE_NEON=0")
+  target_sources(wolfram PRIVATE ${WOLFRAM_BLAKE3_SOURCES}
+                                 src/spaces/lthash.c)
+  target_include_directories(wolfram PRIVATE ${blake3_SOURCE_DIR}/c)
+endif()
 
 if(WOLFRAM_BUILD_OAUTH_NODE)
   add_executable(wolfram-oauth-node tools/oauth_node.c)
@@ -1879,6 +1907,21 @@ if(WOLFRAM_BUILD_TESTS)
     test_space_uri
     PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
   add_test(NAME space_uri COMMAND test_space_uri)
+
+  if(WOLFRAM_BUILD_SPACES)
+    foreach(wf_space_test lthash)
+      add_executable(test_space_${wf_space_test}
+                     test/test_space_${wf_space_test}.c)
+      target_link_libraries(test_space_${wf_space_test} PRIVATE wolfram)
+      target_include_directories(test_space_${wf_space_test}
+                                 PRIVATE test ${cjson_SOURCE_DIR})
+      target_compile_definitions(
+        test_space_${wf_space_test}
+        PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+      add_test(NAME space_${wf_space_test}
+               COMMAND test_space_${wf_space_test})
+    endforeach()
+  endif()
 
   add_executable(test_oauth_pairing test/test_oauth_pairing.c)
   target_link_libraries(test_oauth_pairing PRIVATE wolfram)

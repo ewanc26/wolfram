@@ -7,6 +7,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 ### Added
 
 - Experimental support for AT Protocol Spaces, starting with `wolfram/spaces/uri.h`: it parses and builds `at:space/` references and record URIs, on console targets too. In those URIs the first DID is the space authority rather than the author, so `wf_syntax_aturi_parse` keeps handling public `at://` URIs only. See `docs/spaces.md`. ([#35](https://github.com/ewanc26/wolfram/issues/35))
+- `-DWOLFRAM_BUILD_SPACES=ON` (hosted builds, off by default) adds the experimental Spaces protocol code. It starts with `wolfram/spaces/lthash.h`, the set hash a space repo's commit summarises its records with. ([#35](https://github.com/ewanc26/wolfram/issues/35))
 
 ### Added
 
