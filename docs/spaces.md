@@ -69,6 +69,39 @@ share as the `keyid` of its MAC request; the repo host decapsulates it. Derive
 a new one for every request, including each retry and each page, and wipe the
 secret when the response has been checked.
 
+## Requests and responses
+
+`wolfram/spaces/httpsig.h` covers both signature kinds. All header arguments are
+field values.
+
+A syncer signs each request that presents a credential, then checks the MAC on
+the response:
+
+```c
+wf_space_credential_sign(&credential_key, authorization, repo_did, &signature);
+
+wf_space_kem_encapsulate(author_kem_key, &key_share, secret);
+wf_space_mac_request_format(WF_SPACE_MAC_COMMIT, key_share, &accept);
+/* send Authorization, Atproto-Space-Audience, signature.signature_input,
+ * signature.signature and Accept-Signature, then: */
+wf_space_commit_parse_json(body_commit, body_len, &commit);
+wf_space_commit_verify(&commit, repo_did, space, key_share, secret,
+                       commit_header, signature_input, signature_header);
+```
+
+A repo host does the reverse: `wf_space_credential_verify`, then
+`wf_space_mac_request_parse`, `wf_space_kem_decapsulate` and
+`wf_space_commit_mac` or `wf_space_record_mac`.
+
+- `WF_ERR_VALIDATION` means the peer's input is wrong. A host answers a bad
+  `Accept-Signature` with `InvalidSpaceMac`. A syncer whose check fails
+  refreshes the author's DID document and retries with a new encapsulation.
+- A credential signature covers the credential and the audience only, so it
+  can be replayed to the same host until the credential expires. That is the
+  design. Verifiers accept high-S signatures here.
+- The transport does not yet hand back arbitrary response headers, so a
+  syncer needs its own HTTP layer to read the MAC headers for now.
+
 ## Not here yet
 
 Record and sync requests, STAR archives, OAuth `space:` scopes, the space host
