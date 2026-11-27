@@ -531,21 +531,31 @@ if(WOLFRAM_BUILD_SPACES)
     GIT_TAG 282d06646f0f47d90091e3413d0be2ba5bee3b1e
     SOURCE_SUBDIR cmake-not-used)
   FetchContent_MakeAvailable(blake3)
-  set(WOLFRAM_BLAKE3_SOURCES
-      ${blake3_SOURCE_DIR}/c/blake3.c
-      ${blake3_SOURCE_DIR}/c/blake3_dispatch.c
-      ${blake3_SOURCE_DIR}/c/blake3_portable.c)
-  set_source_files_properties(
-    ${WOLFRAM_BLAKE3_SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS
-               "BLAKE3_NO_SSE2;BLAKE3_NO_SSE41;BLAKE3_NO_AVX2;BLAKE3_NO_AVX512;BLAKE3_USE_NEON=0")
-  target_sources(wolfram PRIVATE ${WOLFRAM_BLAKE3_SOURCES}
-                                 src/spaces/httpsig.c
-                                 src/spaces/kem.c
-                                 src/spaces/lthash.c
-                                 src/spaces/sf.c
-                                 src/spaces/token.c)
+  # Its own object library, so BLAKE3 does not inherit wolfram's warning flags
+  # and its symbols stay out of libwolfram's exports: a consumer may link its
+  # own copy.
+  add_library(
+    wolfram_blake3 OBJECT
+    ${blake3_SOURCE_DIR}/c/blake3.c ${blake3_SOURCE_DIR}/c/blake3_dispatch.c
+    ${blake3_SOURCE_DIR}/c/blake3_portable.c)
+  set_target_properties(
+    wolfram_blake3 PROPERTIES POSITION_INDEPENDENT_CODE ON C_VISIBILITY_PRESET
+                                                           hidden)
+  target_compile_definitions(
+    wolfram_blake3
+    PRIVATE BLAKE3_API= BLAKE3_PRIVATE= BLAKE3_NO_SSE2 BLAKE3_NO_SSE41 BLAKE3_NO_AVX2
+            BLAKE3_NO_AVX512 BLAKE3_USE_NEON=0)
+  target_sources(
+    wolfram
+    PRIVATE $<TARGET_OBJECTS:wolfram_blake3>
+            src/spaces/httpsig.c
+            src/spaces/kem.c
+            src/spaces/lthash.c
+            src/spaces/sf.c
+            src/spaces/token.c)
   target_include_directories(wolfram PRIVATE ${blake3_SOURCE_DIR}/c)
+  # Lets a consumer test for the experimental headers' implementation.
+  target_compile_definitions(wolfram PUBLIC WOLFRAM_HAS_SPACES)
 endif()
 
 if(WOLFRAM_BUILD_OAUTH_NODE)
