@@ -44,6 +44,8 @@ static void wf_agent_thread_post_reset(wf_agent_thread_post *p) {
     if (p->embed) {
         cJSON_Delete(p->embed);
     }
+    cJSON_Delete(p->labels);
+    cJSON_Delete(p->author_labels);
     free(p->indexed_at);
     free(p->viewer_like);
     free(p->viewer_repost);
@@ -146,6 +148,23 @@ static wf_status wf_agent_thread_parse_post(cJSON *obj,
         cJSON *embed = cJSON_DetachItemFromObject(obj, "embed");
         if (embed) {
             out->embed = embed;
+        }
+    }
+    if (st == WF_OK) {
+        cJSON *labels = cJSON_DetachItemFromObject(obj, "labels");
+        if (cJSON_IsArray(labels)) {
+            out->labels = labels;
+        } else {
+            cJSON_Delete(labels);
+        }
+        cJSON *author_labels =
+            cJSON_IsObject(author)
+                ? cJSON_DetachItemFromObject(author, "labels")
+                : NULL;
+        if (cJSON_IsArray(author_labels)) {
+            out->author_labels = author_labels;
+        } else {
+            cJSON_Delete(author_labels);
         }
     }
 
