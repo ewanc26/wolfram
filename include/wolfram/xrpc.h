@@ -81,12 +81,39 @@ typedef struct wf_response {
     /* Parsed RateLimit-* response headers (see rate_limit.h). Zeroed when the
      * response carried none, or when this transport does not parse them. */
     wf_rate_limit rate_limit;
+    /* Owned storage behind wf_response_header; do not read it directly. NULL
+     * unless the client captures headers (see
+     * wf_xrpc_client_set_capture_headers). */
+    char *header_block;
 } wf_response;
 
 typedef struct wf_http_header {
     const char *name;
     const char *value;
 } wf_http_header;
+
+/** Most bytes of captured headers one response holds. */
+#define WF_RESPONSE_MAX_HEADER_BYTES 65536
+
+/**
+ * The value of response header `name`, matched case-insensitively. A repeated
+ * field comes back as one value joined with ", " in the order received
+ * (RFC 9110 §5.3), which is the form RFC 9421 signs; that join is wrong for
+ * Set-Cookie, so read `set_cookie` for it. Caller frees *out.
+ * WF_ERR_NOT_FOUND when the field is absent or no headers were captured.
+ */
+wf_status wf_response_header(const wf_response *res, const char *name,
+                             char **out);
+
+/**
+ * Add one header to a response. Transports use it, and so does a test handler
+ * (wf_xrpc_set_handler) that wants wf_response_header to see something. The
+ * response must be zeroed or already hold headers added this way.
+ * WF_ERR_INVALID_ARG for a name that is not a field name or a value holding a
+ * line break; WF_ERR_VALIDATION past WF_RESPONSE_MAX_HEADER_BYTES.
+ */
+wf_status wf_response_add_header(wf_response *res, const char *name,
+                                 const char *value);
 
 /** A single UTF-8 XRPC query parameter. Names and values are URL-encoded. */
 typedef struct wf_xrpc_param {
@@ -169,6 +196,21 @@ const char *wf_xrpc_client_get_accept_labelers(const wf_xrpc_client *client);
  */
 void wf_xrpc_client_set_max_response_bytes(wf_xrpc_client *client,
                                            size_t max_bytes);
+
+/**
+ * Keep the headers of each response on this client, for wf_response_header.
+ * Off by default. While on, every populated wf_response owns an allocation
+ * that only wf_response_free releases, so free responses with it rather than
+ * by hand. Only the final response of a redirect chain is kept, and trailers
+ * are not. A response whose headers exceed WF_RESPONSE_MAX_HEADER_BYTES keeps
+ * none, so a check that needs one fails.
+ *
+ * Applies to synchronous and asynchronous requests. WF_ERR_UNSUPPORTED on the
+ * socket transports (Wii, Windows and Classic Mac OS 9), which do not capture
+ * headers.
+ */
+wf_status wf_xrpc_client_set_capture_headers(wf_xrpc_client *client,
+                                             int capture);
 
 /** Default cap on redirects followed by one request. */
 #define WF_XRPC_DEFAULT_MAX_REDIRECTS 5

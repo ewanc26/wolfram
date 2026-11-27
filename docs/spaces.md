@@ -101,8 +101,10 @@ A repo host does the reverse: `wf_space_credential_verify`, then
 - A credential signature covers the credential and the audience only, so it
   can be replayed to the same host until the credential expires. That is the
   design. Verifiers accept high-S signatures here.
-- The transport does not yet hand back arbitrary response headers, so a
-  syncer needs its own HTTP layer to read the MAC headers for now.
+- To read the MAC headers through Wolfram's transport, turn on
+  `wf_xrpc_client_set_capture_headers` and read each one with
+  `wf_response_header`. The socket transports (Wii, Windows, Mac OS 9) do not capture
+  them.
 
 ## Tokens
 
@@ -123,7 +125,7 @@ client attestation are addressed to `<authority>#atproto_pds`
 
 ## Not here yet
 
-Record and sync requests, STAR archives, OAuth `space:` scopes and the space
+Record and sync request helpers, STAR archives, OAuth `space:` scopes and the space
 host methods are not implemented. The Spaces lexicons are not vendored, so
 there are no generated wrappers or validation for them.
 Spaces are not exposed through the C++, .NET or Node bindings, and nothing here

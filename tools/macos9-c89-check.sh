@@ -19,6 +19,7 @@ SOURCES=(
   src/transport/xrpc_mac9.c
   src/update/update_core.c
   src/failure.c
+  src/response_headers.c
   src/cdn.c
   src/drag.c
 )

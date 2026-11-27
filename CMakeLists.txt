@@ -304,6 +304,7 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
               src/update/update_core.c
               src/failure.c
               src/rate_limit.c
+              src/response_headers.c
               src/retry.c
               src/cdn.c
               src/drag.c)
@@ -492,6 +493,7 @@ add_library(
   src/time.c
   src/failure.c
   src/rate_limit.c
+  src/response_headers.c
   src/retry.c
   src/cdn.c
   src/chat_group.c
@@ -1535,6 +1537,11 @@ if(WOLFRAM_BUILD_TESTS)
     target_link_libraries(test_xrpc_fetch_policy PRIVATE wolfram Threads::Threads)
     target_include_directories(test_xrpc_fetch_policy PRIVATE test)
     add_test(NAME xrpc_fetch_policy COMMAND test_xrpc_fetch_policy)
+
+    add_executable(test_response_headers test/test_response_headers.c)
+    target_link_libraries(test_response_headers PRIVATE wolfram Threads::Threads)
+    target_include_directories(test_response_headers PRIVATE test)
+    add_test(NAME response_headers COMMAND test_response_headers)
   endif()
 
   if(NOT WOLFRAM_BUILD_EMBEDDED)
