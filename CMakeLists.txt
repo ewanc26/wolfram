@@ -1040,6 +1040,15 @@ if(WOLFRAM_BUILD_SERVER)
               ${OPENSSL_INCLUDE_DIR})
     add_test(NAME xrpc_server_observer COMMAND test_xrpc_server_observer)
 
+    add_executable(test_xrpc_server_finalizer test/test_xrpc_server_finalizer.c)
+    target_link_libraries(test_xrpc_server_finalizer PRIVATE wolfram
+                                                             Threads::Threads)
+    target_include_directories(
+      test_xrpc_server_finalizer
+      PRIVATE test ${cjson_SOURCE_DIR} ${MICROHTTPD_INCLUDE_DIR}
+              ${OPENSSL_INCLUDE_DIR})
+    add_test(NAME xrpc_server_finalizer COMMAND test_xrpc_server_finalizer)
+
     add_executable(test_xrpc_server_auth test/test_xrpc_server_auth.c)
     target_link_libraries(test_xrpc_server_auth PRIVATE wolfram
                                                         Threads::Threads)
