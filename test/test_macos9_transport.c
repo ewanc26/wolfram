@@ -450,6 +450,28 @@ static void test_proxy_header(void) {
     assert(wf_xrpc_client_set_proxy(c, "did:web:x") == WF_ERR_INVALID_ARG);
     assert(strcmp(wf_xrpc_client_get_proxy(c), "did:web:first#svc") == 0);
 
+    /* A per-request proxy replaces the client's for that request only, and
+     * NULL sends none. */
+    memset(&r, 0, sizeof(r));
+    assert(wf_xrpc_query_params_via(c, "did:plc:lab#atproto_labeler",
+                                    "tools.ozone.moderation.getRecord", NULL, 0,
+                                    &r) == WF_OK);
+    value = proxy_header(&cap);
+    assert(value != NULL && strcmp(value, "did:plc:lab#atproto_labeler") == 0);
+    wf_response_free(&r);
+    memset(&r, 0, sizeof(r));
+    assert(wf_xrpc_procedure_via(c, NULL, "com.atproto.repo.createRecord", "{}",
+                                 &r) == WF_OK);
+    assert(proxy_header(&cap) == NULL);
+    wf_response_free(&r);
+    memset(&r, 0, sizeof(r));
+    assert(wf_xrpc_query(c, "chat.bsky.convo.getConvo", NULL, &r) == WF_OK);
+    value = proxy_header(&cap);
+    assert(value != NULL && strcmp(value, "did:web:first#svc") == 0);
+    wf_response_free(&r);
+    assert(wf_xrpc_procedure_via(c, "nope", "x.y.z", "{}", &r) ==
+           WF_ERR_INVALID_ARG);
+
     /* Clearing removes it again. */
     assert(wf_xrpc_client_set_proxy(c, NULL) == WF_OK);
     memset(&r, 0, sizeof(r));

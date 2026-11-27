@@ -150,6 +150,9 @@ int wf_xrpc_proxy_identifier_valid(const char *value);
  * including one with a control character, is refused with
  * WF_ERR_INVALID_ARG. Returns WF_ERR_ALLOC on allocation failure. The
  * previous value is kept on either error.
+ *
+ * To proxy one request rather than all of them, use
+ * wf_xrpc_query_params_via / wf_xrpc_procedure_via.
  */
 wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
                                    const char *proxy_did);
@@ -346,6 +349,28 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
  */
 wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
                             const char *json_body, wf_response *out);
+
+/**
+ * wf_xrpc_query_params / wf_xrpc_procedure for one request addressed to a
+ * proxied service: the request carries `atproto-proxy: <proxy>` in place of
+ * the client's own value (wf_xrpc_client_set_proxy), which is left as it was.
+ * Build `proxy` with wf_xrpc_proxy_identifier, e.g. a labeler's
+ * "<did>#atproto_labeler" for its views. NULL sends no atproto-proxy at all,
+ * which is how to reach the PDS itself through a client that proxies by
+ * default. Auth, accept-labelers and the refresh+retry behave as in the
+ * plain calls, and a retry after a refresh keeps the same proxy.
+ *
+ * An invalid `proxy` is WF_ERR_INVALID_ARG before any I/O. The Wii and
+ * Mac OS 9 transports hold the override on the client for the length of the
+ * call, so as with every other call there, one client is one thread.
+ */
+wf_status wf_xrpc_query_params_via(wf_xrpc_client *client, const char *proxy,
+                                   const char *nsid,
+                                   const wf_xrpc_param *params,
+                                   size_t param_count, wf_response *out);
+wf_status wf_xrpc_procedure_via(wf_xrpc_client *client, const char *proxy,
+                                const char *nsid, const char *json_body,
+                                wf_response *out);
 
 /**
  * Issue an `xrpc/{nsid}` POST with a binary body.

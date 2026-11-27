@@ -9,6 +9,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 ### Added
 
 - `wf_xrpc_proxy_identifier` builds the `<did>#<service id>` value of an `atproto-proxy` header, with `WF_PROXY_SERVICE_CHAT` (`bsky_chat`) and `WF_PROXY_SERVICE_LABELER` (`atproto_labeler`) for the two services clients reach that way. It builds on every target, consoles and Mac OS 9 included. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+- `wf_xrpc_query_params_via` and `wf_xrpc_procedure_via` send one request to a proxied service, such as a labeler's `<did>#atproto_labeler`, without changing the client's own `atproto-proxy` setting, on all three transports. A NULL proxy sends the request to the PDS itself even through a client that proxies everything, and a retry after a token refresh goes to the same service as the first attempt. ([#271](https://github.com/ewanc26/wolfram/issues/271))
 
 ### Fixed
 
