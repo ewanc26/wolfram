@@ -706,8 +706,11 @@ wf_status wf_mod_add_label(wf_mod_decision *d, wf_mod_label_target target,
         return WF_OK;
     }
 
-    /* Check if self-labeled */
-    int is_self = opts->user_did && str_eq(label->src, opts->user_did);
+    /* Self-labelled means applied by the subject itself (upstream compares
+     * against the decision's DID, the author), not by the viewer: authors
+     * mark their own posts porn, nudity and so on, and are not labelers
+     * anybody subscribes to. */
+    int is_self = d->did && label->src && str_eq(label->src, d->did);
 
     /* Skip labelers not configured by the user (unless self) */
     if (!is_self) {

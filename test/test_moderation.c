@@ -626,6 +626,45 @@ static int test_global_label_defs(void) {
     MOD_CHECK(ui.blur_count == 1 && !ui.no_override);
     wf_mod_ui_free(&ui);
 
+    /* An author's own label counts though the author is no labeler... */
+    opts.prefs.adult_content_enabled = 0;
+    {
+        wf_mod_label self =
+            make_label("did:plc:other",
+                       "at://did:plc:other/app.bsky.feed.post/123", "porn");
+        wf_mod_subject_post sp = {0};
+        sp.uri = self.uri;
+        sp.author.did = "did:plc:other";
+        sp.labels = &self;
+        sp.label_count = 1;
+        wf_mod_decision d;
+        MOD_CHECK(wf_mod_decide_post(&d, &sp, &opts) == WF_OK);
+        MOD_CHECK(wf_mod_decision_ui(&d, WF_MOD_CTX_CONTENT_MEDIA, &ui) ==
+                  WF_OK);
+        MOD_CHECK(ui.blur_count == 1 && ui.no_override);
+        wf_mod_ui_free(&ui);
+        wf_mod_decision_free(&d);
+
+        /* ...but !hide is no-self, so an author cannot apply it. */
+        self.val = "!hide";
+        MOD_CHECK(wf_mod_decide_post(&d, &sp, &opts) == WF_OK);
+        MOD_CHECK(wf_mod_decision_ui(&d, WF_MOD_CTX_CONTENT_LIST, &ui) ==
+                  WF_OK);
+        MOD_CHECK(ui.blur_count == 0 && ui.filter_count == 0);
+        wf_mod_ui_free(&ui);
+        wf_mod_decision_free(&d);
+
+        /* A third party nobody subscribed to is still ignored. */
+        self.val = "porn";
+        self.src = "did:plc:stranger";
+        MOD_CHECK(wf_mod_decide_post(&d, &sp, &opts) == WF_OK);
+        MOD_CHECK(wf_mod_decision_ui(&d, WF_MOD_CTX_CONTENT_MEDIA, &ui) ==
+                  WF_OK);
+        MOD_CHECK(ui.blur_count == 0);
+        wf_mod_ui_free(&ui);
+        wf_mod_decision_free(&d);
+    }
+
     /* A value nobody defines still has no definition. */
     MOD_CHECK(wf_mod_find_label_def(&opts, "made-up", NULL) == NULL);
 
