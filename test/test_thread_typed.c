@@ -146,6 +146,23 @@ int main(void) {
         free(json);
     }
 
+    /* Post and author labels are kept on the thread post. */
+    {
+        const char *lj =
+            "{\"thread\":{\"$type\":\"app.bsky.feed.defs#threadViewPost\","
+            "\"post\":{\"uri\":\"at://did:plc:a/app.bsky.feed.post/1\","
+            "\"cid\":\"c\",\"author\":{\"did\":\"did:plc:a\","
+            "\"handle\":\"a.test\",\"labels\":[{\"val\":\"!warn\"}]},"
+            "\"record\":{},\"labels\":[{\"val\":\"porn\"}],"
+            "\"indexedAt\":\"2026-01-01T00:00:00Z\"}}}";
+        wf_agent_thread lt = {0};
+        WF_CHECK(wf_agent_parse_thread(lj, strlen(lj), &lt) == WF_OK);
+        WF_CHECK(cJSON_IsArray(lt.root.post.labels));
+        WF_CHECK(cJSON_GetArraySize(lt.root.post.labels) == 1);
+        WF_CHECK(cJSON_IsArray(lt.root.post.author_labels));
+        wf_agent_thread_free(&lt);
+    }
+
     /* Wrapper arg validation (no network; NULL agent/args rejected). */
     wf_agent *agent = wf_agent_new("https://example.com");
     WF_CHECK(agent != NULL);

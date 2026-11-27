@@ -43,6 +43,10 @@ typedef struct wf_agent_thread_post {
     char *indexed_at;
     char *viewer_like;   /* viewer.like record URI, or NULL */
     char *viewer_repost; /* viewer.repost record URI, or NULL */
+    /* Owned `labels` arrays from the post and its author, NULL when absent.
+     * Read them with wf_mod_labels_from_cjson. */
+    cJSON *labels;
+    cJSON *author_labels;
 } wf_agent_thread_post;
 
 typedef struct wf_agent_thread_node wf_agent_thread_node;
