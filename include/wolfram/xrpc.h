@@ -112,6 +112,27 @@ void wf_xrpc_client_free(wf_xrpc_client *client);
  */
 void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
 
+/** Service id of the Bluesky chat service in its DID document. */
+#define WF_PROXY_SERVICE_CHAT "bsky_chat"
+/** Service id of a labeler (moderation service) in its DID document. */
+#define WF_PROXY_SERVICE_LABELER "atproto_labeler"
+
+/**
+ * Build the value of an atproto-proxy header, "<did>#<service id>", e.g.
+ * wf_xrpc_proxy_identifier("did:web:api.bsky.chat", WF_PROXY_SERVICE_CHAT)
+ * for DMs, or a labeler's DID with WF_PROXY_SERVICE_LABELER for its views.
+ * A leading '#' on `service_id` is accepted. *out is caller-owned (free()).
+ *
+ * WF_ERR_INVALID_ARG unless the result is a well-formed reference: a "did:"
+ * prefix, exactly one '#', both sides non-empty, and no control characters
+ * or spaces (which could otherwise inject a header). *out is NULL on error.
+ */
+wf_status wf_xrpc_proxy_identifier(const char *did, const char *service_id,
+                                   char **out);
+
+/** 1 when `value` would be accepted as an atproto-proxy value, else 0. */
+int wf_xrpc_proxy_identifier_valid(const char *value);
+
 /**
  * Direct every request from this client at a service through the account's
  * PDS by sending the atproto service-proxying header.
@@ -125,7 +146,13 @@ void wf_xrpc_client_set_auth(wf_xrpc_client *client, const char *access_jwt);
  *
  * The value is copied. The header is sent on XRPC queries and procedures
  * but never on wf_http_get_public, which does not carry client credentials.
- * Returns WF_ERR_ALLOC on allocation failure (the previous value is kept).
+ * A value that is not "<did>#<service id>" (see wf_xrpc_proxy_identifier),
+ * including one with a control character, is refused with
+ * WF_ERR_INVALID_ARG. Returns WF_ERR_ALLOC on allocation failure. The
+ * previous value is kept on either error.
+ *
+ * To proxy one request rather than all of them, use
+ * wf_xrpc_query_params_via / wf_xrpc_procedure_via.
  */
 wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
                                    const char *proxy_did);
@@ -322,6 +349,28 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
  */
 wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
                             const char *json_body, wf_response *out);
+
+/**
+ * wf_xrpc_query_params / wf_xrpc_procedure for one request addressed to a
+ * proxied service: the request carries `atproto-proxy: <proxy>` in place of
+ * the client's own value (wf_xrpc_client_set_proxy), which is left as it was.
+ * Build `proxy` with wf_xrpc_proxy_identifier, e.g. a labeler's
+ * "<did>#atproto_labeler" for its views. NULL sends no atproto-proxy at all,
+ * which is how to reach the PDS itself through a client that proxies by
+ * default. Auth, accept-labelers and the refresh+retry behave as in the
+ * plain calls, and a retry after a refresh keeps the same proxy.
+ *
+ * An invalid `proxy` is WF_ERR_INVALID_ARG before any I/O. The Wii and
+ * Mac OS 9 transports hold the override on the client for the length of the
+ * call, so as with every other call there, one client is one thread.
+ */
+wf_status wf_xrpc_query_params_via(wf_xrpc_client *client, const char *proxy,
+                                   const char *nsid,
+                                   const wf_xrpc_param *params,
+                                   size_t param_count, wf_response *out);
+wf_status wf_xrpc_procedure_via(wf_xrpc_client *client, const char *proxy,
+                                const char *nsid, const char *json_body,
+                                wf_response *out);
 
 /**
  * Issue an `xrpc/{nsid}` POST with a binary body.

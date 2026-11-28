@@ -4,6 +4,22 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_xrpc_proxy_identifier` builds the `<did>#<service id>` value of an `atproto-proxy` header, with `WF_PROXY_SERVICE_CHAT` (`bsky_chat`) and `WF_PROXY_SERVICE_LABELER` (`atproto_labeler`) for the two services clients reach that way. It builds on every target, consoles and Mac OS 9 included. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+- `wf_xrpc_query_params_via` and `wf_xrpc_procedure_via` send one request to a proxied service, such as a labeler's `<did>#atproto_labeler`, without changing the client's own `atproto-proxy` setting, on all three transports. A NULL proxy sends the request to the PDS itself even through a client that proxies everything, and a retry after a token refresh goes to the same service as the first attempt. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+- `wf_agent_query_via` and `wf_agent_procedure_via` send one authenticated agent request through the PDS to a proxied service, such as the chat service or a labeler. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+- `wf_agent_service_client_new` asks the PDS for a service-auth token (`com.atproto.server.getServiceAuth`, bound to the service's DID and optionally one method) and returns a client that calls that service directly with it as the Bearer. If the PDS refuses, or replies without a token, you get an error and no client, and nothing is sent to the service. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+
+### Fixed
+
+- An OAuth session (`wf_auth_client`) now sends `atproto-accept-labelers` too. 0.48.0 sent it from the plain XRPC client only, so the labels of a subscribed labeler still never reached a client signed in with OAuth. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+- `wf_agent_get_service_auth_typed` always sends `getServiceAuth` to the PDS itself. With a session-wide `atproto-proxy` set on the agent's client, the token request used to be forwarded to the proxied service along with everything else. A 200 reply with no `token` is now `WF_ERR_PARSE` instead of an empty token. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+
+### Security
+
+- `wf_xrpc_client_set_proxy` refuses a value that is not `<did>#<service id>`, on all three transports. It used to put any string on the wire, so one holding CR/LF could inject a request header. ([#271](https://github.com/ewanc26/wolfram/issues/271))
+
 ## [0.48.0] - 2026-11-27
 
 ### Added

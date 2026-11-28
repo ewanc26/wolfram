@@ -17,6 +17,7 @@ cd "$root" || exit 1
 
 SOURCES=(
   src/transport/xrpc_mac9.c
+  src/transport/proxy_id.c
   src/update/update_core.c
   src/failure.c
   src/cdn.c

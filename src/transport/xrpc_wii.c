@@ -20,12 +20,17 @@
 #include <ctype.h>
 
 #include "accept_labelers.h"
+#include "proxy_id.h"
 
 struct wf_xrpc_client {
     char *base_url;
     char *auth_header;
     char *proxy_header;
     char *labelers_header;
+    /* Set only for the length of a *_via call: send via_proxy (or no
+     * atproto-proxy when NULL) instead of proxy_header. */
+    int via_active;
+    const char *via_proxy;
     wf_xrpc_handler_fn handler;
     void *handler_userdata;
     wf_xrpc_refresh_fn refresh_cb;
@@ -532,7 +537,13 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
         arr[n].value = client->auth_header + strlen("Authorization: ");
         n++;
     }
-    if (client->proxy_header) {
+    if (client->via_active) {
+        if (client->via_proxy) {
+            arr[n].name = "atproto-proxy";
+            arr[n].value = client->via_proxy;
+            n++;
+        }
+    } else if (client->proxy_header) {
         arr[n].name = "atproto-proxy";
         arr[n].value = client->proxy_header + strlen("atproto-proxy: ");
         n++;
@@ -595,9 +606,14 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
 
         if (attempt == 0 && had_auth && client->refresh_cb &&
             !client->refreshing && wf_xrpc_response_is_expired(out)) {
+            /* The refresh's own requests are not part of this call, so they
+             * do not take its per-request proxy. */
+            int via_active = client->via_active;
+            client->via_active = 0;
             client->refreshing = 1;
             wf_status refreshed = client->refresh_cb(client->refresh_userdata);
             client->refreshing = 0;
+            client->via_active = via_active;
             if (refreshed == WF_OK) {
                 wf_response_free(out);
                 continue;
@@ -684,6 +700,7 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
         client->proxy_header = NULL;
         return WF_OK;
     }
+    if (!wf_proxy_id_valid(proxy_did)) return WF_ERR_INVALID_ARG;
     size_t needed = strlen("atproto-proxy: ") + strlen(proxy_did) + 1;
     char *header = malloc(needed);
     if (!header) return WF_ERR_ALLOC;
@@ -814,6 +831,34 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
         status = wf_xrpc_query(client, nsid, query, out);
     }
     free(query);
+    return status;
+}
+
+wf_status wf_xrpc_query_params_via(wf_xrpc_client *client, const char *proxy,
+                                   const char *nsid,
+                                   const wf_xrpc_param *params,
+                                   size_t param_count, wf_response *out) {
+    if (!client || (proxy && !wf_proxy_id_valid(proxy)))
+        return WF_ERR_INVALID_ARG;
+    client->via_active = 1;
+    client->via_proxy = proxy;
+    wf_status status =
+        wf_xrpc_query_params(client, nsid, params, param_count, out);
+    client->via_active = 0;
+    client->via_proxy = NULL;
+    return status;
+}
+
+wf_status wf_xrpc_procedure_via(wf_xrpc_client *client, const char *proxy,
+                                const char *nsid, const char *json_body,
+                                wf_response *out) {
+    if (!client || (proxy && !wf_proxy_id_valid(proxy)))
+        return WF_ERR_INVALID_ARG;
+    client->via_active = 1;
+    client->via_proxy = proxy;
+    wf_status status = wf_xrpc_procedure(client, nsid, json_body, out);
+    client->via_active = 0;
+    client->via_proxy = NULL;
     return status;
 }
 
@@ -971,6 +1016,7 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
     struct wf_xrpc_client anon = *client;
     anon.auth_header = NULL;
     anon.proxy_header = NULL;
+    anon.via_active = 0;
     anon.labelers_header = NULL;
     anon.refresh_cb = NULL;
     anon.last_error = NULL;

@@ -32,6 +32,7 @@
 
 #include "wolfram/xrpc.h"
 #include "accept_labelers.h"
+#include "proxy_id.h"
 #include "wolfram/macos9_tls.h"
 
 #include <stdlib.h>
@@ -259,6 +260,10 @@ struct wf_xrpc_client {
     char *auth_header;
     char *proxy_header;
     char *labelers_header;
+    /* Set only for the length of a *_via call: send via_proxy (or no
+     * atproto-proxy when NULL) instead of proxy_header. */
+    int via_active;
+    const char *via_proxy;
     int https_only;
     size_t max_response_bytes;
     wf_xrpc_handler_fn handler;
@@ -1175,10 +1180,18 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
     wf_http_header *arr;
     size_t slots;
     size_t n;
+    const char *proxy;
+
+    if (client->via_active)
+        proxy = client->via_proxy;
+    else if (client->proxy_header != NULL)
+        proxy = client->proxy_header + strlen("atproto-proxy: ");
+    else
+        proxy = NULL;
 
     slots = 0;
     if (client->auth_header != NULL) slots++;
-    if (client->proxy_header != NULL) slots++;
+    if (proxy != NULL) slots++;
     if (client->labelers_header != NULL) slots++;
     if (is_post && content_type != NULL) slots++;
     if (slots == 0) slots = 1;
@@ -1191,9 +1204,9 @@ static wf_status wf_xrpc_build_headers(wf_xrpc_client *client, int is_post,
         arr[n].value = client->auth_header + strlen("Authorization: ");
         n++;
     }
-    if (client->proxy_header != NULL) {
+    if (proxy != NULL) {
         arr[n].name = "atproto-proxy";
-        arr[n].value = client->proxy_header + strlen("atproto-proxy: ");
+        arr[n].value = proxy;
         n++;
     }
     if (client->labelers_header != NULL) {
@@ -1273,10 +1286,16 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
         if (attempt == 0 && had_auth && client->refresh_cb != NULL &&
             !client->refreshing && wf_xrpc_response_is_expired(out)) {
             wf_status refreshed;
+            int via_active;
 
+            /* The refresh's own requests are not part of this call, so they
+             * do not take its per-request proxy. */
+            via_active = client->via_active;
+            client->via_active = 0;
             client->refreshing = 1;
             refreshed = client->refresh_cb(client->refresh_userdata);
             client->refreshing = 0;
+            client->via_active = via_active;
             if (refreshed == WF_OK) {
                 wf_response_free(out);
                 continue;
@@ -1364,6 +1383,8 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
     char *header;
 
     if (client == NULL) return WF_ERR_INVALID_ARG;
+    if (proxy_did != NULL && !wf_proxy_id_valid(proxy_did))
+        return WF_ERR_INVALID_ARG;
     header = NULL;
     if (proxy_did != NULL)
         header = mac9_concat3("atproto-proxy: ", proxy_did, "",
@@ -1525,6 +1546,37 @@ wf_status wf_xrpc_query_params(wf_xrpc_client *client, const char *nsid,
 
     if (status == WF_OK) status = wf_xrpc_query(client, nsid, query, out);
     free(query);
+    return status;
+}
+
+wf_status wf_xrpc_query_params_via(wf_xrpc_client *client, const char *proxy,
+                                   const char *nsid,
+                                   const wf_xrpc_param *params,
+                                   size_t param_count, wf_response *out) {
+    wf_status status;
+
+    if (client == NULL || (proxy != NULL && !wf_proxy_id_valid(proxy)))
+        return WF_ERR_INVALID_ARG;
+    client->via_active = 1;
+    client->via_proxy = proxy;
+    status = wf_xrpc_query_params(client, nsid, params, param_count, out);
+    client->via_active = 0;
+    client->via_proxy = NULL;
+    return status;
+}
+
+wf_status wf_xrpc_procedure_via(wf_xrpc_client *client, const char *proxy,
+                                const char *nsid, const char *json_body,
+                                wf_response *out) {
+    wf_status status;
+
+    if (client == NULL || (proxy != NULL && !wf_proxy_id_valid(proxy)))
+        return WF_ERR_INVALID_ARG;
+    client->via_active = 1;
+    client->via_proxy = proxy;
+    status = wf_xrpc_procedure(client, nsid, json_body, out);
+    client->via_active = 0;
+    client->via_proxy = NULL;
     return status;
 }
 
@@ -1704,6 +1756,7 @@ wf_status wf_http_get_public(wf_xrpc_client *client, const char *url,
     anon = *client;
     anon.auth_header = NULL;
     anon.proxy_header = NULL;
+    anon.via_active = 0;
     anon.labelers_header = NULL;
     anon.refresh_cb = NULL;
     anon.last_error = NULL;

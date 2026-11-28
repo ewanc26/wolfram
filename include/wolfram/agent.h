@@ -33,6 +33,20 @@ typedef struct wf_agent wf_agent;
  * wf_agent_free, and must not be freed by the caller. */
 wf_xrpc_client *wf_agent_get_xrpc_client(wf_agent *agent);
 
+/* One authenticated request to a service the PDS proxies to, such as the
+ * chat service or a labeler: the agent's session token goes to its PDS with
+ * `atproto-proxy: <proxy>` (build it with wf_xrpc_proxy_identifier), and the
+ * PDS forwards it. `proxy` NULL sends the request to the PDS itself. To
+ * proxy every request of a session instead, set it on the client:
+ * wf_xrpc_client_set_proxy(wf_agent_get_xrpc_client(agent), proxy).
+ * See wf_xrpc_query_params_via / wf_xrpc_procedure_via. */
+wf_status wf_agent_query_via(wf_agent *agent, const char *proxy,
+                             const char *nsid, const wf_xrpc_param *params,
+                             size_t param_count, wf_response *out);
+wf_status wf_agent_procedure_via(wf_agent *agent, const char *proxy,
+                                 const char *nsid, const char *json_body,
+                                 wf_response *out);
+
 /* Lifecycle */
 wf_agent *wf_agent_new(const char *service_url);
 void wf_agent_free(wf_agent *agent);

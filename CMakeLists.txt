@@ -303,6 +303,7 @@ if(WOLFRAM_BUILD_MACOS9_TRANSPORT)
               src/transport/macos9_tls.c
               src/update/update_core.c
               src/failure.c
+              src/transport/proxy_id.c
               src/rate_limit.c
               src/retry.c
               src/cdn.c
@@ -492,6 +493,7 @@ add_library(
   src/time.c
   src/failure.c
   src/rate_limit.c
+  src/transport/proxy_id.c
   src/retry.c
   src/cdn.c
   src/chat_group.c
@@ -2522,6 +2524,17 @@ if(WOLFRAM_BUILD_TESTS)
                                      ${cjson_SOURCE_DIR})
     add_test(NAME actor_status_typed_httpd
              COMMAND test_actor_status_typed_httpd)
+
+    # atproto-proxy on one agent request, getServiceAuth kept on the PDS, and
+    # the service-auth token as the Bearer on a direct service client.
+    add_executable(test_service_proxy_httpd test/test_service_proxy_httpd.c
+                                            test/mock_pds.c)
+    target_link_libraries(test_service_proxy_httpd PRIVATE wolfram
+                                                           ${MICROHTTPD_LIBRARY})
+    target_include_directories(
+      test_service_proxy_httpd PRIVATE test ${MICROHTTPD_INCLUDE_DIR}
+                                       ${cjson_SOURCE_DIR})
+    add_test(NAME service_proxy_httpd COMMAND test_service_proxy_httpd)
   endif()
 
   # The Classic Mac OS 9 transport's own tests. They link the static transport

@@ -20,6 +20,7 @@
 
 #include <cJSON.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -579,30 +580,74 @@ wf_status wf_agent_get_service_auth_typed(wf_agent *agent, const char *aud,
     }
 
     wf_server_auth_token tok = {0};
-    wf_lex_com_atproto_server_get_service_auth_main_params params = {0};
-    params.aud = aud;
+    wf_xrpc_param params[3];
+    size_t count = 0;
+    char exp_buf[24];
+    params[count++] = (wf_xrpc_param){"aud", aud};
     if (exp_or_0 > 0) {
-        params.has_exp = true;
-        params.exp = exp_or_0;
+        snprintf(exp_buf, sizeof exp_buf, "%lld", (long long)exp_or_0);
+        params[count++] = (wf_xrpc_param){"exp", exp_buf};
     }
     if (lxm_or_null && lxm_or_null[0]) {
-        params.has_lxm = true;
-        params.lxm = lxm_or_null;
+        params[count++] = (wf_xrpc_param){"lxm", lxm_or_null};
     }
 
     wf_agent_sync_auth(agent);
     wf_response res = {0};
-    wf_status status = wf_lex_com_atproto_server_get_service_auth_main_call(
-        agent->client, &params, &res);
+    /* The PDS mints the token itself, so the request must not be forwarded:
+     * send it with no atproto-proxy even when the client proxies by default
+     * (wf_xrpc_client_set_proxy on wf_agent_get_xrpc_client). */
+    wf_status status = wf_xrpc_query_params_via(
+        agent->client, NULL, "com.atproto.server.getServiceAuth", params, count,
+        &res);
     if (status != WF_OK) {
         wf_response_free(&res);
         return status;
     }
     status = wf_server_parse_auth_token(res.body, res.body_len, &tok);
     wf_response_free(&res);
+    /* A 200 without a token is not a token: refuse it rather than hand back
+     * an empty credential. */
+    if (status == WF_OK && (!tok.token || !tok.token[0])) {
+        wf_server_auth_token_reset(&tok);
+        status = WF_ERR_PARSE;
+    }
     if (status == WF_OK) {
         *out = tok;
     }
+    return status;
+}
+
+wf_status wf_agent_service_client_new(wf_agent *agent, const char *service_url,
+                                      const char *aud, const char *lxm_or_null,
+                                      int64_t exp_or_0, wf_xrpc_client **out) {
+    if (!out) {
+        return WF_ERR_INVALID_ARG;
+    }
+    *out = NULL;
+    if (!agent || !service_url || !service_url[0] || !aud || !aud[0]) {
+        return WF_ERR_INVALID_ARG;
+    }
+
+    wf_server_auth_token tok = {0};
+    wf_status status = wf_agent_get_service_auth_typed(agent, aud, exp_or_0,
+                                                       lxm_or_null, &tok);
+    if (status != WF_OK) {
+        return status;
+    }
+
+    wf_xrpc_client *client = wf_xrpc_client_new(service_url);
+    if (!client) {
+        status = WF_ERR_ALLOC;
+    } else {
+        wf_agent_apply_tls(agent, client);
+        wf_xrpc_client_set_auth(client, tok.token);
+    }
+    /* The token is a bearer credential: wipe the copy we were handed. The
+     * client keeps its own, which wf_xrpc_client_free releases. */
+    memset(tok.token, 0, strlen(tok.token));
+    wf_server_auth_token_free(&tok);
+    *out = client;
     return status;
 }
 

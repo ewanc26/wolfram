@@ -51,6 +51,14 @@ test(xrpc-server): cover AppView-forwarding request headers
 - `retry.h` owns the bounded retry decision and delay. Keep it pure: no sleeps, threads, clocks or allocation. The caller supplies the attempt count, Reset window and jitter seed.
 - The libcurl transport parses the headers and updates the client readback. Async workers must not write that readback, because their client may already be freed; async callers read `wf_response.rate_limit` from the pending result.
 
+## Service proxying and service auth
+
+- `src/transport/proxy_id.h` owns the atproto-proxy value check. Every way a value reaches the wire (`wf_xrpc_client_set_proxy`, the `_via` calls, `wf_xrpc_proxy_identifier`) goes through it on all three transports. Do not put a proxy header on a request any other way.
+- `src/transport/proxy_id.c` is strict C89, in the Mac OS 9 target, `tools/macos9-c89-check.sh` and `tools/embedded-sources.txt`. Keep it libc-only.
+- `com.atproto.server.getServiceAuth` is answered by the PDS. Send it with no atproto-proxy (`wf_xrpc_query_params_via(client, NULL, ...)`), never through the client's default proxy.
+- A service-auth token is a bearer credential. Never log it. `wf_agent_service_client_new` returns no client on any error, so a refused exchange sends nothing to the service.
+- In the libcurl transport a per-request override must be reapplied to the snapshot taken after a token refresh, or the retry goes to the client's default service. `test_xrpc` checks this.
+
 ## Spaces (experimental)
 
 - Everything under `include/wolfram/spaces/` and `src/spaces/` is experimental. Say so in every new header; `docs/spaces.md` records the upstream revisions it follows. Move the revisions and the code together.

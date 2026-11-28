@@ -148,6 +148,38 @@ static void test_proxy_header(void) {
     assert(occurrences(request_bytes, "Authorization: Bearer token\r\n") == 1);
     wf_response_free(&out);
 
+    /* A value that could split the header is refused; the old one stays. */
+    assert(wf_xrpc_client_set_proxy(client, "did:web:x#svc\r\nX-Evil: 1") ==
+           WF_ERR_INVALID_ARG);
+    assert(strcmp(wf_xrpc_client_get_proxy(client),
+                  "did:web:api.bsky.chat#bsky_chat") == 0);
+
+    /* A per-request proxy replaces the client's for that request only, and
+     * NULL sends none. */
+    fake_response(response);
+    assert(wf_xrpc_query_params_via(client, "did:plc:lab#atproto_labeler",
+                                    "tools.ozone.moderation.getRecord", NULL, 0,
+                                    &out) == WF_OK);
+    assert(occurrences(request_bytes,
+                       "atproto-proxy: did:plc:lab#atproto_labeler\r\n") == 1);
+    assert(occurrences(request_bytes, "atproto-proxy:") == 1);
+    wf_response_free(&out);
+    fake_response(response);
+    assert(wf_xrpc_procedure_via(client, NULL, "com.atproto.repo.createRecord",
+                                 "{}", &out) == WF_OK);
+    assert(occurrences(request_bytes, "atproto-proxy:") == 0);
+    assert(occurrences(request_bytes, "Authorization: Bearer token\r\n") == 1);
+    wf_response_free(&out);
+    fake_response(response);
+    assert(wf_xrpc_query(client, "chat.bsky.convo.getConvo", NULL, &out) ==
+           WF_OK);
+    assert(occurrences(request_bytes,
+                       "atproto-proxy: did:web:api.bsky.chat#bsky_chat\r\n") ==
+           1);
+    wf_response_free(&out);
+    assert(wf_xrpc_query_params_via(client, "nope", "x.y.z", NULL, 0, &out) ==
+           WF_ERR_INVALID_ARG);
+
     /* Clearing the proxy removes the header from later requests. */
     assert(wf_xrpc_client_set_proxy(client, NULL) == WF_OK);
     fake_response(response);

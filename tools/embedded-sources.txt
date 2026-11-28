@@ -14,3 +14,4 @@ src/agent/muted_words.c
 src/qr.c
 src/spaces/uri.c
 src/agent/moderation.c
+src/transport/proxy_id.c

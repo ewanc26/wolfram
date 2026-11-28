@@ -20,6 +20,7 @@
 struct wf_mock_pds_entry {
     char *nsid;
     char *json;
+    unsigned int status; /* HTTP status served with json */
 };
 
 /* Per-connection upload accumulator (only used for POST/PUT bodies). */
@@ -43,18 +44,47 @@ struct wf_mock_pds {
     char *last_proxy;
     /* The atproto-accept-labelers header of the most recent request. */
     char *last_labelers;
+    /* The Authorization header of the most recent request, or NULL. */
+    char *last_authorization;
+    /* The decoded query arguments of the most recent request, as
+     * "name=value\n" lines, or NULL when it had none. */
+    char *last_args;
 };
 
 static const char *const MOCK_NOT_FOUND_BODY =
     "{\"error\":\"NotFoundError\",\"message\":\"unknown NSID\"}";
 
-static const char *mock_lookup(wf_mock_pds *pds, const char *nsid) {
+static const char *mock_lookup(wf_mock_pds *pds, const char *nsid,
+                               unsigned int *status) {
     for (size_t i = 0; i < pds->count; i++) {
         if (strcmp(pds->entries[i].nsid, nsid) == 0) {
+            *status = pds->entries[i].status;
             return pds->entries[i].json;
         }
     }
     return NULL;
+}
+
+/* MHD_get_connection_values callback: append "name=value\n" to last_args. */
+static enum MHD_Result mock_collect_arg(void *cls, enum MHD_ValueKind kind,
+                                        const char *key, const char *value) {
+    (void)kind;
+    wf_mock_pds *pds = (wf_mock_pds *)cls;
+    if (key == NULL) {
+        return MHD_YES;
+    }
+    if (value == NULL) {
+        value = "";
+    }
+    size_t old = pds->last_args ? strlen(pds->last_args) : 0;
+    size_t add = strlen(key) + 1 + strlen(value) + 1;
+    char *grown = (char *)realloc(pds->last_args, old + add + 1);
+    if (grown == NULL) {
+        return MHD_NO;
+    }
+    snprintf(grown + old, add + 1, "%s=%s\n", key, value);
+    pds->last_args = grown;
+    return MHD_YES;
 }
 
 static enum MHD_Result
@@ -109,7 +139,7 @@ mock_handler(void *cls, struct MHD_Connection *connection, const char *url,
     const char *nsid = url;
     if (strncmp(url, "/xrpc/", 6) == 0) {
         nsid = url + 6;
-        body = mock_lookup(pds, nsid);
+        body = mock_lookup(pds, nsid, &status);
     }
     if (body == NULL) {
         status = MHD_HTTP_NOT_FOUND;
@@ -122,6 +152,9 @@ mock_handler(void *cls, struct MHD_Connection *connection, const char *url,
     free(pds->last_body);
     free(pds->last_proxy);
     free(pds->last_labelers);
+    free(pds->last_authorization);
+    free(pds->last_args);
+    pds->last_args = NULL;
     pds->last_nsid = strdup(nsid);
     pds->last_method = strdup(method);
     {
@@ -131,6 +164,11 @@ mock_handler(void *cls, struct MHD_Connection *connection, const char *url,
         const char *al = MHD_lookup_connection_value(
             connection, MHD_HEADER_KIND, "atproto-accept-labelers");
         pds->last_labelers = al ? strdup(al) : NULL;
+        const char *az = MHD_lookup_connection_value(
+            connection, MHD_HEADER_KIND, "Authorization");
+        pds->last_authorization = az ? strdup(az) : NULL;
+        MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
+                                  mock_collect_arg, pds);
     }
     if (*con_cls != NULL) {
         struct wf_mock_pds_upload *st = (struct wf_mock_pds_upload *)*con_cls;
@@ -187,7 +225,13 @@ wf_status wf_mock_pds_start(wf_mock_pds **out, int *out_port) {
 
 wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
                                const char *json) {
-    if (pds == NULL || nsid == NULL || json == NULL) {
+    return wf_mock_pds_register_status(pds, nsid, MHD_HTTP_OK, json);
+}
+
+wf_status wf_mock_pds_register_status(wf_mock_pds *pds, const char *nsid,
+                                      unsigned int status, const char *json) {
+    if (pds == NULL || nsid == NULL || json == NULL || status < 100 ||
+        status > 599) {
         return WF_ERR_INVALID_ARG;
     }
 
@@ -200,6 +244,7 @@ wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
             }
             free(pds->entries[i].json);
             pds->entries[i].json = dup;
+            pds->entries[i].status = status;
             return WF_OK;
         }
     }
@@ -225,6 +270,7 @@ wf_status wf_mock_pds_register(wf_mock_pds *pds, const char *nsid,
 
     pds->entries[pds->count].nsid = nsid_dup;
     pds->entries[pds->count].json = json_dup;
+    pds->entries[pds->count].status = status;
     pds->count++;
     return WF_OK;
 }
@@ -255,7 +301,39 @@ void wf_mock_pds_free(wf_mock_pds *pds) {
     free(pds->last_body);
     free(pds->last_proxy);
     free(pds->last_labelers);
+    free(pds->last_authorization);
+    free(pds->last_args);
     free(pds);
+}
+
+const char *wf_mock_pds_get_last_authorization(wf_mock_pds *pds) {
+    return pds ? pds->last_authorization : NULL;
+}
+
+char *wf_mock_pds_get_last_arg(wf_mock_pds *pds, const char *name) {
+    if (pds == NULL || name == NULL || pds->last_args == NULL) {
+        return NULL;
+    }
+    size_t n = strlen(name);
+    const char *line = pds->last_args;
+    while (*line != '\0') {
+        const char *end = strchr(line, '\n');
+        if (end == NULL) {
+            break;
+        }
+        if ((size_t)(end - line) > n && strncmp(line, name, n) == 0 &&
+            line[n] == '=') {
+            size_t len = (size_t)(end - line) - n - 1;
+            char *out = (char *)malloc(len + 1);
+            if (out != NULL) {
+                memcpy(out, line + n + 1, len);
+                out[len] = '\0';
+            }
+            return out;
+        }
+        line = end + 1;
+    }
+    return NULL;
 }
 
 const char *wf_mock_pds_get_last_proxy(wf_mock_pds *pds) {

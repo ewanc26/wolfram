@@ -46,7 +46,8 @@ extern "C" {
 
 /* The atproto-proxy identifier for the chat service, "<did>#bsky_chat". A NULL
  * or empty `chat_did` falls back to the canonical chat service DID. Returns a
- * heap string the caller frees, or NULL on allocation failure. Pass the result
+ * heap string the caller frees, or NULL on allocation failure or a DID that
+ * cannot form an identifier (see wf_xrpc_proxy_identifier). Pass the result
  * to wf_xrpc_client_set_proxy to reach a chat.bsky.* method through a PDS. */
 char *wf_chat_proxy_identifier(const char *chat_did);
 

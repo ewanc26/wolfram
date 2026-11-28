@@ -120,6 +120,58 @@ static const char *wf_test_find_header(const wf_http_header *headers,
     return NULL;
 }
 
+/* Test seam handler for the per-request proxy: the first `expire` calls come
+ * back 401 ExpiredToken, later ones 200, and the atproto-proxy of each call
+ * is recorded so a retry can be checked against the first attempt. */
+struct wf_test_via_ctx {
+    int calls;
+    int expire;
+    char *proxy[4];
+};
+
+static wf_status wf_test_via_handler(void *userdata, const char *method,
+                                     const char *url, const char *content_type,
+                                     const char *body, size_t body_len,
+                                     const wf_http_header *headers,
+                                     size_t header_count, wf_response *out) {
+    (void)method;
+    (void)url;
+    (void)content_type;
+    (void)body;
+    (void)body_len;
+    struct wf_test_via_ctx *ctx = userdata;
+    const char *seen =
+        wf_test_find_header(headers, header_count, "atproto-proxy");
+    if (ctx->calls < 4) {
+        ctx->proxy[ctx->calls] = seen ? strdup(seen) : NULL;
+    }
+    ctx->calls++;
+    if (ctx->calls <= ctx->expire) {
+        static const char expired[] =
+            "{\"error\":\"ExpiredToken\",\"message\":\"x\"}";
+        out->status = 401;
+        out->body = strdup(expired);
+        out->body_len = strlen(expired);
+        return WF_ERR_HTTP;
+    }
+    out->status = 200;
+    return WF_OK;
+}
+
+static void wf_test_via_reset(struct wf_test_via_ctx *ctx, int expire) {
+    for (int i = 0; i < 4; i++) {
+        free(ctx->proxy[i]);
+        ctx->proxy[i] = NULL;
+    }
+    ctx->calls = 0;
+    ctx->expire = expire;
+}
+
+static wf_status wf_test_via_refresh(void *userdata) {
+    wf_xrpc_client_set_auth((wf_xrpc_client *)userdata, "fresh");
+    return WF_OK;
+}
+
 int main(void) {
     /* Rejects empty/NULL base URLs. */
     WF_CHECK(wf_xrpc_client_new(NULL) == NULL);
@@ -332,6 +384,119 @@ int main(void) {
         wf_xrpc_client_free(c);
     }
 
+    /* wf_xrpc_proxy_identifier builds "<did>#<service>" and refuses anything
+     * that is not one. */
+    {
+        char *id = NULL;
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:api.bsky.chat",
+                                          WF_PROXY_SERVICE_CHAT, &id) == WF_OK);
+        WF_CHECK(id && strcmp(id, "did:web:api.bsky.chat#bsky_chat") == 0);
+        free(id);
+        id = NULL;
+        /* A DID-document style "#id" is accepted. */
+        WF_CHECK(wf_xrpc_proxy_identifier("did:plc:ar7c4by46qjdydhdevvrndac",
+                                          "#atproto_labeler", &id) == WF_OK);
+        WF_CHECK(id && strcmp(id, "did:plc:ar7c4by46qjdydhdevvrndac"
+                                  "#atproto_labeler") == 0);
+        free(id);
+        id = (char *)"sentinel";
+        WF_CHECK(wf_xrpc_proxy_identifier("web:x", "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(id == NULL);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "#", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:", "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x#a", "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "svc\r\nX: 1", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "a b", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier(NULL, "svc", &id) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier("did:web:x", "svc", NULL) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_proxy_identifier_valid("did:web:x#svc") == 1);
+        WF_CHECK(wf_xrpc_proxy_identifier_valid("did:web:x#") == 0);
+        WF_CHECK(wf_xrpc_proxy_identifier_valid(NULL) == 0);
+    }
+
+    /* wf_xrpc_query_params_via / wf_xrpc_procedure_via proxy one request,
+     * leave the client's own value alone, and keep the override across the
+     * refresh+retry (which re-reads the client's settings). */
+    {
+        const char *chat = "did:web:api.bsky.chat#bsky_chat";
+        const char *labeler =
+            "did:plc:ar7c4by46qjdydhdevvrndac#atproto_labeler";
+        wf_xrpc_client *c = wf_xrpc_client_new("https://pds.example");
+        WF_CHECK(c != NULL);
+        struct wf_test_via_ctx ctx = {0};
+        wf_xrpc_set_handler(c, wf_test_via_handler, &ctx);
+        wf_xrpc_client_set_auth(c, "stale");
+        wf_xrpc_client_set_refresh_handler(c, wf_test_via_refresh, c);
+        WF_CHECK(wf_xrpc_client_set_proxy(c, chat) == WF_OK);
+        wf_xrpc_param p[] = {{"uri", "at://did:plc:x/app.bsky.feed.post/1"}};
+        wf_response res = {0};
+
+        wf_test_via_reset(&ctx, 0);
+        WF_CHECK(wf_xrpc_query_params_via(c, labeler,
+                                          "tools.ozone.moderation.getRecord", p,
+                                          1, &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(ctx.calls == 1);
+        WF_CHECK(ctx.proxy[0] && strcmp(ctx.proxy[0], labeler) == 0);
+        WF_CHECK(strcmp(wf_xrpc_client_get_proxy(c), chat) == 0);
+
+        /* NULL reaches the PDS itself through a client that proxies. */
+        wf_test_via_reset(&ctx, 0);
+        WF_CHECK(wf_xrpc_query_params_via(c, NULL,
+                                          "com.atproto.server.getSession", NULL,
+                                          0, &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(ctx.calls == 1 && ctx.proxy[0] == NULL);
+
+        /* The plain call still carries the client's value. */
+        wf_test_via_reset(&ctx, 0);
+        WF_CHECK(wf_xrpc_query_params(c, "chat.bsky.convo.listConvos", NULL, 0,
+                                      &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(ctx.proxy[0] && strcmp(ctx.proxy[0], chat) == 0);
+
+        /* An expired token: the retry after the refresh goes to the same
+         * service as the first attempt, and so does a procedure's. */
+        wf_test_via_reset(&ctx, 1);
+        WF_CHECK(wf_xrpc_query_params_via(c, labeler,
+                                          "tools.ozone.moderation.getRecord", p,
+                                          1, &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(ctx.calls == 2);
+        WF_CHECK(ctx.proxy[1] && strcmp(ctx.proxy[1], labeler) == 0);
+        wf_xrpc_client_set_auth(c, "stale");
+        wf_test_via_reset(&ctx, 1);
+        WF_CHECK(wf_xrpc_procedure_via(c, NULL, "com.atproto.repo.createRecord",
+                                       "{}", &res) == WF_OK);
+        wf_response_free(&res);
+        WF_CHECK(ctx.calls == 2);
+        WF_CHECK(ctx.proxy[0] == NULL && ctx.proxy[1] == NULL);
+
+        /* A bad identifier fails before any request. */
+        wf_test_via_reset(&ctx, 0);
+        WF_CHECK(wf_xrpc_query_params_via(c, "did:web:x#a\r\nX: 1",
+                                          "app.bsky.feed.getTimeline", NULL, 0,
+                                          &res) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_procedure_via(c, "bsky_chat",
+                                       "chat.bsky.convo.sendMessage", "{}",
+                                       &res) == WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_procedure_via(NULL, chat, "x.y.z", "{}", &res) ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(ctx.calls == 0);
+        wf_test_via_reset(&ctx, 0);
+        wf_xrpc_client_free(c);
+    }
+
     /* A client-level atproto-proxy header is sent on every request and can be
      * cleared again. */
     {
@@ -341,6 +506,14 @@ int main(void) {
         WF_CHECK(wf_xrpc_client_set_proxy(c, chat_proxy) == WF_OK);
         WF_CHECK(wf_xrpc_client_set_proxy(NULL, chat_proxy) ==
                  WF_ERR_INVALID_ARG);
+        /* Not "<did>#<service>", or able to split the header: refused, and
+         * the previous value kept. */
+        WF_CHECK(wf_xrpc_client_set_proxy(c, "did:web:x#svc\r\nX-Evil: 1") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_client_set_proxy(c, "bsky_chat") ==
+                 WF_ERR_INVALID_ARG);
+        WF_CHECK(wf_xrpc_client_set_proxy(c, "") == WF_ERR_INVALID_ARG);
+        WF_CHECK(strcmp(wf_xrpc_client_get_proxy(c), chat_proxy) == 0);
 
         struct wf_test_header_capture_ctx ctx = {0};
         wf_xrpc_set_handler(c, wf_test_header_capture_handler, &ctx);

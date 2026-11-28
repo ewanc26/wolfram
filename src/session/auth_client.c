@@ -281,7 +281,7 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
             break;
         }
 
-        wf_http_header headers[3];
+        wf_http_header headers[4];
         size_t header_count = 0;
         if (authorization) {
             headers[header_count++] =
@@ -295,6 +295,14 @@ static wf_status auth_client_perform(wf_auth_client *auth_client,
         if (!is_upload && wf_xrpc_client_get_proxy(auth_client->client)) {
             headers[header_count++] = (wf_http_header){
                 "atproto-proxy", wf_xrpc_client_get_proxy(auth_client->client)};
+        }
+        /* atproto-accept-labelers likewise: without it the AppView applies
+         * only its default labelers to the views an OAuth session reads. */
+        if (!is_upload &&
+            wf_xrpc_client_get_accept_labelers(auth_client->client)) {
+            headers[header_count++] = (wf_http_header){
+                "atproto-accept-labelers",
+                wf_xrpc_client_get_accept_labelers(auth_client->client)};
         }
 
         if (is_upload) {

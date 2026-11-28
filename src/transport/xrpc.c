@@ -8,6 +8,7 @@
 
 #include "wolfram/xrpc.h"
 #include "accept_labelers.h"
+#include "proxy_id.h"
 
 #include <cJSON.h>
 #include <curl/curl.h>
@@ -516,6 +517,7 @@ wf_status wf_xrpc_client_set_proxy(wf_xrpc_client *client,
         pthread_mutex_unlock(&client->mutex);
         return WF_OK;
     }
+    if (!wf_proxy_id_valid(proxy_did)) return WF_ERR_INVALID_ARG;
 
     size_t needed = strlen("atproto-proxy: ") + strlen(proxy_did) + 1;
     char *header = malloc(needed);
@@ -962,10 +964,29 @@ static wf_status wf_xrpc_build_headers(const struct wf_client_config *cfg,
  * thread cannot tear down strings mid-flight. */
 static void wf_xrpc_update_last_error(wf_xrpc_client *client,
                                       const wf_response *out, wf_status status);
-static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
-                                 const char *query_string, const void *body,
-                                 size_t body_len, const char *content_type,
-                                 int is_post, wf_response *out) {
+/* Replace a snapshot's atproto-proxy header with a per-request one: `proxy`
+ * NULL sends none. The caller has already validated `proxy`. */
+static wf_status wf_config_override_proxy(struct wf_client_config *cfg,
+                                          const char *proxy) {
+    char *header = NULL;
+    if (proxy) {
+        size_t needed = strlen("atproto-proxy: ") + strlen(proxy) + 1;
+        header = malloc(needed);
+        if (!header) return WF_ERR_ALLOC;
+        snprintf(header, needed, "atproto-proxy: %s", proxy);
+    }
+    free(cfg->proxy_header);
+    cfg->proxy_header = header;
+    return WF_OK;
+}
+
+/* `override_proxy` nonzero: send `proxy` (or no header when NULL) instead of
+ * the client's own atproto-proxy value, on every attempt. */
+static wf_status wf_xrpc_request_via(wf_xrpc_client *client, const char *nsid,
+                                     const char *query_string, const void *body,
+                                     size_t body_len, const char *content_type,
+                                     int is_post, int override_proxy,
+                                     const char *proxy, wf_response *out) {
     if (!client || !nsid || !out || (body_len > 0 && !body) ||
         (is_post && !content_type)) {
         return WF_ERR_INVALID_ARG;
@@ -973,6 +994,10 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
 
     struct wf_client_config *cfg = wf_client_snapshot(client);
     if (!cfg) return WF_ERR_ALLOC;
+    if (override_proxy && wf_config_override_proxy(cfg, proxy) != WF_OK) {
+        wf_config_free(cfg);
+        return WF_ERR_ALLOC;
+    }
 
     /* Whether this call went out authenticated — only such calls are eligible
      * for a refresh+retry on an expired token. */
@@ -1045,6 +1070,13 @@ static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
                         status = WF_ERR_ALLOC;
                         break;
                     }
+                    /* The fresh snapshot carries the client's own proxy; the
+                     * retry must go where the first attempt went. */
+                    if (override_proxy &&
+                        wf_config_override_proxy(cfg, proxy) != WF_OK) {
+                        status = WF_ERR_ALLOC;
+                        break;
+                    }
                     had_auth = cfg->auth_header != NULL;
                     free(url);
                     url = NULL;
@@ -1081,6 +1113,14 @@ static void wf_xrpc_update_last_error(wf_xrpc_client *client,
         wf_xrpc_set_error_str(&client->last_error, out);
     }
     pthread_mutex_unlock(&client->mutex);
+}
+
+static wf_status wf_xrpc_request(wf_xrpc_client *client, const char *nsid,
+                                 const char *query_string, const void *body,
+                                 size_t body_len, const char *content_type,
+                                 int is_post, wf_response *out) {
+    return wf_xrpc_request_via(client, nsid, query_string, body, body_len,
+                               content_type, is_post, 0, NULL, out);
 }
 
 wf_status wf_xrpc_query(wf_xrpc_client *client, const char *nsid,
@@ -1182,6 +1222,35 @@ wf_status wf_xrpc_procedure(wf_xrpc_client *client, const char *nsid,
     body_len = json_body ? strlen(json_body) : 0;
     return wf_xrpc_request(client, nsid, NULL, json_body, body_len,
                            "application/json", 1, out);
+}
+
+wf_status wf_xrpc_query_params_via(wf_xrpc_client *client, const char *proxy,
+                                   const char *nsid,
+                                   const wf_xrpc_param *params,
+                                   size_t param_count, wf_response *out) {
+    if (!client || !nsid || !out || (param_count > 0 && !params) ||
+        (proxy && !wf_proxy_id_valid(proxy))) {
+        return WF_ERR_INVALID_ARG;
+    }
+    char *query = NULL;
+    wf_status status = wf_xrpc_encode_params(params, param_count, &query);
+    if (status == WF_OK) {
+        status = wf_xrpc_request_via(client, nsid, query, NULL, 0, NULL, 0, 1,
+                                     proxy, out);
+    }
+    free(query);
+    return status;
+}
+
+wf_status wf_xrpc_procedure_via(wf_xrpc_client *client, const char *proxy,
+                                const char *nsid, const char *json_body,
+                                wf_response *out) {
+    if (!client || !nsid || !out || (proxy && !wf_proxy_id_valid(proxy))) {
+        return WF_ERR_INVALID_ARG;
+    }
+    return wf_xrpc_request_via(client, nsid, NULL, json_body,
+                               json_body ? strlen(json_body) : 0,
+                               "application/json", 1, 1, proxy, out);
 }
 
 wf_status wf_xrpc_upload_blob(wf_xrpc_client *client, const char *nsid,
