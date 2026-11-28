@@ -491,6 +491,8 @@ add_library(
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/server/service_auth.c>
   # DID PLC operation build / sign / submit helpers
   src/plc/plc.c
+  # Pre-registered rotation keys for account recovery (#272)
+  src/plc/plc_recovery.c
   # New utilities and embed support
   src/util.c
   src/time.c
@@ -1824,6 +1826,17 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_plc PRIVATE wolfram)
   target_include_directories(test_plc PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME plc COMMAND test_plc)
+
+  add_executable(test_plc_recovery test/test_plc_recovery.c)
+  target_link_libraries(test_plc_recovery PRIVATE wolfram)
+  target_include_directories(test_plc_recovery PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_plc_recovery
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  if(SECP256K1_FOUND)
+    target_compile_definitions(test_plc_recovery PRIVATE HAVE_LIBSECP256K1)
+  endif()
+  add_test(NAME plc_recovery COMMAND test_plc_recovery)
 
   add_executable(test_identity_mgmt test/test_identity_mgmt.c)
   target_link_libraries(test_identity_mgmt PRIVATE wolfram)

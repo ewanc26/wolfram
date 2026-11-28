@@ -1,0 +1,81 @@
+{
+  "_source": "https://plc.directory/did:plc:44ybard66vv44zksje25o7dz/log/audit, fetched 2026-11-27. Public operations of at://bnewbold.net, three consecutive entries of its audit log. The second entry inserts a P-256 rotation key at index 0, ahead of the existing keys, and, in the same operation, adds an 'example' verification method. The third replaces a rotation key and changes services. Public keys and signatures only.",
+  "did": "did:plc:44ybard66vv44zksje25o7dz",
+  "entries": [
+    {
+      "cid": "bafyreib2o3ojj3kpwybmfbdgukx7dwj63pntiv6kkxiisu7cf6n474l6qi",
+      "operation": {
+        "sig": "pw47f-SCQOLWnXSBN5oyQVvcseit4-Mqai1jGEow28EWi4PhZ8r_Y0NX7le9jiFaQStqvqu_B2A4lnYY10Z6Iw",
+        "prev": "bafyreie67o3rtlz422jazne5qzy4zqpidtlzw6rlxgr2ozwydq5wklzf3m",
+        "type": "plc_operation",
+        "services": {
+          "atproto_pds": {
+            "type": "AtprotoPersonalDataServer",
+            "endpoint": "https://morel.us-east.host.bsky.network"
+          }
+        },
+        "alsoKnownAs": [
+          "at://bnewbold.net"
+        ],
+        "rotationKeys": [
+          "did:key:zQ3shhCGUqDKjStzuDxPkTxN6ujddP4RkEKJJouJGRRkaLGbg",
+          "did:key:zQ3shpKnbdPx3g3CmPf5cRVTPe1HtSwVn5ish3wSnDPQCbLJK"
+        ],
+        "verificationMethods": {
+          "atproto": "did:key:zQ3shULQPBZrbHpyf48oS68ZudUDQNdtWrhV8dafhaTFFUeGP"
+        }
+      }
+    },
+    {
+      "cid": "bafyreib5jp63rwnmhtisdn4x5fpxobp2bzfhalt4tnjg7ox7xhhlxd5wni",
+      "operation": {
+        "sig": "I6nqtYbH4oE8ofYIdFHy3ea55q9lv9aQSRh1VJJHYiFk4yFlaMvY_S3e4JNYW-jcyRw2bvQ3rlGGELvg84Y6kQ",
+        "prev": "bafyreib2o3ojj3kpwybmfbdgukx7dwj63pntiv6kkxiisu7cf6n474l6qi",
+        "type": "plc_operation",
+        "services": {
+          "atproto_pds": {
+            "type": "AtprotoPersonalDataServer",
+            "endpoint": "https://morel.us-east.host.bsky.network"
+          }
+        },
+        "alsoKnownAs": [
+          "at://bnewbold.net"
+        ],
+        "rotationKeys": [
+          "did:key:zDnaemZN1taothXb3MVNZhALxzsu3YzAo8c7axZEpaVGhqzkZ",
+          "did:key:zQ3shhCGUqDKjStzuDxPkTxN6ujddP4RkEKJJouJGRRkaLGbg",
+          "did:key:zQ3shpKnbdPx3g3CmPf5cRVTPe1HtSwVn5ish3wSnDPQCbLJK"
+        ],
+        "verificationMethods": {
+          "atproto": "did:key:zQ3shULQPBZrbHpyf48oS68ZudUDQNdtWrhV8dafhaTFFUeGP",
+          "example": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"
+        }
+      }
+    },
+    {
+      "cid": "bafyreiaoaelqu32ngmqd2mt3v3zvek7k34cvo7lvmk3kseuuaag5eptg5m",
+      "operation": {
+        "sig": "jGQssbr9_1QraxGOpNl9v12lwiEeYxhfTmSbAaRufc19YqVqr1YGRrsHYz6wwvINwK4dFEz7S1Qm_0-zdVP3Kw",
+        "prev": "bafyreib5jp63rwnmhtisdn4x5fpxobp2bzfhalt4tnjg7ox7xhhlxd5wni",
+        "type": "plc_operation",
+        "services": {
+          "atproto_pds": {
+            "type": "AtprotoPersonalDataServer",
+            "endpoint": "https://pds.robocracy.org"
+          }
+        },
+        "alsoKnownAs": [
+          "at://bnewbold.net"
+        ],
+        "rotationKeys": [
+          "did:key:zDnaemZN1taothXb3MVNZhALxzsu3YzAo8c7axZEpaVGhqzkZ",
+          "did:key:zQ3shcciz4AvrLyDnUdZLpQys3kyCsesojRNzJAieyDStGxGo"
+        ],
+        "verificationMethods": {
+          "atproto": "did:key:zQ3shkke2XfFX6A1aRXkCqXKKF9m9N4GH9NCiRuDNFkpsqFmd",
+          "example": "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"
+        }
+      }
+    }
+  ]
+}
