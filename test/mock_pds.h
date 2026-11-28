@@ -55,6 +55,19 @@ const char *wf_mock_pds_get_last_proxy(wf_mock_pds *pds);
 /* The atproto-accept-labelers header of the most recent request, or NULL. */
 const char *wf_mock_pds_get_last_labelers(wf_mock_pds *pds);
 
+/* Like wf_mock_pds_register, but served with HTTP `status` (100-599), so a
+ * test can make the server refuse a call. */
+wf_status wf_mock_pds_register_status(wf_mock_pds *pds, const char *nsid,
+                                      unsigned int status, const char *json);
+
+/* The Authorization header of the most recent request, or NULL. Borrowed
+ * until the next request or free. */
+const char *wf_mock_pds_get_last_authorization(wf_mock_pds *pds);
+
+/* The decoded value of query argument `name` on the most recent request, or
+ * NULL when it was absent. Caller frees. */
+char *wf_mock_pds_get_last_arg(wf_mock_pds *pds, const char *name);
+
 /** Stop the HTTP daemon without discarding registered responses or the
  *  struct. Safe to call more than once. */
 wf_status wf_mock_pds_stop(wf_mock_pds *pds);

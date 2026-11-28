@@ -45,6 +45,25 @@ wf_xrpc_client *wf_agent_get_xrpc_client(wf_agent *agent) {
     return agent ? agent->client : NULL;
 }
 
+static void wf_agent_sync_auth(wf_agent *agent);
+
+wf_status wf_agent_query_via(wf_agent *agent, const char *proxy,
+                             const char *nsid, const wf_xrpc_param *params,
+                             size_t param_count, wf_response *out) {
+    if (!agent || !agent->client) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_query_params_via(agent->client, proxy, nsid, params,
+                                    param_count, out);
+}
+
+wf_status wf_agent_procedure_via(wf_agent *agent, const char *proxy,
+                                 const char *nsid, const char *json_body,
+                                 wf_response *out) {
+    if (!agent || !agent->client) return WF_ERR_INVALID_ARG;
+    wf_agent_sync_auth(agent);
+    return wf_xrpc_procedure_via(agent->client, proxy, nsid, json_body, out);
+}
+
 static void wf_agent_post_result_reset(wf_agent_post_result *result) {
     if (!result) {
         return;

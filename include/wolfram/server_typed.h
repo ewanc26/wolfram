@@ -180,11 +180,28 @@ wf_status wf_agent_get_session_typed(wf_agent *agent,
                                      wf_server_session_info *out);
 
 /* com.atproto.server.getServiceAuth. `exp_or_0` <= 0 means "omit exp";
- * `lxm_or_null` may be NULL to omit the lxm binding. */
+ * `lxm_or_null` may be NULL to omit the lxm binding. Always sent to the PDS
+ * itself with no atproto-proxy header, even when the agent's client proxies
+ * by default. A reply with no `token` is WF_ERR_PARSE. */
 wf_status wf_agent_get_service_auth_typed(wf_agent *agent, const char *aud,
                                           int64_t exp_or_0,
                                           const char *lxm_or_null,
                                           wf_server_auth_token *out);
+
+/* Call a service directly with a service-auth token, for a service the PDS
+ * does not proxy to. Asks the PDS for a token bound to `aud` (the service's
+ * DID) and, when given, the one method `lxm_or_null`, then returns a new
+ * client for `service_url` that sends it as its Bearer token, with the
+ * agent's TLS settings. The caller owns *out (wf_xrpc_client_free).
+ *
+ * The token is short-lived (`exp_or_0` <= 0 leaves the expiry to the PDS)
+ * and the client cannot refresh it: when the service answers WF_ERR_AUTH,
+ * make a new client. On any error, including the PDS refusing the request
+ * (WF_ERR_HTTP / WF_ERR_AUTH), *out is NULL and no request reaches the
+ * service. The token is never logged. */
+wf_status wf_agent_service_client_new(wf_agent *agent, const char *service_url,
+                                      const char *aud, const char *lxm_or_null,
+                                      int64_t exp_or_0, wf_xrpc_client **out);
 
 /* com.atproto.server.checkAccountStatus */
 wf_status wf_agent_check_account_status_typed(wf_agent *agent,
