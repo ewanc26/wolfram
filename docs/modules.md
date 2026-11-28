@@ -2,7 +2,7 @@
 
 | Module                  | Status      | Notes                                          |
 | ------------------------ | ----------- | ----------------------------------------------- |
-| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload, client-level `atproto-proxy` service-proxying header, and RateLimit-* response budgets |
+| `wolfram/xrpc.h`          | Implemented | libcurl-backed query/procedure calls, binary blob upload, `atproto-proxy` service proxying per client or per request (`wf_xrpc_query_params_via`/`wf_xrpc_procedure_via`, identifiers from `wf_xrpc_proxy_identifier`), and RateLimit-* response budgets |
 | `wolfram/rate_limit.h`    | Implemented | Allocation-free parsing of RateLimit-Limit/Remaining/Reset/Policy into a budget with unknown-safe fields |
 | `wolfram/retry.h`         | Implemented | Pure bounded retry decisions and deterministic jittered backoff, with the server's Reset window as a floor |
 | `wolfram/session.h`       | Implemented | PDS login, resume, refresh, get, and logout     |
@@ -16,7 +16,7 @@
 | `wolfram/label.h`        | Implemented | Label subscription (com.atproto.label.subscribeLabels) via WebSocket |
 | `wolfram/sync.h`          | Implemented | Firehose subscribeRepos subscription, commit verification, CAR download, plus getBlob/getBlocks/getRecord/listBlobs/getHead/getLatestCommit/getRepoStatus/listRepos |
 | `wolfram/validate.h`     | Implemented | Runtime Lexicon schema validation (records and named values), refs/unions/format keywords |
-| `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, **video upload** (`wf_agent_upload_video`/`wf_agent_get_video_job_status`/`wf_agent_get_video_upload_limits`), server + app-password management |
+| `wolfram/agent.h`        | Implemented | High-level BskyAgent-style API: session, posts, profile, social graph, feeds, **preferences**, **push registration**, notifications, blobs, **video upload** (`wf_agent_upload_video`/`wf_agent_get_video_job_status`/`wf_agent_get_video_upload_limits`), server + app-password management, proxied requests (`wf_agent_query_via`/`wf_agent_procedure_via`) and direct service calls with a service-auth token (`wf_agent_service_client_new`) |
 | `wolfram/blob.h`         | Implemented | Binary blob upload — image/blob POST (`wf_xrpc_upload_blob`) and dedicated **video** upload (`wf_agent_upload_video`, `wf_uploaded_blob_free`) |
 | `wolfram/chat_typed.h`   | Implemented | Chat (DM) — `chat.bsky.convo`/`group`/`actor`/`moderation` write+query wrappers routed to the user's PDS via the `atproto-proxy` header (`wf_xrpc_client_set_proxy`), including `wf_agent_chat_resolve_member_list` for a typed member list |
 | `wolfram/chat_group.h`   | Implemented | Group-conversation helpers — group detection from `kind`, join-link URL and enabled state, join-rule values |

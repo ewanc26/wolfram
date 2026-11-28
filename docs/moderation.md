@@ -102,6 +102,22 @@ Labels from a labeler the account does not subscribe to are still ignored.
 Official clients always subscribe to Bluesky's moderation labeler; add
 `WF_MOD_BSKY_LABELER_DID` to `wf_mod_prefs.labelers` to match them.
 
+A labeler's own XRPC methods (`tools.ozone.*`, for example) are reached
+through the account's PDS, which forwards a request that names the labeler in
+`atproto-proxy`. Build the name from the labeler's DID and send it on the one
+request that needs it, so the rest of the session still goes to the PDS:
+
+```c
+char *proxy = NULL;
+wf_xrpc_proxy_identifier("did:plc:ar7c4by46qjdydhdevvrndac",
+                         WF_PROXY_SERVICE_LABELER, &proxy);
+wf_xrpc_param p[] = {{"uri", post_uri}};
+wf_response res = {0};
+wf_agent_query_via(agent, proxy, "tools.ozone.moderation.getRecord", p, 1,
+                   &res);
+free(proxy);
+```
+
 ## Parsing labels
 
 A `labels` array (each item with `src`, `uri`, `val`, `cts`) parses into
