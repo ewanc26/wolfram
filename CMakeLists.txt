@@ -351,6 +351,10 @@ add_library(
   src/identity/identity.c
   # Crypto
   $<IF:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>,src/crypto/crypto_wii.c,src/crypto/crypto.c>
+  # base58btc shared by both crypto backends (pure C)
+  src/crypto/base58.c
+  # Private-key multibase codec (goat/atcrypto form, pure C)
+  src/crypto/key_multibase.c
   # Repository (DAG-CBOR, CID, CAR, MST, commit, record, diff, sync)
   src/repo/cbor.c
   src/repo/cid.c
@@ -487,6 +491,8 @@ add_library(
   $<$<NOT:$<BOOL:${WOLFRAM_BUILD_EMBEDDED}>>:src/server/service_auth.c>
   # DID PLC operation build / sign / submit helpers
   src/plc/plc.c
+  # Pre-registered rotation keys for account recovery (#272)
+  src/plc/plc_recovery.c
   # New utilities and embed support
   src/util.c
   src/time.c
@@ -1588,6 +1594,14 @@ if(WOLFRAM_BUILD_TESTS)
   endif()
   add_test(NAME crypto COMMAND test_crypto)
 
+  add_executable(test_key_multibase test/test_key_multibase.c)
+  target_link_libraries(test_key_multibase PRIVATE wolfram)
+  target_include_directories(test_key_multibase PRIVATE test)
+  if(SECP256K1_FOUND)
+    target_compile_definitions(test_key_multibase PRIVATE HAVE_LIBSECP256K1)
+  endif()
+  add_test(NAME key_multibase COMMAND test_key_multibase)
+
   add_executable(test_crypto_interop test/test_crypto_interop.c)
   target_link_libraries(test_crypto_interop PRIVATE wolfram)
   target_include_directories(test_crypto_interop PRIVATE test
@@ -1812,6 +1826,17 @@ if(WOLFRAM_BUILD_TESTS)
   target_link_libraries(test_plc PRIVATE wolfram)
   target_include_directories(test_plc PRIVATE test ${cjson_SOURCE_DIR})
   add_test(NAME plc COMMAND test_plc)
+
+  add_executable(test_plc_recovery test/test_plc_recovery.c)
+  target_link_libraries(test_plc_recovery PRIVATE wolfram)
+  target_include_directories(test_plc_recovery PRIVATE test ${cjson_SOURCE_DIR})
+  target_compile_definitions(
+    test_plc_recovery
+    PRIVATE WF_TEST_VECTOR_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/vectors")
+  if(SECP256K1_FOUND)
+    target_compile_definitions(test_plc_recovery PRIVATE HAVE_LIBSECP256K1)
+  endif()
+  add_test(NAME plc_recovery COMMAND test_plc_recovery)
 
   add_executable(test_identity_mgmt test/test_identity_mgmt.c)
   target_link_libraries(test_identity_mgmt PRIVATE wolfram)

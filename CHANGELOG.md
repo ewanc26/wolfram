@@ -8,6 +8,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- `wolfram/plc_recovery.h` helps you register a rotation key of your own on a did:plc account, as the atproto account-recovery guide recommends. It generates the key and prints its secret in the form `goat key generate` prints. It reads the secret back and refuses one that does not match the did:key you expect, so a mistyped character is caught. It reports whether and at what priority a key is registered. It builds or checks the update that adds or replaces the key, copying every other field forward and refusing an update not signed by a key of the operation before it. `wf_signing_key_to_multibase`/`wf_signing_key_from_multibase` and `wf_plc_operation_verify_with_keys` are the pieces underneath. ([#272](https://github.com/ewanc26/wolfram/issues/272))
 - `wf_xrpc_client_set_accept_labelers` sends `atproto-accept-labelers` on every XRPC request, on all three transports (curl, the Wii socket transport and Mac OS 9). Without it the AppView attaches only its default labels, so a client could never see labels from a labeler the account subscribes to. A value with a control character is refused, so it cannot inject a header. `wf_http_get_public` never sends it. ([cobalt#275](https://github.com/ewanc26/cobalt/issues/275))
 
 ## [0.47.0] - 2026-11-27

@@ -101,6 +101,72 @@ s = wf_identity_verify_handle(client, "alice.example.com", &valid);
 /* valid == 1 only when handle→DID and DID→handle agree. */
 ```
 
+## Recovery rotation keys (`plc_recovery.h`)
+
+The atproto [account recovery guide](https://atproto.com/guides/account-recovery)
+recommends registering a rotation key you hold yourself, ahead of your PDS's
+key, so the account survives losing the PDS. `wolfram/plc_recovery.h` is the
+client half of that.
+
+**Make a key and keep the secret.** The secret string is the private key in
+the multibase form `goat key generate` prints (`z` + base58btc of the
+multicodec prefix and the 32-byte scalar), so `goat` and indigo read it too.
+It has no passphrase and no checksum: store it the way you would store a
+password, and never log it.
+
+```c
+wf_plc_recovery_key key;
+char *secret = NULL, *didkey = NULL;
+wf_plc_recovery_key_generate(WF_PLC_RECOVERY_SCHEME_ROTATION_KEY,
+                             WF_KEY_TYPE_P256, &key);
+wf_plc_recovery_key_encode(&key, &secret);  /* give this to the user */
+wf_plc_recovery_key_public(&key, &didkey);  /* register this */
+wf_signing_key_secret_free(secret);
+wf_plc_recovery_key_clear(&key);
+```
+
+**Read it back, checked.** Because base58 has no checksum, a mistyped
+character usually still decodes, as a different key. Pass the did:key you
+expect and `wf_plc_recovery_key_decode` refuses a secret whose public key does
+not match it (`WF_ERR_VALIDATION`). Structural damage, such as a wrong
+character set, length, prefix or out-of-range scalar, is `WF_ERR_PARSE`.
+
+**Check it is registered.** `wf_plc_rotation_key_check` fetches the DID's
+current operation from the directory and reports the key's index in
+`rotationKeys`, or -1. Index 0 is the highest authority: during the
+directory's 72-hour window, a key can override operations signed by keys
+after it.
+
+**Register it.** There are two routes, and both end in the same local check.
+
+- *The PDS signs* (the usual case, the one `goat account plc add-rotation-key`
+  takes): call `wf_plc_rotation_keys_apply` to get the new `rotationKeys`, pass
+  them to `wf_identity_sign_plc_operation` with the emailed token, then call
+  `wf_plc_rotation_key_update_validate` on the operation the PDS returns
+  before you submit it.
+- *You sign* with a key already in `rotationKeys`:
+  `wf_plc_build_rotation_key_update` fetches the current operation, inserts
+  or replaces the key, copies every other field forward, signs and validates.
+  Submit the result with `wf_plc_submit_operation_raw`.
+
+`wf_plc_rotation_key_update_validate` checks that `prev` is the current
+operation's CID, that the new list is 1 to 5 distinct secp256k1 or P-256
+did:keys, that no other field changed, that the list is the one you asked
+for, and that the signature verifies under a key of the *previous* operation.
+An update cannot vouch for itself by listing its own signer. It cannot see a
+`prev` that has been superseded since you fetched it; the directory checks
+that.
+
+**What was tested.** The suite runs offline. Recorded public operations from
+plc.directory (`test/vectors/plc/rotation_keys.json`) check the CID
+derivation, the index lookup and the signer authority against operations the
+real directory accepted. No live or development PLC directory has been used.
+
+**KEM.** Upstream has not standardised KEM-based rekeying. Keys travel as a
+`wf_plc_recovery_key` tagged with a scheme, so a KEM scheme can be added
+without changing these signatures. Nothing here writes an `atproto_kem`
+verification method; an update carries an existing one forward unchanged.
+
 ## Server: account lifecycle, app passwords, invite codes
 
 ```c

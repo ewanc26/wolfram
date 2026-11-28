@@ -400,6 +400,67 @@ static void test_attestation_payload(void) {
     wf_attestation_payload_free(&b);
 }
 
+/* An update may only be signed by a key from the operation before it. */
+static void test_verify_with_keys(void) {
+    wf_signing_key a, b;
+    char *a_did = NULL, *b_did = NULL;
+    char *unsigned_op = NULL, *signed_op = NULL, *signer = NULL;
+    char prev_b[512], prev_ba[512];
+
+    CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &a) == WF_OK, "gen a");
+    CHECK(wf_signing_key_generate(WF_KEY_TYPE_P256, &b) == WF_OK, "gen b");
+    CHECK(wf_signing_key_public_didkey(&a, &a_did) == WF_OK, "a did");
+    CHECK(wf_signing_key_public_didkey(&b, &b_did) == WF_OK, "b did");
+    if (!a_did || !b_did) goto done;
+
+    /* The update names `a` as its only rotation key and is signed by it. */
+    const char *keys[1] = {a_did};
+    wf_plc_operation_update update = {
+        .rotation_keys = keys,
+        .rotation_keys_count = 1,
+        .prev = "bafyreigh2abc123prevoperationcid",
+    };
+    CHECK(wf_plc_operation_build(&update, &unsigned_op) == WF_OK, "build");
+    CHECK(wf_plc_operation_sign(unsigned_op, &a, &signed_op) == WF_OK, "sign");
+    if (!signed_op) goto done;
+
+    /* Against its own keys it verifies: that is the self-vouching case. */
+    CHECK(wf_plc_operation_verify(signed_op, &signer) == WF_OK, "self");
+    free(signer);
+    signer = NULL;
+
+    snprintf(prev_b, sizeof(prev_b),
+             "{\"type\":\"plc_operation\",\"rotationKeys\":[\"%s\"]}", b_did);
+    CHECK(wf_plc_operation_verify_with_keys(signed_op, prev_b, &signer) ==
+              WF_ERR_INVALID_ARG,
+          "signer absent from previous keys is refused");
+    CHECK(signer == NULL, "no signer on refusal");
+
+    snprintf(prev_ba, sizeof(prev_ba),
+             "{\"type\":\"plc_operation\",\"rotationKeys\":[\"%s\",\"%s\"]}",
+             b_did, a_did);
+    CHECK(wf_plc_operation_verify_with_keys(signed_op, prev_ba, &signer) ==
+              WF_OK,
+          "signer present in previous keys verifies");
+    CHECK(signer && strcmp(signer, a_did) == 0, "signer is a");
+    free(signer);
+    signer = NULL;
+
+    CHECK(wf_plc_operation_verify_with_keys(signed_op, "{}", &signer) ==
+              WF_ERR_PARSE,
+          "previous op without rotationKeys is a parse error");
+    CHECK(wf_plc_operation_verify_with_keys("not json", prev_ba, &signer) ==
+              WF_ERR_PARSE,
+          "malformed signed op");
+
+done:
+    free(signer);
+    wf_plc_operation_free(unsigned_op);
+    wf_plc_operation_free(signed_op);
+    free(a_did);
+    free(b_did);
+}
+
 int main(void) {
     /* P-256 is always available (OpenSSL). */
     build_and_sign_roundtrip(WF_KEY_TYPE_P256);
@@ -409,6 +470,7 @@ int main(void) {
     test_get_last_op_and_build_handle_update();
     test_get_audit_log();
     test_attestation_payload();
+    test_verify_with_keys();
     if (failures == 0) {
         printf("plc: all tests passed\n");
         return 0;

@@ -58,6 +58,16 @@ test(xrpc-server): cover AppView-forwarding request headers
 - Vectors in `test/vectors/spaces/` come from the field guide or the reference `@atproto/space` package. Never regenerate an expected value from Wolfram's own output.
 - `wf_syntax_aturi_parse` is for public `at://` URIs. Do not teach it `at:space/`: the first DID means something else there.
 
+## Recovery rotation keys
+
+- `plc_recovery.h` owns recovery rotation keys: the secret encoding, the registration check and the rotationKeys update. Consumers (MetalBear first) call it; do not rebuild the rotationKeys array or the update op in a consumer.
+- The secret is goat/indigo's private multibase (`z` + base58btc of varint 0x1301 or 0x1306 and the scalar). Do not change it or add a word-phrase form without an owner decision: users write these down, so a format cannot be withdrawn.
+- base58 has no checksum. Keep `wf_plc_recovery_key_decode`'s expected-did:key comparison; it is the only thing that catches a typo.
+- Validate an update against the previous operation's rotationKeys (`wf_plc_operation_verify_with_keys`), never against its own.
+- Vectors: `test/test_key_multibase.c` uses indigo atcrypto's; `test/vectors/plc/rotation_keys.json` holds recorded plc.directory operations. Never take an expected value from Wolfram's own output, and never commit a real private key.
+- Do not write `atproto_kem` entries or describe a KEM scheme as implemented. The scheme enum reserves the slot; the semantics are the owner's to decide.
+- Do not claim a live PLC directory test until one has been run.
+
 ## Classic Mac OS 9
 
 - The Mac OS 9 transport uses Open Transport through the external macTLS async stream API.

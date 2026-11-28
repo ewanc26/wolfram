@@ -23,6 +23,7 @@
 | `wolfram/ozone.h`        | Implemented | Ozone moderation-service / labeler helper — verify and emit labels, build service auth headers. Full typed wrapper coverage across all tools.ozone.* namespaces: moderation, queue, report, team, verification, signature, setting, hosting, server, safelink, communication, and set value wrappers |
 | `wolfram/auth_client.h`  | Implemented | Authenticated XRPC client — DPoP-binding OAuth-authenticated query/procedure/blob-upload (`wf_auth_client_*`) with session refresh and DPoP nonce retry |
 | `wolfram/plc.h`          | Implemented | DID PLC operation build/sign/submit helpers (`wf_plc_*`): create/rotate/tombstone, signing-key and handle operations with ES256 signature + verification |
+| `wolfram/plc_recovery.h` | Implemented | Pre-registered recovery rotation keys: goat-compatible secret encoding, registration check, validated rotation-key update ops (`wf_plc_recovery_*`, `wf_plc_rotation_key_*`) |
 | `wolfram/xrpc_server.h`  | Implemented | Optional XRPC server (libmicrohttpd) — route registration, auth middleware, CORS, buffered JSON POSTs, bounded-memory streaming procedures with interruption cleanup, GET query-param parsing, token-bucket rate limiter (`wf_rate_limiter`) |
 | `wolfram/richtext.h`     | Implemented | Rich text facets, grapheme detection, mention/link/tag parsing |
 | `wolfram/syntax.h`        | Implemented | DID, handle, NSID, TID, AT URI, RFC 3339, BCP 47 validators |
