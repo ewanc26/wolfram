@@ -1,0 +1,19 @@
+app_bsky_graph_get_blocks_main_output
+{
+  "blocks": [
+    {
+      "did": "did:plc:blocksalice",
+      "handle": "alice.bsky.social",
+      "displayName": "Alice",
+      "viewer": {
+        "blocking": "at://did:plc:me/app.bsky.graph.block/blockalice"
+      }
+    },
+    {
+      "did": "did:plc:blocksbob",
+      "handle": "bob.bsky.social",
+      "displayName": "Bob"
+    }
+  ],
+  "cursor": "blocks-cursor-123"
+}

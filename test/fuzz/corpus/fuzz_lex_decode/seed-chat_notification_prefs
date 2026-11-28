@@ -1,0 +1,7 @@
+chat_bsky_notification_get_preferences_main_output
+{
+  "preferences": {
+    "chat": { "include": "all", "push": true },
+    "chatRequest": { "include": "follows", "push": false }
+  }
+}

@@ -6,6 +6,7 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ### Added
 
+- `-DWOLFRAM_BUILD_FUZZ=ON` builds libFuzzer harnesses, under AddressSanitizer and UndefinedBehaviorSanitizer, for every decoder that reads untrusted bytes: firehose, label and chat moderation frames, CAR files, MST and commit blocks, Jetstream messages and all 280 generated lexicon response decoders. A seed corpus built from the existing fixtures is committed and replays on every pull request, and CI fuzzes each harness for a bounded time. It is host-only and off by default. See `docs/fuzzing.md`. ([#274](https://github.com/ewanc26/wolfram/issues/274))
 - `wf_xrpc_client_set_accept_labelers` sends `atproto-accept-labelers` on every XRPC request, on all three transports (curl, the Wii socket transport and Mac OS 9). Without it the AppView attaches only its default labels, so a client could never see labels from a labeler the account subscribes to. A value with a control character is refused, so it cannot inject a header. `wf_http_get_public` never sends it. ([cobalt#275](https://github.com/ewanc26/cobalt/issues/275))
 
 ### Fixed

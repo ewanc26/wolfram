@@ -1,0 +1,1 @@
+{"convoId": "convo-1", "rev": "rev-1", "createdAt": "2024-01-01T00:00:00.000Z", "actorDid": "did:plc:alice", "subjectDid": "did:plc:bob", "seq": 9, "$type": "chat.bsky.moderation.subscribeModEvents#eventConvoFirstMessage"}

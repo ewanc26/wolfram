@@ -58,6 +58,15 @@ test(xrpc-server): cover AppView-forwarding request headers
 - Vectors in `test/vectors/spaces/` come from the field guide or the reference `@atproto/space` package. Never regenerate an expected value from Wolfram's own output.
 - `wf_syntax_aturi_parse` is for public `at://` URIs. Do not teach it `at:space/`: the first DID means something else there.
 
+## Fuzzing
+
+- The harnesses are `test/fuzz/fuzz_*.c`, one `LLVMFuzzerTestOneInput` per public decoder, built only with `-DWOLFRAM_BUILD_FUZZ=ON`; `docs/fuzzing.md` is the specification. Keep the option off by default and host-only: never add a fuzz source to `tools/embedded-sources.txt` or a console build.
+- Adding a decoder that reads network bytes: add a harness, list it in `test/fuzz/CMakeLists.txt`, add seeds to `test/fuzz/make_seeds.py` and run it. The `fuzz` CI job picks up every `test/fuzz/fuzz_*.c`.
+- `fuzz_lex_decode` reads its decoder list from `atproto_lex.h` at configure time. Do not replace that with a hand-written table.
+- Seeds come from `test/fixtures/` through the script's own stdlib CBOR encoder. Never write seeds with Wolfram's encoder.
+- A finding gets a `fix(<scope>)` commit with a regression test in the decoder's existing test file, its input committed as `test/fuzz/corpus/<harness>/crash-<what>`, and a row in the findings table of `docs/fuzzing.md`. Never delete a `crash-*` input.
+- A harness that asserts with `wf_fuzz_check` checks only what the decoder promises. Do not loosen a check to get green; fix the decoder.
+
 ## Classic Mac OS 9
 
 - The Mac OS 9 transport uses Open Transport through the external macTLS async stream API.

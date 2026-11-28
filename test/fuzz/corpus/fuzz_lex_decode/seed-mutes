@@ -1,0 +1,19 @@
+app_bsky_graph_get_mutes_main_output
+{
+  "mutes": [
+    {
+      "did": "did:plc:mutescarol",
+      "handle": "carol.bsky.social",
+      "displayName": "Carol",
+      "viewer": {
+        "muted": true
+      }
+    },
+    {
+      "did": "did:plc:mutesdave",
+      "handle": "dave.bsky.social",
+      "displayName": "Dave"
+    }
+  ],
+  "cursor": "mutes-cursor-456"
+}
