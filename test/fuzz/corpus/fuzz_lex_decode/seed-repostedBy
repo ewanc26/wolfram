@@ -1,0 +1,8 @@
+app_bsky_feed_get_reposted_by_main_output
+{
+  "cursor": "reposted-cursor-3",
+  "repostedBy": [
+    { "did": "did:plc:reposter1", "handle": "grace.example.com", "displayName": "Grace" },
+    { "did": "did:plc:reposter2", "handle": "heidi.example.com" }
+  ]
+}

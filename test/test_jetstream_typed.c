@@ -121,5 +121,47 @@ int main(void) {
         WF_CHECK(ev.did == NULL && ev.kind == WF_JETSTREAM_EVENT_UNKNOWN);
     }
 
+    /* Found by test/fuzz/fuzz_jetstream: an info frame carries neither seq nor
+     * time_us, and the typed parser dereferenced both regardless. */
+    {
+        const char json[] =
+            "{\"kind\":\"info\",\"did\":\"\",\"name\":\"OutdatedCursor\"}";
+        wf_jetstream_event_typed ev = {0};
+        wf_status s =
+            wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev);
+        WF_CHECK(s == WF_OK || s == WF_ERR_PARSE);
+        WF_CHECK(ev.seq == 0 && ev.time_us == 0);
+        if (s == WF_OK) wf_jetstream_event_typed_free(&ev);
+    }
+
+    /* Found by test/fuzz/fuzz_jetstream: a seq or time_us no int64_t holds was
+     * cast to one (undefined behaviour) instead of being rejected, here and in
+     * the sync-family payload seq. */
+    {
+        static const char *const bad[] = {
+            "{\"did\":\"did:plc:a\",\"time_us\":1,\"seq\":1e91,"
+            "\"kind\":\"commit\",\"commit\":{}}",
+            "{\"did\":\"did:plc:a\",\"time_us\":1,\"seq\":-1e30,"
+            "\"kind\":\"commit\",\"commit\":{}}",
+            "{\"did\":\"did:plc:a\",\"time_us\":1,\"seq\":1.5,"
+            "\"kind\":\"commit\",\"commit\":{}}",
+        };
+        for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); i++) {
+            wf_jetstream_event_typed ev = {0};
+            WF_CHECK(wf_jetstream_event_parse_typed(bad[i], strlen(bad[i]),
+                                                    &ev) == WF_ERR_PARSE);
+            WF_CHECK(ev.did == NULL);
+        }
+        const char json[] = "{\"did\":\"did:plc:a\",\"time_us\":1,\"seq\":2,"
+                            "\"kind\":\"fork\",\"fork\":{\"did\":\"did:plc:a\","
+                            "\"seq\":1e91,\"rev\":\"3-fork\"}}";
+        wf_jetstream_event_typed ev = {0};
+        if (wf_jetstream_event_parse_typed(json, sizeof(json) - 1, &ev) ==
+            WF_OK) {
+            WF_CHECK(ev.sync.seq == NULL);
+            wf_jetstream_event_typed_free(&ev);
+        }
+    }
+
     WF_TEST_SUMMARY();
 }

@@ -1,0 +1,16 @@
+app_bsky_graph_get_known_followers_main_output
+{
+  "followers": [
+    {
+      "did": "did:plc:kfeva",
+      "handle": "eve.bsky.social",
+      "displayName": "Eve"
+    },
+    {
+      "did": "did:plc:kffrank",
+      "handle": "frank.bsky.social",
+      "displayName": "Frank"
+    }
+  ],
+  "cursor": "kf-cursor-789"
+}

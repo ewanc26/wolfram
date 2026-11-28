@@ -11,6 +11,7 @@ codes, and explicit ownership (every heap-allocated output has a matching
 | Guide | Module | What it covers |
 |-------|--------|----------------|
 | [getting-started.md](getting-started.md) | build | Prerequisites, building, optional modules, Lexicon generation, examples. |
+| [fuzzing.md](fuzzing.md) | build | The libFuzzer harnesses for the untrusted-input decoders: building with `WOLFRAM_BUILD_FUZZ`, running them, the corpus and what fuzzing has found. |
 | [windows.md](windows.md) | build | The MinGW-w64 cross-build: what the Windows subset contains, what it leaves out, and where a network transport plugs in. |
 | [agent.md](agent.md) | `agent.h` | High-level `wf_agent_*` API: login, posts/replies, feeds, profile, social graph, notifications, blobs, preferences, push, pagination. |
 | [agent_usage.md](agent_usage.md) | `agent.h` | Deeper agent internals and end-to-end usage patterns. |

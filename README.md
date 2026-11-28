@@ -59,6 +59,7 @@ Topic guides:
 - [Getting started](docs/getting-started.md) — install, build, persistence, Lexicon generation, examples
 - [Modules](docs/modules.md) — full module/status table
 - [Rate limits and retries](docs/rate-limit.md) — parsing RateLimit headers and pacing retries
+- [Fuzzing](docs/fuzzing.md) — libFuzzer harnesses for the decoders that read untrusted bytes
 - [Roadmap](docs/roadmap.md) — what's built and what's next
 - [CLI reference](docs/cli.md) — the `wolfram` command-line client
 

@@ -94,6 +94,33 @@ else()
   set(WOLFRAM_BUILD_EMBEDDED OFF)
 endif()
 
+# libFuzzer harnesses for the decoders that read untrusted bytes (firehose,
+# label and chat frames, CAR/MST/commit blocks, Jetstream and the generated
+# lexicon JSON decoders). Off by default and host-only; see docs/fuzzing.md.
+# The sanitizer flags are added here, before any dependency is fetched, so
+# cJSON and libcbor are instrumented along with libwolfram: a harness that
+# only instruments its own file cannot see coverage inside the decoders.
+option(WOLFRAM_BUILD_FUZZ
+       "Build libFuzzer harnesses for the untrusted-input decoders (host only)"
+       OFF)
+if(WOLFRAM_BUILD_FUZZ)
+  if(WOLFRAM_BUILD_EMBEDDED OR WOLFRAM_BUILD_MACOS9_TRANSPORT)
+    message(FATAL_ERROR "WOLFRAM_BUILD_FUZZ is only supported on hosted builds")
+  endif()
+  # Clang links libFuzzer; any other compiler gets a replay-only driver
+  # (test/fuzz/replay_main.c) that runs the committed corpus under the same
+  # sanitizers, so a regression input still replays without a fuzzer.
+  if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    set(WOLFRAM_FUZZ_ENGINE libfuzzer)
+    add_compile_options(-fsanitize=fuzzer-no-link,address,undefined)
+  else()
+    set(WOLFRAM_FUZZ_ENGINE replay)
+    add_compile_options(-fsanitize=address,undefined)
+  endif()
+  add_compile_options(-fno-sanitize-recover=undefined -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=address,undefined)
+endif()
+
 if(WOLFRAM_BUILD_OAUTH_NODE AND WOLFRAM_BUILD_EMBEDDED)
   message(FATAL_ERROR "WOLFRAM_BUILD_OAUTH_NODE is only supported on hosted builds")
 endif()
@@ -217,6 +244,11 @@ if(WOLFRAM_BUILD_WINDOWS)
   # internally, which trips -Wfloat-conversion in cJSON.c. The warning is about
   # the C runtime's header, not cJSON's arithmetic, so build cJSON with the
   # ordinary flags here.
+  set(ENABLE_CUSTOM_COMPILER_FLAGS OFF CACHE BOOL "" FORCE)
+elseif(WOLFRAM_BUILD_FUZZ)
+  # The same -Werror set fails a fuzz build on a newer Clang than cJSON's
+  # release knew (macOS SDK sprintf deprecation under Homebrew LLVM). The
+  # fuzzer wants cJSON instrumented, not linted, so use the ordinary flags.
   set(ENABLE_CUSTOM_COMPILER_FLAGS OFF CACHE BOOL "" FORCE)
 endif()
 FetchContent_Declare(
@@ -2545,6 +2577,13 @@ endif()
 
 if(WOLFRAM_BUILD_CPP)
   add_subdirectory(cpp)
+endif()
+
+if(WOLFRAM_BUILD_FUZZ)
+  # At top level too, so `ctest -L fuzz` finds the replay tests from the
+  # build root when WOLFRAM_BUILD_TESTS is OFF.
+  enable_testing()
+  add_subdirectory(test/fuzz)
 endif()
 
 # ---- Node.js addon (wolfram_core) ----------------------------------------

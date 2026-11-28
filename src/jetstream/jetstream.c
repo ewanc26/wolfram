@@ -688,11 +688,24 @@ static char *wf_jetstream_dup_string(cJSON *parent, const char *key) {
     return wf_str_dup(item->valuestring);
 }
 
+/* A JSON number that is a non-negative integer a double holds exactly. Casting
+ * any other double to int64_t is undefined behaviour (1e91, NaN, -1e30), so
+ * every seq and time_us read below goes through this check first. */
+static int wf_jetstream_safe_uint(const cJSON *item, int64_t *out) {
+    if (!cJSON_IsNumber(item) || !(item->valuedouble >= 0) ||
+        item->valuedouble > 9007199254740991.0 ||
+        (double)(int64_t)item->valuedouble != item->valuedouble)
+        return 0;
+    *out = (int64_t)item->valuedouble;
+    return 1;
+}
+
 static char *wf_jetstream_dup_seq(cJSON *parent, const char *key) {
     cJSON *item = parent ? cJSON_GetObjectItemCaseSensitive(parent, key) : NULL;
-    if (!item || !cJSON_IsNumber(item)) return NULL;
+    int64_t value = 0;
+    if (!wf_jetstream_safe_uint(item, &value)) return NULL;
     char buf[32];
-    snprintf(buf, sizeof(buf), "%lld", (long long)item->valuedouble);
+    snprintf(buf, sizeof(buf), "%lld", (long long)value);
     return wf_str_dup(buf);
 }
 
@@ -779,14 +792,12 @@ wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
      * frames carry neither seq nor time_us, so those are optional. */
     int is_info =
         cJSON_IsString(kind) && strcmp(kind->valuestring, "info") == 0;
-    int time_ok =
-        is_info ||
-        (cJSON_IsNumber(time_us) && time_us->valuedouble >= 0 &&
-         time_us->valuedouble <= 9007199254740991.0 &&
-         (double)(int64_t)time_us->valuedouble == time_us->valuedouble);
+    int64_t seq_value = 0, time_value = 0;
+    int seq_ok = wf_jetstream_safe_uint(seq, &seq_value);
+    int time_ok = wf_jetstream_safe_uint(time_us, &time_value);
     if (!cJSON_IsObject(root) || !cJSON_IsString(kind) ||
         !cJSON_IsString(did) || !did->valuestring ||
-        (!is_info && !cJSON_IsNumber(seq)) || !time_ok) {
+        (!is_info && (!seq_ok || !time_ok))) {
         cJSON_Delete(root);
         return WF_ERR_PARSE;
     }
@@ -796,8 +807,9 @@ wf_status wf_jetstream_event_parse_typed(const char *json, size_t json_len,
         cJSON_Delete(root);
         return WF_ERR_ALLOC;
     }
-    out->seq = (int64_t)seq->valuedouble;
-    out->time_us = (int64_t)time_us->valuedouble;
+    /* An info frame may omit both; they stay 0 then. */
+    out->seq = seq_value;
+    out->time_us = time_value;
 
     wf_status status = WF_ERR_PARSE;
     switch (out->kind) {
