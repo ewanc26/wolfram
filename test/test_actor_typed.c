@@ -4,6 +4,8 @@
  */
 
 #include "wolfram/actor_typed.h"
+#include "wolfram/moderation.h"
+#include "wolfram/agent.h"
 #include "test.h"
 
 #include <cJSON.h>
@@ -249,6 +251,33 @@ int main(void) {
         wf_agent_actor_list_free(&out1);
         wf_agent_profile_view_basic_list_free(&out2);
         wf_agent_actor_like_list_free(&out3);
+    }
+
+    /* A getProfile body's labels are kept on the profile (owned, as on the post
+     * views) and read by the moderation parser, so a client can blur an avatar
+     * or banner the labeler marked; a non-array labels is dropped. */
+    {
+        const char *pj =
+            "{\"did\":\"did:plc:a\",\"handle\":\"a.test\",\"labels\":["
+            "{\"src\":\"did:plc:l\",\"uri\":\"did:plc:a\",\"val\":\"graphic-"
+            "media\"}]}";
+        wf_agent_profile prof = {0};
+        WF_CHECK(wf_agent_parse_profile(pj, strlen(pj), &prof) == WF_OK);
+        WF_CHECK(cJSON_IsArray(prof.labels) &&
+                 cJSON_GetArraySize(prof.labels) == 1);
+        wf_mod_label *labs = NULL;
+        size_t n = 0;
+        WF_CHECK(wf_mod_labels_from_cjson(&labs, &n, prof.labels) == WF_OK);
+        WF_CHECK(n == 1 && strcmp(labs[0].val, "graphic-media") == 0);
+        wf_mod_labels_free(labs, n);
+        wf_agent_profile_free(&prof);
+
+        const char *nj =
+            "{\"did\":\"did:plc:a\",\"handle\":\"a.test\",\"labels\":\"x\"}";
+        wf_agent_profile none = {0};
+        WF_CHECK(wf_agent_parse_profile(nj, strlen(nj), &none) == WF_OK);
+        WF_CHECK(none.labels == NULL);
+        wf_agent_profile_free(&none);
     }
 
     WF_TEST_SUMMARY();
