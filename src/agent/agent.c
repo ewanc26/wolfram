@@ -69,6 +69,7 @@ static void wf_agent_profile_reset(wf_agent_profile *profile) {
     free(profile->following);
     free(profile->blocking);
     free(profile->pinned_post_uri);
+    cJSON_Delete(profile->labels);
     memset(profile, 0, sizeof(*profile));
 }
 
@@ -357,6 +358,16 @@ static wf_status wf_agent_profile_from_response(const wf_response *res,
             out->posts_count = INT_MIN;
         } else {
             out->posts_count = (int)value;
+        }
+    }
+
+    /* Own the labels array, as the post views do; a non-array is dropped. */
+    {
+        cJSON *labels = cJSON_DetachItemFromObject(root, "labels");
+        if (cJSON_IsArray(labels)) {
+            out->labels = labels;
+        } else {
+            cJSON_Delete(labels);
         }
     }
 

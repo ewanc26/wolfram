@@ -249,6 +249,10 @@ typedef struct wf_agent_profile {
     int posts_count;
     /* pinnedPost.uri, or NULL when the account has no pinned post. */
     char *pinned_post_uri;
+    /* The profile's own `labels` array, owned, or NULL when the view carried
+     * none. Read it with wf_mod_labels_from_cjson (wolfram/moderation.h), which
+     * is how a client decides whether to blur the avatar or banner. */
+    cJSON *labels;
 } wf_agent_profile;
 
 wf_status wf_agent_get_profile(wf_agent *agent, const char *actor,

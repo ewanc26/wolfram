@@ -4,6 +4,10 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_agent_profile` keeps the profile's own `labels` array (`cJSON *labels`, owned, NULL when absent), as the post views already did. A client reads it with `wf_mod_labels_from_cjson` to decide whether to blur an avatar or banner the labeler marked. A non-array `labels` is dropped. ([cobalt#275](https://github.com/ewanc26/cobalt/issues/275))
+
 ## [0.48.0] - 2026-11-27
 
 ### Added
