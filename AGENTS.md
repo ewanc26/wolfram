@@ -51,6 +51,11 @@ test(xrpc-server): cover AppView-forwarding request headers
 - `retry.h` owns the bounded retry decision and delay. Keep it pure: no sleeps, threads, clocks or allocation. The caller supplies the attempt count, Reset window and jitter seed.
 - The libcurl transport parses the headers and updates the client readback. Async workers must not write that readback, because their client may already be freed; async callers read `wf_response.rate_limit` from the pending result.
 
+## XRPC server responses
+
+- Every `MHD_queue_response` in `src/server/` is preceded by exactly one `wf_server_finalize` or `wf_server_finalize_fixed` call, placed after the last branch that can still fall back to another response, and its sink is applied before CORS. A new response path that skips it breaks `wf_xrpc_server_set_response_finalizer`'s promise; add the path to `test/test_xrpc_server_finalizer.c`.
+- The finalizer sink is fixed-capacity and on the stack. Do not make it allocate or grow; raise `WF_XRPC_HEADER_SINK_MAX_*` instead.
+
 ## Spaces (experimental)
 
 - Everything under `include/wolfram/spaces/` and `src/spaces/` is experimental. Say so in every new header; `docs/spaces.md` records the upstream revisions it follows. Move the revisions and the code together.

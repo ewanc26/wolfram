@@ -79,6 +79,10 @@ struct wf_xrpc_server {
     void (*auth_mw_free)(void *);
     wf_xrpc_request_observer observer; /* optional, not owned */
     void *observer_ctx;
+    /* Optional response finalizer, not owned; written and read under
+     * routes_mutex (see wf_xrpc_server_set_response_finalizer). */
+    wf_xrpc_response_finalizer finalizer;
+    void *finalizer_ctx;
     wf_rate_limiter *rate_limiter;           /* global IP-based limiter */
     wf_rate_limiter *rate_limiter_owned;     /* non-NULL => server frees it */
     wf_rate_limit_entry *rate_limit_entries; /* per-route list */
@@ -135,6 +139,48 @@ struct wf_xrpc_ws_stream {
     bool reaped;
     struct wf_xrpc_ws_stream *next; /* global list in server */
 };
+
+/* The fixed-capacity header sink a finalizer writes to. Each header is two
+ * NUL-terminated strings packed into `text`; `name_at`/`value_at` are their
+ * offsets. Lives on the stack of the thread sending one response. */
+struct wf_xrpc_header_sink {
+    size_t count;
+    size_t used;
+    size_t name_at[WF_XRPC_HEADER_SINK_MAX_HEADERS];
+    size_t value_at[WF_XRPC_HEADER_SINK_MAX_HEADERS];
+    char text[WF_XRPC_HEADER_SINK_MAX_BYTES];
+};
+
+/* Run the server's response finalizer, if one is installed, for one response
+ * that is about to be queued on `conn`. `sink` is emptied first and holds what
+ * the finalizer added. `req` is the request the handler saw, or NULL when the
+ * server answered before building one; the finalizer then gets a request
+ * built from `nsid`, `path`, `method` and the connection's headers. Every
+ * MHD_queue_response in src/server/ is preceded by exactly one call. */
+void wf_server_finalize(wf_xrpc_server *server, struct MHD_Connection *conn,
+                        const wf_xrpc_request *req, const char *nsid,
+                        const char *path, const char *method,
+                        wf_xrpc_response_kind kind, wf_xrpc_response *resp,
+                        wf_xrpc_header_sink *sink);
+
+/* As wf_server_finalize, for a response whose status and body are already
+ * fixed (an SSE stream, a WebSocket upgrade, a preflight): the finalizer gets
+ * a stand-in carrying `status` and `content_type` (may be NULL), whose changes
+ * are discarded; only the sink is kept. */
+void wf_server_finalize_fixed(wf_xrpc_server *server,
+                              struct MHD_Connection *conn,
+                              const wf_xrpc_request *req, const char *nsid,
+                              const char *path, const char *method,
+                              wf_xrpc_response_kind kind, int status,
+                              const char *content_type,
+                              wf_xrpc_header_sink *sink);
+
+/* Add every header in `sink` to `mhd_resp`. */
+void wf_server_apply_sink(const wf_xrpc_header_sink *sink,
+                          struct MHD_Response *mhd_resp);
+
+/* Free a response's body, content type and headers, and reset it. */
+void wf_xrpc_response_clear(wf_xrpc_response *response);
 
 /* Handle a WebSocket upgrade request for `route` on `conn`: validates the
  * handshake headers, queues the upgrade, and responds 101. Returns MHD_YES

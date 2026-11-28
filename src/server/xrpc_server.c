@@ -53,6 +53,7 @@ typedef struct wf_stream_request_ctx {
     cJSON *params;
     char *raw_query;
     char *authed_subject;
+    wf_xrpc_principal_kind authed_principal_kind;
     wf_xrpc_request_header *atproto_headers;
     size_t atproto_headers_count;
     void *stream_ctx;
@@ -757,12 +758,17 @@ void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
     resp->content_type = content_type ? strdup(content_type) : NULL;
 }
 
+/* True when name/value can be sent as one header line: a non-empty name with
+ * no ':' and neither string able to start another line. */
+static bool wf_server_header_ok(const char *name, const char *value) {
+    return name && name[0] && value && !strchr(name, ':') &&
+           !strchr(name, '\r') && !strchr(name, '\n') && !strchr(value, '\r') &&
+           !strchr(value, '\n');
+}
+
 wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
                                       const char *value) {
-    if (!resp || !name || !name[0] || !value || strchr(name, ':') ||
-        strchr(name, '\r') || strchr(name, '\n') || strchr(value, '\r') ||
-        strchr(value, '\n'))
-        return WF_ERR_INVALID_ARG;
+    if (!resp || !wf_server_header_ok(name, value)) return WF_ERR_INVALID_ARG;
     wf_xrpc_response_header *header = calloc(1, sizeof(*header));
     if (!header) return WF_ERR_ALLOC;
     header->name = strdup(name);
@@ -778,7 +784,49 @@ wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
     return WF_OK;
 }
 
-static void wf_xrpc_response_clear(wf_xrpc_response *response) {
+const char *wf_xrpc_response_get_header(const wf_xrpc_response *resp,
+                                        const char *name) {
+    if (!resp || !name) return NULL;
+    /* add_header prepends, so the first one added is the last in the list. */
+    const char *found = NULL;
+    for (const wf_xrpc_response_header *header = resp->headers; header;
+         header = header->next)
+        if (strcasecmp(header->name, name) == 0) found = header->value;
+    return found;
+}
+
+wf_status wf_xrpc_header_sink_add(wf_xrpc_header_sink *sink, const char *name,
+                                  const char *value) {
+    if (!sink || !wf_server_header_ok(name, value)) return WF_ERR_INVALID_ARG;
+    size_t name_len = strlen(name) + 1;
+    size_t value_len = strlen(value) + 1;
+    if (sink->count >= WF_XRPC_HEADER_SINK_MAX_HEADERS ||
+        name_len > sizeof(sink->text) - sink->used ||
+        value_len > sizeof(sink->text) - sink->used - name_len)
+        return WF_ERR_STATE;
+    sink->name_at[sink->count] = sink->used;
+    memcpy(sink->text + sink->used, name, name_len);
+    sink->used += name_len;
+    sink->value_at[sink->count] = sink->used;
+    memcpy(sink->text + sink->used, value, value_len);
+    sink->used += value_len;
+    sink->count++;
+    return WF_OK;
+}
+
+size_t wf_xrpc_header_sink_count(const wf_xrpc_header_sink *sink) {
+    return sink ? sink->count : 0;
+}
+
+void wf_server_apply_sink(const wf_xrpc_header_sink *sink,
+                          struct MHD_Response *mhd_resp) {
+    if (!sink || !mhd_resp) return;
+    for (size_t i = 0; i < sink->count; i++)
+        MHD_add_response_header(mhd_resp, sink->text + sink->name_at[i],
+                                sink->text + sink->value_at[i]);
+}
+
+void wf_xrpc_response_clear(wf_xrpc_response *response) {
     if (!response) return;
     free(response->body);
     free(response->content_type);
@@ -1219,6 +1267,86 @@ static void wf_server_content_length(struct MHD_Connection *conn,
     request->content_length = (uint64_t)parsed;
 }
 
+void wf_server_finalize(wf_xrpc_server *server, struct MHD_Connection *conn,
+                        const wf_xrpc_request *req, const char *nsid,
+                        const char *path, const char *method,
+                        wf_xrpc_response_kind kind, wf_xrpc_response *resp,
+                        wf_xrpc_header_sink *sink) {
+    if (!sink) return;
+    sink->count = 0;
+    sink->used = 0;
+    if (!server || !resp) return;
+    pthread_mutex_lock(&server->routes_mutex);
+    wf_xrpc_response_finalizer finalizer = server->finalizer;
+    void *ctx = server->finalizer_ctx;
+    pthread_mutex_unlock(&server->routes_mutex);
+    if (!finalizer) return;
+    if (req) {
+        finalizer(ctx, req, kind, resp, sink);
+        return;
+    }
+
+    /* The server answered before it built a request. Give the finalizer one
+     * that borrows everything from the connection, so building it allocates
+     * nothing: no params, no x-atproto-* snapshot. */
+#if defined(WOLFRAM_WIIU)
+    char client_ip[INET_ADDRSTRLEN];
+#else
+    char client_ip[INET6_ADDRSTRLEN];
+#endif
+    wf_server_client_ip(server, conn, client_ip, sizeof(client_ip));
+    wf_xrpc_request basic;
+    memset(&basic, 0, sizeof(basic));
+    basic.nsid = nsid;
+    basic.path = path;
+    basic.method = method;
+    basic.auth_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Authorization");
+    basic.dpop_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
+    basic.cookie_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
+    basic.content_type =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
+    basic.host_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+    basic.atproto_proxy =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "atproto-proxy");
+    basic.accept_language =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Accept-Language");
+    basic.accept_encoding =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Accept-Encoding");
+    basic.atproto_accept_labelers = MHD_lookup_connection_value(
+        conn, MHD_HEADER_KIND, "atproto-accept-labelers");
+    basic.x_bsky_topics =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "X-Bsky-Topics");
+    basic.client_ip = client_ip;
+    wf_server_content_length(conn, &basic);
+    finalizer(ctx, &basic, kind, resp, sink);
+}
+
+void wf_server_finalize_fixed(wf_xrpc_server *server,
+                              struct MHD_Connection *conn,
+                              const wf_xrpc_request *req, const char *nsid,
+                              const char *path, const char *method,
+                              wf_xrpc_response_kind kind, int status,
+                              const char *content_type,
+                              wf_xrpc_header_sink *sink) {
+    /* The stand-in's content type is a local copy so a finalizer that calls
+     * wf_xrpc_response_set_content_type frees nothing it does not own. */
+    char type_buf[64] = "";
+    wf_xrpc_response stand_in = WF_XRPC_RESPONSE_INIT;
+    stand_in.http_status = status;
+    if (content_type) {
+        (void)snprintf(type_buf, sizeof(type_buf), "%s", content_type);
+        stand_in.content_type = type_buf;
+    }
+    wf_server_finalize(server, conn, req, nsid, path, method, kind, &stand_in,
+                       sink);
+    if (stand_in.content_type == type_buf) stand_in.content_type = NULL;
+    wf_xrpc_response_clear(&stand_in);
+}
+
 /* Apply the route/global token bucket to one request. A rejection is expressed
  * through the normal response object so streaming and buffered requests emit
  * exactly the same XRPC body and RateLimit headers. */
@@ -1326,6 +1454,7 @@ wf_stream_request_begin(wf_xrpc_server *server, wf_route *route,
             return stream;
         }
         stream->authed_subject = request.authed_subject;
+        stream->authed_principal_kind = request.authed_principal_kind;
         request.authed_subject = stream->authed_subject;
     }
 
@@ -1349,6 +1478,46 @@ wf_stream_request_begin(wf_xrpc_server *server, wf_route *route,
 static enum MHD_Result wf_stream_request_respond(wf_stream_request_ctx *stream,
                                                  struct MHD_Connection *conn) {
     wf_xrpc_response *response = &stream->response;
+    wf_xrpc_header_sink sink;
+
+    /* The request `begin` saw is gone; rebuild it from what the stream kept,
+     * so the finalizer still sees the authenticated principal. */
+#if defined(WOLFRAM_WIIU)
+    char client_ip[INET_ADDRSTRLEN];
+#else
+    char client_ip[INET6_ADDRSTRLEN];
+#endif
+    wf_server_client_ip(stream->server, conn, client_ip, sizeof(client_ip));
+    wf_xrpc_request request;
+    memset(&request, 0, sizeof(request));
+    request.nsid = stream->nsid;
+    request.path = stream->path;
+    request.method = "POST";
+    request.auth_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Authorization");
+    request.dpop_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "DPoP");
+    request.cookie_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Cookie");
+    request.params = stream->params;
+    request.content_type =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Content-Type");
+    request.host_header =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "Host");
+    request.raw_query = stream->raw_query;
+    request.atproto_proxy =
+        MHD_lookup_connection_value(conn, MHD_HEADER_KIND, "atproto-proxy");
+    request.atproto_headers = stream->atproto_headers;
+    request.atproto_headers_count = stream->atproto_headers_count;
+    request.client_ip = client_ip;
+    request.handler_ctx = stream->route ? stream->route->ctx : NULL;
+    request.authed_subject = stream->authed_subject;
+    request.authed_principal_kind = stream->authed_principal_kind;
+    wf_server_content_length(conn, &request);
+    wf_server_finalize(stream->server, conn, &request, stream->nsid,
+                       stream->path, "POST", WF_XRPC_RESPONSE_BUFFERED,
+                       response, &sink);
+
     if (!response->body) {
         response->body = strdup("");
         response->body_len = 0;
@@ -1364,6 +1533,7 @@ static enum MHD_Result wf_stream_request_respond(wf_stream_request_ctx *stream,
     for (wf_xrpc_response_header *header = response->headers; header;
          header = header->next)
         MHD_add_response_header(mhd_response, header->name, header->value);
+    wf_server_apply_sink(&sink, mhd_response);
     wf_server_apply_cors(stream->server, conn, mhd_response);
     wf_server_observe(stream->server, stream->nsid, stream->path, "POST",
                       (unsigned int)response->http_status);
@@ -1384,6 +1554,10 @@ wf_server_mhd_handler(void *cls, struct MHD_Connection *conn, const char *url,
     struct MHD_Response *mhd_resp;
     wf_xrpc_response resp = WF_XRPC_RESPONSE_INIT;
     wf_xrpc_request req = {0};
+    /* The request a fallback sees; at function scope so the finalizer sees
+     * it too. */
+    wf_xrpc_request freq = {0};
+    wf_xrpc_header_sink sink;
     wf_route_kind kind = WF_ROUTE_QUERY;
     wf_route *route = NULL;
     wf_http_route *http_route = NULL;
@@ -1597,8 +1771,6 @@ process:
              * proxy). The request struct is not built yet at this point, so
              * assemble a minimal one here; the fallback runs before the auth
              * callback and must verify any bearer token itself. */
-            wf_xrpc_request freq;
-            memset(&freq, 0, sizeof(freq));
             freq.nsid = nsid;
             freq.path = url;
             freq.method = method;
@@ -1738,6 +1910,13 @@ process:
     }
 
 send:
+    /* The finalizer sees the request the handler or fallback saw, when there
+     * was one, and goes before the body is handed to MHD so it may change it.
+     */
+    wf_server_finalize(server, conn,
+                       req.path ? &req : (freq.path ? &freq : NULL), nsid, url,
+                       method, WF_XRPC_RESPONSE_BUFFERED, &resp, &sink);
+
     /* Build MHD response */
     if (!resp.body) {
         resp.body = strdup("");
@@ -1764,6 +1943,7 @@ send:
     for (wf_xrpc_response_header *header = resp.headers; header;
          header = header->next)
         MHD_add_response_header(mhd_resp, header->name, header->value);
+    wf_server_apply_sink(&sink, mhd_resp);
     wf_server_apply_cors(server, conn, mhd_resp);
 
     wf_server_observe(server, nsid, url, method, resp.http_status);
@@ -1816,6 +1996,12 @@ sse_stream: {
     MHD_add_response_header(mhd_resp_sse, "Cache-Control", "no-cache");
     MHD_add_response_header(mhd_resp_sse, "Connection", "keep-alive");
     MHD_add_response_header(mhd_resp_sse, "X-Accel-Buffering", "no");
+    /* Here, after the last fallback to `send`, so a stream that failed to
+     * start is finalized once, as the 500 it became. */
+    wf_server_finalize_fixed(server, conn, &req, nsid, url, method,
+                             WF_XRPC_RESPONSE_SSE, MHD_HTTP_OK,
+                             "text/event-stream", &sink);
+    wf_server_apply_sink(&sink, mhd_resp_sse);
     wf_server_apply_cors(server, conn, mhd_resp_sse);
 
     ret = MHD_queue_response(conn, MHD_HTTP_OK, mhd_resp_sse);
@@ -1844,6 +2030,9 @@ cleanup:
         free(raw_pb);
     }
     wf_server_request_headers_free(&req);
+    free((void *)req.raw_query);
+    wf_server_request_headers_free(&freq);
+    free((void *)freq.raw_query);
     free(req.authed_subject); /* server-owned; NULL when no principal */
     return ret;
 }
@@ -1857,19 +2046,23 @@ wf_server_mhd_options(void *cls, struct MHD_Connection *conn, const char *url,
                       const char *upload_data, size_t *upload_data_size,
                       void **con_cls) {
     wf_xrpc_server *server = (wf_xrpc_server *)cls;
-    (void)url;
-    (void)method;
     (void)version;
     (void)upload_data;
     (void)upload_data_size;
     (void)con_cls;
     struct MHD_Response *resp;
     enum MHD_Result ret;
+    wf_xrpc_header_sink sink;
 
     resp = MHD_create_response_from_buffer(0, "", MHD_RESPMEM_PERSISTENT);
     if (!resp) {
         return MHD_NO;
     }
+    char *nsid = wf_server_extract_nsid(url);
+    wf_server_finalize_fixed(server, conn, NULL, nsid, url, method,
+                             WF_XRPC_RESPONSE_PREFLIGHT, 204, NULL, &sink);
+    free(nsid);
+    wf_server_apply_sink(&sink, resp);
     wf_server_apply_cors(server, conn, resp);
     MHD_add_response_header(resp, "Access-Control-Max-Age", "86400");
     ret = MHD_queue_response(conn, 204, resp);
@@ -2362,6 +2555,16 @@ void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
     pthread_mutex_lock(&server->routes_mutex);
     server->observer = cb;
     server->observer_ctx = ctx;
+    pthread_mutex_unlock(&server->routes_mutex);
+}
+
+void wf_xrpc_server_set_response_finalizer(wf_xrpc_server *server,
+                                           wf_xrpc_response_finalizer cb,
+                                           void *ctx) {
+    if (!server) return;
+    pthread_mutex_lock(&server->routes_mutex);
+    server->finalizer = cb;
+    server->finalizer_ctx = ctx;
     pthread_mutex_unlock(&server->routes_mutex);
 }
 

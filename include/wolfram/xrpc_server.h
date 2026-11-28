@@ -165,6 +165,15 @@ void wf_xrpc_response_set_content_type(wf_xrpc_response *resp,
 wf_status wf_xrpc_response_add_header(wf_xrpc_response *resp, const char *name,
                                       const char *value);
 
+/**
+ * The value of the first header named `name` (compared case-insensitively)
+ * that was added with wf_xrpc_response_add_header, or NULL when there is none.
+ * Content-Type is not in this list; read `content_type`. The pointer is owned
+ * by the response and valid until the response is sent.
+ */
+const char *wf_xrpc_response_get_header(const wf_xrpc_response *resp,
+                                        const char *name);
+
 /* ------------------------------------------------------------------ */
 /* Handler callbacks                                                   */
 /* ------------------------------------------------------------------ */
@@ -322,6 +331,88 @@ typedef wf_status (*wf_xrpc_auth_cb)(wf_xrpc_request *req, void *ctx);
 typedef void (*wf_xrpc_request_observer)(void *ctx, const char *nsid,
                                          const char *path, const char *method,
                                          unsigned int status);
+
+/* ------------------------------------------------------------------ */
+/* Response finalizer (optional)                                       */
+/* ------------------------------------------------------------------ */
+
+/* Compile-time feature flag, as for the observer. */
+#define WF_XRPC_HAS_RESPONSE_FINALIZER 1
+
+/** Most headers one finalizer call can add through its sink. */
+#define WF_XRPC_HEADER_SINK_MAX_HEADERS 16
+/** Bytes of header text one sink holds: every name and value, each counted
+ *  with one byte for its terminator. */
+#define WF_XRPC_HEADER_SINK_MAX_BYTES 1024
+
+/**
+ * Fixed-capacity list of response headers a finalizer adds. The server keeps
+ * it on its own stack for the duration of one response, so adding to it never
+ * allocates and it cannot grow past the two limits above.
+ */
+typedef struct wf_xrpc_header_sink wf_xrpc_header_sink;
+
+/**
+ * Append one header to the sink (copies name and value into its storage).
+ *
+ * Returns WF_ERR_INVALID_ARG for a NULL or empty name, a NULL value, or a
+ * name or value that could split the header (a ':' in the name, CR or LF in
+ * either), and WF_ERR_STATE when the sink is full: it already holds
+ * WF_XRPC_HEADER_SINK_MAX_HEADERS headers or the pair does not fit in what is
+ * left of WF_XRPC_HEADER_SINK_MAX_BYTES. A refused header leaves the sink as
+ * it was, so the headers already added are still sent.
+ */
+wf_status wf_xrpc_header_sink_add(wf_xrpc_header_sink *sink, const char *name,
+                                  const char *value);
+
+/** Number of headers in the sink. */
+size_t wf_xrpc_header_sink_count(const wf_xrpc_header_sink *sink);
+
+/** What the finalizer is looking at; see wf_xrpc_response_finalizer. */
+typedef enum {
+    /* A buffered response: every handler, fallback, streaming procedure and
+     * server-generated error. The whole response is the finalizer's. */
+    WF_XRPC_RESPONSE_BUFFERED = 0,
+    /* The 200 that opens a Server-Sent Events stream. */
+    WF_XRPC_RESPONSE_SSE,
+    /* The 101 Switching Protocols that completes a WebSocket upgrade. */
+    WF_XRPC_RESPONSE_WS_UPGRADE,
+    /* The 204 answering a CORS preflight (OPTIONS). */
+    WF_XRPC_RESPONSE_PREFLIGHT,
+} wf_xrpc_response_kind;
+
+/**
+ * Called exactly once for every HTTP response the server sends, just before
+ * it is queued: registered handlers, the fallback, plain HTTP and static
+ * routes, streaming procedures, SSE and WebSocket upgrades, CORS preflights,
+ * and every response the server writes itself (the 400, 401, 405, 413, 429
+ * and 501 errors among them). A connection the server drops without a
+ * response (an allocation failure) gets no call.
+ *
+ * `req` is never NULL. On a request that reached its handler it is the
+ * request the handler saw, `authed_subject` included; on a response the
+ * server wrote before then it carries the path, method, client address and
+ * the raw headers, with `nsid` NULL outside /xrpc and `params` NULL.
+ *
+ * For WF_XRPC_RESPONSE_BUFFERED, `resp` is the final response after the
+ * handler and every server check: the finalizer may read and change its
+ * status, body, content type and headers, and what it leaves is sent.
+ * For the other kinds, `resp` is a stand-in describing the response (status
+ * 200, 101 or 204, its content type, no body) whose changes are ignored:
+ * an SSE stream has already started and a WebSocket upgrade cannot be
+ * refused here. Headers added to `sink` are sent with every kind.
+ *
+ * To charge a request once, test for a header the route already set with
+ * wf_xrpc_response_get_header: the server's own rate limiter adds the
+ * RateLimit-* headers to the 429 it writes. The finalizer runs on a worker
+ * thread and before the observer, which then reports the final status; it
+ * must not block.
+ */
+typedef void (*wf_xrpc_response_finalizer)(void *ctx,
+                                           const wf_xrpc_request *req,
+                                           wf_xrpc_response_kind kind,
+                                           wf_xrpc_response *resp,
+                                           wf_xrpc_header_sink *sink);
 
 /* ------------------------------------------------------------------ */
 /* Server lifecycle                                                    */
@@ -531,6 +622,12 @@ void wf_xrpc_server_set_auth_callback(wf_xrpc_server *server,
 void wf_xrpc_server_set_request_observer(wf_xrpc_server *server,
                                          wf_xrpc_request_observer cb,
                                          void *ctx);
+
+/** Install (or clear, with NULL) the response finalizer. `ctx` is not owned
+ *  by the server. See wf_xrpc_response_finalizer. */
+void wf_xrpc_server_set_response_finalizer(wf_xrpc_server *server,
+                                           wf_xrpc_response_finalizer cb,
+                                           void *ctx);
 
 /**
  * Install (or replace, with NULL) the fallback handler invoked for XRPC

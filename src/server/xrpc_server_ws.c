@@ -691,6 +691,16 @@ enum MHD_Result wf_server_ws_handshake(wf_xrpc_server *server, wf_route *route,
     MHD_add_response_header(resp, "Upgrade", "websocket");
     MHD_add_response_header(resp, "Connection", "Upgrade");
     MHD_add_response_header(resp, "Sec-WebSocket-Accept", accept);
+    /* Last, after every path that can still return MHD_NO and so become the
+     * caller's 400: each response is finalized once. */
+    {
+        wf_xrpc_header_sink sink;
+        wf_server_finalize_fixed(server, conn, request, nsid,
+                                 request ? request->path : NULL, "GET",
+                                 WF_XRPC_RESPONSE_WS_UPGRADE,
+                                 MHD_HTTP_SWITCHING_PROTOCOLS, NULL, &sink);
+        wf_server_apply_sink(&sink, resp);
+    }
     /* Track it until the handover: see wf_ws_notify_connection. */
     wf_ws_pending_add(server, conn, uc);
     MHD_queue_response(conn, MHD_HTTP_SWITCHING_PROTOCOLS, resp);

@@ -4,6 +4,14 @@ Everything that changes for someone using Wolfram goes here, newest first, in th
 
 ## [Unreleased]
 
+### Added
+
+- `wf_xrpc_server_set_response_finalizer` installs a hook the XRPC server calls once for every response it sends, just before queuing it: handlers, the fallback, HTTP and static routes, streaming procedures, SSE streams, WebSocket upgrades, CORS preflights and the server's own 400, 401, 405, 413, 429 and 501 errors. It gets the request, the final response (which it may change, for buffered responses) and a fixed-capacity header sink: `wf_xrpc_header_sink_add` never allocates and returns `WF_ERR_STATE` once the sink is full. `wf_xrpc_response_get_header` lets it see a header a route already set, so a request is charged once. MetalBear needs this to send RateLimit headers on every route. ([#284](https://github.com/ewanc26/wolfram/issues/284))
+
+### Fixed
+
+- The XRPC server leaked the raw query string of every request that reached a handler or the fallback, and the fallback's copy of the `x-atproto-*` request headers. Both are freed once the response is sent. ([#284](https://github.com/ewanc26/wolfram/issues/284))
+
 ## [0.48.0] - 2026-11-27
 
 ### Added
