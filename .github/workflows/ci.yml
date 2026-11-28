@@ -631,6 +631,63 @@ jobs:
             cmake --build build-${{ matrix.target }} -j"$(nproc)"
           fi
 
+  # The libFuzzer harnesses in test/fuzz/ (docs/fuzzing.md). Both legs replay
+  # the committed corpus under ASan and UBSan: clang through libFuzzer, gcc
+  # through the replay-only driver, so the option keeps building on both. The
+  # clang leg then fuzzes each harness for a bounded time; tools/fuzz.sh fails
+  # only on a finding that reproduces, and the reproducer is uploaded.
+  fuzz:
+    name: fuzz (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: clang
+            cc: clang-18
+            cxx: clang++-18
+            packages: clang-18 libclang-rt-18-dev
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+            packages: gcc g++
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          sudo bash tools/apt-install.sh ${{ matrix.packages }} make cmake pkg-config libcurl4-openssl-dev libssl-dev libsecp256k1-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-fuzz \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DWOLFRAM_BUILD_FUZZ=ON \
+            -DWOLFRAM_BUILD_TESTS=OFF \
+            -DWOLFRAM_BUILD_EXAMPLES=OFF
+
+      - name: Build the harnesses
+        run: |
+          targets=$(for c in test/fuzz/fuzz_*.c; do basename "$c" .c; done)
+          cmake --build build-fuzz -j"$(nproc)" --target $targets
+
+      - name: Replay the committed corpus
+        run: ctest --test-dir build-fuzz -L fuzz --output-on-failure
+
+      - name: Fuzz each harness for 45 seconds
+        if: matrix.compiler == 'clang'
+        run: tools/fuzz.sh build-fuzz 45
+
+      - name: Upload reproducers
+        if: failure() && matrix.compiler == 'clang'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-findings
+          path: build-fuzz/fuzz-findings/
+          retention-days: 14
+
   # One name for branch protection to require. It fails when any gating job
   # failed or was cancelled, so a new job is covered by adding it to `needs`
   # here instead of editing repository settings. The desloppify scan and the
@@ -651,6 +708,7 @@ jobs:
       - format
       - flow-scripts
       - macos
+      - fuzz
     runs-on: ubuntu-24.04
     steps:
       - name: Require every gating job to have passed
